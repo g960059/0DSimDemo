@@ -59,14 +59,18 @@ export function ExperimentGraphPresentationV3({
 export function ExperimentOutputGridV3({
   emptyMessage,
   items,
+  scrollMode = "contained",
   variant,
 }: Readonly<{
   emptyMessage?: string;
   items: readonly ExperimentOutputPresentationItemV3[];
+  scrollMode?: "contained" | "parent";
   variant: "pane" | "article";
 }>) {
   const layoutClassName = variant === "pane"
-    ? "min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] overflow-auto px-2 pb-2"
+    ? `min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] px-2 pb-2 ${
+      scrollMode === "contained" ? "overflow-auto" : "overflow-visible"
+    }`
     : "article-output-grid gap-x-2 gap-y-2";
   const itemClassName = variant === "article"
     ? "rounded-lg bg-wb-floating/55 px-2 py-2"

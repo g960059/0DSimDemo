@@ -51,6 +51,7 @@ import {
   updateWorkbenchSurfacePaneV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
 import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
+import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import {
   DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
@@ -1242,6 +1243,44 @@ describe("V3 Dockview Workbench", () => {
     expect(html).toContain("Add output pane");
   });
 
+  it("projects the same panes into a Dockview-free mobile Stage and task deck", () => {
+    const html = renderToStaticMarkup(
+      <WorkbenchMobileStageDeckV3
+        graphPanes={[
+          { paneId: "graph/pv", role: "graph", title: "PV loop" },
+          { paneId: "graph/wave", role: "graph", title: "Waveform" },
+        ]}
+        outputPanes={[{ paneId: "output/main", role: "output", title: "Outputs" }]}
+        controlPanes={[{ paneId: "control/main", role: "control", title: "Controls" }]}
+        graphAddOptions={[{ id: "waveform", label: "Waveform" }]}
+        scenarioContent={<div>Scenario manager content</div>}
+        renderGraphPane={() => <div>Live graph content</div>}
+        renderOutputPane={() => <div>Output content</div>}
+        renderControlPane={() => <div>Control content</div>}
+        onOpenPaneSettings={() => {}}
+        onAddGraphPane={() => undefined}
+        onAddOutputPane={() => undefined}
+        onAddControlPane={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('data-testid="workbench-mobile-stage-deck"');
+    expect(html).toContain('data-testid="workbench-mobile-stage"');
+    expect(html).toContain('data-testid="workbench-mobile-task-scroll"');
+    expect(html).toContain("Live graph content");
+    expect(html).toContain("Control content");
+    expect(html).not.toContain("Output content");
+    expect(html).not.toContain("Scenario manager content");
+    expect(html).not.toContain("dv-groupview");
+    expect(html).not.toContain("<select");
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('aria-label="グラフビュー"');
+    expect(html).toContain('data-mobile-pane-groups="control"');
+    expect(html).toContain('data-mobile-pane-group-role="control"');
+    expect(html).not.toContain("1/2");
+    expect(html.match(/role="tab"/g)).toHaveLength(5);
+  });
+
   it("keeps output and control pane composition Scenario-neutral", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const baselineSurface = createDefaultExperimentSurfaceV3(
@@ -1309,6 +1348,28 @@ describe("V3 Dockview Workbench", () => {
     expect(html).toContain('value="#8b76d1"');
     expect(html).toContain('data-scenario-analysis-pending="true"');
     expect(html).toContain("Recalculating Guyton / Starling: Healthy");
+  });
+
+  it("lets the mobile task deck own Scenario scrolling", () => {
+    const html = renderToStaticMarkup(
+      <WorkbenchScenarioManagerV3
+        variant="embedded-mobile"
+        modelId="model/main-wire-v3"
+        scenarios={[{ scenarioId: "scenario/healthy", label: "Healthy" }]}
+        activeScenarioId="scenario/healthy"
+        presets={[]}
+        strings={DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3}
+        onSelectScenario={() => {}}
+        onAddFromPreset={() => {}}
+        onDuplicateScenario={() => {}}
+        onRenameScenario={() => {}}
+        onDeleteScenario={() => {}}
+      />,
+    );
+
+    expect(html).toContain('data-scenario-manager-variant="embedded-mobile"');
+    expect(html).not.toContain("overflow-y-auto");
+    expect(html).not.toContain("max-h-[280px]");
   });
 
   it("disables Scenario creation at the four-Scenario comparison limit", () => {

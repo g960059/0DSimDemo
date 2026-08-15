@@ -28,9 +28,14 @@ import { useSiteAccountSessionV3 } from "@/components/site/SiteAccountSessionV3"
 
 import {
   WorkbenchDockview,
+  type WorkbenchPaneDefinitionV3,
   type WorkbenchPaneSplitDirectionV3,
 } from "@/components/workbench/WorkbenchDockview";
 import { WorkbenchAreaLayoutV3 } from "@/components/workbench/WorkbenchAreaLayoutV3";
+import {
+  WorkbenchMobileStageDeckV3,
+  useMobileWorkbenchShellV3,
+} from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchBriefingComposerV3 } from "@/components/workbench/WorkbenchBriefingComposerV3";
 import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
@@ -361,6 +366,7 @@ const WorkbenchV3Session = ({
   const { locale } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const mobileWorkbenchShell = useMobileWorkbenchShellV3();
   const resolvedLocale = locale === "ja" || locale === "en" ? locale : "ja";
   const experimentIdRef = React.useRef<string | null>(initialExperimentId);
   const [sessionToken] = React.useState(() => {
@@ -2517,6 +2523,196 @@ const WorkbenchV3Session = ({
     || durableContentAvailable
     || publicationAvailable;
 
+  const graphPaneDefinitions: readonly WorkbenchPaneDefinitionV3[] =
+    graphPanes.map((pane) => ({
+      paneId: pane.paneId,
+      role: pane.role,
+      title: pane.label,
+    }));
+  const outputPaneDefinitions: readonly WorkbenchPaneDefinitionV3[] =
+    outputPanes.map((pane) => ({
+      paneId: pane.paneId,
+      role: pane.role,
+      title: pane.label,
+    }));
+  const controlPaneDefinitions: readonly WorkbenchPaneDefinitionV3[] =
+    controlPanes.map((pane) => ({
+      paneId: pane.paneId,
+      role: pane.role,
+      title: pane.label,
+    }));
+  const graphAddOptions = WORKBENCH_GRAPH_PANE_OPTIONS_V3.map((option) => ({
+    id: option.optionId,
+    label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
+  }));
+  const renderGraphPaneV3 = (paneDefinition: WorkbenchPaneDefinitionV3) => {
+    const graphPane = graphPanes.find(
+      ({ paneId }) => paneId === paneDefinition.paneId,
+    );
+    return graphPane === undefined || contract === null ? (
+      <PaneLoadingV3 />
+    ) : (
+      <GraphPaneBodyV3
+        activeScenarioId={activeScenarioId}
+        playbackRunning={isPlaying}
+        analysisByKey={analysisByKey}
+        analysisHistoryByKey={analysisHistoryByKey}
+        analysisErrorByKey={analysisErrorByKey}
+        contract={contract}
+        frame={latestFrame}
+        onRequestAnalysis={requestAnalysis}
+        operationPending={runtimeOperationPending}
+        pane={graphPane}
+        pendingAnalysisKeys={pendingAnalysisKeys}
+        sampleStore={presentationSampleStore}
+        scenarios={scenarios}
+        surface={surface}
+        visibleScenarioIds={visibleScenarioIds}
+      />
+    );
+  };
+  const renderOutputPaneV3 = (
+    paneDefinition: WorkbenchPaneDefinitionV3,
+    scrollMode: "contained" | "parent" | "section" = "contained",
+  ) => {
+    const pane = outputPanes.find(
+      ({ paneId }) => paneId === paneDefinition.paneId,
+    );
+    if (pane === undefined || contract === null) return <PaneLoadingV3 />;
+    const scenarioId = resolveWorkbenchOutputPaneScenarioIdV3(
+      pane,
+      activeScenarioId,
+      scenarios,
+    );
+    const frame = scenarioId === null
+      ? null
+      : runtimeRef.current?.maybeLatestFrame(scenarioId)
+        ?? (latestFrame?.scenarioId === scenarioId ? latestFrame : null);
+    return (
+      <OutputPaneBodyV3
+        contract={contract}
+        frame={frame}
+        onOpenBindingSettings={() =>
+          openPaneSettings(pane.paneId, "binding")}
+        pane={pane}
+        scrollMode={scrollMode}
+        showBinding={scenarios.length > 1}
+        scenarioLabel={
+          scenarios.find((scenario) => scenario.scenarioId === scenarioId)
+            ?.label ?? "—"
+        }
+      />
+    );
+  };
+  const renderControlPaneV3 = (
+    paneDefinition: WorkbenchPaneDefinitionV3,
+    scrollMode: "contained" | "parent" | "section" = "contained",
+  ) => {
+    const pane = controlPanes.find(
+      ({ paneId }) => paneId === paneDefinition.paneId,
+    );
+    return pane === undefined || contract === null ? (
+      <PaneLoadingV3 />
+    ) : (
+      <ControlPaneBodyV3
+        activeScenarioId={activeScenarioId}
+        contract={contract}
+        controlError={controlError}
+        controlValuesByScenario={controlValuesByScenarioRef.current}
+        disabledByAnalysis={analysisCapturePending || scenarioOperation !== null}
+        onApplyControl={applyControl}
+        onOpenBindingSettings={() =>
+          openPaneSettings(pane.paneId, "binding")}
+        pane={pane}
+        pendingControlId={pendingControlId}
+        scenarios={scenarios}
+        scrollMode={scrollMode}
+      />
+    );
+  };
+  const scenarioManagerPendingIds = contract === null
+    ? []
+    : scenarios.flatMap(({ scenarioId }) =>
+      contract.graphCatalog.some(
+          (graph) =>
+            graph.renderer === "structural-return"
+            && pendingAnalysisKeys.includes(
+              workbenchAnalysisHistoryKeyV3(scenarioId, graph.analysisId),
+            ),
+        )
+        ? [scenarioId]
+        : []);
+  const renderScenarioManagerV3 = (
+    variant: "embedded" | "embedded-mobile",
+  ) => contract === null ? null : (
+    <WorkbenchScenarioManagerV3
+      variant={variant}
+      modelId={contract.modelId}
+      scenarios={scenarios}
+      activeScenarioId={activeScenarioId}
+      pendingScenarioIds={scenarioManagerPendingIds}
+      visibleScenarioIds={visibleScenarioIds}
+      scenarioBaseColors={surface?.scenarioColorSeeds ?? []}
+      presets={scenarioPresets}
+      actionDisabledReasons={
+        scenarioOperation === null
+          ? undefined
+          : {
+              add: t("workbench.editor.scenarioManager.busy"),
+              delete: t("workbench.editor.scenarioManager.busy"),
+              duplicate: t("workbench.editor.scenarioManager.busy"),
+              rename: t("workbench.editor.scenarioManager.busy"),
+            }
+      }
+      onSelectScenario={selectScenarioV3}
+      onToggleScenarioVisibility={toggleScenarioVisibilityV3}
+      onChangeScenarioBaseColor={(scenarioId, colorHex) => {
+        updateSurface((current) =>
+          updateWorkbenchScenarioBaseColorV3(current, scenarioId, colorHex),
+        );
+      }}
+      onAddFromPreset={addScenarioFromPresetV3}
+      onDuplicateScenario={duplicateScenarioV3}
+      onRenameScenario={renameScenarioV3}
+      onDeleteScenario={deleteScenarioV3}
+      strings={{
+        addFromPreset: t("workbench.editor.scenarioManager.addFromPreset"),
+        analysisRunning: t("workbench.live.analysisRecalculating"),
+        baseColor: t("workbench.editor.scenarioManager.baseColor"),
+        close: t("workbench.editor.scenarioManager.close"),
+        copySuffix: t("workbench.editor.scenarioManager.copySuffix"),
+        delete: t("workbench.editor.scenarioManager.delete"),
+        deleteLastScenario: t(
+          "workbench.editor.scenarioManager.deleteLastScenario",
+        ),
+        duplicate: t("workbench.editor.scenarioManager.duplicate"),
+        emptyScenarios: t("workbench.editor.scenarioManager.emptyScenarios"),
+        hideScenario: t("workbench.editor.scenarioManager.hideScenario"),
+        incompatiblePreset: t(
+          "workbench.editor.scenarioManager.incompatiblePreset",
+        ),
+        noPresets: t("workbench.editor.scenarioManager.noPresets"),
+        rename: t("workbench.editor.scenarioManager.rename"),
+        scenarioLimitReached: t(
+          "workbench.editor.scenarioManager.scenarioLimitReached",
+        ),
+        scenarioMenu: t("workbench.editor.scenarioManager.scenarioMenu"),
+        scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
+        scenarios: t("workbench.editor.scenarioManager.scenarios"),
+        showScenario: t("workbench.editor.scenarioManager.showScenario"),
+        title: t("workbench.editor.scenarioManager.title"),
+      }}
+    />
+  );
+  const scenarioErrorNotice = scenarioError === null ? null : (
+    <p
+      className="mx-2 mt-2 shrink-0 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger"
+      role="alert"
+    >
+      {scenarioError}
+    </p>
+  );
+
   return (
     <div
       className={`workbench-root flex h-full min-h-0 w-full flex-col overflow-hidden bg-wb-app text-wb-text transition-[padding-right] duration-200 ease-out motion-reduce:transition-none ${
@@ -2852,275 +3048,101 @@ const WorkbenchV3Session = ({
         </section>
       ) : (
         <WorkbenchPerformanceProfilerV3>
-          <WorkbenchAreaLayoutV3
-          className="min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(420px,55vh)_260px_minmax(560px,70vh)] overflow-y-auto lg:overflow-hidden"
-          inspectorResizeLabel={t("workbench.live.resizeInspectorArea")}
-          outputResizeLabel={t("workbench.live.resizeOutputArea")}
-        >
-          <WorkbenchDockview
-            ariaLabel={t("workbench.live.graphArea")}
-            className="workbench-dockview-main workbench-workspace lg:col-start-1 lg:row-start-1"
-            panes={graphPanes.map((pane) => ({
-              paneId: pane.paneId,
-              role: pane.role,
-              title: pane.label,
-            }))}
-            role="graph"
-            onOpenPaneSettings={openPaneSettings}
-            onRenamePane={renamePaneV3}
-            onDeletePane={deletePaneV3}
-            onSplitPane={splitPaneV3}
-            onAddPane={(graphOptionId) =>
-              addPaneToRoleArea("graph", graphOptionId)
-            }
-            addPaneOptions={WORKBENCH_GRAPH_PANE_OPTIONS_V3.map((option) => ({
-              id: option.optionId,
-              label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
-            }))}
-            addPaneLabel={t("workbench.editor.addPane")}
-            renamePaneLabel={t("workbench.editor.renamePane")}
-            deletePaneLabel={t("workbench.editor.deletePane")}
-            splitRightLabel={t("workbench.editor.splitRight")}
-            splitDownLabel={t("workbench.editor.splitDown")}
-            emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
-            paneSettingsLabel={t("workbench.live.paneSettings")}
-            renderPane={(pane) => {
-              const graphPane = graphPanes.find(
-                ({ paneId }) => paneId === pane.paneId,
-              );
-              return graphPane === undefined || contract === null ? (
-                <PaneLoadingV3 />
-              ) : (
-                <GraphPaneBodyV3
-                  activeScenarioId={activeScenarioId}
-                  playbackRunning={isPlaying}
-                  analysisByKey={analysisByKey}
-                  analysisHistoryByKey={analysisHistoryByKey}
-                  analysisErrorByKey={analysisErrorByKey}
-                  contract={contract}
-                  frame={latestFrame}
-                  onRequestAnalysis={requestAnalysis}
-                  operationPending={runtimeOperationPending}
-                  pane={graphPane}
-                  pendingAnalysisKeys={pendingAnalysisKeys}
-                  sampleStore={presentationSampleStore}
-                  scenarios={scenarios}
-                  surface={surface}
-                  visibleScenarioIds={visibleScenarioIds}
-                />
-              );
-            }}
-          />
-          <WorkbenchDockview
-            ariaLabel={t("workbench.live.outputArea")}
-            className="workbench-bottom-drawer lg:col-start-1 lg:row-start-2"
-            panes={outputPanes.map((pane) => ({
-              paneId: pane.paneId,
-              role: pane.role,
-              title: pane.label,
-            }))}
-            role="output"
-            onOpenPaneSettings={openPaneSettings}
-            onRenamePane={renamePaneV3}
-            onDeletePane={deletePaneV3}
-            onSplitPane={splitPaneV3}
-            onComparePane={scenarios.length > 1
-              ? compareOutputPaneByScenarioV3
-              : undefined}
-            onAddPane={() => addPaneToRoleArea("output")}
-            addPaneLabel={t("workbench.editor.addPane")}
-            renamePaneLabel={t("workbench.editor.renamePane")}
-            deletePaneLabel={t("workbench.editor.deletePane")}
-            splitRightLabel={t("workbench.editor.splitRight")}
-            comparePaneLabel={t("workbench.editor.compareScenarios")}
-            emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
-            paneSettingsLabel={t("workbench.live.paneSettings")}
-            renderPane={(paneDefinition) => {
-              const pane = outputPanes.find(
-                ({ paneId }) => paneId === paneDefinition.paneId,
-              );
-              return pane === undefined || contract === null ? (
-                <PaneLoadingV3 />
-              ) : (() => {
-                const scenarioId = resolveWorkbenchOutputPaneScenarioIdV3(
-                  pane,
-                  activeScenarioId,
-                  scenarios,
-                );
-                const frame = scenarioId === null
-                  ? null
-                  : runtimeRef.current?.maybeLatestFrame(scenarioId)
-                    ?? (latestFrame?.scenarioId === scenarioId
-                      ? latestFrame
-                      : null);
-                return (
-                  <OutputPaneBodyV3
-                    contract={contract}
-                    frame={frame}
-                    onOpenBindingSettings={() =>
-                      openPaneSettings(pane.paneId, "binding")}
-                    pane={pane}
-                    showBinding={scenarios.length > 1}
-                    scenarioLabel={
-                      scenarios.find((scenario) =>
-                        scenario.scenarioId === scenarioId)?.label ?? "—"
-                    }
-                  />
-                );
-              })();
-            }}
-          />
-          <div className="workbench-right-drawer flex min-h-0 flex-col bg-wb-aux lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            {contract !== null && (
-              <div className="shrink-0 border-b border-wb-line">
-                <WorkbenchScenarioManagerV3
-                  variant="embedded"
-                  modelId={contract.modelId}
-                  scenarios={scenarios}
-                  activeScenarioId={activeScenarioId}
-                  pendingScenarioIds={scenarios.flatMap(({ scenarioId }) =>
-                    contract.graphCatalog.some(
-                      (graph) =>
-                        graph.renderer === "structural-return" &&
-                        pendingAnalysisKeys.includes(
-                          workbenchAnalysisHistoryKeyV3(
-                            scenarioId,
-                            graph.analysisId,
-                          ),
-                        ),
-                    )
-                      ? [scenarioId]
-                      : [],
-                  )}
-                  visibleScenarioIds={visibleScenarioIds}
-                  scenarioBaseColors={surface.scenarioColorSeeds}
-                  presets={scenarioPresets}
-                  actionDisabledReasons={
-                    scenarioOperation === null
-                      ? undefined
-                      : {
-                          add: t("workbench.editor.scenarioManager.busy"),
-                          delete: t("workbench.editor.scenarioManager.busy"),
-                          duplicate: t("workbench.editor.scenarioManager.busy"),
-                          rename: t("workbench.editor.scenarioManager.busy"),
-                        }
-                  }
-                  onSelectScenario={selectScenarioV3}
-                  onToggleScenarioVisibility={toggleScenarioVisibilityV3}
-                  onChangeScenarioBaseColor={(scenarioId, colorHex) => {
-                    updateSurface((current) =>
-                      updateWorkbenchScenarioBaseColorV3(
-                        current,
-                        scenarioId,
-                        colorHex,
-                      ),
-                    );
-                  }}
-                  onAddFromPreset={addScenarioFromPresetV3}
-                  onDuplicateScenario={duplicateScenarioV3}
-                  onRenameScenario={renameScenarioV3}
-                  onDeleteScenario={deleteScenarioV3}
-                  strings={{
-                    addFromPreset: t(
-                      "workbench.editor.scenarioManager.addFromPreset",
-                    ),
-                    analysisRunning: t("workbench.live.analysisRecalculating"),
-                    baseColor: t("workbench.editor.scenarioManager.baseColor"),
-                    close: t("workbench.editor.scenarioManager.close"),
-                    copySuffix: t(
-                      "workbench.editor.scenarioManager.copySuffix",
-                    ),
-                    delete: t("workbench.editor.scenarioManager.delete"),
-                    deleteLastScenario: t(
-                      "workbench.editor.scenarioManager.deleteLastScenario",
-                    ),
-                    duplicate: t("workbench.editor.scenarioManager.duplicate"),
-                    emptyScenarios: t(
-                      "workbench.editor.scenarioManager.emptyScenarios",
-                    ),
-                    hideScenario: t(
-                      "workbench.editor.scenarioManager.hideScenario",
-                    ),
-                    incompatiblePreset: t(
-                      "workbench.editor.scenarioManager.incompatiblePreset",
-                    ),
-                    noPresets: t("workbench.editor.scenarioManager.noPresets"),
-                    rename: t("workbench.editor.scenarioManager.rename"),
-                    scenarioLimitReached: t(
-                      "workbench.editor.scenarioManager.scenarioLimitReached",
-                    ),
-                    scenarioMenu: t(
-                      "workbench.editor.scenarioManager.scenarioMenu",
-                    ),
-                    scenarioName: t(
-                      "workbench.editor.scenarioManager.scenarioName",
-                    ),
-                    scenarios: t("workbench.editor.scenarioManager.scenarios"),
-                    showScenario: t(
-                      "workbench.editor.scenarioManager.showScenario",
-                    ),
-                    title: t("workbench.editor.scenarioManager.title"),
-                  }}
+          {mobileWorkbenchShell ? (
+            <WorkbenchMobileStageDeckV3
+              graphPanes={graphPaneDefinitions}
+              outputPanes={outputPaneDefinitions}
+              controlPanes={controlPaneDefinitions}
+              graphAddOptions={graphAddOptions}
+              scenarioContent={renderScenarioManagerV3("embedded-mobile")}
+              scenarioError={scenarioErrorNotice}
+              renderGraphPane={renderGraphPaneV3}
+              renderOutputPane={(pane) => renderOutputPaneV3(pane, "section")}
+              renderControlPane={(pane) =>
+                renderControlPaneV3(pane, "section")}
+              onOpenPaneSettings={openPaneSettings}
+              onAddGraphPane={(optionId) =>
+                addPaneToRoleArea("graph", optionId)}
+              onAddOutputPane={() => addPaneToRoleArea("output")}
+              onAddControlPane={() => addPaneToRoleArea("control")}
+            />
+          ) : (
+            <WorkbenchAreaLayoutV3
+              className="min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(420px,55vh)_260px_minmax(560px,70vh)] overflow-y-auto lg:overflow-hidden"
+              inspectorResizeLabel={t("workbench.live.resizeInspectorArea")}
+              outputResizeLabel={t("workbench.live.resizeOutputArea")}
+            >
+              <WorkbenchDockview
+                ariaLabel={t("workbench.live.graphArea")}
+                className="workbench-dockview-main workbench-workspace lg:col-start-1 lg:row-start-1"
+                panes={graphPaneDefinitions}
+                role="graph"
+                onOpenPaneSettings={openPaneSettings}
+                onRenamePane={renamePaneV3}
+                onDeletePane={deletePaneV3}
+                onSplitPane={splitPaneV3}
+                onAddPane={(graphOptionId) =>
+                  addPaneToRoleArea("graph", graphOptionId)}
+                addPaneOptions={graphAddOptions}
+                addPaneLabel={t("workbench.editor.addPane")}
+                renamePaneLabel={t("workbench.editor.renamePane")}
+                deletePaneLabel={t("workbench.editor.deletePane")}
+                splitRightLabel={t("workbench.editor.splitRight")}
+                splitDownLabel={t("workbench.editor.splitDown")}
+                emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+                paneSettingsLabel={t("workbench.live.paneSettings")}
+                renderPane={renderGraphPaneV3}
+              />
+              <WorkbenchDockview
+                ariaLabel={t("workbench.live.outputArea")}
+                className="workbench-bottom-drawer lg:col-start-1 lg:row-start-2"
+                panes={outputPaneDefinitions}
+                role="output"
+                onOpenPaneSettings={openPaneSettings}
+                onRenamePane={renamePaneV3}
+                onDeletePane={deletePaneV3}
+                onSplitPane={splitPaneV3}
+                onComparePane={scenarios.length > 1
+                  ? compareOutputPaneByScenarioV3
+                  : undefined}
+                onAddPane={() => addPaneToRoleArea("output")}
+                addPaneLabel={t("workbench.editor.addPane")}
+                renamePaneLabel={t("workbench.editor.renamePane")}
+                deletePaneLabel={t("workbench.editor.deletePane")}
+                splitRightLabel={t("workbench.editor.splitRight")}
+                comparePaneLabel={t("workbench.editor.compareScenarios")}
+                emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+                paneSettingsLabel={t("workbench.live.paneSettings")}
+                renderPane={renderOutputPaneV3}
+              />
+              <div className="workbench-right-drawer flex min-h-0 flex-col bg-wb-aux lg:col-start-2 lg:row-span-2 lg:row-start-1">
+                {contract !== null && (
+                  <div className="shrink-0 border-b border-wb-line">
+                    {renderScenarioManagerV3("embedded")}
+                  </div>
+                )}
+                {scenarioErrorNotice}
+                <WorkbenchDockview
+                  ariaLabel={t("workbench.live.controlArea")}
+                  className="min-h-0 flex-1"
+                  panes={controlPaneDefinitions}
+                  role="control"
+                  onOpenPaneSettings={openPaneSettings}
+                  onRenamePane={renamePaneV3}
+                  onDeletePane={deletePaneV3}
+                  onSplitPane={splitPaneV3}
+                  onAddPane={() => addPaneToRoleArea("control")}
+                  addPaneLabel={t("workbench.editor.addPane")}
+                  renamePaneLabel={t("workbench.editor.renamePane")}
+                  deletePaneLabel={t("workbench.editor.deletePane")}
+                  splitDownLabel={t("workbench.editor.splitDown")}
+                  emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
+                  paneSettingsLabel={t("workbench.live.paneSettings")}
+                  renderPane={renderControlPaneV3}
                 />
               </div>
-            )}
-            {scenarioError !== null && (
-              <p
-                className="mx-2 mt-2 shrink-0 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger"
-                role="alert"
-              >
-                {scenarioError}
-              </p>
-            )}
-            <WorkbenchDockview
-              ariaLabel={t("workbench.live.controlArea")}
-              className="min-h-0 flex-1"
-              panes={controlPanes.map((pane) => ({
-                paneId: pane.paneId,
-                role: pane.role,
-                title: pane.label,
-              }))}
-              role="control"
-              onOpenPaneSettings={openPaneSettings}
-              onRenamePane={renamePaneV3}
-              onDeletePane={deletePaneV3}
-              onSplitPane={splitPaneV3}
-              onAddPane={() => addPaneToRoleArea("control")}
-              addPaneLabel={t("workbench.editor.addPane")}
-              renamePaneLabel={t("workbench.editor.renamePane")}
-              deletePaneLabel={t("workbench.editor.deletePane")}
-              splitDownLabel={t("workbench.editor.splitDown")}
-              emptyPaneLabel={t("workbench.editor.emptyPaneArea")}
-              paneSettingsLabel={t("workbench.live.paneSettings")}
-              renderPane={(paneDefinition) => {
-                const pane = controlPanes.find(
-                  ({ paneId }) => paneId === paneDefinition.paneId,
-                );
-                return pane === undefined || contract === null ? (
-                  <PaneLoadingV3 />
-                ) : (
-                  <ControlPaneBodyV3
-                    activeScenarioId={activeScenarioId}
-                    contract={contract}
-                    controlError={controlError}
-                    controlValuesByScenario={
-                      controlValuesByScenarioRef.current
-                    }
-                    disabledByAnalysis={
-                      analysisCapturePending || scenarioOperation !== null
-                    }
-                    onApplyControl={applyControl}
-                    onOpenBindingSettings={() =>
-                      openPaneSettings(pane.paneId, "binding")}
-                    pane={pane}
-                    pendingControlId={pendingControlId}
-                    scenarios={scenarios}
-                  />
-                );
-              }}
-            />
-          </div>
-          </WorkbenchAreaLayoutV3>
+            </WorkbenchAreaLayoutV3>
+          )}
         </WorkbenchPerformanceProfilerV3>
       )}
 
@@ -4732,6 +4754,7 @@ function OutputPaneBodyV3({
   frame,
   onOpenBindingSettings,
   pane,
+  scrollMode = "contained",
   showBinding,
   scenarioLabel,
 }: Readonly<{
@@ -4739,6 +4762,7 @@ function OutputPaneBodyV3({
   frame: StudioSimulationFrameV2 | null;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
+  scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
   scenarioLabel: string;
 }>) {
@@ -4758,7 +4782,9 @@ function OutputPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   return (
-    <div className="workbench-output-pane flex h-full min-h-0 flex-col bg-wb-aux">
+    <div className={`workbench-output-pane flex min-h-0 flex-col bg-wb-aux ${
+      scrollMode === "section" ? "" : "h-full"
+    }`}>
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
@@ -4769,6 +4795,7 @@ function OutputPaneBodyV3({
       />
       <ExperimentOutputGridV3
         variant="pane"
+        scrollMode={scrollMode === "contained" ? "contained" : "parent"}
         emptyMessage={t("workbench.live.noSelectedOutputs")}
         items={selected.map(({ definition: output, item }) => {
           const outputValue = frame?.outputs[item.outputId];
@@ -4800,6 +4827,7 @@ function ControlPaneBodyV3({
   pane,
   pendingControlId,
   scenarios,
+  scrollMode = "contained",
 }: Readonly<{
   activeScenarioId: string | null;
   contract: ModelContractV2;
@@ -4817,6 +4845,7 @@ function ControlPaneBodyV3({
   pane: ExperimentSurfaceControlPaneV2;
   pendingControlId: string | null;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
+  scrollMode?: "contained" | "parent" | "section";
 }>) {
   const { t } = useTranslation();
   const targetScenarioIds = resolveWorkbenchControlPaneScenarioIdsV3(
@@ -4855,7 +4884,13 @@ function ControlPaneBodyV3({
     return { definition, item, value, mixed };
   });
   return (
-    <section className="workbench-control-pane flex h-full min-h-0 min-w-0 flex-col bg-wb-aux">
+    <section className={`workbench-control-pane flex min-w-0 flex-col bg-wb-aux ${
+      scrollMode === "parent"
+        ? "min-h-full"
+        : scrollMode === "section"
+          ? "min-h-0"
+          : "h-full min-h-0"
+    }`}>
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
@@ -4864,7 +4899,9 @@ function ControlPaneBodyV3({
         testId={`control-pane-binding-${pane.paneId}`}
         visible={scenarios.length > 1}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div className={`min-h-0 flex-1 px-2 pb-2 ${
+        scrollMode === "contained" ? "overflow-y-auto" : "overflow-visible"
+      }`}>
         {contract.controlCatalog.length === 0 ? (
           <p className="p-3 text-xs leading-5 text-wb-muted">
             {t("workbench.live.noRegisteredControls")}

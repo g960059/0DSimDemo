@@ -129,7 +129,7 @@ export type WorkbenchScenarioManagerV3Props =
           onClose: () => void;
         }>
       | Readonly<{
-          variant: "embedded";
+          variant: "embedded" | "embedded-mobile";
           open?: never;
           onClose?: never;
         }>
@@ -366,7 +366,9 @@ export function WorkbenchScenarioManagerV3(
       className={
         variant === "sheet"
           ? "workbench-floating-surface workbench-sheet-enter pointer-events-auto flex h-full w-full max-w-[420px] flex-col text-wb-text"
-          : "workbench-scenario-manager flex max-h-[280px] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden bg-transparent text-wb-text"
+          : variant === "embedded-mobile"
+            ? "workbench-scenario-manager flex min-h-full w-full min-w-0 flex-col bg-transparent text-wb-text"
+            : "workbench-scenario-manager flex max-h-[280px] min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden bg-transparent text-wb-text"
       }
       data-scenario-manager-variant={variant}
       data-testid="workbench-scenario-manager-v3"
@@ -395,7 +397,11 @@ export function WorkbenchScenarioManagerV3(
         </header>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
+      <div
+        className={variant === "embedded-mobile"
+          ? "px-2 pb-3 pt-2"
+          : "min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2"}
+      >
         <section aria-label={strings.scenarios}>
           <header className="flex min-h-10 items-center gap-2 px-2">
             <h3 className="workbench-scenario-heading min-w-0 flex-1 text-wb-text">
@@ -718,7 +724,7 @@ export function WorkbenchScenarioManagerV3(
           document.body,
         );
 
-  if (variant === "embedded")
+  if (variant === "embedded" || variant === "embedded-mobile")
     return (
       <>
         {panel}
