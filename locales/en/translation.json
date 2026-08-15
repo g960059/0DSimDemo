@@ -180,6 +180,16 @@
       "playbackPerformanceLimited": "Current processing cannot sustain the selected speed. All scenarios remain synchronized.",
       "restart": "Restart simulation",
       "graphArea": "Graph area",
+      "mobileGraphPicker": "Choose graph",
+      "mobileFocusGraph": "Focus graph",
+      "mobileShowTasks": "Show task deck",
+      "mobileTaskDeck": "Workbench tasks",
+      "mobilePanePicker": "Choose {{area}} pane",
+      "mobileTaskTabs": {
+        "control": "Controls",
+        "output": "Outputs",
+        "scenarios": "Scenarios"
+      },
       "resizeInspectorArea": "Resize scenario and controller area",
       "resizeOutputArea": "Resize graph and output areas",
       "outputArea": "Output area",

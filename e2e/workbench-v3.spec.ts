@@ -748,7 +748,7 @@ test("@desktop deleting nested Scenario copies never renders a disposed lane", a
   )).toEqual([]);
 });
 
-test("@mobile 390px Workbench uses one graph tab group and keeps controls reachable", async ({
+test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async ({
   page,
 }) => {
   await expect(page.getByTestId("workbench-theme-toggle")).toBeHidden();
@@ -824,26 +824,45 @@ test("@mobile 390px Workbench uses one graph tab group and keeps controls reacha
   await page.getByTestId("v3-playback-rate-backdrop").click();
   await expect(ratePopover).toBeHidden();
 
-  const graphArea = page.getByRole("region", { name: "グラフエリア" });
+  const mobileShell = page.getByTestId("workbench-mobile-stage-deck");
+  const graphArea = page.getByTestId("workbench-mobile-stage");
+  const taskDeck = page.getByTestId("workbench-mobile-task-deck");
+  const taskScroll = page.getByTestId("workbench-mobile-task-scroll");
+  await expect(mobileShell).toBeVisible();
   await expect(graphArea).toBeVisible();
-  await expect(graphArea.locator(".dv-groupview")).toHaveCount(1);
+  await expect(taskDeck).toBeVisible();
+  await expect(mobileShell.locator(".dv-groupview")).toHaveCount(0);
+  await expect.poll(() => taskScroll.evaluate((element) =>
+    getComputedStyle(element).overflowY)).toBe("auto");
   const graphBox = await graphArea.boundingBox();
   expect(graphBox?.width ?? 0).toBeGreaterThan(360);
-  await expect(graphArea.getByText("PV loop", { exact: true })).toBeVisible();
-  await expect(
-    graphArea.getByText("Systemic Guyton / Starling", { exact: true }),
-  ).toBeVisible();
-  await graphArea.getByText("Pressure waveforms", { exact: true }).click();
+  const graphPicker = graphArea.getByRole("combobox", {
+    name: "グラフを選択",
+  });
+  await expect(graphPicker.locator("option")).toHaveCount(3);
+  await graphPicker.selectOption({ label: "Pressure waveforms" });
   await expectNonZeroCanvas(
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );
 
-  const controlArea = page.getByRole("region", { name: "コントロールエリア" });
-  await controlArea.scrollIntoViewIfNeeded();
+  await expect(taskDeck.getByRole("tab", { name: "コントロール" }))
+    .toHaveAttribute("aria-selected", "true");
   await expect(
     page.getByRole("slider", { name: "Systemic resistance" }),
   ).toBeVisible();
-  await openPaneSettings(page, "Parameters");
+  await graphArea.getByRole("button", { name: "グラフを拡大" }).click();
+  await expect(mobileShell).toHaveAttribute("data-graph-focused", "true");
+  await expect(taskScroll).toHaveCount(0);
+  await taskDeck.getByRole("tab", { name: "出力" }).click();
+  await expect(mobileShell).toHaveAttribute("data-graph-focused", "false");
+  await expect(page.getByText("Mean arterial pressure", { exact: true }))
+    .toBeVisible();
+  await taskDeck.getByRole("tab", { name: "Scenario" }).click();
+  await expect(
+    taskDeck.getByTestId("workbench-scenario-manager-v3"),
+  ).toHaveAttribute("data-scenario-manager-variant", "embedded-mobile");
+  await taskDeck.getByRole("tab", { name: "コントロール" }).click();
+  await taskDeck.getByRole("button", { name: "Pane設定" }).click();
   const settings = page.getByRole("dialog", { name: "Pane設定" });
   await expect(settings).toBeVisible();
   await expect(

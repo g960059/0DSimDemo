@@ -239,6 +239,179 @@ body[data-app-theme="light"] {
   box-shadow: var(--wb-shadow-floating);
 }
 
+/*
+ * Smartphone Workbench shell. The graph is the persistent live stage; the
+ * task deck below it is the only vertical scroll owner. Dockview remains the
+ * richer desktop composition tool and is deliberately absent here.
+ */
+.workbench-mobile-stage-deck {
+  display: grid;
+  grid-template-rows: clamp(14.75rem, 42dvh, 21.25rem) minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--wb-zone-aux-bg);
+}
+
+.workbench-mobile-stage-deck[data-graph-focused="true"] {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.workbench-mobile-stage {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 0;
+  background: var(--wb-zone-main-bg);
+  box-shadow: var(--wb-shadow-canvas-recess);
+}
+
+.workbench-mobile-task-deck {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--wb-border);
+  background: var(--wb-zone-aux-bg);
+}
+
+.workbench-mobile-pane-toolbar {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  padding-inline: 0.5rem;
+  border-bottom: 1px solid var(--wb-border);
+  background: var(--wb-tab-strip-bg);
+}
+
+.workbench-mobile-pane-picker {
+  min-width: 0;
+  min-height: 2.5rem;
+  flex: 1 1 auto;
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--wb-text);
+  font: inherit;
+  font-size: var(--wb-type-body);
+  font-weight: var(--wb-weight-emphasis);
+  outline: 0;
+  padding: 0.4rem 0.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workbench-mobile-pane-picker:focus-visible {
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 2px var(--wb-accent);
+}
+
+.workbench-mobile-pane-picker:disabled {
+  color: var(--wb-text-subtle);
+}
+
+.workbench-mobile-toolbar-action {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  color: var(--wb-text-muted);
+  outline: 0;
+  transition: color 120ms ease, background-color 120ms ease,
+    transform 100ms ease-out;
+}
+
+.workbench-mobile-toolbar-action:active {
+  transform: scale(0.96);
+  background: var(--wb-hover-bg);
+  color: var(--wb-text);
+}
+
+.workbench-mobile-toolbar-action:focus-visible {
+  box-shadow: 0 0 0 2px var(--wb-accent);
+}
+
+.workbench-mobile-toolbar-action:disabled {
+  opacity: 0.35;
+}
+
+.workbench-mobile-task-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  background: var(--wb-tab-strip-bg);
+}
+
+.workbench-mobile-task-tab {
+  position: relative;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding-inline: 0.5rem;
+  overflow: hidden;
+  color: var(--wb-text-muted);
+  font-size: var(--wb-type-label);
+  font-weight: var(--wb-weight-emphasis);
+  outline: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 140ms ease, background-color 140ms ease;
+}
+
+.workbench-mobile-task-tab[aria-selected="true"] {
+  color: var(--wb-text);
+  background: var(--wb-zone-aux-bg);
+}
+
+.workbench-mobile-task-tab[aria-selected="true"]::after {
+  position: absolute;
+  inset-inline: 0.75rem;
+  inset-block-end: 0;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--wb-accent);
+  content: "";
+}
+
+.workbench-mobile-task-tab:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--wb-accent);
+}
+
+.workbench-mobile-task-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .workbench-mobile-toolbar-action:hover,
+  .workbench-mobile-task-tab:hover {
+    background: var(--wb-hover-bg);
+    color: var(--wb-text);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workbench-mobile-toolbar-action,
+  .workbench-mobile-task-tab {
+    transition-duration: 0.01ms;
+  }
+}
+
+@media (max-width: 767px) and (max-height: 680px) {
+  .workbench-mobile-stage-deck {
+    grid-template-rows: clamp(12.5rem, 38dvh, 17.5rem) minmax(0, 1fr);
+  }
+
+  .workbench-mobile-stage-deck[data-graph-focused="true"] {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+}
+
 @media (max-width: 1023px) {
   .workbench-bottom-drawer,
   .workbench-right-drawer {
