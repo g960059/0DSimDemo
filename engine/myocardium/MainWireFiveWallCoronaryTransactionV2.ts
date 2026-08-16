@@ -1082,10 +1082,9 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
 }
 
 /**
- * Prepares a reusable physical-volume residual for Phase 2a. This path is not
- * yet an accepted-state authority: it deliberately reuses the current model
- * laws as a cold equation oracle while the flat component writers replace the
- * object materialization one block at a time.
+ * Prepares the reusable physical-volume residual for the active statically
+ * condensed 30-row solve. Component-owned laws and tangents remain the
+ * scientific boundary; accepted-state promotion is owned by the typed Session.
  */
 export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   provider: WholeHeartMechanicsProviderV1<
@@ -2470,11 +2469,9 @@ function finalizeMainWireFiveWallCoronarySelectedCandidateV2<TWallState>(
 }
 
 /**
- * Reassembles the real 14 + 16 backward-Euler residual at a converged legacy
- * candidate without invoking either nested Newton loop. This is a temporary
- * scientific shadow for Phase 2a: it proves that the replacement 30-row
- * system represents the same accepted equations before that system becomes
- * an advancing authority.
+ * Reassembles the real 14 + 16 backward-Euler residual at a converged nested
+ * candidate without invoking either nested Newton loop. This cold scientific
+ * oracle compares the nested candidate with the active 30-row equations.
  */
 export function evaluateMainWireFiveWallCoupledResidualShadowV1<TWallState>(
   previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,

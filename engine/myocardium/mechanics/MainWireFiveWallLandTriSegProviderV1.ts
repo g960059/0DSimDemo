@@ -676,10 +676,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         previous.trisegCoordinates,
         params,
       ) as readonly [number, number];
-      // Fixed-coordinate probes belong to this one prepared accepted step.
-      // Keep their atrial constitutive reuse private to that lifetime, exactly
-      // as the local TriSeg solver keeps one private reuse object per solve.
-      // The cache key includes accepted state, strain, calcium and dt, so an
       return Object.freeze({
         initialScaledInternalCoordinates: initialUnknowns,
         evaluate: (candidateVolumesMl) => {

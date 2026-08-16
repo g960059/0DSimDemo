@@ -360,8 +360,8 @@ measured before promising bit identity across JavaScript and WASM engines.
 
 ## Retention and cleanup
 
-The active Standard-60 exact release satisfies this authority boundary. Before
-release, all official Article/Snapshot placements were re-created on
+The Standard-61 exact release candidate satisfies this authority boundary.
+Before release, all official Article/Snapshot placements were re-created on
 Standard-60 and the obsolete model/content rows were pruned transactionally.
 The execution-plan-free and frame-per-step compatibility paths have therefore
 been deleted. The generic exact loader remains an identity-preserving loader

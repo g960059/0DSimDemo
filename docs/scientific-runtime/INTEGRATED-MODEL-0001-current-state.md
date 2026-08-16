@@ -1,11 +1,11 @@
 # Integrated V3 model: current state
 
-Status: active pre-release exact model; numerically executable, not clinically
-validated
+Status: current pre-release exact model source; numerically executable, not
+clinically validated
 
-## Active exact release
+## Current source release
 
-New production Sessions resolve:
+The checked-in exact release identity is:
 
 ```text
 modelId:
@@ -14,11 +14,11 @@ surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-60 is registered, stable, active, and deployed. It contains one
-self-contained exact executable artifact plus a build-time-generated
-`ExecutionPlanDescriptorV1`. The browser does not compile the model and does
-not rehash the artifact during ordinary loading. Registry admission, immutable
-model identity, manifest equality, and exact content pins are the authority.
+Standard-61 contains one self-contained exact executable artifact plus a
+build-time-generated `ExecutionPlanDescriptorV1`. The browser does not compile
+the model and does not rehash the artifact during ordinary loading. Registry
+admission, immutable model identity, manifest equality, exact content pins,
+and the external active bundle pointer are the authority for deployed Sessions.
 
 Changing numerical behavior, primitive semantics, or checkpoint continuation
 requires a new `modelId`. Byte-only cleanup and optimization instead receive
