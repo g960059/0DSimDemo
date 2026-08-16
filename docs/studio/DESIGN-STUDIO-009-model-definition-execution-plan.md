@@ -250,14 +250,15 @@ This prevents a placeholder zero from being mistaken for evidence and makes
 cold-start cost explicit as a bounded function of the admitted Scenario count.
 Physical iPhone reports confirm that descriptor binding is bounded; continued
 reports keep initialization and time-to-first-frame regressions visible.
-Exact artifact URLs are immutable release identities. New uploads therefore
-carry a one-year `max-age=31536000` Storage TTL, and the Worker fetch uses the
-browser's shared HTTP cache. The registry publisher inspects existing bytes
-first; it may
+Exact artifact URLs are content-addressed implementation-revision identities
+beneath one scientific modelId. New uploads therefore carry a one-year
+`max-age=31536000` Storage TTL, and the Worker fetch uses the browser's shared
+HTTP cache. The registry publisher inspects existing bytes first; it may
 repair cache metadata with a byte-identical PUT, but it refuses a path whose
 bytes differ. This reduces repeated two-megabyte fetch/revalidation cost across
-dedicated Scenario Workers without adding a production compiler, changing a
-model ID, or weakening the exact manifest check performed after import.
+dedicated Scenario Workers without adding a production compiler or weakening
+the exact manifest check performed after import. A revision pointer can move
+under the same modelId only with reproducible byte-exact equivalence evidence.
 `npm run benchmark:model:execution-plan-binding` supplies a local diagnostic:
 it compares repeated Scenario allocation using one privately owned descriptor
 and kernel catalog against the former repeated ownership path while keeping

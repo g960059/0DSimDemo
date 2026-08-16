@@ -16,7 +16,9 @@ export const STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID =
 
 /**
  * Artifact entry-point contract. It is loader metadata, not model identity.
- * Changing executable behaviour still requires a new immutable `modelId`.
+ * One scientific `modelId` may have multiple byte-exact implementation
+ * revisions. Changing admitted numerical behaviour still requires a new
+ * immutable `modelId`.
  */
 /** Exports createCircleHeartExactModelReleaseV1 -> manifest + executables. */
 export type RegisteredModelModuleAbiV2 = "circleheart-exact-model-esm-v1";
@@ -24,6 +26,7 @@ export type RegisteredModelModuleAbiV2 = "circleheart-exact-model-esm-v1";
 export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
   schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
   modelId: string;
+  artifactRevisionId: string;
   manifest: ExactModelKernelManifestV3;
   surfaceRelease: ModelSurfaceReleaseManifestV1;
   moduleAbi: "circleheart-exact-model-esm-v1";
@@ -50,6 +53,7 @@ export function validateStudioModelWorkerReleaseTicketV2(
     "$.moduleAbi",
   );
   const record = exactPlainRecordV2(value, [
+    "artifactRevisionId",
     "artifactUrl",
     "manifest",
     "modelId",
@@ -64,6 +68,15 @@ export function validateStudioModelWorkerReleaseTicketV2(
     );
   }
   assertPortableModelIdentifierV2(record.modelId, "$.modelId");
+  if (
+    typeof record.artifactRevisionId !== "string"
+    || !/^[0-9a-f]{64}$/.test(record.artifactRevisionId)
+  ) {
+    throw new StudioModelReleaseValidationErrorV2(
+      "$.artifactRevisionId",
+      "must be a lowercase SHA-256 implementation revision",
+    );
+  }
   const artifactUrl = validateArtifactUrlV2(
     record.artifactUrl,
     "$.artifactUrl",
@@ -83,6 +96,7 @@ export function validateStudioModelWorkerReleaseTicketV2(
   return Object.freeze({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: record.modelId,
+    artifactRevisionId: record.artifactRevisionId,
     manifest: ownPortableValueV2(record.manifest),
     surfaceRelease: ownPortableValueV2(record.surfaceRelease),
     moduleAbi,

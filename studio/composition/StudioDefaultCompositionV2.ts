@@ -36,6 +36,8 @@ import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import standardRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
 typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 =
@@ -162,6 +164,8 @@ Promise<StudioClientCompositionV2> {
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: composed.contract.modelId,
+      artifactRevisionId:
+        standardRegistryAdmissionLockV1.artifactRevisionId,
       manifest: standardClientDescriptorV1.manifest,
       surfaceRelease: standardSurfaceReleaseV1,
       moduleAbi: "circleheart-exact-model-esm-v1",

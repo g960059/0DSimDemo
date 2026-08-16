@@ -24,32 +24,24 @@ insert into auth.users (
   now()
 );
 
-insert into studio.model_releases (
-  model_id,
-  model_family_id,
-  display_name,
-  manifest,
-  artifact_path,
-  artifact_sha256,
-  registry_fingerprint,
-  source_commit,
-  default_fixture,
-  analysis_profile_id
-) values (
+select public.register_model_release_v2(
   'model/summary-test-v1',
   'model/summary-test',
   'Summary test model',
   '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/summary-test-v1","modelFamilyId":"model/summary-test"}'::jsonb,
-  'models/summary-test-v1.mjs',
-  repeat('c', 64),
   repeat('d', 64),
+  'models/summary-test-v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/model.mjs',
+  repeat('c', 64),
   'summary-test',
   '{"schemaId":"fixture/summary-test-v1"}'::jsonb,
-  'analysis/summary-test-v1'
+  'analysis/summary-test-v1',
+  null,
+  null
 );
 
-insert into studio.model_release_availability (model_id, stage)
-values ('model/summary-test-v1', 'stable');
+select public.set_model_release_stage_v1(
+  'model/summary-test-v1', 'stable'
+);
 
 insert into studio.model_surface_releases (
   surface_release_id, surface_series_id, predecessor_surface_release_id,

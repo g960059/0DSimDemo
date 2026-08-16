@@ -35,6 +35,8 @@ import {
   uploadImmutableExactModelArtifactV1,
 } from "@/tools/registry/ImmutableExactModelArtifactStorageV1";
 
+const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
+
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
   it("accepts only a complete public browser configuration", () => {
@@ -170,6 +172,7 @@ describe("Studio Supabase boundary V1", () => {
         model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
         display_name: "Main Wire Standard",
         manifest: standardClientDescriptorV1.manifest,
+        artifact_revision_id: TEST_ARTIFACT_REVISION_ID_V1,
         artifact_path: "model-releases/exact/model.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
@@ -211,6 +214,7 @@ describe("Studio Supabase boundary V1", () => {
       stage: "stable",
       ticket: {
         modelId: standardClientDescriptorV1.manifest.modelId,
+        artifactRevisionId: TEST_ARTIFACT_REVISION_ID_V1,
         moduleAbi: "circleheart-exact-model-esm-v1",
         surfaceRelease: {
           surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
@@ -240,6 +244,7 @@ describe("Studio Supabase boundary V1", () => {
         model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
         display_name: "Main Wire Standard",
         manifest: standardClientDescriptorV1.manifest,
+        artifact_revision_id: TEST_ARTIFACT_REVISION_ID_V1,
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,
@@ -278,6 +283,58 @@ describe("Studio Supabase boundary V1", () => {
     expect(call).toHaveBeenCalledWith("get_active_model_bundle_v1", {});
   });
 
+  it("refreshes an implementation revision without changing modelId", async () => {
+    let artifactRevisionId = "a".repeat(64);
+    const call = vi.fn(async () => ({
+      data: [{
+        model_id: standardClientDescriptorV1.manifest.modelId,
+        model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
+        display_name: "Main Wire Standard",
+        manifest: standardClientDescriptorV1.manifest,
+        artifact_revision_id: artifactRevisionId,
+        artifact_path:
+          `model-releases/exact/${artifactRevisionId}/standard.mjs`,
+        module_abi: "circleheart-exact-model-esm-v1",
+        default_fixture: standardClientDescriptorV1.defaultFixture,
+        analysis_profile_id: "main-wire-integrated-standard-v1",
+        stage: "stable",
+      }],
+      error: null,
+    }));
+    const surfaceCall = vi.fn().mockResolvedValue({
+      data: [{ manifest: standardSurfaceReleaseV1, stage: "stable" }],
+      error: null,
+    });
+    const resolver = new StudioSupabaseModelReleaseResolverV1({
+      rpc: { call },
+      supabaseOrigin: "https://project.supabase.co",
+      surfaceResolver: new StudioSupabaseModelSurfaceResolverV1({
+        rpc: { call: surfaceCall },
+      }),
+    });
+    const pin = {
+      kind: "release" as const,
+      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
+    };
+
+    const first = await resolver.resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      pin,
+    );
+    artifactRevisionId = "b".repeat(64);
+    resolver.invalidate();
+    const next = await resolver.resolveExactModel(
+      standardClientDescriptorV1.manifest.modelId,
+      pin,
+    );
+
+    expect(first.contract.modelId).toBe(next.contract.modelId);
+    expect(first.ticket.artifactRevisionId).toBe("a".repeat(64));
+    expect(next.ticket.artifactRevisionId).toBe("b".repeat(64));
+    expect(next.ticket.artifactUrl).toContain("b".repeat(64));
+  });
+
   it("keeps an old exact release pinned after the active bundle moves", async () => {
     const modelA = standardClientDescriptorV1.manifest.modelId;
     const modelB = `${modelA}-successor-b`;
@@ -297,6 +354,7 @@ describe("Studio Supabase boundary V1", () => {
       model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
       display_name: "Main Wire",
       manifest,
+      artifact_revision_id: TEST_ARTIFACT_REVISION_ID_V1,
       artifact_path: `model-releases/exact/${encodeURIComponent(modelId)}.mjs`,
       module_abi: moduleAbi,
       default_fixture: standardClientDescriptorV1.defaultFixture,
@@ -524,6 +582,7 @@ describe("Studio Supabase boundary V1", () => {
         model_family_id: standardClientDescriptorV1.manifest.modelFamilyId,
         display_name: "Main Wire Standard",
         manifest: standardClientDescriptorV1.manifest,
+        artifact_revision_id: TEST_ARTIFACT_REVISION_ID_V1,
         artifact_path: "model-releases/exact/standard.mjs",
         module_abi: "circleheart-exact-model-esm-v1",
         default_fixture: standardClientDescriptorV1.defaultFixture,

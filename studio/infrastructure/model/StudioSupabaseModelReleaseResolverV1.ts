@@ -230,6 +230,10 @@ export class StudioSupabaseModelReleaseResolverV1 {
     }
     const row = value as Record<string, unknown>;
     const modelId = requiredStringV1(row.model_id, "model_id");
+    const artifactRevisionId = requiredSha256V1(
+      row.artifact_revision_id,
+      "artifact_revision_id",
+    );
     const artifactPath = requiredStringV1(row.artifact_path, "artifact_path");
     const moduleAbi = validateRegisteredModelModuleAbiV2(
       row.module_abi,
@@ -281,6 +285,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
+      artifactRevisionId,
       manifest: kernel,
       surfaceRelease: surface.manifest,
       moduleAbi,
@@ -300,6 +305,13 @@ export class StudioSupabaseModelReleaseResolverV1 {
         : { activeBundleVersion }),
     });
   }
+}
+
+function requiredSha256V1(value: unknown, field: string): string {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error(`Exact model registry returned invalid ${field}`);
+  }
+  return value;
 }
 
 function nonnegativeIntegerV1(value: unknown, field: string): number {

@@ -41,9 +41,12 @@ playback rate, lower visual cadence, fewer background jobs, or lower Canvas
 cost. It may not select different equations, accepted step size, solver
 tolerances, event order, output meaning, or checkpoint semantics.
 
-Every numerical implementation change that can change accepted behavior or
-exact executable bytes receives a new `modelId`. Graphs, presentation-only
-derived values, and Article Briefing remain Surface or content concerns.
+Every change that alters accepted behavior, primitive output meaning, or exact
+checkpoint continuation receives a new `modelId`. Artifact-byte changes alone
+receive a new immutable implementation revision and may stay under the same
+model only after byte-exact predecessor comparison. Graphs,
+presentation-only derived values, and Article Briefing remain Surface or
+content concerns.
 
 ## Non-negotiable invariants
 

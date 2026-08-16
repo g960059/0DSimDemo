@@ -55,11 +55,12 @@ export type MeasuredExactModelRuntimeLoadV2 = Readonly<{
  */
 export class DynamicExactModelRuntimeLoaderV2 {
   readonly #fetchArtifact: ExactModelArtifactFetchPortV2;
-  readonly #runtimePromises = new Map<string, Readonly<{
-    canonicalTicket: string;
-    promise: Promise<ResolvedExactModelRuntimeV2>;
-  }>>();
-  readonly #coldTimingByModelId = new Map<
+  readonly #runtimePromises = new Map<
+    string,
+    Promise<ResolvedExactModelRuntimeV2>
+  >();
+  readonly #artifactIdentityByRevision = new Map<string, string>();
+  readonly #coldTimingByTicket = new Map<
     string,
     ExactModelRuntimeLoadTimingV2
   >();
@@ -73,21 +74,35 @@ export class DynamicExactModelRuntimeLoaderV2 {
   load(ticketValue: unknown): Promise<ResolvedExactModelRuntimeV2> {
     const ticket = validateStudioModelWorkerReleaseTicketV2(ticketValue);
     const canonicalTicket = studioCanonicalJsonStringify(ticket);
-    const cached = this.#runtimePromises.get(ticket.modelId);
-    if (cached !== undefined) {
-      if (cached.canonicalTicket !== canonicalTicket) {
-        return Promise.reject(new Error(
-          "Exact modelId was requested with another immutable release ticket",
-        ));
-      }
-      return cached.promise;
+    const artifactIdentity = studioCanonicalJsonStringify({
+      artifactRevisionId: ticket.artifactRevisionId,
+      artifactUrl: ticket.artifactUrl,
+      manifest: ticket.manifest,
+      modelId: ticket.modelId,
+      moduleAbi: ticket.moduleAbi,
+    });
+    const registeredIdentity = this.#artifactIdentityByRevision.get(
+      ticket.artifactRevisionId,
+    );
+    if (
+      registeredIdentity !== undefined
+      && registeredIdentity !== artifactIdentity
+    ) {
+      return Promise.reject(new Error(
+        "Exact artifact revision was requested with another immutable release ticket",
+      ));
     }
-    const pending = this.#loadUncached(ticket);
-    const entry = Object.freeze({ canonicalTicket, promise: pending });
-    this.#runtimePromises.set(ticket.modelId, entry);
+    const cached = this.#runtimePromises.get(canonicalTicket);
+    if (cached !== undefined) return cached;
+    this.#artifactIdentityByRevision.set(
+      ticket.artifactRevisionId,
+      artifactIdentity,
+    );
+    const pending = this.#loadUncached(ticket, canonicalTicket);
+    this.#runtimePromises.set(canonicalTicket, pending);
     void pending.catch(() => {
-      if (this.#runtimePromises.get(ticket.modelId) === entry) {
-        this.#runtimePromises.delete(ticket.modelId);
+      if (this.#runtimePromises.get(canonicalTicket) === pending) {
+        this.#runtimePromises.delete(canonicalTicket);
       }
     });
     return pending;
@@ -97,10 +112,11 @@ export class DynamicExactModelRuntimeLoaderV2 {
     ticketValue: unknown,
   ): Promise<MeasuredExactModelRuntimeLoadV2> {
     const ticket = validateStudioModelWorkerReleaseTicketV2(ticketValue);
-    const cacheHit = this.#runtimePromises.has(ticket.modelId);
+    const canonicalTicket = studioCanonicalJsonStringify(ticket);
+    const cacheHit = this.#runtimePromises.has(canonicalTicket);
     const startedAtMs = monotonicNowV2();
     const runtime = await this.load(ticket);
-    const cold = this.#coldTimingByModelId.get(ticket.modelId);
+    const cold = this.#coldTimingByTicket.get(canonicalTicket);
     if (cold === undefined) {
       throw new Error("Exact model runtime load timing is unavailable");
     }
@@ -121,6 +137,7 @@ export class DynamicExactModelRuntimeLoaderV2 {
 
   async #loadUncached(
     ticket: StudioModelWorkerReleaseTicketV2,
+    canonicalTicket: string,
   ): Promise<ResolvedExactModelRuntimeV2> {
     const totalStartedAtMs = monotonicNowV2();
     const fetchStartedAtMs = monotonicNowV2();
@@ -171,7 +188,7 @@ export class DynamicExactModelRuntimeLoaderV2 {
       composed.contract,
     );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
-    this.#coldTimingByModelId.set(ticket.modelId, Object.freeze({
+    this.#coldTimingByTicket.set(canonicalTicket, Object.freeze({
       cacheHit: false,
       artifactBytes: buffer.byteLength,
       artifactFetchMs,
