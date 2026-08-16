@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select plan(22);
 
 select lives_ok(
   $$
@@ -191,13 +191,29 @@ select throws_ok(
 
 select lives_ok(
   $$
-    select public.rebind_model_artifact_revision_v1(
+    select public.register_model_release_v2(
       'model/dynamic-loader-test-v1',
+      'model/dynamic-loader-test',
+      'Dynamic loader test',
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-test-v1","modelFamilyId":"model/dynamic-loader-test"}'::jsonb,
+      repeat('d', 64),
+      'model-releases/model/dynamic-loader-test-v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/model.mjs',
+      repeat('e', 64),
+      'dynamic-loader-successor-redeploy',
+      '{"schemaId":"fixture/test-v1","value":1}'::jsonb,
+      'analysis/test-v1',
       repeat('b', 64),
-      repeat('d', 64)
+      repeat('c', 64)
     )
   $$,
-  'A rollback can be reversed through the same stored equivalence edge'
+  'Redeploying an already registered successor safely rolls forward through the stored equivalence edge'
+);
+
+select is(
+  (select version from studio.model_artifact_bindings
+    where model_id = 'model/dynamic-loader-test-v1'),
+  3::bigint,
+  'Roll-forward redeployment increments the artifact binding CAS version'
 );
 
 select lives_ok(
@@ -209,6 +225,13 @@ select lives_ok(
     )
   $$,
   'Rebinding to the current revision is idempotent'
+);
+
+select is(
+  (select version from studio.model_artifact_bindings
+    where model_id = 'model/dynamic-loader-test-v1'),
+  3::bigint,
+  'An idempotent rebind does not increment the artifact binding version'
 );
 
 select throws_ok(

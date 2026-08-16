@@ -337,6 +337,37 @@ begin
       using errcode = '22023';
   end if;
 
+  select * into existing_artifact
+  from studio.model_artifact_revisions
+  where model_id = p_model_id
+    and artifact_revision_id = p_artifact_revision_id;
+
+  if found then
+    if existing_artifact.artifact_path is distinct from p_artifact_path
+      or existing_artifact.artifact_sha256 is distinct from p_artifact_sha256
+      or existing_artifact.predecessor_artifact_revision_id
+        is distinct from p_expected_artifact_revision_id
+      or existing_artifact.equivalence_report_sha256
+        is distinct from p_equivalence_report_sha256
+    then
+      raise exception 'artifact revision % is already registered with different bytes or evidence',
+        p_artifact_revision_id using errcode = '23505';
+    end if;
+
+    update studio.model_artifact_bindings
+    set artifact_revision_id = p_artifact_revision_id,
+        version = current_binding.version + 1,
+        updated_at = now()
+    where model_id = p_model_id
+    returning * into current_binding;
+
+    return jsonb_build_object(
+      'modelId', p_model_id,
+      'artifactRevisionId', current_binding.artifact_revision_id,
+      'artifactBindingVersion', current_binding.version
+    );
+  end if;
+
   insert into studio.model_artifact_revisions (
     artifact_revision_id,
     model_id,
