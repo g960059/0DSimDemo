@@ -753,14 +753,23 @@ function parseEquivalenceReportV1(
       fail(`artifact equivalence report case ${index} is invalid`);
     }
     const artifactCase = value as Record<string, unknown>;
+    const caseKeys = Object.keys(artifactCase).sort();
+    const expectedCaseKeys = [
+      "acceptedStepCount",
+      "advancedFrameEquality",
+      "caseId",
+      "exactCaptureEquality",
+      "initialFrameEquality",
+    ];
     if (
-      typeof artifactCase.caseId !== "string"
+      caseKeys.length !== expectedCaseKeys.length
+      || caseKeys.some((key, keyIndex) => key !== expectedCaseKeys[keyIndex])
+      || typeof artifactCase.caseId !== "string"
       || !Number.isSafeInteger(artifactCase.acceptedStepCount)
       || (artifactCase.acceptedStepCount as number) <= 0
-      || typeof artifactCase.frameSequenceSha256 !== "string"
-      || !/^[0-9a-f]{64}$/.test(artifactCase.frameSequenceSha256)
-      || typeof artifactCase.captureSha256 !== "string"
-      || !/^[0-9a-f]{64}$/.test(artifactCase.captureSha256)
+      || artifactCase.initialFrameEquality !== "byte-exact"
+      || artifactCase.advancedFrameEquality !== "byte-exact"
+      || artifactCase.exactCaptureEquality !== "byte-exact"
     ) {
       fail(`artifact equivalence report case ${index} is invalid`);
     }

@@ -41,8 +41,9 @@ export type ExactModelArtifactEquivalenceReportV1 = Readonly<{
   cases: readonly Readonly<{
     caseId: string;
     acceptedStepCount: number;
-    frameSequenceSha256: string;
-    captureSha256: string;
+    initialFrameEquality: "byte-exact";
+    advancedFrameEquality: "byte-exact";
+    exactCaptureEquality: "byte-exact";
   }>[];
 }>;
 
@@ -103,7 +104,6 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
       createSessionV1(predecessor, runtimeSessionId, scenario),
       createSessionV1(candidate, runtimeSessionId, scenario),
     ]);
-    const frameHash = createHash("sha256");
     try {
       assertCanonicalEqualV1(
         predecessor.executables.simulationAdapter.currentFrame({
@@ -127,13 +127,11 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
           candidate.executables.simulationAdapter
             .advanceOnePresentationStep({ runtimeSessionId, scenarioId }),
         ]);
-        const canonicalFrame = assertCanonicalEqualV1(
+        assertCanonicalEqualV1(
           previousFrame,
           candidateFrame,
           `${corpusCase.caseId} frame ${stepIndex + 1}`,
         );
-        frameHash.update(canonicalFrame);
-        frameHash.update("\n");
       }
       const [predecessorCapture, candidateCapture] = await Promise.all([
         captureV1(
@@ -151,7 +149,7 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
           fixture,
         ),
       ]);
-      const canonicalCapture = assertCanonicalEqualV1(
+      assertCanonicalEqualV1(
         predecessorCapture,
         candidateCapture,
         `${corpusCase.caseId} exact capture`,
@@ -159,8 +157,9 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
       cases.push(Object.freeze({
         caseId: corpusCase.caseId,
         acceptedStepCount: corpusCase.acceptedStepCount,
-        frameSequenceSha256: frameHash.digest("hex"),
-        captureSha256: sha256V1(canonicalCapture),
+        initialFrameEquality: "byte-exact" as const,
+        advancedFrameEquality: "byte-exact" as const,
+        exactCaptureEquality: "byte-exact" as const,
       }));
     } finally {
       predecessor.executables.simulationAdapter.disposeSession(
@@ -262,13 +261,12 @@ function assertCanonicalEqualV1(
   predecessor: unknown,
   candidate: unknown,
   label: string,
-): string {
+): void {
   const previous = studioCanonicalJsonStringify(predecessor);
   const next = studioCanonicalJsonStringify(candidate);
   if (previous !== next) {
     throw new Error(`${label} changed under the same scientific modelId`);
   }
-  return previous;
 }
 
 export function exactModelArtifactEquivalenceReportSha256V1(
