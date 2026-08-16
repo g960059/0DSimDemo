@@ -162,10 +162,11 @@ iterations but never relax final residual, conservation, bound, material, or
 event gates. A changed fixture, discontinuous clock/revision, restore, or
 failed candidate invalidates incompatible predictor history.
 
-The object Session and alternative 32-variable/trust-region formulations are
-scientific or construction oracles, not production fallback paths. An oracle
-may be deleted only after a named replacement gate proves the same scientific
-property.
+The object Session remains a scientific oracle, not a production fallback
+path. The rejected promoted 32-variable construction experiment is retained in
+Git history. Its replacement evidence lives in the current 30-row
+analytic-versus-central Jacobian gate, the six-case accepted trajectory corpus,
+and the typed-authority parity and checkpoint gates.
 
 ## Worker and presentation boundary
 
