@@ -1,1668 +1,356 @@
-# DESIGN-STUDIO-007: Flat numerical kernel and mobile performance
+# DESIGN-STUDIO-007: Numerical runtime and extension policy
 
-Status: binding current numerical-runtime architecture and extension policy;
-the phase record is historical evidence, not current rollout status
+Status: binding current numerical-runtime architecture
 
-This document owns the accepted numerical authority and its future extension
-boundary for Workbench and Article simulation. It complements DESIGN-STUDIO-005,
-which remains the presentation contract, and DESIGN-STUDIO-009, which owns the
-generated execution plan. It does not relax accepted-step, Snapshot, or model
-identity semantics.
+This document owns the accepted numerical authority used by Workbench and
+Article simulation. It also defines the boundary that future oxygen,
+autonomic, topology, and multipatch work must extend. It does not define the
+physiology of those future models.
+
+Related authorities:
+
+- [DESIGN-STUDIO-005](DESIGN-STUDIO-005-live-graph-performance.md) owns group
+  playback, Worker transport, presentation cadence, and physical-device
+  performance policy;
+- [DESIGN-STUDIO-009](DESIGN-STUDIO-009-model-definition-execution-plan.md)
+  owns `ModelDefinition`, generated execution-plan descriptors, and
+  Worker-local plan binding; and
+- [INTEGRATED-MODEL-0001](../scientific-runtime/INTEGRATED-MODEL-0001-current-state.md)
+  records the active release's model scope and scientific claim limits.
+
+Git history is the archive for the construction diary, individual Standard
+release measurements, rejected prototypes, and superseded migration plans.
 
 ## Decision
 
-CircleHeart uses a Worker-owned typed accepted-state authority, integer clock,
-plan-owned scratch, coupled numerical solve, and model-owned typed presentation
-page. Published official Snapshots remain immutable durability obligations
-until their placements are re-created and unreferenced originals complete
-deliberate retention/GC:
+The active Standard release uses:
 
-- every numerical implementation change receives one new exact `modelId`;
-- an exact release contains no dual write, legacy checkpoint decoder, or
-  runtime fallback for a different exact release;
-- referenced historical exact artifacts remain isolated and loadable by their
-  original manifest/codec rather than being interpreted by the active release;
-- the object Session retained as a cold scientific test oracle rather than a
-  per-tick production authority;
-- one production numerical profile on every device. Device tiers may change
-  visual cadence and background concurrency, never equations, accepted step
-  size, solver tolerance, or scientific outputs.
+- one Worker-owned accepted-state authority per Scenario;
+- an integer numerical clock with a fixed `2 ms` base tick;
+- two lifetime-fixed typed images for current and candidate state;
+- model-owned slot bindings and reusable numerical scratch;
+- one coupled circulation/coronary solve with statically condensed TriSeg
+  internal coordinates;
+- one generated and admitted execution plan per Scenario;
+- model-owned selected-output projection into transferable typed pages; and
+- cold, explicit object rehydration for capture, restore, analysis, and
+  scientific-oracle work.
 
-The active Standard-58 implementation is a Worker-owned typed numerical
-kernel with an integer clock, typed state and scratch buffers, a coupled
-residual/Jacobian solve, and a model-owned typed presentation page. WASM,
-SIMD, and multirate integration remain optional future implementation choices,
-not the architecture itself.
+There is one numerical profile on every device. A device may use a lower
+playback rate, lower visual cadence, fewer background jobs, or lower Canvas
+cost. It may not select different equations, accepted step size, solver
+tolerances, event order, output meaning, or checkpoint semantics.
 
-## Evidence motivating the cutover
+Every numerical implementation change that can change accepted behavior or
+exact executable bytes receives a new `modelId`. Graphs, presentation-only
+derived values, and Article Briefing remain Surface or content concerns.
 
-An iPhone 16 Pro Max report from the active Standard kernel measured one live
-Scenario with no active background Worker:
+## Non-negotiable invariants
 
-- `16` exact steps per request (`32 ms` of model time);
-- mean Worker round trip `40.86 ms`, p95 `53 ms`;
-- mean model-time ratio `0.775`;
-- model/wall lag p95 `248 ms` and repeated `250 ms` re-anchors;
-- presentation materialization, store append, and Canvas paint individually
-  below about `1 ms` on average.
+### One accepted authority
 
-The arithmetic is decisive: `32 / 40.86 = 0.783`, which nearly equals the
-reported model-time ratio. The main thread and Canvas are not the limiting
-resource. The exact Worker kernel is chronically slower than real time on this
-device.
+`MainWireIntegratedTypedAuthoritySessionV1` owns live accepted state. No public
+object tree, presentation store, adapter, or disposable analysis Session is a
+second writable authority for that live Scenario. An analysis Worker owns only
+its isolated exact fork.
 
-A second iPhone 16 Pro Max report after the packed Standard ABI isolated the
-same bottleneck more sharply. Numerical `presentation-advance` averaged
-`42.20 ms` (p95 `52 ms`) for `32 ms` of model time, while Worker preparation
-averaged only `0.10 ms`. Round trip averaged `42.99 ms`, model-time ratio
-averaged `0.731`, lag p95 remained `248 ms`, and the scheduler re-anchored 25
-times in about 25 seconds. The selected six-output page was only `1,120`
-bytes. Transport, validation, projection, Canvas, and storage are therefore
-not credible explanations for the remaining deficit.
+Each accepted step follows one transaction:
 
-Accepted-step counters further locate the work. A representative settled run
-averages roughly three outer circulation candidates, four coronary Newton
-iterations, ten hydraulic residual evaluations, three mechanics evaluations,
-and fifteen implicit-sensitivity linear solves per accepted step. Reducing
-clone and projection overhead is useful for future output growth but cannot,
-by itself, remove this numerical workload.
+1. read the current typed image through admitted bindings;
+2. evaluate numerical and event candidates using private scratch;
+3. stage every accepted-state owner into the inactive image;
+4. validate cross-owner clock, revision, fixture, conservation, and shape
+   invariants;
+5. atomically promote the inactive image once; and
+6. update non-authoritative caches only after promotion.
 
-The desktop CDP `Emulation.setCPUThrottlingRate` benchmark is not a phone
-kernel gate. Dedicated Workers are not reliably slowed by that page-level
-emulation. A mobile viewport under page throttling may therefore pass while
-the physical phone cannot run the Worker in real time.
+Any failure leaves the previously accepted image and its public meaning
+unchanged. A partially failed candidate is never observable and never reused.
 
-## Active Standard ABI
+### Exact clock and event order
 
-The active Standard ABI requires a model-owned `advancePresentationBatch`
-operation. New active releases must advertise
-`runtime/exact-presentation-batch-v1`; the loader then requires the operation
-and never falls back. A bounded reader for immutable pre-extension artifacts
-exists solely because already-published Article Snapshots pin their exact
-model bytes. It is not a vNext design seam and must be deleted after those
-placements are re-created on the active kernel and the unreferenced originals have
-completed retention/GC. For each batch the exact adapter:
+Accepted time is an integer tick. Seconds are derived only at API and
+presentation boundaries. Wall-clock scheduling cannot rebase, skip, or invent
+accepted time.
 
-1. advances every accepted numerical step in order;
-2. writes accepted revision and time directly to typed arrays;
-3. projects only the authored scalar outputs into a packed numeric matrix;
-4. emits one complete terminal frame for control, capture, latest-value, and
-   authoring correlation.
+The execution plan declares update-group ordinals, periods, phases, and exact
+solve-group bindings. Event-clipped substeps remain accepted numerical
+boundaries. Beat metrics and scientific derivations consume every accepted
+substep, including event-clipped ones; decimated UI frames are not scientific
+input.
 
-The Worker validates the complete terminal frame and the packed clocks,
-dimensions, state codes, scalar values, monotonicity, and terminal-row
-correlation before it transfers ownership. Invalid output selection is checked
-before numerical advance. Scientific operations continue to use complete
-exact frames and checkpoints.
+### Exact content identity
 
-This boundary prevents presentation cost from growing with every future O2,
-autonomic, or multipatch observable. The active typed kernel implements this
-same transport boundary.
+An Experiment pins `modelId` plus Surface series. A Snapshot pins exact model
+and Surface releases. An Article placement pins a Snapshot. Loading historical
+content never substitutes the active bundle.
 
-Opt-in device reports split one Worker request into:
+An active exact artifact does not decode another release's checkpoint or run a
+dual state layout. Referenced older artifacts are loaded independently through
+their own manifest and codec until their durable content references are
+deliberately removed.
 
-- `worker.presentation-advance`: numerical advance plus model-owned selected
-  output projection;
-- `worker.presentation-prepare`: Worker-side validation and response packing;
-- existing round-trip, store, and Canvas metrics.
+## Accepted-state layout
 
-That split remains part of the active performance diagnostics. It tells
-us whether a regression belongs to equations/solver, Worker preparation,
-structured clone, or presentation.
+The accepted-state manifest gives each owner and mutable leaf a semantic path
+and a typed slot. The active and inactive images have the same admitted layout.
+Continuous values use `Float64Array`; modes, presence tags, bounded lengths,
+and ordinals use explicit integer storage. Optional records and variable arrays
+require declared presence or capacity metadata.
 
-## Active kernel layout
+Hot numerical code resolves semantic paths once during plan binding and then
+uses numeric slots. It does not rediscover object paths per tick. Fixed
+configuration remains deeply immutable and is bound by identity rather than
+copied into evolving state.
 
-### Clock
+Public observations are detached values. Typed image buffers and writable
+views do not escape the authority. Checkpoint and observation paths rehydrate
+from the current image and validate the result before publication.
 
-Accepted time is owned as an integer tick. Seconds are derived only at API and
-presentation boundaries. A tick cannot accumulate floating-point drift or be
-rebased by a visual scheduler.
+## Execution plan and topology
 
-### State
+The build-time compiler turns a declarative `ModelDefinition` and
+`NumericalPolicy` into an immutable data-only execution-plan descriptor. The
+descriptor declares:
 
-Continuous numerical state is stored in indexed `Float64Array` regions.
-Discrete modes, flags, and bounded ordinals use explicit integer regions. The
-layout manifest gives every slot a stable semantic name for tests and
-checkpoint tooling, but hot loops address numeric slots rather than object
-paths.
+- accepted-state owners and slot bindings;
+- component-kernel identifiers;
+- circulation nodes, paths, and endpoint ordinals;
+- active nonlinear solve systems;
+- update-group schedule.
 
-The kernel owns:
+Primitive-output projection remains an exact-model-owned boundary rather than
+portable execution-plan data.
 
-- accepted/current state;
-- candidate/next state;
-- reusable residual, Jacobian, factorization, and line-search scratch;
-- event and beat accumulators;
-- primitive output slots.
+The browser does not compile the model. During Scenario initialization the
+Worker validates the exact descriptor and binding catalog, requires exact set
+equality for declared kernels, binds one private plan, and allocates
+non-aliasing workspace. Unknown components, paths, solve blocks, or schedules
+fail closed.
 
-The current and candidate buffers are swapped only after a completely
-accepted transaction. A failed candidate cannot mutate accepted state.
+The plan is topology data, not executable code and not accepted state. A new
+Fontan pathway, shunt, bypass, or compartment graph therefore requires a new
+declarative topology and compatible model-owned kernels, not ad hoc branching
+inside the current fixed graph. Compilation success alone is not scientific
+validation.
 
-### Worker command boundary
+## Numerical solve
 
-One persistent Compute Worker owns a Scenario. The hot command is conceptually:
+The active release solves 30 circulation volumes:
+
+- 14 independent non-coronary volumes;
+- 16 coronary volumes; and
+- systemic venous volume as the total-blood-volume dependent state.
+
+TriSeg's two internal coordinates are solved by the model-owned mechanics
+kernel and statically condensed from the circulation root. The accepted solve
+uses component residuals, component-owned convergence gates, deterministic
+globalization, and reusable dense row-major factorization workspace.
+
+Predictors and other warm-start data are algorithmic cache. They may reduce
+iterations but never relax final residual, conservation, bound, material, or
+event gates. A changed fixture, discontinuous clock/revision, restore, or
+failed candidate invalidates incompatible predictor history.
+
+The object Session and alternative 32-variable/trust-region formulations are
+scientific or construction oracles, not production fallback paths. An oracle
+may be deleted only after a named replacement gate proves the same scientific
+property.
+
+## Worker and presentation boundary
+
+One persistent Scenario Worker owns one exact numerical Session. Its hot
+operation is conceptually:
 
 ```text
 advanceTo(targetTick, outputPlan, destinationPage)
 ```
 
-It performs a batch without creating complete frame objects per step. The
-result is a transferable typed sample page plus one terminal correlation
-record. Snapshot and analysis commands share the same Worker-owned state, but
-they never infer scientific values from decimated presentation samples.
-
-### Checkpoint
-
-The active exact kernel defines one canonical binary checkpoint codec. It
-contains the exact slot layout version, integer clock, continuous/discrete
-state, event state, beat accumulators, and fixture identity required for exact
-continuation. Canonical encode/decode, byte stability, restore continuation,
-and rejection of non-canonical input are release gates.
-
-JSON remains appropriate for portable Studio content and manifests. It is not
-the internal numerical state representation.
-
-## Solver construction record
-
-The numbered phases below record how the active Standard-58 architecture was
-derived. References to candidates, migration seams, or intermediate Standard
-releases describe their state at the time of measurement; they are not the
-current rollout status. Git retains the full earlier revisions. The current
-authority is the Standard-58 boundary summarized in the decision above and in
-`INTEGRATED-MODEL-0001-current-state.md`.
-
-Implementation order is fixed because later steps depend on earlier evidence.
-
-### Phase 0 — freeze the scientific oracle
-
-Before changing solver organization, record fixtures and accepted trajectories
-covering normal circulation, volume extremes, resistance/contractility/PEEP
-controls, valve events, coronary behavior, PV analysis starts, and Snapshot
-continuation. Freeze exact or explicitly justified tolerance comparisons for:
-
-- accepted clocks and event order;
-- conserved total blood volume and other invariants;
-- pressure, volume, flow, coronary, and beat-metric trajectories;
-- PV morphology and analysis outputs;
-- failure atomicity and checkpoint continuation.
-
-### Phase 1 — flat scalar reference kernel
-
-Implement one Scenario and one patch with the same equations, step size, solver
-order, and tolerances as the current kernel. Change layout, ownership, and ABI
-only. The purpose is to prove that the typed boundary and flat state preserve
-science before changing nonlinear algebra.
-
-The provisional object-to-flat reference bridge that preceded typed authority
-has been removed. It proved the initial layout and transfer assumptions but was
-never production-reachable; Git history retains that experiment. The generic
-`FlatNumericalStateV1` primitive remains independently tested because current
-tooling still uses its deterministic, accessor-safe layout behavior.
-
-#### Phase 1b.1 — canonical accepted-state authority (implemented proof)
-
-The second reference slice moves ownership beyond a lossy fixed-leaf mirror.
-This proof slice encoded every accepted boundary, including the 45
-nullable/variable-array roots, into one canonical binary value inside two
-fixed-capacity buffers. A candidate became current only after encode, decode,
-model-owned live-state rehydration, and full accepted-state validation all
-succeeded. The buffers swapped only after that complete proof. A failed
-candidate left the accepted bytes unchanged, poisoned the authority, and
-forbade continuation.
-
-This slice establishes:
-
-- two lifetime-fixed `512 KiB` state buffers, with current length and high-water
-  telemetry rather than a growing string-interning map;
-- deterministic tags for finite numbers, booleans, strings, dense arrays,
-  plain records, null-prototype records, and numeric typed arrays;
-- sorted record keys, big-endian numeric encoding, strict UTF-8, exact-length
-  decode, accessor/cycle/prototype rejection, and bounded depth/item counts;
-- a portable checkpoint envelope containing canonical payload bytes, explicit
-  magic and length, and SHA-256 integrity;
-- exact Standard checkpoint continuation, including partial-beat accumulation
-  and the most recently completed beat;
-- detached public observations, so mutation of an escaped typed-array view
-  cannot change the bytes consumed by the next numerical step;
-- an isolated reference Session that owns the accepted transaction loop; the
-  registered V3 Session and every released exact artifact remain byte-identical.
-
-Serialized MCS state is not accepted merely because its fields have the right
-shape. Decode rebuilds the live MCS owner from the current runtime binding and
-then re-wraps the integrated state, matching the fail-closed provenance rule
-used by exact checkpoint restore. Scientific parity covers 1,024 presentation
-ticks and all 49 registered outputs at every tick. A second gate captures at a
-non-round 377th tick, restores the canonical bytes, and proves exact
-continuation through tick 544. Repeated capture of the same state is byte
-stable and one-bit payload/header tampering is rejected.
-
-This implementation is deliberately not a speedup. A local 512-tick
-alternating diagnostic measured about `2.47 ms/tick` for the released object
-authority and `5.45 ms/tick` for canonical encode/decode ownership, an overhead
-ratio of about `2.21x`. The terminal encoded state was about `33 KiB` and its
-observed high-water mark about `33.6 KiB`, both inside the fixed `512 KiB`
-capacity. These numbers are machine-specific diagnostics, not gates. They show
-that binary ownership is bounded and scientifically exact, while also
-falsifying the idea that a generic per-step object serializer is the final hot
-kernel.
-
-Phase 1b.1 remains non-production and has now been superseded as the reference
-hot accepted boundary by Phase 1b.2b.1 below. Its canonical codec remains the
-checkpoint/integrity basis and an independent proof oracle. It is not
-permission to serialize the full object graph in the final inner loop.
-
-#### Retired prototype — scalar-only shadow image
-
-An earlier Phase 1b prototype mirrored 440 scalar and four boolean leaves into
-a second pair of typed buffers. It established fixed-index feasibility, but it
-was not a complete authority and duplicated every scalar object-path traversal
-after the complete image below existed. The prototype, its benchmark command,
-and its Session shadow writes have therefore been removed. The complete typed
-image is now the only typed transaction owner; the scientific oracle remains
-the released object Session rather than a second partial state mirror.
-
-#### Phase 1b.2b.1 — transactional typed image and cold bindings (implemented reference)
-
-The complete accepted topology is now represented by two lifetime-fixed,
-model-owned `ArrayBuffer` images plus manifest-owned immutable configuration
-bindings. Each mutable image is exactly `22,360` bytes and contains:
-
-- 484 ordinary `f64` slots, six nullable-`f64` value/presence pairs, and two
-  boolean slots at versioned fixed offsets;
-- 229 required and 22 nullable string offset/length entries backed by a fixed
-  `16 KiB` UTF-8 arena;
-- six optional fixed-shape records, each represented by one presence byte plus
-  ordinary typed leaves;
-- three bounded rhythm queues, each represented by one `u32` length plus 16
-  fixed typed item slots;
-- no dynamic-root metadata or dynamic arena; and
-- the 163-container mutable shape contract and fingerprint
-  `fnv1a32-44b16062`.
-
-Twelve deeply frozen model-owned object roots are intentionally retained
-outside the hot images: the composed-rhythm configuration (`5,506` canonical
-bytes), nine duplicated rhythm-owner configurations/seeds, the MCS inertance
-profile (`2,501` bytes), and the MCS structural projection (`4,265` bytes).
-Forty-four immutable schema, owner, binding, and topology strings are also
-manifest constants rather than per-tick UTF-8 data. One additional binding
-aliases the optional authored-pacing owner's configuration to the admitted
-composed-rhythm configuration, for 57 external-immutable layout entries in
-total. These values are
-configuration, not evolving accepted state. Exact paths are fingerprinted.
-Manifest creation proves transitive freezing for object data and stores a
-private canonical reference; hot admission accepts the same object identity or
-scalar value, while checkpoint restoration may take a canonical-equality
-fallback. Rehydration reattaches the admitted values without rebuilding them.
-
-The five two-component exact-event calcium states are declared as
-fixed model arrays, so all ten components receive direct `f64` slots. Six
-optional owner clocks use explicit presence bytes plus `f64` values, and two
-optional activation identifiers use nullable UTF-8 entries. The tagged-layout
-rule covers six complete nullable records: the backup owner's latest
-activation, its intrinsic and VVI attempt results, the coronary autoregulation
-window control, ventricular interval-deposit metadata, and authored
-ventricular pacing replay state. The three rhythm queues use explicit fixed
-item layouts and length tags. The potentially 100,000-event pacing
-configuration is not copied into either image: its nested owner field is
-rehydrated as an exact alias of the already admitted immutable composed-rhythm
-configuration, while its mutable clock, revision, cursor, and counters occupy
-fixed slots. Strings are
-rewritten inside the inactive arena each transaction; no
-lifetime interning table survives. Inspection still identifies the
-high-cardinality mechanics fingerprint as a recomputable diagnostic and the
-remaining activation labels as candidates for bounded model-owned codes in the
-direct kernel.
-
-The queue capacity of 16 is a **Phase-reference admission bound**, not a
-scientific maximum. The default 1,024-tick trace exercised all three queues and
-observed a high-water length of one for each. That proves the normal reference
-path fits the storage, but does not prove that an arbitrarily dense authored
-protocol does. Production cutover therefore requires either a model-owned
-capacity argument covering admitted authoring inputs or a different bounded
-event-storage design. High-water length is reported per queue so the evidence
-cannot be replaced by an implicit assumption.
-
-Staging first validates the complete mutable fixed container topology and the
-cold-root identity/canonical bindings, then writes only the inactive image.
-Invalid finite values, changed keys/prototypes, mutable optional-record
-templates, an authored-pacing configuration that differs from its admitted
-alias, unpaired UTF-16, or the string arena exceeding capacity
-fail before promotion. Promotion is an infallible active-index swap. Public
-snapshots are detached copies. Tests cover generic presence-tagged
-null-to-record transitions, immutable aliases, empty-to-one-item queue
-transitions, adversarial extra keys, malformed strings, capacity
-exhaustion, typed-array escape mutation, 1,024 presentation ticks across all
-49 outputs, and exact checkpoint continuation from tick 377 through 544.
-
-The reference transaction initially fed the next solver step from a
-model-owned rehydration of every promoted typed image. Direct completion now
-establishes a stronger fact before promotion: retained slots match the private
-solver result bit-exactly, and every other admitted leaf is overwritten from
-that same result. After its exact private accepted-boundary proof is checked,
-that result can therefore remain as a non-authoritative solver mirror. The
-complete typed image is still the accepted-state authority. Detached public
-views, observations, checkpoints, restores, and explicit cold audits rehydrate
-from it; an escaped typed array cannot mutate the active image.
-
-This is still not a production speedup. After allowing a restored, rehydrated,
-transitively frozen composed-rhythm state to retain its complete boundary proof,
-the latest representative 512-tick alternating diagnostic measured about
-`1.45 ms/tick` for the released object Session and `2.13 ms/tick` for the
-typed-authority reference (`1.47x`). The same diagnostic was about
-`3.42 ms/tick` before that migration-layer revalidation was removed. Across 580
-accepted commits, all 32,536 immutable-value checks used the identity/value fast
-path and none used canonical fallback. An outer-frozen state with a mutable
-calcium descendant remains ineligible for the proof and is revalidated after
-mutation. An intentionally
-independent-runtime projection diagnostic, whose equal object configurations
-do not share identity, measured about `0.68 ms/presentation tick`; rehydration
-measured about `0.020 ms/presentation tick`. String high-water usage was
-`1,930` bytes inside its fixed `16 KiB` capacity. Dynamic high-water usage and
-capacity are both zero: every currently admitted mutable root has explicit
-typed storage. The remaining overhead at that point was dominated by rebuilding
-and fully revalidating the legacy object owner graph, not by the typed page
-itself. The later exact-mirror change below removes that work per accepted
-substep. These figures are machine-specific diagnostics, not gates.
-
-#### Phase 1b.2b.2a — authoritative boundary cursor (implemented reference)
-
-The active typed image now exposes a read-only live cursor rather than an
-`ArrayBuffer` or typed-array view. The cursor follows the atomic active-index
-swap and permits generated slot reads only; it cannot mutate either image.
-The Main Wire binding admits that cursor only when its layout ID and complete
-manifest fingerprint match `fnv1a32-44b16062`. Every hot slot is resolved by
-semantic pointer once from that manifest; numerical indices are not duplicated
-as hand-maintained source constants. The accepted loop performs no pointer or
-string lookup after construction.
-
-The reference Session now reads the outer accepted clock and revision from
-fixed slots and computes its next coronary/rhythm boundary from the active
-typed image. The direct limiter uses manifest-bound indices for owner clocks, the
-autoregulation window, regular atrial activation, and ventricular backup. It
-reads proximal AV output, distal ventricular impulse, and calcium-deposit
-queues from their fixed typed slots and length tags. Authored ventricular
-pacing and ectopy events both come from the already admitted immutable rhythm
-configuration; their mutable cursors come from fixed typed slots. It also proves that
-the outer, composed-rhythm, and coronary clocks/revisions agree before every
-scheduling decision. Immutable atrial-source mode and exact-calcium parameters
-come from the separately admitted cold rhythm configuration rather than being
-duplicated in hot state slots.
-
-The typed limiter is compared field-for-field with the admitted object limiter
-over 96 evolving presentation boundaries. The complete 1,024-tick/all-output
-oracle and exact checkpoint-continuation gates remain unchanged. The injected
-test authority deliberately falls back to the original object limiter, so
-authority-failure tests do not gain an accidental typed precondition.
-
-This slice moves scheduling authority, not the nonlinear solve. The inactive
-typed candidate now owns the six synchronized outer/composed/coronary clock
-slots, the ten calcium state slots, and the four mutable authored-ectopy
-schedule slots before the legacy object transaction runs. A configured
-authored-ventricular-pacing replay adds the same four-slot
-`acceptedTimeSec / revision / cursor / emitted-count` state. Both schedule
-writers binary-search their admitted immutable event lists and advance only
-these fixed counters; they do not clone events or construct impulses. After
-electrical capture resolves any PAC reset/preserve policy, the same candidate
-also advances all seven mutable regular-atrial clock/counter slots by its pure
-owner law. It therefore derives the post-capture state rather than copying it
-from the object candidate. The object transaction still regenerates and
-validates its own boundary internally, but admission requires its clock,
-calcium, authored-schedule, and regular-atrial result to match the already
-staged typed values bit-for-bit and cannot overwrite them. Once the coupled
-solve succeeds, seven additional values are emitted from its accepted result
-into fixed slots before promotion: the three composed-rhythm capture/deposit
-counters and the accepted flow of each of the four rotary support devices.
-This post-solver emission does not recompute capture or hydraulics. It verifies
-the rhythm lineage and counter deltas, preserves signed reverse pump flow, and
-copies the exact accepted solver result so that the next step need not recover
-those values through object re-encoding.
-A representative 512-tick diagnostic after proof reuse measured about
-`1.45 ms/tick` for the released Session and `2.13 ms/tick` for the typed
-reference (`1.47x`). Direct fixed-slot boundary validation measured about
-`0.0058 ms/tick`; rehydration measured about `0.020 ms/tick`. Copying current
-into the inactive image and completing the still-object-backed writable slots
-remains the largest migration-layer cost at about `0.68 ms/tick`. The earlier
-`3.42 ms/tick` typed measurement additionally paid for full composed-rhythm
-canonical revalidation after every rehydration. Duplicate legacy solve and
-object-to-image completion remain; these figures are diagnostics, not
-performance gates.
-
-The first direct-solver migration aid is a session-owned coronary
-backward-Euler scratch workspace. It is neither accepted state nor checkpoint
-content: an opaque handle borrows private mutable arrays exclusively for one
-solve, resets a bounded residual-buffer cursor, and releases in `finally`.
-Only frozen copied trial data can leave the solve. Foreign handles, concurrent
-reuse, and a different node/edge order fail closed. Twelve evolving pressure
-boundaries are required to match the allocation-owning solver bit-for-bit, and
-previously returned trials must remain unchanged after later workspace reuse.
-A later local 2,048-tick coronary-only diagnostic, after adding reusable
-Jacobian, LU, and implicit-sensitivity right-hand-side storage, measured
-`0.054–0.055 ms/tick` with the workspace versus about `0.061 ms/tick`
-without it (`0.88–0.90x`). Three paired full lean-tier reference runs moved
-from `2.17–2.23 ms/tick` without this Session resource to
-`2.15–2.18 ms/tick` with it. This is an allocation-control foundation for
-solver-owned typed state, not a claimed Workbench speedup; whole-transaction
-timing remains dominated by repeated coupled Newton work.
-
-The same reference audit found that lean-tier private constructors still used
-the exported validation-stamp issuer, recursively re-walking graphs they had
-just copied and frozen. Constructor-only issuers now retain exact identity and
-context provenance directly for composed rhythm, coronary autoregulation, and
-dynamic support; exported validators still require the complete independent
-frozen/plain-data proof. The coronary V3-to-V2 private wrapper likewise retains
-its already-validated V2 view without attempting an impossible generic proof
-over mechanics typed arrays. Mutating a published mechanics typed array remains
-detectable by its downstream material-state fingerprint validator. Three local
-lean reference runs moved from `2.145–2.157 ms/tick` to
-`2.101–2.119 ms/tick`. Stamp-disabled verification still bypasses every private
-proof. These are development-host diagnostics, not phone qualification.
-
-Direct candidate completion now consumes the private integrated-state proof
-without issuing one. A proof hit requires the exact candidate plus the exact
-frozen rhythm/profile/config identity triple; copied, restored, hand-built,
-context-rebound, and stamp-disabled candidates still take the complete
-validator. That exact admission executes synchronously before the image writes
-any candidate byte and must preserve object identity. A successfully admitted
-candidate can then skip the second generic container-shape traversal, while
-the image still compares every retained leaf and writes every non-retained
-leaf before promotion. Images without this model-owned admission callback and
-all ordinary `stage` commits retain the complete generic shape validator. The
-adapter retained after promotion is consequently only an exact solver mirror
-of the typed authority, never a second writable authority. Public state and
-checkpoint boundaries still rehydrate and validate the active image, including
-a canonical byte comparison before checkpointing. The 1,024-tick/all-output
-oracle, escaped-typed-array isolation, exact checkpoint continuation, and the
-stamp-disabled complete-validation path remain unchanged. Three local lean
-reference runs moved from `2.101–2.119 ms/tick` to
-`1.862–1.883 ms/tick` (about `0.89x`). The authority report recorded one mirror
-reuse for every one of 1,160 direct commits in each measured run. These are
-development-host diagnostics, not phone qualification.
-
-The generic image also admits a generation-bound candidate cursor. Beginning a
-candidate copies current bytes once into the inactive image; direct fixed
-`f64`/boolean writes then allocate no state object and cannot touch active
-storage. Abort, promotion, or a later candidate generation permanently
-invalidates the old cursor. Strings remain copied and read-only at this stage;
-their writers require bounded model-owned codes or an explicit cold-boundary
-operation rather than implicit variable mutation.
-
-Exact-event calcium is the first state owner to use that write surface. Its ten
-fixed state slots advance directly from the active image into the inactive
-candidate using the existing exact two-decay event law and only deposits due
-at the accepted candidate boundary. Across 96 evolving boundaries, including
-electrical/calcium events, both the fixed-slot calcium readback and candidate
-state match the existing composed-rhythm owner exactly. On the default
-reference path these ten calcium values, six clock values, four
-authored-ectopy schedule values, and seven regular-atrial source values are
-retained through complete candidate admission. The three rhythm aggregate
-counters and four rotary-device accepted flows are retained after solver
-resolution as well; a pacing configuration retains its four schedule values
-in addition.
-The temporary object adapter must match every retained value bit-exactly and
-cannot overwrite it. Every accepted substep in the 1,024-tick oracle therefore
-promotes clock, calcium, authored finite-schedule, and regular-source state from
-the typed candidate. A same-time captured PAC plus VVI replay regression
-compares the reset regular clock and both typed schedule states with their
-existing pure evaluators. The complete composed-rhythm transaction still owns
-impulse construction, queue scheduling, and electrical capture; this slice
-does not claim that rhythm is flat yet.
-
-Retained and writable fixed-slot sets are compiled once into a manifest-bound
-completion plan during Session initialization. A structural imitation is not
-accepted: the generic image keeps the plan's manifest identity and slot sets in
-private storage. Hot completion therefore performs the same bit-exact retained
-checks and writes every unmigrated leaf, but does not allocate membership sets
-or read already-checked retained paths a second time on each substep.
-
-The non-production Worker vertical slice creates the typed-authority Session
-by default. A diagnostic flat snapshot is projected only when explicitly
-requested. Output
-projection now runs synchronously against the exact private solver mirror and
-returns only scalar output records plus observation-free advance metadata. The
-accepted state cannot escape that seam; requesting a public observation later
-rehydrates it from typed authority. Three local 512-tick/6-output lean-tier
-diagnostics measured `1.410–1.426 ms/tick` for the released Session and
-`1.539–1.581 ms/tick` for the complete typed-authority Worker reference
-(`1.09–1.11x`). Output projection and packed-page writes together consumed only
-about `1.03–1.23 ms` across all 512 ticks. This leaves roughly 9–11% reference
-overhead while preserving the fixed image, transactional promotion, exact
-output corpus, and detached diagnostic snapshot. The remaining cost is in the
-legacy object transaction and typed completion—not Canvas, output selection,
-transfer, or the retired mirror. These development-host figures are not phone
-qualification.
-
-The non-coronary outer Newton solve now has the same Session-owned allocation
-boundary as the coronary solve. Its opaque workspace retains volume scales,
-scaled and line-search unknowns, the analytic Jacobian, LU factor storage,
-right-hand sides, and solutions. Every array is private to one synchronous
-borrow, released in `finally`, dimension-checked, and overwritten before use.
-Returned successful and failed trials remain frozen object values and never
-alias the workspace; a later reuse is required not to change an earlier trial.
-Foreign or concurrent handles fail closed. The equations, residual order,
-pivot order, line-search order, tolerances, and checkpoint bytes are unchanged.
-Together with removal of the duplicate generic shape walk after exact model
-admission, three local 1,024-tick/all-49-output reference runs measured
-`1.487–1.504 ms/tick` across five repetitions, versus approximately
-`1.542–1.556 ms/tick` immediately before this slice. A CPU profile still
-attributes the dominant
-cost to repeated coupled candidate mechanics and non-coronary Newton work, not
-presentation projection or typed-page transfer. These figures are development
-diagnostics only and do not qualify an iPhone or a production cutover.
-
-The five-wall material boundary now makes its two ownership claims explicit.
-A trusted material kernel may read the prepared accepted wall state without a
-second clone, and it may transfer a newly created result state only when it
-promises exclusive ownership after return. Atrial reuse remains defensive: a
-cache hit is still cloned into each whole-heart candidate, while cold and
-ventricular results from the production kernel are exclusive and can be
-retained. Mutation regressions cover both an atrial and a ventricular typed
-state and prove that neither the accepted baseline nor a later candidate can
-be changed through an escaped earlier candidate.
-
-The coronary transaction now carries these exclusive whole-heart candidates as
-private, unforgeable probes through the outer Newton solve. Model-owned coronary
-coupling may inspect the live probe's typed readback, but discarded probes can
-neither be committed nor exposed. Only the selected candidate is recursively
-validated, snapshotted, fingerprinted, and sealed into the unchanged public
-trial. A selected seal failure returns the existing accepted tuple with every
-owner marked uncommitted. The regression requires more than one center
-candidate while observing exactly three material encodes for the whole step:
-accepted-state audit, selected seal, and commit audit. Across five local
-1,024-tick/all-49-output lean-tier repetitions, the combined ownership and
-selected-only-seal slice measured `1.411–1.427 ms/tick`, down from
-`1.487–1.504 ms/tick` before the slice. It preserves the solver equation/order,
-public checkpoint, and exact 49-output corpus; it remains a development-host
-diagnostic rather than phone qualification.
-
-Direct typed completion now also compiles one manifest-bound reader plan at
-cold initialization. Only a candidate that has synchronously passed the
-model-owned private accepted-boundary admission may use it. That path resolves
-each admitted object leaf through its fixed segment list without restarting a
-descriptor-checked walk from the root for every slot; optional-record and
-bounded-array presence already staged in the inactive image determines whether
-their leaf readers run. Generic `stage`, restore, external input, and completion
-without the private model admission remain on the complete shape/accessor-safe
-path. The authority report counts successful reader-plan uses and the
-1,024-tick gate requires one use per direct commit. Three alternating 1,024-tick
-local diagnostics measured `1.277–1.290 ms/tick` with this plan versus
-`1.308–1.326 ms/tick` at the immediately preceding revision (roughly 2–4%
-lower). The equations, solver order, typed image bytes, checkpoint, and all 49
-outputs remain exact. These values are development-host diagnostics, not phone
-qualification.
-
-The typed-authority reference path has an exact all-rotary-support-off path.
-Disabled LVAD, Impella, VA-ECMO, and VV-ECMO circuits still publish fresh
-pressure-dependent diagnostic readback for every candidate, while their
-canonical zero flow state, zero node-rate vectors, and zero Jacobians reuse
-deeply frozen storage. The immutable config/structural projection pair also
-owns a cold compiled pump record. If any rotary device is enabled, evaluation
-uses the original complete dynamic-network path; IABP timing remains evaluated
-in both paths. Three 1,024-tick local measurements were `1.241–1.255 ms/tick`
-versus `1.269–1.293 ms/tick` at the preceding reader-plan revision (roughly
-2–4% lower). All-off and mixed-device unit gates, the 1,024-tick 49-output
-corpus, and checkpoint continuation remain exact. This is another development
-host result rather than an iPhone qualification result.
-
-The nonlinear venous pressure-volume inverse now snapshots and compiles its
-pure-data law coefficients once per synchronous solve. The two transition
-width products and zero-pressure softplus anchors no longer repeat at every
-bisection midpoint. Frozen plain-data laws may retain that compiled value by
-identity; mutable laws are never retained, and accessor-backed or non-plain
-objects use the original dynamic expression. The fixed-32 ModelCore-compatible
-inverse delegates to this same evaluator but preserves its original bounds,
-midpoint order, comparison order, and iteration count. Six alternating local
-512-tick diagnostics measured `1.223 ms/tick` against `1.244 ms/tick` at the
-preceding revision (about 1.7% lower). The canonical 500-step accepted-state
-SHA-256 remained byte-identical. This is a small scaling-oriented removal of
-repeated transcendental work, not an iPhone qualification or a replacement for
-the direct solver-owned typed-state work below.
-
-#### Phase 1b.2b.2b — direct solver-owned typed state (in progress)
-
-Before production cutover, move each state owner and the solver from object
-property access to generated typed offsets/tags. Replace hot
-transaction/fingerprint strings with bounded codes or recomputable
-diagnostics. Rehydration and complete graph validation already no longer occur
-once per accepted substep, but the nonlinear solver still reads and constructs
-the attested object mirror. Move that remaining work onto generated typed
-offsets/tags so rehydration is needed only at cold start, checkpoint restore,
-diagnostics, or an explicit boundary adapter. The object Session then becomes
-test-oracle code only.
-
-The first Standard-16 slice makes that transition explicit for the
-non-coronary solver's accepted clock, TBV, 15 node volumes, two dynamic-edge
-flows, and four valve openings. A model-owned binding resolves their typed
-slots once and stages them into reusable solver arrays. During this migration
-the rollback object is still retained and every staged scalar is compared with
-it exactly before Newton evaluation. This deliberately costs about 1–2% on the
-development host; it proves the boundary and its rejection behavior, but is
-not presented as a speedup. A later model release may remove that duplicate
-authority only after the typed owner independently satisfies the full
-accepted-state and checkpoint corpus.
-
-Standard-17 then moves the four-valve candidate path onto scalar accepted-state
-inputs. It retains validation only for frozen plain-data valve parameters,
-never for mutable or accessor-backed objects, and removes the former duplicate
-parameter/input validation, opening-target evaluation, and frozen temporary
-loss/tangent records. The public object valve API remains the cold/general
-adapter. Whole-kernel timing was neutral within development-host noise, so the
-slice is retained for bounded allocation ownership rather than counted as a
-performance qualification.
-
-Standard-18 retains the typed accepted-state source as one Session-owned
-binding and lets it fill the solver's reusable numerical header and arrays in
-place. The BE trial also evaluates its candidate-time respiratory pressure
-frame once, then shares those exact scalar results across candidate,
-companion, edge, and analytic-Jacobian readers. Its mechanics memo preserves
-the former SameValueZero tuple identity and call/hit/unique counters in a
-flat small-entry list, avoiding four nested Maps on the common analytic path
-whose measured hit count is zero. Source scalars are still compared exactly
-against the admitted rollback object before Newton can consume them. No stable
-whole-kernel speed delta was distinguishable from development-host load, so
-these changes narrow hot allocation and repeated work without claiming phone
-qualification.
-
-The current Phase 1b.2b.2b reference now also reconstructs the private
-circulation/mechanics solver adapter from that same global typed image before
-every condensed solve. All clocks, 31 conserved volumes, valve and dynamic-flow
-memory, coronary tone, five-wall Land/SLS/TriSeg memory, and MVC reference
-come from bound slots; the retained object contributes only immutable model
-identity and coronary binding metadata. Exact cold and advanced-state tests
-compare the reconstructed adapter with the former accepted object, including
-detachment from reusable scratch. This is intentionally an allocation-bearing
-migration seam, not the final hot path: the next slice replaces the adapter
-with a provider/context reader over typed memory and then confines object
-reconstruction to checkpoint, capture, debug audit, and event boundaries.
-
-Standard-19 snapshots the immutable vascular PV laws once per BE trial and
-retains each candidate's exact paired primal pressure and constitutive tangent.
-The analytic Jacobian consumes that tangent rather than repeating the same
-adaptive inverse at the same node and candidate; the conservative companion
-also shares the Ao pair. Law-based and node-based APIs are bit-identical under
-both inverse policies. Five alternating local 512-tick diagnostics moved the
-typed-reference median from about `2.489` to `2.458 ms/tick` and the object
-Session median by about 1.5%. This reduces repeated constitutive work while
-leaving solver order, residual algebra, saturation branches, and accepted
-state unchanged.
-
-Standard-20 removes transient arrays and records from Newton diagnostics and
-dense pivot scaling without changing residual algebra or selection order.
-Mixed continuity auditing materializes only the worst entry, in the same node
-order with the same strict-greater tie rule. Row scales, final residual maxima,
-independent-volume projection, and scaled-residual construction use direct
-loops rather than mapped/spread intermediates. Host timing could not separate
-this allocation cleanup from concurrent load, so it carries no standalone
-speed claim.
-
-Standard-21 gives the common analytic Newton path two reusable candidate
-numerical pages. The current candidate remains untouched while line search
-overwrites only the inactive page; accepting a step swaps page roles. Node
-volume, pressure, vascular tangent, edge/dynamic flow, valve, continuity, and
-scaled-residual records therefore live for the workspace rather than for one
-candidate evaluation. A public success or failure detaches every externally
-retained value before the workspace is released, and workspace reuse is tested
-against a structured clone of the earlier trial. Finite-difference evaluation
-continues to allocate independent vectors because it simultaneously retains
-center, lower, and upper residuals. Alternating 512-tick host measurements were
-small and load-sensitive (roughly neutral to about 1% lower), so this is a
-bounded-allocation/GC-pressure step, not an iPhone qualification.
-
-Standard-22 replaces those pages' repeated name-keyed numerical records with
-fixed-index buffers. Node volumes and pressures, vascular tangents, edge and
-dynamic flows, node rates, continuity residuals, and scaled residuals use
-`Float64Array`; valve results occupy fixed arrays in the verified valve order.
-The public trial remains the same detached name-keyed object and is materialized
-once, only after convergence. The finite-difference path receives its own page
-per simultaneously retained probe. Six alternating 512-tick host pairs were
-faster in five pairs, with a paired-ratio median near `0.94`; one pair was a
-severe concurrent-load outlier. This supports the fixed-offset direction but
-does not replace an iPhone device gate.
-
-Standard-23 applies the same fixed-topology principle inside the coronary
-backward-Euler solve without changing its residuals or Newton ordering. The
-Session-owned workspace compiles edge pressure endpoints and conserved-node
-incidence into private typed indices, retains scalar derivative and boundary
-scratch, and calls scalar projections of the unchanged collapsible-PV,
-collapse-resistance, and signed-loss laws when the paired diagnostic record is
-not consumed. Public hydraulic and trial records remain detached and frozen.
-Canonical and reversed edge orders must both match the allocation-owning path
-over repeated evolving boundaries. A local 2,048-tick coronary diagnostic
-measured `0.0374 ms/tick` with that workspace versus `0.0472 ms/tick` without
-it (`0.79x`). Three alternating whole-kernel host pairs favored the candidate
-by about 0.5–3.5% with a paired-ratio median near `0.99`; the smaller and
-load-sensitive end-to-end delta is not an iPhone device qualification.
-
-Failure atomicity, event order, beat accumulation, controls, analysis forks,
-and checkpoint continuation must pass against the Phase 0 corpus before Phase
-2 changes solver algebra.
-
-### Phase 2 — one coupled nonlinear solve
-
-This is the primary computational intervention. Three independent design
-reviews converged on the same diagnosis: the dominant cost is the nested
-non-coronary, mechanics, and coronary solve organization, not TypeScript,
-presentation transport, or dense linear algebra at this dimension.
-
-The target index-1 DAE has one stable ordering:
-
-- 14 independent non-coronary conserved volumes; dependent `SV` remains the
-  fixed-total-blood-volume algebraic elimination;
-- 16 coronary conserved volumes;
-- two TriSeg internal coordinates.
-
-Phase 2a first solves the 30-volume prefix while retaining the already-audited
-TriSeg algorithmic tangent as a static condensation. Phase 2b activates the
-two reserved TriSeg rows without renumbering either circulation block. This
-staging distinguishes errors caused by circulation/coronary coupling from
-errors caused by promoting mechanics coordinates into the global solve.
-
-The first Phase 2b executable is now a construction-only 32-row residual. Its
-first 30 rows evaluate the real non-coronary and coronary backward-Euler laws,
-while mechanics is evaluated once at the caller's two scaled TriSeg
-coordinates with no local internal Newton. The final two rows are the same
-scaled generalized-force equilibrium equations used by the former local
-solve. An intentionally slow all-central-difference Newton converges both from
-the prior accepted context and from the Phase 2a volume root. On the canonical
-one-step case, both seeds select the same 32-coordinate root, its first 30
-values agree with the statically condensed solution to seven decimal places,
-and its two internal coordinates agree with the independent local mechanics
-solve to eight decimal places. This establishes equation/root equivalence for
-the first case only.
-
-The next construction slice assembles all 32 residual rows for the first 30
-physical-volume columns from component-owned analytic derivatives. The
-non-coronary local block uses the fixed-internal chamber tangent, the coronary
-block uses its direct volume/boundary writers, and the final two mechanics rows
-use the provider-owned equilibrium derivative. The subsequent slice adds a
-direct 14-by-4 local circulation derivative with respect to absolute chamber
-pressure, then chains the two internal-coordinate pressure/strain/active-
-stress directions through the same coronary boundary writer. All 32 columns
-are therefore analytic. The independent all-central-difference solver remains
-executable as the oracle. In the canonical one-step case, the complete
-analytic block stays below `2e-6` maximum absolute and `2e-5` relative
-Frobenius difference against a scale-aware finite-difference shadow; both
-solvers select the same root to eight decimal places. This removes all 64
-Jacobian residual probes per assembly. It is still neither an accepted-state
-authority nor an end-to-end performance claim.
-
-The promoted solve now uses the same component-owned convergence law as the
-accepted 30-volume path rather than a uniform raw-residual tolerance. The
-non-coronary rows use the node-wise mixed continuity audit, the coronary rows
-use their absolute-plus-relative volume gate, and the two mechanics rows use
-the provider's generalized-force tolerance. Over all six solver-replacement
-corpus cases for one model second each (`3,000` accepted steps), an independently
-materialized 30-volume root plus the matching local TriSeg coordinates satisfies
-the 32-row system and selects the same first 30 coordinates to seven decimal
-places (maximum absolute difference below `1e-6 mL`). Four scale-aware
-Jacobian shadows per case sample non-coronary, coronary, and both promoted
-mechanics columns; every sample remains below the same `2e-6` maximum-absolute
-and `2e-5` relative-Frobenius gates. The analytic path performs zero Jacobian
-residual probes.
-
-That trajectory gate establishes equation, root, and derivative parity; it is
-deliberately not a standalone convergence claim because each promoted solve is
-seeded with the independently verified reference root. A solve seeded from the
-previous accepted tuple, and even small perturbations of the exact root, can
-still exhaust the strictly monotone Armijo search near semismooth valve events.
-The all-central-difference oracle fails at the same event, so this is not an
-analytic-Jacobian defect. Before the 32-row system can become accepted
-authority, it needs an accepted-history predictor and a globalization rule
-that can admit a trial satisfying the complete component convergence law even
-when floating-point or branch-switching noise prevents the scalar merit from
-meeting strict Armijo decrease. Scientific residual gates must not be relaxed
-to hide that failure.
-
-The first predictor/globalization experiments narrow that failure further.
-Linear and quadratic accepted-root extrapolation, geometrically damped
-extrapolation, a component-converged line-search fast path, and one local
-TriSeg initialization at each predicted chamber-volume tuple do not carry the
-promoted system through the complete baseline valve transition. They move the
-first failure from step 16 to steps 17–18, but do not remove it. At the same
-event, static condensation of the analytic `32×32` matrix agrees with an
-independent central-difference Jacobian of the condensed 30-volume residual to
-`4.73e-7` maximum absolute error, and the mechanics `2×2` block determinant is
-well separated from zero. The construction derivative is therefore not the
-observed defect; the expanded Newton direction crosses a semismooth active-set
-boundary where strict monotone globalization is not robust.
-
-For the one-patch production candidate, the 30-volume system with the existing
-model-owned TriSeg static condensation remains the preferred authority. It is
-the exact local block elimination of the promoted equations, already clears
-the solve and flat-acceptance host gates, and is more robust at the valve
-transition. The 32-row executable remains a derivative/root oracle and the
-forward-compatible contract for future multipatch block solvers. Promoting it
-to authority now would add risk without demonstrating a measured performance
-benefit. Reopening that decision requires an active-set or trust-region method
-that passes the same six-case free-running gates; fallback by loosening
-residuals or silently changing the 2 ms backward-Euler equation is forbidden.
-
-A separate scaled Powell-dogleg executable now tests the missing
-globalization mechanism without changing that authority decision. It forms
-`r_s = S_r^-1 r` and `A = S_r^-1 J S_x`, computes the Newton and Cauchy steps
-in normalized unknown coordinates, and selects their dogleg intersection with
-a deterministic trust radius. Actual residual evaluations, not the linear
-model, decide the reduction ratio. The scalar least-squares merit is only a
-trial-selection device: a candidate is accepted as converged only when the
-existing component-owned non-coronary, coronary, and mechanics gates pass.
-A stationary non-root therefore fails closed. Open volume bounds and the
-dependent-SV directional limit are applied before every trial evaluation.
-
-At the frozen baseline step-18 valve transition, the former Armijo solve still
-fails as a falsifiable oracle while the dogleg solve crosses the same branch
-surface, passes the unchanged component gates within 32 updates, and matches
-the independently condensed 30-volume root plus locally eliminated TriSeg
-coordinates to seven decimal places. The gate also confirms that a rejected
-trust-region trial was required; a disguised full-Newton success would not
-satisfy it. This establishes that trust-region globalization addresses the
-known event, but it does **not** promote the 32-row system. Full six-case
-free-running trajectory, event-order, rollback, and checkpoint-continuation
-gates remain prerequisites. Until those pass with a measured benefit, the
-dogleg implementation is a shadow solver and the 30-volume condensation is the
-P=1 production candidate.
-
-The first executable uses one deterministic damped semismooth Newton and a
-fixed row-major `Float64Array` Jacobian with partial-pivot dense LU. At 30–32
-unknowns, the roughly 10,000 floating-point operations of dense factorization
-are small compared with repeated mechanics, hydraulic, and transcendental-law
-evaluation. Fixed block metadata is nevertheless preserved so multipatch can
-later use patch-local elimination and a bordered Schur solve without changing
-the component contract.
-
-Each component writes its residual and analytic tangent contribution into
-fixed destinations. A finite-difference shadow remains a development gate,
-not a production fallback. Runtime operator-overloading AD, runtime code
-generation, generic sparse libraries, and Jacobian-free Newton–Krylov are not
-part of the first slice. Build-time generated assembly becomes eligible when
-multipatch repetition makes its review and tooling cost worthwhile.
-
-The Phase 2a construction solver now evaluates the real 30-row residual and
-solves it with the dense flat Newton. Its coronary writer obtains the
-16-row residual, the `16×16` fixed-boundary volume tangent, the `16×9`
-boundary tangent, and inlet/outlet observable tangents from one hydraulic
-evaluation. Component-owned writers assemble all four Jacobian blocks from
-one coupled candidate:
-
-- the non-coronary writer provides the physical `14×14` local block,
-  including the fixed-total-volume dependent-`SV` column and native edge
-  chain, without differentiating through the legacy implicit companion solve;
-- direct coronary inlet/outlet tangents add the Ao and RA companion-rate
-  contributions to that block;
-- the same dependent-`SV` chain and direct companion-rate tangents form the
-  `14×16` upper-right block;
-- the production mechanics provider exposes its condensed chamber pressure,
-  ventricular fiber-strain, and active-stress rows, which common-pericardium,
-  cavity-pressure, and shortening-IMP derivatives compose into a `9×14`
-  boundary matrix; and
-- multiplication by the coronary writer's `16×9` boundary tangent gives the
-  `16×14` lower-left block, while its fixed-boundary `16×16` tangent supplies
-  the lower-right block.
-
-The production provider consequently needs zero full-residual finite-
-difference probes per Jacobian rather than the original 60. Providers without
-the required physical tangents retain a 14-column finite-difference shadow;
-that fallback is a construction aid and is not eligible for production
-cutover. At the canonical cold candidate, direct block comparisons with the
-real 30-row central-difference oracle are gated at `2e-6 mL/mL` maximum
-absolute and `2e-5` relative Frobenius error. The analytic and all-FD Newton
-solutions agree to nine decimal digits.
-
-Dense LU acts on a row/column-equilibrated Jacobian. Unknown scales come from
-the initial physical volumes and residual scales use the corresponding
-equation-volume scale; line-search merit, lower bounds, and returned updates
-remain in physical units. Convergence itself is component-owned: the
-non-coronary block applies the same node-wise mixed `atol + rtol` continuity
-gate as public trial admission, including eliminated `SV`, and the coronary
-block applies its existing absolute-plus-relative residual gate. A single raw
-infinity norm remains diagnostic; it does not replace those physical
-admission rules.
-
-The first cold implementation established correctness but not a runtime win.
-A 30-sample diagnostic measured median times of `1.28 ms` for the analytic
-coupled solve, `18.99 ms` for the full central-difference oracle, and `1.17 ms`
-for the nested path. The analytic assembly was `14.8x` faster than its FD
-oracle but only `0.91x` as fast as the nested path. That result rejected
-production cutover and isolated the remaining cost to repeated graph
-construction, validation, object snapshots, and candidate materialization
-around the coupled algebra.
-
-The follow-up slice preserves the equations while replacing that cold bridge
-with session-owned scratch, a prepared non-coronary evaluator, direct typed
-coronary residual/boundary/volume writers, and dense LU that equilibrates and
-factors the caller-owned matrix in place. A modified-Newton experiment reuses
-one accepted Jacobian for at most two accepted Newton updates. The canonical
-candidate still needs three Newton updates, but now performs four residual
-evaluations and two Jacobian builds/factorizations rather than three. The
-full-Newton and modified-Newton solutions agree to eight decimal digits, both
-satisfy the component-owned physical admission gates, and reuse of the same
-workspace is deterministic.
-
-The production-like benchmark gives the legacy nested solver its production
-coronary and non-coronary scratch workspaces. After 1,000 warm-up solves, three
-independent 5,000-solve runs measured coupled/legacy median pairs of
-`0.434/0.793 ms`, `0.441/0.808 ms`, and `0.441/0.805 ms`, for speedups of
-`1.827x`, `1.835x`, and `1.824x`. Thus the local host diagnostic now clears the
-predeclared `1.8x` solve-only threshold reproducibly. This is evidence that
-eliminating the nested algebra is worthwhile; it is not an iPhone
-qualification or authorization to replace the accepted-step authority.
-
-The next slice closes that distinction. Externally solved non-coronary and
-coronary candidates are independently re-evaluated through the existing mixed
-continuity, hydraulic, ledger, valve, and mechanics admission laws, then enter
-the exact same one-shot seal/commit/rollback finalizer as the nested path. No
-borrowed candidate array escapes its synchronous evaluator; the cache owns
-fixed destinations, and a second finalization attempt is rejected. Global
-coupled iterations are not reported as coronary-local Newton work. The
-authority path also requires the complete component-owned analytic Jacobian
-and fails closed instead of using the 14-column finite-difference construction
-fallback.
-
-After aligning Newton convergence with those public component gates, three
-independent 5,000-step host diagnostics measured solve-only coupled/legacy
-speedups of `1.804x`, `1.805x`, and `1.806x`. The complete path—context
-preparation, coupled solve, canonical trial materialization, and atomic
-finalization—measured `1.296x`, `1.297x`, and `1.296x`. The accepted-state
-authority therefore remains below the `1.8x` cutover gate. This is a useful
-negative result: the residual/Jacobian organization is faster, but the current
-object-oriented re-evaluation and public-trial bridge consume most of that
-gain. Production cutover is rejected until final candidate ownership and
-materialization are flat and single-pass.
-
-The first model-specific flat acceptance owner now tests that missing boundary
-without extending the generic reflective state image. Its initial 34-f64
-volume-only proof has been replaced by two fixed 100-f64 images. They contain
-accepted time, revision, fixed TBV, all 15 non-coronary and 16 coronary
-volumes, two dynamic-edge flow memories, four valve opening memories, six
-coronary-tone values, all five canonical Land/SLS wall states, the two TriSeg
-coordinates, and the seven-scalar MVC shortening reference. A converged
-30-row root is range-checked and rechecked by the component convergence law;
-the selected private mechanics probe and the other component memories are
-then copied synchronously into the inactive image. Promotion remains one
-active-index swap. No public trial, generic clone, recursive fingerprint, or
-frozen accepted object graph is created on this path.
-
-Three independent 5,000-step host diagnostics measured flat-acceptance/legacy
-median pairs of `0.452/0.834 ms`, `0.444/0.818 ms`, and `0.442/0.817 ms`, for
-speedups of `1.845x`, `1.841x`, and `1.847x`. Flat admission itself measured
-about `0.001 ms` and the index swap about `0.00004 ms`; the coupled solve still
-dominates. This clears the predeclared `1.8x` host threshold and confirms that
-public-object materialization was the limiting boundary, not the coupled
-algebra.
-
-The expanded owner is parity-gated against the same converged root passed
-through the existing canonical finalizer. Non-coronary and coronary volumes,
-dynamic flows, valve openings, coronary tone, Land/SLS/TriSeg material state,
-and the MVC reference must all agree. A 1,000-step host diagnostic after the
-expansion measured flat/legacy medians of `0.459/0.840 ms` (`1.831x`), while
-flat admission was `0.005 ms` and the index swap below the timer's useful
-resolution. The result remains above the predeclared host gate even after the
-additional 66 accepted-state scalars.
-
-This owner is nevertheless a migration proof, not a complete accepted Session.
-Its residual context is still prepared from the old object state. Rhythm,
-devices, event clocks, accepted slow autoregulation ownership, and checkpoint
-encoding also remain outside the image. It therefore cannot yet drive the
-production multi-step Session by itself and is not eligible for a model
-release. The next authority slice must prepare the next residual directly from
-the active image, add the remaining model-owned memories, and materialize
-public objects only at cold readback boundaries. The `1.8x` result authorizes
-that migration; it does not authorize production cutover.
-
-An exact `14+16` block-Schur linear solve was also implemented and measured.
-At one patch it reached only about `1.53x` over the legacy nested path because
-fourteen auxiliary solves and block copying outweighed the smaller factors, so
-the experiment was removed. Dense `30x30` LU remains the simpler and faster
-P=1 baseline. A bordered/block solver becomes eligible again only when
-multipatch repetition changes that cost balance.
-
-The Newton domain now also owns physical lower bounds for all 16 coronary
-storage volumes and the coupled fixed-blood-volume inequality. The dependent
-`SV` volume is recomputed as total blood volume minus all 30 independent
-unknowns. An exact directional step limit keeps every line-search trial in
-the open positive-`SV` domain before any residual evaluation. These are
-solver admissibility conditions, not post-hoc clipping.
-
-The initial coupled implementation keeps the exact 2 ms backward-Euler clock,
-event clipping, closed-form valve/Land eliminations, and all accepted-state
-owners unchanged. It replaces three outer candidates, about four inner
-coronary Newton iterations, and fifteen implicit-sensitivity solves with one
-coupled nonlinear solve. Full Newton remains the reference. The tested
-modified-Newton candidate may reuse a validated Jacobian for one subsequent
-accepted update, but production use still requires the full branch, trajectory,
-rollback, and checkpoint gates. Higher-order integration or WASM may be
-evaluated only after this baseline identifies their marginal value.
-
-The old nested runtime is a test oracle, not the production fallback. A six-
-case corpus freezes 500 accepted steps for baseline, low preload, high
-afterload, high PEEP, tachycardia, and high contractility before any new-solver
-output is inspected. Legacy hashes prove that the oracle did not move; they do
-not require a different floating-point algorithm to reproduce the old bit
-path. Candidate acceptance instead uses predeclared conservation, residual,
-event, pressure, volume, flow, morphology, and checkpoint-continuation gates.
-
-The first trajectory shadow runs the coupled solve from the exact pre-step
-state beside every one of those 3,000 accepted legacy steps, using the actual
-event-limited `dt` and accepted calcium drive. All six cases complete with at
-most five coupled Newton updates. Across the corpus, the largest independent
-volume difference from the nested solution is `3.05e-8 mL`, the dependent-SV
-continuity residual remains below `1.18e-9 mL`, and the coupled residual
-infinity norm remains below `3.05e-8 mL` while every component-owned admission
-gate passes. Mean Jacobian evaluations range from `1.318` to `1.532` per
-accepted step. This demonstrates local branch agreement
-while the legacy state still drives the trajectory; it is not yet evidence
-that a new-solver-driven trajectory preserves event order, rollback, or
-checkpoint continuation.
-
-A separate candidate-driven baseline now advances 500 accepted 2 ms steps
-using only the coupled branch's preceding accepted tuple; the nested branch is
-an independently advancing observation oracle. Both reach revision 500 at one
-second, and every non-coronary and coronary stored volume remains inside the
-predeclared `1e-5 mL` corridor. This proves that the coupled candidate can own
-its next step without returning to the nested state. It does not yet cover
-integrated rhythm/event clipping, dynamic mechanical support, accepted
-autoregulation, checkpoint continuation, or the remaining five scenarios.
-
-The solver-architecture hypothesis is itself falsifiable. The regular-sinus,
-device-off accepted-state authority must improve host kernel time by at least
-`1.8x` to justify productionization. The public-object authority remains only
-`~1.296x`, while the model-specific flat authority now measures `~1.831x` and
-clears the host gate. Production cutover still requires a genuinely
-flat-driven multi-step trajectory and the integrated iPhone gate; the host
-result does not waive either condition or justify a premature WASM port.
-
-The complete 100-scalar image now also drives a 500-step, one-second accepted
-trajectory through an explicit cold object bridge. After every index swap the
-bridge reconstructs the old circulation, coronary, mechanics, and MVC public
-state, including a freshly encoded and fingerprinted mechanics snapshot; only
-that reconstructed state prepares the following coupled context. The flat
-trajectory reaches revision 500 and remains within the existing `1e-5 mL`
-volume corridor beside an independently advancing nested oracle. This proves
-that no accepted circulation/mechanics scalar required by the next step is
-missing from the image. It does not count as the final hot path: the bridge is
-named, documented, and measured as a cold migration boundary and must be
-deleted from per-step execution before cutover.
-
-The integrated reference Session now stages all continuously changing owners
-that were still visible outside that 100-scalar partition into the existing
-global typed image: electrical-capture and ventricular-backup clocks,
-coronary-window duration/count/integrals, redundant circulation and mechanics
-volumes, and the fixed-width mechanics fingerprint. A manifest-wide 1,024-tick
-diagnostic classifies every changing slot and fails if an unclassified hot
-owner appears. In the baseline run, `1,017` of `1,032` accepted commits were
-already byte-exact after owner staging; only `15` rhythm/window event commits
-needed the exhaustive object completion path. The complete all-49-output
-trajectory remained inside the existing scientific corridor, with maximum
-relative output difference about `1.92e-9` versus the nested oracle, and exact
-checkpoint continuation still passed.
-
-That result deliberately did **not** qualify the migration as a speedup. One
-alternating 512-tick host diagnostic measured about `2.06 ms/tick` for the
-nested object authority and `2.15 ms/tick` for the integrated typed reference
-(`1.045x` overhead), despite eliminating exhaustive completion on 98.5% of
-commits.
-
-The next reference slice now makes those 98.5% ordinary commits model-owned.
-A manifest-bound promotion plan records every continuous, boolean, and
-fixed-width string slot that the solver and continuous owners must explicitly
-write during the current candidate generation. The inactive image tracks those
-writes in preallocated bitmaps. Promotion rejects any missing write before the
-buffer index can change. Full-invariant runs additionally compare the entire
-typed candidate with the admitted object oracle; lean runs skip that 484-leaf
-comparison. Rhythm transitions, queue changes, nullable-event records,
-autoregulation control changes, and window rollover still use the exhaustive
-completion path. A 1,024-tick lean/full pair remained inside the all-49-output
-scientific corridor, and the lean authority promoted `1,017` ordinary
-candidates with only `15` event completions. Three local lean profiles measured
-about `0.871`, `0.925`, and `0.937 ms/tick`, compared with roughly
-`0.93–0.96 ms/tick` before this slice. This is a real but modest host gain;
-noise overlaps it, so it is not a production gate.
-
-The reference still constructs a complete accepted object before that typed
-promotion. Therefore the next performance boundary is no longer another
-retained-slot or comparison optimization: it is a model-owned typed candidate
-admission that evaluates the selected 30-volume root, applies coronary
-autoregulation and rhythm/device owners, validates clocks/conservation/event
-ownership directly, and promotes the single global image without first
-materializing the public object graph. Public objects must then exist only at
-observation, checkpoint, capture, and explicit debug-oracle boundaries. Until
-that boundary exists, the integrated Session remains a parity oracle and must
-not replace the active release.
-
-The coupled solver now exposes the selected converged component candidate as a
-synchronous, context-owned borrow before public trial finalization. The global
-typed authority copies the complete 100-value hemodynamic partition, material
-fingerprint, and MVC state from that borrow; retaining any borrowed array or
-record beyond the callback is forbidden. Full public finalization remains in
-place as the independent oracle and a 1,024-tick regression requires every
-typed slot, all 49 outputs, and canonical checkpoint continuation to agree.
-
-The same borrow carries a fixed ten-value coronary readback: six internal Qm
-flows, three post-focal-lesion pressures, and common coronary venous pressure.
-The accepted autoregulation owner consumes that packed readback directly. Its
-window state and rollover decision are compared exactly with the legacy public
-trial promotion on every reference step, including the first complete window.
-This removes public coronary diagnostics from the future typed authority's
-dependency graph without changing the backward-Euler right-endpoint law.
-
-The autoregulation advance now also accepts its minimal owner tuple directly:
-accepted clock, immutable window binding, compact window state, and current
-tone. The complete coronary AcceptedState is no longer part of that numerical
-boundary. A strictly ordinary device-off post-solver stager writes unchanged
-capture counters, advancing electrical/backup clocks, zero rotary-device
-flows, and the accepted window integrals into the inactive global image. It is
-valid only when no rhythm event, autoregulation rollover, or control transition
-occurs; those boundaries remain on the public completion path during the
-migration.
-
-The selected root now also emits one fixed 32-value accepted numerical
-readback before public trial finalization. It contains the accepted clock,
-four chamber volumes, nine absolute pressures, four transmural pressures,
-four valve flows, four vascular flows, pericardial excess pressure, total and
-territory coronary inlet flows, and the common coronary venous outlet. Every
-slot is produced by the same component evaluation that admitted the root; no
-second hydraulic evaluation is permitted on the new authority path. A cold
-root regression compares all slots bit-for-bit with the independently
-finalized public trial. Across a continuous trajectory, the retained public
-oracle performs a separate candidate/hydraulic reevaluation and may therefore
-differ by ordinary floating-point rounding; the all-output trajectory gate
-uses the already-established scientific corridor rather than pretending two
-evaluations are one numerical operation. This readback is a
-private versioned kernel block, not portable Snapshot content. It is the
-input boundary for direct signal projection and accepted-substep beat metrics;
-future physiology such as oxygen transport, autonomic control, or multipatch
-mechanics must add separately versioned blocks rather than reinterpret these
-32 slots.
-
-The accepted-substep beat accumulator and the selected-output presentation
-projector now consume that fixed readback directly on the typed-authority
-path. The original public-step readers remain independent parity oracles. A
-full-catalog projection gate compares all 49 outputs, while the trajectory and
-checkpoint gates compare in-progress and completed beat metrics across the
-old and new inputs. This removes rich coronary, circulation, and mechanics
-trial trees from those two downstream consumers; public finalization itself
-still runs and remains the next deletion boundary.
-
-The all-output numerical projection boundary no longer accepts a public
-AcceptedState. The typed image supplies only the admitted clock, regular-sinus
-cycle and next-activation clocks, and current LVAD flow alongside the fixed
-32-value numerical readback. Those values cover the remaining rhythm and
-device outputs, so all 49 presentation values can be projected without
-rehydrating the public object graph. Non-regular rhythm remains fail-closed at
-this narrow migration seam and continues through the independent public path.
-
-The transaction image now also has an adapter-free promotion primitive. It is
-bound to an unforgeable model-owned write plan, rejects any missing owner slot,
-and performs only the final active-buffer swap after the model has applied its
-numerical and cross-owner seals. A successful promotion invalidates the cached
-public mirror; the authority rehydrates and fully validates that mirror lazily
-only when a cold/event API requests it. The lean selected-output Session path
-now uses this primitive for strictly ordinary, single-substep ticks. It first
-validates the complete output plan, stages every numerical and continuous-owner
-slot, then swaps the image once. An invalid or duplicated output ID is rejected
-before numerical state can advance. Rhythm events, autoregulation rollover or
-control changes, device activity, and full-invariant development runs remain on
-the independently validated public transaction path.
-
-The statically condensed integrated seam is likewise split at the same
-boundary. `solveMainWireFiveWallCoupledCandidateV1` prepares and solves the
-existing 30-volume equations, returns only an opaque component context plus
-solver diagnostics, and permits a synchronous borrow of the already admitted
-selected root. It does not materialize a coronary or integrated AcceptedState.
-The legacy/event caller can still invoke the context's one-shot public
-finalizer afterward. The ordinary typed caller instead stages the borrow,
-completes rhythm/device/autoregulation owners, seals the global image, and
-invokes adapter-free promotion. Both routes therefore share the exact same
-solver and component convergence gates during migration.
-
-That preparation boundary now has two narrower construction seams. The
-non-coronary evaluator reads the accepted clock, TBV, volumes, dynamic flows,
-and valve openings directly from the active typed image, then requires exact
-agreement with the still-present rollback object before solving. The coronary
-evaluator snapshots accepted volumes, tone, disease, collapse, and topology
-once per accepted step and owns one reusable hydraulic page. An exactly
-identical candidate-volume/boundary tuple therefore shares one hydraulic
-evaluation between residual and analytic-linearization assembly; mutable
-scratch never escapes the opaque evaluator. Canonical trials and admitted
-state continue through the existing component finalizers.
-
-These seams were not independently performance-positive at one patch. A local
-lean profile after both changes measured about `0.941 ms/tick`, overlapping the
-preceding `0.934 ms/tick` reference. They now form the preparation boundary for
-the ordinary typed transaction: a compact private solver adapter is read from
-the sole active image, the existing 30-volume system is solved, and the admitted
-root is staged without reviving the integrated public AcceptedState or running
-public finalization. The compact adapter is still temporary migration
-infrastructure; replacing it with direct cursor-backed component input remains
-necessary before a production cutover.
-
-This integrated deletion boundary produced the first large local performance
-gain. Three alternating 512-tick, six-output lean runs measured nested public
-oracle means of about `1.155`, `1.191`, and `1.155 ms/tick`, while the typed
-reference measured `0.590`, `0.609`, and `0.598 ms/tick`. The paired ratios were
-`0.510`, `0.512`, and `0.517`, or about `1.93–1.96x` throughput. Output
-projection itself used only about `1.4–1.6 ms` over each complete 512-tick run;
-the gain came from deleting public candidate finalization and accepted-object
-materialization on ordinary ticks, not from hiding presentation work.
-
-A 600-tick full-catalog regression crosses rhythm and autoregulation event
-boundaries, requires more than 550 adapter-free commits, and compares all 49
-outputs with the independent public oracle. A second 1,600-tick regression
-captures canonical binary state at tick 377, restores a fresh Session, and
-continues with predictor history intact. The uninterrupted and restored
-Sessions produce byte-identical accepted state and selected outputs through
-tick 1,600 while both remain inside the independent public-oracle corridor.
-Cold observation after an ordinary typed commit is intentionally marked
-`typed-authority-readback`: it rehydrates accepted state, but does not invent a
-public last-step diagnostic tree that was never constructed. Checkpoint,
-capture, explicit observation, event handling, and the full-invariant tier
-remain cold or oracle boundaries. These host results justify continued
-integration; they are not the iPhone production gate and do not yet mint a
-release model ID.
-
-The first trajectory optimization uses only **admitted** 30-volume roots to
-predict the next Newton seed. The first eligible step uses a first-order
-accepted displacement. Once three accepted roots exist, the selected policy
-uses the second finite difference to form a quadratic extrapolation. Prediction
-is not accepted state and changes no equation, timestep, bound, residual
-tolerance, or component-owned convergence law. History advances only after
-the exact root has been staged and the complete flat image promoted. Parameter
-changes, revision/time discontinuities, or a mismatch with the current
-accepted root clear the history. An exact reference checkpoint instead owns
-the predictor as algorithmic state: it records the accepted clock and two- or
-three-root history, restores only when the clock and current root agree with
-the restored numerical authority, and continues with the same seed. Empty
-history has one canonical all-zero encoding. Meaningful clock/root tampering is
-rejected and accessors are never invoked during validation. An extrapolation
-outside the open per-volume and dependent-SV domain is geometrically damped
-and ultimately falls back to the context seed; a predicted solve that fails
-also retries from that seed.
-
-In one 1,000-step sequential host diagnostic after 100 warm-up steps, the
-context-seeded coupled path required mean `3.171` Newton updates and `1.958`
-Jacobian evaluations per accepted step. The accepted-root predictor reduced
-those to `1.987` and `1.240`, respectively. Median complete flat-step time
-fell from `0.549 ms` to `0.419 ms`; against the independently advancing nested
-oracle, the measured median speedup rose from `1.335x` to `1.766x`. All 1,099
-eligible warm-up/measured predictions were admitted without damping or solver
-fallback in that run. A separate 200-step regression solves every context
-from both seeds, requires branch agreement inside the established numerical
-corridor, records history only after promotion, and proves a discontinuous
-cold context falls back and resets. These host numbers establish marginal
-value, not the production phone gate. Cross-step Jacobian reuse remains a
-separate concern rather than an implied consequence of the predictor result.
-
-The quadratic policy was then measured independently rather than inferred
-from the linear result. In a 1,000-step baseline diagnostic it reduced mean
-Newton updates from `1.987` to `1.387`, residual evaluations from `3.000` to
-`2.389`, and Jacobian evaluations from `1.240` to `1.031`. Median complete
-flat-step time fell from about `0.423 ms` to `0.329 ms`, and median speedup over
-the nested observation rose from `1.756x` to `2.224x`. One solve used the
-defined context-seed retry in that longer run; no accepted state came from a
-failed prediction. A separate 500-step run for each of baseline, low preload,
-high afterload, high PEEP, tachycardia, and high contractility reduced mean
-residual evaluations in every case (`2.926`–`3.334` linear versus
-`2.366`–`2.616` quadratic), without damping or retry. A six-case regression
-advances both predictors from their own accepted state, keeps their roots
-inside the predeclared `1e-5 mL` corridor, and requires less residual work in
-every case. These are construction cases, not clinical validation.
-
-A residual-gated cross-step factor experiment then used the preceding
-factored Jacobian for at most the first update and rebuilt it on any failed
-line search or stagnation. All 1,099 eligible attempts produced an accepted
-residual-decreasing update, reducing fresh Jacobian evaluations to mean
-`1.032` per step. It nevertheless increased mean Newton updates from `1.987`
-to `2.163` and measured `0.424 ms` median flat-step time (`1.742x` over the
-nested observation) rather than the predictor-only run's `0.419 ms`
-(`1.766x`). Raising intra-solve modified-Newton reuse from two to three updates
-similarly reduced Jacobian builds but increased iteration count and did not
-improve time. Both implementations were removed. Jacobian assembly is now
-cheap enough that a stale direction's extra residual/update work cancels its
-savings at one patch; future reuse requires a materially better update such
-as a tested low-rank quasi-Newton correction, not simple factor retention.
-
-Component timing also changes the next priority. In a profiled 1,100-step
-predictor run, residual evaluation consumed about `388 ms` over `3,355` calls
-(`0.116 ms` mean), while the component-owned analytic Jacobian writers used
-about `39 ms` over `1,393` calls (`0.028 ms` mean). Convergence and dependent-SV
-checks were sub-microsecond on average. The remaining host solve is therefore
-dominated by repeated residual materialization, not dense Jacobian assembly.
-The next optimization must replace the generic public-object candidate path
-with a model-specific flat residual/mechanics evaluator that writes fixed
-numeric scratch and materializes rich readback only for the selected root. It
-must not weaken component convergence or accepted-state finalization.
-
-The first model-owned candidate seam now removes public mechanics readback from
-rejected coupled residual candidates without changing the accepted boundary.
-The production five-wall provider privately mints an opaque prepared numerical
-step from the accepted material state, candidate clock, calcium drive, and
-parameter identity. Each candidate returns only the chamber pressure/tangent,
-ventricular strain and active-stress values needed by the coupled residual,
-the isolated candidate material state, and model-owned evaluation counters.
-Providers that do not own this seam continue through the complete generic
-mechanics contract. The selected root is always re-evaluated through the
-existing public trial and the common one-shot seal/commit/rollback finalizer;
-the lightweight result can neither be published nor committed directly.
-
-An A→B→A regression proves that later candidate evaluations cannot mutate an
-earlier candidate or the accepted material state. Public-versus-numerical tests
-require identical pressures, condensed tangents, ventricular strains, active
-stresses, and encoded candidate material state. Three alternating pairs of
-10,000-step baseline diagnostics, after 1,000 warm-up steps, with the nested
-observation disabled and under the default development `full-invariant` tier,
-gave identical coupled iteration, residual, and Jacobian counts. The
-model-owned path was faster in all three pairs. Its paired median ratios were
-about `0.990` for complete-step median, `0.976` for solve median, `0.944` for
-complete-step p95, and `0.939` for solve p95. These machine-specific
-measurements establish that rejected-candidate readback is real overhead,
-especially in the tail, but they also falsify it as the main remaining
-bottleneck.
-
-The next mechanics slice must therefore replace the remaining model-specific
-candidate object graph with provider-owned fixed numeric scratch. It should
-retain the same constitutive solve and algorithmic tangent, write only the
-pressure, tangent, strain, active-stress, and candidate-state slots consumed by
-the coupled system, and materialize detailed wall diagnostics only once for the
-selected root. No accepted-state/checkpoint schema change, looser convergence
-gate, or stale candidate reuse is implied by this optimization.
-
-A second ownership correction removes state and public-step materialization
-from that rejected-candidate path. Internal numerical TriSeg candidates retain
-their private material evaluations but do not clone a five-wall aggregate
-state. Only the converged numerical result materializes one owned candidate
-state. The generic mechanics prepared step, including its clone, canonical
-fingerprint, and serializability checks, is now created lazily only if the
-caller requests canonical trial materialization/finalization or if the provider
-does not implement the numerical seam. The exact accepted public path remains
-unchanged.
-
-Three alternating 10,000-step pairs after this change again had identical
-iteration/residual/Jacobian counts. Under the production-relevant
-`hot-path-lean` tier, the model-owned-to-generic paired median ratios were about
-`0.945` for complete-step median, `0.931` for solve median, `0.931` for
-complete-step p95, and `0.912` for solve p95. The same comparison under the
-default development `full-invariant` tier showed larger ratios of about
-`0.913`, `0.892`, `0.915`, and `0.889`, respectively, because deferred public
-validation is deliberately more expensive in that tier. The benchmark now
-reports its effective integrity tier so those two claims cannot be conflated.
-This is a meaningful host improvement, but the path still allocates geometry,
-constitutive, derivative, Hessian, and tangent object graphs for every residual
-candidate. Those allocations, not the deferred public boundary, are the next
-target.
-
-The accepted-root predictor is now connected to the adapter-free ordinary
-reference Session rather than remaining a benchmark-only experiment. A
-quadratic policy first reduced 10,364 direct solves from about `2.38`
-Newton/Jacobian evaluations per solve to about `1.35`; three complete runs
-measured `0.409`, `0.410`, and `0.415 ms/tick`, compared with about
-`0.537 ms/tick` for the same direct path without prediction. A cubic policy
-then reduced residual work again in each of the six 500-step construction
-cases while retaining the same admitted root branch inside the predeclared
-`1e-5 mL` corridor. The Session now uses that cubic history and includes its
-exact algorithmic state in the tamper-evident reference checkpoint. History is
-recorded only after promotion and resets on any discontinuous accepted clock or
-root.
-
-A fourth-order extrapolation was implemented and rejected rather than retained
-as speculative flexibility. At full scale it marginally reduced residual work
-but crossed an existing selected-output scientific-equivalence boundary. At
-`0.875` and `0.5` scale it lost the residual advantage, reaching approximately
-`1.49x` and `1.70x` the cubic residual evaluations in the first corpus case;
-the intermediate scale still crossed a checkpoint-continuation output gate.
-The experiment and its extra checkpoint history were removed. A two-update
-modified-Newton experiment was likewise removed: it reduced fresh Jacobian
-construction but raised the mean iteration count to about three and slowed the
-path to about `0.599 ms/tick`. Residual and mechanics work, rather than the
-already-cheap analytic Jacobian writer, therefore remains the next optimization
-target. These host measurements are construction evidence, not the
-physical-phone release gate.
-
-The Phase 2b construction seam now also exposes the two scaled TriSeg internal
-coordinates as explicit caller-owned unknowns. At one fixed chamber-volume and
-coordinate tuple, the model-owned provider evaluates the existing constitutive
-and geometric equations once without running its local two-variable Newton. It
-returns the two equilibrium residuals and an analytic `6×6` mechanics block:
-four transmural-pressure rows followed by two internal-equilibrium rows, with
-columns ordered as `LA`, `LV`, `RA`, `RV`, scaled septal cap volume, and scaled
-junction radius. Ventricular strain and active-stress derivatives use a separate
-documented `3×4` row-major block. A central-difference shadow checks the complete
-`6×6` derivative, and static condensation of its two internal coordinates must
-reproduce the established four-chamber pressure tangent. The returned arrays
-are owned by one evaluation and an A→B probe cannot mutate A. This remains a
-construction interface used by the 32-variable shadow; it cannot be sealed,
-committed, checkpointed, or treated as an accepted performance improvement by
-itself.
-
-The rejected-candidate mechanics path now uses a numerical Land/SLS evaluation
-that preserves the public step's equations, expression order, Land tolerance,
-and discrete SLS passivity gate without constructing its audit ledgers. The
-selected root still passes through the complete public materialization and
-one-shot finalizer. The TriSeg Hessian writes into fixed row-major numeric
-scratch, and the internal two-coordinate Newton uses a scalar `2×2` solve and
-closed-form symmetric minimum eigenvalue instead of allocating generic matrix
-workspaces. Public-versus-numerical tests require identical material state,
-stress, tangent, iteration count, and residual norm.
-
-The 30-row residual context also has an optional Session-owned workspace. It
-reuses its fixed volume, residual, tangent, pressure, flow, valve, and accepted
-readback arrays across ticks. Starting a new context increments a generation;
-every method and predictor access on an older context then fails closed, so a
-synchronous borrow cannot silently observe repurposed storage. Repeated
-evaluation of the same candidate reuses only detached numeric values. The
-converged root is independently rematerialized through the canonical public
-path where required. Tests require the same residual on an exact repeat,
-stable array identity within the workspace, and rejection of the stale prior
-context.
-
-Finally, the normal-adult provider streams the exact sorted-key state-codec JSON
-directly into its FNV-1a fingerprint instead of cloning and encoding the entire
-five-wall material state for each accepted candidate. The `full-invariant`
-tier independently computes the generic codec fingerprint and requires exact
-equality; only the already model-owned `hot-path-lean` path trusts the fast
-writer. After these changes, a 1,000-tick warm-up plus 20,000-tick lean host
-run measured `0.3505 ms/tick`, with 20,706 coupled solves, 26,220 Newton
-iterations, 46,945 residual evaluations, and 19 line-search backtracks. This is
-approximately 13% below the earlier `0.405 ms/tick` reference, but it combines
-cubic prediction, residual workspace reuse, numerical constitutive cleanup,
-and allocation-cold fingerprinting and therefore is not attribution to any
-single edit. A fresh CPU profile no longer shows canonical state encoding in
-the leading self-time entries; dense LU, Land output evaluation, TriSeg
-geometry, non-coronary candidate evaluation, and vascular constitutive work are
-now the main measured components.
-
-The next retained slice is deliberately component-owned rather than tailored
-to the current five-wall topology. Land continuous-output health checking no
-longer allocates and spreads a temporary array on every evaluation. Active
-stiffness also consumes the algebraic terms already evaluated for the exact
-same state instead of re-evaluating them through the public standalone helper.
-The standalone helper remains unchanged for independent callers. In five
-two-million-evaluation runs, the focused Land-output benchmark improved from a
-median of about `333 ns/evaluation` to about `251 ns/evaluation`; the checksum
-was identical. Alternating complete-kernel runs also measured a roughly
-`2–3%` reduction from the finite-check allocation removal alone, although host
-timing remains construction evidence rather than a release gate.
-
-The same component boundary now avoids transient arrays in the Land population
-solve, consistent tangent, numerical Land/SLS passivity check, accepted-state
-evaluation, and public material health check. The tangent uses the three
-population derivatives and two zeta derivatives as scalars rather than first
-packing a six-entry typed vector. Five paired two-million-evaluation runs
-reduced its median from about `275 ns/evaluation` to about
-`204 ns/evaluation`, again with an identical checksum. These changes do not
-remove a scientific gate; they express the same finite-value and residual
-checks without allocating a collection solely to iterate over it.
-
-This optimization scope does not add AVPD, autonomic reflexes, oxygen state,
-Fontan paths, or any other future physiology. It also excludes shortcuts whose
-validity depends on the present chamber count, coronary count, or fixed
-circulation graph. Runtime ownership, solver globalization, typed layouts, and
-component-internal constitutive kernels may be optimized now; future physiology
-must enter later as separately specified state owners and topology changes.
-Land-internal work is intentionally reusable because the same constitutive
-kernel will remain a per-patch building block when multipatch myocardium is
-introduced.
-
-### Active Standard-58 typed authority
-
-Standard-58 completed the production cutover to the typed-authority Session
-and its model-owned selected-output projection. The ordinary live path keeps
-the established 30-volume condensed solve, stages all accepted owners into one
-inactive typed image, and promotes once. It does not promote the rejected
-32-root experiment or any benchmark-only mechanics seam. Analysis, capture
-validation, checkpoint encoding, restore, and explicit observation are cold
-boundaries and may rehydrate the canonical public object without returning
-that allocation cost to every live tick.
-
-The exact host's `currentFrame` boundary projects from the same clock-matched
-numerical readback as the terminal packed batch frame. A cold or restored
-Session may use the public observation until its first admitted readback, but
-an ordinary typed advance never falls back to a reconstructed observation that
-downgrades accepted pressure or flow availability. The Worker enforces
-byte-level frame meaning across capture and analysis pauses.
-
-The Studio host records presentation origin as an integer tick. A restored
-Snapshot and its uninterrupted source therefore request the same absolute
-sample times instead of accumulating a different IEEE-754 addition history.
-The public Standard checkpoint omits the cubic predictor because it is
-non-authoritative solver-cache state. Restore starts from the model-owned
-context seed and rebuilds admitted predictor history; a dedicated continuation
-gate requires matching clocks and scientifically equivalent all-output
-trajectories. The private tamper-evident construction checkpoint includes
-predictor history for exact diagnostic continuation.
-
-Construction measurements recorded approximately `0.323 ms/tick` for 1,536
-accepted ticks with six selected outputs, versus approximately `0.997 ms/tick`
-for the earlier Standard-29 object Session under the same lean-tier benchmark.
-Standard-58 subsequently passed the canonical scientific corpus, checkpoint
-restore, control warm-start, analysis-isolation, and physical iPhone Worker
-gates before registration, activation, and deployment. Those results justify
-the current authority; they are not a promise that future model growth is
-free.
-
-The boundary is intended to survive that growth. Accepted state is owned by a
-generated manifest and owner-specific slot bindings rather than a handwritten
-monolithic struct. New oxygen, autonomic, topology, and multipatch domains must
-enter as separately declared owners. Their equations and coupling require new
-model work and new exact releases, but not a return to per-tick public-object
-authority. Standard-58 adds none of that future physiology.
-
-### Phase 3 — strict scalar WASM
-
-Port the proven flat scalar kernel to a strict `f64` WASM implementation if
-physical-device measurement demonstrates a benefit. A direct WASM translation
-of the current object graph is explicitly rejected: it would preserve the
-wrong allocation and solver structure.
-
-WASM threads and `SharedArrayBuffer` are optional. They require a measured win
-on iOS and must not become a deployment prerequisite.
-
-JavaScript transcendental functions also require an independent portability
-experiment. The 500-step canonical sequence must be computed in V8 and WebKit
-JavaScriptCore. A mismatch establishes that current hashes promise
-within-engine determinism only; it does not by itself imply a scientific
-failure. A portable `libm` implementation or strict-f64 WASM becomes eligible
-only after that mismatch is measured and a cross-engine bit contract is shown
-to be necessary.
-
-### Phase 4 — multipatch layout and SIMD
-
-Add multipatch myocardium using a structure-of-arrays layout with stable patch
-indices. Scalar `f64` remains the scientific reference. SIMD is admitted only
-after scalar parity and only where lane ordering does not alter accepted
-semantics.
-
-### Phase 5 — autonomic, O2, and multirate domains
-
-Autonomic reflexes and oxygen delivery are added as explicit state owners with
-declared coupling boundaries. Slower physiology may use multirate integration
-only after comparison with a sufficiently small-step single-rate reference.
-Multirate integration is a scientific-model change, not a presentation
-performance switch, and therefore receives a new exact release and dedicated
-validation.
-
-The fixed 2 ms backward-Euler method is also not assumed to be scientifically
-optimal forever. Before considering TR-BDF2, SDIRK2, or another L-stable
-second-order method, the existing dt-halving lane must quantify morphology
-effects including E/A, atrial figure-eight shape, pulmonary-venous S/D/Ar,
-and the aortic dicrotic notch. Integration-order work receives its own exact
-model release and is never combined with the first coupled-solver cutover.
-
-## Gates
-
-Standard-58 passed the scientific-oracle and physical-device gates required
-for its activation. Every future exact release that changes this numerical
-authority must pass the same classes of gate before it can replace the active
-pointer.
-
-The coupled-solver science gate additionally requires:
-
-- one-step candidate versus nested-oracle node-volume difference at or below
-  `1e-6 mL` for the frozen construction corpus;
-- total-blood-volume, coronary-ledger, and continuity limits at or below their
-  predeclared `1e-8 mL` gates;
-- exact scheduled-event order and rejected-step atomicity;
-- periodic-settlement and healthy morphology corridors;
-- the valve-disease robustness envelope with zero finite-difference fallback;
-- exact checkpoint continuation within the candidate exact release.
-
-The one-step comparison diagnoses whether both implementations solve the same
-equations. Free-running 500-step divergence is recorded and bounded by
-observable/morphology policy rather than by the legacy sequence hash.
-
-For the one-Scenario iPhone 16 Pro Max baseline, the initial performance goals
-are:
-
-- Worker numerical advance p95 at or below `20 ms` per `32 ms` model batch;
-- complete Worker round trip p95 at or below `24 ms`;
-- model-time ratio p05 at or above `1.25` after warm-up;
-- model/wall lag p95 below `50 ms` with zero overload re-anchors in a
-  representative one-minute run;
-- no unbounded thermal decay over that run.
-
-These are release targets, not permission to distort time. If a supported
-device still cannot maintain real time, the UI must show the actual playback
-rate. It must not repeatedly discard elapsed wall time behind a nominal
-`Live` label.
-
-Additional gates cover two and four Scenarios, Article peek, control changes,
-background analysis contention, memory growth, and restore/capture. Device
-tier policy may reduce background concurrency, live Scenario count, visual
-sample cadence, or pixel density; it may not choose a different numerical
-kernel profile.
-
-Post-activation Standard-58 reports on an iPhone 16 Pro Max separated numerical
-capacity from the remaining policy work. With two live Scenarios, numerical
-advance p95 was `15 ms`, execution-plan binding was `1–2 ms`, and recent group
-capacity was about `2.97×`; with one Scenario, an early report nevertheless
-latched playback at `0.5×` while a background Worker was active. That
-contradiction identifies calibration contamination rather than a need for
-another numerical release. DESIGN-STUDIO-005 therefore makes foreground-only
-evidence, monotonic upward requalification, and measured-headroom background
-QoS the performance-closeout boundary. A new physical-device report after that
-boundary remains required; these policy changes do not mint a model ID because
-they never change accepted steps, equations, outputs, or checkpoints.
-
-## Rejected alternatives
-
-- Increasing the exact `dt` only on phones: changes the scientific model.
-- Interpolating skipped states: creates values the solver never accepted.
-- Treating Canvas FPS as the primary issue: contradicted by device timings.
-- Porting the current architecture directly to WASM: preserves the dominant
-  nested solve and allocation structure.
-- Starting with multirate integration: couples a scientific change to an
-  unproven performance hypothesis.
-- Teaching a new exact release to decode old checkpoints or running two exact
-  kernels for one active Scenario: exact identity already isolates their state
-  layouts. Historical artifacts remain independently readable only while
-  immutable published content references them.
-
-## Current completion boundary
-
-The numerical-authority cutover is complete in active Standard-58: one typed
-authority owns accepted live state, the object Session is a cold scientific
-oracle, and physical-device plus scientific evidence gates the exact release.
-
-The remaining compatibility work is content retention, not an unfinished
-kernel migration. Current public Articles still pin older exact Snapshots.
-After those Articles are re-created on the active release and obsolete
-database revisions are deliberately pruned or reset, their historical
-artifact reader and frame-per-step adapter can be deleted. The scientific
-object oracle remains until a named replacement gate provides equivalent
-evidence; it is not a production fallback.
+The exact adapter advances every accepted tick in order, projects only selected
+scalar outputs into a transferable typed page, and emits one complete terminal
+frame for controls, capture, authoring correlation, and latest-value reads.
+Output identity, scalar shape, destination layout, clocks, state codes,
+monotonicity, and terminal correlation are checked before transfer. Invalid
+selection or destination layout is rejected before numerical advance.
+
+The packed page is a presentation transport, not a checkpoint and not accepted
+authority. Snapshot admission, analysis, control warm start, and complete beat
+metrics use exact model-owned state rather than reconstructing from samples.
+
+## Checkpoint and cold boundaries
+
+The public Standard checkpoint is a versioned, digest-bound envelope containing
+accepted revision and `acceptedTimeSec`, the model-owned numerical checkpoint,
+in-progress beat accumulation, and the most recently completed beat metrics.
+Its nested numerical checkpoint owns accepted circulation, mechanics, rhythm,
+event, and device state plus the configuration identities and bindings used to
+bind continuation to the restore context. It does not expose the internal
+typed-layout ID or an integer tick field. Canonical JSON digest validation,
+malformed-input rejection, clock correlation, restore continuation, and
+fixture binding are release gates.
+
+The public Standard checkpoint omits non-authoritative solver predictors.
+Restore rebuilds those caches from admitted state. A private construction
+checkpoint may carry additional tamper-evident diagnostic state, but it is not
+the public durability contract.
+
+Capture validation, Snapshot admission, formal analysis, explicit observation,
+and restore may rehydrate a complete public object. These are cold boundaries;
+their allocation cost is not returned to every live tick.
+
+## Scientific release gates
+
+A candidate exact release may become active only after it passes its declared
+scientific corpus. At minimum, a numerical-authority or solver replacement
+must cover:
+
+- one-step candidate-versus-oracle node-volume differences within the
+  predeclared tolerance;
+- total-blood-volume, coronary-ledger, and flow-continuity limits;
+- deterministic accepted clock and scheduled-event order;
+- rejected-step and failed-candidate atomicity;
+- checkpoint round-trip and continuation;
+- periodic settlement and healthy morphology corridors;
+- the valve-disease numerical robustness envelope with zero finite-difference
+  fallback on the admitted analytic path;
+- controls, control warm start, analysis isolation, and all primitive outputs;
+  and
+- representative one- and multi-Scenario physical-device reports.
+
+Tolerance values belong beside the executable gate that enforces them. They
+must be frozen before comparing a replacement; they are not loosened in
+response to a candidate result.
+
+Free-running trajectories can diverge after a solver change even when both
+methods solve the same local equations. Reviews therefore separate local
+equation/root evidence, conservation and event invariants, morphology and
+output policy, and exact continuation within each release. A legacy sequence
+hash is not, by itself, the definition of physiological correctness.
+
+Passing these gates establishes declared numerical behavior, not clinical
+validation. The active model remains `releaseReady: false` and
+`simulationReady: false` until its independent scientific program says
+otherwise.
+
+## Physical-device gate
+
+The numerical gate is measured in the dedicated Worker on a physical supported
+device. Page-only browser CPU throttling is not a substitute because it does
+not reliably throttle dedicated Workers.
+
+DESIGN-STUDIO-005 owns the current thresholds: bounded group lag and backlog,
+at least 10% measured compute headroom at the supported Scenario count,
+control-to-visible-result and graph-presentation latency, Canvas budget,
+retained-memory stability, and physical-device qualification. Reports must
+separate numerical advance, Worker round trip, presentation, and background
+contention, and include a minimum ten-minute retained-memory/thermal run on the
+named device tier.
+
+One- and multi-Scenario Workbench, Article peek, control changes, background
+analysis, restore, and capture are separate lanes. The Group TimeConductor
+calibrates one shared capability ceiling and initial rate for all live
+Scenarios. After calibration it never silently lowers an explicit selection.
+If capacity later deteriorates, every Scenario slows together, every accepted
+frame remains ordered, and the UI shows a performance warning. It does not let
+waveforms drift apart, re-anchor a lane, or discard elapsed model time behind a
+nominal `Live` label.
+
+The path to the current boundary was empirical: the object runtime initially
+needed about `41–43 ms` to produce `32 ms` of model time on an iPhone 16 Pro
+Max; packed transport alone did not improve that cost; direct typed authority
+and the condensed solve produced roughly a threefold host improvement; and a
+post-cutover two-Scenario phone report measured numerical advance p95 near
+`15 ms`. Individual release diaries and raw reports remain in Git history.
+
+## Future model extension rules
+
+The present release does not add AV-plane displacement, autonomic reflexes,
+oxygen transport, multipatch myocardium, Fontan circulation, or congenital
+bypass topology. Those features require separate mathematical design and new
+exact releases.
+
+### Oxygen delivery and balance
+
+Oxygen content, transport, consumption, and balance enter as explicit state
+owners with declared units, conservation laws, and coupling to flow. A slower
+oxygen timescale may use multirate integration only after comparison with a
+sufficiently small-step single-rate reference. UI sampling never substitutes
+for integration.
+
+### Autonomic reflexes
+
+Autonomic state owns its delays, filters, efferent targets, saturation, and
+event/update schedule. It must not hide controller state inside controls or
+presentation. Baseline-off behavior, activation transients, intervention
+directions, and interaction with authored controls receive dedicated gates.
+
+### Multipatch myocardium
+
+Patches use stable semantic identities and a structure-of-arrays numerical
+layout. The scalar `f64` implementation is the scientific reference. SIMD or
+parallel evaluation is admitted only after scalar parity and only when lane or
+reduction order cannot change accepted semantics.
+
+Land remains a component-owned constitutive kernel. Adding patches should
+instantiate admitted patch bindings and workspace, not copy a chamber-specific
+hot loop or create a new accepted authority.
+
+### Topology and congenital pathways
+
+New compartments and bypasses extend the declarative node/path graph and its
+component catalog. Each topology declares conservation ownership, path law,
+direction/sign convention, state slots, initialization, checkpoint meaning,
+and failure gates. Unsupported topology fails during compilation or binding;
+the runtime does not silently ignore a path.
+
+### AV-plane displacement and other mechanics
+
+AVPD changes mechanics and chamber coupling and therefore belongs to a future
+mechanical model, not to this performance refactor. It must enter through a
+model-owned component contract and consistent tangent/residual evidence. The
+current static-condensation choice does not preclude that work, but it does not
+validate it either.
+
+## Solver and integration changes
+
+The current `2 ms` backward-Euler method is not assumed optimal forever.
+TR-BDF2, SDIRK2, another L-stable method, sparse/block factorization, or a new
+globalization policy is eligible only as a separately reviewed numerical-model
+change with a new exact release.
+
+Before changing integration order or step policy, the dt-halving lane must
+quantify not only scalar outputs but morphology such as E/A timing, atrial
+figure-eight shape, pulmonary-venous S/D/Ar, valve events, and the aortic
+dicrotic notch. Performance work never changes `dt` only on slower devices.
+
+WASM, SIMD, `SharedArrayBuffer`, and Worker parallelism are optional
+implementations. They require a measured device benefit and the same scientific
+gates. Porting an object graph directly to WASM is not useful if it preserves
+allocation and solver structure. Cross-engine transcendental behavior must be
+measured before promising bit identity across JavaScript and WASM engines.
+
+## Rejected shortcuts
+
+- Increasing `dt` only on phones changes the scientific model.
+- Interpolating skipped states creates values the solver never accepted.
+- Treating Canvas FPS as the numerical gate ignores Worker capacity.
+- Running two authorities for one live Scenario creates ambiguous ownership.
+- Decoding old checkpoints inside a new exact release weakens exact identity.
+- Starting with multirate solely as a performance switch mixes model science
+  with presentation policy.
+- Special-casing today's chamber, coronary, or path count in a generic runtime
+  makes every future model repeat the optimization from zero.
+
+## Retention and cleanup
+
+The active Standard-58 exact release satisfies this authority boundary.
+Historical exact readers remain production-reachable only because current
+immutable Article/Snapshot revisions still reference older releases. After
+those references are re-created and deliberately pruned or reset, the bounded
+historical reader and frame-per-step adapter should be deleted.
+
+Nonproduction bridges, benchmark-only runtimes, rejected solvers, and release
+diaries belong in Git history. A retained older implementation must be reached
+by an immutable production pin or imported by a named scientific replacement
+gate. Names such as `legacy`, `shadow`, or `reference` do not decide retention;
+actual reachability and evidence ownership do.
