@@ -181,11 +181,13 @@ type ModelWorkerReleaseTicket = Readonly<{
 }>;
 ```
 
-The same registry launch contract also owns the default fixture and an
-`analysisProfileId`. These are launch inputs, not identity. The exact manifest
-is scientific-contract authority. `artifactRevisionId` identifies the
-currently certified deterministic implementation beneath that model; it is
-not persisted as Studio content identity.
+The same registry launch contract also owns the display name, default fixture,
+and an `analysisProfileId`. These immutable row values are launch metadata,
+not scientific identity; changing them requires an explicit metadata
+transition rather than another `modelId`. The exact manifest is
+scientific-contract authority. `artifactRevisionId` identifies the currently
+certified deterministic implementation beneath that model; it is not persisted
+as Studio content identity.
 
 The Standard module ABI exports only the executable release:
 

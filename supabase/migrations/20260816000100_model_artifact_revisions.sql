@@ -282,12 +282,15 @@ begin
     insert into studio.model_release_availability (model_id)
     values (p_model_id);
   elsif existing_model.model_family_id is distinct from p_model_family_id
-    or existing_model.display_name is distinct from p_display_name
     or existing_model.manifest is distinct from p_manifest
+  then
+    raise exception 'model_id % is already registered with another scientific contract',
+      p_model_id using errcode = '23505';
+  elsif existing_model.display_name is distinct from p_display_name
     or existing_model.default_fixture is distinct from p_default_fixture
     or existing_model.analysis_profile_id is distinct from p_analysis_profile_id
   then
-    raise exception 'model_id % is already registered with another scientific contract',
+    raise exception 'model_id % is already registered with different immutable launch metadata',
       p_model_id using errcode = '23505';
   end if;
 

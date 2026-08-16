@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(23);
 
 select lives_ok(
   $$
@@ -62,8 +62,30 @@ select throws_ok(
     )
   $$,
   '23505',
+  'model_id model/dynamic-loader-test-v1 is already registered with different immutable launch metadata',
+  'Registration distinguishes immutable launch metadata from model identity'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_release_v2(
+      'model/dynamic-loader-test-v1',
+      'model/dynamic-loader-test',
+      'Dynamic loader test',
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-test-v1","modelFamilyId":"model/dynamic-loader-test","checkpointSemantics":"changed"}'::jsonb,
+      repeat('b', 64),
+      'model-releases/model/dynamic-loader-test-v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/model.mjs',
+      repeat('a', 64),
+      'dynamic-loader-test',
+      '{"schemaId":"fixture/test-v1","value":1}'::jsonb,
+      'analysis/test-v1',
+      null,
+      null
+    )
+  $$,
+  '23505',
   'model_id model/dynamic-loader-test-v1 is already registered with another scientific contract',
-  'Registration rejects a scientific-contract change under one modelId'
+  'Registration rejects a scientific-manifest change under one modelId'
 );
 
 select throws_ok(
