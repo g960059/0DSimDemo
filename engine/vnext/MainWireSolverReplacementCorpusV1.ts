@@ -34,29 +34,29 @@ readonly MainWireSolverReplacementCorpusCaseV1[] = Object.freeze([
     "baseline",
     DEFAULTS,
     1,
-    "ecef2bee1b4542f72ec3cf3d9f33f76c64579866ef611e22f2f52138f811a741",
+    "f20ec198355a9a8f356a12d52c37159f4dd39e4b413c5aa1060b336f3b219638",
   ),
   corpusCase("low-preload", Object.freeze({
     ...DEFAULTS,
     totalBloodVolumeMl: 4_200,
-  }), 1, "f95540d4fd698ad6912a24b7557a51781f0753e7d2e5bfdf5be9904646a2f490"),
+  }), 1, "d41dde54b3bc57fbc2a6185ae9930ae1e038c1c05d91091a23107aa5cad7cc66"),
   corpusCase("high-afterload", Object.freeze({
     ...DEFAULTS,
     systemicResistance: 1.25,
-  }), 1, "ee30e633e5fadd5cd46c054496c33e68769cdc577563e368646ce9d1acce6be0"),
+  }), 1, "0e570829ebe3113982543be3e13f15435fb848fd8625816df7493d9eaad91acd"),
   corpusCase("high-peep", Object.freeze({
     ...DEFAULTS,
     peepCmH2O: 20,
-  }), 1, "25fd53633b87ce7de313eedcbdb3a036c46634da043d9ab96fe9e86efee20665"),
+  }), 1, "cd8d5a8702aeae1bdf4c7931332242856d569b898fa855b9598294d895fa7778"),
   corpusCase("tachycardia", Object.freeze({
     ...DEFAULTS,
     heartRateBpm: 100,
-  }), 1, "ffdfb313568789166cb9b482ba958cc17d28c35462026c4b43b0dc0e27bf8814"),
+  }), 1, "0f93a02b5b4a78f8356e77bb676337208183d613c268889a693dc465916b77e0"),
   corpusCase(
     "high-contractility",
     DEFAULTS,
     1.25,
-    "d832aff1dbe67be880d7de342693e0cbc42b30ee9bda61df5c98aef547c4b59f",
+    "c1a0f73e01667cb2719221036bb30f586093decc74ff793735897eeed2884e71",
   ),
 ]);
 

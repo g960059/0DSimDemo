@@ -23,7 +23,7 @@ production fallback for the active exact release.
 Current entry points include:
 
 - `engine/vnext/MainWireIntegratedTypedAuthoritySessionV1.ts` — accepted-state
-  and checkpoint authority used by Standard-59;
+  and checkpoint authority used by Standard-60;
 - `engine/myocardium/MainWireIntegratedModelTransactionV3.ts` — canonical
   model-owned transaction semantics and cold reference boundary;
 - `engine/myocardium/MainWireIntegratedModelCheckpointV3.ts` — numerical

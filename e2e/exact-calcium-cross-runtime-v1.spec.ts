@@ -12,6 +12,12 @@ type ExactReleaseV1 = Readonly<{
     simulationAdapter: Readonly<{
       createSession(input: unknown): Promise<void>;
       disposeSession(runtimeSessionId: string): void;
+      advancePresentationBatch(input: Readonly<{
+        runtimeSessionId: string;
+        scenarioId: string;
+        stepCount: number;
+        presentationOutputIds: readonly string[];
+      }>): Promise<unknown>;
       currentFrame(input: unknown): Readonly<{
         acceptedRevision: number;
         acceptedTimeSec: number;
@@ -60,7 +66,7 @@ const client = JSON.parse(readFileSync(new URL(
   }>;
 }>;
 
-test("@desktop Node checkpoints restore in a browser across the admitted HR domain", async ({
+test("@desktop @webkit Node checkpoints restore in a browser across the admitted HR domain", async ({
   page,
 }) => {
   const artifactModule = (await import(
@@ -71,6 +77,8 @@ test("@desktop Node checkpoints restore in a browser across the admitted HR doma
     heartRateBpm: number;
     fixture: Record<string, unknown>;
     checkpoint: unknown;
+    expectedRevision: number;
+    expectedTimeSec: number;
   }>> = [];
   const heartRateRange = client.manifest.fixtureSchema.definition
     .hemodynamicResearchInputRanges.heartRateBpm;
@@ -78,6 +86,7 @@ test("@desktop Node checkpoints restore in a browser across the admitted HR doma
   expect(Number.isInteger(heartRateRange.maximum)).toBe(true);
   expect(Number.isInteger(heartRateRange.step)).toBe(true);
   expect(heartRateRange.step).toBeGreaterThan(0);
+  const advancedCheckpointHeartRates = new Set([40, 52, 70, 100]);
 
   for (
     let heartRateBpm = heartRateRange.minimum;
@@ -98,6 +107,20 @@ test("@desktop Node checkpoints restore in a browser across the admitted HR doma
     await release.executables.simulationAdapter.createSession({
       runtimeSessionId,
       scenarios: [{ scenarioId, fixture }],
+    });
+    if (advancedCheckpointHeartRates.has(heartRateBpm)) {
+      for (let batchIndex = 0; batchIndex < 32; batchIndex += 1) {
+        await release.executables.simulationAdapter.advancePresentationBatch({
+          runtimeSessionId,
+          scenarioId,
+          stepCount: 64,
+          presentationOutputIds: ["hemodynamics.pressure.absolute.LV"],
+        });
+      }
+    }
+    const expectedFrame = release.executables.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
     });
     const captured = await release.executables.experimentCapture
       .captureAcceptedCandidate({
@@ -122,6 +145,8 @@ test("@desktop Node checkpoints restore in a browser across the admitted HR doma
       heartRateBpm,
       fixture,
       checkpoint: captured.content.scenarios[0]!.capture.checkpoint,
+      expectedRevision: expectedFrame.acceptedRevision,
+      expectedTimeSec: expectedFrame.acceptedTimeSec,
     });
     release.executables.simulationAdapter.disposeSession(runtimeSessionId);
   }
@@ -154,7 +179,8 @@ test("@desktop Node checkpoints restore in a browser across the admitted HR doma
             runtimeSessionId,
             scenarioId,
           });
-          if (frame.acceptedRevision !== 0 || frame.acceptedTimeSec !== 0) {
+          if (frame.acceptedRevision !== input.expectedRevision
+            || frame.acceptedTimeSec !== input.expectedTimeSec) {
             throw new Error("restored checkpoint clock drifted");
           }
         } catch (error) {

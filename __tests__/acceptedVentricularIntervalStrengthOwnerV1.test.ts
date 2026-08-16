@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CLAIM_V1,
+  canonicalizeDerivedVentricularIntervalStrengthValueV1,
   commitAcceptedVentricularIntervalStrengthCandidateV1,
   createAcceptedVentricularIntervalStrengthConfigurationV1,
   deriveVentricularIntervalStrengthSteadyReferenceV1,
@@ -21,6 +22,20 @@ import {
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
 
 describe("accepted ventricular interval-strength owner V1", () => {
+  it("collapses host-transcendental ULP drift before exact persistence", () => {
+    const recovery = -Math.expm1(-0.7 / 0.765);
+    const adjacentHostResult = recovery + Number.EPSILON;
+
+    expect(canonicalizeDerivedVentricularIntervalStrengthValueV1(recovery))
+      .toBe(canonicalizeDerivedVentricularIntervalStrengthValueV1(
+        adjacentHostResult,
+      ));
+    expect(Math.abs(
+      canonicalizeDerivedVentricularIntervalStrengthValueV1(recovery)
+        - recovery,
+    )).toBeLessThanOrEqual(5e-13);
+  });
+
   it("normalizes the reference cycle to an exact unit deposit and fixed load", () => {
     const config = configuration();
     const reference = deriveVentricularIntervalStrengthSteadyReferenceV1(config);
@@ -62,7 +77,9 @@ describe("accepted ventricular interval-strength owner V1", () => {
       },
     );
     const candidate = evaluate(shortState, capture("short-beat", 0, 2));
-    const a = -Math.expm1(-0.25 / config.recoveryTimeConstantSec);
+    const a = canonicalizeDerivedVentricularIntervalStrengthValueV1(
+      -Math.expm1(-0.25 / config.recoveryTimeConstantSec),
+    );
     const R = a * config.releaseFractionBeta
       * reference.referenceNormalizedSrLoadState;
     const I = config.normalizedIntervalInfluxGamma

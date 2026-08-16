@@ -196,11 +196,11 @@ typed-layout ID or an integer tick field. Canonical JSON digest validation,
 malformed-input rejection, clock correlation, restore continuation, and
 fixture binding are release gates.
 
-Configuration values derived through host transcendental functions cross a
-model-owned canonical-precision boundary before they are hashed or persisted.
-This absorbs permitted cross-runtime ULP differences without weakening
-checkpoint identity: restore still requires exact equality of the canonical
-configuration within one release.
+Configuration values and persisted rhythm-transition metadata derived through
+host transcendental functions cross a model-owned canonical-precision boundary
+before they are hashed or persisted. This absorbs permitted cross-runtime ULP
+differences without weakening checkpoint identity: restore still requires
+exact equality of the canonical values within one release.
 
 The public Standard checkpoint omits non-authoritative solver predictors.
 Restore rebuilds those caches from admitted state. A private construction
@@ -356,7 +356,7 @@ measured before promising bit identity across JavaScript and WASM engines.
 
 ## Retention and cleanup
 
-The active Standard-59 exact release satisfies this authority boundary.
+The active Standard-60 exact release satisfies this authority boundary.
 Historical exact readers remain production-reachable only because current
 immutable Article/Snapshot revisions still reference older releases. After
 those references are re-created and deliberately pruned or reset, the bounded

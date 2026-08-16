@@ -37,5 +37,13 @@ export default defineConfig({
       grep: /@mobile/,
       use: { viewport: { width: 390, height: 844 } },
     },
+    {
+      name: "desktop-webkit",
+      grep: /@webkit/,
+      use: {
+        browserName: "webkit",
+        viewport: { width: 1440, height: 900 },
+      },
+    },
   ],
 });
