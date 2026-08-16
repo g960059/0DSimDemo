@@ -83,7 +83,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-61 release advertises both
+The Standard-60 release advertises both
 `runtime/execution-plan-typed-authority-binding-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -134,7 +134,7 @@ its plans untouched. The Worker rejects cross-Scenario backing-buffer
 aliasing—including solve-system ordinals—before exact session creation. State
 pointer lookup is a cold initialization operation. The admitted binding keeps
 only numeric slot indices in private storage and exposes no mutable mapping
-array. Standard-61 uses it in the live coupled-solver adapter. This is not a
+array. Standard-60 uses it in the live coupled-solver adapter. This is not a
 generic equation interpreter. The typed-authority Session remains the sole
 accepted-state and checkpoint authority: the plan contains no current,
 candidate, or sampled logical state page.
@@ -160,7 +160,7 @@ the two backing arrays once;
 the exact binder creates persistent views at the emitted offsets and rejects
 gaps, overlap, reordering, or foreign views. At an accepted boundary the active
 unknowns are loaded by the model-owned solver from the directly bound typed
-authority into the `current-unknowns` segment. Standard-61 binds the existing
+authority into the `current-unknowns` segment. Standard-60 binds the existing
 30-variable coupled Newton solve to those exact Scenario-owned views. Raw
 Jacobian and LU factors remain distinct segments; right-hand side,
 LU-transformed right-hand side, update, trial, scale vectors, and pivots are
@@ -183,7 +183,7 @@ Hydraulic topology follows the same rule. The portable descriptor stores
 numeric component-owner indices for nodes and paths in addition to endpoint
 and state indices. The Worker-local binder resolves these to exact component
 and path-kernel ordinals, then supplies one immutable hydraulic dispatch to the
-model-owned solve-system binder. Standard-61 validates the present Main Wire
+model-owned solve-system binder. Standard-60 validates the present Main Wire
 31-node/37-path graph, storage-slot ownership, and global blood-volume pool
 once before admitting the coupled workspace. The current residual kernels do
 not yet interpret arbitrary topology, so an added bypass fails closed until a
@@ -213,7 +213,7 @@ The binder also owns the compiled update schedule. It validates integer base
 and presentation periods, period/phase arithmetic, and the exact solve-group
 ordinal before a Scenario can advance. The exact host converts accepted clocks
 to integer base ticks, derives each presentation target from that schedule,
-and dispatches the compiled solve group only when it is due. The Standard-61
+and dispatches the compiled solve group only when it is due. The Standard-60
 host accepts exactly the present single period-1 hemodynamic group and fails
 closed on a synthetic multirate schedule; it does not silently approximate a
 multirate model. The compiler and neutral binder already admit multiple
@@ -268,7 +268,7 @@ the product gate.
 
 ## Current completion boundary
 
-Standard-61 preserves the completed one-patch direct cutover: generated
+Standard-60 preserves the completed one-patch direct cutover: generated
 descriptor parity, exact-artifact embedding, exact kernel-set binding, private
 Scenario allocation, accepted-authority state binding, Newton/LU workspace ownership,
 solve-block and residual dispatch, hydraulic topology binding, integer update
@@ -278,7 +278,7 @@ and activation.
 The remaining hand-written declarations are retained only where a standalone
 scientific tool or replacement oracle still imports them. They must be moved
 behind explicit test/tool boundaries before deletion; production does not
-silently fall back to them inside Standard-61. The pre-release content cutover
+silently fall back to them inside Standard-60. The pre-release content cutover
 and registry prune subsequently removed the execution-plan-free runtime path.
 
 ## Future model development

@@ -9,12 +9,12 @@ The checked-in exact release identity is:
 
 ```text
 modelId:
-  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-61
+  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-60
 surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-61 contains one self-contained exact executable artifact plus a
+Standard-60 contains one self-contained exact executable artifact plus a
 build-time-generated `ExecutionPlanDescriptorV1`. The browser does not compile
 the model and does not rehash the artifact during ordinary loading. Registry
 admission, immutable model identity, manifest equality, exact content pins,
