@@ -8,8 +8,7 @@ authority, solver gates, typed accepted state, and mobile performance.
 
 ## Decision
 
-CircleHeart will separate three things that are currently interleaved in
-hand-written TypeScript:
+CircleHeart separates three numerical-runtime concerns:
 
 1. `ModelDefinitionV1` declares scientific components, state ownership,
    hydraulic nodes and paths, and conservation pools.
@@ -21,10 +20,10 @@ hand-written TypeScript:
    incidence endpoints, and scratch dimensions.
 
 The browser does **not** compile a model. Compilation runs in repository and
-release tooling. After cutover, the descriptor is bundled in the existing
-exact model artifact and the Worker performs only bounded validation, buffer
-allocation, and executable-kernel binding. There is no second network fetch
-for the plan and no cold browser compilation penalty.
+release tooling. The descriptor is bundled in the exact model artifact and the
+Worker performs only bounded validation, buffer allocation, and
+executable-kernel binding. There is no second network fetch for the plan and no
+cold browser compilation penalty.
 
 The runtime does not hash the artifact or descriptor. Registry identity,
 exact manifest validation, immutable `modelId`, and stored Snapshot pins

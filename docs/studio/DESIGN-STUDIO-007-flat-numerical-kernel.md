@@ -67,6 +67,13 @@ Each accepted step follows one transaction:
 Any failure leaves the previously accepted image and its public meaning
 unchanged. A partially failed candidate is never observable and never reused.
 
+Hot-path validation proofs are reusable only for the exact immutable identity
+whose complete plain-data graph is transitively frozen. Mutable values,
+restored or copied values, partial or failed validation, and stamp-disabled
+verification take the complete validator path. Release gates require the
+`hot-path-lean` tier to match `full-invariant` accepted state and checkpoint
+semantics.
+
 ### Exact clock and event order
 
 Accepted time is an integer tick. Seconds are derived only at API and
