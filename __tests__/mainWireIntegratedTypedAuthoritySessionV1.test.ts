@@ -52,9 +52,6 @@ import {
   measureCanonicalFlatDataV1,
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
-  FlatAcceptedStateAuthorityV1,
-} from "@/engine/vnext/FlatAcceptedStateAuthorityV1";
-import {
   MainWireIntegratedTypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import {
@@ -191,45 +188,6 @@ describe("CanonicalFlatDataV1", () => {
     });
     expect(() => measureCanonicalFlatDataV1(accessor)).toThrow("is an accessor");
     expect(getterCalls).toBe(0);
-  });
-});
-
-describe("FlatAcceptedStateAuthorityV1", () => {
-  it("keeps the accepted buffer atomic and poisons a failed candidate", () => {
-    type State = Readonly<{ value: string }>;
-    const validate = (candidate: unknown): State => {
-      if (
-        typeof candidate !== "object"
-        || candidate === null
-        || Object.keys(candidate).join(",") !== "value"
-        || typeof (candidate as State).value !== "string"
-      ) {
-        throw new Error("state is invalid");
-      }
-      return candidate as State;
-    };
-    const authority = new FlatAcceptedStateAuthorityV1<State>(
-      Object.freeze({ value: "accepted" }),
-      validate,
-      64,
-    );
-    expect(authority.commit(Object.freeze({ value: "next" }))).toEqual({
-      value: "next",
-    });
-    expect(authority.report()).toMatchObject({
-      activeBufferIndex: 1,
-      commitCount: 1,
-    });
-    const before = authority.snapshotCurrentBytes();
-    expect(() => authority.commit(Object.freeze({ value: "x".repeat(100) })))
-      .toThrow("is poisoned");
-    expect(authority.report()).toMatchObject({
-      commitCount: 1,
-      currentLengthBytes: before.byteLength,
-      fixedBufferCount: 2,
-      poisonedReason: expect.stringContaining("fixed capacity"),
-    });
-    expect(() => authority.current()).toThrow("is poisoned");
   });
 });
 
@@ -1049,6 +1007,33 @@ describe("TransactionalTypedStateImageV1", () => {
 });
 
 describe("MainWireIntegratedTypedAuthoritySessionV1", () => {
+  it("poisons the current typed authority without promoting an invalid candidate", async () => {
+    const oracle = await MainWireIntegratedModelSessionV3.create();
+    const initial = oracle.currentAcceptedState();
+    const authority = new MainWireAcceptedTypedStateAuthorityV1(
+      initial,
+      initial,
+      (candidate: typeof initial) => candidate,
+      (candidate: typeof initial) => candidate,
+      (candidate: typeof initial) => candidate,
+    );
+    const before = authority.report();
+    const invalidCandidate = Object.freeze({
+      ...initial,
+      acceptedTimeSec: Number.NaN,
+    });
+
+    expect(() => authority.commit(invalidCandidate))
+      .toThrow("accepted typed-state authority is poisoned");
+    expect(authority.report()).toMatchObject({
+      activeBufferIndex: before.activeBufferIndex,
+      commitCount: before.commitCount,
+      poisonedReason: expect.stringContaining("must be finite"),
+    });
+    expect(() => authority.current())
+      .toThrow("accepted typed-state authority is poisoned");
+  });
+
   it("promotes a covered typed candidate and rehydrates its mirror lazily", async () => {
     const oracle = await MainWireIntegratedModelSessionV3.create();
     const initial = oracle.currentAcceptedState();
