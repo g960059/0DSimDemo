@@ -369,11 +369,29 @@ async function updateArtifactAndLock(
     && prior.modelId === modelId
     && prior.artifactRevisionId !== artifactRevisionId
   ) {
-    if (!existsSync(artifactPath)) {
-      fail("the predecessor artifact is missing from the worktree");
+    if (!existsSync(artifactPath) || !existsSync(clientDescriptorPath)) {
+      fail("the predecessor artifact or client descriptor is missing");
+    }
+    const predecessorArtifact = new Uint8Array(readFileSync(artifactPath));
+    const predecessorClient = parseClientDescriptor(
+      readFileSync(clientDescriptorPath, "utf8"),
+      "predecessor Standard client descriptor",
+    );
+    const predecessorManifest = studioCanonicalJsonStringify(
+      predecessorClient.manifest,
+    );
+    if (
+      predecessorClient.manifest.modelId !== prior.modelId
+      || sha256V1(predecessorArtifact) !== prior.artifactSha256
+      || exactPackageSha256(predecessorManifest, predecessorArtifact)
+        !== prior.artifactRevisionId
+    ) {
+      fail(
+        "the checked predecessor artifact, client manifest, and lock disagree",
+      );
     }
     const report = await compareExactModelArtifactRevisionsV1({
-      predecessorArtifact: new Uint8Array(readFileSync(artifactPath)),
+      predecessorArtifact,
       predecessorArtifactRevisionId: prior.artifactRevisionId,
       candidateArtifact: artifact,
       candidateArtifactRevisionId: artifactRevisionId,
