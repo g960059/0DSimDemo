@@ -480,7 +480,10 @@ path is content-addressed by modelId and artifact revision. Ordinary clients
 may download it but have no upload or registry-write authority. The release
 command verifies existing bytes before reusing a path and atomically moves the
 implementation pointer only with the expected predecessor and equivalence
-report digest. It promotes the scientific exact release and compatible Surface
+report digest. A trusted rollback uses a separate compare-and-swap RPC and may
+move only across the same stored direct byte-exact equivalence edge; the
+service role has no direct write grant on the binding table. It promotes the
+scientific exact release and compatible Surface
 to `stable` before atomically replacing the singleton active bundle. Public Experiment and Article
 publication is rejected unless every
 referenced Snapshot uses a `stable`, loadable exact model and pins a `stable`

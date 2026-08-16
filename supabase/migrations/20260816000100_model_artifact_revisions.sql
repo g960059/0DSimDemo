@@ -378,6 +378,104 @@ begin
 end;
 $$;
 
+create function public.rebind_model_artifact_revision_v1(
+  p_model_id text,
+  p_expected_artifact_revision_id text,
+  p_target_artifact_revision_id text
+)
+returns jsonb
+language plpgsql security definer
+set search_path to ''
+as $$
+declare
+  current_binding studio.model_artifact_bindings%rowtype;
+  target_revision studio.model_artifact_revisions%rowtype;
+  has_direct_equivalence boolean;
+begin
+  if p_expected_artifact_revision_id !~ '^[0-9a-f]{64}$'
+    or p_target_artifact_revision_id !~ '^[0-9a-f]{64}$'
+  then
+    raise exception 'model artifact revision IDs must be lowercase SHA-256 values'
+      using errcode = '22023';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('model-release:' || p_model_id, 0)
+  );
+
+  select * into current_binding
+  from studio.model_artifact_bindings
+  where model_id = p_model_id
+  for update;
+
+  if not found then
+    raise exception 'model artifact binding % is not registered', p_model_id
+      using errcode = '23503';
+  end if;
+  if current_binding.artifact_revision_id
+    is distinct from p_expected_artifact_revision_id
+  then
+    raise exception 'model artifact revision conflict'
+      using errcode = '40001';
+  end if;
+  if current_binding.artifact_revision_id = p_target_artifact_revision_id then
+    return jsonb_build_object(
+      'modelId', p_model_id,
+      'artifactRevisionId', current_binding.artifact_revision_id,
+      'artifactBindingVersion', current_binding.version
+    );
+  end if;
+
+  select * into target_revision
+  from studio.model_artifact_revisions
+  where model_id = p_model_id
+    and artifact_revision_id = p_target_artifact_revision_id;
+  if not found then
+    raise exception 'target model artifact revision % is not registered for %',
+      p_target_artifact_revision_id, p_model_id
+      using errcode = '23503';
+  end if;
+
+  select exists (
+    select 1
+    from studio.model_artifact_revisions as revision
+    where revision.model_id = p_model_id
+      and revision.equivalence_report_sha256 is not null
+      and (
+        (
+          revision.artifact_revision_id = p_target_artifact_revision_id
+          and revision.predecessor_artifact_revision_id
+            = current_binding.artifact_revision_id
+        )
+        or
+        (
+          revision.artifact_revision_id = current_binding.artifact_revision_id
+          and revision.predecessor_artifact_revision_id
+            = p_target_artifact_revision_id
+        )
+      )
+  ) into has_direct_equivalence;
+
+  if not has_direct_equivalence then
+    raise exception 'model artifact rebind requires direct byte-exact equivalence evidence'
+      using errcode = '22023';
+  end if;
+
+  update studio.model_artifact_bindings
+  set artifact_revision_id = p_target_artifact_revision_id,
+      version = current_binding.version + 1,
+      updated_at = now()
+  where model_id = p_model_id
+  returning * into current_binding;
+
+  return jsonb_build_object(
+    'modelId', p_model_id,
+    'artifactRevisionId', current_binding.artifact_revision_id,
+    'artifactBindingVersion', current_binding.version
+  );
+end;
+$$;
+
 create or replace function public.set_active_model_bundle_v1(
   p_expected_version bigint,
   p_model_id text,
@@ -491,11 +589,20 @@ revoke all on function public.register_model_release_v2(
 grant all on function public.register_model_release_v2(
   text, text, text, jsonb, text, text, text, text, jsonb, text, text, text
 ) to service_role;
+revoke all on function public.rebind_model_artifact_revision_v1(
+  text, text, text
+) from public;
+grant all on function public.rebind_model_artifact_revision_v1(
+  text, text, text
+) to service_role;
 
 alter function public.get_active_model_bundle_v1() owner to postgres;
 alter function public.get_model_release_v1(text) owner to postgres;
 alter function public.register_model_release_v2(
   text, text, text, jsonb, text, text, text, text, jsonb, text, text, text
+) owner to postgres;
+alter function public.rebind_model_artifact_revision_v1(
+  text, text, text
 ) owner to postgres;
 
 revoke all on function public.get_active_model_bundle_v1() from public;
@@ -507,7 +614,7 @@ grant all on function public.get_model_release_v1(text) to authenticated;
 
 revoke all on table studio.model_artifact_revisions from public;
 revoke all on table studio.model_artifact_bindings from public;
-grant all on table studio.model_artifact_revisions to service_role;
-grant all on table studio.model_artifact_bindings to service_role;
+grant select on table studio.model_artifact_revisions to service_role;
+grant select on table studio.model_artifact_bindings to service_role;
 
 commit;

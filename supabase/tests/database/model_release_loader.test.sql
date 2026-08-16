@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(20);
 
 select lives_ok(
   $$
@@ -149,6 +149,88 @@ select is(
     where model_id = 'model/dynamic-loader-test-v1'),
   2::bigint,
   'Both immutable implementation revisions remain registered'
+);
+
+select lives_ok(
+  $$
+    select public.rebind_model_artifact_revision_v1(
+      'model/dynamic-loader-test-v1',
+      repeat('d', 64),
+      repeat('b', 64)
+    )
+  $$,
+  'A certified successor can roll back to its directly equivalent predecessor'
+);
+
+select is(
+  (select artifact_revision_id
+    from public.get_model_release_v1('model/dynamic-loader-test-v1')),
+  repeat('b', 64),
+  'Rollback moves only the implementation binding'
+);
+
+select is(
+  (select version from studio.model_artifact_bindings
+    where model_id = 'model/dynamic-loader-test-v1'),
+  2::bigint,
+  'Rollback increments the artifact binding CAS version'
+);
+
+select throws_ok(
+  $$
+    select public.rebind_model_artifact_revision_v1(
+      'model/dynamic-loader-test-v1',
+      repeat('d', 64),
+      repeat('d', 64)
+    )
+  $$,
+  '40001',
+  'model artifact revision conflict',
+  'Rollback rejects a stale expected revision'
+);
+
+select lives_ok(
+  $$
+    select public.rebind_model_artifact_revision_v1(
+      'model/dynamic-loader-test-v1',
+      repeat('b', 64),
+      repeat('d', 64)
+    )
+  $$,
+  'A rollback can be reversed through the same stored equivalence edge'
+);
+
+select lives_ok(
+  $$
+    select public.rebind_model_artifact_revision_v1(
+      'model/dynamic-loader-test-v1',
+      repeat('d', 64),
+      repeat('d', 64)
+    )
+  $$,
+  'Rebinding to the current revision is idempotent'
+);
+
+select throws_ok(
+  $$
+    select public.rebind_model_artifact_revision_v1(
+      'model/dynamic-loader-test-v1',
+      repeat('d', 64),
+      repeat('f', 64)
+    )
+  $$,
+  '23503',
+  'target model artifact revision ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff is not registered for model/dynamic-loader-test-v1',
+  'Rebinding rejects an unregistered target revision'
+);
+
+select ok(
+  not pg_catalog.has_table_privilege(
+    'service_role',
+    'studio.model_artifact_bindings',
+    'UPDATE'
+  ),
+  'The service role cannot bypass artifact-binding CAS through direct table writes'
 );
 
 select is(

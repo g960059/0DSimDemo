@@ -63,9 +63,8 @@ passwords, secret keys, and CLI access tokens must never enter Vite variables.
 
 ### `20260809000100_active_model_bundle.sql`
 
-This is the only Studio migration. Before the first user, the former
-development sequence was deliberately squashed into one Standard-only
-baseline. It creates:
+Before the first user, the former development sequence was deliberately
+squashed into one Standard-only baseline. It creates:
 
 - immutable exact-model and Surface registries with explicit lifecycle;
 - one atomic active exact-model + Surface bundle pointer;
@@ -85,6 +84,15 @@ Artifact digests and registry fingerprints stay registry/CI metadata. Portable
 domain objects use exact `modelId`, `surfaceSeriesId`, and
 `surfaceReleaseId`; they never expose storage paths, codecs, or hashes as
 product identity.
+
+### `20260816000100_model_artifact_revisions.sql`
+
+This migration separates scientific `modelId` identity from immutable
+executable artifact revisions. Each model has one compare-and-swap binding to
+its currently certified revision. A same-model successor requires stored
+byte-exact equivalence evidence. A trusted rollback may rebind only to a
+directly equivalent registered predecessor or successor, and the service role
+cannot bypass that rule with direct table writes.
 
 ## Auth policy
 
