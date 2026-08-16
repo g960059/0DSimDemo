@@ -45,32 +45,24 @@ insert into auth.users (
     now()
   );
 
-insert into studio.model_releases (
-  model_id,
-  model_family_id,
-  display_name,
-  manifest,
-  artifact_path,
-  artifact_sha256,
-  registry_fingerprint,
-  source_commit,
-  default_fixture,
-  analysis_profile_id
-) values (
+select public.register_model_release_v2(
   'model/integration-test-v1',
   'model/integration-test',
   'Integration test model',
   '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/integration-test-v1","modelFamilyId":"model/integration-test"}'::jsonb,
-  'models/integration-test-v1.mjs',
-  repeat('a', 64),
   repeat('b', 64),
+  'models/integration-test-v1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb/model.mjs',
+  repeat('a', 64),
   'integration-test',
   '{"schemaId":"fixture/integration-test-v1"}'::jsonb,
-  'analysis/integration-test-v1'
+  'analysis/integration-test-v1',
+  null,
+  null
 );
 
-insert into studio.model_release_availability (model_id, stage)
-values ('model/integration-test-v1', 'stable');
+select public.set_model_release_stage_v1(
+  'model/integration-test-v1', 'stable'
+);
 
 insert into studio.model_surface_releases (
   surface_release_id, surface_series_id, predecessor_surface_release_id,
@@ -514,31 +506,20 @@ select is(
   'Published Snapshot is retained without an expiry'
 );
 
-insert into studio.model_releases (
-  model_id,
-  model_family_id,
-  display_name,
-  manifest,
-  artifact_path,
-  artifact_sha256,
-  registry_fingerprint,
-  source_commit,
-  default_fixture,
-  analysis_profile_id
-) values (
+select public.register_model_release_v2(
   'model/integration-test-dev-v2',
   'model/integration-test',
   'Integration test dev model',
   '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/integration-test-dev-v2","modelFamilyId":"model/integration-test"}'::jsonb,
-  'models/integration-test-dev-v2.mjs',
-  repeat('c', 64),
   repeat('d', 64),
+  'models/integration-test-dev-v2/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/model.mjs',
+  repeat('c', 64),
   'integration-test-dev',
   '{"schemaId":"fixture/integration-test-v1"}'::jsonb,
-  'analysis/integration-test-v1'
+  'analysis/integration-test-v1',
+  null,
+  null
 );
-insert into studio.model_release_availability (model_id)
-values ('model/integration-test-dev-v2');
 
 select throws_ok(
   $$

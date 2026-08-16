@@ -6,17 +6,19 @@ select plan(28);
 
 select lives_ok(
   $$
-    select public.register_model_release_v1(
+    select public.register_model_release_v2(
       'model/lifecycle-test-v1',
       'model/lifecycle-test',
       'Lifecycle test',
       '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/lifecycle-test-v1","modelFamilyId":"model/lifecycle-test"}'::jsonb,
-      'model-releases/model/lifecycle-test-v1.mjs',
-      repeat('1', 64),
       repeat('2', 64),
+      'model-releases/model/lifecycle-test-v1/2222222222222222222222222222222222222222222222222222222222222222/model.mjs',
+      repeat('1', 64),
       'lifecycle-test',
       '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
-      'analysis/lifecycle-v1'
+      'analysis/lifecycle-v1',
+      null,
+      null
     )
   $$,
   'New exact releases register at dev stage'
@@ -273,17 +275,19 @@ select lives_ok(
 
 do $$
 begin
-  perform public.register_model_release_v1(
+  perform public.register_model_release_v2(
     'model/lifecycle-dev-v1',
     'model/lifecycle-test',
     'Dev lifecycle model',
     '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/lifecycle-dev-v1","modelFamilyId":"model/lifecycle-test"}'::jsonb,
-    'model-releases/model/lifecycle-dev-v1.mjs',
-    repeat('7', 64),
     repeat('8', 64),
+    'model-releases/model/lifecycle-dev-v1/8888888888888888888888888888888888888888888888888888888888888888/model.mjs',
+    repeat('7', 64),
     'lifecycle-test',
     '{"schemaId":"fixture/lifecycle-v1"}'::jsonb,
-    'analysis/lifecycle-v1'
+    'analysis/lifecycle-v1',
+    null,
+    null
   );
 end;
 $$;

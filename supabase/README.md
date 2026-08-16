@@ -63,9 +63,8 @@ passwords, secret keys, and CLI access tokens must never enter Vite variables.
 
 ### `20260809000100_active_model_bundle.sql`
 
-This is the only Studio migration. Before the first user, the former
-development sequence was deliberately squashed into one Standard-only
-baseline. It creates:
+Before the first user, the former development sequence was deliberately
+squashed into one Standard-only baseline. It creates:
 
 - immutable exact-model and Surface registries with explicit lifecycle;
 - one atomic active exact-model + Surface bundle pointer;
@@ -85,6 +84,15 @@ Artifact digests and registry fingerprints stay registry/CI metadata. Portable
 domain objects use exact `modelId`, `surfaceSeriesId`, and
 `surfaceReleaseId`; they never expose storage paths, codecs, or hashes as
 product identity.
+
+### `20260816000100_model_artifact_revisions.sql`
+
+This migration separates scientific `modelId` identity from immutable
+executable artifact revisions. Each model has one compare-and-swap binding to
+its currently certified revision. A same-model successor requires stored
+byte-exact equivalence evidence. A trusted rollback may rebind only to a
+directly equivalent registered predecessor or successor, and the service role
+cannot bypass that rule with direct table writes.
 
 ## Auth policy
 
@@ -200,21 +208,27 @@ Supabase Cron job at a 15-minute interval; job history is available in
 ## Release registration
 
 CI builds the deterministic **numerical execution** artifact and verifies its
-repository lock before calling `register_model_release_v1` with service-role
-authority. If that contract or those bytes change, CI must assign a new exact
-`modelId`; registry registration rejects rebinding an existing ID. Studio
-admission policy, presentation catalogs, UI, Auth, database, Article, and
-hosting releases are versioned separately and must not churn `modelId`.
+repository lock before calling `register_model_release_v2` with service-role
+authority. A changed scientific manifest requires a new exact `modelId`.
+Changed artifact bytes remain beneath the same `modelId` only when the
+predecessor-bound equivalence corpus proves byte-exact frames, clocks, and
+checkpoints; the registry then advances an independent artifact-revision CAS
+pointer. Studio admission policy, presentation catalogs, UI, Auth, database,
+Article, and hosting releases are versioned separately and must not churn
+`modelId`.
 
-The registry accepts only the Standard exact-model manifest. Immutable launch
-metadata consists of the default fixture and an analysis-profile ID and is
-stored with the exact release row. Public reads return those values with the
-manifest and public Storage path, but continue to hide artifact SHA,
-fingerprint, and source commit. Exact artifacts export
+The registry accepts only the Standard exact-model manifest. The display name,
+default fixture, and analysis-profile ID are immutable launch metadata on the
+release row, but they are not the scientific identity digest. A future rename
+or launch-default change therefore requires an explicit metadata migration or
+versioned metadata API, not another `modelId`. Public reads return those values
+with the manifest and public Storage path, but continue to hide artifact SHA,
+revision evidence, and source commit. Exact artifacts export
 `createCircleHeartExactModelReleaseV1() -> { manifest, executables }`.
 Registry metadata is the sole authority for the default fixture. Analysis
-profile IDs are immutable; changed analysis semantics require another profile
-ID rather than rebinding an existing release.
+profile IDs are immutable references; changed analysis semantics require
+another profile ID and an explicit metadata transition rather than minting a
+scientific model identity.
 
 After the exact release and Surface files are committed, a maintainer with an
 authenticated Supabase CLI session publishes immutable registry rows without

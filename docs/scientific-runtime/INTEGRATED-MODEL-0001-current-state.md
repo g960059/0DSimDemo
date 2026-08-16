@@ -20,9 +20,12 @@ self-contained exact executable artifact plus a build-time-generated
 not rehash the artifact during ordinary loading. Registry admission, immutable
 model identity, manifest equality, and exact content pins are the authority.
 
-Changing numerical behavior or executable bytes requires a new `modelId`.
-Changing graphs, derived presentation, controls that only map existing
-primitive controls, or Article Briefing does not.
+Changing numerical behavior, primitive semantics, or checkpoint continuation
+requires a new `modelId`. Byte-only cleanup and optimization instead receive
+an immutable artifact revision and may move the Standard-60 implementation
+pointer only after byte-exact predecessor equivalence. Changing graphs,
+derived presentation, controls that only map existing primitive controls, or
+Article Briefing does not change `modelId`.
 
 Current public Articles still include immutable Snapshot placements created on
 earlier exact releases. Those artifacts remain loadable under their original

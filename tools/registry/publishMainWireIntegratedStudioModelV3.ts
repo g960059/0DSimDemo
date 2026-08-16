@@ -42,10 +42,14 @@ async function main(): Promise<void> {
   if (lock.modelId !== exactRelease.manifest.modelId) {
     throw new Error("Registry lock and exact manifest modelId differ");
   }
+  if (lock.artifactSha256 !== artifactSha256) {
+    throw new Error("Registry lock and exact artifact digest differ");
+  }
 
   const secret = projectServiceRoleJwt(options.projectRef);
   const baseUrl = `https://${options.projectRef}.supabase.co`;
-  const objectName = `${exactRelease.manifest.modelId}/main-wire-integrated-standard-v1.mjs`;
+  const objectName = `${exactRelease.manifest.modelId}/`
+    + `${lock.artifactRevisionId}/main-wire-integrated-standard-v1.mjs`;
   const artifactRegistryPath = `model-releases/${objectName}`;
   await uploadImmutableExactModelArtifactV1({
     artifact,
@@ -59,18 +63,21 @@ async function main(): Promise<void> {
     cwd: repositoryRoot,
     encoding: "utf8",
   }).trim();
-  await rpc(baseUrl, secret, "register_model_release_v1", {
+  await rpc(baseUrl, secret, "register_model_release_v2", {
     p_model_id: exactRelease.manifest.modelId,
     p_model_family_id: exactRelease.manifest.modelFamilyId,
     p_display_name: "Main Wire V3",
     p_manifest: exactRelease.manifest,
+    p_artifact_revision_id: lock.artifactRevisionId,
     p_artifact_path: artifactRegistryPath,
     p_artifact_sha256: artifactSha256,
-    p_registry_fingerprint: lock.packageSha256,
     p_source_commit: sourceCommit,
     p_default_fixture:
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
     p_analysis_profile_id: "main-wire-integrated-standard-v1",
+    p_expected_artifact_revision_id:
+      lock.predecessorArtifactRevisionId,
+    p_equivalence_report_sha256: lock.equivalenceReportSha256,
   });
   if (options.stage === "stable") {
     await rpc(baseUrl, secret, "set_model_release_stage_v1", {
@@ -201,18 +208,48 @@ function sha256(value: Uint8Array): string {
 
 function parseLock(raw: string): Readonly<{
   modelId: string;
-  packageSha256: string;
+  artifactRevisionId: string;
+  artifactSha256: string;
+  predecessorArtifactRevisionId: string | null;
+  equivalenceReportSha256: string | null;
 }> {
   const value = JSON.parse(raw) as Record<string, unknown>;
   if (
-    typeof value.modelId !== "string"
-    || typeof value.packageSha256 !== "string"
-    || !/^[0-9a-f]{64}$/.test(value.packageSha256)
+    value.schemaId
+      !== "circleheart-standard-exact-model-registry-admission-lock-v2"
+    || typeof value.modelId !== "string"
+    || typeof value.artifactRevisionId !== "string"
+    || !/^[0-9a-f]{64}$/.test(value.artifactRevisionId)
+    || typeof value.artifactSha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(value.artifactSha256)
+    || (
+      value.predecessorArtifactRevisionId !== null
+      && (
+        typeof value.predecessorArtifactRevisionId !== "string"
+        || !/^[0-9a-f]{64}$/.test(value.predecessorArtifactRevisionId)
+      )
+    )
+    || (
+      value.equivalenceReportSha256 !== null
+      && (
+        typeof value.equivalenceReportSha256 !== "string"
+        || !/^[0-9a-f]{64}$/.test(value.equivalenceReportSha256)
+      )
+    )
+    || (
+      (value.predecessorArtifactRevisionId === null)
+      !== (value.equivalenceReportSha256 === null)
+    )
   ) {
     throw new Error("Registry admission lock is invalid");
   }
   return Object.freeze({
     modelId: value.modelId,
-    packageSha256: value.packageSha256,
+    artifactRevisionId: value.artifactRevisionId,
+    artifactSha256: value.artifactSha256,
+    predecessorArtifactRevisionId:
+      value.predecessorArtifactRevisionId as string | null,
+    equivalenceReportSha256:
+      value.equivalenceReportSha256 as string | null,
   });
 }

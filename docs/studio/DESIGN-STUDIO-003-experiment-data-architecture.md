@@ -154,10 +154,12 @@ changing its semantics is a numerical-contract change and does mint a new
 `modelId`.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
-model-owned corruption checks. Registration is idempotent for identical bytes
-and rejects the same `modelId` with a different manifest or artifact. Ordinary
-clients resolve `modelId` through the trusted registry and do not rehash the
-package at runtime.
+model-owned corruption checks. The immutable scientific model definition and
+its immutable executable revisions are separate registry records. A changed
+manifest is rejected under the same `modelId`; changed artifact bytes may move
+the model's implementation pointer only after predecessor-bound, byte-exact
+frame and checkpoint equivalence succeeds. Ordinary clients resolve `modelId`
+through the trusted registry and do not rehash the package at runtime.
 
 The registry keeps old exact releases loadable. Replacing the active bundle
 affects only new Sessions. Existing Experiments and Snapshots remain pinned to
@@ -171,6 +173,7 @@ It resolves one small, hash-free launch projection from Supabase:
 ```ts
 type ModelWorkerReleaseTicket = Readonly<{
   modelId: string;
+  artifactRevisionId: string;
   manifest: ExactModelKernelManifestV3;
   moduleAbi: "circleheart-exact-model-esm-v1";
   artifactUrl: string;
@@ -178,9 +181,13 @@ type ModelWorkerReleaseTicket = Readonly<{
 }>;
 ```
 
-The same immutable registry launch contract also owns the default fixture and
-an `analysisProfileId`. These are launch inputs, not identity. The exact
-manifest and artifact bytes remain the authority for numerical behavior.
+The same registry launch contract also owns the display name, default fixture,
+and an `analysisProfileId`. These immutable row values are launch metadata,
+not scientific identity; changing them requires an explicit metadata
+transition rather than another `modelId`. The exact manifest is
+scientific-contract authority. `artifactRevisionId` identifies the currently
+certified deterministic implementation beneath that model; it is not persisted
+as Studio content identity.
 
 The Standard module ABI exports only the executable release:
 
@@ -220,11 +227,11 @@ exact-loadable, or unavailable; it never treats “not the active model”
 as evidence of unavailability and never downloads executable artifacts merely
 to render the list.
 
-Exact-model promises are cached by `modelId` for a page lifetime. The mutable
-active-bundle pointer is not used as a runtime cache key. Browser HTTP caching may
-reuse immutable artifact bytes; no durable Experiment field stores URL, ABI,
-cache state, or a digest. A cached Worker runtime also remembers the canonical
-ticket and rejects a second URL, ABI, or manifest for the same `modelId`.
+Exact-model promises are cached by canonical release ticket for a page
+lifetime. Browser HTTP caching may reuse immutable artifact bytes; no durable
+Experiment field stores URL, ABI, cache state, or a digest. The loader binds
+each `artifactRevisionId` to one model, manifest, ABI, and content-addressed
+URL, while allowing a later certified revision beneath the same `modelId`.
 
 The active composition is pinned for one loaded application page, including
 React StrictMode remounts and multiple new-Session navigations. A page reload
@@ -471,11 +478,15 @@ offline replica.
 
 Exact executable artifacts are uploaded by the trusted release command to the
 public `model-releases` Storage bucket before registry admission. The object
-path is immutable and model-scoped. Ordinary clients may download it but have
-no upload or registry-write authority. The release command verifies existing
-bytes before reusing a path and registers the exact release. It promotes the
-Standard-ABI exact release and compatible Surface to `stable` before atomically
-replacing the singleton active bundle. Public Experiment and Article
+path is content-addressed by modelId and artifact revision. Ordinary clients
+may download it but have no upload or registry-write authority. The release
+command verifies existing bytes before reusing a path and atomically moves the
+implementation pointer only with the expected predecessor and equivalence
+report digest. A trusted rollback uses a separate compare-and-swap RPC and may
+move only across the same stored direct byte-exact equivalence edge; the
+service role has no direct write grant on the binding table. It promotes the
+scientific exact release and compatible Surface
+to `stable` before atomically replacing the singleton active bundle. Public Experiment and Article
 publication is rejected unless every
 referenced Snapshot uses a `stable`, loadable exact model and pins a `stable`
 exact Surface release, as defined by DESIGN-STUDIO-006.

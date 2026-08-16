@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -43,6 +43,11 @@ import mainWireIntegratedStandardSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import generatedExecutionPlanV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
+import {
+  compareExactModelArtifactRevisionsV1,
+  exactModelArtifactEquivalenceReportSha256V1,
+  type ExactModelArtifactEquivalenceReportV1,
+} from "./compareExactModelArtifactRevisionsV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -65,11 +70,21 @@ const clientDescriptorRelativePath =
   "studio/integrations/mainWireIntegratedV3/"
     + "MainWireIntegratedStudioExactModelV1.client.json";
 const clientDescriptorPath = path.join(repositoryRoot, clientDescriptorRelativePath);
+const equivalenceReportRelativePath =
+  "studio/integrations/mainWireIntegratedV3/"
+    + "standard-artifact-equivalence-report.json";
+const equivalenceReportPath = path.join(
+  repositoryRoot,
+  equivalenceReportRelativePath,
+);
 
 type RegistryAdmissionLock = Readonly<{
-  schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1";
+  schemaId: "circleheart-standard-exact-model-registry-admission-lock-v2";
   modelId: string;
-  packageSha256: string;
+  artifactRevisionId: string;
+  artifactSha256: string;
+  predecessorArtifactRevisionId: string | null;
+  equivalenceReportSha256: string | null;
 }>;
 
 type StandardClientDescriptorV1 = Readonly<{
@@ -117,13 +132,15 @@ async function main(): Promise<void> {
   const canonicalManifest = studioCanonicalJsonStringify(
     sourceRelease.manifest,
   );
-  const packageSha256 = exactPackageSha256(canonicalManifest, artifact);
+  const artifactRevisionId = exactPackageSha256(canonicalManifest, artifact);
+  const artifactSha256 = sha256V1(artifact);
   await assertArtifactAdmission(artifact, canonicalManifest);
 
   if (updateRequested) {
-    updateArtifactAndLock(
+    await updateArtifactAndLock(
       sourceRelease.manifest.modelId,
-      packageSha256,
+      artifactRevisionId,
+      artifactSha256,
       artifact,
       Object.freeze({
         schemaId: "circleheart-standard-exact-model-client-descriptor-v1",
@@ -134,7 +151,7 @@ async function main(): Promise<void> {
     );
     console.log(
       `Wrote Standard exact artifact and lock: `
-        + `${sourceRelease.manifest.modelId} (${packageSha256})`,
+        + `${sourceRelease.manifest.modelId} (${artifactRevisionId})`,
     );
     return;
   }
@@ -153,7 +170,7 @@ async function main(): Promise<void> {
   if (!sameBytes(committedArtifact, artifact)) {
     fail(
       `${artifactRelativePath} differs from the deterministic exact build; `
-        + "assign a new modelId and regenerate artifact and lock",
+        + "run with --write to certify an implementation revision",
     );
   }
   assertUtf8RoundTrip(committedArtifact);
@@ -164,12 +181,13 @@ async function main(): Promise<void> {
   if (currentLock.modelId !== sourceRelease.manifest.modelId) {
     fail("Standard lock modelId differs from the kernel manifest");
   }
-  if (currentLock.packageSha256 !== packageSha256) {
-    fail(
-      `exact package digest changed for ${currentLock.modelId}; assign a new `
-        + "modelId and replace artifact and lock together",
-    );
+  if (
+    currentLock.artifactRevisionId !== artifactRevisionId
+    || currentLock.artifactSha256 !== artifactSha256
+  ) {
+    fail("Standard lock does not identify the deterministic artifact bytes");
   }
+  const currentEquivalenceReport = readCurrentEquivalenceReportV1(currentLock);
   const currentClientDescriptor = parseClientDescriptor(
     readFileSync(clientDescriptorPath, "utf8"),
     "current Standard client descriptor",
@@ -192,20 +210,18 @@ async function main(): Promise<void> {
   const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
   if (baseRef !== undefined && baseRef !== "" && !/^0+$/.test(baseRef)) {
     const priorLock = readPriorLock(baseRef);
-    if (
-      priorLock !== null
-      && priorLock.packageSha256 !== currentLock.packageSha256
-      && priorLock.modelId === currentLock.modelId
-    ) {
-      fail(
-        `exact package digest changed relative to ${baseRef} while modelId `
-          + `${currentLock.modelId} stayed unchanged`,
-      );
-    }
+    await assertBaseRevisionTransitionV1(
+      baseRef,
+      priorLock,
+      currentLock,
+      currentClientDescriptor,
+      currentEquivalenceReport,
+      new Uint8Array(committedArtifact),
+    );
   }
   console.log(
     `Standard exact registry admission verified: ${currentLock.modelId} `
-      + `(${packageSha256})`,
+      + `(${artifactRevisionId})`,
   );
 }
 
@@ -336,52 +352,82 @@ async function assertArtifactAdmission(
   executables.simulationAdapter.disposeSession(runtimeSessionId);
 }
 
-function updateArtifactAndLock(
+async function updateArtifactAndLock(
   modelId: string,
-  packageSha256: string,
+  artifactRevisionId: string,
+  artifactSha256: string,
   artifact: Uint8Array,
   clientDescriptor: StandardClientDescriptorV1,
-): void {
-  if (existsSync(lockPath)) {
-    const prior = parseLock(readFileSync(lockPath, "utf8"), "current lock");
-    if (
-      prior.modelId === modelId
-      && prior.packageSha256 !== packageSha256
-      && standardAdmissionFilesAreTracked()
-    ) {
-      fail(`refusing to replace changed bytes under immutable modelId ${modelId}`);
+): Promise<void> {
+  const prior = existsSync(lockPath)
+    ? parseLock(readFileSync(lockPath, "utf8"), "current lock")
+    : null;
+  let predecessorArtifactRevisionId: string | null = null;
+  let equivalenceReportSha256: string | null = null;
+  if (
+    prior !== null
+    && prior.modelId === modelId
+    && prior.artifactRevisionId !== artifactRevisionId
+  ) {
+    if (!existsSync(artifactPath) || !existsSync(clientDescriptorPath)) {
+      fail("the predecessor artifact or client descriptor is missing");
     }
+    const predecessorArtifact = new Uint8Array(readFileSync(artifactPath));
+    const predecessorClient = parseClientDescriptor(
+      readFileSync(clientDescriptorPath, "utf8"),
+      "predecessor Standard client descriptor",
+    );
+    const predecessorManifest = studioCanonicalJsonStringify(
+      predecessorClient.manifest,
+    );
+    if (
+      predecessorClient.manifest.modelId !== prior.modelId
+      || sha256V1(predecessorArtifact) !== prior.artifactSha256
+      || exactPackageSha256(predecessorManifest, predecessorArtifact)
+        !== prior.artifactRevisionId
+    ) {
+      fail(
+        "the checked predecessor artifact, client manifest, and lock disagree",
+      );
+    }
+    const report = await compareExactModelArtifactRevisionsV1({
+      predecessorArtifact,
+      predecessorArtifactRevisionId: prior.artifactRevisionId,
+      candidateArtifact: artifact,
+      candidateArtifactRevisionId: artifactRevisionId,
+    });
+    predecessorArtifactRevisionId = prior.artifactRevisionId;
+    equivalenceReportSha256 =
+      exactModelArtifactEquivalenceReportSha256V1(report);
+    writeFileSync(
+      equivalenceReportPath,
+      `${JSON.stringify(report, null, 2)}\n`,
+      "utf8",
+    );
+  } else if (
+    prior !== null
+    && prior.modelId === modelId
+    && prior.artifactRevisionId === artifactRevisionId
+  ) {
+    predecessorArtifactRevisionId = prior.predecessorArtifactRevisionId;
+    equivalenceReportSha256 = prior.equivalenceReportSha256;
+  } else if (existsSync(equivalenceReportPath)) {
+    rmSync(equivalenceReportPath);
   }
   writeFileSync(artifactPath, artifact);
   writeFileSync(lockPath, `${JSON.stringify({
-    schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1",
+    schemaId: "circleheart-standard-exact-model-registry-admission-lock-v2",
     modelId,
-    packageSha256,
+    artifactRevisionId,
+    artifactSha256,
+    predecessorArtifactRevisionId,
+    equivalenceReportSha256,
   }, null, 2)}\n`, "utf8");
   writeFileSync(
     clientDescriptorPath,
     `${JSON.stringify(clientDescriptor, null, 2)}\n`,
     "utf8",
   );
-}
-
-function standardAdmissionFilesAreTracked(): boolean {
-  return [
-    artifactRelativePath,
-    lockRelativePath,
-    clientDescriptorRelativePath,
-  ].some((relativePath) => {
-    try {
-      execFileSync(
-        "git",
-        ["ls-files", "--error-unmatch", "--", relativePath],
-        { cwd: repositoryRoot, stdio: "ignore" },
-      );
-      return true;
-    } catch {
-      return false;
-    }
-  });
 }
 
 function parseClientDescriptor(
@@ -439,6 +485,10 @@ function exactPackageSha256(
   return createHash("sha256").update(framed).digest("hex");
 }
 
+function sha256V1(value: Uint8Array): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
 function parseLock(text: string, label: string): RegistryAdmissionLock {
   const parsed: unknown = JSON.parse(text);
   if (
@@ -450,27 +500,67 @@ function parseLock(text: string, label: string): RegistryAdmissionLock {
     fail(`${label} must be a JSON object`);
   }
   const record = parsed as Record<string, unknown>;
-  const expected = ["modelId", "packageSha256", "schemaId"];
+  const expected = [
+    "artifactRevisionId",
+    "artifactSha256",
+    "equivalenceReportSha256",
+    "modelId",
+    "predecessorArtifactRevisionId",
+    "schemaId",
+  ];
   const keys = Object.keys(record).sort();
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
     || record.schemaId
-      !== "circleheart-standard-exact-model-registry-admission-lock-v1"
+      !== "circleheart-standard-exact-model-registry-admission-lock-v2"
     || typeof record.modelId !== "string"
-    || typeof record.packageSha256 !== "string"
-    || !/^[0-9a-f]{64}$/.test(record.packageSha256)
+    || typeof record.artifactRevisionId !== "string"
+    || !/^[0-9a-f]{64}$/.test(record.artifactRevisionId)
+    || typeof record.artifactSha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(record.artifactSha256)
+    || (
+      record.predecessorArtifactRevisionId !== null
+      && (
+        typeof record.predecessorArtifactRevisionId !== "string"
+        || !/^[0-9a-f]{64}$/.test(record.predecessorArtifactRevisionId)
+      )
+    )
+    || (
+      record.equivalenceReportSha256 !== null
+      && (
+        typeof record.equivalenceReportSha256 !== "string"
+        || !/^[0-9a-f]{64}$/.test(record.equivalenceReportSha256)
+      )
+    )
+    || (
+      (record.predecessorArtifactRevisionId === null)
+      !== (record.equivalenceReportSha256 === null)
+    )
   ) {
     fail(`${label} is invalid`);
   }
   return Object.freeze({
     schemaId: record.schemaId,
     modelId: record.modelId,
-    packageSha256: record.packageSha256,
+    artifactRevisionId: record.artifactRevisionId,
+    artifactSha256: record.artifactSha256,
+    predecessorArtifactRevisionId: record.predecessorArtifactRevisionId,
+    equivalenceReportSha256: record.equivalenceReportSha256,
   }) as RegistryAdmissionLock;
 }
 
-function readPriorLock(baseRef: string): RegistryAdmissionLock | null {
+type PriorRegistryAdmissionLockV1 = Readonly<{
+  schemaId:
+    | "circleheart-standard-exact-model-registry-admission-lock-v1"
+    | "circleheart-standard-exact-model-registry-admission-lock-v2";
+  modelId: string;
+  artifactRevisionId: string;
+  predecessorArtifactRevisionId: string | null;
+  equivalenceReportSha256: string | null;
+}>;
+
+function readPriorLock(baseRef: string): PriorRegistryAdmissionLockV1 | null {
   try {
     execFileSync("git", ["cat-file", "-e", `${baseRef}:${lockRelativePath}`], {
       cwd: repositoryRoot,
@@ -479,7 +569,7 @@ function readPriorLock(baseRef: string): RegistryAdmissionLock | null {
   } catch {
     return null;
   }
-  return parseLock(execFileSync(
+  const raw = execFileSync(
     "git",
     ["show", `${baseRef}:${lockRelativePath}`],
     {
@@ -487,7 +577,228 @@ function readPriorLock(baseRef: string): RegistryAdmissionLock | null {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "inherit"],
     },
-  ), `registry lock at ${baseRef}`);
+  );
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  if (
+    parsed.schemaId
+      === "circleheart-standard-exact-model-registry-admission-lock-v2"
+  ) {
+    return parseLock(raw, `registry lock at ${baseRef}`);
+  }
+  const revision = parsed.schemaId
+      === "circleheart-standard-exact-model-registry-admission-lock-v1"
+    ? parsed.packageSha256
+    : null;
+  if (
+    typeof parsed.modelId !== "string"
+    || typeof revision !== "string"
+    || !/^[0-9a-f]{64}$/.test(revision)
+  ) {
+    fail(`registry lock at ${baseRef} is invalid`);
+  }
+  return Object.freeze({
+    schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1",
+    modelId: parsed.modelId,
+    artifactRevisionId: revision,
+    predecessorArtifactRevisionId: null,
+    equivalenceReportSha256: null,
+  });
+}
+
+function readCurrentEquivalenceReportV1(
+  lock: RegistryAdmissionLock,
+): ExactModelArtifactEquivalenceReportV1 | null {
+  if (lock.equivalenceReportSha256 === null) {
+    if (existsSync(equivalenceReportPath)) {
+      fail("an unbound artifact equivalence report remains in the worktree");
+    }
+    return null;
+  }
+  if (!existsSync(equivalenceReportPath)) {
+    fail("the lock requires a missing artifact equivalence report");
+  }
+  const report = parseEquivalenceReportV1(
+    readFileSync(equivalenceReportPath, "utf8"),
+  );
+  if (
+    report.modelId !== lock.modelId
+    || report.predecessorArtifactRevisionId
+      !== lock.predecessorArtifactRevisionId
+    || report.candidateArtifactRevisionId !== lock.artifactRevisionId
+    || exactModelArtifactEquivalenceReportSha256V1(report)
+      !== lock.equivalenceReportSha256
+  ) {
+    fail("artifact equivalence report does not match the registry lock");
+  }
+  return report;
+}
+
+async function assertBaseRevisionTransitionV1(
+  baseRef: string,
+  priorLock: PriorRegistryAdmissionLockV1 | null,
+  currentLock: RegistryAdmissionLock,
+  currentClientDescriptor: StandardClientDescriptorV1,
+  currentReport: ExactModelArtifactEquivalenceReportV1 | null,
+  currentArtifact: Uint8Array,
+): Promise<void> {
+  if (priorLock === null) return;
+  if (priorLock.modelId !== currentLock.modelId) {
+    if (
+      currentLock.predecessorArtifactRevisionId !== null
+      || currentLock.equivalenceReportSha256 !== null
+    ) {
+      fail("a new scientific modelId cannot inherit an artifact revision");
+    }
+    return;
+  }
+  const priorClientBytes = readPriorBytesV1(
+    baseRef,
+    clientDescriptorRelativePath,
+  );
+  if (priorClientBytes !== null) {
+    const priorClient = parseClientDescriptor(
+      new TextDecoder().decode(priorClientBytes),
+      `client descriptor at ${baseRef}`,
+    );
+    if (
+      studioCanonicalJsonStringify(priorClient.manifest)
+        !== studioCanonicalJsonStringify(currentClientDescriptor.manifest)
+    ) {
+      fail("the exact numerical manifest changed under the same modelId");
+    }
+  }
+  if (priorLock.artifactRevisionId === currentLock.artifactRevisionId) {
+    if (
+      currentLock.predecessorArtifactRevisionId
+        !== priorLock.predecessorArtifactRevisionId
+      || currentLock.equivalenceReportSha256
+        !== priorLock.equivalenceReportSha256
+    ) {
+      fail("an unchanged artifact revision cannot rewrite its lineage evidence");
+    }
+    return;
+  }
+  if (
+    currentLock.predecessorArtifactRevisionId
+      !== priorLock.artifactRevisionId
+    || currentReport === null
+  ) {
+    fail(
+      "a same-model artifact change requires predecessor-bound byte-exact evidence",
+    );
+  }
+  const priorArtifact = readPriorBytesV1(baseRef, artifactRelativePath);
+  if (priorArtifact === null) {
+    fail(`the predecessor artifact is missing at ${baseRef}`);
+  }
+  const reproduced = await compareExactModelArtifactRevisionsV1({
+    predecessorArtifact: priorArtifact,
+    predecessorArtifactRevisionId: priorLock.artifactRevisionId,
+    candidateArtifact: currentArtifact,
+    candidateArtifactRevisionId: currentLock.artifactRevisionId,
+  });
+  if (
+    studioCanonicalJsonStringify(reproduced)
+      !== studioCanonicalJsonStringify(currentReport)
+  ) {
+    fail("artifact equivalence report is not reproducible from base and head");
+  }
+}
+
+function parseEquivalenceReportV1(
+  raw: string,
+): ExactModelArtifactEquivalenceReportV1 {
+  const parsed: unknown = JSON.parse(raw);
+  if (
+    parsed === null
+    || typeof parsed !== "object"
+    || Array.isArray(parsed)
+  ) {
+    fail("artifact equivalence report must be an object");
+  }
+  const record = parsed as Record<string, unknown>;
+  const expected = [
+    "candidateArtifactRevisionId",
+    "cases",
+    "corpusId",
+    "equality",
+    "modelId",
+    "predecessorArtifactRevisionId",
+    "schemaId",
+  ];
+  const keys = Object.keys(record).sort();
+  if (
+    keys.length !== expected.length
+    || keys.some((key, index) => key !== expected[index])
+    || record.schemaId
+      !== "circleheart-exact-model-artifact-equivalence-report-v1"
+    || typeof record.modelId !== "string"
+    || typeof record.predecessorArtifactRevisionId !== "string"
+    || !/^[0-9a-f]{64}$/.test(record.predecessorArtifactRevisionId)
+    || typeof record.candidateArtifactRevisionId !== "string"
+    || !/^[0-9a-f]{64}$/.test(record.candidateArtifactRevisionId)
+    || record.corpusId !== "main-wire-solver-replacement-corpus-v1"
+    || record.equality !== "byte-exact"
+    || !Array.isArray(record.cases)
+    || record.cases.length === 0
+  ) {
+    fail("artifact equivalence report is invalid");
+  }
+  for (const [index, value] of record.cases.entries()) {
+    if (
+      value === null
+      || typeof value !== "object"
+      || Array.isArray(value)
+    ) {
+      fail(`artifact equivalence report case ${index} is invalid`);
+    }
+    const artifactCase = value as Record<string, unknown>;
+    const caseKeys = Object.keys(artifactCase).sort();
+    const expectedCaseKeys = [
+      "acceptedStepCount",
+      "advancedFrameEquality",
+      "caseId",
+      "exactCaptureEquality",
+      "initialFrameEquality",
+    ];
+    if (
+      caseKeys.length !== expectedCaseKeys.length
+      || caseKeys.some((key, keyIndex) => key !== expectedCaseKeys[keyIndex])
+      || typeof artifactCase.caseId !== "string"
+      || !Number.isSafeInteger(artifactCase.acceptedStepCount)
+      || (artifactCase.acceptedStepCount as number) <= 0
+      || artifactCase.initialFrameEquality !== "byte-exact"
+      || artifactCase.advancedFrameEquality !== "byte-exact"
+      || artifactCase.exactCaptureEquality !== "byte-exact"
+    ) {
+      fail(`artifact equivalence report case ${index} is invalid`);
+    }
+  }
+  return parsed as ExactModelArtifactEquivalenceReportV1;
+}
+
+function readPriorBytesV1(
+  baseRef: string,
+  relativePath: string,
+): Uint8Array | null {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${baseRef}:${relativePath}`], {
+      cwd: repositoryRoot,
+      stdio: "ignore",
+    });
+  } catch {
+    return null;
+  }
+  return new Uint8Array(execFileSync(
+    "git",
+    ["show", `${baseRef}:${relativePath}`],
+    {
+      cwd: repositoryRoot,
+      encoding: "buffer",
+      maxBuffer: 10_000_000,
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  ));
 }
 
 function sameBytes(left: Uint8Array, right: Uint8Array): boolean {

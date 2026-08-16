@@ -61,6 +61,8 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 import mainWireIntegratedStudioStandardSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import mainWireIntegratedStudioStandardRegistryLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import {
   createDefaultExperimentSurfaceV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -386,6 +388,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+      artifactRevisionId:
+        mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId,
       manifest: mainWireIntegratedStudioStandardClientV1.manifest,
       surfaceRelease: mainWireIntegratedStudioStandardSurfaceV1,
       moduleAbi: "circleheart-exact-model-esm-v1",
@@ -432,6 +436,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const ticket = {
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+      artifactRevisionId:
+        mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId,
       manifest: mainWireIntegratedStudioStandardClientV1.manifest,
       surfaceRelease: mainWireIntegratedStudioStandardSurfaceV1,
       moduleAbi: "circleheart-exact-model-esm-v1",
@@ -515,6 +521,16 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       artifactUrl: "https://registry.example/model-releases/other.mjs",
     })).rejects.toThrow(/another immutable release ticket/);
 
+    await expect(loader.load({
+      ...ticket,
+      artifactRevisionId: "b".repeat(64),
+      artifactUrl:
+        "https://registry.example/model-releases/next/standard.mjs",
+    })).resolves.toMatchObject({
+      contract: { modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 },
+    });
+    expect(fetchArtifact).toHaveBeenCalledTimes(2);
+
     const mismatchLoader = new DynamicExactModelRuntimeLoaderV2(
       async () => artifactFetchResponseV3(bytes),
     );
@@ -539,6 +555,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     await expect(missingArtifactLoader.load(ticket)).rejects.toThrow(
       /artifact fetch failed \(404\)/,
     );
+    await expect(missingArtifactLoader.load({
+      ...ticket,
+      artifactUrl:
+        "https://registry.example/model-releases/rebound/standard.mjs",
+    })).rejects.toThrow(/another immutable release ticket/);
 
     for (const requiredCapability of [
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,

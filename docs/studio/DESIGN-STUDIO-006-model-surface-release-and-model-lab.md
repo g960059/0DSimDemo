@@ -71,9 +71,12 @@ remains unchanged for its already released model.
 Exact-key validation rejects presentation and product fields.
 
 A changed state topology, result-affecting path, parameter meaning, primitive
-output meaning, event/solver semantics, or executable bytes receives a new
-`modelId`. A default-off numerical feature still changes the executable and
-checkpoint contract and therefore also receives a new `modelId`.
+output meaning, event/solver semantics, or checkpoint continuation receives a
+new `modelId`. Cleanup and optimization may change executable bytes under the
+same model only when the exact manifest is unchanged and the registry verifier
+reproduces byte-identical public frames and captures over its frozen corpus.
+A default-off feature that changes the manifest or checkpoint contract still
+receives a new `modelId`; unreachable implementation scaffolding does not.
 
 ## 3. Model Surface
 
