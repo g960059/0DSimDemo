@@ -196,6 +196,12 @@ typed-layout ID or an integer tick field. Canonical JSON digest validation,
 malformed-input rejection, clock correlation, restore continuation, and
 fixture binding are release gates.
 
+Configuration values derived through host transcendental functions cross a
+model-owned canonical-precision boundary before they are hashed or persisted.
+This absorbs permitted cross-runtime ULP differences without weakening
+checkpoint identity: restore still requires exact equality of the canonical
+configuration within one release.
+
 The public Standard checkpoint omits non-authoritative solver predictors.
 Restore rebuilds those caches from admitted state. A private construction
 checkpoint may carry additional tamper-evident diagnostic state, but it is not
@@ -231,7 +237,7 @@ response to a candidate result.
 Free-running trajectories can diverge after a solver change even when both
 methods solve the same local equations. Reviews therefore separate local
 equation/root evidence, conservation and event invariants, morphology and
-output policy, and exact continuation within each release. A legacy sequence
+output policy, and exact continuation within each release. A reference sequence
 hash is not, by itself, the definition of physiological correctness.
 
 Passing these gates establishes declared numerical behavior, not clinical

@@ -6,5 +6,5 @@ export const MAIN_WIRE_INTEGRATED_MODEL_CANONICAL_ACCEPTED_SEQUENCE_V3 =
     nominalDtSec: 0.002 as const,
     digest: "SHA-256" as const,
     sha256:
-      "ba589801e07b218123950e1aa3d86e374622ae8d1fd80c6029669e3b014a67ea" as const,
+      "ecef2bee1b4542f72ec3cf3d9f33f76c64579866ef611e22f2f52138f811a741" as const,
   });

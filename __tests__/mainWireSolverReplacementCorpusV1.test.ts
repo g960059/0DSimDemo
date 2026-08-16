@@ -10,7 +10,7 @@ import {
 } from "@/tools/performance/solverReplacementCorpusV1";
 
 describe("main-wire solver replacement corpus V1", () => {
-  it("pins six distinct legacy oracle trajectories before solver replacement", () => {
+  it("pins six distinct reference trajectories before solver replacement", () => {
     const report = captureMainWireSolverReplacementCorpusV1();
 
     expect(report.cases.map(({ caseId }) => caseId)).toEqual([
@@ -30,7 +30,7 @@ describe("main-wire solver replacement corpus V1", () => {
     expect(MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1).toHaveLength(6);
     expect(
       MAIN_WIRE_SOLVER_REPLACEMENT_ACCEPTANCE_POLICY_V1
-        .legacySequenceHashIsAcceptanceAuthority,
+        .referenceSequenceHashIsAcceptanceAuthority,
     ).toBe(false);
     expect(
       MAIN_WIRE_SOLVER_REPLACEMENT_ACCEPTANCE_POLICY_V1

@@ -66,6 +66,27 @@ export type PeriodicBiexponentialExactEventConversionV1 = Readonly<{
   }>;
 }>;
 
+/**
+ * Canonical precision for transcendental-derived persisted parameters.
+ *
+ * ECMAScript permits small implementation differences in Math.exp/log/expm1.
+ * Values that become part of an exact checkpoint configuration therefore
+ * cross a decimal significant-digit boundary before they are persisted or
+ * hashed. Twelve digits retain far more precision than the physiological
+ * priors justify while absorbing observed cross-runtime ULP differences.
+ */
+export const EXACT_EVENT_CALCIUM_CANONICAL_SIGNIFICANT_DIGITS_V1 = 12;
+
+export function canonicalizeDerivedExactEventCalciumParameterV1(
+  value: number,
+): number {
+  const finite = requireNonnegativeFinite(value, "derived calcium parameter");
+  const canonical = Number(
+    finite.toPrecision(EXACT_EVENT_CALCIUM_CANONICAL_SIGNIFICANT_DIGITS_V1),
+  );
+  return Object.is(canonical, -0) ? 0 : canonical;
+}
+
 export function zeroExactEventCalciumStateV1(): ExactEventCalciumStateV1 {
   return frozenState(0, 0);
 }
@@ -185,7 +206,8 @@ export function evaluateExactEventCalciumV1(
  * The old "diastolic calcium" is the trough under its reference periodic
  * schedule. The event kernel instead owns a true event-free asymptote. The
  * affine output offset below converts between those two meanings while
- * preserving the complete reference waveform to floating-point precision.
+ * preserving the complete reference waveform to the canonical derived-
+ * parameter precision used by exact cross-runtime checkpoints.
  */
 export function convertPeriodicBiexponentialToExactEventCalciumV1(
   periodic: PeriodicBiexponentialCalciumForExactEventConversionV1,
@@ -225,10 +247,14 @@ export function convertPeriodicBiexponentialToExactEventCalciumV1(
       "periodic biexponential must have a positive peak-to-trough excursion",
     );
   }
-  const calciumGainUMPerUnitDrive = periodic.peakAmplitudeUM
-    / peakToTroughDriveExcursion;
-  const calciumRestUM = periodic.diastolicCalciumUM
-    - calciumGainUMPerUnitDrive * eventTroughDriveDifference;
+  const calciumGainUMPerUnitDrive =
+    canonicalizeDerivedExactEventCalciumParameterV1(
+      periodic.peakAmplitudeUM / peakToTroughDriveExcursion,
+    );
+  const calciumRestUM = canonicalizeDerivedExactEventCalciumParameterV1(
+    periodic.diastolicCalciumUM
+      - calciumGainUMPerUnitDrive * eventTroughDriveDifference,
+  );
   if (calciumRestUM < 0 || !Number.isFinite(calciumRestUM)) {
     throw new Error(
       "exact periodic conversion would require negative event-free resting calcium",

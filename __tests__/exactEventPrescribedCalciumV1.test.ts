@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalizeDerivedExactEventCalciumParameterV1,
   advanceExactEventCalciumV1,
   convertPeriodicBiexponentialToExactEventCalciumV1,
   evaluateExactEventCalciumV1,
@@ -19,6 +20,17 @@ const PARAMETERS = Object.freeze({
 }) satisfies ExactEventCalciumParametersV1;
 
 describe("exact-event prescribed calcium V1", () => {
+  it("canonicalizes transcendental-derived parameters across ULP drift", () => {
+    expect(canonicalizeDerivedExactEventCalciumParameterV1(
+      5.405356353915279,
+    )).toBe(canonicalizeDerivedExactEventCalciumParameterV1(
+      5.4053563539152805,
+    ));
+    expect(canonicalizeDerivedExactEventCalciumParameterV1(
+      5.405356353915279,
+    )).toBe(5.40535635392);
+  });
+
   it("propagates both states by their exact exponential semigroup", () => {
     const initial: ExactEventCalciumStateV1 = Object.freeze([0.4, 1.2]);
     const durationSec = 0.17;
@@ -70,8 +82,8 @@ describe("exact-event prescribed calcium V1", () => {
       converted.parameters,
     ).freeCalciumUM;
 
-    expect(trough).toBeCloseTo(periodic.diastolicCalciumUM, 15);
-    expect(peak - trough).toBeCloseTo(periodic.peakAmplitudeUM, 15);
+    expect(trough).toBeCloseTo(periodic.diastolicCalciumUM, 11);
+    expect(peak - trough).toBeCloseTo(periodic.peakAmplitudeUM, 11);
   });
 
   it("owns the open-start, closed-end interval exactly", () => {

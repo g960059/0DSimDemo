@@ -9,12 +9,12 @@ New production Sessions resolve:
 
 ```text
 modelId:
-  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-58
+  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-59
 surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-58 is registered, stable, active, and deployed. It contains one
+Standard-59 is registered, stable, active, and deployed. It contains one
 self-contained exact executable artifact plus a build-time-generated
 `ExecutionPlanDescriptorV1`. The browser does not compile the model and does
 not rehash the artifact during ordinary loading. Registry admission, immutable
