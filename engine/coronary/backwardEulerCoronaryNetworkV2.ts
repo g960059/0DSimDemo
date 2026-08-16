@@ -808,8 +808,8 @@ export function evaluateCoronaryHydraulicsV2(
 /**
  * Evaluates one supplied 16-volume backward-Euler candidate without running
  * the coronary Newton loop. This cold verification seam lets a global
- * 30/32-row residual reuse the exact current hydraulic laws while the final
- * flat component writer is developed independently.
+ * active 30-row residual reuse the exact current hydraulic laws. It remains an
+ * independently tested component seam for cold scientific comparison.
  */
 export function evaluateCoronaryBackwardEulerCandidateProbeV2(
   previousAcceptedState: CoronaryAcceptedHydraulicStateV2,
@@ -1471,7 +1471,7 @@ export function writeCoronaryBackwardEulerCandidateResidualV2(
  * evaluation. The nine boundary columns are ordered by
  * `CORONARY_BOUNDARY_LINEARIZATION_COMPONENT_IDS_V2`. These are direct
  * partial derivatives, never implicit sensitivities or solved responses, so
- * the global 30/32-row assembler can form Jcc, Jcn, and the Ao/RA companion
+ * the global 30-row assembler can form Jcc, Jcn, and the Ao/RA companion
  * terms without reintroducing the nested coronary Newton.
  */
 export function writeCoronaryBackwardEulerCandidateLinearizationV2(

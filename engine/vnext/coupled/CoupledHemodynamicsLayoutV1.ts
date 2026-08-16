@@ -59,10 +59,10 @@ const TRISEG_START = CORONARY_START
   + CORONARY_CONSERVED_VOLUME_NODE_IDS_V2.length;
 
 /**
- * Target ordering for the replacement index-1 DAE. Phase 2a initially keeps
- * the two TriSeg rows statically condensed, so its live prefix has 30 rows.
- * Phase 2b activates the full 32-row layout without renumbering either
- * circulation block.
+ * Stable ordering for the accepted index-1 DAE descriptor. The live solve
+ * keeps the two TriSeg rows statically condensed, so its active prefix has 30
+ * rows. Their retained IDs preserve plan topology without making them active
+ * Newton unknowns.
  */
 export const COUPLED_HEMODYNAMICS_LAYOUT_V1 = Object.freeze({
   layoutId: COUPLED_HEMODYNAMICS_LAYOUT_V1_ID,

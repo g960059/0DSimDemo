@@ -1600,8 +1600,8 @@ export function withPreparedNonCoronaryCandidateV1<
 
 /**
  * Evaluates exactly one physical 14-volume candidate without running the
- * outer Newton loop. It exists so the new 30/32-row coupled residual can be
- * compared against the current nested transaction before production cutover.
+ * outer Newton loop. It supplies the active statically-condensed 30-row
+ * coupled residual and its cold comparison against the nested transaction.
  */
 export function evaluateNonCoronaryCirculationCandidateProbeV1<
   TEvaluation,

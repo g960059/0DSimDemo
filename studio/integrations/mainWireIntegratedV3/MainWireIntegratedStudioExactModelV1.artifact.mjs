@@ -13712,7 +13712,6 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
         previous.trisegCoordinates,
         params
       );
-      const fixedInternalTrialAtrialMaterialReuse = { LA: null, RA: null };
       return Object.freeze({
         initialScaledInternalCoordinates: initialUnknowns,
         evaluate: (candidateVolumesMl) => {
@@ -13738,29 +13737,6 @@ function createMainWireFiveWallLandTriSegProviderV1(params) {
           return numericalMechanicsEvaluationFromSolveV1(
             candidateVolumesMl,
             solved,
-            params
-          );
-        },
-        evaluateAtFixedInternalCoordinates: (candidateVolumesMl, scaledInternalCoordinates) => {
-          validateVolumes(candidateVolumesMl);
-          const candidate = evaluateCandidate(
-            candidateVolumesMl,
-            drive,
-            scaledInternalCoordinates,
-            {
-              kind: "trial",
-              previousState: previous,
-              stepDtSec: input.stepDtSec,
-              materialEvaluationMode: "numerical"
-            },
-            params,
-            solver,
-            null,
-            fixedInternalTrialAtrialMaterialReuse
-          );
-          return fixedInternalMechanicsEvaluationV1(
-            candidate,
-            scaledInternalCoordinates,
             params
           );
         }
@@ -13841,88 +13817,6 @@ function numericalMechanicsEvaluationFromSolveV1(candidateVolumesMl, solved, par
     )
   });
   return evaluation;
-}
-function fixedInternalMechanicsEvaluationV1(candidate, scaledInternalCoordinates, params) {
-  const hessian = analyticTriSegAlgorithmicHessian(candidate, params);
-  const coordinateScales = [
-    params.internalCoordinateScales.septalMidwallCapVolumeM3,
-    params.internalCoordinateScales.junctionRadiusM
-  ];
-  const pressureDerivative = new Float64Array(4 * 6);
-  pressureDerivative[0 * 6 + 0] = atrialPressureVolumeTangentMmHgPerMl(
-    candidate.volumesMl.LA,
-    params.atria.LA,
-    candidate.fiberKirchhoffStressPaByWall.LA,
-    candidate.materialByWall.LA.algorithmicFiberTangentPa
-  );
-  pressureDerivative[2 * 6 + 2] = atrialPressureVolumeTangentMmHgPerMl(
-    candidate.volumesMl.RA,
-    params.atria.RA,
-    candidate.fiberKirchhoffStressPaByWall.RA,
-    candidate.materialByWall.RA.algorithmicFiberTangentPa
-  );
-  for (let ventricularPressureRow = 0; ventricularPressureRow < 2; ventricularPressureRow += 1) {
-    const pressureRow = ventricularPressureRow === 0 ? 1 : 3;
-    pressureDerivative[pressureRow * 6 + 1] = hessian[ventricularPressureRow * 4] * 1e-6 / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 3] = hessian[ventricularPressureRow * 4 + 1] * 1e-6 / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 4] = hessian[ventricularPressureRow * 4 + 2] * coordinateScales[0] / PA_PER_MMHG$2;
-    pressureDerivative[pressureRow * 6 + 5] = hessian[ventricularPressureRow * 4 + 3] * coordinateScales[1] / PA_PER_MMHG$2;
-  }
-  const internalResidualDerivative = new Float64Array(2 * 6);
-  for (let residualRow = 0; residualRow < 2; residualRow += 1) {
-    internalResidualDerivative[residualRow * 6 + 1] = hessian[(residualRow + 2) * 4] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
-    internalResidualDerivative[residualRow * 6 + 3] = hessian[(residualRow + 2) * 4 + 1] * coordinateScales[residualRow] * 1e-6 / ONE_JOULE;
-    for (let coordinateColumn = 0; coordinateColumn < 2; coordinateColumn += 1) {
-      internalResidualDerivative[residualRow * 6 + 4 + coordinateColumn] = hessian[(residualRow + 2) * 4 + coordinateColumn + 2] * coordinateScales[residualRow] * coordinateScales[coordinateColumn] / ONE_JOULE;
-    }
-  }
-  const ventricularWallIds = ["LVFW", "SEP", "RVFW"];
-  const capVolumeGradientByWall = {
-    LVFW: [-1, 0, 1],
-    SEP: [0, 0, 1],
-    RVFW: [0, 1, 1]
-  };
-  const strainDerivative = new Float64Array(3 * 4);
-  const activeStressDerivative = new Float64Array(3 * 4);
-  for (let wallIndex = 0; wallIndex < ventricularWallIds.length; wallIndex += 1) {
-    const wallId = ventricularWallIds[wallIndex];
-    const first = candidate.triseg.wallDerivativeByWall[wallId];
-    const capGradient = capVolumeGradientByWall[wallId];
-    strainDerivative[wallIndex * 4 + 0] = capGradient[0] * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
-    strainDerivative[wallIndex * 4 + 1] = capGradient[1] * first.dFiberLogStrainDCapVolumePerM3 * 1e-6;
-    strainDerivative[wallIndex * 4 + 2] = capGradient[2] * first.dFiberLogStrainDCapVolumePerM3 * coordinateScales[0];
-    strainDerivative[wallIndex * 4 + 3] = first.dFiberLogStrainDJunctionRadiusPerM * coordinateScales[1];
-    const activeTangent = candidate.materialByWall[wallId].activeFiberAlgorithmicTangentPa;
-    for (let column = 0; column < 4; column += 1) {
-      activeStressDerivative[wallIndex * 4 + column] = activeTangent * strainDerivative[wallIndex * 4 + column];
-    }
-  }
-  if (![
-    ...pressureDerivative,
-    ...internalResidualDerivative,
-    ...strainDerivative,
-    ...activeStressDerivative
-  ].every(Number.isFinite)) {
-    throw new Error("fixed internal mechanics derivative is non-finite");
-  }
-  return Object.freeze({
-    candidateVolumesMl: Object.freeze({ ...candidate.volumesMl }),
-    scaledInternalCoordinates: Object.freeze([
-      scaledInternalCoordinates[0],
-      scaledInternalCoordinates[1]
-    ]),
-    transmuralPressuresMmHg: candidate.transmuralPressuresMmHg,
-    internalResidualByOneJ: Object.freeze([
-      candidate.scaledAlgorithmicGeneralizedForceByOneJ[0],
-      candidate.scaledAlgorithmicGeneralizedForceByOneJ[1]
-    ]),
-    transmuralPressureDerivativeRowMajor: pressureDerivative,
-    internalResidualDerivativeRowMajor: internalResidualDerivative,
-    effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
-    activeFiberKirchhoffStressPaByWall: fiveWallRecord$1((wallId) => candidate.materialByWall[wallId].activeFiberKirchhoffStressPa),
-    ventricularFiberStrainDerivativeRowMajor: strainDerivative,
-    ventricularActiveStressDerivativeRowMajor: activeStressDerivative
-  });
 }
 function solveInternalCoordinates(volumesMl, drive, initialScaledUnknowns, mode, params, solver) {
   let current = [...initialScaledUnknowns];

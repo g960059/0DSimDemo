@@ -1,11 +1,11 @@
 # Integrated V3 model: current state
 
-Status: active pre-release exact model; numerically executable, not clinically
-validated
+Status: current pre-release exact model source; numerically executable, not
+clinically validated
 
-## Active exact release
+## Current source release
 
-New production Sessions resolve:
+The checked-in exact release identity is:
 
 ```text
 modelId:
@@ -14,11 +14,11 @@ surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-60 is registered, stable, active, and deployed. It contains one
-self-contained exact executable artifact plus a build-time-generated
-`ExecutionPlanDescriptorV1`. The browser does not compile the model and does
-not rehash the artifact during ordinary loading. Registry admission, immutable
-model identity, manifest equality, and exact content pins are the authority.
+Standard-60 contains one self-contained exact executable artifact plus a
+build-time-generated `ExecutionPlanDescriptorV1`. The browser does not compile
+the model and does not rehash the artifact during ordinary loading. Registry
+admission, immutable model identity, manifest equality, exact content pins,
+and the external active bundle pointer are the authority for deployed Sessions.
 
 Changing numerical behavior, primitive semantics, or checkpoint continuation
 requires a new `modelId`. Byte-only cleanup and optimization instead receive
@@ -68,11 +68,11 @@ The production solve retains 30 circulation volumes as active unknowns:
 - systemic venous volume as the total-blood-volume algebraic dependent state.
 
 TriSeg internal coordinates remain statically condensed through the
-model-owned mechanics solve. The promoted 32-variable mechanics formulation
-and its trust-region experiments are scientific oracles, not accepted-state
-authority. The current solve uses the existing component residuals,
-component-owned convergence gates, deterministic globalization, and dense
-row-major LU workspace.
+model-owned mechanics solve. The rejected promoted 32-variable construction
+experiment is retained in Git history rather than in the active source tree.
+The current solve uses the existing component residuals, component-owned
+convergence gates, deterministic globalization, and dense row-major LU
+workspace.
 
 The exact artifact carries the generated execution plan. During Scenario
 initialization the Worker validates the descriptor, resolves exact component,

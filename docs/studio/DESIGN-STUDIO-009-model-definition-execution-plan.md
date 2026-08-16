@@ -83,7 +83,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The active Standard-60 release advertises both
+The Standard-60 release advertises both
 `runtime/execution-plan-typed-authority-binding-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -268,9 +268,9 @@ the product gate.
 
 ## Current completion boundary
 
-Standard-60 completes the one-patch direct cutover: generated descriptor
-parity, exact-artifact embedding, exact kernel-set binding, private Scenario
-allocation, accepted-authority state binding, Newton/LU workspace ownership,
+Standard-60 preserves the completed one-patch direct cutover: generated
+descriptor parity, exact-artifact embedding, exact kernel-set binding, private
+Scenario allocation, accepted-authority state binding, Newton/LU workspace ownership,
 solve-block and residual dispatch, hydraulic topology binding, integer update
 scheduling, checkpoint continuation, physical-device execution, registration,
 and activation.
