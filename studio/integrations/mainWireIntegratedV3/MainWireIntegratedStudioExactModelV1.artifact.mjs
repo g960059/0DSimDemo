@@ -20954,6 +20954,14 @@ const EXACT_EVENT_PRESCRIBED_CALCIUM_CLAIM_BOUNDARY_V1 = Object.freeze({
   refractorinessClaimed: false,
   pvLoopMorphologyFitAllowed: false
 });
+const EXACT_EVENT_CALCIUM_CANONICAL_SIGNIFICANT_DIGITS_V1 = 12;
+function canonicalizeDerivedExactEventCalciumParameterV1(value) {
+  const finite2 = requireNonnegativeFinite$b(value, "derived calcium parameter");
+  const canonical = Number(
+    finite2.toPrecision(EXACT_EVENT_CALCIUM_CANONICAL_SIGNIFICANT_DIGITS_V1)
+  );
+  return Object.is(canonical, -0) ? 0 : canonical;
+}
 function zeroExactEventCalciumStateV1() {
   return frozenState(0, 0);
 }
@@ -21063,8 +21071,12 @@ function convertPeriodicBiexponentialToExactEventCalciumV1(periodic, cycleLength
       "periodic biexponential must have a positive peak-to-trough excursion"
     );
   }
-  const calciumGainUMPerUnitDrive = periodic.peakAmplitudeUM / peakToTroughDriveExcursion;
-  const calciumRestUM = periodic.diastolicCalciumUM - calciumGainUMPerUnitDrive * eventTroughDriveDifference;
+  const calciumGainUMPerUnitDrive = canonicalizeDerivedExactEventCalciumParameterV1(
+    periodic.peakAmplitudeUM / peakToTroughDriveExcursion
+  );
+  const calciumRestUM = canonicalizeDerivedExactEventCalciumParameterV1(
+    periodic.diastolicCalciumUM - calciumGainUMPerUnitDrive * eventTroughDriveDifference
+  );
   if (calciumRestUM < 0 || !Number.isFinite(calciumRestUM)) {
     throw new Error(
       "exact periodic conversion would require negative event-free resting calcium"
@@ -25810,6 +25822,19 @@ const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CONFIGURATION_V1_ID = "accepted-ven
 const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_STATE_V1_ID = "accepted-ventricular-interval-strength-state-v1";
 const VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID = "ventricular-interval-strength-deposit-metadata-v1";
 const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CANDIDATE_V1_ID = "accepted-ventricular-interval-strength-candidate-v1";
+const VENTRICULAR_INTERVAL_STRENGTH_CANONICAL_SIGNIFICANT_DIGITS_V1 = 12;
+function canonicalizeDerivedVentricularIntervalStrengthValueV1(value) {
+  const finite2 = requireNonnegativeFinite$2(
+    value,
+    "derived interval-strength value"
+  );
+  const canonical = Number(
+    finite2.toPrecision(
+      VENTRICULAR_INTERVAL_STRENGTH_CANONICAL_SIGNIFICANT_DIGITS_V1
+    )
+  );
+  return Object.is(canonical, -0) ? 0 : canonical;
+}
 deepFreeze$9({
   scope: "one-scalar-accepted-ventricular-interval-strength-memory",
   equation: Object.freeze({
@@ -26440,7 +26465,12 @@ function computeRecoveryFraction(intervalSec, tauSec, field) {
   if (!Number.isFinite(ratio) || ratio <= 0) {
     throw new Error(`${field} ratio must be positive and finite`);
   }
-  return requirePositiveComputedFinite(-Math.expm1(-ratio), field);
+  return requirePositiveComputedFinite(
+    canonicalizeDerivedVentricularIntervalStrengthValueV1(
+      -Math.expm1(-ratio)
+    ),
+    field
+  );
 }
 function requirePlainRecord$3(value, field) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -47694,7 +47724,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-58";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-60";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";

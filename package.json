@@ -28,7 +28,6 @@
     "benchmark:workbench:live": "npm run build && playwright test --config playwright.performance.config.ts",
     "benchmark:workbench:exact-presentation": "vite-node --script tools/performance/benchmarkMainWirePresentationBatchV1.ts",
     "benchmark:model:execution-plan-binding": "vite-node --script tools/performance/benchmarkExecutionPlanBindingV1.ts",
-    "benchmark:kernel:flat-reference": "vite-node --script tools/performance/benchmarkMainWireFlatReferenceKernelV1.ts",
     "benchmark:kernel:flat-authority": "vite-node --script tools/performance/benchmarkMainWireFlatAuthorityV1.ts",
     "benchmark:kernel:coronary-scratch": "vite-node --script tools/performance/benchmarkCoronaryBackwardEulerScratchV2.ts",
     "benchmark:kernel:coupled-newton": "vite-node --script tools/performance/benchmarkMainWireCoupledNewtonV1.ts",

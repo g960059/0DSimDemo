@@ -6,10 +6,16 @@ This document defines the Workbench and Reader live-presentation performance
 boundary. It does not change the numerical model, accepted-step semantics, or
 Snapshot qualification.
 
+[DESIGN-STUDIO-007](DESIGN-STUDIO-007-flat-numerical-kernel.md) owns numerical
+authority and solver/scientific gates. This document owns transport, group
+pacing, presentation work, physical-device performance policy, and
+foreground/background resource policy.
+
 ## Invariants
 
 - The Worker remains the sole numerical owner.
-- Every numerical step remains an exact accepted 2 ms step.
+- The numerical base tick and ordinary update target remain exactly `2 ms`;
+  event-clipped accepted substeps remain exact and are never discarded.
 - PV points retain pressure and volume from the same accepted state.
 - Waveform reduction retains the exact bucket terminal plus exact-time
   first/minimum/maximum values.
@@ -89,54 +95,18 @@ deep by default.
 
 The compact transport is presentation-only. Settlement, analyses, capture,
 Snapshot qualification, control commits, and authoring continue to consume
-complete exact frames or checkpoints. The pre-release Standard ABI requires a
-model-owned packed-batch operation: intermediate accepted steps write clocks
-and selected scalar outputs directly into typed arrays, while only the final
-step constructs one complete frame. Every newly minted Standard exact manifest
-declares `runtime/exact-presentation-batch-v1`, which makes the operation
-mandatory at the artifact trust boundary. Immutable pre-extension artifacts
-remain readable only for already-pinned historical Snapshots and use the old
-fully validated frame-per-step projection; active releases cannot silently
-fall back. This removes object allocation and validation proportional to every
-future primitive output without changing numerical work.
+complete exact frames or checkpoints. The Standard ABI requires a model-owned
+packed-batch operation: intermediate accepted steps write clocks and selected
+scalar outputs directly into typed arrays, while only the final step constructs
+one complete frame. Every admitted Standard exact manifest declares
+`runtime/exact-presentation-batch-v1`; artifact validation and Worker startup
+fail closed when the operation is absent. There is no frame-per-step fallback.
+This removes object allocation and validation proportional to every future
+primitive output without changing numerical work.
 
 Device diagnostics separately report model-owned advance/projection time and
 Worker validation/preparation time. A Worker round-trip metric alone cannot
 distinguish equation/solver cost from packing or transfer cost.
-
-## Exact numerical hot path
-
-Presentation work cannot compensate for a Worker that produces exact accepted
-steps slower than model time. The Standard-12 executable therefore retains
-successful validation proofs only for exact immutable identities whose entire
-plain-data graph is transitively frozen. Mutable values, restored copies,
-failed or partial validation, and stamp-disabled verification always miss and
-take the complete validator path. The full-invariant reference remains
-bit-identical to the shipped lean tier for accepted states and checkpoints.
-
-A direct same-process comparison of the committed Standard-8 and Standard-10
-artifacts on the M5 Max development host measured four 200-step runs. Mean
-accepted-step time fell from about `2.42 ms` to `2.02 ms` (about 16.6%). The two
-artifacts then produced identical accepted clocks and all 49 output records for
-1,000 presentation steps through `2.0 s`, including completed-beat metrics.
-This is exact-artifact regression evidence, not a phone throughput claim.
-
-Before Standard-12 admission, the committed Standard-10 and generated
-Standard-12 artifacts were also run for 1,000 exact steps from the same fixture.
-All 49 output records and accepted clocks were identical through `2.0 s`. One
-alternating-order M5 Max run measured about `1.287 ms/step` versus
-`1.211 ms/step` (roughly 6.3% greater throughput) after coronary topology and
-factorization reuse. The model-owned packed projection itself measured near
-parity with repeated one-step projection on this host, confirming that it is a
-growth-safe ABI rather than the phone throughput remedy.
-
-The remaining CPU profile is distributed across dense linear solves, coronary
-Jacobian and hydraulics evaluation, five-wall/TriSeg mechanics, material-state
-ownership checks, and allocation/GC. No remaining presentation-only switch can
-turn a physical phone running the kernel at `0.1×` into a real-time exact lane.
-A larger improvement must optimize those numerical kernels (with a new exact
-release and parity evidence) rather than silently enlarge `dt`, interpolate
-scientific states, or derive metrics from decimated presentation data.
 
 ## Diagnostic mode
 
@@ -251,24 +221,9 @@ allowed wall-clock pressure to produce different Scenario progress. It is not
 a production fallback. Catch-up remains disabled because enlarging an
 already-late numerical request can amplify response latency.
 
-The production-preview A/B measurement on the M5 Max reference development
-device is a regression control, not evidence of low-end or mobile support. It
-showed that a sixteen-step compute request sustains approximately 1× model time
-through four simultaneous live Scenarios, while an eight-step request falls
-behind when the default PV support analysis competes for Worker time. Canvas
-raster time remains well below the presentation budget. Target-tier traces are
-still required before claiming low-end or mobile support.
-
-- one balanced Scenario: about 1.03× mean model-time ratio;
-- four balanced live Scenarios: approximately 0.99–1.02× mean model-time
-  ratio per lane, Canvas draw p95 about 1.2 ms, and Worker round-trip p95 about
-  31 ms; and
-- the eight-step/catch-up experiment: below 1× model-time ratio with repeated
-  overload re-anchors, so it is not the production default.
-
-The user does not choose a numerical performance mode. A diagnostic balanced profile
-publishes all sixteen exact frames in one callback rather than pacing two
-eight-frame slices and remains available through:
+The user does not choose a different numerical profile. A diagnostic balanced
+presentation profile publishes all sixteen exact frames in one callback rather
+than pacing two eight-frame slices and remains available through:
 
 ```text
 ?workbenchPerf=1&workbenchPresentation=balanced
@@ -371,20 +326,7 @@ and record browser version, logical cores, memory, battery/thermal state,
 Scenario count, viewport, model-time ratios, long-tail latency, and a minimum
 ten-minute retained-memory soak.
 
-The 2026-08-13 presentation-path production-preview regression run on the M5
-Max development device passed all three enforced profiles. This browser run
-used the then-active Standard-10 registry bundle; that release is qualified
-separately by the exact same-process comparison above. Post-control/background-contention
-root model-time ratios were 0.983× for four reference-desktop
-Scenarios, 0.996× for two constrained-desktop proxy Scenarios, and 0.992× for
-two mobile-layout proxy Scenarios. The corresponding control-to-visible-result
-measurements were 136 ms, 234 ms, and 193 ms. Main-thread calibration measured
-about 4.1–4.3× slowdown in both proxy profiles while their dedicated Workers
-remained about 1.0–1.06×, confirming that these runs establish renderer/layout
-headroom on the development host but do not qualify physical phone numerical
-throughput.
-
-The initial qualification matrix is deliberately honest:
+The qualification matrix is deliberately honest:
 
 | Target tier | Required live Scenarios | Additional stress run |
 | --- | ---: | ---: |
@@ -435,14 +377,13 @@ unconditional hardware-wide fan-out: the live-Scenario-aware formula above
 continues to protect foreground numerical lanes and browser composition, and
 the cap never exceeds four.
 
-After calibration this can become zero on a constrained device or at the selected safe ceiling:
-speculative settlement waits
-instead of competing with presentation. An explicit user operation always has
+After calibration this can become zero on a constrained device or at the
+selected safe ceiling: speculative settlement waits instead of competing with
+presentation. An explicit user operation always has
 one serialized background lane available; an analysis requested during the
 short calibration window starts when the first ceiling is known. Snapshot/Save
-may use one bounded
-burst only when real logical-core headroom remains. No operation changes the
-accepted 2 ms model step.
+may use one bounded burst only when real logical-core headroom remains. No
+operation changes the accepted 2 ms model step.
 
 Changing a Scenario target cancels that Scenario's queued analysis partitions
 and terminates any running analysis/prewarm Worker forked from the old input

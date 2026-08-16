@@ -55,10 +55,10 @@ export function captureMainWireSolverReplacementCorpusV1() {
         return Object.freeze({
           caseId: corpusCase.caseId,
           acceptedStepCount: corpusCase.acceptedStepCount,
-          expectedSha256: corpusCase.legacyAcceptedSequenceSha256,
+          expectedSha256: corpusCase.referenceAcceptedSequenceSha256,
           actualSha256,
           matches: actualSha256
-            === corpusCase.legacyAcceptedSequenceSha256,
+            === corpusCase.referenceAcceptedSequenceSha256,
         });
       }),
     ),
@@ -66,8 +66,8 @@ export function captureMainWireSolverReplacementCorpusV1() {
 }
 
 /**
- * Runs the replacement solver beside every accepted legacy corpus step. The
- * legacy state advances the driver, while the coupled solver receives the
+ * Runs the replacement solver beside every accepted reference corpus step.
+ * The reference state advances the driver, while the coupled solver receives the
  * exact same pre-step state, accepted calcium drive, and limited dt. This is
  * a branch/trajectory oracle only; legacy bytes are not candidate acceptance
  * authority.
@@ -121,7 +121,7 @@ function compareCoupledCorpusCase(
       fixture.profile,
       fixture.config,
     );
-    const legacy = stepMainWireIntegratedModelV3(
+    const reference = stepMainWireIntegratedModelV3(
       fixture.provider,
       previous,
       Object.freeze({
@@ -135,13 +135,13 @@ function compareCoupledCorpusCase(
         dynamicMechanicalSupport: fixture.dynamicMechanicalSupport,
       }),
     );
-    if (legacy.converged === false) {
+    if (reference.converged === false) {
       throw new Error(
-        `${corpusCase.caseId} legacy step ${stepIndex} failed: `
-          + legacy.message,
+        `${corpusCase.caseId} reference step ${stepIndex} failed: `
+          + reference.message,
       );
     }
-    const dtSec = legacy.acceptedState.acceptedTimeSec
+    const dtSec = reference.acceptedState.acceptedTimeSec
       - previous.acceptedTimeSec;
     const context = prepareMainWireFiveWallCoupledResidualContextV1(
       fixture.provider,
@@ -149,7 +149,7 @@ function compareCoupledCorpusCase(
       Object.freeze({
         ...fixture.coronaryStepInput,
         dtSec,
-        calciumDriveOverride: legacy.calciumDrive,
+        calciumDriveOverride: reference.calciumDrive,
       }),
     );
     const coupled = solveMainWireFiveWallCoupledNewtonShadowV1(
@@ -183,7 +183,7 @@ function compareCoupledCorpusCase(
         maximumAbsoluteVolumeDifferenceMl,
         Math.abs(
           coupledResult.solution[index]!
-            - legacy.coronaryStep.baseStep.circulationTrial
+            - reference.coronaryStep.baseStep.circulationTrial
               .candidateNodeVolumesMl[nodeId],
         ),
       );
@@ -194,12 +194,12 @@ function compareCoupledCorpusCase(
         Math.abs(
           coupledResult.solution[
             NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length + index
-          ]! - legacy.coronaryStep.baseStep.coronaryTrial
+          ]! - reference.coronaryStep.baseStep.coronaryTrial
             .candidateAcceptedState.volumeMlByNode[nodeId],
         ),
       );
     });
-    accepted = legacy.acceptedState;
+    accepted = reference.acceptedState;
     if (accepted.acceptedTimeSec === nominalTargetTimeSec) {
       nominalGridIndex += 1;
     }

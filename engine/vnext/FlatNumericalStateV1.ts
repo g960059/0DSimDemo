@@ -105,28 +105,6 @@ export type FlatNumericalStateLayoutOptionsV1 = Readonly<{
   boundedArrayTemplates?: readonly FlatNumericalBoundedArrayTemplateV1[];
 }>;
 
-/** Mutable storage owned by one numerical authority. */
-export type FlatNumericalStateBufferV1 = Readonly<{
-  continuous: Float64Array;
-  nullableContinuous: Float64Array;
-  nullableContinuousPresent: Uint8Array;
-  nullableStrings: Uint32Array;
-  nullableStringsPresent: Uint8Array;
-  optionalRecordPresent: Uint8Array;
-  boundedArrayLengths: Uint32Array;
-  booleans: Uint8Array;
-  strings: Uint32Array;
-}>;
-
-/**
- * Phase 1a string codec. Codes are stable for the lifetime of one kernel.
- * A canonical binary checkpoint will own the table in the later cutover.
- */
-export type FlatNumericalStringTableV1 = Readonly<{
-  codeByValue: Map<string, number>;
-  valuesByCode: string[];
-}>;
-
 export function createFlatNumericalStateLayoutV1(
   layoutId: string,
   referenceState: unknown,
@@ -288,187 +266,6 @@ export function createFlatNumericalStateLayoutV1(
   return layout;
 }
 
-export function createFlatNumericalStateBufferV1(
-  layout: FlatNumericalStateLayoutV1,
-): FlatNumericalStateBufferV1 {
-  return Object.freeze({
-    continuous: new Float64Array(layout.continuousSlots.length),
-    nullableContinuous:
-      new Float64Array(layout.nullableContinuousSlots.length),
-    nullableContinuousPresent:
-      new Uint8Array(layout.nullableContinuousSlots.length),
-    nullableStrings: new Uint32Array(layout.nullableStringSlots.length),
-    nullableStringsPresent: new Uint8Array(layout.nullableStringSlots.length),
-    optionalRecordPresent: new Uint8Array(layout.optionalRecordRoots.length),
-    boundedArrayLengths: new Uint32Array(layout.boundedArrayRoots.length),
-    booleans: new Uint8Array(layout.booleanSlots.length),
-    strings: new Uint32Array(layout.stringSlots.length),
-  });
-}
-
-export function createFlatNumericalStringTableV1():
-FlatNumericalStringTableV1 {
-  return Object.freeze({
-    codeByValue: new Map<string, number>(),
-    valuesByCode: [],
-  });
-}
-
-/**
- * Writes every fixed-topology leaf after the complete container topology has passed.
- * Initial null and ordinary-array roots are deliberately excluded: the
- * reference bridge reports them so the production flat schema can reserve
- * explicit presence tags and bounded array storage.
- * A shape error therefore cannot partially update the destination buffer.
- */
-export function writeFlatNumericalStateV1(
-  layout: FlatNumericalStateLayoutV1,
-  state: unknown,
-  destination: FlatNumericalStateBufferV1,
-  stringTable: FlatNumericalStringTableV1,
-): void {
-  assertBufferMatchesLayout(layout, destination);
-  assertFlatNumericalStateShapeV1(layout, state);
-
-  const continuous = new Float64Array(layout.continuousSlots.length);
-  const nullableContinuous = new Float64Array(
-    layout.nullableContinuousSlots.length,
-  );
-  const nullableContinuousPresent = new Uint8Array(
-    layout.nullableContinuousSlots.length,
-  );
-  const nullableStrings = new Uint32Array(layout.nullableStringSlots.length);
-  const nullableStringsPresent = new Uint8Array(
-    layout.nullableStringSlots.length,
-  );
-  const optionalRecordPresent = new Uint8Array(
-    layout.optionalRecordRoots.length,
-  );
-  const boundedArrayLengths = new Uint32Array(
-    layout.boundedArrayRoots.length,
-  );
-  const booleans = new Uint8Array(layout.booleanSlots.length);
-  const strings = new Uint32Array(layout.stringSlots.length);
-  const stagedStringTable: FlatNumericalStringTableV1 = {
-    codeByValue: new Map(stringTable.codeByValue),
-    valuesByCode: [...stringTable.valuesByCode],
-  };
-  for (let index = 0; index < layout.optionalRecordRoots.length; index += 1) {
-    const root = layout.optionalRecordRoots[index]!;
-    const value = requiredPathValue(state, root.path);
-    optionalRecordPresent[index] = value === null ? 0 : 1;
-  }
-  for (let index = 0; index < layout.boundedArrayRoots.length; index += 1) {
-    const root = layout.boundedArrayRoots[index]!;
-    const value = requiredPathValue(state, root.path);
-    if (!Array.isArray(value) || value.length > root.capacity) {
-      throw new Error(
-        `Flat numerical state ${root.pointer} exceeds bounded-array capacity`,
-      );
-    }
-    boundedArrayLengths[index] = value.length;
-  }
-
-  for (let index = 0; index < layout.continuousSlots.length; index += 1) {
-    const slot = layout.continuousSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
-      continuous[index] = 0;
-      continue;
-    }
-    const value = requiredPathValue(state, slot.path);
-    if (typeof value !== "number" || !Number.isFinite(value)) {
-      throw new Error(`Flat numerical state ${slot.pointer} must be finite`);
-    }
-    continuous[index] = value;
-  }
-  for (
-    let index = 0;
-    index < layout.nullableContinuousSlots.length;
-    index += 1
-  ) {
-    const slot = layout.nullableContinuousSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
-      nullableContinuous[index] = 0;
-      nullableContinuousPresent[index] = 0;
-      continue;
-    }
-    const value = requiredPathValue(state, slot.path);
-    if (value === null) {
-      nullableContinuous[index] = 0;
-      nullableContinuousPresent[index] = 0;
-    } else if (typeof value === "number" && Number.isFinite(value)) {
-      nullableContinuous[index] = value;
-      nullableContinuousPresent[index] = 1;
-    } else {
-      throw new Error(
-        `Flat numerical state ${slot.pointer} must be null or finite`,
-      );
-    }
-  }
-  for (let index = 0; index < layout.booleanSlots.length; index += 1) {
-    const slot = layout.booleanSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
-      booleans[index] = 0;
-      continue;
-    }
-    const value = requiredPathValue(state, slot.path);
-    if (typeof value !== "boolean") {
-      throw new Error(`Flat numerical state ${slot.pointer} must be boolean`);
-    }
-    booleans[index] = value ? 1 : 0;
-  }
-  for (let index = 0; index < layout.nullableStringSlots.length; index += 1) {
-    const slot = layout.nullableStringSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
-      nullableStrings[index] = 0;
-      nullableStringsPresent[index] = 0;
-      continue;
-    }
-    const value = requiredPathValue(state, slot.path);
-    if (value === null) {
-      nullableStrings[index] = 0;
-      nullableStringsPresent[index] = 0;
-    } else if (typeof value === "string") {
-      nullableStrings[index] = internString(stagedStringTable, value);
-      nullableStringsPresent[index] = 1;
-    } else {
-      throw new Error(
-        `Flat numerical state ${slot.pointer} must be null or a string`,
-      );
-    }
-  }
-  for (let index = 0; index < layout.stringSlots.length; index += 1) {
-    const slot = layout.stringSlots[index]!;
-    if (layoutEntryAbsent(layout, state, slot)) {
-      strings[index] = 0;
-      continue;
-    }
-    const value = requiredPathValue(state, slot.path);
-    if (typeof value !== "string") {
-      throw new Error(`Flat numerical state ${slot.pointer} must be a string`);
-    }
-    strings[index] = internString(stagedStringTable, value);
-  }
-  destination.continuous.set(continuous);
-  destination.nullableContinuous.set(nullableContinuous);
-  destination.nullableContinuousPresent.set(nullableContinuousPresent);
-  destination.nullableStrings.set(nullableStrings);
-  destination.nullableStringsPresent.set(nullableStringsPresent);
-  destination.optionalRecordPresent.set(optionalRecordPresent);
-  destination.boundedArrayLengths.set(boundedArrayLengths);
-  destination.booleans.set(booleans);
-  destination.strings.set(strings);
-  stringTable.codeByValue.clear();
-  for (const [value, code] of stagedStringTable.codeByValue) {
-    stringTable.codeByValue.set(value, code);
-  }
-  stringTable.valuesByCode.splice(
-    0,
-    stringTable.valuesByCode.length,
-    ...stagedStringTable.valuesByCode,
-  );
-}
-
 /**
  * Verifies every fixed-topology container before a candidate is projected.
  * Dynamic roots are explicit cut points and are validated by their owner.
@@ -525,30 +322,6 @@ export function readFlatNumericalStatePathV1(
   path: readonly FlatNumericalPathSegmentV1[],
 ): unknown {
   return requiredPathValue(root, path);
-}
-
-export function flatNumericalStateBuffersEqualV1(
-  left: FlatNumericalStateBufferV1,
-  right: FlatNumericalStateBufferV1,
-): boolean {
-  return typedArraysEqual(left.continuous, right.continuous)
-    && typedArraysEqual(left.nullableContinuous, right.nullableContinuous)
-    && typedArraysEqual(
-      left.nullableContinuousPresent,
-      right.nullableContinuousPresent,
-    )
-    && typedArraysEqual(left.nullableStrings, right.nullableStrings)
-    && typedArraysEqual(
-      left.nullableStringsPresent,
-      right.nullableStringsPresent,
-    )
-    && typedArraysEqual(
-      left.optionalRecordPresent,
-      right.optionalRecordPresent,
-    )
-    && typedArraysEqual(left.boundedArrayLengths, right.boundedArrayLengths)
-    && typedArraysEqual(left.booleans, right.booleans)
-    && typedArraysEqual(left.strings, right.strings);
 }
 
 function visit(
@@ -1141,39 +914,6 @@ function requiredOwnValue(
   return descriptor.value;
 }
 
-function internString(table: FlatNumericalStringTableV1, value: string): number {
-  const existing = table.codeByValue.get(value);
-  if (existing !== undefined) return existing;
-  const next = table.valuesByCode.length + 1;
-  if (next > 0xffff_ffff) {
-    throw new Error("Flat numerical string table exhausted Uint32 codes");
-  }
-  table.codeByValue.set(value, next);
-  table.valuesByCode.push(value);
-  return next;
-}
-
-function assertBufferMatchesLayout(
-  layout: FlatNumericalStateLayoutV1,
-  buffer: FlatNumericalStateBufferV1,
-): void {
-  if (
-    buffer.continuous.length !== layout.continuousSlots.length
-    || buffer.nullableContinuous.length
-      !== layout.nullableContinuousSlots.length
-    || buffer.nullableContinuousPresent.length
-      !== layout.nullableContinuousSlots.length
-    || buffer.nullableStrings.length !== layout.nullableStringSlots.length
-    || buffer.nullableStringsPresent.length !== layout.nullableStringSlots.length
-    || buffer.optionalRecordPresent.length !== layout.optionalRecordRoots.length
-    || buffer.boundedArrayLengths.length !== layout.boundedArrayRoots.length
-    || buffer.booleans.length !== layout.booleanSlots.length
-    || buffer.strings.length !== layout.stringSlots.length
-  ) {
-    throw new Error("Flat numerical state buffer does not match its layout");
-  }
-}
-
 function slot(
   path: readonly FlatNumericalPathSegmentV1[],
   optionalRecordRootIndex: number | null = null,
@@ -1284,12 +1024,4 @@ function pointer(path: readonly FlatNumericalPathSegmentV1[]): string {
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length
     && left.every((value, index) => value === right[index]);
-}
-
-function typedArraysEqual(
-  left: Float64Array | Uint8Array | Uint32Array,
-  right: Float64Array | Uint8Array | Uint32Array,
-): boolean {
-  return left.length === right.length
-    && left.every((value, index) => Object.is(value, right[index]));
 }

@@ -1321,6 +1321,17 @@ function exactRuntimeResolverV2() {
             return 0;
           },
         },
+        executionPlan: {
+          schemaId: "circleheart-registered-model-execution-plan-adapter-v1" as const,
+          modelId: contract.modelId,
+          descriptor: {},
+          bind() {
+            throw new Error("not used by Preset clone");
+          },
+          createSession() {
+            throw new Error("not used by Preset clone");
+          },
+        },
       };
     },
   };

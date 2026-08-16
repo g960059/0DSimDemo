@@ -66,7 +66,6 @@ import {
   validateStudioSimulationWorkerResponseFromTrustedRuntimeV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
-  createStudioSimulationPresentationBatchV2,
   STUDIO_SIMULATION_PRESENTATION_OUTPUT_STATE_COUNT_V2,
   studioSimulationPresentationOutputStateCodeV2,
   studioSimulationPresentationBatchTransferablesV2,
@@ -359,7 +358,7 @@ export class StudioSimulationWorkerRuntimeV2 {
     let exactRuntime: ResolvedExactModelRuntimeV2 | undefined;
     let exactRuntimeLoadTiming: ExactModelRuntimeLoadTimingV2 | undefined;
     let boundExecutionPlans = new Map<string, BoundExecutionPlanV1>();
-    let executionPlanBindMs: number | null = null;
+    let executionPlanBindMs = 0;
     let adapter: RegisteredModelSimulationAdapterV2 | undefined;
     let sessionCreationAttempted = false;
     try {
@@ -425,14 +424,12 @@ export class StudioSimulationWorkerRuntimeV2 {
             fixture: scenario.capture.fixture,
             checkpoint: scenario.capture.checkpoint,
           }));
-      if (exactRuntime.executionPlan !== undefined) {
-        const bindStartedAtMs = monotonicWorkerNowV2();
-        boundExecutionPlans = bindScenarioExecutionPlansV1(
-          exactRuntime,
-          scenarioInputs.map(({ scenarioId }) => scenarioId),
-        );
-        executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
-      }
+      const bindStartedAtMs = monotonicWorkerNowV2();
+      boundExecutionPlans = bindScenarioExecutionPlansV1(
+        exactRuntime,
+        scenarioInputs.map(({ scenarioId }) => scenarioId),
+      );
+      executionPlanBindMs = nonnegativeWorkerDurationV2(bindStartedAtMs);
       sessionCreationAttempted = true;
       const sessionCreateStartedAtMs = monotonicWorkerNowV2();
       const sessionCreateInput = Object.freeze({
@@ -445,14 +442,10 @@ export class StudioSimulationWorkerRuntimeV2 {
             : { checkpoint: scenario.checkpoint }),
         }))),
       });
-      if (exactRuntime.executionPlan === undefined) {
-        await adapter.createSession(sessionCreateInput);
-      } else {
-        await exactRuntime.executionPlan.createSession(Object.freeze({
-          ...sessionCreateInput,
-          boundExecutionPlans,
-        }));
-      }
+      await exactRuntime.executionPlan.createSession(Object.freeze({
+        ...sessionCreateInput,
+        boundExecutionPlans,
+      }));
       const sessionCreateMs = nonnegativeWorkerDurationV2(
         sessionCreateStartedAtMs,
       );
@@ -587,34 +580,14 @@ export class StudioSimulationWorkerRuntimeV2 {
     }
     try {
       const workerAdvanceStartedAtMs = performance.now();
-      let workerAdvanceCompletedAtMs: number;
-      let proposedBatch: RegisteredModelPresentationBatchV2;
-      if (adapter.advancePresentationBatch !== undefined) {
-        proposedBatch = await adapter.advancePresentationBatch({
+      const proposedBatch: RegisteredModelPresentationBatchV2 =
+        await adapter.advancePresentationBatch({
           runtimeSessionId: physicalRuntimeSessionId,
           scenarioId: request.scenarioId,
           stepCount: request.stepCount,
           presentationOutputIds: request.presentationOutputIds,
         });
-      } else {
-        // Immutable v1 exact artifacts predate the packed extension. Preserve
-        // their frame-per-step contract only when loading historical pins;
-        // every new Standard release advertises and owns the packed path.
-        const frames: StudioSimulationFrameV2[] = [];
-        for (let index = 0; index < request.stepCount; index += 1) {
-          frames.push(this.#validateAdapterFrame(
-            await adapter.advanceOnePresentationStep({
-              runtimeSessionId: physicalRuntimeSessionId,
-              scenarioId: request.scenarioId,
-            }),
-          ));
-        }
-        proposedBatch = createStudioSimulationPresentationBatchV2(
-          frames,
-          request.presentationOutputIds,
-        );
-      }
-      workerAdvanceCompletedAtMs = performance.now();
+      const workerAdvanceCompletedAtMs = performance.now();
       const validatedTerminalFrame = this.#validateAdapterFrame(
         proposedBatch.terminalFrame,
       );
@@ -1134,15 +1107,10 @@ export class StudioSimulationWorkerRuntimeV2 {
           checkpoint: scenario.capture.checkpoint,
         })),
       };
-      const exactRuntime = this.#requiredExactRuntime();
-      if (exactRuntime.executionPlan === undefined) {
-        await adapter.createSession(sessionCreateInput);
-      } else {
-        await exactRuntime.executionPlan.createSession({
-          ...sessionCreateInput,
-          boundExecutionPlans: nextBoundExecutionPlans,
-        });
-      }
+      await this.#requiredExactRuntime().executionPlan.createSession({
+        ...sessionCreateInput,
+        boundExecutionPlans: nextBoundExecutionPlans,
+      });
       created = true;
       const frames = new Map<string, StudioSimulationFrameV2>();
       for (const scenario of scenarios) {
@@ -1875,14 +1843,11 @@ function assertExactRuntimeV2(
     );
   }
   if (
-    runtime.executionPlan !== undefined
-    && (
-      runtime.executionPlan.schemaId
-        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
-      || runtime.executionPlan.modelId !== modelId
-      || typeof runtime.executionPlan.bind !== "function"
-      || typeof runtime.executionPlan.createSession !== "function"
-    )
+    runtime.executionPlan.schemaId
+      !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+    || runtime.executionPlan.modelId !== modelId
+    || typeof runtime.executionPlan.bind !== "function"
+    || typeof runtime.executionPlan.createSession !== "function"
   ) {
     throw new Error(
       `registered execution plan does not exactly match model ${modelId}`,
@@ -2281,10 +2246,7 @@ function assertSimulationAdapterV2(
     || typeof adapter.disposeSession !== "function"
     || typeof adapter.currentFrame !== "function"
     || typeof adapter.advanceOnePresentationStep !== "function"
-    || (
-      adapter.advancePresentationBatch !== undefined
-      && typeof adapter.advancePresentationBatch !== "function"
-    )
+    || typeof adapter.advancePresentationBatch !== "function"
     || typeof adapter.applyControl !== "function"
     || typeof adapter.requestAnalysis !== "function"
     || typeof adapter.replaceFixture !== "function"
@@ -2308,9 +2270,6 @@ function bindScenarioExecutionPlansV1(
   scenarioIds: readonly string[],
 ): Map<string, BoundExecutionPlanV1> {
   const executionPlan = runtime.executionPlan;
-  if (executionPlan === undefined) {
-    return new Map();
-  }
   const descriptor = executionPlan.descriptor;
   const occupiedBuffers = new Set<object>();
 

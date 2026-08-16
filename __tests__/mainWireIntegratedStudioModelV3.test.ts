@@ -14,6 +14,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
+  EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
   assertBoundExecutionPlanV1,
   bindExecutionPlanV1,
   prepareBoundExecutionPlanSolveGroupV1,
@@ -23,6 +24,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
+import {
+  STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+} from "@/studio/contracts/v2/simulation";
 import type { StudioSimulationFrameV2 } from
   "@/studio/contracts/v2/simulation";
 import {
@@ -107,7 +111,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
     );
     const simulation = release.executables.simulationAdapter;
-    const executionPlan = release.executables.executionPlan!;
+    const executionPlan = release.executables.executionPlan;
     const baselineBound = executionPlan.bind();
     const lowVolumeBound = executionPlan.bind();
     assertBoundExecutionPlanV1(baselineBound, executionPlan.descriptor);
@@ -184,7 +188,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
   it("rejects a compiled multirate schedule until the model implements it", async () => {
     const release = createCircleHeartExactModelReleaseV1();
-    const executionPlan = release.executables.executionPlan!;
+    const executionPlan = release.executables.executionPlan;
     const runtimeSessionId = "session/standard-multirate-rejection";
     const scenarioId = "scenario/baseline";
     const driftedDescriptor = {
@@ -223,7 +227,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
   it("rejects one bound plan shared by equal Scenario IDs in different sessions", async () => {
     const release = createCircleHeartExactModelReleaseV1();
-    const executionPlan = release.executables.executionPlan!;
+    const executionPlan = release.executables.executionPlan;
     const bound = executionPlan.bind();
     assertBoundExecutionPlanV1(bound, executionPlan.descriptor);
     const scenarioId = "scenario/shared-name";
@@ -458,10 +462,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(loaded.executionPlan).toMatchObject({
       modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
     });
-    const boundExecutionPlan = loaded.executionPlan!.bind();
+    const boundExecutionPlan = loaded.executionPlan.bind();
     assertBoundExecutionPlanV1(
       boundExecutionPlan,
-      loaded.executionPlan!.descriptor,
+      loaded.executionPlan.descriptor,
     );
     const warmMeasured = await loader.loadMeasured(ticket);
     expect(warmMeasured.runtime).toBe(loaded);
@@ -475,7 +479,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(warmMeasured.timing.totalMs).toBeGreaterThanOrEqual(0);
     const runtimeSessionId = "session/standard-artifact-repeatability";
     const scenarioId = "scenario/baseline";
-    await loaded.executionPlan!.createSession({
+    await loaded.executionPlan.createSession({
       runtimeSessionId,
       scenarios: [{
         scenarioId,
@@ -535,6 +539,38 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     await expect(missingArtifactLoader.load(ticket)).rejects.toThrow(
       /artifact fetch failed \(404\)/,
     );
+
+    for (const requiredCapability of [
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+    ]) {
+      const replacementCapability = `${requiredCapability}/omitted`;
+      const manifestWithoutRequiredCapability = {
+        ...ticket.manifest,
+        capabilities: ticket.manifest.capabilities.map((capability) =>
+          capability === requiredCapability
+            ? replacementCapability
+            : capability
+        ),
+      };
+      const artifactWithoutRequiredCapability = new TextEncoder().encode(
+        mainWireIntegratedStudioStandardArtifactV1.replaceAll(
+          requiredCapability,
+          replacementCapability,
+        ),
+      );
+      const capabilityLoader = new DynamicExactModelRuntimeLoaderV2(
+        async () => artifactFetchResponseV3(
+          artifactWithoutRequiredCapability,
+        ),
+      );
+      await expect(capabilityLoader.load({
+        ...ticket,
+        manifest: manifestWithoutRequiredCapability,
+      })).rejects.toThrow(
+        `Exact model manifest omits required runtime capability ${requiredCapability}`,
+      );
+    }
   }, 60_000);
 
   it("warm-starts Standard controls at the accepted clock", async () => {
@@ -700,7 +736,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       mainWireIntegratedStudioStandardSurfaceV1,
     ).contract;
     const simulation = release.executables.simulationAdapter;
-    const executionPlan = release.executables.executionPlan!;
+    const executionPlan = release.executables.executionPlan;
     const sourceBoundExecutionPlan = executionPlan.bind();
     assertBoundExecutionPlanV1(
       sourceBoundExecutionPlan,

@@ -853,6 +853,17 @@ function harnessV2(
               return 0;
             },
           },
+          executionPlan: {
+            schemaId: "circleheart-registered-model-execution-plan-adapter-v1" as const,
+            modelId: model.modelId,
+            descriptor: {},
+            bind() {
+              throw new Error("not used by authoring harness");
+            },
+            createSession() {
+              throw new Error("not used by authoring harness");
+            },
+          },
         };
       },
     },

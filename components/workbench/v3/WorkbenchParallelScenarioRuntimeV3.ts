@@ -1197,12 +1197,10 @@ function recordWorkerInitializationTimingV3(
     "worker.initialization-first-frame",
     timing.initialFrameMs,
   );
-  if (timing.executionPlanBindMs !== null) {
-    recordWorkbenchPerformanceDurationV3(
-      "worker.initialization-execution-plan-bind",
-      timing.executionPlanBindMs,
-    );
-  }
+  recordWorkbenchPerformanceDurationV3(
+    "worker.initialization-execution-plan-bind",
+    timing.executionPlanBindMs,
+  );
   if (timing.exactRuntimeLoad !== null) {
     recordWorkbenchPerformanceDurationV3(
       "worker.initialization-exact-runtime-load",

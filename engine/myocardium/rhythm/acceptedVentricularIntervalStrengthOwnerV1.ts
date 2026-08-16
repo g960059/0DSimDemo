@@ -27,6 +27,33 @@ export const VENTRICULAR_INTERVAL_STRENGTH_DEPOSIT_METADATA_V1_ID =
 export const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CANDIDATE_V1_ID =
   "accepted-ventricular-interval-strength-candidate-v1" as const;
 
+/**
+ * Canonical precision for transcendental-derived interval-strength values.
+ *
+ * `Math.expm1` may differ by a few ULPs across ECMAScript hosts. Recovery
+ * fractions are persisted inside exact checkpoint metadata and are later
+ * recomputed during admission, so they cross a model-owned decimal boundary
+ * before entering that exact identity. Twelve significant digits retain much
+ * more precision than the component priors justify while making the persisted
+ * equation portable between Node, Chromium, and Safari.
+ */
+export const VENTRICULAR_INTERVAL_STRENGTH_CANONICAL_SIGNIFICANT_DIGITS_V1 = 12;
+
+export function canonicalizeDerivedVentricularIntervalStrengthValueV1(
+  value: number,
+): number {
+  const finite = requireNonnegativeFinite(
+    value,
+    "derived interval-strength value",
+  );
+  const canonical = Number(
+    finite.toPrecision(
+      VENTRICULAR_INTERVAL_STRENGTH_CANONICAL_SIGNIFICANT_DIGITS_V1,
+    ),
+  );
+  return Object.is(canonical, -0) ? 0 : canonical;
+}
+
 export const ACCEPTED_VENTRICULAR_INTERVAL_STRENGTH_CLAIM_V1 = deepFreeze({
   scope: "one-scalar-accepted-ventricular-interval-strength-memory" as const,
   equation: Object.freeze({
@@ -1067,7 +1094,12 @@ function computeRecoveryFraction(
   if (!Number.isFinite(ratio) || ratio <= 0) {
     throw new Error(`${field} ratio must be positive and finite`);
   }
-  return requirePositiveComputedFinite(-Math.expm1(-ratio), field);
+  return requirePositiveComputedFinite(
+    canonicalizeDerivedVentricularIntervalStrengthValueV1(
+      -Math.expm1(-ratio),
+    ),
+    field,
+  );
 }
 
 function requirePlainRecord(value: unknown, field: string): Record<string, unknown> {

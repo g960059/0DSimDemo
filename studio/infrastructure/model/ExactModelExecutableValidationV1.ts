@@ -21,24 +21,17 @@ export class ExactModelExecutableValidationErrorV1 extends Error {
   }
 }
 
-type ExecutableBundleValidationOptionsV2 = Readonly<{
-  requiresPresentationBatch: boolean;
-  requiresExecutionPlan: boolean;
-}>;
-
 export function validateExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
-  options: ExecutableBundleValidationOptionsV2,
 ): void {
-  validateAndOwnExecutableBundleV2(bundle, model, options);
+  validateAndOwnExecutableBundleV2(bundle, model);
 }
 
 function validateAndOwnExecutableBundleV2(
   bundle: RegisteredModelExecutableBundleV2,
   model: ModelContractV2,
-  options: ExecutableBundleValidationOptionsV2,
-): ExecutionPlanDescriptorV1 | undefined {
+): ExecutionPlanDescriptorV1 {
   if (bundle === null || typeof bundle !== "object") {
     throw new ExactModelExecutableValidationErrorV1(
       "executable bundle must be an object",
@@ -54,7 +47,7 @@ function validateAndOwnExecutableBundleV2(
     "snapshotGate",
     "fixtureAdapter",
     "simulationAdapter",
-    ...(options.requiresExecutionPlan ? ["executionPlan"] : []),
+    "executionPlan",
   ], "executable bundle");
   assertExactExecutableKeysV1(bundle.captureAdapter, [
     "modelId",
@@ -82,31 +75,27 @@ function validateAndOwnExecutableBundleV2(
       ? []
       : ["reduceControlAction"]),
   ], "fixture adapter");
-  let executionPlanDescriptor: ExecutionPlanDescriptorV1 | undefined;
-  if (options.requiresExecutionPlan) {
-    assertExactExecutableKeysV1(bundle.executionPlan, [
-      "bind",
-      "createSession",
-      "descriptor",
-      "modelId",
-      "schemaId",
-    ], "execution plan adapter");
-    if (
-      bundle.executionPlan?.schemaId
-        !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
-      || bundle.executionPlan.modelId !== model.modelId
-      || typeof bundle.executionPlan.bind !== "function"
-      || typeof bundle.executionPlan.createSession !== "function"
-    ) {
-      throw new ExactModelExecutableValidationErrorV1(
-        "execution plan adapter must exactly match the manifest identity",
-      );
-    }
-    executionPlanDescriptor = validateAndOwnExecutionPlanDescriptorV1(
-      bundle.executionPlan.descriptor,
+  assertExactExecutableKeysV1(bundle.executionPlan, [
+    "bind",
+    "createSession",
+    "descriptor",
+    "modelId",
+    "schemaId",
+  ], "execution plan adapter");
+  if (
+    bundle.executionPlan.schemaId
+      !== REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID
+    || bundle.executionPlan.modelId !== model.modelId
+    || typeof bundle.executionPlan.bind !== "function"
+    || typeof bundle.executionPlan.createSession !== "function"
+  ) {
+    throw new ExactModelExecutableValidationErrorV1(
+      "execution plan adapter must exactly match the manifest identity",
     );
   }
-  const requiresPresentationBatch = options.requiresPresentationBatch;
+  const executionPlanDescriptor = validateAndOwnExecutionPlanDescriptorV1(
+    bundle.executionPlan.descriptor,
+  );
   assertExactExecutableKeysV1(bundle.simulationAdapter, [
     "modelId",
     "fixtureSchemaId",
@@ -115,7 +104,7 @@ function validateAndOwnExecutableBundleV2(
     "disposeSession",
     "currentFrame",
     "advanceOnePresentationStep",
-    ...(requiresPresentationBatch ? ["advancePresentationBatch"] : []),
+    "advancePresentationBatch",
     "applyControl",
     "requestAnalysis",
     "replaceFixture",
@@ -150,10 +139,7 @@ function validateAndOwnExecutableBundleV2(
     || typeof bundle.simulationAdapter.disposeSession !== "function"
     || typeof bundle.simulationAdapter.currentFrame !== "function"
     || typeof bundle.simulationAdapter.advanceOnePresentationStep !== "function"
-    || (
-      requiresPresentationBatch
-      && typeof bundle.simulationAdapter.advancePresentationBatch !== "function"
-    )
+    || typeof bundle.simulationAdapter.advancePresentationBatch !== "function"
     || typeof bundle.simulationAdapter.applyControl !== "function"
     || typeof bundle.simulationAdapter.requestAnalysis !== "function"
     || typeof bundle.simulationAdapter.replaceFixture !== "function"
@@ -174,12 +160,10 @@ function validateAndOwnExecutableBundleV2(
 export function admitExactModelExecutableRuntimeV2(
   bundle: RegisteredModelExecutableBundleV2,
   contract: ModelContractV2,
-  options: ExecutableBundleValidationOptionsV2,
 ): ResolvedExactModelRuntimeV2 {
   const executionPlanDescriptor = validateAndOwnExecutableBundleV2(
     bundle,
     contract,
-    options,
   );
   return Object.freeze({
     contract,
@@ -218,42 +202,21 @@ export function admitExactModelExecutableRuntimeV2(
       currentFrame: bundle.simulationAdapter.currentFrame,
       advanceOnePresentationStep:
         bundle.simulationAdapter.advanceOnePresentationStep,
-      ...(bundle.simulationAdapter.advancePresentationBatch === undefined
-        ? {}
-        : {
-            advancePresentationBatch:
-              bundle.simulationAdapter.advancePresentationBatch,
-          }),
+      advancePresentationBatch:
+        bundle.simulationAdapter.advancePresentationBatch,
       applyControl: bundle.simulationAdapter.applyControl,
       requestAnalysis: bundle.simulationAdapter.requestAnalysis,
       replaceFixture: bundle.simulationAdapter.replaceFixture,
       currentInputEpoch: bundle.simulationAdapter.currentInputEpoch,
     }),
-    ...(bundle.executionPlan === undefined
-      ? {}
-      : {
-          executionPlan: Object.freeze({
-            schemaId: bundle.executionPlan.schemaId,
-            modelId: bundle.executionPlan.modelId,
-            descriptor: requiredExecutionPlanDescriptorV1(
-              executionPlanDescriptor,
-            ),
-            bind: bundle.executionPlan.bind,
-            createSession: bundle.executionPlan.createSession,
-          }),
-        }),
+    executionPlan: Object.freeze({
+      schemaId: bundle.executionPlan.schemaId,
+      modelId: bundle.executionPlan.modelId,
+      descriptor: executionPlanDescriptor,
+      bind: bundle.executionPlan.bind,
+      createSession: bundle.executionPlan.createSession,
+    }),
   });
-}
-
-function requiredExecutionPlanDescriptorV1(
-  descriptor: ExecutionPlanDescriptorV1 | undefined,
-): ExecutionPlanDescriptorV1 {
-  if (descriptor === undefined) {
-    throw new ExactModelExecutableValidationErrorV1(
-      "execution plan descriptor was not admitted",
-    );
-  }
-  return descriptor;
 }
 
 function assertExactExecutableKeysV1(
