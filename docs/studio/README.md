@@ -53,12 +53,13 @@ Saved content never follows the active pointer:
 - a historical load failure is reported instead of substituting the active
   release.
 
-Some current official placements still pin pre-Standard-60 exact releases.
-Their immutable artifacts and the Worker’s capability-negotiated historical
-path remain production obligations until the content is re-created on the
-active release and obsolete database revisions complete deliberate pruning or
-reset. This is the only retained numerical compatibility boundary; new exact
-releases do not decode or reinterpret older checkpoints.
+All current official Articles, Experiments, and Snapshots were re-created on
+Standard-60 before the pre-release database prune. The registry therefore has
+one executable ABI: every admitted exact artifact owns a generated execution
+plan and packed presentation batches. Generic exact loading remains because a
+future immutable Snapshot may pin an older exact release that still implements
+that ABI; no frame-per-step or execution-plan-free compatibility path remains.
+New exact releases do not decode or reinterpret older checkpoints.
 
 ## Authoring and publication
 

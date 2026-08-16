@@ -158,7 +158,7 @@ describe("Studio numerical authoring V1", () => {
     expect(repository.snapshot()).not.toBeNull();
   }, 30_000);
 
-  it("binds packed and execution-plan extensions to immutable capabilities", () => {
+  it("requires packed presentation and execution-plan adapters in the single ABI", () => {
     const release = createCircleHeartExactModelReleaseV1();
     const composed = composeStandardModelContractV1(
       release.manifest,
@@ -168,39 +168,26 @@ describe("Studio numerical authoring V1", () => {
       advancePresentationBatch: _packedExtension,
       ...historicalSimulationAdapter
     } = release.executables.simulationAdapter;
+    const withoutPackedPresentation = {
+      ...release.executables,
+      simulationAdapter: historicalSimulationAdapter,
+    } as unknown as typeof release.executables;
     const {
       executionPlan: _executionPlan,
-      ...historicalExecutableBase
+      ...withoutExecutionPlan
     } = release.executables;
-    const historicalBundle = {
-      ...historicalExecutableBase,
-      simulationAdapter: historicalSimulationAdapter,
-    } as typeof release.executables;
 
     expect(() => validateExecutableBundleV2(
-      historicalBundle,
+      withoutPackedPresentation,
       composed.contract,
-      { requiresPresentationBatch: false, requiresExecutionPlan: false },
-    )).not.toThrow();
-    expect(() => validateExecutableBundleV2(
-      historicalBundle,
-      composed.contract,
-      { requiresPresentationBatch: true, requiresExecutionPlan: false },
     )).toThrow(/advancePresentationBatch/);
     expect(() => validateExecutableBundleV2(
       release.executables,
       composed.contract,
-      { requiresPresentationBatch: true, requiresExecutionPlan: true },
     )).not.toThrow();
     expect(() => validateExecutableBundleV2(
-      release.executables,
+      withoutExecutionPlan as unknown as typeof release.executables,
       composed.contract,
-      { requiresPresentationBatch: true, requiresExecutionPlan: false },
-    )).toThrow(/executable bundle must contain exactly/);
-    expect(() => validateExecutableBundleV2(
-      historicalExecutableBase,
-      composed.contract,
-      { requiresPresentationBatch: true, requiresExecutionPlan: true },
     )).toThrow(/executionPlan|execution plan/);
   });
 });
@@ -222,10 +209,6 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
   const runtime = admitExactModelExecutableRuntimeV2(
     release.executables,
     composed.contract,
-    {
-      requiresPresentationBatch: true,
-      requiresExecutionPlan: true,
-    },
   );
   const resolved = Object.freeze({
     contract: composed.contract,

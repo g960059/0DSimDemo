@@ -156,17 +156,19 @@ export class DynamicExactModelRuntimeLoaderV2 {
       ticket.manifest,
       ticket.surfaceRelease,
     );
+    for (const requiredCapability of [
+      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
+    ]) {
+      if (!ticket.manifest.capabilities.includes(requiredCapability)) {
+        throw new Error(
+          `Exact model manifest omits required runtime capability ${requiredCapability}`,
+        );
+      }
+    }
     const runtime = admitExactModelExecutableRuntimeV2(
       release.executables,
       composed.contract,
-      {
-        requiresPresentationBatch: ticket.manifest.capabilities.includes(
-          STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-        ),
-        requiresExecutionPlan: ticket.manifest.capabilities.includes(
-          EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
-        ),
-      },
     );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
     this.#coldTimingByModelId.set(ticket.modelId, Object.freeze({

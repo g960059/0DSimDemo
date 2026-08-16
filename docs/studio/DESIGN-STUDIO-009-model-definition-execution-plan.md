@@ -88,8 +88,9 @@ The active Standard-60 release advertises both
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
 `ModelDefinitionV1`, `NumericalPolicyV1`, or the compiler. Historical exact
-artifacts without the capability continue to load through their immutable
-legacy executable contract.
+releases remain loadable only when they implement this same Standard ABI.
+Missing execution-plan or packed-presentation capabilities fail closed; there
+is no legacy executable contract.
 
 At Worker initialization, the binder:
 
@@ -232,8 +233,8 @@ Opt-in Workbench performance reports now distinguish:
 - first exact frame;
 - total Worker initialization and main-thread round trip.
 
-`executionPlanBindMs` remains `null` for historical artifacts and is a measured
-number for plan-capable exact releases. Full portable-descriptor admission is
+`executionPlanBindMs` is a measured number for every admitted exact release.
+Full portable-descriptor admission is
 included in `exactRuntimeLoad.contractValidationMs`. `executionPlanBindMs`
 includes exact kernel-set binding, cross-bundle bound-plan admission, and
 plan-owned typed allocation for every initially restored Scenario. Direct
@@ -251,8 +252,8 @@ Physical iPhone reports confirm that descriptor binding is bounded; continued
 reports keep initialization and time-to-first-frame regressions visible.
 Exact artifact URLs are immutable release identities. New uploads therefore
 carry a one-year `max-age=31536000` Storage TTL, and the Worker fetch uses the
-browser's shared HTTP cache even for historical objects created before that
-metadata policy. The registry publisher inspects existing bytes first; it may
+browser's shared HTTP cache. The registry publisher inspects existing bytes
+first; it may
 repair cache metadata with a byte-identical PUT, but it refuses a path whose
 bytes differ. This reduces repeated two-megabyte fetch/revalidation cost across
 dedicated Scenario Workers without adding a production compiler, changing a
@@ -276,7 +277,8 @@ and activation.
 The remaining hand-written declarations are retained only where a standalone
 scientific tool or replacement oracle still imports them. They must be moved
 behind explicit test/tool boundaries before deletion; production does not
-silently fall back to them inside Standard-60.
+silently fall back to them inside Standard-60. The pre-release content cutover
+and registry prune subsequently removed the execution-plan-free runtime path.
 
 ## Future model development
 

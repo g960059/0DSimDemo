@@ -87,10 +87,14 @@ async function main(): Promise<void> {
     fail("the only supported argument is --write");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
-  if (!sourceRelease.manifest.capabilities.includes(
+  for (const requiredCapability of [
+    STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
+    EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
     EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
-  )) {
-    fail("source release omits the execution-plan Newton workspace capability");
+  ]) {
+    if (!sourceRelease.manifest.capabilities.includes(requiredCapability)) {
+      fail(`source release omits required capability ${requiredCapability}`);
+    }
   }
   const compiledExecutionPlan = compileExecutionPlanV1(
     createMainWireModelDefinitionV1(),
@@ -276,14 +280,7 @@ async function assertArtifactAdmission(
   );
   const executables = release.executables as
     ReturnType<typeof createCircleHeartExactModelReleaseV1>["executables"];
-  validateExecutableBundleV2(executables, composed.contract, {
-    requiresPresentationBatch: sourceRelease.manifest.capabilities.includes(
-      STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
-    ),
-    requiresExecutionPlan: sourceRelease.manifest.capabilities.includes(
-      EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
-    ),
-  });
+  validateExecutableBundleV2(executables, composed.contract);
   executables.fixtureAdapter.validateCompleteFixture({
     context: {
       scenarioId: "scenario/standard-registry-verification",
@@ -294,9 +291,6 @@ async function assertArtifactAdmission(
   const runtimeSessionId = "session/standard-registry-verification";
   const scenarioId = "scenario/standard-registry-verification";
   const executionPlan = executables.executionPlan;
-  if (executionPlan === undefined) {
-    fail("artifact runtime omitted its required execution-plan adapter");
-  }
   const boundExecutionPlan = executionPlan.bind();
   assertBoundExecutionPlanV1(boundExecutionPlan, executionPlan.descriptor);
   await executionPlan.createSession({

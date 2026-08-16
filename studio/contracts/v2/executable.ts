@@ -62,7 +62,7 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;
-  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
+  executionPlan: RegisteredModelExecutionPlanAdapterV1;
 }>;
 
 /** Hash-free exact runtime projection. Artifact bytes and digest stay private. */
@@ -73,7 +73,7 @@ export type ResolvedExactModelRuntimeV2 = Readonly<{
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
   fixtureAdapter: StudioModelFixtureAdapterV2;
   simulationAdapter: RegisteredModelSimulationAdapterV2;
-  executionPlan?: RegisteredModelExecutionPlanAdapterV1;
+  executionPlan: RegisteredModelExecutionPlanAdapterV1;
 }>;
 
 /** Worker-local cold-load timings; never part of exact model identity. */

@@ -447,7 +447,7 @@ describe("Studio simulation worker V2 protocol", () => {
     }
   });
 
-  it("validates immutable cold-start phase timings without making them required", () => {
+  it("validates immutable cold-start phase timings", () => {
     const response = validateStudioSimulationWorkerResponseV2({
       protocol: STUDIO_SIMULATION_WORKER_PROTOCOL_V2,
       requestId: 1,
@@ -466,7 +466,7 @@ describe("Studio simulation worker V2 protocol", () => {
         authoringSetupMs: 1,
         sessionCreateMs: 4,
         initialFrameMs: 0.5,
-        executionPlanBindMs: null,
+        executionPlanBindMs: 2,
         totalWorkerInitializeMs: 15.5,
       },
     });
@@ -475,7 +475,7 @@ describe("Studio simulation worker V2 protocol", () => {
       kind: "initialized",
       initializationTiming: {
         exactRuntimeLoad: { artifactBytes: 1_024, cacheHit: false },
-        executionPlanBindMs: null,
+        executionPlanBindMs: 2,
         totalWorkerInitializeMs: 15.5,
       },
     });
@@ -495,7 +495,7 @@ describe("Studio simulation worker V2 protocol", () => {
         authoringSetupMs: 1,
         sessionCreateMs: -1,
         initialFrameMs: 0,
-        executionPlanBindMs: null,
+        executionPlanBindMs: 0,
         totalWorkerInitializeMs: 1,
       },
     })).toThrow(/sessionCreateMs.*nonnegative/);
@@ -1126,7 +1126,7 @@ describe("Studio simulation worker V2 runtime", () => {
         authoringSetupMs: expect.any(Number),
         sessionCreateMs: expect.any(Number),
         initialFrameMs: expect.any(Number),
-        executionPlanBindMs: null,
+        executionPlanBindMs: expect.any(Number),
         totalWorkerInitializeMs: expect.any(Number),
       },
     });
@@ -1282,37 +1282,6 @@ describe("Studio simulation worker V2 runtime", () => {
           acceptedRevision: 2,
           outputs: { "pressure.lv": { value: 82 } },
         },
-      },
-    });
-  });
-
-  it("keeps immutable historical adapters on the validated frame-per-step path", async () => {
-    const harness = runtimeHarnessV2({ legacyPresentationAdapter: true });
-    harness.runtime.enqueue(initializeRequestV2(1));
-    await harness.runtime.whenIdle();
-
-    harness.runtime.enqueue(createStudioSimulationAdvancePresentationRequestV2(
-      2,
-      {
-        runtimeSessionId: "runtime/session-1",
-        scenarioId: "scenario/baseline",
-        stepCount: 2,
-        presentationOutputIds: ["pressure.lv"],
-      },
-    ));
-    await harness.runtime.whenIdle();
-
-    expect(harness.adapter.advancePresentationBatch).toBeUndefined();
-    expect(harness.adapter.advanceOnePresentationStep).toHaveBeenCalledTimes(2);
-    expect(harness.port.messages.at(-1)).toMatchObject({
-      requestId: 2,
-      status: "ok",
-      kind: "presentation-advanced",
-      batch: {
-        acceptedRevisions: new Float64Array([1, 2]),
-        workerAdvanceMs: expect.any(Number),
-        workerPrepareMs: expect.any(Number),
-        terminalFrame: { acceptedRevision: 2 },
       },
     });
   });
@@ -4301,7 +4270,6 @@ function outputV2(outputId: string, value: number | number[]) {
 }
 
 function runtimeHarnessV2(overrides: Readonly<{
-  legacyPresentationAdapter?: boolean;
   createSession?: RegisteredModelSimulationAdapterV2["createSession"];
   disposeSession?: RegisteredModelSimulationAdapterV2["disposeSession"];
   currentFrame?: RegisteredModelSimulationAdapterV2["currentFrame"];
@@ -4353,9 +4321,7 @@ function runtimeHarnessV2(overrides: Readonly<{
     disposeSession: overrides.disposeSession ?? vi.fn(),
     currentFrame: overrides.currentFrame ?? vi.fn(() => currentFrame),
     advanceOnePresentationStep,
-    ...(overrides.legacyPresentationAdapter
-      ? {}
-      : { advancePresentationBatch }),
+    advancePresentationBatch,
     applyControl: overrides.applyControl ?? vi.fn((input) => {
       if (input.expectedInputEpoch !== inputEpoch) {
         return Promise.reject(new Error("stale input epoch"));
@@ -4523,6 +4489,8 @@ function exactRuntimeV2(
       defaultSeriesIds: ["series/pressure-lv"],
     }],
   };
+  const executionPlan = overrides.executionPlan
+    ?? defaultExecutionPlanAdapterV1();
   return {
     contract,
     captureAdapter: {
@@ -4594,21 +4562,27 @@ function exactRuntimeV2(
         })),
     },
     simulationAdapter: adapter,
-    ...(overrides.executionPlan === undefined
-      ? {}
-      : {
-          executionPlan: Object.freeze({
-            ...overrides.executionPlan,
-            async createSession(input) {
-              await adapter.createSession({
-                runtimeSessionId: input.runtimeSessionId,
-                scenarios: input.scenarios,
-              });
-              await overrides.executionPlan!.createSession(input);
-            },
-          }),
-        }),
+    executionPlan: Object.freeze({
+      ...executionPlan,
+      async createSession(input) {
+        await adapter.createSession({
+          runtimeSessionId: input.runtimeSessionId,
+          scenarios: input.scenarios,
+        });
+        await executionPlan.createSession(input);
+      },
+    }),
   };
+}
+
+function defaultExecutionPlanAdapterV1(): RegisteredModelExecutionPlanAdapterV1 {
+  const descriptor = validateAndOwnExecutionPlanDescriptorV1(
+    generatedExecutionPlanV1,
+  );
+  return executionPlanAdapterV1(() => bindExecutionPlanV1(
+    descriptor,
+    mainWireExecutionPlanKernelCatalogV1(),
+  ));
 }
 
 function executionPlanAdapterV1(

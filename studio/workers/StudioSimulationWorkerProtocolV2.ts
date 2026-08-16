@@ -55,8 +55,8 @@ export type StudioSimulationWorkerInitializationTimingV2 = Readonly<{
   authoringSetupMs: number;
   sessionCreateMs: number;
   initialFrameMs: number;
-  /** Exact kernel binding and plan-owned allocation; null for legacy models. */
-  executionPlanBindMs: number | null;
+  /** Exact kernel binding and plan-owned allocation. */
+  executionPlanBindMs: number;
   totalWorkerInitializeMs: number;
 }>;
 
@@ -2115,12 +2115,10 @@ function validateInitializationTimingV2(
         timing.exactRuntimeLoad,
         `${path}.exactRuntimeLoad`,
       );
-  const executionPlanBindMs = timing.executionPlanBindMs === null
-    ? null
-    : nonnegativeFiniteNumberV2(
-        timing.executionPlanBindMs,
-        `${path}.executionPlanBindMs`,
-      );
+  const executionPlanBindMs = nonnegativeFiniteNumberV2(
+    timing.executionPlanBindMs,
+    `${path}.executionPlanBindMs`,
+  );
   return Object.freeze({
     exactRuntimeLoad,
     authoringSetupMs: nonnegativeFiniteNumberV2(

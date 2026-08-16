@@ -135,12 +135,11 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
    * and latest-value consumers retain one authoritative model frame.
    *
    * This is a projection optimization, never permission to skip, interpolate
-   * or otherwise alter accepted numerical steps. Exact manifests that expose
-   * this function must declare
-   * `runtime/exact-presentation-batch-v1`. Artifacts without that capability
-   * retain the immutable frame-per-step ABI used by historical Snapshots.
+   * or otherwise alter accepted numerical steps. Every admitted exact
+   * manifest declares `runtime/exact-presentation-batch-v1`; the packed
+   * operation is part of the single supported runtime ABI.
    */
-  advancePresentationBatch?(input: Readonly<{
+  advancePresentationBatch(input: Readonly<{
     runtimeSessionId: string;
     scenarioId: ScenarioIdV2;
     stepCount: number;

@@ -356,11 +356,13 @@ measured before promising bit identity across JavaScript and WASM engines.
 
 ## Retention and cleanup
 
-The active Standard-60 exact release satisfies this authority boundary.
-Historical exact readers remain production-reachable only because current
-immutable Article/Snapshot revisions still reference older releases. After
-those references are re-created and deliberately pruned or reset, the bounded
-historical reader and frame-per-step adapter should be deleted.
+The active Standard-60 exact release satisfies this authority boundary. Before
+release, all official Article/Snapshot placements were re-created on
+Standard-60 and the obsolete model/content rows were pruned transactionally.
+The execution-plan-free and frame-per-step compatibility paths have therefore
+been deleted. The generic exact loader remains an identity-preserving loader
+for future immutable releases that implement the current Standard ABI; it is
+not a compatibility interpreter.
 
 Nonproduction bridges, benchmark-only runtimes, rejected solvers, and release
 diaries belong in Git history. A retained older implementation must be reached

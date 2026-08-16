@@ -361,14 +361,10 @@ export async function sealStudioExperimentSnapshotV1(
     resolved.runtime,
     scenarioIds,
   );
-  if (boundExecutionPlans === null) {
-    await adapter.createSession(sessionCreateInput);
-  } else {
-    await resolved.runtime.executionPlan!.createSession(Object.freeze({
-      ...sessionCreateInput,
-      boundExecutionPlans,
-    }));
-  }
+  await resolved.runtime.executionPlan.createSession(Object.freeze({
+    ...sessionCreateInput,
+    boundExecutionPlans,
+  }));
   try {
     const frames = new Map(scenarioIds.map((scenarioId) => [scenarioId,
       adapter.currentFrame({ runtimeSessionId, scenarioId })]));
@@ -472,14 +468,10 @@ async function prepareExperimentCaptureV1(
     resolved.runtime,
     sources.map(({ spec }) => spec.scenarioId),
   );
-  if (boundExecutionPlans === null) {
-    await adapter.createSession(sessionCreateInput);
-  } else {
-    await resolved.runtime.executionPlan!.createSession(Object.freeze({
-      ...sessionCreateInput,
-      boundExecutionPlans,
-    }));
-  }
+  await resolved.runtime.executionPlan.createSession(Object.freeze({
+    ...sessionCreateInput,
+    boundExecutionPlans,
+  }));
   try {
     const reducer = createStudioFixtureReducerV2(Object.freeze({
       resolveExactRuntime(modelId: string) {
@@ -777,9 +769,8 @@ async function advanceAuthoringScenariosV1(
 function bindAuthoringExecutionPlansV1(
   runtime: ResolvedExactModelRuntimeV2,
   scenarioIds: readonly string[],
-): ReadonlyMap<string, BoundExecutionPlanV1> | null {
+): ReadonlyMap<string, BoundExecutionPlanV1> {
   const executionPlan = runtime.executionPlan;
-  if (executionPlan === undefined) return null;
   const boundByScenario = new Map<string, BoundExecutionPlanV1>();
   for (const scenarioId of scenarioIds) {
     const boundExecutionPlan = executionPlan.bind();

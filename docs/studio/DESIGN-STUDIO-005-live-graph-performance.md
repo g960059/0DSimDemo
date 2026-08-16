@@ -95,16 +95,14 @@ deep by default.
 
 The compact transport is presentation-only. Settlement, analyses, capture,
 Snapshot qualification, control commits, and authoring continue to consume
-complete exact frames or checkpoints. The active Standard ABI requires a
-model-owned packed-batch operation: intermediate accepted steps write clocks
-and selected scalar outputs directly into typed arrays, while only the final
-step constructs one complete frame. Every newly minted Standard exact manifest
-declares `runtime/exact-presentation-batch-v1`, which makes the operation
-mandatory at the artifact trust boundary. Immutable pre-extension artifacts
-remain readable only for already-pinned historical Snapshots and use the old
-fully validated frame-per-step projection; active releases cannot silently
-fall back. This removes object allocation and validation proportional to every
-future primitive output without changing numerical work.
+complete exact frames or checkpoints. The Standard ABI requires a model-owned
+packed-batch operation: intermediate accepted steps write clocks and selected
+scalar outputs directly into typed arrays, while only the final step constructs
+one complete frame. Every admitted Standard exact manifest declares
+`runtime/exact-presentation-batch-v1`; artifact validation and Worker startup
+fail closed when the operation is absent. There is no frame-per-step fallback.
+This removes object allocation and validation proportional to every future
+primitive output without changing numerical work.
 
 Device diagnostics separately report model-owned advance/projection time and
 Worker validation/preparation time. A Worker round-trip metric alone cannot
