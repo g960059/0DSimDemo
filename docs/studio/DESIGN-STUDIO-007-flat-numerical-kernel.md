@@ -356,7 +356,7 @@ measured before promising bit identity across JavaScript and WASM engines.
 
 ## Retention and cleanup
 
-The active Standard-58 exact release satisfies this authority boundary.
+The active Standard-59 exact release satisfies this authority boundary.
 Historical exact readers remain production-reachable only because current
 immutable Article/Snapshot revisions still reference older releases. After
 those references are re-created and deliberately pruned or reset, the bounded

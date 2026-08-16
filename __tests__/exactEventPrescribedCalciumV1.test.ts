@@ -11,6 +11,12 @@ import {
   type ExactEventCalciumParametersV1,
   type ExactEventCalciumStateV1,
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
+import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 const PARAMETERS = Object.freeze({
   tauRiseSec: 0.04,
@@ -84,6 +90,65 @@ describe("exact-event prescribed calcium V1", () => {
 
     expect(trough).toBeCloseTo(periodic.diastolicCalciumUM, 11);
     expect(peak - trough).toBeCloseTo(periodic.peakAmplitudeUM, 11);
+  });
+
+  it("bounds canonicalization error across every admitted heart rate", () => {
+    let maximumTroughErrorUM = 0;
+    let maximumPeakExcursionErrorUM = 0;
+    const priors = [
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial,
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular,
+    ] as const;
+    const heartRateRange =
+      MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.heartRateBpm;
+    expect(Number.isInteger(heartRateRange.minimum)).toBe(true);
+    expect(Number.isInteger(heartRateRange.maximum)).toBe(true);
+    expect(Number.isInteger(heartRateRange.step)).toBe(true);
+    expect(heartRateRange.step).toBeGreaterThan(0);
+
+    for (
+      let heartRateBpm = heartRateRange.minimum;
+      heartRateBpm <= heartRateRange.maximum;
+      heartRateBpm += heartRateRange.step
+    ) {
+      const cycleLengthSec = 60 / heartRateBpm;
+      for (const prior of priors) {
+        const converted = convertPeriodicBiexponentialToExactEventCalciumV1(
+          prior,
+          cycleLengthSec,
+        );
+        const trough = evaluateExactEventCalciumV1(
+          converted.periodicStateImmediatelyAfterEvent,
+          converted.parameters,
+        ).freeCalciumUM;
+        const peakState = propagateExactEventCalciumV1(
+          converted.periodicStateImmediatelyAfterEvent,
+          converted.reference.timeToPeakSec,
+          converted.parameters,
+        );
+        const peak = evaluateExactEventCalciumV1(
+          peakState,
+          converted.parameters,
+        ).freeCalciumUM;
+
+        maximumTroughErrorUM = Math.max(
+          maximumTroughErrorUM,
+          Math.abs(trough - prior.diastolicCalciumUM),
+        );
+        maximumPeakExcursionErrorUM = Math.max(
+          maximumPeakExcursionErrorUM,
+          Math.abs(
+            (peak - trough) - prior.peakAmplitudeUM,
+          ),
+        );
+      }
+    }
+
+    // This is a scientific tolerance for the model-owned decimal precision
+    // boundary, not a generic floating-point matcher. It covers every value
+    // admitted by the integer-step Standard heart-rate control.
+    expect(maximumTroughErrorUM).toBeLessThanOrEqual(1e-12);
+    expect(maximumPeakExcursionErrorUM).toBeLessThanOrEqual(1e-12);
   });
 
   it("owns the open-start, closed-end interval exactly", () => {

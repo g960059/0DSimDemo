@@ -40,7 +40,7 @@ explicitly superseded vertical-slice plans live only in Git history.
 ## Current production boundary
 
 New Sessions resolve one stable active model/Surface bundle. The active exact
-release is Standard-58 and the active Surface is
+release is Standard-59 and the active Surface is
 `circleheart.main-wire.surface.workbench-v1`. The exact artifact carries its
 generated execution-plan descriptor; each Scenario Worker validates and binds
 one private plan before it constructs the numerical Session.
@@ -53,7 +53,7 @@ Saved content never follows the active pointer:
 - a historical load failure is reported instead of substituting the active
   release.
 
-Some current official placements still pin pre-Standard-58 exact releases.
+Some current official placements still pin pre-Standard-59 exact releases.
 Their immutable artifacts and the Worker’s capability-negotiated historical
 path remain production obligations until the content is re-created on the
 active release and obsolete database revisions complete deliberate pruning or
