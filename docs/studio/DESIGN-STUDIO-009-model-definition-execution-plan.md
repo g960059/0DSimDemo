@@ -83,7 +83,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-61 release candidate advertises both
+The Standard-61 release advertises both
 `runtime/execution-plan-typed-authority-binding-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
