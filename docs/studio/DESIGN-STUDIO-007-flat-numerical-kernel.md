@@ -1,36 +1,38 @@
 # DESIGN-STUDIO-007: Flat numerical kernel and mobile performance
 
-Status: binding direct-cutover plan
+Status: binding current numerical-runtime architecture and extension policy;
+the phase record is historical evidence, not current rollout status
 
-This document owns the next numerical-runtime boundary for Workbench and
-Article simulation. It complements DESIGN-STUDIO-005, which remains the
-presentation contract. It does not relax accepted-step, Snapshot, or model
+This document owns the accepted numerical authority and its future extension
+boundary for Workbench and Article simulation. It complements DESIGN-STUDIO-005,
+which remains the presentation contract, and DESIGN-STUDIO-009, which owns the
+generated execution plan. It does not relax accepted-step, Snapshot, or model
 identity semantics.
 
 ## Decision
 
-CircleHeart will not treat the current object-oriented TypeScript kernel plus
-frame-per-step adapter as the final runtime architecture. The product has no
-external user-authored content, so the active model and all newly sealed
-content can cut over directly. Published official Snapshots are nevertheless
-immutable durability obligations until their placements are re-sealed and the
-unreferenced originals complete retention/GC:
+CircleHeart uses a Worker-owned typed accepted-state authority, integer clock,
+plan-owned scratch, coupled numerical solve, and model-owned typed presentation
+page. Published official Snapshots remain immutable durability obligations
+until their placements are re-created and unreferenced originals complete
+deliberate retention/GC:
 
-- one new exact `modelId`;
-- no dual write, legacy checkpoint decoder, or runtime fallback inside the new
-  exact release;
+- every numerical implementation change receives one new exact `modelId`;
+- an exact release contains no dual write, legacy checkpoint decoder, or
+  runtime fallback for a different exact release;
 - referenced historical exact artifacts remain isolated and loadable by their
-  original manifest/codec rather than being interpreted by the new kernel;
-- the current kernel retained only as a scientific test oracle until the new
-  kernel passes the replacement gates;
+  original manifest/codec rather than being interpreted by the active release;
+- the object Session retained as a cold scientific test oracle rather than a
+  per-tick production authority;
 - one production numerical profile on every device. Device tiers may change
   visual cadence and background concurrency, never equations, accepted step
   size, solver tolerance, or scientific outputs.
 
-The target is a Worker-owned flat numerical kernel with an integer clock,
-typed state and scratch buffers, a coupled residual/Jacobian solve, and a
-model-owned typed presentation page. WASM, SIMD, and multirate integration are
-later implementation choices, not the architecture itself.
+The active Standard-58 implementation is a Worker-owned typed numerical
+kernel with an integer clock, typed state and scratch buffers, a coupled
+residual/Jacobian solve, and a model-owned typed presentation page. WASM,
+SIMD, and multirate integration remain optional future implementation choices,
+not the architecture itself.
 
 ## Evidence motivating the cutover
 
@@ -70,15 +72,15 @@ kernel gate. Dedicated Workers are not reliably slowed by that page-level
 emulation. A mobile viewport under page throttling may therefore pass while
 the physical phone cannot run the Worker in real time.
 
-## Immediate Standard ABI
+## Active Standard ABI
 
-The pre-release Standard ABI requires a model-owned
-`advancePresentationBatch` operation. New active releases must advertise
+The active Standard ABI requires a model-owned `advancePresentationBatch`
+operation. New active releases must advertise
 `runtime/exact-presentation-batch-v1`; the loader then requires the operation
 and never falls back. A bounded reader for immutable pre-extension artifacts
 exists solely because already-published Article Snapshots pin their exact
 model bytes. It is not a vNext design seam and must be deleted after those
-placements are re-sealed on the new kernel and the unreferenced originals have
+placements are re-created on the active kernel and the unreferenced originals have
 completed retention/GC. For each batch the exact adapter:
 
 1. advances every accepted numerical step in order;
@@ -94,8 +96,8 @@ before numerical advance. Scientific operations continue to use complete
 exact frames and checkpoints.
 
 This boundary prevents presentation cost from growing with every future O2,
-autonomic, or multipatch observable. It is also the transport boundary the
-flat kernel will implement, so the work is not discarded at cutover.
+autonomic, or multipatch observable. The active typed kernel implements this
+same transport boundary.
 
 Opt-in device reports split one Worker request into:
 
@@ -104,11 +106,11 @@ Opt-in device reports split one Worker request into:
 - `worker.presentation-prepare`: Worker-side validation and response packing;
 - existing round-trip, store, and Canvas metrics.
 
-That split must remain available through the flat-kernel migration. It tells
+That split remains part of the active performance diagnostics. It tells
 us whether a regression belongs to equations/solver, Worker preparation,
 structured clone, or presentation.
 
-## Target kernel layout
+## Active kernel layout
 
 ### Clock
 
@@ -150,7 +152,7 @@ they never infer scientific values from decimated presentation samples.
 
 ### Checkpoint
 
-The replacement kernel defines one canonical binary checkpoint codec. It
+The active exact kernel defines one canonical binary checkpoint codec. It
 contains the exact slot layout version, integer clock, continuous/discrete
 state, event state, beat accumulators, and fixture identity required for exact
 continuation. Canonical encode/decode, byte stability, restore continuation,
@@ -159,7 +161,14 @@ and rejection of non-canonical input are release gates.
 JSON remains appropriate for portable Studio content and manifests. It is not
 the internal numerical state representation.
 
-## Solver sequence
+## Solver construction record
+
+The numbered phases below record how the active Standard-58 architecture was
+derived. References to candidates, migration seams, or intermediate Standard
+releases describe their state at the time of measurement; they are not the
+current rollout status. Git retains the full earlier revisions. The current
+authority is the Standard-58 boundary summarized in the decision above and in
+`INTEGRATED-MODEL-0001-current-state.md`.
 
 Implementation order is fixed because later steps depend on earlier evidence.
 
@@ -183,53 +192,11 @@ order, and tolerances as the current kernel. Change layout, ownership, and ABI
 only. The purpose is to prove that the typed boundary and flat state preserve
 science before changing nonlinear algebra.
 
-#### Phase 1a — reference bridge (implemented, not release-ready)
-
-The first vertical slice deliberately keeps `MainWireIntegratedModelSessionV3`
-as the scientific oracle. Around it, the new reference bridge establishes:
-
-- an integer presentation tick as its external clock;
-- deterministic semantic slot discovery for fixed-topology numerical state;
-- current/candidate flat buffers swapped only after a successful oracle step;
-- one caller-owned `ArrayBuffer` containing tick, revision, output-state, and
-  scalar-output views;
-- an exact-key Worker command/result seam that transfers that one buffer in
-  and out without duplicate-buffer transfer lists;
-- phase telemetry separating oracle advance, flat mirror write, and output
-  projection.
-
-The 1,024-tick parity gate crosses multiple rhythm boundaries and the first
-completed-beat metric transition, compares every registered output at every
-tick, and compares the terminal fixed-topology flat mirror against an
-independent oracle Session. Invalid output-plan/page input is rejected before
-numerical advance. The current reference layout contains
-440 `f64` leaves, four boolean leaves, 205 string leaves, and reports 45
-nullable or variable-array roots that still require explicit tagged/bounded
-storage. A representative 576-tick process accumulated 695 distinct string
-values, confirming that transaction/owner labels cannot remain an interning
-Map in the authoritative hot state.
-
-A local 512-step diagnostic measured about `2.27 ms/step` for the oracle path
-and `2.42 ms/step` for the reference bridge (about 1.065x total). Mirror writes
-accounted for about `66.8 ms` over all 512 steps and selected-output projection
-about `1.0 ms`. These values are diagnostic, machine-specific, and not a
-performance gate. They show that the fixed typed portion is structurally
-bounded and, more importantly, that the bridge does not conceal the dominant
-solver cost. The typed presentation page and the fixed numeric/boolean buffers
-are bounded; the Phase 1a bridge as a whole is deliberately **not** bounded
-because its
-provisional string interning table grows with transaction/owner labels and is
-cloned during mirror writes. Phase 1b must replace those hot strings with
-bounded model-owned codes before this path can become authoritative.
-
-Phase 1a does **not** mint a model release, define the binary checkpoint, make
-flat arrays the solver authority, or claim the phone target. Ordinary arrays
-and nullable subtrees are reported but excluded from this provisional mirror;
-the active object Session still owns them. An unexpected mirror/projection
-failure after an oracle step poisons the bridge and forbids continuation; it
-does not pretend to roll the oracle back. This avoids pretending that a
-generic object flattener is the final model schema or production transaction
-authority.
+The provisional object-to-flat reference bridge that preceded typed authority
+has been removed. It proved the initial layout and transfer assumptions but was
+never production-reachable; Git history retains that experiment. The generic
+`FlatNumericalStateV1` primitive remains independently tested because current
+tooling still uses its deterministic, accessor-safe layout behavior.
 
 #### Phase 1b.1 — canonical accepted-state authority (implemented proof)
 
@@ -546,10 +513,9 @@ private storage. Hot completion therefore performs the same bit-exact retained
 checks and writes every unmigrated leaf, but does not allocate membership sets
 or read already-checked retained paths a second time on each substep.
 
-The non-production Worker vertical slice now creates the typed-authority
-Session by default. Its older Phase 1a lifetime string table and per-tick full
-flat mirror have been removed from the execution loop; a legacy-shaped flat
-snapshot is projected only when a diagnostic explicitly requests it. Output
+The non-production Worker vertical slice creates the typed-authority Session
+by default. A diagnostic flat snapshot is projected only when explicitly
+requested. Output
 projection now runs synchronously against the exact private solver mirror and
 returns only scalar output records plus observation-free advance metadata. The
 accepted state cannot escape that seam; requesting a public observation later
@@ -623,7 +589,7 @@ lower). The equations, solver order, typed image bytes, checkpoint, and all 49
 outputs remain exact. These values are development-host diagnostics, not phone
 qualification.
 
-The reference bridge now has an exact all-rotary-support-off path as well.
+The typed-authority reference path has an exact all-rotary-support-off path.
 Disabled LVAD, Impella, VA-ECMO, and VV-ECMO circuits still publish fresh
 pressure-dependent diagnostic readback for every candidate, while their
 canonical zero flow state, zero node-rate vectors, and zero Jacobians reuse
@@ -1533,53 +1499,49 @@ Land-internal work is intentionally reusable because the same constitutive
 kernel will remain a per-patch building block when multipatch myocardium is
 introduced.
 
-### Standard typed-authority cutover candidate
+### Active Standard-58 typed authority
 
-The Standard-32 source candidate connects the registered Studio runtime to the
-typed-authority Session and its model-owned selected-output projection. This is
-the first production-shaped cutover of the authority work described above; it
-does not promote the rejected 32-root experiment or any benchmark-only
-mechanics seam. The ordinary live path keeps the established 30-volume
-condensed solve, stages all accepted owners into one inactive typed image, and
-promotes once. Analysis, capture validation, checkpoint encoding, restore, and
-explicit observation are cold boundaries and may rehydrate the canonical
-public object without returning that allocation cost to every live tick.
-The exact host's `currentFrame` boundary must project from the same
-clock-matched numerical readback as the terminal packed batch frame. A cold or
-restored Session may use the public observation until its first admitted
-readback, but an ordinary typed advance must never fall back to a reconstructed
-observation that downgrades accepted pressure or flow availability. The Worker
-keeps enforcing byte-level frame meaning across capture and analysis pauses;
-the adapter, rather than that guard, owns this invariant.
+Standard-58 completed the production cutover to the typed-authority Session
+and its model-owned selected-output projection. The ordinary live path keeps
+the established 30-volume condensed solve, stages all accepted owners into one
+inactive typed image, and promotes once. It does not promote the rejected
+32-root experiment or any benchmark-only mechanics seam. Analysis, capture
+validation, checkpoint encoding, restore, and explicit observation are cold
+boundaries and may rehydrate the canonical public object without returning
+that allocation cost to every live tick.
 
-The Studio host now records presentation origin as an integer tick. A restored
+The exact host's `currentFrame` boundary projects from the same clock-matched
+numerical readback as the terminal packed batch frame. A cold or restored
+Session may use the public observation until its first admitted readback, but
+an ordinary typed advance never falls back to a reconstructed observation that
+downgrades accepted pressure or flow availability. The Worker enforces
+byte-level frame meaning across capture and analysis pauses.
+
+The Studio host records presentation origin as an integer tick. A restored
 Snapshot and its uninterrupted source therefore request the same absolute
 sample times instead of accumulating a different IEEE-754 addition history.
-The public Standard checkpoint deliberately omits the cubic predictor because
-it is non-authoritative solver-cache state. Restore starts from the
-model-owned context seed and rebuilds admitted predictor history; a dedicated
-continuation gate requires matching clocks and scientifically equivalent all-
-output trajectories. The private tamper-evident construction checkpoint still
-includes predictor history and retains exact continuation for diagnostics.
+The public Standard checkpoint omits the cubic predictor because it is
+non-authoritative solver-cache state. Restore starts from the model-owned
+context seed and rebuilds admitted predictor history; a dedicated continuation
+gate requires matching clocks and scientifically equivalent all-output
+trajectories. The private tamper-evident construction checkpoint includes
+predictor history for exact diagnostic continuation.
 
-On the same host used for the preceding Standard presentation measurements,
-1,536 accepted ticks with six selected outputs measured approximately
-`0.323 ms/tick` in 256-step batches. The Standard-29 object Session measured
-approximately `0.997 ms/tick` under the same lean-tier benchmark, so the
-authority cutover is about `3.1x` faster without the low-yield Land, valve, or
-32-variable experiments that remain isolated on the research branch. This is
-not the physical-device gate. Before activation, the new exact artifact still
-requires WebKit Worker measurement for one and three Scenarios, checkpoint
-restore, control warm start, analysis isolation, and the complete scientific
-corpus.
+Construction measurements recorded approximately `0.323 ms/tick` for 1,536
+accepted ticks with six selected outputs, versus approximately `0.997 ms/tick`
+for the earlier Standard-29 object Session under the same lean-tier benchmark.
+Standard-58 subsequently passed the canonical scientific corpus, checkpoint
+restore, control warm-start, analysis-isolation, and physical iPhone Worker
+gates before registration, activation, and deployment. Those results justify
+the current authority; they are not a promise that future model growth is
+free.
 
-The boundary is intended to survive future model growth. Accepted state is
-owned by a generated manifest and owner-specific slot bindings rather than a
-handwritten monolithic struct; new oxygen, autonomic, topology, and multipatch
-domains must enter as separately declared owners. Their equations and coupling
-will require new model work and new exact releases, but they do not require a
-return to per-tick public-object authority. No such future physiology is added
-by Standard-32.
+The boundary is intended to survive that growth. Accepted state is owned by a
+generated manifest and owner-specific slot bindings rather than a handwritten
+monolithic struct. New oxygen, autonomic, topology, and multipatch domains must
+enter as separately declared owners. Their equations and coupling require new
+model work and new exact releases, but not a return to per-tick public-object
+authority. Standard-58 adds none of that future physiology.
 
 ### Phase 3 — strict scalar WASM
 
@@ -1624,8 +1586,10 @@ model release and is never combined with the first coupled-solver cutover.
 
 ## Gates
 
-The flat kernel cannot replace the current exact release until all scientific
-oracle tests pass and a physical-device report is attached to the release.
+Standard-58 passed the scientific-oracle and physical-device gates required
+for its activation. Every future exact release that changes this numerical
+authority must pass the same classes of gate before it can replace the active
+pointer.
 
 The coupled-solver science gate additionally requires:
 
@@ -1684,18 +1648,21 @@ they never change accepted steps, equations, outputs, or checkpoints.
   nested solve and allocation structure.
 - Starting with multirate integration: couples a scientific change to an
   unproven performance hypothesis.
-- Teaching the new kernel to decode old checkpoints or running both kernels for
-  one active Scenario: no user-authored data requires it, and that compatibility
-  layer would constrain the new state layout before it exists. Exact historical
-  artifacts remain readable only while immutable published content references
-  them.
+- Teaching a new exact release to decode old checkpoints or running two exact
+  kernels for one active Scenario: exact identity already isolates their state
+  layouts. Historical artifacts remain independently readable only while
+  immutable published content references them.
 
-## Completion
+## Current completion boundary
 
-This design is complete when the flat kernel is the sole registered active
-model implementation, official placements have been re-sealed, unreferenced
-historical Snapshots have completed retention/GC, the current TypeScript kernel
-is no longer reachable in production, and the physical-device plus scientific
-gates are committed as release evidence. At that point transitional
-typed-batch adapters may be deleted rather than retained as a second
-architecture.
+The numerical-authority cutover is complete in active Standard-58: one typed
+authority owns accepted live state, the object Session is a cold scientific
+oracle, and physical-device plus scientific evidence gates the exact release.
+
+The remaining compatibility work is content retention, not an unfinished
+kernel migration. Current public Articles still pin older exact Snapshots.
+After those Articles are re-created on the active release and obsolete
+database revisions are deliberately pruned or reset, their historical
+artifact reader and frame-per-step adapter can be deleted. The scientific
+object oracle remains until a named replacement gate provides equivalent
+evidence; it is not a production fallback.

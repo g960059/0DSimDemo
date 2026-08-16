@@ -118,10 +118,7 @@ export type FlatNumericalStateBufferV1 = Readonly<{
   strings: Uint32Array;
 }>;
 
-/**
- * Phase 1a string codec. Codes are stable for the lifetime of one kernel.
- * A canonical binary checkpoint will own the table in the later cutover.
- */
+/** Runtime-local string codec. Codes are stable for the table's lifetime. */
 export type FlatNumericalStringTableV1 = Readonly<{
   codeByValue: Map<string, number>;
   valuesByCode: string[];
@@ -315,11 +312,10 @@ FlatNumericalStringTableV1 {
 }
 
 /**
- * Writes every fixed-topology leaf after the complete container topology has passed.
- * Initial null and ordinary-array roots are deliberately excluded: the
- * reference bridge reports them so the production flat schema can reserve
- * explicit presence tags and bounded array storage.
- * A shape error therefore cannot partially update the destination buffer.
+ * Writes every layout-owned leaf after the complete container topology passes.
+ * Nullable records and variable arrays are admitted only through explicit
+ * templates with presence tags or bounded-length storage. A shape error
+ * therefore cannot partially update the destination buffer.
  */
 export function writeFlatNumericalStateV1(
   layout: FlatNumericalStateLayoutV1,
@@ -525,30 +521,6 @@ export function readFlatNumericalStatePathV1(
   path: readonly FlatNumericalPathSegmentV1[],
 ): unknown {
   return requiredPathValue(root, path);
-}
-
-export function flatNumericalStateBuffersEqualV1(
-  left: FlatNumericalStateBufferV1,
-  right: FlatNumericalStateBufferV1,
-): boolean {
-  return typedArraysEqual(left.continuous, right.continuous)
-    && typedArraysEqual(left.nullableContinuous, right.nullableContinuous)
-    && typedArraysEqual(
-      left.nullableContinuousPresent,
-      right.nullableContinuousPresent,
-    )
-    && typedArraysEqual(left.nullableStrings, right.nullableStrings)
-    && typedArraysEqual(
-      left.nullableStringsPresent,
-      right.nullableStringsPresent,
-    )
-    && typedArraysEqual(
-      left.optionalRecordPresent,
-      right.optionalRecordPresent,
-    )
-    && typedArraysEqual(left.boundedArrayLengths, right.boundedArrayLengths)
-    && typedArraysEqual(left.booleans, right.booleans)
-    && typedArraysEqual(left.strings, right.strings);
 }
 
 function visit(
@@ -1284,12 +1256,4 @@ function pointer(path: readonly FlatNumericalPathSegmentV1[]): string {
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length
     && left.every((value, index) => value === right[index]);
-}
-
-function typedArraysEqual(
-  left: Float64Array | Uint8Array | Uint32Array,
-  right: Float64Array | Uint8Array | Uint32Array,
-): boolean {
-  return left.length === right.length
-    && left.every((value, index) => Object.is(value, right[index]));
 }

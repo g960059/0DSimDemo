@@ -84,7 +84,7 @@ circulation claim to the model.
 
 ## Bound runtime slice
 
-The Standard-58 development candidate advertises both
+The active Standard-58 release advertises both
 `runtime/execution-plan-typed-authority-binding-v1` and
 `runtime/execution-plan-newton-workspace-v1`. Its exact artifact contains the
 generated descriptor and a small binder; it does not contain
@@ -248,8 +248,8 @@ catalog across Scenario bindings; this optimization neither transfers a
 private brand across a bundle boundary nor caches a mutable source object.
 This prevents a placeholder zero from being mistaken for evidence and makes
 cold-start cost explicit as a bounded function of the admitted Scenario count.
-Before direct execution cutover, physical iPhone measurements must show that
-binding is bounded and that time-to-first-frame has not materially regressed.
+Physical iPhone reports confirm that descriptor binding is bounded; continued
+reports keep initialization and time-to-first-frame regressions visible.
 Exact artifact URLs are immutable release identities. New uploads therefore
 carry a one-year `max-age=31536000` Storage TTL, and the Worker fetch uses the
 browser's shared HTTP cache even for historical objects created before that
@@ -265,28 +265,19 @@ the same bound-plan typed allocation in both arms. It is evidence, not a
 machine-independent CI budget; physical-device initialization timing remains
 the product gate.
 
-## Cutover sequence
+## Current completion boundary
 
-1. Add exact descriptor parity for every current generated layout that will
-   become runtime-owned. **Complete for the current one-patch slice.**
-2. Embed the descriptor in the exact executable without another fetch or a
-   production compiler. **Complete in the Standard-58 development candidate.**
-3. Bind known kernel IDs, allocate buffers once, and reject missing, extra, or
-   aliased bindings. **Complete per Scenario in Standard-58.**
-4. Move existing authority resources behind the bound plan, while preserving
-   checkpoint continuation and the canonical scientific corpus. **Accepted
-   state projection, canonical Newton workspace preparation, checkpoint
-   continuation, and execution of the existing coupled Newton/LU solve through
-   the plan-owned workspace, plus compiler-owned solve-block and residual
-   dispatch, model-owned solve-system binding, and accepted-authority state
-   binding, hydraulic topology/kernel binding, and integer update scheduling
-   are complete in Standard-58. The plan now binds directly to the sole typed
-   authority at Session construction; sampled shadow state has been removed.
-   Component residual equations remain model-owned.**
-5. Mint a new model release for the direct runtime cutover. Do not dual-write
-   state or retain a fallback inside that release. **Complete in Standard-58.**
-6. Delete the replaced hand-written layout tables only after production
-   authority and physical-device gates pass.
+Standard-58 completes the one-patch direct cutover: generated descriptor
+parity, exact-artifact embedding, exact kernel-set binding, private Scenario
+allocation, accepted-authority state binding, Newton/LU workspace ownership,
+solve-block and residual dispatch, hydraulic topology binding, integer update
+scheduling, checkpoint continuation, physical-device execution, registration,
+and activation.
+
+The remaining hand-written declarations are retained only where a standalone
+scientific tool or replacement oracle still imports them. They must be moved
+behind explicit test/tool boundaries before deletion; production does not
+silently fall back to them inside Standard-58.
 
 ## Future model development
 
