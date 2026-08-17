@@ -180,6 +180,8 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.volume.minimum.LV": "Minimum LV volume",
   "hemodynamics.stroke-volume.LV-extrema": "LV stroke volume (extrema)",
   "hemodynamics.ejection-fraction.LV-extrema": "LV ejection fraction (extrema)",
+  "myocardium.work.external.LV-transmural-pressure-volume-path":
+    "LV transmural PV path work",
   "hemodynamics.output.native-left": "Native left cardiac output",
   "hemodynamics.output.systemic-tissue": "Systemic tissue output",
   "hemodynamics.output.pulmonary": "Pulmonary output",
@@ -219,6 +221,7 @@ export function createDefaultExperimentSurfaceV3(
   });
   const defaultOutputIds = Object.freeze([
     "rhythm.heart-rate.instantaneous",
+    "myocardium.work.external.LV-transmural-pressure-volume-path",
     "hemodynamics.output.native-left",
     "hemodynamics.pressure.mean.Ao",
     "hemodynamics.ejection-fraction.LV-extrema",

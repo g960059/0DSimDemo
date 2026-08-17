@@ -675,6 +675,7 @@ describe("V3 Dockview Workbench", () => {
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
       "rhythm.heart-rate.instantaneous",
+      "myocardium.work.external.LV-transmural-pressure-volume-path",
       "hemodynamics.output.native-left",
       "hemodynamics.pressure.mean.Ao",
       "hemodynamics.ejection-fraction.LV-extrema",

@@ -2,14 +2,15 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-60",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-61",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
       "coronaryOwner": "main-wire-five-wall-coronary-transaction-v3",
       "rhythmOwner": "accepted-composed-rhythm-transaction-v2",
       "dynamicMechanicalSupportOwner": "circleheart-dynamic-mechanical-support-network-v1",
-      "ventricularContractilityOwner": "land-2017-tref-global-lvfw-sep-rvfw-scale-v1"
+      "ventricularContractilityOwner": "land-2017-tref-global-lvfw-sep-rvfw-scale-v1",
+      "acceptedStepBeatMetricOwner": "main-wire-integrated-model-accepted-step-beat-metrics-v2"
     },
     "runtime": {
       "numericalSessionId": "main-wire-integrated-typed-authority-session-v1",
@@ -81,7 +82,7 @@
       }
     },
     "checkpointCodec": {
-      "checkpointCodecId": "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2",
+      "checkpointCodecId": "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v3",
       "definition": {
         "checkpointId": "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
         "schemaVersion": 1,
@@ -533,6 +534,17 @@
         ]
       },
       {
+        "outputId": "myocardium.work.external.LV-transmural-pressure-volume-path",
+        "kind": "metric",
+        "unit": "mmHg*mL",
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.pressure.transmural.LV"
+        ]
+      },
+      {
         "outputId": "hemodynamics.output.native-left",
         "kind": "metric",
         "unit": "L/min",
@@ -621,6 +633,7 @@
       "output/hemodynamics.volume.minimum.LV",
       "output/hemodynamics.stroke-volume.LV-extrema",
       "output/hemodynamics.ejection-fraction.LV-extrema",
+      "output/myocardium.work.external.LV-transmural-pressure-volume-path",
       "output/hemodynamics.output.native-left",
       "output/hemodynamics.output.systemic-tissue",
       "output/hemodynamics.output.pulmonary",

@@ -29186,8 +29186,8 @@ function nonnegativeFinite(value, label) {
   }
   return value;
 }
-const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID = "main-wire-integrated-model-accepted-step-beat-metrics-v1";
-const MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID = "main-wire-integrated-model-beat-accumulator-checkpoint-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID = "main-wire-integrated-model-accepted-step-beat-metrics-v2";
+const MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID = "main-wire-integrated-model-beat-accumulator-checkpoint-v2";
 class MainWireIntegratedModelBeatAccumulatorV3 {
   #active = null;
   static restore(input) {
@@ -29253,6 +29253,7 @@ function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(input) {
     "rightVentricularPressureVolumeLandmarks",
     "extremaLeftVentricularStrokeVolumeMl",
     "extremaLeftVentricularEjectionFraction01",
+    "leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
     "nativeLeftCardiacOutputLPerMin",
     "nativeRightCardiacOutputLPerMin",
     "systemicVenousReturnLPerMin",
@@ -29344,6 +29345,10 @@ function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(input) {
     extremaLeftVentricularEjectionFraction01: finiteV3(
       record.extremaLeftVentricularEjectionFraction01,
       "integrated V3 completed beat LV ejection fraction"
+    ),
+    leftVentricularTransmuralPressureVolumePathWorkMmHgMl: finiteV3(
+      record.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
+      "integrated V3 completed beat LV transmural pressure-volume path work"
     ),
     nativeLeftCardiacOutputLPerMin: finiteV3(
       record.nativeLeftCardiacOutputLPerMin,
@@ -29448,6 +29453,7 @@ function beginBeatV3(startAtrialCaptureId, sample) {
     pulmonaryArterialPressureIntegralMmHgSec: 0,
     leftAtrialPressureIntegralMmHgSec: 0,
     rightAtrialPressureIntegralMmHgSec: 0,
+    leftVentricularTransmuralPressureVolumePathIntegralMmHgMl: 0,
     forwardAorticVolumeMl: 0,
     forwardPulmonaryValveVolumeMl: 0,
     systemicVenousReturnVolumeMl: 0,
@@ -29497,6 +29503,12 @@ function integrateSampleV3(active, next) {
     previous.rightAtrialPressureMmHg,
     next.rightAtrialPressureMmHg,
     dtSec
+  );
+  active.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl += pressureVolumePathIntegralIncrementV3(
+    previous.leftVentricularVolumeMl,
+    previous.leftVentricularTransmuralPressureMmHg,
+    next.leftVentricularVolumeMl,
+    next.leftVentricularTransmuralPressureMmHg
   );
   active.forwardAorticVolumeMl += trapezoidV3(
     Math.max(0, previous.aorticValveFlowMlPerSec),
@@ -29628,6 +29640,7 @@ function completeBeatV3(active, endAtrialCaptureId, endTimeSec) {
     }),
     extremaLeftVentricularStrokeVolumeMl: strokeVolumeMl,
     extremaLeftVentricularEjectionFraction01: ejectionFraction01,
+    leftVentricularTransmuralPressureVolumePathWorkMmHgMl: -active.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl,
     nativeLeftCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardAorticVolumeMl),
     nativeRightCardiacOutputLPerMin: meanFlowToLPerMin(active.forwardPulmonaryValveVolumeMl),
     systemicVenousReturnLPerMin: meanFlowToLPerMin(active.systemicVenousReturnVolumeMl),
@@ -29644,6 +29657,19 @@ function completeBeatV3(active, endAtrialCaptureId, endTimeSec) {
 }
 function trapezoidV3(left, right, dtSec) {
   return 0.5 * (left + right) * dtSec;
+}
+function pressureVolumePathIntegralIncrementV3(previousVolumeMl, previousPressureMmHg, nextVolumeMl, nextPressureMmHg) {
+  for (const [name, value] of Object.entries({
+    previousVolumeMl,
+    previousPressureMmHg,
+    nextVolumeMl,
+    nextPressureMmHg
+  })) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`pressure-volume path ${name} is not finite`);
+    }
+  }
+  return 0.5 * (previousPressureMmHg + nextPressureMmHg) * (nextVolumeMl - previousVolumeMl);
 }
 function pressureVolumeLandmarkFromSampleV3(sample, side, event) {
   return Object.freeze({
@@ -29676,6 +29702,7 @@ function ownActiveBeatV3(input) {
     "pulmonaryArterialPressureIntegralMmHgSec",
     "leftAtrialPressureIntegralMmHgSec",
     "rightAtrialPressureIntegralMmHgSec",
+    "leftVentricularTransmuralPressureVolumePathIntegralMmHgMl",
     "forwardAorticVolumeMl",
     "forwardPulmonaryValveVolumeMl",
     "systemicVenousReturnVolumeMl",
@@ -29723,6 +29750,10 @@ function ownActiveBeatV3(input) {
     rightAtrialPressureIntegralMmHgSec: finiteV3(
       record.rightAtrialPressureIntegralMmHgSec,
       "integrated V3 active beat right atrial pressure integral"
+    ),
+    leftVentricularTransmuralPressureVolumePathIntegralMmHgMl: finiteV3(
+      record.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl,
+      "integrated V3 active beat LV transmural pressure-volume path integral"
     ),
     forwardAorticVolumeMl: finiteV3(
       record.forwardAorticVolumeMl,
@@ -38115,6 +38146,16 @@ const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "completedBeatMetrics.extremaLeftVentricularEjectionFraction01"
   ),
   metricDefinition(
+    "myocardium.work.external.LV-transmural-pressure-volume-path",
+    "work",
+    "mmHg*mL",
+    [
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.transmural.LV"
+    ],
+    "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl"
+  ),
+  metricDefinition(
     "hemodynamics.output.native-left",
     "flow",
     "L/min",
@@ -38392,6 +38433,11 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
       return beatMetricValue(
         outputId,
         completedBeatMetrics?.extremaLeftVentricularEjectionFraction01
+      );
+    case "myocardium.work.external.LV-transmural-pressure-volume-path":
+      return beatMetricValue(
+        outputId,
+        completedBeatMetrics?.leftVentricularTransmuralPressureVolumePathWorkMmHgMl
       );
     case "hemodynamics.output.native-left":
       return beatMetricValue(
@@ -47618,7 +47664,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-60";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-61";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -47637,7 +47683,7 @@ const generatedExecutionPlanV1 = {
   updateSchedule
 };
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1";
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v3";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 = "hot-path-lean";
 const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 = validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
 const MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1 = MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
@@ -48195,7 +48241,8 @@ function createMainWireIntegratedStudioExactKernelV1() {
       coronaryOwner: "main-wire-five-wall-coronary-transaction-v3",
       rhythmOwner: "accepted-composed-rhythm-transaction-v2",
       dynamicMechanicalSupportOwner: "circleheart-dynamic-mechanical-support-network-v1",
-      ventricularContractilityOwner: "land-2017-tref-global-lvfw-sep-rvfw-scale-v1"
+      ventricularContractilityOwner: "land-2017-tref-global-lvfw-sep-rvfw-scale-v1",
+      acceptedStepBeatMetricOwner: MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID
     }),
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,

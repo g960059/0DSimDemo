@@ -716,6 +716,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId))
       .toEqual([
         "rhythm.heart-rate.instantaneous",
+        "myocardium.work.external.LV-transmural-pressure-volume-path",
         "hemodynamics.output.native-left",
         "hemodynamics.pressure.mean.Ao",
         "hemodynamics.ejection-fraction.LV-extrema",

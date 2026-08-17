@@ -14,9 +14,9 @@ type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<
 >;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID =
-  "main-wire-integrated-model-accepted-step-beat-metrics-v1" as const;
+  "main-wire-integrated-model-accepted-step-beat-metrics-v2" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_BEAT_ACCUMULATOR_CHECKPOINT_V3_ID =
-  "main-wire-integrated-model-beat-accumulator-checkpoint-v1" as const;
+  "main-wire-integrated-model-beat-accumulator-checkpoint-v2" as const;
 
 export type MainWireIntegratedModelPressureVolumeLandmarkV3 = Readonly<{
   volumeMl: number;
@@ -59,6 +59,14 @@ export type MainWireIntegratedModelCompletedBeatMetricsV3 = Readonly<{
     MainWireIntegratedModelVentricularPressureVolumeLandmarksV3;
   extremaLeftVentricularStrokeVolumeMl: number;
   extremaLeftVentricularEjectionFraction01: number;
+  /**
+   * Negative signed line integral of transmural LV pressure against LV volume
+   * over the accepted capture-to-capture path. It is positive for the usual
+   * counter-clockwise loop orientation. No synthetic end-to-start closing
+   * segment is added, so a transient non-closing path is not silently turned
+   * into a closed-loop stroke-work estimate.
+   */
+  leftVentricularTransmuralPressureVolumePathWorkMmHgMl: number;
   nativeLeftCardiacOutputLPerMin: number;
   nativeRightCardiacOutputLPerMin: number;
   systemicVenousReturnLPerMin: number;
@@ -93,6 +101,7 @@ type ActiveBeatV3 = {
   pulmonaryArterialPressureIntegralMmHgSec: number;
   leftAtrialPressureIntegralMmHgSec: number;
   rightAtrialPressureIntegralMmHgSec: number;
+  leftVentricularTransmuralPressureVolumePathIntegralMmHgMl: number;
   forwardAorticVolumeMl: number;
   forwardPulmonaryValveVolumeMl: number;
   systemicVenousReturnVolumeMl: number;
@@ -216,6 +225,7 @@ export function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
     "rightVentricularPressureVolumeLandmarks",
     "extremaLeftVentricularStrokeVolumeMl",
     "extremaLeftVentricularEjectionFraction01",
+    "leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
     "nativeLeftCardiacOutputLPerMin",
     "nativeRightCardiacOutputLPerMin",
     "systemicVenousReturnLPerMin",
@@ -307,6 +317,10 @@ export function validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
     extremaLeftVentricularEjectionFraction01: finiteV3(
       record.extremaLeftVentricularEjectionFraction01,
       "integrated V3 completed beat LV ejection fraction",
+    ),
+    leftVentricularTransmuralPressureVolumePathWorkMmHgMl: finiteV3(
+      record.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
+      "integrated V3 completed beat LV transmural pressure-volume path work",
     ),
     nativeLeftCardiacOutputLPerMin: finiteV3(
       record.nativeLeftCardiacOutputLPerMin,
@@ -449,6 +463,7 @@ function beginBeatV3(
     pulmonaryArterialPressureIntegralMmHgSec: 0,
     leftAtrialPressureIntegralMmHgSec: 0,
     rightAtrialPressureIntegralMmHgSec: 0,
+    leftVentricularTransmuralPressureVolumePathIntegralMmHgMl: 0,
     forwardAorticVolumeMl: 0,
     forwardPulmonaryValveVolumeMl: 0,
     systemicVenousReturnVolumeMl: 0,
@@ -503,6 +518,13 @@ function integrateSampleV3(
     next.rightAtrialPressureMmHg,
     dtSec,
   );
+  active.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl +=
+    pressureVolumePathIntegralIncrementV3(
+      previous.leftVentricularVolumeMl,
+      previous.leftVentricularTransmuralPressureMmHg,
+      next.leftVentricularVolumeMl,
+      next.leftVentricularTransmuralPressureMmHg,
+    );
   active.forwardAorticVolumeMl += trapezoidV3(
     Math.max(0, previous.aorticValveFlowMlPerSec),
     Math.max(0, next.aorticValveFlowMlPerSec),
@@ -680,6 +702,8 @@ function completeBeatV3(
     }),
     extremaLeftVentricularStrokeVolumeMl: strokeVolumeMl,
     extremaLeftVentricularEjectionFraction01: ejectionFraction01,
+    leftVentricularTransmuralPressureVolumePathWorkMmHgMl:
+      -active.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl,
     nativeLeftCardiacOutputLPerMin:
       meanFlowToLPerMin(active.forwardAorticVolumeMl),
     nativeRightCardiacOutputLPerMin:
@@ -702,6 +726,31 @@ function completeBeatV3(
 
 function trapezoidV3(left: number, right: number, dtSec: number): number {
   return 0.5 * (left + right) * dtSec;
+}
+
+/**
+ * One accepted-endpoint trapezoid for the signed line integral `P dV`.
+ * Time does not enter this work-conjugate integral; accepted numerical
+ * endpoints and event-clipped substeps own the path resolution.
+ */
+export function pressureVolumePathIntegralIncrementV3(
+  previousVolumeMl: number,
+  previousPressureMmHg: number,
+  nextVolumeMl: number,
+  nextPressureMmHg: number,
+): number {
+  for (const [name, value] of Object.entries({
+    previousVolumeMl,
+    previousPressureMmHg,
+    nextVolumeMl,
+    nextPressureMmHg,
+  })) {
+    if (!Number.isFinite(value)) {
+      throw new Error(`pressure-volume path ${name} is not finite`);
+    }
+  }
+  return 0.5 * (previousPressureMmHg + nextPressureMmHg)
+    * (nextVolumeMl - previousVolumeMl);
 }
 
 function pressureVolumeLandmarkFromSampleV3(
@@ -752,6 +801,7 @@ function ownActiveBeatV3(input: unknown): ActiveBeatV3 {
     "pulmonaryArterialPressureIntegralMmHgSec",
     "leftAtrialPressureIntegralMmHgSec",
     "rightAtrialPressureIntegralMmHgSec",
+    "leftVentricularTransmuralPressureVolumePathIntegralMmHgMl",
     "forwardAorticVolumeMl",
     "forwardPulmonaryValveVolumeMl",
     "systemicVenousReturnVolumeMl",
@@ -799,6 +849,10 @@ function ownActiveBeatV3(input: unknown): ActiveBeatV3 {
     rightAtrialPressureIntegralMmHgSec: finiteV3(
       record.rightAtrialPressureIntegralMmHgSec,
       "integrated V3 active beat right atrial pressure integral",
+    ),
+    leftVentricularTransmuralPressureVolumePathIntegralMmHgMl: finiteV3(
+      record.leftVentricularTransmuralPressureVolumePathIntegralMmHgMl,
+      "integrated V3 active beat LV transmural pressure-volume path integral",
     ),
     forwardAorticVolumeMl: finiteV3(
       record.forwardAorticVolumeMl,

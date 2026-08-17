@@ -11,17 +11,18 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID =
-  "main-wire-integrated-model-output-registry-v5" as const;
+  "main-wire-integrated-model-output-registry-v6" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION =
-  3 as const;
+  4 as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID =
-  "main-wire-integrated-model-output-frame-v5" as const;
+  "main-wire-integrated-model-output-frame-v6" as const;
 
 export type MainWireIntegratedModelOutputUnitV3 =
   | "1"
   | "bpm"
   | "L/min"
   | "mL"
+  | "mmHg*mL"
   | "mmHg"
   | "mL/s";
 
@@ -31,6 +32,7 @@ export type MainWireIntegratedModelOutputQuantityKindV3 =
   | "flow"
   | "phase"
   | "rate"
+  | "work"
   | "derived";
 
 export type MainWireIntegratedModelOutputSourceKindV3 =
@@ -271,6 +273,16 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
       "hemodynamics.volume.minimum.LV",
     ],
     "completedBeatMetrics.extremaLeftVentricularEjectionFraction01",
+  ),
+  metricDefinition(
+    "myocardium.work.external.LV-transmural-pressure-volume-path",
+    "work",
+    "mmHg*mL",
+    [
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.transmural.LV",
+    ],
+    "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
   ),
   metricDefinition(
     "hemodynamics.output.native-left",
@@ -735,6 +747,12 @@ function projectMainWireIntegratedModelOutputValueV3(
         outputId,
         completedBeatMetrics
           ?.extremaLeftVentricularEjectionFraction01,
+      );
+    case "myocardium.work.external.LV-transmural-pressure-volume-path":
+      return beatMetricValue(
+        outputId,
+        completedBeatMetrics
+          ?.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
       );
     case "hemodynamics.output.native-left":
       return beatMetricValue(

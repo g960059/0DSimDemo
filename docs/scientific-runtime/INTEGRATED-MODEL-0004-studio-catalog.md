@@ -86,6 +86,7 @@ metric is unavailable.
 | `hemodynamics.volume.minimum.LV` | mL | complete-beat minimum |
 | `hemodynamics.stroke-volume.LV-extrema` | mL | LV maximum minus minimum |
 | `hemodynamics.ejection-fraction.LV-extrema` | 1 | extrema SV divided by maximum LV volume |
+| `myocardium.work.external.LV-transmural-pressure-volume-path` | mmHg*mL | negative signed `P_tm dV` line integral over accepted capture-to-capture endpoints; no synthetic closing segment |
 | `hemodynamics.output.native-left` | L/min | positive AoV-flow beat integral divided by duration |
 | `hemodynamics.output.systemic-tissue` | L/min | signed `SA_Art` beat integral divided by duration |
 | `hemodynamics.output.pulmonary` | L/min | signed `PA_PArt` beat integral divided by duration |
@@ -93,6 +94,15 @@ metric is unavailable.
 Maximum/minimum LV volume is intentionally not called EDV/ESV. Event-defined
 EDV/ESV can be added only when the corresponding valve-event measurement
 contract is implemented.
+
+The LV work output is path work, not a UI integration of sampled Canvas data.
+It uses the model's transmural pressure basis and is positive for the usual
+counter-clockwise LV loop. A periodic closed path can be interpreted as
+transmural external mechanical work after its periodicity gate passes; an open
+transient path also has a mathematically valid path integral but is not silently
+promoted to stroke work. It does not include potential energy and is not PVA or
+myocardial oxygen consumption. See
+[INTEGRATED-MODEL-0006](INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md).
 
 ## Graph Catalog
 
@@ -114,7 +124,7 @@ color.
 LV-only contractility is not registered: the current provider owns a shared
 LVFW/SEP/RVFW material construction and has no honest continuous LV-only scale.
 Valve disease, respiratory waveforms, rhythm modes, MCS enable/speed, oxygen
-balance, formal ESPVR/EDPVR, and settled sweep protocols likewise remain absent
-until their numerical owner, fixture mapping, exact restore, and endpoint tests
-exist. The current responsive Starling result remains an explicitly unsettled
-ephemeral preview rather than publication evidence.
+balance, qualified ESPVR/EDPVR, PVA, and settled sweep protocols likewise
+remain absent until their numerical owner, fixture mapping, exact restore, and
+endpoint tests exist. The current responsive Starling result remains an
+explicitly unsettled ephemeral preview rather than publication evidence.

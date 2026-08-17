@@ -9,12 +9,12 @@ The checked-in exact release identity is:
 
 ```text
 modelId:
-  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-60
+  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-61
 surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-60 contains one self-contained exact executable artifact plus a
+Standard-61 contains one self-contained exact executable artifact plus a
 build-time-generated `ExecutionPlanDescriptorV1`. The browser does not compile
 the model and does not rehash the artifact during ordinary loading. Registry
 admission, immutable model identity, manifest equality, exact content pins,
@@ -22,7 +22,7 @@ and the external active bundle pointer are the authority for deployed Sessions.
 
 Changing numerical behavior, primitive semantics, or checkpoint continuation
 requires a new `modelId`. Byte-only cleanup and optimization instead receive
-an immutable artifact revision and may move the Standard-60 implementation
+an immutable artifact revision and may move the Standard-61 implementation
 pointer only after byte-exact predecessor equivalence. Changing graphs,
 derived presentation, controls that only map existing primitive controls, or
 Article Briefing does not change `modelId`.
@@ -117,12 +117,20 @@ A control change rebuilds a complete fixture and atomically starts a new input
 epoch from the current accepted clock. The durable value is the resulting
 fixture plus exact checkpoint, not a log of slider actions.
 
-The model exposes 49 primitive outputs: accepted-state/accepted-step signals
+The model exposes 50 primitive outputs: accepted-state/accepted-step signals
 and complete-beat metrics. Beat metrics accumulate from every accepted
 substep, including event-clipped substeps, and remain unavailable until a
 complete capture-to-capture beat exists. Extrema-derived LV volumes, stroke
 volume, and ejection fraction are intentionally not labelled EDV/ESV because
 they are not yet tied to named valve events.
+
+Standard-61 adds exact LV transmural pressure-volume path work. The beat owner
+integrates `-P_tm dV` from accepted numerical endpoints and checkpoints the
+in-progress ledger. It never closes a transient path with a synthetic segment.
+The value is therefore not labelled PVA, myocardial oxygen consumption, or
+closed-loop stroke work merely because a capture-to-capture window completed.
+Its contract and the qualification boundary for future energetics are in
+[INTEGRATED-MODEL-0006](INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md).
 
 The Workbench Surface provides pressure and flow sweeps, a pressure-volume
 graph, and on-demand bilateral Guyton/Starling orientation. Surface

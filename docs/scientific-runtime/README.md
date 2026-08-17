@@ -12,6 +12,9 @@ model:
   defines the disposable exact-Worker orientation and formal analysis boundary.
 - [`INTEGRATED-MODEL-0004-studio-catalog.md`](./INTEGRATED-MODEL-0004-studio-catalog.md)
   records the model-owned Studio control, output, and graph catalog.
+- [`INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md`](./INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md)
+  freezes the exact LV pressure-volume path-work contract and the admission
+  boundary for future PVA and myocardial oxygen-demand work.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

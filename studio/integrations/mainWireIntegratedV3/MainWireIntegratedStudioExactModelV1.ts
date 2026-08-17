@@ -49,6 +49,9 @@ import {
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import {
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
@@ -131,7 +134,7 @@ import generatedExecutionPlanV1 from
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v1" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 =
-  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v2" as const;
+  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v3" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
 
@@ -924,6 +927,8 @@ ExactModelKernelManifestV3 {
         "circleheart-dynamic-mechanical-support-network-v1",
       ventricularContractilityOwner:
         "land-2017-tref-global-lvfw-sep-rvfw-scale-v1",
+      acceptedStepBeatMetricOwner:
+        MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
     }),
     runtime: Object.freeze({
       numericalSessionId: MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID,
