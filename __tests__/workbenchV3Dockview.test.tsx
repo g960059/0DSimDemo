@@ -41,6 +41,7 @@ import {
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
   WORKBENCH_GRAPH_PANE_OPTIONS_V3,
+  workbenchGraphPaneOptionsForContractV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3,
@@ -93,6 +94,8 @@ import {
   saveWorkbenchAreaLayoutPreferenceV3,
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
+import currentWorkbenchSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
@@ -106,6 +109,7 @@ import {
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,
   STANDARD_TEST_SURFACE_SERIES_ID_V1,
 } from "./helpers/standardReleaseTicketV1";
+import historicalStandard60Client from "./fixtures/main-wire-integrated-standard-60-client.json";
 
 describe("V3 Dockview Workbench", () => {
   it("shares localized presentation metadata across output and control item paths", () => {
@@ -1591,6 +1595,74 @@ describe("V3 Dockview Workbench", () => {
     expect(structuralPanes.map(({ structuralSide }) => structuralSide)).toEqual(
       ["right", "left"],
     );
+  });
+
+  it("falls back to legacy waveform graphs for the historical Standard-60 contract", () => {
+    const composition = composeStandardModelContractV1(
+      historicalStandard60Client.manifest,
+      currentWorkbenchSurfaceV2,
+    );
+    expect(composition.contract.modelId).toContain("standard-60");
+    expect(
+      composition.contract.graphCatalog.map(({ graphId }) => graphId),
+    ).toEqual([
+      "hemodynamics.pressure.waveform",
+      "hemodynamics.flow.waveform",
+      "hemodynamics.pressure-volume",
+      "hemodynamics.guyton-starling",
+    ]);
+
+    const options = workbenchGraphPaneOptionsForContractV3(
+      composition.contract,
+    );
+    expect(
+      options.map(({ optionId, graphId }) => ({ optionId, graphId })),
+    ).toEqual([
+      {
+        optionId: "hemodynamics.pressure-volume",
+        graphId: "hemodynamics.pressure-volume",
+      },
+      {
+        optionId: "hemodynamics.pressure.waveform",
+        graphId: "hemodynamics.pressure.waveform",
+      },
+      {
+        optionId: "hemodynamics.flow.waveform",
+        graphId: "hemodynamics.flow.waveform",
+      },
+      {
+        optionId: "hemodynamics.guyton-starling/systemic",
+        graphId: "hemodynamics.guyton-starling",
+      },
+      {
+        optionId: "hemodynamics.guyton-starling/pulmonary",
+        graphId: "hemodynamics.guyton-starling",
+      },
+    ]);
+
+    const initial = createDefaultExperimentSurfaceV3(composition.contract);
+    expect(initial.graphPanes.map(({ graphId }) => graphId)).toEqual([
+      "hemodynamics.pressure-volume",
+      "hemodynamics.guyton-starling",
+      "hemodynamics.pressure.waveform",
+    ]);
+    for (const optionId of [
+      "hemodynamics.pressure.waveform",
+      "hemodynamics.flow.waveform",
+    ]) {
+      const option = options.find((candidate) => candidate.optionId === optionId);
+      expect(option).toBeDefined();
+      const added = addWorkbenchSurfacePaneV3(
+        initial,
+        "graph",
+        composition.contract,
+        option?.graphId,
+      );
+      expect(added.selectedPane).toEqual(
+        expect.objectContaining({ kind: "graph" }),
+      );
+      expect(added.surface.graphPanes.at(-1)?.graphId).toBe(option?.graphId);
+    }
   });
 
   it("keeps an empty role area recoverable through an explicit add action", () => {

@@ -50,11 +50,13 @@ export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
   Object.freeze({
     optionId: "hemodynamics.pressure.waveform",
     graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
+    fallbackGraphId: "hemodynamics.pressure.waveform",
     kind: "pressure-waveform" as const,
   }),
   Object.freeze({
     optionId: "hemodynamics.flow.waveform",
     graphId: "hemodynamics.flow.waveform.comprehensive-v1",
+    fallbackGraphId: "hemodynamics.flow.waveform",
     kind: "flow-waveform" as const,
   }),
   Object.freeze({
@@ -73,6 +75,55 @@ export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
 
 export type WorkbenchGraphPaneKindV3 =
   (typeof WORKBENCH_GRAPH_PANE_OPTIONS_V3)[number]["kind"];
+
+export type WorkbenchResolvedGraphPaneOptionV3 = Readonly<{
+  optionId: string;
+  graphId: string;
+  kind: WorkbenchGraphPaneKindV3;
+  structuralSide?: "left" | "right";
+}>;
+
+export function resolveWorkbenchGraphPaneOptionV3(
+  contract: ModelContractV2,
+  optionId: string,
+): WorkbenchResolvedGraphPaneOptionV3 | undefined {
+  const option = WORKBENCH_GRAPH_PANE_OPTIONS_V3.find(
+    (candidate) => candidate.optionId === optionId,
+  );
+  if (option === undefined) return undefined;
+  const fallbackGraphId =
+    "fallbackGraphId" in option ? option.fallbackGraphId : undefined;
+  const candidateGraphIds: readonly string[] =
+    fallbackGraphId === undefined
+      ? [option.graphId]
+      : [option.graphId, fallbackGraphId];
+  const graphId = candidateGraphIds.find((candidate) =>
+    contract.graphCatalog.some((graph) => graph.graphId === candidate),
+  );
+  if (graphId === undefined) return undefined;
+  return Object.freeze({
+    optionId: option.optionId,
+    graphId,
+    kind: option.kind,
+    ...("structuralSide" in option
+      ? { structuralSide: option.structuralSide }
+      : {}),
+  });
+}
+
+export function workbenchGraphPaneOptionsForContractV3(
+  contract: ModelContractV2,
+): readonly WorkbenchResolvedGraphPaneOptionV3[] {
+  return Object.freeze(
+    WORKBENCH_GRAPH_PANE_OPTIONS_V3.flatMap((option) => {
+      const resolved = resolveWorkbenchGraphPaneOptionV3(
+        contract,
+        option.optionId,
+      );
+      return resolved === undefined ? [] : [resolved];
+    }),
+  );
+}
 
 export function workbenchGraphIdForPaneKindV3(
   kind: WorkbenchGraphPaneKindV3,
@@ -363,7 +414,11 @@ export function createDefaultExperimentSurfaceV3(
       structuralSide: "right" as const,
     }),
     Object.freeze({
-      graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
+      graphId:
+        resolveWorkbenchGraphPaneOptionV3(
+          contract,
+          "hemodynamics.pressure.waveform",
+        )?.graphId ?? workbenchGraphIdForPaneKindV3("pressure-waveform"),
       seriesIds: Object.freeze(["AoP", "LVP", "LAP"]),
     }),
   ]);

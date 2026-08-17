@@ -267,7 +267,8 @@ The current Workbench exposes four constructors rather than many preset panes:
 The immutable `hemodynamics.pressure.waveform` and
 `hemodynamics.flow.waveform` definitions remain in Surface v2 so previously
 authored Experiments retain their exact graph catalogs. New Workbench panes use
-the comprehensive graph IDs above.
+the comprehensive graph IDs above when the pinned model supports them, and
+fall back to the immutable legacy IDs for historical model contracts.
 
 Graph color, label, sweep window, history depth, and picked series belong to
 the authored Experiment Surface. Output and Control panes do not use per-item

@@ -74,7 +74,6 @@ import {
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
   WORKBENCH_SCENARIO_ID_V3,
-  WORKBENCH_GRAPH_PANE_OPTIONS_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   controlLabelV3,
   createDefaultExperimentSurfaceV3,
@@ -83,6 +82,7 @@ import {
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
+  workbenchGraphPaneOptionsForContractV3,
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
@@ -1223,7 +1223,7 @@ const WorkbenchV3Session = ({
       if (currentSurface === null || contract === null) return undefined;
       const graphOption =
         kind === "graph"
-          ? WORKBENCH_GRAPH_PANE_OPTIONS_V3.find(
+          ? workbenchGraphPaneOptionsForContractV3(contract).find(
               ({ optionId }) => optionId === graphOptionId,
             )
           : undefined;
@@ -2589,10 +2589,13 @@ const WorkbenchV3Session = ({
       role: pane.role,
       title: pane.label,
     }));
-  const graphAddOptions = WORKBENCH_GRAPH_PANE_OPTIONS_V3.map((option) => ({
-    id: option.optionId,
-    label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
-  }));
+  const graphAddOptions =
+    contract === null
+      ? []
+      : workbenchGraphPaneOptionsForContractV3(contract).map((option) => ({
+          id: option.optionId,
+          label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
+        }));
   const renderGraphPaneV3 = (paneDefinition: WorkbenchPaneDefinitionV3) => {
     const graphPane = graphPanes.find(
       ({ paneId }) => paneId === paneDefinition.paneId,
