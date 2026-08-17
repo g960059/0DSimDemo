@@ -9,12 +9,12 @@ The checked-in exact release identity is:
 
 ```text
 modelId:
-  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-61
+  circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-63
 surfaceReleaseId:
   circleheart.main-wire.surface.workbench-v1
 ```
 
-Standard-61 contains one self-contained exact executable artifact plus a
+Standard-63 contains one self-contained exact executable artifact plus a
 build-time-generated `ExecutionPlanDescriptorV1`. The browser does not compile
 the model and does not rehash the artifact during ordinary loading. Registry
 admission, immutable model identity, manifest equality, exact content pins,
@@ -22,7 +22,7 @@ and the external active bundle pointer are the authority for deployed Sessions.
 
 Changing numerical behavior, primitive semantics, or checkpoint continuation
 requires a new `modelId`. Byte-only cleanup and optimization instead receive
-an immutable artifact revision and may move the Standard-61 implementation
+an immutable artifact revision and may move the Standard-63 implementation
 pointer only after byte-exact predecessor equivalence. Changing graphs,
 derived presentation, controls that only map existing primitive controls, or
 Article Briefing does not change `modelId`.
@@ -44,10 +44,13 @@ The integrated model composes:
 - pericardial and respiratory pressure owners; and
 - dynamic mechanical-support owners in the declared all-off configuration.
 
-The public Standard scope is regular sinus, normal coronary configuration,
-all support devices off, and bounded model-owned controls. It does not include
-autonomic reflexes, oxygen transport/delivery, multipatch myocardium, AV-plane
-displacement, Fontan circulation, or congenital bypass topology.
+The public Standard scope is regular sinus, all support devices off, and
+bounded model-owned hemodynamic, chamber, valve, oxygen-boundary, common-
+pericardial, and coronary-disease controls. It does not include
+autonomic reflexes, dynamically coupled tissue oxygen states, multipatch
+myocardium, AV-plane displacement, Fontan circulation, or congenital bypass
+topology. It does include a declared beat-mean whole-body oxygen-content
+observer; that observer does not feed back into the circulation or mechanics.
 
 ## Numerical authority
 
@@ -102,7 +105,10 @@ playback rate.
 
 ## Controls, outputs, and graphs
 
-The exact release owns eight absolute numeric controls:
+The exact release owns 57 absolute numeric controls. The default Workbench
+pane intentionally presents only six common teaching controls; the remaining
+controls stay available to authored Experiments and user-customized panes.
+The complete catalog comprises:
 
 - systemic resistance;
 - pulmonary resistance;
@@ -111,26 +117,65 @@ The exact release owns eight absolute numeric controls:
 - regular-sinus heart rate;
 - total blood volume;
 - PEEP; and
-- ventricular contractility scale.
+- a common ventricular active-tension group control;
+- wall-explicit active-tension, passive-stiffness, and prescribed
+  calcium-decay-time scales for LA/LVFW/SEP/RVFW/RA;
+- continuous maximum-forward EOA and closed-reverse EROA for MV/AoV/TV/PV;
+  and
+- Hb, FiO2, PaCO2, respiratory exchange ratio, barometric pressure, true
+  shunt fraction, and target VO2;
+- common-pericardial reference capacity, pressure scale, exponential
+  stiffness, and prescribed fluid volume; and
+- LAD/LCx/RCA focal diameter loss plus territory/layer-specific structural R1
+  and Rm resistance scales for subepicardial and subendocardial beds.
 
 A control change rebuilds a complete fixture and atomically starts a new input
 epoch from the current accepted clock. The durable value is the resulting
 fixture plus exact checkpoint, not a log of slider actions.
 
-The model exposes 50 primitive outputs: accepted-state/accepted-step signals
-and complete-beat metrics. Beat metrics accumulate from every accepted
+The model exposes 173 outputs: 77 accepted-state/accepted-step signals and 96
+complete-beat metrics. Beat metrics accumulate from every accepted
 substep, including event-clipped substeps, and remain unavailable until a
-complete capture-to-capture beat exists. Extrema-derived LV volumes, stroke
-volume, and ejection fraction are intentionally not labelled EDV/ESV because
-they are not yet tied to named valve events.
+complete capture-to-capture beat exists. MV/TV closure owns ventricular end
+diastole and AoV/PV closure owns ventricular end systole. Event-interpolated
+EDV/ESV, absolute and transmural EDP/ESP, SV, and EF coexist with explicitly
+retained extrema metrics. Four-valve forward, reverse, and net beat volumes
+and same-valve reverse/forward fractions are also model-owned metrics.
 
-Standard-61 adds exact LV transmural pressure-volume path work. The beat owner
+Clinically familiar pressure summaries follow their conventional display
+form: systemic arterial and pulmonary arterial pressure expose
+systolic/diastolic/mean/pulse values, while central venous pressure is the
+time-weighted mean RA pressure. The catalog also includes mean LA and pulmonary
+venous-node pressure, ventricular peak pressure, effective SVR/PVR and
+pulmonary arterial compliance, event-defined coronary perfusion-pressure
+surrogate, forward-flow hydraulic valve gradients, effective native outputs,
+venous returns, LV/RV accepted-step pressure-rate extrema, and LV/RV PV path
+work. A model pulmonary-vein node is not relabelled PAWP, and hydraulic valve
+pressure difference is not relabelled a Doppler/Bernoulli gradient.
+
+Accepted-step signals additionally expose common-pericardial volumes/energy
+and the admitted coronary hydraulic readback: inlet/outlet and storage flows,
+territory/layer R1, internal Qm, and R2 flows, post-focal pressure and loss,
+effective tone scale, and dissipated hydraulic power. Internal Qm is kept
+explicitly named and is not presented as measured tissue perfusion.
+
+Standard-61 introduced exact LV transmural pressure-volume path work; it is
+retained in Standard-63, which adds the corresponding RV path observer. The beat owner
 integrates `-P_tm dV` from accepted numerical endpoints and checkpoints the
 in-progress ledger. It never closes a transient path with a synthetic segment.
 The value is therefore not labelled PVA, myocardial oxygen consumption, or
 closed-loop stroke work merely because a capture-to-capture window completed.
 Its contract and the qualification boundary for future energetics are in
 [INTEGRATED-MODEL-0006](INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md).
+
+Standard-62 added wall-explicit mechanics fixtures, continuous four-valve
+area fixtures, and a steady whole-body oxygen-content observer. Standard-63
+adds common-pericardial and coronary-disease research axes and expands the
+accepted readback and completed-beat observer. These are
+research inputs and derived observations, not diagnoses, patient fits, generic
+lusitropy, respiratory dynamics, or a validated oxygen-sufficiency model. The
+exact event and observer boundaries are in
+[INTEGRATED-MODEL-0007](INTEGRATED-MODEL-0007-valve-events-chamber-mechanics-and-oxygen-transport.md).
 
 The Workbench Surface provides pressure and flow sweeps, a pressure-volume
 graph, and on-demand bilateral Guyton/Starling orientation. Surface

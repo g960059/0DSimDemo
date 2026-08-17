@@ -15,6 +15,10 @@ model:
 - [`INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md`](./INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md)
   freezes the exact LV pressure-volume path-work contract and the admission
   boundary for future PVA and myocardial oxygen-demand work.
+- [`INTEGRATED-MODEL-0007-valve-events-chamber-mechanics-and-oxygen-transport.md`](./INTEGRATED-MODEL-0007-valve-events-chamber-mechanics-and-oxygen-transport.md)
+  defines Standard-63 valve events and beat volumes, five-wall, pericardial,
+  and coronary research controls, the whole-body oxygen observer, and their
+  claim limits.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

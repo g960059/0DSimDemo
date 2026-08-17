@@ -19,11 +19,13 @@ qualified-analysis owner.
 
 ## Implemented exact observer
 
-Standard-61 owns one capture-to-capture LV metric:
+Standard-61 introduced the capture-to-capture LV metric, and Standard-63 adds
+the corresponding RV metric:
 
 ```text
-outputId:
+outputIds:
   myocardium.work.external.LV-transmural-pressure-volume-path
+  myocardium.work.external.RV-transmural-pressure-volume-path
 
 W_path = - sum_i 0.5 * (P_tm,i + P_tm,i+1) * (V_i+1 - V_i)
 unit: mmHg*mL
@@ -35,11 +37,12 @@ so restore continuation cannot discard or reconstruct the first part of the
 path. Canvas sampling, history retention, and graph decimation are outside the
 measurement owner.
 
-The minus sign makes the usual counter-clockwise LV loop positive. Pressure is
-explicitly LV transmural pressure, matching the current PV graph and isolating
-the wall load from a common external pressure offset. It must not be compared
-as though it were an absolute intracavitary catheter-work value without an
-explicit pressure-basis translation.
+The minus sign makes the usual counter-clockwise ventricular loop positive.
+Pressure is explicitly the matching ventricular transmural pressure, aligning
+with the current PV graph and isolating wall load from a common external
+pressure offset. It must not be compared as though it were an absolute
+intracavitary catheter-work value without an explicit pressure-basis
+translation.
 
 No artificial end-to-start segment is added. Capture-to-capture electrical
 boundaries do not guarantee that a transient trajectory returns to its initial
@@ -74,6 +77,13 @@ ESPVR, EDPVR, PE, PVA, or MVO2. The formal fixed-TBV analysis already provides
 the correct isolation and periodic branch machinery, but its fitted relations
 must receive a separately versioned operational definition and qualification
 before they can close the PE region.
+
+Standard-62 supplied the prerequisite biventricular event landmarks: MV/TV
+closure defines LV/RV end diastole and AoV/PV closure defines LV/RV end systole,
+all by accepted-step zero-crossing interpolation. Standard-63 additionally
+publishes biventricular path work and accepted-step pressure-rate extrema. This
+improves loop annotation and event-defined SV/EF, but it does not by itself
+qualify ESPVR, PE, PVA, or MVO2.
 
 A PVA release must freeze at least:
 

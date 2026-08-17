@@ -30,6 +30,15 @@ import type {
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import {
+  STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
+  resolveStudioItemPresentationV1,
+  resolveStudioOutputPressureSummaryStoredLabelV1,
+  resolveStudioSurfaceItemLabelV1,
+  studioItemPresentationMatchesQueryV1,
+  type ResolvedStudioItemPresentationV1,
+  type StudioItemPresentationCategoryV1,
+} from "@/studio/presentation/StudioItemPresentationCatalogV1";
+import {
   controlLabelV3,
   graphSeriesLabelV3,
   graphTitleV3,
@@ -49,6 +58,7 @@ import {
   resolveWorkbenchGraphTraceStyleV3,
   workbenchScenarioColorSeedV3,
 } from "./v3/WorkbenchGraphColorV3";
+import { ExperimentPaneAddItemButtonV3 } from "./ExperimentPanePresentationV3";
 import { WorkbenchPaneBindingEditorV3 } from "./WorkbenchPaneBindingV3";
 
 const FOCUSABLE_SELECTOR_V3 = [
@@ -68,25 +78,18 @@ type PaneEditorDrawerContextValueV3 = Readonly<{
   setOpen: (open: boolean) => void;
 }>;
 
-const PaneEditorDrawerContextV3 = React.createContext<
-  PaneEditorDrawerContextValueV3 | null
->(null);
+const PaneEditorDrawerContextV3 =
+  React.createContext<PaneEditorDrawerContextValueV3 | null>(null);
 
 export type WorkbenchPaneIdentityV3 = Readonly<{
   kind: "graph" | "output" | "control";
   paneId: string;
 }>;
 
-export type WorkbenchPaneEditorSectionV3 = "binding";
+export type WorkbenchPaneEditorSectionV3 = "binding" | "items";
+export type WorkbenchPaneEditorItemIntentV3 = "add" | "manage";
 
-type PaneItemCatalogCategoryV3 =
-  | "hemodynamics"
-  | "rhythm"
-  | "ventilation"
-  | "valves"
-  | "coronary"
-  | "mechanicalSupport"
-  | "advanced";
+type PaneItemCatalogCategoryV3 = StudioItemPresentationCategoryV1;
 
 export type WorkbenchPaneEditorStringsV3 = Readonly<{
   addCatalogItem: string;
@@ -104,7 +107,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   outputFixedBindingHint: string;
   fixedScenarioBinding: string;
   controlPresentation: string;
-  controlPresentationHint: string;
   sliderPresentation: string;
   buttonsPresentation: string;
   buttonLabel: string;
@@ -130,6 +132,7 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   itemsSection: string;
   moveDown: string;
   moveUp: string;
+  manageItems: string;
   noCatalogMatches: string;
   noConfigurableSeries: string;
   outputCatalog: string;
@@ -170,12 +173,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     fixedBinding: "Fixed Scenarios",
     fixedBindingHint:
       "Every parameter in this pane applies the same absolute value to the selected Scenarios.",
-    outputFixedBindingHint:
-      "This pane always displays one selected Scenario.",
+    outputFixedBindingHint: "This pane always displays one selected Scenario.",
     fixedScenarioBinding: "Fixed Scenario",
     controlPresentation: "Control presentation",
-    controlPresentationHint:
-      "Choose a continuous slider or a small set of authored absolute values.",
     sliderPresentation: "Slider",
     buttonsPresentation: "Custom buttons",
     buttonLabel: "Button label",
@@ -189,6 +189,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
       coronary: "Coronary",
       hemodynamics: "Hemodynamics",
       mechanicalSupport: "Mechanical support",
+      myocardium: "Myocardium",
+      oxygen: "Oxygen transport",
+      pericardium: "Pericardium",
       rhythm: "Rhythm",
       valves: "Valves",
       ventilation: "Ventilation",
@@ -210,6 +213,7 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     itemsSection: "Items",
     moveDown: "Move down",
     moveUp: "Move up",
+    manageItems: "Manage items",
     noCatalogMatches: "No matching registered items.",
     noConfigurableSeries:
       "This graph owns its structural axes and has no configurable series.",
@@ -430,8 +434,9 @@ export function duplicateWorkbenchSurfacePaneV3(
   const existingPaneIds = new Set(allPaneIdsV3(surface));
   const paneId = nextPaneIdV3(existingPaneIds, selectedPane.kind);
   const order = nextOrderV3(paneCollectionV3(surface, selectedPane.kind));
-  const copy: AnySurfacePaneV3 = source.role === "graph"
-    ? {
+  const copy: AnySurfacePaneV3 =
+    source.role === "graph"
+      ? {
           ...source,
           paneId,
           order,
@@ -441,49 +446,53 @@ export function duplicateWorkbenchSurfacePaneV3(
             : {
                 traceColors: source.traceColors.map((trace) => ({ ...trace })),
               }),
-          scenarioScope: source.scenarioScope.mode === "fixed"
-            ? {
-                mode: "fixed",
-                scenarioIds: [...source.scenarioScope.scenarioIds],
-              }
-            : { mode: "visible-scenarios" },
-          excludedTraces: source.excludedTraces.map((trace) => ({ ...trace })),
-      }
-    : source.role === "output"
-      ? {
-          ...source,
-          paneId,
-          order,
-          binding: source.binding.mode === "fixed"
-            ? {
-                mode: "fixed",
-                scenarioId: source.binding.scenarioId,
-              }
-            : { mode: "active-slot" },
-          items: source.items.map((item) => ({ ...item })),
-        }
-      : {
-          ...source,
-          paneId,
-          order,
-          binding: source.binding.mode === "fixed"
-            ? {
-                mode: "fixed",
-                scenarioIds: [...source.binding.scenarioIds],
-              }
-            : { mode: "active-slot" },
-          items: source.items.map((item) => ({
-            ...item,
-            presentation: item.presentation.kind === "buttons"
+          scenarioScope:
+            source.scenarioScope.mode === "fixed"
               ? {
-                  kind: "buttons" as const,
-                  options: item.presentation.options.map((option) => ({
-                    ...option,
-                  })),
+                  mode: "fixed",
+                  scenarioIds: [...source.scenarioScope.scenarioIds],
                 }
-              : { kind: "slider" as const },
-          })),
-        };
+              : { mode: "visible-scenarios" },
+          excludedTraces: source.excludedTraces.map((trace) => ({ ...trace })),
+        }
+      : source.role === "output"
+        ? {
+            ...source,
+            paneId,
+            order,
+            binding:
+              source.binding.mode === "fixed"
+                ? {
+                    mode: "fixed",
+                    scenarioId: source.binding.scenarioId,
+                  }
+                : { mode: "active-slot" },
+            items: source.items.map((item) => ({ ...item })),
+          }
+        : {
+            ...source,
+            paneId,
+            order,
+            binding:
+              source.binding.mode === "fixed"
+                ? {
+                    mode: "fixed",
+                    scenarioIds: [...source.binding.scenarioIds],
+                  }
+                : { mode: "active-slot" },
+            items: source.items.map((item) => ({
+              ...item,
+              presentation:
+                item.presentation.kind === "buttons"
+                  ? {
+                      kind: "buttons" as const,
+                      options: item.presentation.options.map((option) => ({
+                        ...option,
+                      })),
+                    }
+                  : { kind: "slider" as const },
+            })),
+          };
   const key = paneCollectionKeyV3(selectedPane.kind);
   return {
     paneId,
@@ -557,33 +566,37 @@ export function compareWorkbenchOutputPaneByScenarioV3(
   const sourceFixed = updateWorkbenchSurfacePaneV3(
     duplicate.surface,
     { kind: "output", paneId: options.paneId },
-    (pane) => pane.role === "output"
-      ? {
-          ...pane,
-          binding: { mode: "fixed", scenarioId: sourceScenarioId },
-        }
-      : pane,
+    (pane) =>
+      pane.role === "output"
+        ? {
+            ...pane,
+            binding: { mode: "fixed", scenarioId: sourceScenarioId },
+          }
+        : pane,
   );
   return {
     paneId: duplicate.paneId,
     surface: updateWorkbenchSurfacePaneV3(
       sourceFixed,
       { kind: "output", paneId: duplicate.paneId },
-      (pane) => pane.role === "output"
-        ? {
-            ...pane,
-            binding: {
-              mode: "fixed",
-              scenarioId: comparisonScenario.scenarioId,
-            },
-          }
-        : pane,
+      (pane) =>
+        pane.role === "output"
+          ? {
+              ...pane,
+              binding: {
+                mode: "fixed",
+                scenarioId: comparisonScenario.scenarioId,
+              },
+            }
+          : pane,
     ),
   };
 }
 
 export function WorkbenchPaneEditorV3({
+  initialItemIntent,
   initialSection,
+  locale,
   open,
   selectedPane,
   contract,
@@ -594,7 +607,9 @@ export function WorkbenchPaneEditorV3({
   onClose,
 }: Readonly<{
   open: boolean;
+  initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
   initialSection?: WorkbenchPaneEditorSectionV3;
+  locale: "en" | "ja";
   selectedPane: WorkbenchPaneIdentityV3;
   contract: ModelContractV2;
   surface: ExperimentSurfaceV2;
@@ -605,6 +620,7 @@ export function WorkbenchPaneEditorV3({
 }>) {
   const { appTheme } = useAppTheme();
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
   const onCloseRef = React.useRef(onClose);
   const titleId = React.useId();
   const descriptionId = React.useId();
@@ -613,6 +629,9 @@ export function WorkbenchPaneEditorV3({
     null,
   );
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [activeSectionId, setActiveSectionId] = React.useState(
+    "pane-settings-general-v3",
+  );
   const drawerCloseRef = React.useRef<(() => void) | null>(null);
   const registerDrawerCloseHandler = React.useCallback(
     (handler: (() => void) | null) => {
@@ -684,17 +703,85 @@ export function WorkbenchPaneEditorV3({
     };
   }, [open]);
 
+  const scrollToSection = React.useCallback(
+    (targetId: string, behavior: ScrollBehavior = "smooth") => {
+      const root = contentRef.current;
+      const target = root?.querySelector<HTMLElement>(`#${targetId}`);
+      if (root === null || target === null || target === undefined) return;
+      const rootTop = root.getBoundingClientRect().top;
+      const targetTop = target.getBoundingClientRect().top;
+      root.scrollTo({
+        top: root.scrollTop + targetTop - rootTop,
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : behavior,
+      });
+      setActiveSectionId(targetId);
+    },
+    [],
+  );
+
   React.useEffect(() => {
-    if (!open || initialSection === undefined) return;
+    if (!open || initialSection === undefined) return undefined;
+    let nestedFrame = 0;
     const animationFrame = window.requestAnimationFrame(() => {
-      document.getElementById(`pane-settings-${initialSection}-v3`)
-        ?.scrollIntoView({ block: "start" });
+      nestedFrame = window.requestAnimationFrame(() => {
+        scrollToSection(paneSettingsTargetIdV3(initialSection), "auto");
+      });
     });
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [initialSection, open]);
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(nestedFrame);
+    };
+  }, [initialSection, open, scrollToSection]);
+
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const root = contentRef.current;
+    if (root === null) return undefined;
+    let animationFrame = 0;
+    const updateActiveSection = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        const activationLine = root.getBoundingClientRect().top + 12;
+        const sections = Array.from(
+          root.querySelectorAll<HTMLElement>(
+            ".workbench-pane-settings-section[id]",
+          ),
+        );
+        const active = sections.reduce<HTMLElement | null>(
+          (current, section) =>
+            section.getBoundingClientRect().top <= activationLine
+              ? section
+              : current,
+          sections[0] ?? null,
+        );
+        if (active !== null) setActiveSectionId(active.id);
+      });
+    };
+    updateActiveSection();
+    root.addEventListener("scroll", updateActiveSection, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      root.removeEventListener("scroll", updateActiveSection);
+    };
+  }, [open]);
 
   if (!open || typeof document === "undefined") return null;
   const pane = findWorkbenchSurfacePaneV3(draftSurface, selectedPane);
+  const graphDefinition =
+    pane?.role === "graph"
+      ? contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId)
+      : undefined;
+  const dataSectionTitle =
+    pane?.role === "output"
+      ? strings.outputCatalog
+      : pane?.role === "control"
+        ? strings.controlCatalog
+        : pane?.role === "graph" &&
+            graphDefinition?.renderer !== "structural-return"
+          ? strings.seriesCatalog
+          : strings.dataSection;
 
   const updateSelectedPane = (
     update: (candidate: AnySurfacePaneV3) => AnySurfacePaneV3,
@@ -730,144 +817,168 @@ export function WorkbenchPaneEditorV3({
         className="workbench-pane-editor workbench-sheet-enter flex h-dvh max-h-dvh w-full flex-col overflow-hidden bg-wb-panel text-wb-text shadow-2xl outline-none sm:h-auto sm:max-h-[min(92dvh,58rem)] sm:max-w-6xl sm:rounded-xl sm:ring-1 sm:ring-wb-line"
       >
         <PaneEditorDrawerContextV3.Provider value={drawerContext}>
-        <header className="workbench-pane-editor-header flex min-h-16 shrink-0 items-center gap-3 border-b border-wb-line px-4 py-3 sm:px-5">
-          <div className="min-w-0 flex-1">
-            <p id={descriptionId} className="workbench-pane-editor-kicker">
-              {strings.paneKinds[selectedPane.kind]}
-            </p>
-            <h2 id={titleId} className="workbench-pane-editor-title truncate">
-              {pane?.label ?? strings.title}
-            </h2>
-          </div>
-          <button
-            type="button"
-            data-pane-editor-initial-focus
-            className="workbench-pane-editor-close inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-            aria-label={strings.close}
-            onClick={onClose}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
+          <header className="workbench-pane-editor-header flex min-h-16 shrink-0 items-center gap-3 border-b border-wb-line px-4 py-3 sm:px-5">
+            <div className="min-w-0 flex-1">
+              <p id={descriptionId} className="workbench-pane-editor-kicker">
+                {strings.paneKinds[selectedPane.kind]}
+              </p>
+              <h2 id={titleId} className="workbench-pane-editor-title truncate">
+                {pane?.label ?? strings.title}
+              </h2>
+            </div>
+            <button
+              type="button"
+              data-pane-editor-initial-focus
+              className="workbench-pane-editor-close inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              aria-label={strings.close}
+              onClick={onClose}
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </header>
 
-        <div
-          className="workbench-pane-editor-body relative isolate flex min-h-0 flex-1"
-          data-context-drawer-open={drawerOpen ? "true" : "false"}
-        >
-          <nav
-            className="workbench-pane-editor-nav hidden min-h-0 w-44 shrink-0 border-r border-wb-line px-3 py-4 sm:block"
-            aria-label={strings.title}
-          >
-            <PaneSettingsJumpV3
-              targetId="pane-settings-general-v3"
-              label={strings.generalSection}
-            />
-            {pane?.role === "graph" && (
-              <PaneSettingsJumpV3
-                targetId="pane-settings-display-v3"
-                label={strings.displaySection}
-              />
-            )}
-            {(pane?.role === "output" || pane?.role === "control") && (
-              <PaneSettingsJumpV3
-                targetId="pane-settings-binding-v3"
-                label={strings.bindingSection}
-              />
-            )}
-            <PaneSettingsJumpV3
-              targetId="pane-settings-data-v3"
-              label={pane?.role === "graph"
-                ? strings.dataSection
-                : strings.itemsSection}
-            />
-            {pane?.role === "graph" && (
-              <PaneSettingsJumpV3
-                targetId="pane-settings-color-v3"
-                label={strings.scenarioColors}
-              />
-            )}
-          </nav>
-          <div className="workbench-pane-editor-content min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pb-6 pt-1 sm:px-6 sm:pt-4">
-            {pane !== undefined && (
-              <div className="space-y-8">
-                <section
-                  id="pane-settings-general-v3"
-                  className="scroll-mt-4 space-y-3"
-                >
-                  <EditorSectionHeadingV3>
-                    {strings.generalSection}
-                  </EditorSectionHeadingV3>
-                  <PanePresentationEditorV3
-                    label={pane.label}
-                    strings={strings}
-                    onLabelChange={(label) =>
-                      updateSelectedPane((candidate) => ({
-                        ...candidate,
-                        label,
-                      }))
-                    }
-                  />
-                </section>
-
-                {pane.role === "graph" && (
-                  <GraphPaneEditorV3
-                    appTheme={appTheme}
-                    contract={contract}
-                    pane={pane}
-                    scenarios={scenarios}
-                    surface={draftSurface}
-                    strings={strings}
-                    onChange={(nextPane) => updateSelectedPane(() => nextPane)}
-                  />
-                )}
-                {pane.role === "output" && (
-                  <OutputPaneEditorV3
-                    contract={contract}
-                    pane={pane}
-                    scenarios={scenarios}
-                    strings={strings}
-                    onChange={(nextPane) => updateSelectedPane(() => nextPane)}
-                  />
-                )}
-                {pane.role === "control" && (
-                  <ControlPaneEditorV3
-                    contract={contract}
-                    pane={pane}
-                    scenarios={scenarios}
-                    strings={strings}
-                    onChange={(nextPane) => updateSelectedPane(() => nextPane)}
-                  />
-                )}
-              </div>
-            )}
-          </div>
           <div
-            ref={setDrawerHost}
-            className="workbench-pane-context-host pointer-events-none relative min-h-0 shrink-0 self-stretch overflow-hidden"
-            data-open={drawerOpen ? "true" : "false"}
-            data-testid="pane-settings-drawer-host-v3"
-          />
-        </div>
+            className="workbench-pane-editor-body relative isolate flex min-h-0 flex-1"
+            data-context-drawer-open={drawerOpen ? "true" : "false"}
+          >
+            <nav
+              className="workbench-pane-editor-nav hidden min-h-0 w-44 shrink-0 border-r border-wb-line px-3 py-4 sm:block"
+              aria-label={strings.title}
+            >
+              <PaneSettingsJumpV3
+                active={activeSectionId === "pane-settings-general-v3"}
+                targetId="pane-settings-general-v3"
+                label={strings.generalSection}
+                onNavigate={scrollToSection}
+              />
+              {pane?.role === "graph" && (
+                <PaneSettingsJumpV3
+                  active={activeSectionId === "pane-settings-display-v3"}
+                  targetId="pane-settings-display-v3"
+                  label={strings.displaySection}
+                  onNavigate={scrollToSection}
+                />
+              )}
+              {(pane?.role === "output" || pane?.role === "control") && (
+                <PaneSettingsJumpV3
+                  active={activeSectionId === "pane-settings-binding-v3"}
+                  targetId="pane-settings-binding-v3"
+                  label={strings.bindingSection}
+                  onNavigate={scrollToSection}
+                />
+              )}
+              <PaneSettingsJumpV3
+                active={activeSectionId === "pane-settings-data-v3"}
+                targetId="pane-settings-data-v3"
+                label={dataSectionTitle}
+                onNavigate={scrollToSection}
+              />
+              {pane?.role === "graph" && (
+                <PaneSettingsJumpV3
+                  active={activeSectionId === "pane-settings-color-v3"}
+                  targetId="pane-settings-color-v3"
+                  label={strings.scenarioColors}
+                  onNavigate={scrollToSection}
+                />
+              )}
+            </nav>
+            <div
+              ref={contentRef}
+              className="workbench-pane-editor-content min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pb-6 pt-0 sm:px-6 sm:pt-0"
+            >
+              {pane !== undefined && (
+                <div className="workbench-pane-settings-sections">
+                  <section
+                    id="pane-settings-general-v3"
+                    className="workbench-pane-settings-section space-y-3"
+                  >
+                    <EditorSectionHeadingV3>
+                      {strings.generalSection}
+                    </EditorSectionHeadingV3>
+                    <PanePresentationEditorV3
+                      label={pane.label}
+                      strings={strings}
+                      onLabelChange={(label) =>
+                        updateSelectedPane((candidate) => ({
+                          ...candidate,
+                          label,
+                        }))
+                      }
+                    />
+                  </section>
 
-        <footer className="workbench-pane-editor-footer flex shrink-0 items-center justify-end gap-2 border-t border-wb-line px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
-          <button
-            type="button"
-            data-testid="pane-settings-cancel-v3"
-            className="inline-flex min-h-9 items-center justify-center rounded-md px-3 text-xs font-medium text-wb-muted transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-            onClick={onClose}
-          >
-            {strings.cancel}
-          </button>
-          <button
-            type="button"
-            data-testid="pane-settings-done-v3"
-            className="inline-flex min-h-9 min-w-16 items-center justify-center rounded-md bg-wb-primary px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wb-panel"
-            disabled={pane === undefined}
-            onClick={finishEditing}
-          >
-            {strings.done}
-          </button>
-        </footer>
+                  {pane.role === "graph" && (
+                    <GraphPaneEditorV3
+                      appTheme={appTheme}
+                      contract={contract}
+                      pane={pane}
+                      scenarios={scenarios}
+                      surface={draftSurface}
+                      strings={strings}
+                      dataSectionTitle={dataSectionTitle}
+                      onChange={(nextPane) =>
+                        updateSelectedPane(() => nextPane)
+                      }
+                    />
+                  )}
+                  {pane.role === "output" && (
+                    <OutputPaneEditorV3
+                      contract={contract}
+                      initialItemIntent={initialItemIntent}
+                      locale={locale}
+                      pane={pane}
+                      scenarios={scenarios}
+                      strings={strings}
+                      dataSectionTitle={dataSectionTitle}
+                      onChange={(nextPane) =>
+                        updateSelectedPane(() => nextPane)
+                      }
+                    />
+                  )}
+                  {pane.role === "control" && (
+                    <ControlPaneEditorV3
+                      contract={contract}
+                      initialItemIntent={initialItemIntent}
+                      locale={locale}
+                      pane={pane}
+                      scenarios={scenarios}
+                      strings={strings}
+                      dataSectionTitle={dataSectionTitle}
+                      onChange={(nextPane) =>
+                        updateSelectedPane(() => nextPane)
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+            <div
+              ref={setDrawerHost}
+              className="workbench-pane-context-host pointer-events-none relative min-h-0 shrink-0 self-stretch overflow-hidden"
+              data-open={drawerOpen ? "true" : "false"}
+              data-testid="pane-settings-drawer-host-v3"
+            />
+          </div>
+
+          <footer className="workbench-pane-editor-footer flex shrink-0 items-center justify-end gap-2 border-t border-wb-line px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 sm:px-5">
+            <button
+              type="button"
+              data-testid="pane-settings-cancel-v3"
+              className="inline-flex min-h-9 items-center justify-center rounded-md px-3 text-xs font-medium text-wb-muted transition-colors duration-150 hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              onClick={onClose}
+            >
+              {strings.cancel}
+            </button>
+            <button
+              type="button"
+              data-testid="pane-settings-done-v3"
+              className="inline-flex min-h-9 min-w-16 items-center justify-center rounded-md bg-wb-primary px-3 text-xs font-semibold text-white transition-colors duration-150 hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wb-panel"
+              disabled={pane === undefined}
+              onClick={finishEditing}
+            >
+              {strings.done}
+            </button>
+          </footer>
         </PaneEditorDrawerContextV3.Provider>
       </div>
     </div>,
@@ -876,26 +987,33 @@ export function WorkbenchPaneEditorV3({
 }
 
 function PaneSettingsJumpV3({
+  active,
   label,
+  onNavigate,
   targetId,
 }: Readonly<{
+  active: boolean;
   label: string;
+  onNavigate: (targetId: string) => void;
   targetId: string;
 }>) {
   return (
     <button
       type="button"
+      aria-current={active ? "location" : undefined}
+      data-active={active ? "true" : "false"}
       className="workbench-pane-editor-nav-item block min-h-9 w-full rounded-lg px-2.5 text-left hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-      onClick={() =>
-        document.getElementById(targetId)?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        })
-      }
+      onClick={() => onNavigate(targetId)}
     >
       {label}
     </button>
   );
+}
+
+function paneSettingsTargetIdV3(section: WorkbenchPaneEditorSectionV3): string {
+  return section === "items"
+    ? "pane-settings-data-v3"
+    : "pane-settings-binding-v3";
 }
 
 function PanePresentationEditorV3({
@@ -921,6 +1039,7 @@ function PanePresentationEditorV3({
 function GraphPaneEditorV3({
   appTheme,
   contract,
+  dataSectionTitle,
   pane,
   scenarios,
   surface,
@@ -929,6 +1048,7 @@ function GraphPaneEditorV3({
 }: Readonly<{
   appTheme: "light" | "dark";
   contract: ModelContractV2;
+  dataSectionTitle: string;
   pane: ExperimentSurfaceGraphPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   surface: ExperimentSurfaceV2;
@@ -940,7 +1060,10 @@ function GraphPaneEditorV3({
   );
   return (
     <>
-      <section id="pane-settings-display-v3" className="scroll-mt-4 space-y-4">
+      <section
+        id="pane-settings-display-v3"
+        className="workbench-pane-settings-section space-y-4"
+      >
         <EditorSectionHeadingV3>
           {strings.displaySection}
         </EditorSectionHeadingV3>
@@ -1013,7 +1136,11 @@ function GraphPaneEditorV3({
         )}
       </section>
 
-      <section id="pane-settings-data-v3" className="scroll-mt-4 space-y-4">
+      <section
+        id="pane-settings-data-v3"
+        className="workbench-pane-settings-section space-y-4"
+      >
+        <EditorSectionHeadingV3>{dataSectionTitle}</EditorSectionHeadingV3>
         {graph !== undefined && scenarios.length > 0 && (
           <GraphScenarioScopeEditorV3
             graph={graph}
@@ -1025,7 +1152,6 @@ function GraphPaneEditorV3({
         )}
         {graph !== undefined && graph.renderer !== "structural-return" ? (
           <CatalogSelectionV3
-            title={strings.seriesCatalog}
             emptyText={strings.emptyCatalog}
             entries={graph.seriesCatalog.map((series) => {
               const selectedItem = pane.series.find(
@@ -1078,20 +1204,15 @@ function GraphPaneEditorV3({
             }
           />
         ) : (
-          <>
-            <EditorSectionHeadingV3>
-              {strings.dataSection}
-            </EditorSectionHeadingV3>
-            <p className="rounded-lg bg-wb-soft px-3 py-3 text-xs leading-5 text-wb-muted">
-              {strings.noConfigurableSeries}
-            </p>
-          </>
+          <p className="rounded-lg bg-wb-soft px-3 py-3 text-xs leading-5 text-wb-muted">
+            {strings.noConfigurableSeries}
+          </p>
         )}
       </section>
       {graph !== undefined && scenarios.length > 0 && (
         <section
           id="pane-settings-color-v3"
-          className="scroll-mt-4 space-y-3"
+          className="workbench-pane-settings-section space-y-3"
         >
           <EditorSectionHeadingV3>
             {strings.scenarioColors}
@@ -1124,29 +1245,41 @@ function GraphScenarioScopeEditorV3({
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
 }>) {
-  const scopedScenarioIds = pane.scenarioScope.mode === "fixed"
-    ? pane.scenarioScope.scenarioIds
-    : scenarios.map(({ scenarioId }) => scenarioId);
+  const scopedScenarioIds =
+    pane.scenarioScope.mode === "fixed"
+      ? pane.scenarioScope.scenarioIds
+      : scenarios.map(({ scenarioId }) => scenarioId);
   const scoped = new Set(scopedScenarioIds);
-  const traceItems = graph.renderer === "structural-return"
-    ? [{ seriesId: null, label: "Guyton / Starling" }]
-    : [...pane.series]
-        .sort((left, right) => left.order - right.order)
-        .map(({ seriesId, label }) => ({ seriesId, label }));
+  const traceItems =
+    graph.renderer === "structural-return"
+      ? [{ seriesId: null, label: "Guyton / Starling" }]
+      : [...pane.series]
+          .sort((left, right) => left.order - right.order)
+          .map(({ seriesId, label }) => ({ seriesId, label }));
   const visibleTraceCount = scenarios.reduce((count, scenario) => {
     if (!scoped.has(scenario.scenarioId)) return count;
-    return count + traceItems.filter(({ seriesId }) =>
-      !pane.excludedTraces.some((trace) =>
-        trace.scenarioId === scenario.scenarioId &&
-        trace.seriesId === seriesId)).length;
+    return (
+      count +
+      traceItems.filter(
+        ({ seriesId }) =>
+          !pane.excludedTraces.some(
+            (trace) =>
+              trace.scenarioId === scenario.scenarioId &&
+              trace.seriesId === seriesId,
+          ),
+      ).length
+    );
   }, 0);
 
   const updateFixedScenario = (scenarioId: string, selected: boolean) => {
-    const current = pane.scenarioScope.mode === "fixed"
-      ? pane.scenarioScope.scenarioIds
-      : scenarios.map((scenario) => scenario.scenarioId);
+    const current =
+      pane.scenarioScope.mode === "fixed"
+        ? pane.scenarioScope.scenarioIds
+        : scenarios.map((scenario) => scenario.scenarioId);
     const next = selected
-      ? current.includes(scenarioId) ? current : [...current, scenarioId]
+      ? current.includes(scenarioId)
+        ? current
+        : [...current, scenarioId]
       : current.filter((candidate) => candidate !== scenarioId);
     if (next.length === 0) return;
     onChange({
@@ -1160,8 +1293,9 @@ function GraphScenarioScopeEditorV3({
     seriesId: string | null,
     visible: boolean,
   ) => {
-    const retained = pane.excludedTraces.filter((trace) =>
-      trace.scenarioId !== scenarioId || trace.seriesId !== seriesId);
+    const retained = pane.excludedTraces.filter(
+      (trace) => trace.scenarioId !== scenarioId || trace.seriesId !== seriesId,
+    );
     onChange({
       ...pane,
       excludedTraces: visible
@@ -1181,10 +1315,12 @@ function GraphScenarioScopeEditorV3({
             type="radio"
             name={`graph-scope-${pane.paneId}`}
             checked={pane.scenarioScope.mode === "visible-scenarios"}
-            onChange={() => onChange({
-              ...pane,
-              scenarioScope: { mode: "visible-scenarios" },
-            })}
+            onChange={() =>
+              onChange({
+                ...pane,
+                scenarioScope: { mode: "visible-scenarios" },
+              })
+            }
             className="accent-[var(--wb-accent)]"
           />
           {strings.visibleScenarioScope}
@@ -1194,13 +1330,15 @@ function GraphScenarioScopeEditorV3({
             type="radio"
             name={`graph-scope-${pane.paneId}`}
             checked={pane.scenarioScope.mode === "fixed"}
-            onChange={() => onChange({
-              ...pane,
-              scenarioScope: {
-                mode: "fixed",
-                scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
-              },
-            })}
+            onChange={() =>
+              onChange({
+                ...pane,
+                scenarioScope: {
+                  mode: "fixed",
+                  scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
+                },
+              })
+            }
             className="accent-[var(--wb-accent)]"
           />
           {strings.fixedScenarioScope}
@@ -1208,7 +1346,8 @@ function GraphScenarioScopeEditorV3({
         {pane.scenarioScope.mode === "fixed" && (
           <div className="ml-5 flex flex-wrap gap-2">
             {scenarios.map((scenario) => {
-              const selected = pane.scenarioScope.mode === "fixed" &&
+              const selected =
+                pane.scenarioScope.mode === "fixed" &&
                 pane.scenarioScope.scenarioIds.includes(scenario.scenarioId);
               return (
                 <label
@@ -1218,11 +1357,15 @@ function GraphScenarioScopeEditorV3({
                   <input
                     type="checkbox"
                     checked={selected}
-                    disabled={selected && pane.scenarioScope.scenarioIds.length === 1}
-                    onChange={(event) => updateFixedScenario(
-                      scenario.scenarioId,
-                      event.currentTarget.checked,
-                    )}
+                    disabled={
+                      selected && pane.scenarioScope.scenarioIds.length === 1
+                    }
+                    onChange={(event) =>
+                      updateFixedScenario(
+                        scenario.scenarioId,
+                        event.currentTarget.checked,
+                      )
+                    }
                     className="accent-[var(--wb-accent)]"
                   />
                   {scenario.label}
@@ -1254,9 +1397,11 @@ function GraphScenarioScopeEditorV3({
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {traceItems.map((item) => {
-                    const excluded = pane.excludedTraces.some((trace) =>
-                      trace.scenarioId === scenario.scenarioId &&
-                      trace.seriesId === item.seriesId);
+                    const excluded = pane.excludedTraces.some(
+                      (trace) =>
+                        trace.scenarioId === scenario.scenarioId &&
+                        trace.seriesId === item.seriesId,
+                    );
                     const visible = scenarioInScope && !excluded;
                     return (
                       <label
@@ -1266,12 +1411,17 @@ function GraphScenarioScopeEditorV3({
                         <input
                           type="checkbox"
                           checked={visible}
-                          disabled={!scenarioInScope || (visible && visibleTraceCount === 1)}
-                          onChange={(event) => updateTrace(
-                            scenario.scenarioId,
-                            item.seriesId,
-                            event.currentTarget.checked,
-                          )}
+                          disabled={
+                            !scenarioInScope ||
+                            (visible && visibleTraceCount === 1)
+                          }
+                          onChange={(event) =>
+                            updateTrace(
+                              scenario.scenarioId,
+                              item.seriesId,
+                              event.currentTarget.checked,
+                            )
+                          }
                           className="accent-[var(--wb-accent)]"
                         />
                         {item.label}
@@ -1501,22 +1651,35 @@ function TraceColorInputV3({
 
 function OutputPaneEditorV3({
   contract,
+  dataSectionTitle,
+  initialItemIntent,
+  locale,
   pane,
   scenarios,
   strings,
   onChange,
 }: Readonly<{
   contract: ModelContractV2;
+  dataSectionTitle: string;
+  initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceOutputPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceOutputPaneV2) => void;
 }>) {
+  const pressureSummaryById = new Map(
+    STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.map((summary) => [
+      summary.presentationId,
+      summary,
+    ]),
+  );
+  const entries = outputPaneItemManagerEntriesV3({ contract, locale, pane });
   return (
     <>
       <section
         id="pane-settings-binding-v3"
-        className="scroll-mt-4 space-y-4"
+        className="workbench-pane-settings-section space-y-4"
       >
         <EditorSectionHeadingV3>
           {strings.bindingSection}
@@ -1527,83 +1690,193 @@ function OutputPaneEditorV3({
           allowMultipleFixed={false}
           fixedDescription={strings.outputFixedBindingHint}
           fixedLabel={strings.fixedScenarioBinding}
-          fixedScenarioIds={pane.binding.mode === "fixed"
-            ? [pane.binding.scenarioId]
-            : []}
+          fixedScenarioIds={
+            pane.binding.mode === "fixed" ? [pane.binding.scenarioId] : []
+          }
           mode={pane.binding.mode}
           paneId={pane.paneId}
           scenarios={scenarios}
-          onChange={(mode, scenarioIds) => onChange({
-            ...pane,
-            binding: mode === "active-slot"
-              ? { mode: "active-slot" }
-              : { mode: "fixed", scenarioId: scenarioIds[0]! },
-          })}
+          onChange={(mode, scenarioIds) =>
+            onChange({
+              ...pane,
+              binding:
+                mode === "active-slot"
+                  ? { mode: "active-slot" }
+                  : { mode: "fixed", scenarioId: scenarioIds[0]! },
+            })
+          }
         />
       </section>
       <PaneItemManagerV3
-      sectionId="pane-settings-data-v3"
-      title={strings.outputCatalog}
-      emptyText={strings.emptyCatalog}
-      entries={contract.outputCatalog.map((output) => {
-        const selectedItem = pane.items.find(
-          ({ outputId }) => outputId === output.outputId,
-        );
-        return {
-          id: output.outputId,
-          defaultLabel: outputLabelV3(output.outputId),
-          label: selectedItem?.label,
-          selected: selectedItem !== undefined,
-          disableDeselect: false,
-          order: selectedItem?.order,
-          meta: `${output.kind} · ${output.unit}`,
-        };
-      })}
-      strings={strings}
-      onAdd={(outputId) => {
-        if (pane.items.some((item) => item.outputId === outputId)) return;
-        const next: ExperimentSurfaceOutputItemV2 = {
-          outputId,
-          label: outputLabelV3(outputId),
-          order: nextOrderV3(pane.items),
-        };
-        onChange({ ...pane, items: [...pane.items, next] });
-      }}
-      onRemove={(outputId) =>
-        onChange({
-          ...pane,
-          items: pane.items.filter((item) => item.outputId !== outputId),
-        })}
-      onReorder={(orderedIds) =>
-        onChange({
-          ...pane,
-          items: reorderPaneItemsV3(
-            pane.items,
-            orderedIds,
-            (item) => item.outputId,
-          ),
-        })}
-      onLabelChange={(outputId, label) =>
-        onChange({
-          ...pane,
-          items: pane.items.map((item) =>
-            item.outputId === outputId ? { ...item, label } : item,
-          ),
-        })
-      }
+        sectionId="pane-settings-data-v3"
+        initialItemIntent={initialItemIntent}
+        title={dataSectionTitle}
+        emptyText={strings.emptyCatalog}
+        entries={entries}
+        strings={strings}
+        onAdd={(itemId) => {
+          const summary = pressureSummaryById.get(itemId);
+          const memberOutputIds = summary?.memberOutputIds ?? [itemId];
+          const existingOutputIds = new Set(
+            pane.items.map(({ outputId }) => outputId),
+          );
+          const availableMemberIds = memberOutputIds.filter((outputId) =>
+            contract.outputCatalog.some(
+              (candidate) => candidate.outputId === outputId,
+            ),
+          );
+          const missingMemberIds = availableMemberIds.filter(
+            (outputId) => !existingOutputIds.has(outputId),
+          );
+          if (missingMemberIds.length === 0) return;
+          const firstOrder = nextOrderV3(pane.items);
+          const canonicalGroupLabel =
+            summary === undefined
+              ? undefined
+              : resolveStudioItemPresentationV1({
+                  kind: "output",
+                  itemId: summary.presentationId,
+                  fallbackEnglishLabel: summary.presentationId,
+                  locale: "en",
+                }).canonicalEnglishLabel;
+          const additions = missingMemberIds.map(
+            (outputId, index): ExperimentSurfaceOutputItemV2 => ({
+              outputId,
+              label: canonicalGroupLabel ?? outputLabelV3(outputId),
+              order: firstOrder + index,
+            }),
+          );
+          onChange({ ...pane, items: [...pane.items, ...additions] });
+        }}
+        onRemove={(itemId) => {
+          const summary = pressureSummaryById.get(itemId);
+          const removedIds = new Set(summary?.memberOutputIds ?? [itemId]);
+          onChange({
+            ...pane,
+            items: pane.items.filter(
+              ({ outputId }) => !removedIds.has(outputId),
+            ),
+          });
+        }}
+        onReorder={(orderedIds) =>
+          onChange({
+            ...pane,
+            items: reorderPaneItemsV3(
+              pane.items,
+              orderedIds.flatMap(
+                (itemId) =>
+                  pressureSummaryById.get(itemId)?.memberOutputIds ?? [itemId],
+              ),
+              (item) => item.outputId,
+            ),
+          })
+        }
+        onLabelChange={(itemId, label) =>
+          onChange({
+            ...pane,
+            items: pane.items.map((item) => {
+              const summary = pressureSummaryById.get(itemId);
+              const matches =
+                summary?.memberOutputIds.includes(item.outputId) ??
+                item.outputId === itemId;
+              return matches ? { ...item, label } : item;
+            }),
+          })
+        }
       />
     </>
   );
 }
 
+function outputPaneItemManagerEntriesV3(
+  input: Readonly<{
+    contract: ModelContractV2;
+    locale: "en" | "ja";
+    pane: ExperimentSurfaceOutputPaneV2;
+  }>,
+): readonly PaneItemManagerEntryV3[] {
+  const outputById = new Map(
+    input.contract.outputCatalog.map((output) => [output.outputId, output]),
+  );
+  const selectedById = new Map(
+    input.pane.items.map((item) => [item.outputId, item]),
+  );
+  const groupedOutputIds = new Set(
+    STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.flatMap(
+      ({ memberOutputIds }) => memberOutputIds,
+    ),
+  );
+  const summaries = STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.flatMap((summary) => {
+    const definitions = summary.memberOutputIds.flatMap((outputId) => {
+      const definition = outputById.get(outputId);
+      return definition === undefined ? [] : [definition];
+    });
+    if (definitions.length !== summary.memberOutputIds.length) return [];
+    const selectedItems = summary.memberOutputIds.flatMap((outputId) => {
+      const item = selectedById.get(outputId);
+      return item === undefined ? [] : [item];
+    });
+    return [
+      {
+        ...resolvePaneItemManagerPresentationV3({
+          kind: "output",
+          id: summary.presentationId,
+          storedLabel: resolveStudioOutputPressureSummaryStoredLabelV1({
+            summary,
+            items: selectedItems,
+            locale: input.locale,
+            fallbackEnglishLabel: outputLabelV3,
+          }),
+          locale: input.locale,
+          catalogFacts: {
+            outputKind: "metric",
+          },
+        }),
+        selected: selectedItems.length > 0,
+        disableDeselect: false,
+        order:
+          selectedItems.length === 0
+            ? undefined
+            : Math.min(...selectedItems.map(({ order }) => order)),
+      },
+    ];
+  });
+  const scalars = input.contract.outputCatalog
+    .filter(({ outputId }) => !groupedOutputIds.has(outputId))
+    .map((output): PaneItemManagerEntryV3 => {
+      const selectedItem = selectedById.get(output.outputId);
+      return {
+        ...resolvePaneItemManagerPresentationV3({
+          kind: "output",
+          id: output.outputId,
+          storedLabel: selectedItem?.label,
+          locale: input.locale,
+          catalogFacts: {
+            outputKind: output.kind,
+          },
+        }),
+        selected: selectedItem !== undefined,
+        disableDeselect: false,
+        order: selectedItem?.order,
+      };
+    });
+  return [...summaries, ...scalars];
+}
+
 function ControlPaneEditorV3({
   contract,
+  dataSectionTitle,
+  initialItemIntent,
+  locale,
   pane,
   scenarios,
   strings,
   onChange,
 }: Readonly<{
   contract: ModelContractV2;
+  dataSectionTitle: string;
+  initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceControlPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   strings: WorkbenchPaneEditorStringsV3;
@@ -1613,7 +1886,7 @@ function ControlPaneEditorV3({
     <>
       <section
         id="pane-settings-binding-v3"
-        className="scroll-mt-4 space-y-4"
+        className="workbench-pane-settings-section space-y-4"
       >
         <EditorSectionHeadingV3>
           {strings.bindingSection}
@@ -1624,40 +1897,43 @@ function ControlPaneEditorV3({
           allowMultipleFixed
           fixedDescription={strings.fixedBindingHint}
           fixedLabel={strings.fixedBinding}
-          fixedScenarioIds={pane.binding.mode === "fixed"
-            ? pane.binding.scenarioIds
-            : []}
+          fixedScenarioIds={
+            pane.binding.mode === "fixed" ? pane.binding.scenarioIds : []
+          }
           mode={pane.binding.mode}
           paneId={pane.paneId}
           scenarios={scenarios}
-          onChange={(mode, scenarioIds) => onChange({
-            ...pane,
-            binding: mode === "active-slot"
-              ? { mode: "active-slot" }
-              : { mode: "fixed", scenarioIds },
-          })}
+          onChange={(mode, scenarioIds) =>
+            onChange({
+              ...pane,
+              binding:
+                mode === "active-slot"
+                  ? { mode: "active-slot" }
+                  : { mode: "fixed", scenarioIds },
+            })
+          }
         />
       </section>
 
       <PaneItemManagerV3
         sectionId="pane-settings-data-v3"
-        title={strings.controlCatalog}
+        initialItemIntent={initialItemIntent}
+        title={dataSectionTitle}
         emptyText={strings.emptyCatalog}
         entries={contract.controlCatalog.map((control) => {
           const selectedItem = pane.items.find(
             ({ controlId }) => controlId === control.controlId,
           );
           return {
-            id: control.controlId,
-            defaultLabel: controlLabelV3(control.controlId),
-            label: selectedItem?.label,
+            ...resolvePaneItemManagerPresentationV3({
+              kind: "control",
+              id: control.controlId,
+              storedLabel: selectedItem?.label,
+              locale,
+            }),
             selected: selectedItem !== undefined,
             disableDeselect: false,
             order: selectedItem?.order,
-            meta: `${control.minimum}–${control.maximum} ${control.unit}`,
-            badge: selectedItem?.presentation.kind === "buttons"
-              ? strings.buttonsPresentation
-              : strings.sliderPresentation,
           };
         })}
         strings={strings}
@@ -1675,7 +1951,8 @@ function ControlPaneEditorV3({
           onChange({
             ...pane,
             items: pane.items.filter((item) => item.controlId !== controlId),
-          })}
+          })
+        }
         onReorder={(orderedIds) =>
           onChange({
             ...pane,
@@ -1684,7 +1961,8 @@ function ControlPaneEditorV3({
               orderedIds,
               (item) => item.controlId,
             ),
-          })}
+          })
+        }
         onLabelChange={(controlId, label) =>
           onChange({
             ...pane,
@@ -1694,45 +1972,95 @@ function ControlPaneEditorV3({
           })
         }
         renderItemEditor={(controlId) => {
-          const item = pane.items.find((candidate) =>
-            candidate.controlId === controlId);
-          const definition = contract.controlCatalog.find((candidate) =>
-            candidate.controlId === controlId);
-          return item === undefined || definition === undefined
-            ? null
-            : (
-              <ControlItemPresentationEditorV3
-                definition={definition}
-                item={item}
-                strings={strings}
-                onChange={(nextItem) =>
-                  onChange({
-                    ...pane,
-                    items: pane.items.map((candidate) =>
-                      candidate.controlId === controlId
-                        ? nextItem
-                        : candidate),
-                  })}
-              />
-            );
+          const item = pane.items.find(
+            (candidate) => candidate.controlId === controlId,
+          );
+          const definition = contract.controlCatalog.find(
+            (candidate) => candidate.controlId === controlId,
+          );
+          return item === undefined || definition === undefined ? null : (
+            <ControlItemPresentationEditorV3
+              definition={definition}
+              item={item}
+              strings={strings}
+              onChange={(nextItem) =>
+                onChange({
+                  ...pane,
+                  items: pane.items.map((candidate) =>
+                    candidate.controlId === controlId ? nextItem : candidate,
+                  ),
+                })
+              }
+            />
+          );
         }}
         renderItemPreview={(controlId) => {
-          const item = pane.items.find((candidate) =>
-            candidate.controlId === controlId);
-          const definition = contract.controlCatalog.find((candidate) =>
-            candidate.controlId === controlId);
-          return item === undefined || definition === undefined
-            ? null
-            : (
-              <ControlItemPreviewV3
-                definition={definition}
-                item={item}
-              />
-            );
+          const item = pane.items.find(
+            (candidate) => candidate.controlId === controlId,
+          );
+          const definition = contract.controlCatalog.find(
+            (candidate) => candidate.controlId === controlId,
+          );
+          return item === undefined || definition === undefined ? null : (
+            <ControlItemPreviewV3
+              definition={definition}
+              item={item}
+              label={
+                resolvePaneItemManagerPresentationV3({
+                  kind: "control",
+                  id: controlId,
+                  storedLabel: item.label,
+                  locale,
+                }).label
+              }
+            />
+          );
         }}
       />
     </>
   );
+}
+
+/*
+ * Outputs and controls differ only in their numerical contract adapter. This
+ * helper owns their shared presentation identity, localization, and legacy
+ * label compatibility before both flow into PaneItemManagerV3.
+ */
+function resolvePaneItemManagerPresentationV3(
+  input: Readonly<{
+    kind: "control" | "output";
+    id: string;
+    storedLabel: string | undefined;
+    locale: "en" | "ja";
+    catalogFacts?: Readonly<{
+      outputKind?: string;
+    }>;
+  }>,
+): Pick<
+  PaneItemManagerEntryV3,
+  "id" | "defaultLabel" | "label" | "presentation"
+> {
+  const legacyDefaultLabel =
+    input.kind === "output"
+      ? outputLabelV3(input.id)
+      : controlLabelV3(input.id);
+  const presentation = resolveStudioItemPresentationV1({
+    kind: input.kind,
+    itemId: input.id,
+    fallbackEnglishLabel: legacyDefaultLabel,
+    locale: input.locale,
+    catalogFacts: input.catalogFacts,
+  });
+  return {
+    id: input.id,
+    defaultLabel: presentation.label,
+    label: resolveStudioSurfaceItemLabelV1({
+      storedLabel: input.storedLabel,
+      legacyDefaultLabel,
+      presentation,
+    }),
+    presentation,
+  };
 }
 
 function ControlItemPresentationEditorV3({
@@ -1746,49 +2074,48 @@ function ControlItemPresentationEditorV3({
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (item: ExperimentSurfaceControlItemV2) => void;
 }>) {
-  const buttonPresentation = item.presentation.kind === "buttons"
-    ? item.presentation
-    : null;
+  const buttonPresentation =
+    item.presentation.kind === "buttons" ? item.presentation : null;
   return (
     <div className="grid gap-3">
-      <p className="text-[10px] leading-4 text-wb-subtle">
-        {strings.controlPresentationHint}
-      </p>
       <fieldset className="grid gap-1.5">
         <legend className="text-[10px] font-medium text-wb-subtle">
           {strings.controlPresentation}
         </legend>
         <div
-          className="grid grid-cols-2 gap-0.5 rounded-lg bg-wb-input p-0.5"
+          className="grid grid-cols-2 gap-1 rounded-lg bg-wb-input p-1"
           role="radiogroup"
         >
           {(["slider", "buttons"] as const).map((kind) => {
             const selected = item.presentation.kind === kind;
-            const label = kind === "slider"
-              ? strings.sliderPresentation
-              : strings.buttonsPresentation;
+            const label =
+              kind === "slider"
+                ? strings.sliderPresentation
+                : strings.buttonsPresentation;
             return (
               <button
                 key={kind}
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                className={`min-h-8 rounded-md px-2.5 text-[10px] font-medium transition-[color,background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
-                  selected
-                    ? "bg-wb-panel text-wb-text shadow-sm"
-                    : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-                }`}
-                onClick={() => onChange({
-                  ...item,
-                  presentation: kind === "buttons"
-                    ? {
-                        kind: "buttons",
-                        options: item.presentation.kind === "buttons"
-                          ? item.presentation.options
-                          : defaultWorkbenchControlButtonOptionsV3(definition),
-                      }
-                    : { kind: "slider" },
-                })}
+                className="workbench-selection-button min-h-8 rounded-md px-2.5 text-[10px] font-medium transition-[color,background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                onClick={() =>
+                  onChange({
+                    ...item,
+                    presentation:
+                      kind === "buttons"
+                        ? {
+                            kind: "buttons",
+                            options:
+                              item.presentation.kind === "buttons"
+                                ? item.presentation.options
+                                : defaultWorkbenchControlButtonOptionsV3(
+                                    definition,
+                                  ),
+                          }
+                        : { kind: "slider" },
+                  })
+                }
               >
                 {label}
               </button>
@@ -1810,23 +2137,29 @@ function ControlItemPresentationEditorV3({
               siblingOptions={buttonPresentation.options.filter(
                 (_, index) => index !== optionIndex,
               )}
-              onChange={(nextOption) => onChange({
-                ...item,
-                presentation: {
-                  kind: "buttons",
-                  options: buttonPresentation.options.map((candidate, index) =>
-                    index === optionIndex ? nextOption : candidate),
-                },
-              })}
-              onRemove={() => onChange({
-                ...item,
-                presentation: {
-                  kind: "buttons",
-                  options: buttonPresentation.options.filter(
-                    (_, index) => index !== optionIndex,
-                  ),
-                },
-              })}
+              onChange={(nextOption) =>
+                onChange({
+                  ...item,
+                  presentation: {
+                    kind: "buttons",
+                    options: buttonPresentation.options.map(
+                      (candidate, index) =>
+                        index === optionIndex ? nextOption : candidate,
+                    ),
+                  },
+                })
+              }
+              onRemove={() =>
+                onChange({
+                  ...item,
+                  presentation: {
+                    kind: "buttons",
+                    options: buttonPresentation.options.filter(
+                      (_, index) => index !== optionIndex,
+                    ),
+                  },
+                })
+              }
             />
           ))}
           <button
@@ -1859,21 +2192,23 @@ function ControlItemPresentationEditorV3({
 function ControlItemPreviewV3({
   definition,
   item,
+  label,
 }: Readonly<{
   definition: ModelContractV2["controlCatalog"][number];
   item: ExperimentSurfaceControlItemV2;
+  label: string;
 }>) {
   const value = definition.defaultValue;
-  const progress = definition.maximum === definition.minimum
-    ? 0
-    : ((value - definition.minimum) /
-      (definition.maximum - definition.minimum)) * 100;
+  const progress =
+    definition.maximum === definition.minimum
+      ? 0
+      : ((value - definition.minimum) /
+          (definition.maximum - definition.minimum)) *
+        100;
   return (
     <div className="workbench-control-inspector-preview">
       <div className="flex min-w-0 items-baseline justify-between gap-3">
-        <p className="truncate text-xs font-medium text-wb-text">
-          {item.label}
-        </p>
+        <p className="truncate text-xs font-medium text-wb-text">{label}</p>
         <output
           className="shrink-0 font-mono text-xs text-wb-text"
           aria-label={`${value} ${definition.unit}`}
@@ -1943,8 +2278,8 @@ function ControlButtonOptionEditorV3({
   const commitLabel = () => {
     const label = labelDraft.trim();
     if (
-      label.length === 0
-      || siblingOptions.some((candidate) => candidate.label === label)
+      label.length === 0 ||
+      siblingOptions.some((candidate) => candidate.label === label)
     ) {
       setLabelDraft(option.label);
       return;
@@ -2032,10 +2367,12 @@ function defaultWorkbenchControlButtonOptionsV3(
   ].map((value) => normalizeWorkbenchControlOptionValueV3(value, definition));
   const values = [...new Set(candidates)].slice(0, 3);
   if (values.length < 2) values.push(definition.maximum);
-  return values.map((value) => Object.freeze({
-    label: String(value),
-    value,
-  }));
+  return values.map((value) =>
+    Object.freeze({
+      label: String(value),
+      value,
+    }),
+  );
 }
 
 function nextWorkbenchControlButtonOptionV3(
@@ -2078,25 +2415,24 @@ function normalizeWorkbenchControlOptionValueV3(
     definition.maximum,
     Math.max(definition.minimum, value),
   );
-  const steps = Math.round(
-    (clamped - definition.minimum) / definition.step,
-  );
+  const steps = Math.round((clamped - definition.minimum) / definition.step);
   const normalized = definition.minimum + steps * definition.step;
-  return Number(Math.min(
-    definition.maximum,
-    Math.max(definition.minimum, normalized),
-  ).toPrecision(12));
+  return Number(
+    Math.min(
+      definition.maximum,
+      Math.max(definition.minimum, normalized),
+    ).toPrecision(12),
+  );
 }
 
 type PaneItemManagerEntryV3 = Readonly<{
   id: string;
   defaultLabel: string;
   label: string | undefined;
+  presentation: ResolvedStudioItemPresentationV1;
   selected: boolean;
   disableDeselect: boolean;
   order: number | undefined;
-  meta?: string;
-  badge?: string;
 }>;
 
 type PaneItemDrawerViewV3 =
@@ -2112,17 +2448,33 @@ type PaneItemDrawerStateV3 = Readonly<{
   view: PaneItemDrawerViewV3;
 }>;
 
+type PaneItemCatalogTooltipStateV3 = Readonly<{
+  description: string;
+  itemId: string;
+  label: string;
+  left: number;
+  placement: "above" | "below";
+  top: number;
+}>;
+
 const PANE_ITEM_CATALOG_CATEGORY_ORDER_V3 = Object.freeze([
   "hemodynamics",
-  "rhythm",
-  "ventilation",
+  "myocardium",
   "valves",
   "coronary",
+  "oxygen",
+  "pericardium",
+  "rhythm",
+  "ventilation",
   "mechanicalSupport",
   "advanced",
 ] as const satisfies readonly PaneItemCatalogCategoryV3[]);
 
+const PANE_ITEM_CATALOG_DRAG_TYPE_V3 =
+  "application/x-circleheart-pane-catalog-item-v3";
+
 function PaneItemManagerV3({
+  initialItemIntent,
   sectionId,
   title,
   emptyText,
@@ -2135,6 +2487,7 @@ function PaneItemManagerV3({
   renderItemEditor,
   renderItemPreview,
 }: Readonly<{
+  initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
   sectionId: string;
   title: string;
   emptyText: string;
@@ -2154,54 +2507,128 @@ function PaneItemManagerV3({
     view: { kind: "catalog" },
   });
   const [menuItemId, setMenuItemId] = React.useState<string | null>(null);
+  const [catalogTooltip, setCatalogTooltip] =
+    React.useState<PaneItemCatalogTooltipStateV3 | null>(null);
+  const [catalogDraggedItemId, setCatalogDraggedItemId] = React.useState<
+    string | null
+  >(null);
   const [draggedItemId, setDraggedItemId] = React.useState<string | null>(null);
   const [dragTarget, setDragTarget] = React.useState<Readonly<{
     itemId: string;
     edge: "before" | "after";
   }> | null>(null);
   const [expandedCategories, setExpandedCategories] = React.useState(
-    () => new Set<PaneItemCatalogCategoryV3>(
-      PANE_ITEM_CATALOG_CATEGORY_ORDER_V3.filter(
-        (category) => category !== "advanced",
-      ),
-    ),
+    () => new Set<PaneItemCatalogCategoryV3>(),
   );
   const drawerRef = React.useRef<HTMLElement | null>(null);
   const returnFocusRef = React.useRef<HTMLElement | null>(null);
+  const initialIntentHandledRef = React.useRef(false);
+  const catalogTooltipId = React.useId();
+  const catalogTooltipShowTimerRef = React.useRef<number | null>(null);
+  const catalogTooltipWarmResetTimerRef = React.useRef<number | null>(null);
+  const catalogTooltipWarmRef = React.useRef(false);
   const selected = entries
     .filter((entry) => entry.selected)
     .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const normalizedQuery = query.trim();
   const catalogMatches = entries.filter((entry) => {
-    if (normalizedQuery.length === 0) return true;
-    return [entry.defaultLabel, entry.label, entry.id, entry.meta]
-      .filter((candidate): candidate is string => candidate !== undefined)
-      .some((candidate) =>
-        candidate.toLocaleLowerCase().includes(normalizedQuery));
+    if (normalizedQuery.length === 0) return !entry.selected;
+    return studioItemPresentationMatchesQueryV1(
+      entry.presentation,
+      normalizedQuery,
+      [entry.defaultLabel, entry.label],
+    );
   });
-  const activeItemId = drawer.view.kind === "item"
-    ? drawer.view.itemId
-    : null;
-  const active = activeItemId !== null
-    ? selected.find((entry) => entry.id === activeItemId) ?? null
-    : null;
-  const activePreview = active === null
-    ? null
-    : renderItemPreview?.(active.id) ?? null;
+  const activeItemId = drawer.view.kind === "item" ? drawer.view.itemId : null;
+  const active =
+    activeItemId !== null
+      ? (selected.find((entry) => entry.id === activeItemId) ?? null)
+      : null;
+  const activePreview =
+    active === null ? null : (renderItemPreview?.(active.id) ?? null);
+
+  const hideCatalogTooltip = React.useCallback(() => {
+    if (catalogTooltipShowTimerRef.current !== null) {
+      window.clearTimeout(catalogTooltipShowTimerRef.current);
+      catalogTooltipShowTimerRef.current = null;
+    }
+    setCatalogTooltip(null);
+    if (catalogTooltipWarmResetTimerRef.current !== null) {
+      window.clearTimeout(catalogTooltipWarmResetTimerRef.current);
+    }
+    catalogTooltipWarmResetTimerRef.current = window.setTimeout(() => {
+      catalogTooltipWarmRef.current = false;
+      catalogTooltipWarmResetTimerRef.current = null;
+    }, 500);
+  }, []);
+
+  const showCatalogTooltip = React.useCallback(
+    (entry: PaneItemManagerEntryV3, anchor: HTMLElement) => {
+      const description = entry.presentation.description;
+      if (description.length === 0) return;
+      if (catalogTooltipShowTimerRef.current !== null) {
+        window.clearTimeout(catalogTooltipShowTimerRef.current);
+      }
+      if (catalogTooltipWarmResetTimerRef.current !== null) {
+        window.clearTimeout(catalogTooltipWarmResetTimerRef.current);
+        catalogTooltipWarmResetTimerRef.current = null;
+      }
+      const bounds = anchor.getBoundingClientRect();
+      const tooltipWidth = Math.min(288, window.innerWidth - 32);
+      const left = Math.max(
+        16,
+        Math.min(bounds.left, window.innerWidth - tooltipWidth - 16),
+      );
+      const placement =
+        bounds.bottom + 96 > window.innerHeight ? "above" : "below";
+      const present = () => {
+        setCatalogTooltip({
+          description,
+          itemId: entry.id,
+          label: entry.defaultLabel,
+          left,
+          placement,
+          top: placement === "above" ? bounds.top - 6 : bounds.bottom + 6,
+        });
+        catalogTooltipWarmRef.current = true;
+        catalogTooltipShowTimerRef.current = null;
+      };
+      if (catalogTooltipWarmRef.current) {
+        present();
+        return;
+      }
+      catalogTooltipShowTimerRef.current = window.setTimeout(present, 280);
+    },
+    [],
+  );
+
+  React.useEffect(
+    () => () => {
+      if (catalogTooltipShowTimerRef.current !== null) {
+        window.clearTimeout(catalogTooltipShowTimerRef.current);
+      }
+      if (catalogTooltipWarmResetTimerRef.current !== null) {
+        window.clearTimeout(catalogTooltipWarmResetTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const closeDrawer = React.useCallback(() => {
+    hideCatalogTooltip();
     setDrawer((current) => ({ ...current, open: false }));
     drawerContext?.setOpen(false);
     window.requestAnimationFrame(() => {
       const returnFocus = returnFocusRef.current;
       if (returnFocus?.isConnected) returnFocus.focus();
     });
-  }, [drawerContext]);
+  }, [drawerContext, hideCatalogTooltip]);
 
   React.useEffect(() => {
     const setOpen = drawerContext?.setOpen;
+    setOpen?.(drawer.open);
     return () => setOpen?.(false);
-  }, [drawerContext?.setOpen]);
+  }, [drawer.open, drawerContext?.setOpen]);
 
   React.useEffect(() => {
     if (!drawer.open || drawerContext === null) return undefined;
@@ -2212,6 +2639,17 @@ function PaneItemManagerV3({
   React.useEffect(() => {
     if (!drawer.open) return undefined;
     const animationFrame = window.requestAnimationFrame(() => {
+      if (
+        drawer.view.kind === "catalog" &&
+        window.matchMedia(
+          "(min-width: 640px) and (hover: hover) and (pointer: fine)",
+        ).matches
+      ) {
+        drawerRef.current
+          ?.querySelector<HTMLElement>("[data-pane-drawer-search]")
+          ?.focus();
+        return;
+      }
       const candidates = Array.from(
         drawerRef.current?.querySelectorAll<HTMLElement>(
           "[data-pane-drawer-initial-focus]",
@@ -2220,11 +2658,7 @@ function PaneItemManagerV3({
       candidates.find((candidate) => candidate.offsetParent !== null)?.focus();
     });
     return () => window.cancelAnimationFrame(animationFrame);
-  }, [
-    drawer.open,
-    drawer.view.kind,
-    activeItemId,
-  ]);
+  }, [drawer.open, drawer.view.kind, activeItemId]);
 
   React.useEffect(() => {
     if (
@@ -2252,19 +2686,27 @@ function PaneItemManagerV3({
     return () => document.removeEventListener("pointerdown", closeMenu);
   }, [menuItemId]);
 
-  const rememberReturnFocus = () => {
+  const rememberReturnFocus = React.useCallback(() => {
     if (!drawer.open) {
-      returnFocusRef.current = document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+      returnFocusRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
     }
-  };
-  const openCatalog = () => {
+  }, [drawer.open]);
+  const openCatalog = React.useCallback(() => {
     rememberReturnFocus();
     setMenuItemId(null);
     drawerContext?.setOpen(true);
     setDrawer({ open: true, view: { kind: "catalog" } });
-  };
+  }, [drawerContext, rememberReturnFocus]);
+
+  React.useEffect(() => {
+    if (initialIntentHandledRef.current || initialItemIntent !== "add") return;
+    initialIntentHandledRef.current = true;
+    openCatalog();
+  }, [initialItemIntent, openCatalog]);
+
   const openInspector = (itemId: string, returnToCatalog = false) => {
     rememberReturnFocus();
     setMenuItemId(null);
@@ -2286,212 +2728,308 @@ function PaneItemManagerV3({
     onReorder(orderedIds);
   };
 
-  const renderCatalogEntry = (entry: PaneItemManagerEntryV3) => (
-    <div
-      key={entry.id}
-      className="group flex min-h-12 items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-wb-hover"
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs font-medium text-wb-text">
-          {entry.defaultLabel}
-        </span>
-        <span className="block truncate font-mono text-[9px] text-wb-subtle">
-          {entry.meta ?? entry.id}
-        </span>
-      </span>
-      {entry.selected ? (
-        <button
-          type="button"
-          className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[10px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-active hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={`${strings.editItem}: ${entry.label ?? entry.defaultLabel}`}
-          onClick={() => openInspector(entry.id, true)}
-        >
-          <Check className="h-3.5 w-3.5 text-wb-accent" aria-hidden="true" />
-          {strings.catalogAdded}
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-accent transition-[color,background-color,transform] duration-150 hover:bg-wb-active active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-          aria-label={`${strings.addCatalogItem}: ${entry.defaultLabel}`}
-          title={strings.addCatalogItem}
-          onClick={() => onAdd(entry.id)}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-        </button>
-      )}
-    </div>
-  );
-
-  const drawerPortal = drawerContext?.host === null ||
-      drawerContext?.host === undefined
-    ? null
-    : createPortal(
-      <aside
-        ref={drawerRef}
-        aria-hidden={!drawer.open}
-        aria-label={drawer.view.kind === "catalog"
-          ? strings.catalogDrawerTitle
-          : active?.label ?? active?.defaultLabel ?? strings.editItem}
-        className="workbench-pane-context-drawer pointer-events-auto absolute inset-y-0 right-0 flex flex-col bg-wb-panel text-wb-text"
-        data-open={drawer.open ? "true" : "false"}
-        data-testid="pane-settings-context-drawer-v3"
-        inert={!drawer.open}
-        onKeyDown={(event) => {
-          if (event.key !== "Escape") return;
-          event.preventDefault();
-          event.stopPropagation();
-          closeDrawer();
+  const renderCatalogEntry = (entry: PaneItemManagerEntryV3) => {
+    const descriptionId = `${catalogTooltipId}-${entry.id}`;
+    return (
+      <div
+        key={entry.id}
+        draggable={!entry.selected}
+        data-catalog-dragging={
+          catalogDraggedItemId === entry.id ? "true" : "false"
+        }
+        className="workbench-pane-catalog-row group rounded-lg px-2 py-1.5 hover:bg-wb-hover"
+        onPointerEnter={(event) =>
+          showCatalogTooltip(entry, event.currentTarget)
+        }
+        onPointerLeave={hideCatalogTooltip}
+        onFocusCapture={(event) =>
+          showCatalogTooltip(entry, event.currentTarget)
+        }
+        onBlurCapture={(event) => {
+          if (
+            !(event.relatedTarget instanceof Node) ||
+            !event.currentTarget.contains(event.relatedTarget)
+          ) {
+            hideCatalogTooltip();
+          }
+        }}
+        onDragStart={(event) => {
+          hideCatalogTooltip();
+          if (entry.selected) {
+            event.preventDefault();
+            return;
+          }
+          event.dataTransfer.effectAllowed = "copy";
+          event.dataTransfer.setData(PANE_ITEM_CATALOG_DRAG_TYPE_V3, entry.id);
+          setCatalogDraggedItemId(entry.id);
+        }}
+        onDragEnd={() => {
+          setCatalogDraggedItemId(null);
+          hideCatalogTooltip();
         }}
       >
-        <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-wb-line px-3.5">
-          {drawer.view.kind === "item" && drawer.view.returnToCatalog ? (
-              <button
-                type="button"
-                data-pane-drawer-initial-focus
-                aria-label={strings.backToCatalog}
-                title={strings.backToCatalog}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                onClick={() => setDrawer({
-                  open: true,
-                  view: { kind: "catalog" },
-                })}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                data-pane-drawer-initial-focus
-                aria-label={strings.closeDrawer}
-                title={strings.closeDrawer}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:hidden"
-                onClick={closeDrawer}
-              >
-                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
-              {drawer.view.kind === "catalog"
-                ? strings.catalogDrawerTitle
-                : active?.label ?? active?.defaultLabel ?? strings.editItem}
-            </p>
-            {drawer.view.kind === "item" && active !== null && (
-              <p className="mt-0.5 truncate font-mono text-[9px] text-wb-subtle">
-                {active.id}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            {...(drawer.view.kind === "catalog" ||
-                !drawer.view.returnToCatalog
-              ? { "data-pane-drawer-initial-focus": true }
-              : {})}
-            aria-label={strings.closeDrawer}
-            title={strings.closeDrawer}
-            className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
-            onClick={closeDrawer}
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </header>
-
-        {drawer.view.kind === "catalog" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto px-3.5 pb-6 pt-3">
-            <label className="relative block">
-              <span className="sr-only">{strings.searchCatalog}</span>
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-wb-subtle"
+        <div className="flex min-h-10 items-center gap-2">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-xs font-medium text-wb-text">
+              {entry.defaultLabel}
+            </span>
+          </span>
+          {entry.presentation.description.length > 0 && (
+            <span id={descriptionId} className="sr-only">
+              {entry.presentation.description}
+            </span>
+          )}
+          {entry.selected ? (
+            <button
+              type="button"
+              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-[10px] font-medium text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-active hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              aria-label={`${strings.editItem}: ${entry.label ?? entry.defaultLabel}`}
+              aria-describedby={
+                entry.presentation.description.length > 0
+                  ? descriptionId
+                  : undefined
+              }
+              onClick={() => {
+                hideCatalogTooltip();
+                openInspector(entry.id, true);
+              }}
+            >
+              <Check
+                className="h-3.5 w-3.5 text-wb-accent"
                 aria-hidden="true"
               />
-              <input
-                type="search"
-                value={query}
-                placeholder={strings.searchCatalog}
-                className="h-10 w-full rounded-lg bg-wb-input pl-9 pr-3 text-xs text-wb-text outline-none ring-1 ring-transparent placeholder:text-wb-subtle focus:ring-wb-accent"
-                onChange={(event) => setQuery(event.currentTarget.value)}
-              />
-            </label>
-            {catalogMatches.length === 0 ? (
-              <p className="px-2 py-6 text-xs text-wb-subtle">
-                {strings.noCatalogMatches}
-              </p>
-            ) : normalizedQuery.length > 0 ? (
-              <div className="mt-3 grid gap-0.5">
-                {catalogMatches.map(renderCatalogEntry)}
+              {strings.catalogAdded}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-accent transition-[color,background-color,transform] duration-150 hover:bg-wb-active active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              aria-label={`${strings.addCatalogItem}: ${entry.defaultLabel}`}
+              aria-describedby={
+                entry.presentation.description.length > 0
+                  ? descriptionId
+                  : undefined
+              }
+              title={strings.addCatalogItem}
+              onClick={() => {
+                hideCatalogTooltip();
+                onAdd(entry.id);
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const catalogTooltipPortal =
+    catalogTooltip === null || typeof document === "undefined"
+      ? null
+      : createPortal(
+          <div
+            id={`${catalogTooltipId}-visible`}
+            role="tooltip"
+            className="workbench-pane-catalog-tooltip"
+            data-placement={catalogTooltip.placement}
+            data-tooltip-item-id={catalogTooltip.itemId}
+            style={{
+              left: catalogTooltip.left,
+              top: catalogTooltip.top,
+            }}
+          >
+            <span className="sr-only">{catalogTooltip.label}: </span>
+            {catalogTooltip.description}
+          </div>,
+          document.body,
+        );
+
+  const drawerPortal =
+    drawerContext?.host === null || drawerContext?.host === undefined
+      ? null
+      : createPortal(
+          <aside
+            ref={drawerRef}
+            aria-hidden={!drawer.open}
+            aria-label={
+              drawer.view.kind === "catalog"
+                ? strings.catalogDrawerTitle
+                : (active?.label ?? active?.defaultLabel ?? strings.editItem)
+            }
+            className="workbench-pane-context-drawer pointer-events-auto absolute inset-y-0 right-0 flex flex-col bg-wb-panel text-wb-text"
+            data-open={drawer.open ? "true" : "false"}
+            data-testid="pane-settings-context-drawer-v3"
+            inert={!drawer.open}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              closeDrawer();
+            }}
+          >
+            <header className="flex min-h-14 shrink-0 items-center gap-2 border-b border-wb-line px-3.5">
+              {drawer.view.kind === "item" && drawer.view.returnToCatalog ? (
+                <button
+                  type="button"
+                  data-pane-drawer-initial-focus
+                  aria-label={strings.backToCatalog}
+                  title={strings.backToCatalog}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  onClick={() =>
+                    setDrawer({
+                      open: true,
+                      view: { kind: "catalog" },
+                    })
+                  }
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  data-pane-drawer-initial-focus
+                  aria-label={strings.closeDrawer}
+                  title={strings.closeDrawer}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:hidden"
+                  onClick={closeDrawer}
+                >
+                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
+                  {drawer.view.kind === "catalog"
+                    ? strings.catalogDrawerTitle
+                    : (active?.label ??
+                      active?.defaultLabel ??
+                      strings.editItem)}
+                </p>
+                {drawer.view.kind === "item" &&
+                  active !== null &&
+                  active.presentation.description.length > 0 && (
+                    <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-wb-subtle">
+                      {active.presentation.description}
+                    </p>
+                  )}
               </div>
-            ) : (
-              <div className="mt-4 grid gap-2">
-                {PANE_ITEM_CATALOG_CATEGORY_ORDER_V3.map((category) => {
-                  const categoryEntries = catalogMatches.filter((entry) =>
-                    paneItemCatalogCategoryV3(entry.id) === category);
-                  if (categoryEntries.length === 0) return null;
-                  const expanded = expandedCategories.has(category);
-                  return (
-                    <details
-                      key={category}
-                      open={expanded}
-                      className="group/category rounded-lg"
-                      onToggle={(event) => {
-                        const isOpen = event.currentTarget.open;
-                        setExpandedCategories((current) => {
-                          const next = new Set(current);
-                          if (isOpen) next.add(category);
-                          else next.delete(category);
-                          return next;
-                        });
-                      }}
-                    >
-                      <summary className="flex min-h-9 cursor-pointer list-none items-center gap-2 rounded-md px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-wb-subtle hover:bg-wb-hover hover:text-wb-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
-                        <ChevronDown
-                          className="h-3.5 w-3.5 transition-transform duration-150 group-open/category:rotate-180"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          {strings.catalogCategories[category]}
-                        </span>
-                        <span className="font-mono text-[9px] font-normal tracking-normal">
-                          {categoryEntries.length}
-                        </span>
-                      </summary>
-                      <div className="mt-0.5 grid gap-0.5">
-                        {categoryEntries.map(renderCatalogEntry)}
-                      </div>
-                    </details>
-                  );
-                })}
+              <button
+                type="button"
+                {...(drawer.view.kind === "catalog" ||
+                !drawer.view.returnToCatalog
+                  ? { "data-pane-drawer-initial-focus": true }
+                  : {})}
+                aria-label={strings.closeDrawer}
+                title={strings.closeDrawer}
+                className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-md text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:inline-flex"
+                onClick={closeDrawer}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </header>
+
+            {drawer.view.kind === "catalog" ? (
+              <div
+                className="min-h-0 flex-1 overflow-y-auto px-3.5 pb-6 pt-3"
+                onScroll={hideCatalogTooltip}
+              >
+                <label className="relative block">
+                  <span className="sr-only">{strings.searchCatalog}</span>
+                  <Search
+                    className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-wb-subtle"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    data-pane-drawer-search
+                    value={query}
+                    placeholder={strings.searchCatalog}
+                    className="h-10 w-full rounded-lg bg-wb-input pl-9 pr-3 text-xs text-wb-text outline-none ring-1 ring-transparent placeholder:text-wb-subtle focus:ring-wb-accent"
+                    onChange={(event) => setQuery(event.currentTarget.value)}
+                  />
+                </label>
+                {catalogMatches.length === 0 ? (
+                  <p className="px-2 py-6 text-xs text-wb-subtle">
+                    {strings.noCatalogMatches}
+                  </p>
+                ) : normalizedQuery.length > 0 ? (
+                  <div className="mt-3 grid gap-0.5">
+                    {catalogMatches.map(renderCatalogEntry)}
+                  </div>
+                ) : (
+                  <div className="mt-4 grid gap-2">
+                    {PANE_ITEM_CATALOG_CATEGORY_ORDER_V3.map((category) => {
+                      const categoryEntries = catalogMatches.filter(
+                        (entry) => entry.presentation.category === category,
+                      );
+                      if (categoryEntries.length === 0) return null;
+                      const expanded = expandedCategories.has(category);
+                      return (
+                        <details
+                          key={category}
+                          open={expanded}
+                          className="group/category rounded-lg"
+                          onToggle={(event) => {
+                            const isOpen = event.currentTarget.open;
+                            setExpandedCategories((current) => {
+                              const next = new Set(current);
+                              if (isOpen) next.add(category);
+                              else next.delete(category);
+                              return next;
+                            });
+                          }}
+                        >
+                          <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-wb-soft/40 px-2.5 text-xs font-semibold text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
+                            <ChevronDown
+                              className="h-3.5 w-3.5 transition-transform duration-150 group-open/category:rotate-180"
+                              aria-hidden="true"
+                            />
+                            <span className="min-w-0 flex-1 truncate">
+                              {strings.catalogCategories[category]}
+                            </span>
+                            <span className="inline-flex min-w-6 justify-center rounded-full bg-wb-panel px-1.5 py-0.5 font-mono text-[10px] font-medium text-wb-subtle">
+                              {categoryEntries.length}
+                            </span>
+                          </summary>
+                          <div className="ml-3 mt-1 grid gap-0.5 border-l border-wb-line pb-1 pl-2">
+                            {categoryEntries.map(renderCatalogEntry)}
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : active === null ? null : (
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-4">
+                <div className="grid gap-5">
+                  <CommitTextInputV3
+                    label={strings.label}
+                    value={active.label ?? active.defaultLabel}
+                    onCommit={(label) => onLabelChange(active.id, label)}
+                  />
+                  {renderItemEditor?.(active.id)}
+                  {activePreview !== null && (
+                    <section className="grid gap-2.5 border-t border-wb-line pt-4">
+                      <h4 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
+                        {strings.preview}
+                      </h4>
+                      {activePreview}
+                    </section>
+                  )}
+                </div>
               </div>
             )}
-          </div>
-        ) : active === null ? null : (
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-4">
-            <div className="grid gap-5">
-              <CommitTextInputV3
-                label={strings.label}
-                value={active.label ?? active.defaultLabel}
-                onCommit={(label) => onLabelChange(active.id, label)}
-              />
-              {renderItemEditor?.(active.id)}
-              {activePreview !== null && (
-                <section className="grid gap-2.5 border-t border-wb-line pt-4">
-                  <h4 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
-                    {strings.preview}
-                  </h4>
-                  {activePreview}
-                </section>
-              )}
-            </div>
-          </div>
-        )}
-      </aside>,
-      drawerContext.host,
-    );
+          </aside>,
+          drawerContext.host,
+        );
 
   return (
-    <section id={sectionId} className="scroll-mt-4 space-y-4">
-      <div className="flex min-h-9 items-center justify-between gap-3">
+    <section
+      id={sectionId}
+      className="workbench-pane-settings-section space-y-4"
+    >
+      <div className="workbench-settings-section-heading-row flex min-h-9 items-center justify-between gap-3">
         <EditorSectionHeadingV3>{title}</EditorSectionHeadingV3>
         {entries.length > 0 && (
           <button
@@ -2509,7 +3047,31 @@ function PaneItemManagerV3({
           {emptyText}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div
+          className="workbench-pane-items-dropzone space-y-2"
+          data-catalog-drop-active={
+            catalogDraggedItemId === null ? "false" : "true"
+          }
+          onDragOver={(event) => {
+            if (
+              !Array.from(event.dataTransfer.types).includes(
+                PANE_ITEM_CATALOG_DRAG_TYPE_V3,
+              )
+            )
+              return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+          }}
+          onDrop={(event) => {
+            const itemId = event.dataTransfer.getData(
+              PANE_ITEM_CATALOG_DRAG_TYPE_V3,
+            );
+            if (itemId.length === 0) return;
+            event.preventDefault();
+            onAdd(itemId);
+            setCatalogDraggedItemId(null);
+          }}
+        >
           <div className="flex items-center justify-between gap-2 px-1">
             <h4 className="text-[10px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
               {strings.selectedItems}
@@ -2524,52 +3086,62 @@ function PaneItemManagerV3({
               className="flex min-h-16 w-full items-center justify-center rounded-lg bg-wb-soft/45 px-3 text-xs text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
               onClick={openCatalog}
             >
-              <Plus className="mr-2 h-3.5 w-3.5 text-wb-accent" aria-hidden="true" />
+              <Plus
+                className="mr-2 h-3.5 w-3.5 text-wb-accent"
+                aria-hidden="true"
+              />
               {strings.addCatalogItem}
             </button>
           ) : (
             <div className="rounded-lg bg-wb-soft/35 p-1">
               {selected.map((entry, index) => {
                 const label = entry.label ?? entry.defaultLabel;
-                const activeItem = drawer.open &&
+                const activeItem =
+                  drawer.open &&
                   drawer.view.kind === "item" &&
                   drawer.view.itemId === entry.id;
-                const dropEdge = dragTarget?.itemId === entry.id
-                  ? dragTarget.edge
-                  : undefined;
+                const dropEdge =
+                  dragTarget?.itemId === entry.id ? dragTarget.edge : undefined;
                 return (
                   <div
                     key={entry.id}
                     data-pane-item-id={entry.id}
                     data-drop-edge={dropEdge}
-                    data-dragging={draggedItemId === entry.id ? "true" : "false"}
+                    data-dragging={
+                      draggedItemId === entry.id ? "true" : "false"
+                    }
                     className={`workbench-pane-item-row group relative flex min-h-12 items-center gap-1 rounded-md px-1 ${
                       menuItemId === entry.id ? "z-30" : "z-0"
-                    } ${
-                      activeItem ? "bg-wb-active" : "hover:bg-wb-hover"
-                    }`}
+                    } ${activeItem ? "bg-wb-selected" : "hover:bg-wb-hover"}`}
                     onDragOver={(event) => {
-                      if (draggedItemId === null || draggedItemId === entry.id) {
+                      if (
+                        draggedItemId === null ||
+                        draggedItemId === entry.id
+                      ) {
                         return;
                       }
                       event.preventDefault();
-                      const bounds = event.currentTarget.getBoundingClientRect();
+                      const bounds =
+                        event.currentTarget.getBoundingClientRect();
                       setDragTarget({
                         itemId: entry.id,
-                        edge: event.clientY < bounds.top + bounds.height / 2
-                          ? "before"
-                          : "after",
+                        edge:
+                          event.clientY < bounds.top + bounds.height / 2
+                            ? "before"
+                            : "after",
                       });
                     }}
                     onDrop={(event) => {
                       event.preventDefault();
                       if (draggedItemId === null || dragTarget === null) return;
-                      onReorder(reorderPaneItemIdsForDropV3(
-                        selected.map((candidate) => candidate.id),
-                        draggedItemId,
-                        dragTarget.itemId,
-                        dragTarget.edge,
-                      ));
+                      onReorder(
+                        reorderPaneItemIdsForDropV3(
+                          selected.map((candidate) => candidate.id),
+                          draggedItemId,
+                          dragTarget.itemId,
+                          dragTarget.edge,
+                        ),
+                      );
                       setDraggedItemId(null);
                       setDragTarget(null);
                     }}
@@ -2605,7 +3177,7 @@ function PaneItemManagerV3({
                     </button>
                     <button
                       type="button"
-                      aria-label={`${label} ${entry.meta ?? entry.id}`}
+                      aria-label={label}
                       className="min-w-0 flex-1 rounded-md px-1.5 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                       onClick={() => openInspector(entry.id)}
                     >
@@ -2613,20 +3185,19 @@ function PaneItemManagerV3({
                         <span className="min-w-0 flex-1 truncate text-xs font-medium text-wb-text">
                           {label}
                         </span>
-                        {entry.badge !== undefined && (
-                          <span className="shrink-0 rounded-md bg-wb-input px-1.5 py-0.5 text-[9px] font-medium text-wb-subtle">
-                            {entry.badge}
-                          </span>
-                        )}
-                      </span>
-                      <span className="block truncate font-mono text-[9px] text-wb-subtle">
-                        {entry.meta ?? entry.id}
                       </span>
                     </button>
-                    <div
-                      className="relative shrink-0"
-                      data-pane-item-menu-root
+                    <button
+                      type="button"
+                      disabled={entry.disableDeselect}
+                      aria-label={`${strings.removeItem}: ${label}`}
+                      title={strings.removeItem}
+                      className="workbench-pane-item-direct-remove hidden h-9 w-8 shrink-0 items-center justify-center rounded-md text-wb-subtle hover:bg-wb-danger-soft hover:text-wb-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-danger disabled:invisible sm:inline-flex"
+                      onClick={() => onRemove(entry.id)}
                     >
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                    <div className="relative shrink-0" data-pane-item-menu-root>
                       <button
                         type="button"
                         aria-expanded={menuItemId === entry.id}
@@ -2636,7 +3207,8 @@ function PaneItemManagerV3({
                         onClick={(event) => {
                           event.stopPropagation();
                           setMenuItemId((current) =>
-                            current === entry.id ? null : entry.id);
+                            current === entry.id ? null : entry.id,
+                          );
                         }}
                       >
                         <MoreVertical className="h-4 w-4" aria-hidden="true" />
@@ -2654,7 +3226,10 @@ function PaneItemManagerV3({
                             className="flex min-h-9 w-full items-center gap-2 rounded-md px-2.5 text-left text-[10px] text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                             onClick={() => openInspector(entry.id)}
                           >
-                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Pencil
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             {strings.editItem}
                           </button>
                           <button
@@ -2667,7 +3242,10 @@ function PaneItemManagerV3({
                               setMenuItemId(null);
                             }}
                           >
-                            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                            <ArrowUp
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             {strings.moveUp}
                           </button>
                           <button
@@ -2680,7 +3258,10 @@ function PaneItemManagerV3({
                               setMenuItemId(null);
                             }}
                           >
-                            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                            <ArrowDown
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             {strings.moveDown}
                           </button>
                           <button
@@ -2693,7 +3274,10 @@ function PaneItemManagerV3({
                               setMenuItemId(null);
                             }}
                           >
-                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            <Trash2
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
                             {strings.removeItem}
                           </button>
                         </div>
@@ -2706,7 +3290,15 @@ function PaneItemManagerV3({
           )}
         </div>
       )}
+      {entries.length > 0 && selected.length > 0 && (
+        <ExperimentPaneAddItemButtonV3
+          label={strings.addCatalogItem}
+          onClick={openCatalog}
+          prominent
+        />
+      )}
       {drawerPortal}
+      {catalogTooltipPortal}
     </section>
   );
 }
@@ -2737,38 +3329,6 @@ function reorderPaneItemIdsForDropV3(
   return next;
 }
 
-function paneItemCatalogCategoryV3(
-  itemId: string,
-): PaneItemCatalogCategoryV3 {
-  const normalized = itemId.toLocaleLowerCase();
-  if (normalized.startsWith("rhythm.") || normalized.includes("heart-rate")) {
-    return "rhythm";
-  }
-  if (
-    normalized.startsWith("ventilation.") ||
-    normalized.startsWith("respiration.") ||
-    normalized.includes("pleural") ||
-    normalized.includes("alveolar")
-  ) {
-    return "ventilation";
-  }
-  if (normalized.includes("valve") || normalized.includes("regurgitation")) {
-    return "valves";
-  }
-  if (normalized.startsWith("coronary.")) return "coronary";
-  if (
-    normalized.startsWith("mcs.") ||
-    normalized.startsWith("device.") ||
-    normalized.includes("mechanical-support") ||
-    normalized.includes("impella") ||
-    normalized.includes("ecmo")
-  ) {
-    return "mechanicalSupport";
-  }
-  if (normalized.startsWith("hemodynamics.")) return "hemodynamics";
-  return "advanced";
-}
-
 type CatalogSelectionEntryV3 = Readonly<{
   id: string;
   defaultLabel: string;
@@ -2779,7 +3339,6 @@ type CatalogSelectionEntryV3 = Readonly<{
 
 function CatalogSelectionV3({
   sectionId,
-  title,
   emptyText,
   entries,
   strings,
@@ -2787,7 +3346,6 @@ function CatalogSelectionV3({
   onLabelChange,
 }: Readonly<{
   sectionId?: string;
-  title: string;
   emptyText: string;
   entries: readonly CatalogSelectionEntryV3[];
   strings: WorkbenchPaneEditorStringsV3;
@@ -2795,8 +3353,7 @@ function CatalogSelectionV3({
   onLabelChange: (id: string, label: string) => void;
 }>) {
   return (
-    <section id={sectionId} className="scroll-mt-4 space-y-2">
-      <EditorSectionHeadingV3>{title}</EditorSectionHeadingV3>
+    <div id={sectionId} className="scroll-mt-4 space-y-2">
       {entries.length === 0 ? (
         <p className="rounded-lg bg-wb-soft px-3 py-3 text-xs text-wb-muted">
           {emptyText}
@@ -2807,7 +3364,7 @@ function CatalogSelectionV3({
             <div
               key={entry.id}
               className={`rounded-lg px-2 py-2 transition-colors ${
-                entry.selected ? "bg-wb-active" : "hover:bg-wb-hover"
+                entry.selected ? "bg-wb-selected" : "hover:bg-wb-hover"
               }`}
             >
               <div className="flex min-h-9 items-center gap-2">
@@ -2857,7 +3414,7 @@ function CatalogSelectionV3({
           ))}
         </div>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -2978,9 +3535,8 @@ function PaneRangeInputV3({
 }>) {
   const inputId = React.useId();
   const span = maximum - minimum;
-  const progress = span > 0
-    ? Math.max(0, Math.min(100, ((value - minimum) / span) * 100))
-    : 0;
+  const progress =
+    span > 0 ? Math.max(0, Math.min(100, ((value - minimum) / span) * 100)) : 0;
   return (
     <div className="workbench-pane-range-field">
       <div className="workbench-pane-range-heading">
@@ -2993,9 +3549,11 @@ function PaneRangeInputV3({
       <input
         id={inputId}
         className="workbench-control-range"
-        style={{
-          "--workbench-control-progress": `${progress}%`,
-        } as React.CSSProperties}
+        style={
+          {
+            "--workbench-control-progress": `${progress}%`,
+          } as React.CSSProperties
+        }
         type="range"
         min={minimum}
         max={maximum}
@@ -3045,11 +3603,7 @@ function EditorSectionHeadingV3({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <h3 className="workbench-settings-section-heading">
-      {children}
-    </h3>
-  );
+  return <h3 className="workbench-settings-section-heading">{children}</h3>;
 }
 
 function defaultSeriesForGraphV3(

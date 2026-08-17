@@ -12,9 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { ModelLimitations } from "@/components/ModelLimitations";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
-import type {
-  StudioClientCompositionV2,
-} from "@/studio/composition/StudioDefaultCompositionV2";
+import type { StudioClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 
 import {
   articleBriefingPresentationV3,
@@ -71,9 +69,7 @@ import {
   articleReaderAnalysisKeyV3,
   type ArticleReaderStructuralAnalysisRequestV3,
 } from "./ArticleReaderLiveRuntimeV3";
-import {
-  articleReaderPresentationOutputSelectionV3,
-} from "./ArticleReaderPresentationOutputSelectionV3";
+import { articleReaderPresentationOutputSelectionV3 } from "./ArticleReaderPresentationOutputSelectionV3";
 import { useArticleReaderLiveRuntimeV3 } from "./useArticleReaderLiveRuntimeV3";
 
 export type ArticleReaderExperimentV3Props = Readonly<{
@@ -249,9 +245,7 @@ export function ArticleReaderExperimentV3({
           onActivate={onActivate}
           onOpen={() => {
             onActivate();
-            onExpand(
-              presentation === "fullscreen" ? "fullscreen" : "peek",
-            );
+            onExpand(presentation === "fullscreen" ? "fullscreen" : "peek");
           }}
         />
       )}
@@ -360,17 +354,21 @@ function ArticleReaderStaticExperimentV3({
                 <span className="mt-4 flex min-h-32 items-center justify-center bg-[linear-gradient(to_bottom,transparent_31%,var(--wb-grid)_32%,transparent_33%,transparent_65%,var(--wb-grid)_66%,transparent_67%)] px-4">
                   <span className="flex flex-wrap justify-center gap-x-4 gap-y-2">
                     {resolved.series.map((series) => {
-                      const scenarioId = briefing.scenarioScope
-                        .initialFocusScenarioId;
-                      const source = pane.traceColors?.find((trace) =>
-                        trace.scenarioId === scenarioId
-                        && trace.seriesId === series.seriesId);
-                      const customColor = articleBriefingTraceColorV3(
-                        graph,
-                        scenarioId,
-                        series.seriesId,
-                      ) ?? source?.customColorHex;
-                      const color = customColor ??
+                      const scenarioId =
+                        briefing.scenarioScope.initialFocusScenarioId;
+                      const source = pane.traceColors?.find(
+                        (trace) =>
+                          trace.scenarioId === scenarioId &&
+                          trace.seriesId === series.seriesId,
+                      );
+                      const customColor =
+                        articleBriefingTraceColorV3(
+                          graph,
+                          scenarioId,
+                          series.seriesId,
+                        ) ?? source?.customColorHex;
+                      const color =
+                        customColor ??
                         resolveWorkbenchAutomaticGraphColorV3({
                           colorHex: source?.automaticColorHex ?? "#64748b",
                           appTheme,
@@ -443,11 +441,8 @@ function ArticleReaderLiveOwnerV3({
     contract,
   );
   const presentationOutputIds = React.useMemo(
-    () => articleReaderPresentationOutputSelectionV3(
-      contract,
-      snapshot,
-      briefing,
-    ),
+    () =>
+      articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing),
     [briefing, contract, snapshot],
   );
   const runtime = useArticleReaderLiveRuntimeV3(
@@ -468,22 +463,23 @@ function ArticleReaderLiveOwnerV3({
       title={title}
     />
   );
-  const anchorStatus = runtime.state.status === "failed"
-    ? t("articleReader.failed")
-    : runtime.state.status === "playing"
-      ? t("articleReader.live")
-      : runtime.state.status === "paused"
-        ? t("articleReader.paused")
-        : t("articleReader.starting");
+  const anchorStatus =
+    runtime.state.status === "failed"
+      ? t("articleReader.failed")
+      : runtime.state.status === "playing"
+        ? t("articleReader.live")
+        : runtime.state.status === "paused"
+          ? t("articleReader.paused")
+          : t("articleReader.starting");
 
   React.useEffect(() => {
     if (expandedPresentation === null) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (
-        expandedPresentation === "peek"
-        && peekMaximized
-        && onPeekMaximizedChange !== undefined
+        expandedPresentation === "peek" &&
+        peekMaximized &&
+        onPeekMaximizedChange !== undefined
       ) {
         onPeekMaximizedChange(false);
         return;
@@ -501,9 +497,9 @@ function ArticleReaderLiveOwnerV3({
         presentation={presentation}
         title={title}
         status={anchorStatus}
-        onOpen={() => onExpand(
-          presentation === "fullscreen" ? "fullscreen" : "peek",
-        )}
+        onOpen={() =>
+          onExpand(presentation === "fullscreen" ? "fullscreen" : "peek")
+        }
       />
     );
   }
@@ -525,9 +521,11 @@ function ArticleReaderLiveOwnerV3({
             title={title}
             onClose={onClose}
             onOpenExperimentSession={onOpenExperimentSession}
-            onToggleMaximized={onPeekMaximizedChange === undefined
-              ? undefined
-              : () => onPeekMaximizedChange(!peekMaximized)}
+            onToggleMaximized={
+              onPeekMaximizedChange === undefined
+                ? undefined
+                : () => onPeekMaximizedChange(!peekMaximized)
+            }
             onTitleCommit={onTitleCommit}
           >
             {detail}
@@ -566,9 +564,9 @@ function ArticleReaderPeekAnchorV3({
     <button
       type="button"
       onClick={onOpen}
-      aria-label={t(active
-        ? "articleReader.closeDrawer"
-        : "articleReader.openExperiment")}
+      aria-label={t(
+        active ? "articleReader.closeDrawer" : "articleReader.openExperiment",
+      )}
       aria-controls="article-reader-experiment-companion-v3"
       aria-expanded={active}
       className="article-reader-peek-anchor article-reader-peek-surface group flex min-h-20 w-full max-w-full items-center gap-3.5 rounded-xl px-4 py-4 text-left outline-none sm:px-5"
@@ -584,16 +582,18 @@ function ArticleReaderPeekAnchorV3({
         </span>
         <span className="mt-0.5 flex items-center gap-1.5 text-xs leading-5 text-wb-subtle">
           <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${active
-              ? "bg-wb-accent"
-              : "bg-wb-subtle"}`}
+            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+              active ? "bg-wb-accent" : "bg-wb-subtle"
+            }`}
             aria-hidden="true"
           />
           <span className="truncate">{status}</span>
         </span>
       </span>
       <span className="article-reader-peek-action hidden min-h-8 items-center gap-1.5 rounded-lg border border-wb-line px-2.5 text-xs font-semibold text-wb-muted sm:inline-flex">
-        {t(active ? "articleReader.closeDrawer" : "articleReader.openExperiment")}
+        {t(
+          active ? "articleReader.closeDrawer" : "articleReader.openExperiment",
+        )}
         <ChevronRight
           className="article-reader-peek-anchor-icon h-3.5 w-3.5 shrink-0 text-wb-subtle"
           aria-hidden="true"
@@ -642,9 +642,13 @@ function ArticleReaderLiveDetailV3({
     runtime.state.status === "disposed";
 
   return (
-    <div className={inline
-      ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-floating/35 p-3 sm:p-4"
-      : "min-w-0 px-4 pb-10 sm:px-6"}>
+    <div
+      className={
+        inline
+          ? "article-reader-inflow min-w-0 rounded-2xl border border-wb-line/70 bg-wb-floating/35 p-3 sm:p-4"
+          : "min-w-0 px-4 pb-10 sm:px-6"
+      }
+    >
       {inline && (
         <p className="mb-2 truncate text-sm font-semibold tracking-[-0.012em] text-wb-text">
           {title}
@@ -663,11 +667,7 @@ function ArticleReaderLiveDetailV3({
               aria-pressed={
                 runtime.state.activeScenarioId === scenario.scenarioId
               }
-              className={`min-h-8 rounded-lg px-2.5 text-xs font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
-                runtime.state.activeScenarioId === scenario.scenarioId
-                  ? "bg-wb-active text-wb-text"
-                  : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-              }`}
+              className="workbench-selection-button min-h-8 rounded-lg px-2.5 text-xs font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-wait disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
             >
               {scenario.label}
             </button>
@@ -682,7 +682,7 @@ function ArticleReaderLiveDetailV3({
                 ? t("workbench.live.analysisRunning")
                 : playing
                   ? t("articleReader.live")
-                : t("articleReader.paused")}
+                  : t("articleReader.paused")}
         </span>
         <button
           type="button"
@@ -710,9 +710,9 @@ function ArticleReaderLiveDetailV3({
           }
           playing={playing}
           rate={runtime.state.playbackRate}
-          onPlaybackToggle={() => (
+          onPlaybackToggle={() =>
             playing ? void runtime.pause() : runtime.play()
-          )}
+          }
           onRateChange={runtime.setPlaybackRate}
         />
       </div>
@@ -812,21 +812,25 @@ function ArticleReaderLiveGraphViewportV3({
     }
     const element = rootRef.current;
     if (element === null) return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      const active = entries.some((entry) =>
-        entry.isIntersecting && entry.intersectionRatio >= 0.12
-      );
-      setRenderActive((current) => current === active ? current : active);
-    }, {
-      rootMargin: "80px 0px",
-      threshold: [0, 0.12],
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const active = entries.some(
+          (entry) => entry.isIntersecting && entry.intersectionRatio >= 0.12,
+        );
+        setRenderActive((current) => (current === active ? current : active));
+      },
+      {
+        rootMargin: "80px 0px",
+        threshold: [0, 0.12],
+      },
+    );
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
 
-  const label = resolveArticleReaderGraphPresentationV3(snapshot, briefing)?.label
-    ?? "Graph";
+  const label =
+    resolveArticleReaderGraphPresentationV3(snapshot, briefing)?.label ??
+    "Graph";
   return (
     <div
       ref={rootRef}
@@ -846,9 +850,11 @@ function ArticleReaderLiveGraphViewportV3({
         />
       ) : (
         <div
-          className={inline
-            ? "article-reader-inflow-graph"
-            : "min-h-[clamp(18rem,43vw,32rem)]"}
+          className={
+            inline
+              ? "article-reader-inflow-graph"
+              : "min-h-[clamp(18rem,43vw,32rem)]"
+          }
           aria-label={label}
           data-reader-graph-placeholder="true"
         />
@@ -880,16 +886,19 @@ function ArticleReaderLiveGraphV3({
   const sampleStore = runtime.sampleStore;
   const resolved = resolveArticleReaderGraphPresentationV3(snapshot, briefing);
   const pane = resolved?.pane;
-  const graph = pane === undefined
-    ? undefined
-    : contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId);
-  const sampledPresentation = useWorkbenchOptionalSampledGraphPresentationSamplesV3(
-    sampleStore,
-    graph?.renderer === "sweep" || graph?.renderer === "pressure-volume"
-      ? graph.renderer
-      : null,
-  );
-  if (resolved === null || pane === undefined || graph === undefined) return null;
+  const graph =
+    pane === undefined
+      ? undefined
+      : contract.graphCatalog.find(({ graphId }) => graphId === pane.graphId);
+  const sampledPresentation =
+    useWorkbenchOptionalSampledGraphPresentationSamplesV3(
+      sampleStore,
+      graph?.renderer === "sweep" || graph?.renderer === "pressure-volume"
+        ? graph.renderer
+        : null,
+    );
+  if (resolved === null || pane === undefined || graph === undefined)
+    return null;
   const series = resolved.series;
   const paneScenarioIds = resolveWorkbenchGraphScenarioIdsV3(
     pane,
@@ -901,11 +910,8 @@ function ArticleReaderLiveGraphV3({
 
   if (graph.renderer === "structural-return") {
     const structuralVisibleScenarios = visibleScenarios.filter(
-      ({ scenarioId }) => !isWorkbenchGraphTraceExcludedV3(
-        pane,
-        scenarioId,
-        null,
-      ),
+      ({ scenarioId }) =>
+        !isWorkbenchGraphTraceExcludedV3(pane, scenarioId, null),
     );
     return (
       <ExperimentGraphPresentationV3
@@ -953,11 +959,14 @@ function ArticleReaderLiveGraphV3({
         const scenarioSamples = exactOrbits[scenario.scenarioId] ?? [];
         if (scenarioStyleIndex < 0 || scenarioSamples.length === 0) return [];
         return selected.flatMap(({ binding, selectedSeries }) => {
-          if (isWorkbenchGraphTraceExcludedV3(
-            pane,
-            scenario.scenarioId,
-            selectedSeries.seriesId,
-          )) return [];
+          if (
+            isWorkbenchGraphTraceExcludedV3(
+              pane,
+              scenario.scenarioId,
+              selectedSeries.seriesId,
+            )
+          )
+            return [];
           const style = resolveWorkbenchGraphTraceStyleV3({
             pane,
             surface: snapshot.content.surface,
@@ -971,29 +980,32 @@ function ArticleReaderLiveGraphV3({
             ),
             appTheme,
           });
-          const color = articleBriefingTraceColorV3(
-            briefing,
-            scenario.scenarioId,
-            selectedSeries.seriesId,
-          ) ?? style.color;
-          return [{
-            scenarioId: scenario.scenarioId,
-            scenarioLabel: scenario.label,
-            scenarioStatus: playbackRunning ? "Live" : "Paused",
-            scenarioStyleIndex,
-            samples: scenarioSamples,
-            historySampleSets: articleReaderBoundedHistoryV3(
-              orbitHistory[scenario.scenarioId] ?? [],
-              resolved.historyDepth,
-            ).map((entry) => entry.samples),
-            volumeOutputId: binding.volumeOutputId,
-            pressureOutputId: binding.pressureOutputId,
-            pressureBasis: binding.pressureBasis,
-            cyclePhaseOutputId: binding.cyclePhaseOutputId,
-            chamberId: binding.seriesId,
-            chamberLabel: selectedSeries.label,
-            chamberColor: color,
-          }];
+          const color =
+            articleBriefingTraceColorV3(
+              briefing,
+              scenario.scenarioId,
+              selectedSeries.seriesId,
+            ) ?? style.color;
+          return [
+            {
+              scenarioId: scenario.scenarioId,
+              scenarioLabel: scenario.label,
+              scenarioStatus: playbackRunning ? "Live" : "Paused",
+              scenarioStyleIndex,
+              samples: scenarioSamples,
+              historySampleSets: articleReaderBoundedHistoryV3(
+                orbitHistory[scenario.scenarioId] ?? [],
+                resolved.historyDepth,
+              ).map((entry) => entry.samples),
+              volumeOutputId: binding.volumeOutputId,
+              pressureOutputId: binding.pressureOutputId,
+              pressureBasis: binding.pressureBasis,
+              cyclePhaseOutputId: binding.cyclePhaseOutputId,
+              chamberId: binding.seriesId,
+              chamberLabel: selectedSeries.label,
+              chamberColor: color,
+            },
+          ];
         });
       });
     const traces = tracesForBindings(bindings);
@@ -1002,20 +1014,22 @@ function ArticleReaderLiveGraphV3({
         variant="article"
         label={resolved.label}
         data-reader-legend={resolved.legend}
-        canvasClassName={inline
-          ? "article-reader-inflow-graph min-w-0"
-          : "h-[clamp(17rem,43vw,31rem)] min-w-0"}
+        canvasClassName={
+          inline
+            ? "article-reader-inflow-graph min-w-0"
+            : "h-[clamp(17rem,43vw,31rem)] min-w-0"
+        }
       >
-          <ArticleReaderPressureVolumeCanvasV3
-            analysisId={
-              pane.pressureVolumeAnalysisMode === "formal-periodic"
-                ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-                : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
-            }
-            historyDepth={resolved.historyDepth}
-            runtime={runtime}
-            traces={traces}
-          />
+        <ArticleReaderPressureVolumeCanvasV3
+          analysisId={
+            pane.pressureVolumeAnalysisMode === "formal-periodic"
+              ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+              : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+          }
+          historyDepth={resolved.historyDepth}
+          runtime={runtime}
+          traces={traces}
+        />
       </ExperimentGraphPresentationV3>
     );
   }
@@ -1034,11 +1048,14 @@ function ArticleReaderLiveGraphV3({
       const scenarioSamples = samples[scenario.scenarioId] ?? [];
       if (scenarioStyleIndex < 0 || scenarioSamples.length === 0) return [];
       return bindings.flatMap(({ binding, selectedSeries }) => {
-        if (isWorkbenchGraphTraceExcludedV3(
-          pane,
-          scenario.scenarioId,
-          selectedSeries.seriesId,
-        )) return [];
+        if (
+          isWorkbenchGraphTraceExcludedV3(
+            pane,
+            scenario.scenarioId,
+            selectedSeries.seriesId,
+          )
+        )
+          return [];
         const style = resolveWorkbenchGraphTraceStyleV3({
           pane,
           surface: snapshot.content.surface,
@@ -1052,24 +1069,25 @@ function ArticleReaderLiveGraphV3({
           ),
           appTheme,
         });
-        const color = articleBriefingTraceColorV3(
-          briefing,
-          scenario.scenarioId,
-          selectedSeries.seriesId,
-        ) ?? style.color;
-        return [{
-          scenarioId: scenario.scenarioId,
-          scenarioLabel: scenario.label,
-          scenarioStatus: playbackRunning ? "Live" : "Paused",
-          scenarioStyleIndex,
-          samples: scenarioSamples,
-          outputId: binding.outputId,
-          signalLabel: selectedSeries.label,
-          signalColor: color,
-          ...(cyclePhaseOutputId === undefined
-            ? {}
-            : { cyclePhaseOutputId }),
-        }];
+        const color =
+          articleBriefingTraceColorV3(
+            briefing,
+            scenario.scenarioId,
+            selectedSeries.seriesId,
+          ) ?? style.color;
+        return [
+          {
+            scenarioId: scenario.scenarioId,
+            scenarioLabel: scenario.label,
+            scenarioStatus: playbackRunning ? "Live" : "Paused",
+            scenarioStyleIndex,
+            samples: scenarioSamples,
+            outputId: binding.outputId,
+            signalLabel: selectedSeries.label,
+            signalColor: color,
+            ...(cyclePhaseOutputId === undefined ? {} : { cyclePhaseOutputId }),
+          },
+        ];
       });
     });
   const selectedOutputIds = selectedSweepOutputIdsV3(graph, series);
@@ -1077,8 +1095,8 @@ function ArticleReaderLiveGraphV3({
     selectedOutputIds.includes(outputId),
   );
   const unitLabel = commonGraphUnitV3(contract, selectedOutputIds);
-  const includeZero = selectedOutputs.every(({ outputId }) =>
-    outputId.includes(".flow.") || outputId.endsWith(".flow"),
+  const includeZero = selectedOutputs.every(
+    ({ outputId }) => outputId.includes(".flow.") || outputId.endsWith(".flow"),
   );
   const windowSec = resolved.windowSec ?? 2;
   const traces = tracesForScenarios(visibleScenarios);
@@ -1087,17 +1105,19 @@ function ArticleReaderLiveGraphV3({
       variant="article"
       label={resolved.label}
       data-reader-legend={resolved.legend}
-      canvasClassName={inline
-        ? "article-reader-inflow-graph min-w-0"
-        : "h-[clamp(16rem,39vw,28rem)] min-w-0"}
+      canvasClassName={
+        inline
+          ? "article-reader-inflow-graph min-w-0"
+          : "h-[clamp(16rem,39vw,28rem)] min-w-0"
+      }
     >
-        <SweepingWaveformCanvasV3
-          activeScenarioId={activeScenarioId}
-          includeZero={includeZero}
-          traces={traces}
-          unitLabel={unitLabel}
-          windowSec={windowSec}
-        />
+      <SweepingWaveformCanvasV3
+        activeScenarioId={activeScenarioId}
+        includeZero={includeZero}
+        traces={traces}
+        unitLabel={unitLabel}
+        windowSec={windowSec}
+      />
     </ExperimentGraphPresentationV3>
   );
 }
@@ -1114,69 +1134,73 @@ function ArticleReaderPressureVolumeCanvasV3({
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
   const scenarioIds = React.useMemo(
-    () => Object.freeze([...new Set(
-      traces
-        .filter(({ chamberId }) => chamberId === "LV" || chamberId === "RV")
-        .map(({ scenarioId }) => scenarioId),
-    )]),
+    () =>
+      Object.freeze([
+        ...new Set(
+          traces
+            .filter(({ chamberId }) => chamberId === "LV" || chamberId === "RV")
+            .map(({ scenarioId }) => scenarioId),
+        ),
+      ]),
     [traces],
   );
   const missingScenarioIds = scenarioIds.filter((scenarioId) => {
-    const key = articleReaderAnalysisKeyV3(
-      scenarioId,
-      analysisId,
+    const key = articleReaderAnalysisKeyV3(scenarioId, analysisId);
+    return (
+      runtime.state.analysisByKey[key] === undefined &&
+      runtime.state.analysisErrorByKey[key] === undefined &&
+      !runtime.state.pendingAnalysisKeys.includes(key)
     );
-    return runtime.state.analysisByKey[key] === undefined
-      && runtime.state.analysisErrorByKey[key] === undefined
-      && !runtime.state.pendingAnalysisKeys.includes(key);
   });
   const missingKey = JSON.stringify(missingScenarioIds);
   const canRequest =
     runtime.state.status === "playing" || runtime.state.status === "paused";
   React.useEffect(() => {
     if (!canRequest || missingScenarioIds.length === 0) return;
-    void runtime.requestAnalysis({
-      analysisId,
-      scenarioIds: missingScenarioIds,
-    }).catch(() => {
-      // The runtime publishes recoverable per-Scenario analysis errors.
-    });
+    void runtime
+      .requestAnalysis({
+        analysisId,
+        scenarioIds: missingScenarioIds,
+      })
+      .catch(() => {
+        // The runtime publishes recoverable per-Scenario analysis errors.
+      });
   }, [analysisId, canRequest, missingKey, runtime.requestAnalysis]);
 
   const enrichedTraces = React.useMemo(
-    () => Object.freeze(traces.map((trace) => {
-      const side = pressureVolumeRelationSideV3(trace.chamberId);
-      if (side === null) return trace;
-      const key = articleReaderAnalysisKeyV3(
-        trace.scenarioId,
-        analysisId,
-      );
-      const relation = rapidPressureVolumeRelationFromPayloadV3(
-        runtime.state.analysisByKey[key]?.payload,
-        side,
-      );
-      const relationHistory = Object.freeze(
-        articleReaderBoundedHistoryV3(
-          runtime.state.analysisHistoryByKey[key] ?? [],
-          historyDepth,
-        ).flatMap((analysis) => {
-          const historical = rapidPressureVolumeRelationFromPayloadV3(
-            analysis.payload,
+    () =>
+      Object.freeze(
+        traces.map((trace) => {
+          const side = pressureVolumeRelationSideV3(trace.chamberId);
+          if (side === null) return trace;
+          const key = articleReaderAnalysisKeyV3(trace.scenarioId, analysisId);
+          const relation = rapidPressureVolumeRelationFromPayloadV3(
+            runtime.state.analysisByKey[key]?.payload,
             side,
           );
-          return historical === undefined ? [] : [historical];
+          const relationHistory = Object.freeze(
+            articleReaderBoundedHistoryV3(
+              runtime.state.analysisHistoryByKey[key] ?? [],
+              historyDepth,
+            ).flatMap((analysis) => {
+              const historical = rapidPressureVolumeRelationFromPayloadV3(
+                analysis.payload,
+                side,
+              );
+              return historical === undefined ? [] : [historical];
+            }),
+          );
+          return Object.freeze({
+            ...trace,
+            ...(relation === undefined
+              ? {}
+              : { rapidPressureVolumeRelation: relation }),
+            rapidPressureVolumeRelationHistory: relationHistory,
+            rapidPressureVolumeRelationPending:
+              runtime.state.pendingAnalysisKeys.includes(key),
+          });
         }),
-      );
-      return Object.freeze({
-        ...trace,
-        ...(relation === undefined
-          ? {}
-          : { rapidPressureVolumeRelation: relation }),
-        rapidPressureVolumeRelationHistory: relationHistory,
-        rapidPressureVolumeRelationPending:
-          runtime.state.pendingAnalysisKeys.includes(key),
-      });
-    })),
+      ),
     [
       historyDepth,
       analysisId,
@@ -1190,7 +1214,7 @@ function ArticleReaderPressureVolumeCanvasV3({
     <PressureVolumeLoopCanvasV3
       analysisMode={
         analysisId ===
-            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
           ? "formal-periodic"
           : "responsive-preview"
       }
@@ -1313,8 +1337,8 @@ export function ArticleReaderStructuralReturnGraphV3({
       appTheme,
     });
     const articleColor = traceColorOverrides?.find(
-      (trace) => trace.scenarioId === scenario.scenarioId
-        && trace.seriesId === null,
+      (trace) =>
+        trace.scenarioId === scenario.scenarioId && trace.seriesId === null,
     )?.colorHex;
     const analysisPending = runtime.state.pendingAnalysisKeys.includes(key);
     return Object.freeze({
@@ -1370,9 +1394,9 @@ export function ArticleReaderStructuralReturnGraphV3({
   const firstError = traces.find(({ error }) => error !== null)?.error ?? null;
   return (
     <div
-      className={`grid min-w-0 ${inline
-        ? "article-reader-inflow-graph"
-        : "h-[clamp(17rem,32vw,27rem)]"}`}
+      className={`grid min-w-0 ${
+        inline ? "article-reader-inflow-graph" : "h-[clamp(17rem,32vw,27rem)]"
+      }`}
       data-reader-structural-scenario-count={visibleScenarios.length}
     >
       {comparisonTraces.length === 0 ? (
@@ -1434,14 +1458,14 @@ export function ArticleReaderOutputsV3({
           );
           const latest = samples[output.scenarioId]?.at(-1);
           const value = latest?.values[output.outputId];
-          const scalar = typeof value === "number" && Number.isFinite(value)
-            ? value
-            : null;
+          const scalar =
+            typeof value === "number" && Number.isFinite(value) ? value : null;
           return {
             itemId: `${output.sourcePaneId}:${output.outputId}:${output.scenarioId}`,
             label: output.label,
             value: scalar,
             unit: definition?.unit ?? "",
+            significantDigits: definition?.significantDigits,
             availability: scalar === null ? "unavailable" : "available",
             quality: scalar === null ? "not-assessed" : "assessed",
           };
@@ -1512,9 +1536,11 @@ export function ArticleReaderControlV3({
   );
   const primaryTargetId =
     targetIds[0] ?? briefing.scenarioScope.initialFocusScenarioId;
-  const targetValues = targetIds.map((scenarioId) =>
-    runtime.state.committedControlValues[scenarioId]?.[control.controlId]
-      ?? readerControlInitialValueV3(snapshot, scenarioId, definition));
+  const targetValues = targetIds.map(
+    (scenarioId) =>
+      runtime.state.committedControlValues[scenarioId]?.[control.controlId] ??
+      readerControlInitialValueV3(snapshot, scenarioId, definition),
+  );
   const committedRuntimeValue =
     runtime.state.committedControlValues[primaryTargetId]?.[control.controlId];
   const initialValue =
@@ -1525,8 +1551,9 @@ export function ArticleReaderControlV3({
   const committedRef = React.useRef(initialValue);
   const commitInFlightRef = React.useRef(false);
   const controlInstanceId = articleReaderControlInstanceIdV3(control);
-  const mixed = targetValues.length > 1
-    && targetValues.some((candidate) => candidate !== targetValues[0]);
+  const mixed =
+    targetValues.length > 1 &&
+    targetValues.some((candidate) => candidate !== targetValues[0]);
 
   React.useEffect(() => {
     const next =
@@ -1555,8 +1582,7 @@ export function ArticleReaderControlV3({
       commitInFlightRef.current = false;
     }
   };
-  const pending =
-    runtime.state.pendingControlInstanceId === controlInstanceId;
+  const pending = runtime.state.pendingControlInstanceId === controlInstanceId;
   const controlsDisabled =
     runtime.state.status === "idle" ||
     runtime.state.status === "starting" ||
@@ -1571,11 +1597,12 @@ export function ArticleReaderControlV3({
     );
     return scenario === undefined ? [] : [scenario.label];
   });
-  const contextLabel = targetLabels.length > 0
-    ? targetLabels.join(", ")
-    : control.binding.mode === "reader-focus"
-      ? t("articleReader.noControlTarget")
-      : undefined;
+  const contextLabel =
+    targetLabels.length > 0
+      ? targetLabels.join(", ")
+      : control.binding.mode === "reader-focus"
+        ? t("articleReader.noControlTarget")
+        : undefined;
   const controlError =
     runtime.state.controlErrorByInstanceId[controlInstanceId] ?? error;
 
@@ -1644,9 +1671,10 @@ export function ArticleReaderExperimentPeekPanelV3({
   React.useEffect(() => {
     const panel = panelRef.current;
     if (panel === null) return undefined;
-    const opener = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
+    const opener =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     panel.querySelector<HTMLElement>("[data-reader-peek-close]")?.focus();
     return () => {
       if (opener?.isConnected) opener.focus();
@@ -1702,12 +1730,16 @@ export function ArticleReaderExperimentPeekPanelV3({
           <button
             type="button"
             onClick={onOpenExperimentSession}
-            aria-label={onTitleCommit === undefined
-              ? t("articleReader.openExperimentSession")
-              : t("articleReader.editBriefing")}
-            title={onTitleCommit === undefined
-              ? t("articleReader.openExperimentSession")
-              : t("articleReader.editBriefing")}
+            aria-label={
+              onTitleCommit === undefined
+                ? t("articleReader.openExperimentSession")
+                : t("articleReader.editBriefing")
+            }
+            title={
+              onTitleCommit === undefined
+                ? t("articleReader.openExperimentSession")
+                : t("articleReader.editBriefing")
+            }
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           >
             <FlaskConical className="h-4 w-4" aria-hidden="true" />
@@ -1718,17 +1750,23 @@ export function ArticleReaderExperimentPeekPanelV3({
             type="button"
             onClick={onToggleMaximized}
             aria-pressed={maximized}
-            aria-label={maximized
-              ? t("articleReader.restoreSplitView")
-              : t("articleReader.openFullscreen")}
-            title={maximized
-              ? t("articleReader.restoreSplitView")
-              : t("articleReader.openFullscreen")}
+            aria-label={
+              maximized
+                ? t("articleReader.restoreSplitView")
+                : t("articleReader.openFullscreen")
+            }
+            title={
+              maximized
+                ? t("articleReader.restoreSplitView")
+                : t("articleReader.openFullscreen")
+            }
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-wb-muted transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
           >
-            {maximized
-              ? <Minimize2 className="h-4 w-4" aria-hidden="true" />
-              : <Maximize2 className="h-4 w-4" aria-hidden="true" />}
+            {maximized ? (
+              <Minimize2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            )}
           </button>
         )}
         <button
@@ -1916,20 +1954,18 @@ export function readerStructuralAnalysisRequestsV3(
       ({ graphId }) => graphId === pane.graphId,
     );
     const { historyDepth } = resolved;
-    const analysisId = graph?.renderer === "structural-return"
-      ? graph.analysisId
-      : graph?.renderer === "pressure-volume"
-        ? pane.pressureVolumeAnalysisMode === "formal-periodic"
-          ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-          : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
-        : null;
+    const analysisId =
+      graph?.renderer === "structural-return"
+        ? graph.analysisId
+        : graph?.renderer === "pressure-volume"
+          ? pane.pressureVolumeAnalysisMode === "formal-periodic"
+            ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+            : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+          : null;
     if (analysisId === null) continue;
     historyDepthByAnalysisId.set(
       analysisId,
-      Math.max(
-        historyDepthByAnalysisId.get(analysisId) ?? 0,
-        historyDepth,
-      ),
+      Math.max(historyDepthByAnalysisId.get(analysisId) ?? 0, historyDepth),
     );
   }
   return Object.freeze(
@@ -1953,9 +1989,11 @@ function articleBriefingTraceColorV3(
   scenarioId: string,
   seriesId: string | null,
 ): string | null {
-  return briefing.overrides?.traceColors?.find((trace) =>
-    trace.scenarioId === scenarioId && trace.seriesId === seriesId
-  )?.colorHex ?? null;
+  return (
+    briefing.overrides?.traceColors?.find(
+      (trace) => trace.scenarioId === scenarioId && trace.seriesId === seriesId,
+    )?.colorHex ?? null
+  );
 }
 
 function controlTargetScenarioIdsV3(
@@ -2026,11 +2064,12 @@ function requiredArticleReaderRuntimeCompositionV3(
   composition: StudioClientCompositionV2 | null,
 ): Readonly<{
   releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
-  resolveAnalysisExecutionPlan:
-    StudioClientCompositionV2["analysisExecutionPlan"];
+  resolveAnalysisExecutionPlan: StudioClientCompositionV2["analysisExecutionPlan"];
 }> {
   if (composition === null) {
-    throw new Error("Article Reader Standard runtime composition is unavailable");
+    throw new Error(
+      "Article Reader Standard runtime composition is unavailable",
+    );
   }
   return Object.freeze({
     releaseTicket: composition.workerReleaseTicket,

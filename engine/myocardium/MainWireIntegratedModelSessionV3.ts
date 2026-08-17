@@ -21,12 +21,12 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import type {
-  MainWireNormalAdultFiveWallMechanicsStateV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import type {
-  MainWireNormalAdultFiveWallProviderV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelMechanismResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import type { MainWireNormalAdultFiveWallMechanicsStateV1 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import type { MainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   forkMainWireIntegratedModelAtFixedTbvV3,
   forkMainWireIntegratedModelResponsiveStarlingV3,
@@ -40,12 +40,8 @@ import {
   restoreMainWireIntegratedModelStandardV1,
   type MainWireIntegratedModelStandardCheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
-import {
-  respiratoryExternalPressuresV1,
-} from "@/engine/core/circulationGraphKernelV1";
-import {
-  warmStartMainWireIntegratedModelV3,
-} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
+import { respiratoryExternalPressuresV1 } from "@/engine/core/circulationGraphKernelV1";
+import { warmStartMainWireIntegratedModelV3 } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 import {
   MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
   MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
@@ -55,9 +51,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SESSION_V3_ID =
   "main-wire-integrated-model-session-v3" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3 =
-  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1
-  * MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1;
-export const MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3 = 16 as const;
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1 *
+  MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1;
+export const MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3 =
+  16 as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3 =
   "integrated-v3-live-presentation" as const;
 
@@ -86,6 +83,7 @@ export type MainWireIntegratedModelObservationV3 = Readonly<{
     pleuralPressureMmHg: number;
     alveolarPressureMmHg: number;
   }>;
+  mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3;
   /** Latest full atrial-capture-to-capture beat; null until one completes. */
   completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
 }>;
@@ -141,7 +139,9 @@ export function mainWireIntegratedModelPresentationTargetTimeSecV3(
   if (!Number.isSafeInteger(presentationOrdinal) || presentationOrdinal < 0) {
     throw new Error("Main Wire Integrated V3 presentation ordinal is invalid");
   }
-  return presentationOrdinal * MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3;
+  return (
+    presentationOrdinal * MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_DT_SEC_V3
+  );
 }
 
 /**
@@ -154,24 +154,21 @@ export class MainWireIntegratedModelSessionV3 {
   private readonly runtime: MainWireIntegratedModelRuntimeV3;
   private readonly provider: MainWireNormalAdultFiveWallProviderV1;
   private readonly rhythmInput: MainWireIntegratedComposedRhythmStepContextV3;
-  private readonly dynamicMechanicalSupportConfig:
-    MainWireIntegratedModelRuntimeV3["config"];
+  private readonly dynamicMechanicalSupportConfig: MainWireIntegratedModelRuntimeV3["config"];
   private acceptedState: AcceptedState;
   private lastAcceptedStep: SuccessfulStep | null;
   private lastPresentationObservation: MainWireIntegratedModelObservationV3;
   private readonly beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
-  private completedBeatMetrics:
-    MainWireIntegratedModelCompletedBeatMetricsV3 | null = null;
+  private completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null =
+    null;
 
   private constructor(
     runtime: MainWireIntegratedModelRuntimeV3,
     acceptedState: AcceptedState,
-    observationSource:
-      MainWireIntegratedModelObservationV3["source"],
+    observationSource: MainWireIntegratedModelObservationV3["source"],
     exactBeatState?: Readonly<{
       beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
-      completedBeatMetrics:
-        MainWireIntegratedModelCompletedBeatMetricsV3 | null;
+      completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
     }>,
   ) {
     validateMainWireIntegratedModelAcceptedStateV3(
@@ -190,8 +187,9 @@ export class MainWireIntegratedModelSessionV3 {
     this.dynamicMechanicalSupportConfig = runtime.config;
     this.acceptedState = acceptedState;
     this.lastAcceptedStep = null;
-    this.beatAccumulator = exactBeatState?.beatAccumulator
-      ?? new MainWireIntegratedModelBeatAccumulatorV3();
+    this.beatAccumulator =
+      exactBeatState?.beatAccumulator ??
+      new MainWireIntegratedModelBeatAccumulatorV3();
     this.completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
     this.lastPresentationObservation = observation(
       observationSource,
@@ -203,14 +201,14 @@ export class MainWireIntegratedModelSessionV3 {
   }
 
   static async create(
-    hemodynamicResearchInputs:
-    MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     return new MainWireIntegratedModelSessionV3(
       runtime,
@@ -221,14 +219,14 @@ export class MainWireIntegratedModelSessionV3 {
 
   static async restoreOperationalCheckpoint(
     checkpoint: unknown,
-    hemodynamicResearchInputs:
-    MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     const acceptedState = await restoreMainWireIntegratedModelV3(
       mainWireIntegratedModelCheckpointContextV3(
@@ -250,14 +248,14 @@ export class MainWireIntegratedModelSessionV3 {
    */
   static async restoreStandardExactCheckpoint(
     checkpoint: unknown,
-    hemodynamicResearchInputs:
-    MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     const restored = await restoreMainWireIntegratedModelStandardV1(
       mainWireIntegratedModelCheckpointContextV3(
@@ -288,13 +286,14 @@ export class MainWireIntegratedModelSessionV3 {
    * session untouched, while success preserves its accepted revision/time.
    */
   async warmStartWithHemodynamicResearchInputs(
-    hemodynamicResearchInputs:
-    MainWireIntegratedModelHemodynamicResearchInputsV3,
+    hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedModelSessionV3> {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       hemodynamicResearchInputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     const acceptedState = warmStartMainWireIntegratedModelV3({
       source: this.acceptedState,
@@ -344,8 +343,7 @@ export class MainWireIntegratedModelSessionV3 {
     );
   }
 
-  async checkpointOperational():
-  Promise<MainWireIntegratedModelCheckpointV3> {
+  async checkpointOperational(): Promise<MainWireIntegratedModelCheckpointV3> {
     return checkpointMainWireIntegratedModelV3(
       this.checkpointContext(),
       this.acceptedState,
@@ -356,8 +354,7 @@ export class MainWireIntegratedModelSessionV3 {
    * Captures every state element that affects the Standard exact output ABI.
    * The legacy operational checkpoint intentionally remains unchanged.
    */
-  async checkpointStandardExact():
-  Promise<MainWireIntegratedModelStandardCheckpointV1> {
+  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV1> {
     return checkpointMainWireIntegratedModelStandardV1(
       this.checkpointContext(),
       this.acceptedState,
@@ -400,7 +397,9 @@ export class MainWireIntegratedModelSessionV3 {
     const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
 
     while (this.acceptedState.acceptedTimeSec !== targetTimeSec) {
-      if (substepCount >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3) {
+      if (
+        substepCount >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3
+      ) {
         return this.failedAdvance(
           "substep-budget-exhausted",
           "Main Wire Integrated V3 interval exhausted its substep budget",
@@ -473,21 +472,21 @@ export class MainWireIntegratedModelSessionV3 {
 
       this.acceptedState = result.acceptedState;
       this.lastAcceptedStep = result;
-      this.completedBeatMetrics = this.beatAccumulator.accept(result)
-        ?? this.completedBeatMetrics;
+      this.completedBeatMetrics =
+        this.beatAccumulator.accept(result) ?? this.completedBeatMetrics;
       substepCount += 1;
-      substeps.push(Object.freeze({
-        acceptedRevision: result.acceptedState.revision,
-        acceptedTimeSec: result.acceptedState.acceptedTimeSec,
-        landedOnPresentationTarget:
-          result.acceptedState.acceptedTimeSec === targetTimeSec,
-        clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
-        clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
-        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
-        rhythmBoundaryOwners: Object.freeze([
-          ...limit.rhythmBoundaryOwners,
-        ]),
-      }));
+      substeps.push(
+        Object.freeze({
+          acceptedRevision: result.acceptedState.revision,
+          acceptedTimeSec: result.acceptedState.acceptedTimeSec,
+          landedOnPresentationTarget:
+            result.acceptedState.acceptedTimeSec === targetTimeSec,
+          clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
+          clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
+          rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+          rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
+        }),
+      );
     }
 
     if (this.acceptedState.acceptedTimeSec !== targetTimeSec) {
@@ -533,8 +532,9 @@ export class MainWireIntegratedModelSessionV3 {
       acceptedRevision: this.acceptedState.revision,
       acceptedRevisionSpanFromPrevious,
       internalAcceptedSubstepCount: substepCount,
-      boundaryClippedSubstepCount:
-        substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      boundaryClippedSubstepCount: substeps.filter(
+        (substep) => !substep.landedOnPresentationTarget,
+      ).length,
       substeps: frozenSubsteps,
       observation: nextObservation,
     });
@@ -569,8 +569,9 @@ export class MainWireIntegratedModelSessionV3 {
       acceptedRevision: this.acceptedState.revision,
       partiallyAdvanced: substeps.length > 0,
       internalAcceptedSubstepCount: substeps.length,
-      boundaryClippedSubstepCount:
-        substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      boundaryClippedSubstepCount: substeps.filter(
+        (substep) => !substep.landedOnPresentationTarget,
+      ).length,
       substeps: Object.freeze([...substeps]),
       requestedPresentationTimeSec: targetTimeSec,
     });
@@ -596,17 +597,18 @@ function observation(
       pleuralPressureMmHg: respiratory.pthMmHg,
       alveolarPressureMmHg: respiratory.palvMmHg,
     }),
+    mechanismResearchInputs: runtime.mechanismResearchInputs,
     completedBeatMetrics,
   });
 }
 
 function isNonadvancingLimiterError(error: unknown): boolean {
-  return error instanceof Error
-    && (
-      error.message === "composed integrated requested endpoint must advance"
-      || error.message
-        === "composed integrated coronary-capped step must be positive"
-    );
+  return (
+    error instanceof Error &&
+    (error.message === "composed integrated requested endpoint must advance" ||
+      error.message ===
+        "composed integrated coronary-capped step must be positive")
+  );
 }
 
 function errorMessage(error: unknown): string {

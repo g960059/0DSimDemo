@@ -2,9 +2,8 @@ import {
   checkpointMainWireIntegratedModelV3,
   restoreMainWireIntegratedModelV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
-import type {
-  MainWireIntegratedModelHemodynamicResearchInputsV3,
-} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import type { MainWireIntegratedModelMechanismResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
   alignMainWireIntegratedModelRegularSinusAllOffCandidateV3,
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
@@ -14,7 +13,7 @@ import {
 import { canonicalJsonStringify } from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID =
-  "main-wire-integrated-public-executable-snapshot-admission-v1" as const;
+  "main-wire-integrated-public-executable-snapshot-admission-v2" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3 =
   0.002 as const;
@@ -22,13 +21,11 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3 =
 export type MainWireIntegratedModelSnapshotAdmissionResultV3 =
   | Readonly<{
       status: "accepted";
-      admissionId:
-        typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
+      admissionId: typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
     }>
   | Readonly<{
       status: "rejected";
-      admissionId:
-        typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
+      admissionId: typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_V3_ID;
       reason: string;
     }>;
 
@@ -44,15 +41,16 @@ export type MainWireIntegratedModelSnapshotAdmissionResultV3 =
 export async function admitMainWireIntegratedModelSnapshotV3(
   input: Readonly<{
     candidateCheckpoint: unknown;
-    hemodynamicResearchInputs:
-      MainWireIntegratedModelHemodynamicResearchInputsV3;
+    hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3;
     ventricularContractilityScale?: number;
+    mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
   }>,
 ): Promise<MainWireIntegratedModelSnapshotAdmissionResultV3> {
   try {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       input.hemodynamicResearchInputs,
       input.ventricularContractilityScale ?? 1,
+      input.mechanismResearchInputs,
     );
     const context =
       createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
@@ -67,36 +65,44 @@ export async function admitMainWireIntegratedModelSnapshotV3(
       restored,
     );
     if (
-      canonicalJsonStringify(candidateRoundTrip)
-      !== canonicalJsonStringify(input.candidateCheckpoint)
+      canonicalJsonStringify(candidateRoundTrip) !==
+      canonicalJsonStringify(input.candidateCheckpoint)
     ) {
       throw new Error("candidate checkpoint exact round-trip differs");
     }
 
-    const alignment =
-      alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
-        fixture,
-        restored,
-        MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3,
-      );
+    const alignment = alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
+      fixture,
+      restored,
+      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3,
+    );
     const cycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       alignment.terminalAcceptedState,
       1,
       MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_ADMISSION_NOMINAL_DT_SEC_V3,
     );
-    assertNoRepeatedAcceptedEventIdsV3([
-      ...alignment.acceptedAtrialCaptureIds,
-      ...cycle.acceptedAtrialCaptureIds,
-    ], "atrial capture");
-    assertNoRepeatedAcceptedEventIdsV3([
-      ...alignment.acceptedVentricularCaptureIds,
-      ...cycle.acceptedVentricularCaptureIds,
-    ], "ventricular capture");
-    assertNoRepeatedAcceptedEventIdsV3([
-      ...alignment.deliveredCalciumDepositIds,
-      ...cycle.deliveredCalciumDepositIds,
-    ], "calcium deposit");
+    assertNoRepeatedAcceptedEventIdsV3(
+      [
+        ...alignment.acceptedAtrialCaptureIds,
+        ...cycle.acceptedAtrialCaptureIds,
+      ],
+      "atrial capture",
+    );
+    assertNoRepeatedAcceptedEventIdsV3(
+      [
+        ...alignment.acceptedVentricularCaptureIds,
+        ...cycle.acceptedVentricularCaptureIds,
+      ],
+      "ventricular capture",
+    );
+    assertNoRepeatedAcceptedEventIdsV3(
+      [
+        ...alignment.deliveredCalciumDepositIds,
+        ...cycle.deliveredCalciumDepositIds,
+      ],
+      "calcium deposit",
+    );
 
     const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
       context,
@@ -111,8 +117,8 @@ export async function admitMainWireIntegratedModelSnapshotV3(
       terminalRestored,
     );
     if (
-      canonicalJsonStringify(terminalRoundTrip)
-      !== canonicalJsonStringify(terminalCheckpoint)
+      canonicalJsonStringify(terminalRoundTrip) !==
+      canonicalJsonStringify(terminalCheckpoint)
     ) {
       throw new Error("terminal checkpoint exact round-trip differs");
     }

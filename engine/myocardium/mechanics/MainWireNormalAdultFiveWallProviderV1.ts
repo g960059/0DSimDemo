@@ -36,13 +36,15 @@ import {
   assertNormalAdultFiveWallPriorV1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 import {
+  validateAndOwnMainWireFiveWallMechanicsResearchInputsV1,
+  type MainWireFiveWallMechanicsResearchInputsV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
+import {
   deriveLand2017DerivedParameters,
   stableHash as stableLandParameterHash,
   type Land2017SourceParameterSet,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
-import {
-  computeLand2017SteadyStateTangentPaFromSolvedState,
-} from "@/engine/myocardium/myofilament/land2017/tangents";
+import { computeLand2017SteadyStateTangentPaFromSolvedState } from "@/engine/myocardium/myofilament/land2017/tangents";
 import type {
   WholeHeartMechanicsSerializableValueV1,
   WholeHeartMechanicsStateCodecV1,
@@ -53,7 +55,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID =
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   priorId: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.priorId,
-  atrialEquilibriumPassiveOwner: "Moyer-2015-exact-equibiaxial-reduction" as const,
+  atrialEquilibriumPassiveOwner:
+    "Moyer-2015-exact-equibiaxial-reduction" as const,
   ventricularEquilibriumPassiveOwner: "Klotz-normal-center-one-fiber" as const,
   activeOwner: "Land-2017-active-only" as const,
   fullLandKernelOnAllFiveWalls: true as const,
@@ -70,16 +73,17 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
 });
 
 /** Mechanics-only fixture; not a circulation cold-state or periodic solution. */
-export const MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1 = Object.freeze({
-  LA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.LA
-    .cavityBloodVolumeMl.minimum,
-  LV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
-    .leftVentricularEndDiastolicVolumeMl,
-  RA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.RA
-    .cavityBloodVolumeMl.minimum,
-  RV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
-    .rightVentricularEndDiastolicVolumeMl,
-});
+export const MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1 =
+  Object.freeze({
+    LA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.LA.cavityBloodVolumeMl
+      .minimum,
+    LV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
+      .leftVentricularEndDiastolicVolumeMl,
+    RA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.RA.cavityBloodVolumeMl
+      .minimum,
+    RV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
+      .rightVentricularEndDiastolicVolumeMl,
+  });
 
 export type MainWireNormalAdultWallEnergyLedgerV1 = Readonly<{
   equilibriumPassiveStoredEnergyDensityJPerM3: number;
@@ -165,21 +169,20 @@ type PassiveEvaluationV1 = Readonly<{
 
 type PassiveEvaluatorV1 = (fiberLogStrain: number) => PassiveEvaluationV1;
 
-const LAND_SLS_STATE_CODEC: WholeHeartMechanicsStateCodecV1<
-  LandSlsWallMaterialStateV1
-> = Object.freeze({
-  clone: cloneLandSlsWallMaterialStateV1,
-  encode: encodeLandSlsState,
-  decode: decodeLandSlsState,
-});
+const LAND_SLS_STATE_CODEC: WholeHeartMechanicsStateCodecV1<LandSlsWallMaterialStateV1> =
+  Object.freeze({
+    clone: cloneLandSlsWallMaterialStateV1,
+    encode: encodeLandSlsState,
+    decode: decodeLandSlsState,
+  });
 
 export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
-):
-MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(laSlsMode, resolveVentricularMaterialProfile(
-    "baseline",
-  ));
+): MainWireNormalAdultFiveWallProviderV1 {
+  return createNormalAdultProvider(
+    laSlsMode,
+    resolveVentricularMaterialProfile("baseline"),
+  );
 }
 
 /**
@@ -199,6 +202,39 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularContract
   );
 }
 
+/**
+ * Wall-explicit research provider. "Chamber" bundles remain an authoring
+ * concern because SEP is a shared wall; the numerical primitive never labels
+ * an LV-only or RV-only scale that would conceal septal coupling.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const inputs =
+    validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs);
+  const materialChanged = (
+    [
+      ...Object.values(inputs.activeTensionScaleByWall),
+      ...Object.values(inputs.passiveStiffnessScaleByWall),
+    ] as number[]
+  ).some((scale) => scale !== 1);
+  if (!materialChanged)
+    return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const identity = stableHash(
+    sanitizeForStableHash(
+      Object.freeze({
+        activeTensionScaleByWall: inputs.activeTensionScaleByWall,
+        passiveStiffnessScaleByWall: inputs.passiveStiffnessScaleByWall,
+      }),
+    ),
+  );
+  return createNormalAdultProviderFromKernels(
+    "on",
+    createMaterialKernelsWithMechanicsResearchInputsV1(inputs),
+    `-wall-mechanics-${identity}`,
+  );
+}
+
 export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1(
   requestedScale: number,
 ): MainWireFiveWallRecordV1<
@@ -214,8 +250,7 @@ export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularC
 
 export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
-):
-MainWireFiveWallRecordV1<
+): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
   return createMaterialKernels(
@@ -231,7 +266,10 @@ MainWireFiveWallRecordV1<
 export function createFixedResearchMainWireNormalAdultFiveWallProviderV1(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider("on", resolveVentricularMaterialProfile(pointId));
+  return createNormalAdultProvider(
+    "on",
+    resolveVentricularMaterialProfile(pointId),
+  );
 }
 
 export function createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
@@ -239,7 +277,10 @@ export function createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
-  return createMaterialKernels("on", resolveVentricularMaterialProfile(pointId));
+  return createMaterialKernels(
+    "on",
+    resolveVentricularMaterialProfile(pointId),
+  );
 }
 
 export function resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
@@ -280,8 +321,7 @@ function continuousVentricularContractilityProfileV1(
       NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
     wallMaterial: Object.freeze({
       ...baseline,
-      parameterSetId:
-        `${baseline.parameterSetId}-ventricular-contractility-${scaleIdentity}`,
+      parameterSetId: `${baseline.parameterSetId}-ventricular-contractility-${scaleIdentity}`,
       landEquationParameters: scaledVentricularLandTrefForScale(
         `ventricular-contractility-${scaleIdentity}`,
         scale,
@@ -322,9 +362,69 @@ function createMaterialKernelsFromMaterial(
     const baseParams = isAtrium
       ? prior.active.wallMaterialByWall[wallId]
       : ventricularWallMaterial;
-    const materialParams = wallId === "LA" && laSlsMode === "exact-off"
-      ? exactLaSlsOffParams(baseParams)
-      : baseParams;
+    const materialParams =
+      wallId === "LA" && laSlsMode === "exact-off"
+        ? exactLaSlsOffParams(baseParams)
+        : baseParams;
+    return createWallKernel(
+      wallId,
+      materialParams,
+      passive,
+      prior.parameterIdentityHash,
+    );
+  });
+}
+
+function createMaterialKernelsWithMechanicsResearchInputsV1(
+  inputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
+  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
+  assertNormalAdultFiveWallPriorV1(prior);
+  return fiveWallRecord((wallId) => {
+    const activeScale = inputs.activeTensionScaleByWall[wallId];
+    const passiveScale = inputs.passiveStiffnessScaleByWall[wallId];
+    const isAtrium = wallId === "LA" || wallId === "RA";
+    const basePassive = isAtrium
+      ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
+      : createKlotzPassiveEvaluator(prior.passive.ventricular.compiled);
+    const passive =
+      passiveScale === 1
+        ? basePassive
+        : scaledPassiveEvaluatorV1(basePassive, passiveScale, wallId);
+    const baseline = prior.active.wallMaterialByWall[wallId];
+    const materialParams =
+      activeScale === 1 && passiveScale === 1
+        ? baseline
+        : Object.freeze({
+            ...baseline,
+            parameterSetId:
+              `${baseline.parameterSetId}-wall-${wallId}` +
+              `-active-${canonicalScaleIdentityV1(activeScale)}` +
+              `-passive-${canonicalScaleIdentityV1(passiveScale)}`,
+            landEquationParameters:
+              activeScale === 1
+                ? baseline.landEquationParameters
+                : scaledWallLandTrefForScaleV1(
+                    baseline.landEquationParameters,
+                    `wall-${wallId}-active-${canonicalScaleIdentityV1(activeScale)}`,
+                    activeScale,
+                    `bounded ${wallId} active-tension research control`,
+                  ),
+            sls:
+              passiveScale === 1
+                ? baseline.sls
+                : Object.freeze({
+                    ...baseline.sls,
+                    parameterSetId:
+                      `${baseline.sls.parameterSetId}` +
+                      `-wall-${wallId}-passive-` +
+                      canonicalScaleIdentityV1(passiveScale),
+                    branchModulusPa:
+                      baseline.sls.branchModulusPa * passiveScale,
+                  }),
+          });
     return createWallKernel(
       wallId,
       materialParams,
@@ -338,9 +438,10 @@ function createNormalAdultProvider(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   ventricularProfile: ResolvedVentricularMaterialProfileV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
-  const researchSuffix = ventricularProfile.point.pointId === "baseline"
-    ? ""
-    : `-source-research-${ventricularProfile.point.pointId}`;
+  const researchSuffix =
+    ventricularProfile.point.pointId === "baseline"
+      ? ""
+      : `-source-research-${ventricularProfile.point.pointId}`;
   return createNormalAdultProviderFromMaterial(
     laSlsMode,
     ventricularProfile.equilibriumPassive,
@@ -355,34 +456,54 @@ function createNormalAdultProviderFromMaterial(
   ventricularWallMaterial: LandSlsWallMaterialParamsV1,
   identitySuffix: string,
 ): MainWireNormalAdultFiveWallProviderV1 {
-  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
-  assertNormalAdultFiveWallPriorV1(prior);
-  return createMainWireFiveWallLandTriSegProviderV1(Object.freeze({
-    parameterSetId:
-      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}${identitySuffix}`,
-    materialByWall: createMaterialKernelsFromMaterial(
+  return createNormalAdultProviderFromKernels(
+    laSlsMode,
+    createMaterialKernelsFromMaterial(
       laSlsMode,
       ventricularEquilibriumPassive,
       ventricularWallMaterial,
     ),
-    atria: Object.freeze({
-      LA: atrialGeometry("LA"),
-      RA: atrialGeometry("RA"),
+    identitySuffix,
+  );
+}
+
+function createNormalAdultProviderFromKernels(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
+  materialByWall: MainWireFiveWallRecordV1<
+    MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+  >,
+  identitySuffix: string,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
+  assertNormalAdultFiveWallPriorV1(prior);
+  return createMainWireFiveWallLandTriSegProviderV1(
+    Object.freeze({
+      parameterSetId: `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}${identitySuffix}`,
+      materialByWall,
+      atria: Object.freeze({
+        LA: atrialGeometry("LA"),
+        RA: atrialGeometry("RA"),
+      }),
+      trisegWalls: prior.anatomy.triSeg.wallGeometryParameters,
+      initialTriSegCoordinates: prior.anatomy.triSeg.loadedCoordinates,
+      internalCoordinateScales: Object.freeze({
+        septalMidwallCapVolumeM3: Math.abs(
+          prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3,
+        ),
+        junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
+      }),
+      fingerprintMaterialStateCanonicalV1:
+        fingerprintNormalAdultFiveWallMaterialStateCanonicalV1,
     }),
-    trisegWalls: prior.anatomy.triSeg.wallGeometryParameters,
-    initialTriSegCoordinates: prior.anatomy.triSeg.loadedCoordinates,
-    internalCoordinateScales: Object.freeze({
-      septalMidwallCapVolumeM3:
-        Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
-      junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
-    }),
-    fingerprintMaterialStateCanonicalV1:
-      fingerprintNormalAdultFiveWallMaterialStateCanonicalV1,
-  }));
+  );
 }
 
 const CANONICAL_FINGERPRINT_WALL_ORDER_V1 = Object.freeze([
-  "LA", "LVFW", "RA", "RVFW", "SEP",
+  "LA",
+  "LVFW",
+  "RA",
+  "RVFW",
+  "SEP",
 ] as const);
 
 function updateCanonicalFingerprintTextV1(
@@ -402,7 +523,9 @@ function updateCanonicalFingerprintNumberV1(
   value: number,
 ): number {
   if (!Number.isFinite(value)) {
-    throw new Error("normal-adult material fingerprint requires finite numbers");
+    throw new Error(
+      "normal-adult material fingerprint requires finite numbers",
+    );
   }
   return updateCanonicalFingerprintTextV1(initialHash, JSON.stringify(value));
 }
@@ -411,33 +534,23 @@ function updateCanonicalLandSlsWallStateV1(
   initialHash: number,
   state: LandSlsWallMaterialStateV1,
 ): number {
-  if (!(state.landState instanceof Float64Array) || state.landState.length !== 6) {
-    throw new Error("normal-adult material fingerprint requires six Land states");
+  if (
+    !(state.landState instanceof Float64Array) ||
+    state.landState.length !== 6
+  ) {
+    throw new Error(
+      "normal-adult material fingerprint requires six Land states",
+    );
   }
-  let hash = updateCanonicalFingerprintTextV1(
-    initialHash,
-    '{"landState":[',
-  );
+  let hash = updateCanonicalFingerprintTextV1(initialHash, '{"landState":[');
   for (let index = 0; index < state.landState.length; index += 1) {
     if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
     hash = updateCanonicalFingerprintNumberV1(hash, state.landState[index]!);
   }
-  hash = updateCanonicalFingerprintTextV1(
-    hash,
-    '],"previousFiberLogStrain":',
-  );
-  hash = updateCanonicalFingerprintNumberV1(
-    hash,
-    state.previousFiberLogStrain,
-  );
-  hash = updateCanonicalFingerprintTextV1(
-    hash,
-    ',"previousFreeCalciumUM":',
-  );
-  hash = updateCanonicalFingerprintNumberV1(
-    hash,
-    state.previousFreeCalciumUM,
-  );
+  hash = updateCanonicalFingerprintTextV1(hash, '],"previousFiberLogStrain":');
+  hash = updateCanonicalFingerprintNumberV1(hash, state.previousFiberLogStrain);
+  hash = updateCanonicalFingerprintTextV1(hash, ',"previousFreeCalciumUM":');
+  hash = updateCanonicalFingerprintNumberV1(hash, state.previousFreeCalciumUM);
   hash = updateCanonicalFingerprintTextV1(
     hash,
     ',"slsState":{"viscousLogStrain":',
@@ -461,17 +574,17 @@ export function fingerprintNormalAdultFiveWallMaterialStateCanonicalV1(
     hash,
     state.trisegCoordinates.junctionRadiusM,
   );
-  hash = updateCanonicalFingerprintTextV1(
-    hash,
-    ',"septalMidwallCapVolumeM3":',
-  );
+  hash = updateCanonicalFingerprintTextV1(hash, ',"septalMidwallCapVolumeM3":');
   hash = updateCanonicalFingerprintNumberV1(
     hash,
     state.trisegCoordinates.septalMidwallCapVolumeM3,
   );
   hash = updateCanonicalFingerprintTextV1(hash, '},"wallStateByWall":{');
-  for (let index = 0; index < CANONICAL_FINGERPRINT_WALL_ORDER_V1.length;
-    index += 1) {
+  for (
+    let index = 0;
+    index < CANONICAL_FINGERPRINT_WALL_ORDER_V1.length;
+    index += 1
+  ) {
     if (index !== 0) hash = updateCanonicalFingerprintTextV1(hash, ",");
     const wallId = CANONICAL_FINGERPRINT_WALL_ORDER_V1[index]!;
     hash = updateCanonicalFingerprintTextV1(hash, `"${wallId}":`);
@@ -487,55 +600,67 @@ export function fingerprintNormalAdultFiveWallMaterialStateCanonicalV1(
 function resolveVentricularMaterialProfile(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
 ): ResolvedVentricularMaterialProfileV1 {
-  if (!MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1
-    .includes(pointId)) {
-    throw new Error(`unsupported fixed ventricular material research point: ${String(pointId)}`);
+  if (
+    !MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1.includes(
+      pointId,
+    )
+  ) {
+    throw new Error(
+      `unsupported fixed ventricular material research point: ${String(pointId)}`,
+    );
   }
-  const passiveScale = pointId === "ventricular-passive-low"
-    ? 0.75
-    : pointId === "ventricular-passive-high" ? 4 / 3 : 1;
-  const trefScale = pointId === "ventricular-tref-low"
-    ? 0.75
-    : pointId === "ventricular-tref-high" ? 4 / 3 : 1;
+  const passiveScale =
+    pointId === "ventricular-passive-low"
+      ? 0.75
+      : pointId === "ventricular-passive-high"
+        ? 4 / 3
+        : 1;
+  const trefScale =
+    pointId === "ventricular-tref-low"
+      ? 0.75
+      : pointId === "ventricular-tref-high"
+        ? 4 / 3
+        : 1;
   const baselinePassive = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular;
   const baselineMaterial =
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
-  const equilibriumPassive = passiveScale === 1
-    ? baselinePassive.compiled
-    : compileEquilibriumOneFiberPassiveV1(Object.freeze({
-      ...baselinePassive.compiled.params,
-      parameterSetId:
-        `${baselinePassive.compiled.params.parameterSetId}-${pointId}`,
-      centralTangentPa:
-        baselinePassive.compiled.params.centralTangentPa
-        * passiveScale,
-      tensionScalePa:
-        baselinePassive.compiled.params.tensionScalePa
-        * passiveScale,
-      compressionAdditionalTangentPa:
-        baselinePassive.compiled.params
-          .compressionAdditionalTangentPa * passiveScale,
-    }));
+  const equilibriumPassive =
+    passiveScale === 1
+      ? baselinePassive.compiled
+      : compileEquilibriumOneFiberPassiveV1(
+          Object.freeze({
+            ...baselinePassive.compiled.params,
+            parameterSetId: `${baselinePassive.compiled.params.parameterSetId}-${pointId}`,
+            centralTangentPa:
+              baselinePassive.compiled.params.centralTangentPa * passiveScale,
+            tensionScalePa:
+              baselinePassive.compiled.params.tensionScalePa * passiveScale,
+            compressionAdditionalTangentPa:
+              baselinePassive.compiled.params.compressionAdditionalTangentPa *
+              passiveScale,
+          }),
+        );
   const landEquationParameters =
-    pointId === "ventricular-tref-low"
-      || pointId === "ventricular-tref-high"
+    pointId === "ventricular-tref-low" || pointId === "ventricular-tref-high"
       ? scaledVentricularLandTref(pointId, trefScale)
       : baselineMaterial.landEquationParameters;
-  const sls = passiveScale === 1
-    ? baselineMaterial.sls
-    : Object.freeze({
-      ...baselineMaterial.sls,
-      parameterSetId: `${baselineMaterial.sls.parameterSetId}-${pointId}`,
-      branchModulusPa: baselineMaterial.sls.branchModulusPa * passiveScale,
-    });
-  const wallMaterial = passiveScale === 1 && trefScale === 1
-    ? baselineMaterial
-    : Object.freeze({
-      ...baselineMaterial,
-      parameterSetId: `${baselineMaterial.parameterSetId}-${pointId}`,
-      landEquationParameters,
-      sls,
-    });
+  const sls =
+    passiveScale === 1
+      ? baselineMaterial.sls
+      : Object.freeze({
+          ...baselineMaterial.sls,
+          parameterSetId: `${baselineMaterial.sls.parameterSetId}-${pointId}`,
+          branchModulusPa: baselineMaterial.sls.branchModulusPa * passiveScale,
+        });
+  const wallMaterial =
+    passiveScale === 1 && trefScale === 1
+      ? baselineMaterial
+      : Object.freeze({
+          ...baselineMaterial,
+          parameterSetId: `${baselineMaterial.parameterSetId}-${pointId}`,
+          landEquationParameters,
+          sls,
+        });
   const point = Object.freeze({
     pointId,
     ventricularEquilibriumPassiveScaleFromBaseline: passiveScale,
@@ -571,35 +696,55 @@ function scaledVentricularLandTrefForScale(
   scale: number,
   provenanceLabel: string,
 ): Land2017SourceParameterSet {
-  const baseline =
-    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
+  const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
+  return scaledWallLandTrefForScaleV1(
+    baseline,
+    identitySuffix,
+    scale,
+    provenanceLabel,
+  );
+}
+
+function scaledWallLandTrefForScaleV1(
+  baseline: Land2017SourceParameterSet,
+  identitySuffix: string,
+  scale: number,
+  provenanceLabel: string,
+): Land2017SourceParameterSet {
   const values = Object.freeze({
     ...baseline.values,
     Tref: baseline.values.Tref * scale,
   });
-  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
-    parameterSetId: `${baseline.parameterSetId}-${identitySuffix}`,
-    sourceId: baseline.sourceId,
-    doi: baseline.doi,
-    values,
-    derived: Object.freeze(deriveLand2017DerivedParameters(values)),
-    sourceParameters: Object.freeze(baseline.sourceParameters.map((entry) =>
-      entry.parameter === "Tref"
-        ? Object.freeze({
-          ...entry,
-          location:
-            `${entry.location}; ${provenanceLabel} scale ${scale}`,
-          original: Object.freeze({ ...entry.original }),
-          runtime: Object.freeze({ ...entry.runtime, value: values.Tref }),
-        })
-        : Object.freeze({
-          ...entry,
-          original: Object.freeze({ ...entry.original }),
-          runtime: Object.freeze({ ...entry.runtime }),
-        }))),
-    derivedParameters: Object.freeze(baseline.derivedParameters.map((entry) =>
-      Object.freeze({ ...entry }))),
-  };
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> =
+    {
+      parameterSetId: `${baseline.parameterSetId}-${identitySuffix}`,
+      sourceId: baseline.sourceId,
+      doi: baseline.doi,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+      sourceParameters: Object.freeze(
+        baseline.sourceParameters.map((entry) =>
+          entry.parameter === "Tref"
+            ? Object.freeze({
+                ...entry,
+                location: `${entry.location}; ${provenanceLabel} scale ${scale}`,
+                original: Object.freeze({ ...entry.original }),
+                runtime: Object.freeze({
+                  ...entry.runtime,
+                  value: values.Tref,
+                }),
+              })
+            : Object.freeze({
+                ...entry,
+                original: Object.freeze({ ...entry.original }),
+                runtime: Object.freeze({ ...entry.runtime }),
+              }),
+        ),
+      ),
+      derivedParameters: Object.freeze(
+        baseline.derivedParameters.map((entry) => Object.freeze({ ...entry })),
+      ),
+    };
   return Object.freeze({
     ...hashInput,
     parameterSetStableHash: stableLandParameterHash(hashInput),
@@ -607,18 +752,17 @@ function scaledVentricularLandTrefForScale(
 }
 
 function validateVentricularContractilityScaleV1(value: number): number {
-  const range =
-    MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1;
+  const range = MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1;
   if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || Object.is(value, -0)
-    || value < range.minimum
-    || value > range.maximum
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    Object.is(value, -0) ||
+    value < range.minimum ||
+    value > range.maximum
   ) {
     throw new Error(
-      "ventricular contractility scale must be finite within "
-        + `[${range.minimum}, ${range.maximum}]`,
+      "ventricular contractility scale must be finite within " +
+        `[${range.minimum}, ${range.maximum}]`,
     );
   }
   return value;
@@ -658,14 +802,16 @@ function createWallKernel(
   priorIdentityHash: string,
 ): MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1> {
   const passiveAtZero = evaluatePassive(0);
-  const parameterIdentityHash = stableHash(sanitizeForStableHash({
-    adapterId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
-    priorIdentityHash,
-    wallId,
-    passiveModelId: passiveAtZero.modelId,
-    passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
-    landSls: landSlsParameterHashInput(params),
-  }));
+  const parameterIdentityHash = stableHash(
+    sanitizeForStableHash({
+      adapterId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
+      priorIdentityHash,
+      wallId,
+      passiveModelId: passiveAtZero.modelId,
+      passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
+      landSls: landSlsParameterHashInput(params),
+    }),
+  );
   type TrialInput = Readonly<{
     previousAcceptedState: LandSlsWallMaterialStateV1;
     candidateFiberLogStrain: number;
@@ -698,8 +844,7 @@ function createWallKernel(
       stressPa: trial.totalKirchhoffStressPa,
       activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
       algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
-      activeFiberAlgorithmicTangentPa:
-        trial.activeAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
       iterationCount: trial.landSolverIterations,
       residualNorm,
       finite: trial.finite,
@@ -707,32 +852,33 @@ function createWallKernel(
       errors: trial.issues,
       readback: includeReadback
         ? wallReadback({
-          wallId,
-          passive,
-          params,
-          landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
-          slsOverstressPa: trial.sls.nextOverstressPa,
-          totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
-          energyLedger: Object.freeze({
-            equilibriumPassiveStoredEnergyDensityJPerM3:
-              passive.input.storedEnergyDensityJPerM3,
-            slsPreviousStoredEnergyDensityJPerM3:
-              trial.sls.previousStoredEnergyDensityJPerM3,
-            slsNextStoredEnergyDensityJPerM3:
-              trial.sls.nextStoredEnergyDensityJPerM3,
-            slsPhysicalDissipationIncrementDensityJPerM3:
-              trial.sls.physicalDissipationIncrementDensityJPerM3,
-            slsBackwardEulerNumericalDissipationIncrementDensityJPerM3:
-              trial.sls.backwardEulerNumericalDissipationIncrementDensityJPerM3,
-            slsDiscreteEnergyBalanceResidualJPerM3:
-              trial.sls.discreteEnergyBalanceResidualJPerM3,
-            slsPassive: trial.sls.passive,
-            landThermodynamicStoredEnergyClaimed: false as const,
-            totalThermodynamicPotentialIncludingLandClaimed: false as const,
-          }),
-          coldFixedInputIterations: null,
-          coldLandMaximumStateUpdate: null,
-        })
+            wallId,
+            passive,
+            params,
+            landActiveKirchhoffStressPa: trial.activeKirchhoffStressPa,
+            slsOverstressPa: trial.sls.nextOverstressPa,
+            totalKirchhoffStressPa: trial.totalKirchhoffStressPa,
+            energyLedger: Object.freeze({
+              equilibriumPassiveStoredEnergyDensityJPerM3:
+                passive.input.storedEnergyDensityJPerM3,
+              slsPreviousStoredEnergyDensityJPerM3:
+                trial.sls.previousStoredEnergyDensityJPerM3,
+              slsNextStoredEnergyDensityJPerM3:
+                trial.sls.nextStoredEnergyDensityJPerM3,
+              slsPhysicalDissipationIncrementDensityJPerM3:
+                trial.sls.physicalDissipationIncrementDensityJPerM3,
+              slsBackwardEulerNumericalDissipationIncrementDensityJPerM3:
+                trial.sls
+                  .backwardEulerNumericalDissipationIncrementDensityJPerM3,
+              slsDiscreteEnergyBalanceResidualJPerM3:
+                trial.sls.discreteEnergyBalanceResidualJPerM3,
+              slsPassive: trial.sls.passive,
+              landThermodynamicStoredEnergyClaimed: false as const,
+              totalThermodynamicPotentialIncludingLandClaimed: false as const,
+            }),
+            coldFixedInputIterations: null,
+            coldLandMaximumStateUpdate: null,
+          })
         : null,
     });
   };
@@ -757,8 +903,7 @@ function createWallKernel(
       stressPa: trial.totalKirchhoffStressPa,
       activeFiberKirchhoffStressPa: trial.activeKirchhoffStressPa,
       algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
-      activeFiberAlgorithmicTangentPa:
-        trial.activeAlgorithmicTangentPa,
+      activeFiberAlgorithmicTangentPa: trial.activeAlgorithmicTangentPa,
       iterationCount: trial.landSolverIterations,
       residualNorm: trial.residualNorm,
       finite: true,
@@ -789,7 +934,9 @@ function createWallKernel(
         params,
       );
       const errors = [
-        ...(cold.converged ? [] : ["Land fixed-input cold iteration did not converge"]),
+        ...(cold.converged
+          ? []
+          : ["Land fixed-input cold iteration did not converge"]),
         ...accepted.issues,
       ];
       const landStretch = Math.exp(fiberLogStrain) * params.landSlackStretch;
@@ -801,12 +948,10 @@ function createWallKernel(
           params.landEquationParameters,
         );
       const activeKirchhoffTangentPa =
-        params.orientationFraction01
-        * params.viableActiveFraction01
-        * (
-          landStretch * accepted.activeNominalStressPa
-          + landStretch * landStretch * activeNominalTangentPa
-        );
+        params.orientationFraction01 *
+        params.viableActiveFraction01 *
+        (landStretch * accepted.activeNominalStressPa +
+          landStretch * landStretch * activeNominalTangentPa);
       return materialEvaluation({
         wallId,
         state: cold.state,
@@ -879,29 +1024,59 @@ function createKlotzPassiveEvaluator(
   };
 }
 
-function materialEvaluation(input: Readonly<{
-  wallId: MainWireFiveWallIdV1;
-  state: LandSlsWallMaterialStateV1;
-  fiberLogStrain: number;
-  stressPa: number;
-  activeFiberKirchhoffStressPa: number;
-  algorithmicFiberTangentPa: number;
-  activeFiberAlgorithmicTangentPa: number;
-  iterationCount: number;
-  residualNorm: number;
-  finite: boolean;
-  valid: boolean;
-  errors: readonly string[];
-  readback: MainWireNormalAdultWallMaterialReadbackV1 | null;
-}>): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> {
-  const finite = input.finite && [
-    input.fiberLogStrain,
-    input.stressPa,
-    input.activeFiberKirchhoffStressPa,
-    input.residualNorm,
-    input.algorithmicFiberTangentPa,
-    input.activeFiberAlgorithmicTangentPa,
-  ].every(Number.isFinite);
+function scaledPassiveEvaluatorV1(
+  base: PassiveEvaluatorV1,
+  scale: number,
+  wallId: MainWireFiveWallIdV1,
+): PassiveEvaluatorV1 {
+  return (fiberLogStrain) => {
+    const evaluated = base(fiberLogStrain);
+    return Object.freeze({
+      modelId: evaluated.modelId,
+      parameterIdentityHash: stableHash(
+        sanitizeForStableHash({
+          sourceParameterIdentityHash: evaluated.parameterIdentityHash,
+          wallId,
+          equilibriumPassiveScale: scale,
+        }),
+      ),
+      input: Object.freeze({
+        stressPa: evaluated.input.stressPa * scale,
+        tangentPa: evaluated.input.tangentPa * scale,
+        storedEnergyDensityJPerM3:
+          evaluated.input.storedEnergyDensityJPerM3 * scale,
+      }),
+    });
+  };
+}
+
+function materialEvaluation(
+  input: Readonly<{
+    wallId: MainWireFiveWallIdV1;
+    state: LandSlsWallMaterialStateV1;
+    fiberLogStrain: number;
+    stressPa: number;
+    activeFiberKirchhoffStressPa: number;
+    algorithmicFiberTangentPa: number;
+    activeFiberAlgorithmicTangentPa: number;
+    iterationCount: number;
+    residualNorm: number;
+    finite: boolean;
+    valid: boolean;
+    errors: readonly string[];
+    readback: MainWireNormalAdultWallMaterialReadbackV1 | null;
+  }>,
+): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> {
+  const finite =
+    input.finite &&
+    [
+      input.fiberLogStrain,
+      input.stressPa,
+      input.activeFiberKirchhoffStressPa,
+      input.residualNorm,
+      input.algorithmicFiberTangentPa,
+      input.activeFiberAlgorithmicTangentPa,
+    ].every(Number.isFinite);
   return Object.freeze({
     // Cold/trial evaluation created this state exclusively for this result.
     // The material-kernel capability lets the provider retain it without a
@@ -911,8 +1086,7 @@ function materialEvaluation(input: Readonly<{
     fiberKirchhoffStressPa: input.stressPa,
     activeFiberKirchhoffStressPa: input.activeFiberKirchhoffStressPa,
     algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,
-    activeFiberAlgorithmicTangentPa:
-      input.activeFiberAlgorithmicTangentPa,
+    activeFiberAlgorithmicTangentPa: input.activeFiberAlgorithmicTangentPa,
     iterationCount: input.iterationCount,
     residualNorm: input.residualNorm,
     finite,
@@ -923,17 +1097,19 @@ function materialEvaluation(input: Readonly<{
   });
 }
 
-function wallReadback(input: Readonly<{
-  wallId: MainWireFiveWallIdV1;
-  passive: PassiveEvaluationV1;
-  params: LandSlsWallMaterialParamsV1;
-  landActiveKirchhoffStressPa: number;
-  slsOverstressPa: number;
-  totalKirchhoffStressPa: number;
-  energyLedger: MainWireNormalAdultWallEnergyLedgerV1;
-  coldFixedInputIterations: number | null;
-  coldLandMaximumStateUpdate: number | null;
-}>): MainWireNormalAdultWallMaterialReadbackV1 {
+function wallReadback(
+  input: Readonly<{
+    wallId: MainWireFiveWallIdV1;
+    passive: PassiveEvaluationV1;
+    params: LandSlsWallMaterialParamsV1;
+    landActiveKirchhoffStressPa: number;
+    slsOverstressPa: number;
+    totalKirchhoffStressPa: number;
+    energyLedger: MainWireNormalAdultWallEnergyLedgerV1;
+    coldFixedInputIterations: number | null;
+    coldLandMaximumStateUpdate: number | null;
+  }>,
+): MainWireNormalAdultWallMaterialReadbackV1 {
   return Object.freeze({
     adapterId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
     wallId: input.wallId,
@@ -995,10 +1171,17 @@ function encodeLandSlsState(
 function decodeLandSlsState(
   encoded: WholeHeartMechanicsSerializableValueV1,
 ): LandSlsWallMaterialStateV1 {
-  if (encoded === null || Array.isArray(encoded) || typeof encoded !== "object") {
+  if (
+    encoded === null ||
+    Array.isArray(encoded) ||
+    typeof encoded !== "object"
+  ) {
     throw new Error("encoded Land/SLS wall state must be a record");
   }
-  const record = encoded as Record<string, WholeHeartMechanicsSerializableValueV1>;
+  const record = encoded as Record<
+    string,
+    WholeHeartMechanicsSerializableValueV1
+  >;
   assertExactKeys(
     record,
     [
@@ -1012,11 +1195,18 @@ function decodeLandSlsState(
   const landState = record.landState;
   const slsState = record.slsState;
   if (
-    !Array.isArray(landState)
-    || landState.length !== 6
-    || !landState.every((value) => typeof value === "number" && Number.isFinite(value))
-  ) throw new Error("encoded Land state must contain six finite numbers");
-  if (slsState === null || Array.isArray(slsState) || typeof slsState !== "object") {
+    !Array.isArray(landState) ||
+    landState.length !== 6 ||
+    !landState.every(
+      (value) => typeof value === "number" && Number.isFinite(value),
+    )
+  )
+    throw new Error("encoded Land state must contain six finite numbers");
+  if (
+    slsState === null ||
+    Array.isArray(slsState) ||
+    typeof slsState !== "object"
+  ) {
     throw new Error("encoded SLS state must be a record");
   }
   const slsRecord = slsState as Record<
@@ -1057,9 +1247,9 @@ function fiveWallRecord<T>(
     "RVFW",
     "RA",
   ];
-  return Object.freeze(Object.fromEntries(
-    wallIds.map((wallId) => [wallId, build(wallId)]),
-  )) as MainWireFiveWallRecordV1<T>;
+  return Object.freeze(
+    Object.fromEntries(wallIds.map((wallId) => [wallId, build(wallId)])),
+  ) as MainWireFiveWallRecordV1<T>;
 }
 
 export function asMainWireFiveWallFreeCalciumDriveV1(
@@ -1078,7 +1268,8 @@ function assertExactKeys(
   const actual = Object.keys(value).sort();
   const sortedExpected = [...expected].sort();
   if (
-    actual.length !== sortedExpected.length
-    || actual.some((key, index) => key !== sortedExpected[index])
-  ) throw new Error(`${label} has an unexpected schema`);
+    actual.length !== sortedExpected.length ||
+    actual.some((key, index) => key !== sortedExpected[index])
+  )
+    throw new Error(`${label} has an unexpected schema`);
 }

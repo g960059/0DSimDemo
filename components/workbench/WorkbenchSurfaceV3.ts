@@ -129,6 +129,7 @@ const OUTPUT_COLOR_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "coronary.flow.inlet.LAD": "#c43f55",
   "coronary.flow.inlet.LCx": "#247d59",
   "coronary.flow.inlet.RCA": "#3472c4",
+  "coronary.flow.venous-outlet": "#247c71",
   "device.LVAD.flow": "#a96c08",
   "rhythm.phase.regular-sinus": "#66717b",
 });
@@ -146,7 +147,7 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.transmural.LV": "LV transmural pressure",
   "hemodynamics.pressure.transmural.RA": "RA transmural pressure",
   "hemodynamics.pressure.transmural.RV": "RV transmural pressure",
-  "hemodynamics.pressure.absolute.Ao": "Ao pressure",
+  "hemodynamics.pressure.absolute.Ao": "Aortic-root pressure",
   "hemodynamics.pressure.absolute.SA": "Systemic arterial pressure",
   "hemodynamics.pressure.absolute.PA": "Pulmonary arterial pressure",
   "hemodynamics.pressure.absolute.PVein": "Pulmonary venous pressure",
@@ -160,6 +161,10 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.flow.venous.VC_RA": "Systemic venous return",
   "hemodynamics.flow.venous.PVein_LA": "Pulmonary venous return",
   "pericardium.pressure.excess": "Pericardial pressure",
+  "pericardium.volume.heart": "Intrapericardial heart volume",
+  "pericardium.volume.fluid": "Pericardial fluid volume",
+  "pericardium.volume.total-occupied": "Total occupied pericardial volume",
+  "pericardium.energy.stored": "Stored pericardial elastic energy",
   "respiration.pressure.pleural": "Pleural pressure",
   "respiration.pressure.alveolar": "Alveolar pressure",
   "rhythm.heart-rate.instantaneous": "Heart rate",
@@ -167,24 +172,182 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "coronary.flow.inlet.LAD": "LAD flow",
   "coronary.flow.inlet.LCx": "LCx flow",
   "coronary.flow.inlet.RCA": "RCA flow",
+  "coronary.flow.venous-outlet": "Common coronary venous outlet flow",
+  ...Object.fromEntries(
+    (["LAD", "LCx", "RCA"] as const).flatMap((territory) => [
+      [
+        `coronary.flow.large-arterial-outflow.${territory}`,
+        `${territory} post-lesion arterial outflow`,
+      ],
+      [
+        `coronary.flow.large-arterial-storage-rate.${territory}`,
+        `${territory} large-arterial storage rate`,
+      ],
+      [
+        `coronary.pressure.post-focal.${territory}`,
+        `${territory} post-focal-lesion pressure`,
+      ],
+      [
+        `coronary.pressure-loss.focal.${territory}`,
+        `${territory} focal-lesion pressure loss`,
+      ],
+      ...(["subepicardial", "subendocardial"] as const).flatMap((layer) => [
+        [
+          `coronary.flow.layer-r1.${territory}.${layer}`,
+          `${territory} ${layer} R1 flow`,
+        ],
+        [
+          `coronary.flow.layer-qm-internal.${territory}.${layer}`,
+          `${territory} ${layer} internal Qm flow`,
+        ],
+        [
+          `coronary.flow.layer-r2.${territory}.${layer}`,
+          `${territory} ${layer} R2 flow`,
+        ],
+        [
+          `coronary.tone-resistance-scale.${territory}.${layer}`,
+          `${territory} ${layer} effective tone resistance scale`,
+        ],
+      ]),
+    ]),
+  ),
+  "coronary.power.dissipated.total": "Total coronary dissipated power",
   "device.LVAD.flow": "LVAD flow",
   "rhythm.phase.regular-sinus": "Sinus cycle phase",
-  "hemodynamics.pressure.mean.Ao": "Mean arterial pressure",
-  "hemodynamics.pressure.systolic.Ao": "Systolic arterial pressure",
-  "hemodynamics.pressure.diastolic.Ao": "Diastolic arterial pressure",
-  "hemodynamics.pressure.pulse.Ao": "Pulse pressure",
+  "hemodynamics.pressure.mean.Ao": "Mean aortic-root pressure",
+  "hemodynamics.pressure.systolic.Ao": "Systolic aortic-root pressure",
+  "hemodynamics.pressure.diastolic.Ao": "Diastolic aortic-root pressure",
+  "hemodynamics.pressure.pulse.Ao": "Aortic-root pulse pressure",
+  "hemodynamics.pressure.mean.SA": "Mean systemic arterial pressure (MAP)",
+  "hemodynamics.pressure.systolic.SA":
+    "Systemic arterial systolic pressure (SBP)",
+  "hemodynamics.pressure.diastolic.SA":
+    "Systemic arterial diastolic pressure (DBP)",
+  "hemodynamics.pressure.pulse.SA": "Systemic arterial pulse pressure",
   "hemodynamics.pressure.mean.PA": "Mean pulmonary arterial pressure",
+  "hemodynamics.pressure.systolic.PA":
+    "Pulmonary arterial systolic pressure (sPAP)",
+  "hemodynamics.pressure.diastolic.PA":
+    "Pulmonary arterial diastolic pressure (dPAP)",
+  "hemodynamics.pressure.pulse.PA": "Pulmonary arterial pulse pressure",
+  "hemodynamics.pressure.mean.PVein":
+    "Mean pulmonary venous pressure (model PVein node)",
+  "hemodynamics.pressure.mean.VC": "Mean vena cava pressure",
   "hemodynamics.pressure.mean.LA": "Mean left atrial pressure",
-  "hemodynamics.pressure.mean.RA": "Mean right atrial pressure",
+  "hemodynamics.pressure.mean.RA":
+    "Central venous pressure (mean right atrial pressure)",
+  "hemodynamics.pressure.systolic.LV": "Peak LV systolic pressure",
+  "hemodynamics.pressure.systolic.RV": "Peak RV systolic pressure",
+  "hemodynamics.pressure-gradient.mean.systemic-circuit":
+    "Mean systemic circuit pressure difference (SA − RA)",
+  "hemodynamics.pressure-gradient.mean.pulmonary-circuit":
+    "Mean pulmonary circuit pressure difference (PA − PVein)",
   "hemodynamics.volume.maximum.LV": "Maximum LV volume",
   "hemodynamics.volume.minimum.LV": "Minimum LV volume",
   "hemodynamics.stroke-volume.LV-extrema": "LV stroke volume (extrema)",
   "hemodynamics.ejection-fraction.LV-extrema": "LV ejection fraction (extrema)",
+  "hemodynamics.volume.end-diastolic.LV-at-MV-closure": "LV EDV (MV closure)",
+  "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure":
+    "LV EDP (MV closure, absolute)",
+  "hemodynamics.pressure.transmural.end-diastolic.LV-at-MV-closure":
+    "LV EDP (MV closure, transmural)",
+  "hemodynamics.volume.end-systolic.LV-at-AoV-closure": "LV ESV (AoV closure)",
+  "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure":
+    "LV ESP (AoV closure, absolute)",
+  "hemodynamics.pressure.transmural.end-systolic.LV-at-AoV-closure":
+    "LV ESP (AoV closure, transmural)",
+  "hemodynamics.stroke-volume.LV-event-defined":
+    "LV stroke volume (valve events)",
+  "hemodynamics.ejection-fraction.LV-event-defined":
+    "LV ejection fraction (valve events)",
+  "hemodynamics.volume.end-diastolic.RV-at-TV-closure": "RV EDV (TV closure)",
+  "hemodynamics.pressure.absolute.end-diastolic.RV-at-TV-closure":
+    "RV EDP (TV closure, absolute)",
+  "hemodynamics.pressure.transmural.end-diastolic.RV-at-TV-closure":
+    "RV EDP (TV closure, transmural)",
+  "hemodynamics.volume.end-systolic.RV-at-PV-closure": "RV ESV (PV closure)",
+  "hemodynamics.pressure.absolute.end-systolic.RV-at-PV-closure":
+    "RV ESP (PV closure, absolute)",
+  "hemodynamics.pressure.transmural.end-systolic.RV-at-PV-closure":
+    "RV ESP (PV closure, transmural)",
+  "hemodynamics.stroke-volume.RV-event-defined":
+    "RV stroke volume (valve events)",
+  "hemodynamics.ejection-fraction.RV-event-defined":
+    "RV ejection fraction (valve events)",
+  ...Object.fromEntries(
+    (["MV", "AoV", "TV", "PV"] as const).flatMap((valve) => [
+      [`hemodynamics.valve-volume.forward.${valve}`, `${valve} forward volume`],
+      [`hemodynamics.valve-volume.reverse.${valve}`, `${valve} reverse volume`],
+      [`hemodynamics.valve-volume.net.${valve}`, `${valve} net volume`],
+      [
+        `hemodynamics.valve-regurgitant-fraction.same-valve.${valve}`,
+        `${valve} same-valve regurgitant fraction`,
+      ],
+    ]),
+  ),
+  ...Object.fromEntries(
+    (["MV", "AoV", "TV", "PV"] as const).flatMap((valve) => [
+      [
+        `hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.${valve}`,
+        `${valve} mean forward hydraulic pressure difference`,
+      ],
+      [
+        `hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.${valve}`,
+        `${valve} peak forward hydraulic pressure difference`,
+      ],
+    ]),
+  ),
+  "hemodynamics.valve-volume.net.AoV":
+    "Effective LV forward stroke volume (AoV net)",
+  "hemodynamics.valve-volume.net.PV":
+    "Effective RV forward stroke volume (PV net)",
   "myocardium.work.external.LV-transmural-pressure-volume-path":
     "LV transmural PV path work",
-  "hemodynamics.output.native-left": "Native left cardiac output",
+  "myocardium.work.external.RV-transmural-pressure-volume-path":
+    "RV transmural PV path work",
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV":
+    "LV dP/dt max (accepted-step)",
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV":
+    "LV dP/dt min (accepted-step)",
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV":
+    "RV dP/dt max (accepted-step)",
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV":
+    "RV dP/dt min (accepted-step)",
+  "hemodynamics.output.native-left":
+    "Native left forward-flow output (AoV forward)",
+  "hemodynamics.output.native-right":
+    "Native right forward-flow output (PV forward)",
+  "hemodynamics.output.effective-native-left":
+    "Effective native left output (AoV net)",
+  "hemodynamics.output.effective-native-right":
+    "Effective native right output (PV net)",
+  "hemodynamics.return.systemic-venous": "Total systemic venous return",
+  "hemodynamics.return.pulmonary-venous": "Pulmonary venous return",
   "hemodynamics.output.systemic-tissue": "Systemic tissue output",
   "hemodynamics.output.pulmonary": "Pulmonary output",
+  "hemodynamics.resistance.systemic-effective":
+    "Effective systemic vascular resistance",
+  "hemodynamics.resistance.pulmonary-effective":
+    "Effective pulmonary vascular resistance",
+  "hemodynamics.compliance.pulmonary-arterial-effective":
+    "Effective pulmonary arterial compliance",
+  "coronary.pressure-perfusion.surrogate.Ao-diastolic-minus-LVEDP":
+    "Coronary perfusion pressure surrogate (Ao DBP − LVEDP)",
+  "oxygen.pressure.alveolar": "Alveolar PO₂",
+  "oxygen.pressure.arterial": "Arterial PO₂",
+  "oxygen.pressure.gradient.alveolar-arterial": "Alveolar–arterial O₂ gradient",
+  "oxygen.saturation.end-capillary": "End-capillary O₂ saturation",
+  "oxygen.saturation.arterial": "Arterial O₂ saturation",
+  "oxygen.content.end-capillary": "End-capillary O₂ content",
+  "oxygen.content.arterial": "Arterial O₂ content",
+  "oxygen.content.required-mixed-venous": "Required mixed-venous O₂ content",
+  "oxygen.saturation.required-mixed-venous":
+    "Required mixed-venous O₂ saturation",
+  "oxygen.pressure.required-mixed-venous": "Required mixed-venous PO₂",
+  "oxygen.delivery.systemic": "Systemic O₂ delivery",
+  "oxygen.consumption.target": "Target O₂ consumption",
+  "oxygen.extraction-ratio.required": "Required O₂ extraction ratio",
+  "oxygen.delivery-to-consumption-ratio": "O₂ delivery / consumption",
 });
 
 export function createDefaultExperimentSurfaceV3(
@@ -210,22 +373,37 @@ export function createDefaultExperimentSurfaceV3(
     );
     return graph === undefined
       ? []
-      : [createDefaultGraphPaneV3(graph, index, {
-          ...("structuralSide" in defaultGraph
-            ? { structuralSide: defaultGraph.structuralSide }
-            : {}),
-          ...("seriesIds" in defaultGraph
-            ? { seriesIds: defaultGraph.seriesIds }
-            : {}),
-        })];
+      : [
+          createDefaultGraphPaneV3(graph, index, {
+            ...("structuralSide" in defaultGraph
+              ? { structuralSide: defaultGraph.structuralSide }
+              : {}),
+            ...("seriesIds" in defaultGraph
+              ? { seriesIds: defaultGraph.seriesIds }
+              : {}),
+          }),
+        ];
   });
   const defaultOutputIds = Object.freeze([
     "rhythm.heart-rate.instantaneous",
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
-    "hemodynamics.output.native-left",
+    "hemodynamics.pressure.systolic.Ao",
+    "hemodynamics.pressure.diastolic.Ao",
     "hemodynamics.pressure.mean.Ao",
-    "hemodynamics.ejection-fraction.LV-extrema",
+    "hemodynamics.pressure.systolic.PA",
+    "hemodynamics.pressure.diastolic.PA",
+    "hemodynamics.pressure.mean.PA",
     "hemodynamics.pressure.mean.LA",
+    "hemodynamics.pressure.mean.RA",
+    "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+    "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+    "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+    "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+    "hemodynamics.stroke-volume.LV-event-defined",
+    "hemodynamics.ejection-fraction.LV-event-defined",
+    "hemodynamics.valve-volume.net.AoV",
+    "hemodynamics.output.effective-native-left",
+    "myocardium.work.external.LV-transmural-pressure-volume-path",
+    "oxygen.delivery.systemic",
   ]);
   const defaultOutputs = defaultOutputIds.flatMap((outputId) => {
     const output = contract.outputCatalog.find(
@@ -254,9 +432,11 @@ export function createDefaultExperimentSurfaceV3(
     "rhythm.heart-rate-bpm",
     "hemodynamics.total-blood-volume-ml",
     "hemodynamics.systemic-resistance",
-    "myocardium.contractility",
+    "hemodynamics.pulmonary-resistance",
     "hemodynamics.venous-tone",
-    "ventilation.peep-cm-h2o",
+    "myocardium.active-tension-scale.LVFW",
+    "myocardium.calcium-decay-time-scale.LVFW",
+    "myocardium.passive-stiffness-scale.LVFW",
   ]);
   const defaultControls = defaultControlIds.flatMap((controlId) => {
     const control = contract.controlCatalog.find(
@@ -306,21 +486,21 @@ function createDefaultGraphPaneV3(
     seriesIds?: readonly string[];
   }> = Object.freeze({}),
 ): ExperimentSurfaceGraphPaneV2 {
-  const structuralSide = graph.renderer === "structural-return"
-    ? options.structuralSide ?? (graph.side === "both" ? "right" : graph.side)
-    : undefined;
-  const selectedSeriesIds = graph.renderer === "structural-return"
-    ? []
-    : (options.seriesIds ?? graph.defaultSeriesIds).filter((seriesId) =>
-        graph.seriesCatalog.some((series) => series.seriesId === seriesId)
-      );
+  const structuralSide =
+    graph.renderer === "structural-return"
+      ? (options.structuralSide ??
+        (graph.side === "both" ? "right" : graph.side))
+      : undefined;
+  const selectedSeriesIds =
+    graph.renderer === "structural-return"
+      ? []
+      : (options.seriesIds ?? graph.defaultSeriesIds).filter((seriesId) =>
+          graph.seriesCatalog.some((series) => series.seriesId === seriesId),
+        );
   return Object.freeze({
     paneId: `graph-${index + 1}`,
     role: "graph",
-    label: graphTitleV3(
-      graph.graphId,
-      structuralSide,
-    ),
+    label: graphTitleV3(graph.graphId, structuralSide),
     order: index,
     priority: Math.max(50, 100 - index),
     graphId: graph.graphId,
@@ -336,9 +516,7 @@ function createDefaultGraphPaneV3(
                   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
               }
             : {}),
-          ...(graph.renderer === "structural-return"
-            ? { structuralSide }
-            : {}),
+          ...(graph.renderer === "structural-return" ? { structuralSide } : {}),
         }),
     traceColors: Object.freeze([]),
     series: Object.freeze(
@@ -369,11 +547,15 @@ export function reconcileWorkbenchSurfaceScenariosV3(
 ): ExperimentSurfaceV2 {
   const scenarioIds = new Set(scenarios.map(({ scenarioId }) => scenarioId));
   const graphPanes = surface.graphPanes.map((pane) => {
-    const fixedScenarioIds = pane.scenarioScope.mode === "fixed"
-      ? pane.scenarioScope.scenarioIds.filter((scenarioId) =>
-          scenarioIds.has(scenarioId))
-      : [];
-    const selectedSeriesIds = new Set(pane.series.map(({ seriesId }) => seriesId));
+    const fixedScenarioIds =
+      pane.scenarioScope.mode === "fixed"
+        ? pane.scenarioScope.scenarioIds.filter((scenarioId) =>
+            scenarioIds.has(scenarioId),
+          )
+        : [];
+    const selectedSeriesIds = new Set(
+      pane.series.map(({ seriesId }) => seriesId),
+    );
     return Object.freeze({
       ...pane,
       scenarioScope:
@@ -384,17 +566,21 @@ export function reconcileWorkbenchSurfaceScenariosV3(
             })
           : Object.freeze({ mode: "visible-scenarios" as const }),
       excludedTraces: Object.freeze(
-        pane.excludedTraces.filter((trace) =>
-          scenarioIds.has(trace.scenarioId) &&
-          (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId))),
+        pane.excludedTraces.filter(
+          (trace) =>
+            scenarioIds.has(trace.scenarioId) &&
+            (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId)),
+        ),
       ),
     });
   });
   const controlPanes = surface.controlPanes.map((pane) => {
-    const fixedScenarioIds = pane.binding.mode === "fixed"
-      ? pane.binding.scenarioIds.filter((scenarioId) =>
-          scenarioIds.has(scenarioId))
-      : [];
+    const fixedScenarioIds =
+      pane.binding.mode === "fixed"
+        ? pane.binding.scenarioIds.filter((scenarioId) =>
+            scenarioIds.has(scenarioId),
+          )
+        : [];
     return Object.freeze({
       ...pane,
       binding:
@@ -411,13 +597,14 @@ export function reconcileWorkbenchSurfaceScenariosV3(
     // This keeps transient/Fast Refresh fields out of persistence and gives a
     // pre-save Session created before the binding cutover the current default.
     const candidateBinding = (
-      pane as ExperimentSurfaceOutputPaneV2 & Readonly<{
-        binding?: ExperimentSurfaceOutputPaneV2["binding"];
-      }>
+      pane as ExperimentSurfaceOutputPaneV2 &
+        Readonly<{
+          binding?: ExperimentSurfaceOutputPaneV2["binding"];
+        }>
     ).binding;
     const binding =
       candidateBinding?.mode === "fixed" &&
-        scenarioIds.has(candidateBinding.scenarioId)
+      scenarioIds.has(candidateBinding.scenarioId)
         ? Object.freeze({
             mode: "fixed" as const,
             scenarioId: candidateBinding.scenarioId,
@@ -430,11 +617,15 @@ export function reconcileWorkbenchSurfaceScenariosV3(
       order: pane.order,
       priority: pane.priority,
       binding,
-      items: Object.freeze(pane.items.map((item) => Object.freeze({
-        outputId: item.outputId,
-        label: item.label,
-        order: item.order,
-      }))),
+      items: Object.freeze(
+        pane.items.map((item) =>
+          Object.freeze({
+            outputId: item.outputId,
+            label: item.label,
+            order: item.order,
+          }),
+        ),
+      ),
     });
   });
   return reconcileWorkbenchGraphColorsV3(
@@ -454,7 +645,8 @@ export function resolveWorkbenchGraphScenarioIdsV3(
   const visible = new Set(visibleScenarioIds);
   return Object.freeze(
     pane.scenarioScope.scenarioIds.filter((scenarioId) =>
-      visible.has(scenarioId)),
+      visible.has(scenarioId),
+    ),
   );
 }
 
@@ -464,8 +656,9 @@ export function isWorkbenchGraphTraceExcludedV3(
   scenarioId: string,
   seriesId: string | null,
 ): boolean {
-  return pane.excludedTraces.some((trace) =>
-    trace.scenarioId === scenarioId && trace.seriesId === seriesId);
+  return pane.excludedTraces.some(
+    (trace) => trace.scenarioId === scenarioId && trace.seriesId === seriesId,
+  );
 }
 
 /** Resolve one controller pane's single binding context. */
@@ -536,6 +729,7 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LVP: "LVP",
     LAP: "LAP",
     AoP: "AoP",
+    SAP: "Systemic arterial pressure",
     RAP: "RAP",
     RVP: "RVP",
     PAP: "PAP",
@@ -552,6 +746,25 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LCx: "LCx",
     RCA: "RCA",
     Coronary: "Coronary",
+    CoronaryVenous: "Common coronary venous outlet",
+    LADPostP: "LAD post-lesion pressure",
+    LCxPostP: "LCx post-lesion pressure",
+    RCAPostP: "RCA post-lesion pressure",
+    LADLesionLoss: "LAD focal pressure loss",
+    LCxLesionLoss: "LCx focal pressure loss",
+    RCALesionLoss: "RCA focal pressure loss",
+    ...Object.fromEntries(
+      (["LAD", "LCx", "RCA"] as const).flatMap((territory) => [
+        [`${territory}ArtOut`, `${territory} post-lesion arterial outflow`],
+        [`${territory}ArtStorage`, `${territory} arterial storage rate`],
+        [`${territory}R1Epi`, `${territory} subepicardial R1 flow`],
+        [`${territory}QmEpi`, `${territory} subepicardial Qm flow`],
+        [`${territory}R2Epi`, `${territory} subepicardial R2 flow`],
+        [`${territory}R1Endo`, `${territory} subendocardial R1 flow`],
+        [`${territory}QmEndo`, `${territory} subendocardial Qm flow`],
+        [`${territory}R2Endo`, `${territory} subendocardial R2 flow`],
+      ]),
+    ),
     LVAD: "LVAD",
     SA_Art: "Systemic tissue flow",
     PA_PArt: "Pulmonary arterial flow",
@@ -578,6 +791,62 @@ export function controlLabelV3(controlId: string): string {
     "rhythm.heart-rate-bpm": "Heart rate",
     "hemodynamics.total-blood-volume-ml": "Total blood volume",
     "ventilation.peep-cm-h2o": "PEEP",
+    "myocardium.contractility": "Common ventricular active tension",
+    ...Object.fromEntries(
+      (["LA", "LVFW", "SEP", "RVFW", "RA"] as const).flatMap((wall) => [
+        [`myocardium.active-tension-scale.${wall}`, `${wall} active tension`],
+        [
+          `myocardium.passive-stiffness-scale.${wall}`,
+          `${wall} passive stiffness`,
+        ],
+        [
+          `myocardium.calcium-decay-time-scale.${wall}`,
+          `${wall} calcium decay time`,
+        ],
+      ]),
+    ),
+    ...Object.fromEntries(
+      (["MV", "AoV", "TV", "PV"] as const).flatMap((valve) => [
+        [
+          `valve.maximum-forward-eoa-cm2.${valve}`,
+          `${valve} maximum forward EOA`,
+        ],
+        [
+          `valve.closed-reverse-eroa-cm2.${valve}`,
+          `${valve} closed reverse EROA`,
+        ],
+      ]),
+    ),
+    "oxygen.hemoglobin-g-per-dl": "Hemoglobin",
+    "oxygen.inspired-oxygen-fraction": "Inspired O₂ fraction",
+    "oxygen.arterial-carbon-dioxide-pressure-mm-hg": "Arterial PCO₂",
+    "oxygen.respiratory-exchange-ratio": "Respiratory exchange ratio",
+    "oxygen.barometric-pressure-mm-hg": "Barometric pressure",
+    "oxygen.true-shunt-fraction": "True shunt fraction",
+    "oxygen.target-consumption-ml-per-min": "Target O₂ consumption",
+    "pericardium.reference-capacity-scale": "Pericardial reference capacity",
+    "pericardium.pressure-scale": "Pericardial pressure scale",
+    "pericardium.exponential-stiffness-scale":
+      "Pericardial exponential stiffness",
+    "pericardium.prescribed-fluid-volume-ml": "Pericardial fluid volume",
+    ...Object.fromEntries(
+      (["LAD", "LCx", "RCA"] as const).flatMap((territory) => [
+        [
+          `coronary.focal-diameter-loss-fraction.${territory}`,
+          `${territory} focal diameter loss`,
+        ],
+        ...(["subepicardial", "subendocardial"] as const).flatMap((layer) => [
+          [
+            `coronary.structural-r1-resistance-scale.${territory}.${layer}`,
+            `${territory} ${layer} structural R1 resistance`,
+          ],
+          [
+            `coronary.structural-rm-resistance-scale.${territory}.${layer}`,
+            `${territory} ${layer} structural Rm resistance`,
+          ],
+        ]),
+      ]),
+    ),
   };
   return labels[controlId] ?? humanizeCatalogIdV3(controlId);
 }
