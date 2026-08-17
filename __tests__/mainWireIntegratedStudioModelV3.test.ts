@@ -885,12 +885,34 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     });
     expect(checkpoint.payload).toMatchObject({
       checkpointId:
-        "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
+        "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2",
       numericalCheckpoint: expect.objectContaining({
         revision: checkpoint.acceptedRevision,
         acceptedTimeSec: checkpoint.acceptedTimeSec,
       }),
     });
+    await expect(
+      release.executables.captureAdapter.validateCapture({
+        model,
+        capture: {
+          ...captured.content.scenarios[0]!.capture,
+          fixture: {
+            ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+            mechanismResearchInputs: {
+              ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
+                .mechanismResearchInputs,
+              oxygenTransport: {
+                ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
+                  .mechanismResearchInputs.oxygenTransport,
+                hemoglobinGPerDl: 10,
+              },
+            },
+          },
+        },
+      }),
+    ).rejects.toThrow(
+      "mechanism research input SHA-256 identity mismatch",
+    );
     await expect(
       release.executables.snapshotGate.admitFrozenCandidate({
         model,

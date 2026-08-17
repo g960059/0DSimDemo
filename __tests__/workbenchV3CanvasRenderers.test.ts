@@ -17,6 +17,7 @@ import {
   extendPvSystolicRelationToPlotBoundaryV3,
   extendPvVolumeDomainToExtrapolatedInterceptsV3,
   firstSampleAtOrAfterV3,
+  guytonZeroFlowPresentationMaximumV3,
   guytonStarlingPlotDomainV3,
   isWorkbenchPresentationSampleV3,
   lastCompleteCycleRangeV3,
@@ -112,7 +113,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     vi.unstubAllGlobals();
   });
 
-  it("focuses the Starling viewport on the confirmed downturn and ignores history extremes", () => {
+  it("detects the downturn while the viewport uses the zero-flow intercept", () => {
     const orientation = structuralOrientationV3([
       [-1, 0.2],
       [4, 3.4],
@@ -137,7 +138,8 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       pressureMaximumMmHg: 19.2,
     });
     const focused = guytonStarlingPlotDomainV3(orientation);
-    expect(focused.pressureMaximumMmHg).toBeLessThan(25);
+    expect(guytonZeroFlowPresentationMaximumV3(orientation)).toBeCloseTo(14.3);
+    expect(focused.pressureMaximumMmHg).toBeCloseTo(14.3);
     expect(guytonStarlingPlotDomainV3(orientation, [history])).toEqual(focused);
   });
 

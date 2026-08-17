@@ -224,10 +224,10 @@
       }
     },
     "checkpointCodec": {
-      "checkpointCodecId": "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v5",
+      "checkpointCodecId": "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v6",
       "definition": {
-        "checkpointId": "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1",
-        "schemaVersion": 1,
+        "checkpointId": "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2",
+        "schemaVersion": 2,
         "fixturePairing": "regular-sinus-all-off-and-complete-standard-fixture-identity",
         "restoreSemantics": "exact-no-migration-no-clock-rebase"
       }

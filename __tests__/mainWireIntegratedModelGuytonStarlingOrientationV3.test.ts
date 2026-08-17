@@ -123,7 +123,7 @@ describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
     }
   });
 
-  it("keeps both structural and future qualified protocol points inside the plot domain", async () => {
+  it("focuses the plot through the structural zero-flow intercept", async () => {
     const session = await MainWireIntegratedModelSessionV3.create();
     const advanced = session.advanceToPresentationTime(
       mainWireIntegratedModelPresentationTargetTimeSecV3(1),
@@ -146,6 +146,9 @@ describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
       result.right.curve[0]!.downstreamPressureMmHg,
     );
     expect(domain.pressureMaximumMmHg).toBeGreaterThan(
+      result.right.fillingPressureMmHg,
+    );
+    expect(domain.pressureMaximumMmHg).toBeLessThan(
       result.right.curve.at(-1)!.downstreamPressureMmHg,
     );
   });

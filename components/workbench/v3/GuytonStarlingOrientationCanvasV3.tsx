@@ -99,39 +99,62 @@ export function guytonStarlingPlotDomainV3(
       flowLPerMin: 0,
     },
   ];
-  if (starling.length === 0) {
-    return fullStructuralReturnPlotDomainV3([orientation], anchors);
-  }
+  const structuralReturn = orientation.curve.map((point) => ({
+    pressureMmHg: point.downstreamPressureMmHg,
+    flowLPerMin: point.returnFlowLPerMin,
+  }));
+  const visibleCandidates =
+    starling.length === 0
+      ? [...structuralReturn, ...anchors]
+      : [...starling, ...anchors];
   const minimumPressure = Math.min(
-    ...[...starling, ...anchors]
+    ...visibleCandidates
       .map(({ pressureMmHg }) => pressureMmHg)
       .filter(Number.isFinite),
   );
-  const flows = [...starling, ...anchors]
+  const flows = visibleCandidates
     .map(({ flowLPerMin }) => flowLPerMin)
     .filter(Number.isFinite);
-  const focusedStarlingMaximum =
-    starlingPresentationPressureMaximumV3(orientation);
-  const maximumPressure = Math.max(
-    focusedStarlingMaximum,
-    ...anchors.map(({ pressureMmHg }) => pressureMmHg),
-  );
+  const maximumPressure = guytonZeroFlowPresentationMaximumV3(orientation);
   const maximumFlow = Math.max(1, ...flows);
   const pressureSpan = Math.max(4, maximumPressure - minimumPressure);
   const pressurePaddingMmHg = Math.max(1, pressureSpan * 0.06);
   const clinicalMinimumMmHg = orientation.side === "right" ? -3 : -2;
   return Object.freeze({
-    pressureMinimumMmHg: Math.min(
-      clinicalMinimumMmHg,
-      minimumPressure - pressurePaddingMmHg,
-    ),
-    pressureMaximumMmHg: maximumPressure + pressurePaddingMmHg,
+    pressureMinimumMmHg:
+      starling.length === 0
+        ? minimumPressure - pressurePaddingMmHg
+        : Math.min(
+            clinicalMinimumMmHg,
+            minimumPressure - pressurePaddingMmHg,
+          ),
+    // The Pmsf/Pmpf orientation is the exact zero-return pressure in this
+    // frozen structural map. Ten percent of headroom keeps that meaningful
+    // endpoint visible without allowing unfinished high-TBV Starling samples
+    // to push the operating intersection into the left edge of the chart.
+    pressureMaximumMmHg: maximumPressure,
     flowMinimumLPerMin: 0,
-    // Extreme frozen-ledger Guyton plateaus are intentionally clipped. The
-    // comparison viewport is owned by the measured Starling locus and their
-    // operating intersection, not by a structurally flow-limited tail.
+    // Extreme frozen-ledger Guyton plateaus are intentionally clipped. Once a
+    // Starling locus exists, its measured outputs and operating intersection
+    // own the vertical viewport rather than a structurally flow-limited tail.
     flowMaximumLPerMin: niceHalfUnitCeilingV3(maximumFlow * 1.22),
   });
+}
+
+/**
+ * Stable right-hand presentation boundary for the Guyton / Starling view.
+ * `fillingPressureMmHg` is the model's exact uniform filling pressure and thus
+ * the zero-flow intercept of the structural venous-return orientation.
+ */
+export function guytonZeroFlowPresentationMaximumV3(
+  orientation: MainWireIntegratedModelStructuralReturnOrientationV3,
+): number {
+  const zeroFlowPressureMmHg = orientation.fillingPressureMmHg;
+  const headroomMmHg = Math.max(0.5, Math.abs(zeroFlowPressureMmHg) * 0.1);
+  return Math.max(
+    zeroFlowPressureMmHg + headroomMmHg,
+    orientation.operatingPoint.downstreamPressureMmHg + 0.5,
+  );
 }
 
 export type StarlingPresentationFocusV3 = Readonly<{
@@ -179,58 +202,6 @@ export function starlingPresentationFocusV3(
     // confirmatory high-volume point dominate the chart.
     pressureMaximumMmHg:
       descendingLimb.firstDecliningPressureMmHg + pressureMarginMmHg,
-  });
-}
-
-function starlingPresentationPressureMaximumV3(
-  orientation: MainWireIntegratedModelStructuralReturnOrientationV3,
-): number {
-  if (orientation.starlingLocus.status === "requires-protocol") {
-    return orientation.operatingPoint.downstreamPressureMmHg;
-  }
-  const eligiblePressures = orientation.starlingLocus.points
-    .filter((point) => !("curveEligible" in point) || point.curveEligible)
-    .map(({ fillingPressureMmHg }) => fillingPressureMmHg)
-    .filter(Number.isFinite);
-  const focus = starlingPresentationFocusV3(orientation);
-  return (
-    focus?.pressureMaximumMmHg ??
-    Math.max(
-      orientation.operatingPoint.downstreamPressureMmHg,
-      ...eligiblePressures,
-    )
-  );
-}
-
-function fullStructuralReturnPlotDomainV3(
-  candidates: readonly MainWireIntegratedModelStructuralReturnOrientationV3[],
-  anchors: readonly PlotPointV3[],
-): GuytonStarlingPlotDomainV3 {
-  const all = [
-    ...candidates.flatMap((candidate) =>
-      candidate.curve.map((point) => ({
-        pressureMmHg: point.downstreamPressureMmHg,
-        flowLPerMin: point.returnFlowLPerMin,
-      })),
-    ),
-    ...anchors,
-  ];
-  const pressures = all
-    .map(({ pressureMmHg }) => pressureMmHg)
-    .filter(Number.isFinite);
-  const flows = all
-    .map(({ flowLPerMin }) => flowLPerMin)
-    .filter(Number.isFinite);
-  const minimumPressure = Math.min(...pressures);
-  const maximumPressure = Math.max(...pressures);
-  const minimumFlow = Math.min(0, ...flows);
-  const maximumFlow = Math.max(1, ...flows);
-  const pressureSpan = Math.max(1, maximumPressure - minimumPressure);
-  return Object.freeze({
-    pressureMinimumMmHg: minimumPressure - pressureSpan * 0.04,
-    pressureMaximumMmHg: maximumPressure + pressureSpan * 0.04,
-    flowMinimumLPerMin: minimumFlow < 0 ? minimumFlow * 1.12 : 0,
-    flowMaximumLPerMin: maximumFlow * 1.12,
   });
 }
 
@@ -380,6 +351,7 @@ export function GuytonStarlingComparisonCanvasV3({
             y,
             plot,
             color,
+            theme.background,
             guytonHistoryAlphaV3(historyIndex, historyOrientations.length),
             2.5,
           );
@@ -393,6 +365,7 @@ export function GuytonStarlingComparisonCanvasV3({
           y,
           plot,
           color,
+          theme.background,
           orientationAlpha,
           3,
         );
@@ -531,6 +504,7 @@ function drawOrientationV3(
   y: (value: number) => number,
   plot: PlotRectV3,
   color: string,
+  pointBorderColor: string,
   alpha: number,
   pointRadius: number,
 ): void {
@@ -557,18 +531,26 @@ function drawOrientationV3(
       alpha,
     );
     orientation.starlingLocus.points.forEach((point) => {
-      const draw =
-        "curveEligible" in point && !point.curveEligible
-          ? drawHollowPointV3
-          : drawPointV3;
-      draw(
-        context,
-        x(point.fillingPressureMmHg),
-        y(point.cardiacOutputLPerMin),
-        color,
-        alpha,
-        pointRadius,
-      );
+      if ("curveEligible" in point && !point.curveEligible) {
+        drawHollowPointV3(
+          context,
+          x(point.fillingPressureMmHg),
+          y(point.cardiacOutputLPerMin),
+          color,
+          alpha,
+          pointRadius,
+        );
+      } else {
+        drawPointV3(
+          context,
+          x(point.fillingPressureMmHg),
+          y(point.cardiacOutputLPerMin),
+          color,
+          pointBorderColor,
+          alpha,
+          pointRadius,
+        );
+      }
     });
   }
   drawPointV3(
@@ -576,6 +558,7 @@ function drawOrientationV3(
     x(orientation.operatingPoint.downstreamPressureMmHg),
     y(orientation.operatingPoint.returnFlowLPerMin),
     color,
+    pointBorderColor,
     alpha,
   );
   drawFillingPressureMarkerV3(
@@ -793,6 +776,7 @@ type CanvasThemeV3 = Readonly<{
   grid: string;
   axis: string;
   text: string;
+  background: string;
 }>;
 
 function plotRectV3(width: number, height: number): PlotRectV3 {
@@ -901,17 +885,21 @@ function drawPointV3(
   x: number,
   y: number,
   color: string,
+  borderColor: string,
   alpha = 1,
   radius = 4,
 ): void {
   context.save();
   context.globalAlpha = alpha;
   context.fillStyle = color;
-  context.strokeStyle = "rgba(15, 23, 42, 0.9)";
-  context.lineWidth = 1.5;
   context.beginPath();
   context.arc(x, y, radius, 0, Math.PI * 2);
   context.fill();
+  // The opaque canvas-colored ring keeps adjacent beat points distinct in
+  // both themes and prevents the connecting curve from showing through them.
+  context.globalAlpha = 1;
+  context.strokeStyle = borderColor;
+  context.lineWidth = 1.5;
   context.stroke();
   context.restore();
 }
@@ -954,15 +942,17 @@ function drawFillingPressureMarkerV3(
 }
 
 function readThemeV3(element: HTMLElement | null): CanvasThemeV3 {
-  const [grid, axis, text] = readWorkbenchCanvasThemeVariablesV3(element, [
+  const [grid, axis, text, background] = readWorkbenchCanvasThemeVariablesV3(element, [
     ["--wb-grid", "rgba(165, 185, 200, 0.10)"],
     ["--wb-axis", "rgba(165, 185, 200, 0.32)"],
     ["--wb-muted", "rgba(203, 213, 225, 0.72)"],
+    ["--wb-zone-main-bg", "#0a141d"],
   ]);
   return Object.freeze({
     grid: grid!,
     axis: axis!,
     text: text!,
+    background: background!,
   });
 }
 

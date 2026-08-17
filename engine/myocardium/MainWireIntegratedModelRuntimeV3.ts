@@ -1,4 +1,4 @@
-import type { MainWireIntegratedModelCheckpointContextV3 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import type { MainWireIntegratedModelStandardCheckpointContextV2 } from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import type { MainWireIntegratedModelAcceptedStateV3 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
@@ -41,11 +41,12 @@ export async function createMainWireIntegratedModelRuntimeV3(
 export function mainWireIntegratedModelCheckpointContextV3(
   runtime: MainWireIntegratedModelRuntimeV3,
   state: MainWireIntegratedModelAcceptedStateV3<WallState>,
-): MainWireIntegratedModelCheckpointContextV3<WallState> {
+): MainWireIntegratedModelStandardCheckpointContextV2<WallState> {
   const base =
     createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(runtime);
   return Object.freeze({
     ...base,
     coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
+    mechanismResearchInputs: runtime.mechanismResearchInputs,
   });
 }

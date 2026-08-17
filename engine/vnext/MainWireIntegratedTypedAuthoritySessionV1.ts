@@ -68,10 +68,10 @@ import {
   type MainWireIntegratedModelSubstepRecordV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  checkpointMainWireIntegratedModelStandardV1,
-  restoreMainWireIntegratedModelStandardV1,
-  type MainWireIntegratedModelStandardCheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+  checkpointMainWireIntegratedModelStandardV2,
+  restoreMainWireIntegratedModelStandardV2,
+  type MainWireIntegratedModelStandardCheckpointV2,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import {
   limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
@@ -155,13 +155,13 @@ import type {
 
 export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
   "main-wire-integrated-typed-authority-session-v1" as const;
-export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID =
-  "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1" as const;
+export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID =
+  "circleheart-main-wire-flat-authoritative-reference-checkpoint-v2" as const;
 
-type MainWireFlatAuthoritativeReferenceCheckpointV1 = Readonly<{
-  checkpointId: typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID;
-  schemaVersion: 1;
-  standardCheckpoint: MainWireIntegratedModelStandardCheckpointV1;
+type MainWireFlatAuthoritativeReferenceCheckpointV2 = Readonly<{
+  checkpointId: typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
+  standardCheckpoint: MainWireIntegratedModelStandardCheckpointV2;
   coupledPredictor: MainWireFiveWallCoupledPredictorCheckpointV2;
 }>;
 
@@ -543,7 +543,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       ventricularContractilityScale,
       mechanismResearchInputs,
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState,
@@ -586,7 +586,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     ventricularContractilityScale = 1,
     mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
-    const checkpoint = validateReferenceCheckpointV1(
+    const checkpoint = validateReferenceCheckpointV2(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes),
     );
     const runtime = await createMainWireIntegratedModelRuntimeV3(
@@ -594,7 +594,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       ventricularContractilityScale,
       mechanismResearchInputs,
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState,
@@ -1549,10 +1549,10 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     });
   }
 
-  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV1> {
+  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV2> {
     this.#acceptedState = this.#authority.current();
     this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
-    return checkpointMainWireIntegratedModelStandardV1(
+    return checkpointMainWireIntegratedModelStandardV2(
       this.checkpointContext(),
       this.#acceptedState,
       this.#beatAccumulator,
@@ -1563,13 +1563,13 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
     return encodeCanonicalFlatCheckpointV1(
       Object.freeze({
-        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID,
-        schemaVersion: 1 as const,
+        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID,
+        schemaVersion: 2 as const,
         standardCheckpoint: await this.checkpointStandardExact(),
         coupledPredictor: checkpointMainWireFiveWallCoupledPredictorV1(
           this.#coupledPredictorWorkspace,
         ),
-      }) satisfies MainWireFlatAuthoritativeReferenceCheckpointV1,
+      }) satisfies MainWireFlatAuthoritativeReferenceCheckpointV2,
     );
   }
 
@@ -1874,9 +1874,9 @@ function hasDiscreteRhythmTransition(
   );
 }
 
-function validateReferenceCheckpointV1(
+function validateReferenceCheckpointV2(
   input: unknown,
-): MainWireFlatAuthoritativeReferenceCheckpointV1 {
+): MainWireFlatAuthoritativeReferenceCheckpointV2 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(
       "flat authoritative reference checkpoint must be a plain object",
@@ -1905,11 +1905,11 @@ function validateReferenceCheckpointV1(
     );
   }
   const candidate =
-    input as Partial<MainWireFlatAuthoritativeReferenceCheckpointV1>;
+    input as Partial<MainWireFlatAuthoritativeReferenceCheckpointV2>;
   if (
     candidate.checkpointId !==
-      MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID ||
-    candidate.schemaVersion !== 1 ||
+      MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID ||
+    candidate.schemaVersion !== 2 ||
     candidate.standardCheckpoint === undefined ||
     candidate.coupledPredictor === undefined
   ) {
@@ -1917,7 +1917,7 @@ function validateReferenceCheckpointV1(
       "unsupported flat authoritative reference checkpoint schema",
     );
   }
-  return candidate as MainWireFlatAuthoritativeReferenceCheckpointV1;
+  return candidate as MainWireFlatAuthoritativeReferenceCheckpointV2;
 }
 
 function coupledUnknownsFromAcceptedStateV1(

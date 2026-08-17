@@ -192,6 +192,54 @@ describe("Standard-63 mechanism research controls", () => {
     ).toBe(2);
   });
 
+  it("validates a multi-control valve tuple after all assignments are applied", () => {
+    const startingFixture =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        [
+          {
+            controlId:
+              MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.pvMaximumForwardEoaCm2,
+            value: 0.5,
+          },
+          {
+            controlId:
+              MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.pvClosedReverseEroaCm2,
+            value: 0.4,
+          },
+        ],
+      );
+    const assignments = [
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.pvMaximumForwardEoaCm2,
+        value: 0.35,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.pvClosedReverseEroaCm2,
+        value: 0.3,
+      },
+    ] as const;
+
+    const forwardFirst =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        startingFixture,
+        assignments,
+      );
+    const reverseFirst =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        startingFixture,
+        [...assignments].reverse(),
+      );
+
+    expect(forwardFirst.mechanismResearchInputs.valveAreas.PV).toMatchObject({
+      maximumForwardEoaCm2: 0.35,
+      closedReverseEroaCm2: 0.3,
+    });
+    expect(reverseFirst).toEqual(forwardFirst);
+  });
+
   it("advances pericardial and coronary disease controls into accepted readback", async () => {
     const fixture =
       applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(

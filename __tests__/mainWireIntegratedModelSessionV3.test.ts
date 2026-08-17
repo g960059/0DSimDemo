@@ -10,6 +10,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelMechanismResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import {
   limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
@@ -27,8 +31,8 @@ import {
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -330,8 +334,8 @@ describe("MainWireIntegratedModelSessionV3", () => {
     advanceSessionThroughOrdinal(uninterrupted, 500);
     const checkpoint = await uninterrupted.checkpointStandardExact();
     expect(checkpoint).toMatchObject({
-      checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-      schemaVersion: 1,
+      checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+      schemaVersion: 2,
       revision: uninterrupted.currentAcceptedState().revision,
       acceptedTimeSec: 1,
     });
@@ -355,6 +359,93 @@ describe("MainWireIntegratedModelSessionV3", () => {
     expect(restored.observe().completedBeatMetrics).not.toBeNull();
     expect(restored.observe().completedBeatMetrics)
       .toEqual(uninterrupted.observe().completedBeatMetrics);
+  }, 120_000);
+
+  it("binds every mechanism-input family to the Standard exact checkpoint", async () => {
+    const source = await MainWireIntegratedModelSessionV3.create();
+    advanceSessionThroughOrdinal(source, 13);
+    const checkpoint = await source.checkpointStandardExact();
+    const defaults =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3;
+    const variants: readonly Readonly<{
+      family: string;
+      inputs: MainWireIntegratedModelMechanismResearchInputsV3;
+    }>[] = [
+      {
+        family: "valve areas",
+        inputs: {
+          ...defaults,
+          valveAreas: {
+            ...defaults.valveAreas,
+            MV: {
+              ...defaults.valveAreas.MV,
+              closedReverseEroaCm2: 0.05,
+            },
+          },
+        },
+      },
+      {
+        family: "chamber mechanics and calcium decay",
+        inputs: {
+          ...defaults,
+          chamberMechanics: {
+            ...defaults.chamberMechanics,
+            calciumDecayTimeScaleByWall: {
+              ...defaults.chamberMechanics.calciumDecayTimeScaleByWall,
+              LVFW: 1.1,
+            },
+          },
+        },
+      },
+      {
+        family: "pericardium",
+        inputs: {
+          ...defaults,
+          pericardium: {
+            ...defaults.pericardium,
+            prescribedFluidVolumeMl: 10,
+          },
+        },
+      },
+      {
+        family: "coronary disease",
+        inputs: {
+          ...defaults,
+          coronaryDisease: {
+            ...defaults.coronaryDisease,
+            focalDiameterLossFraction01ByTerritory: {
+              ...defaults.coronaryDisease
+                .focalDiameterLossFraction01ByTerritory,
+              LAD: 0.1,
+            },
+          },
+        },
+      },
+      {
+        family: "oxygen transport",
+        inputs: {
+          ...defaults,
+          oxygenTransport: {
+            ...defaults.oxygenTransport,
+            hemoglobinGPerDl: 10,
+          },
+        },
+      },
+    ];
+
+    for (const variant of variants) {
+      await expect(
+        MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+          checkpoint,
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+          1,
+          variant.inputs,
+        ),
+        variant.family,
+      ).rejects.toThrow(
+        "mechanism research input SHA-256 identity mismatch",
+      );
+    }
   }, 120_000);
 
   // These cases pin independent defences at two layers. Collapsing them into

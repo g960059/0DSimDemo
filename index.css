@@ -2567,7 +2567,9 @@ body[data-app-theme="light"] .public-static-theme-moon {
   transition: color 160ms ease;
 }
 
-.workbench-dockview-main .workbench-dock-tab[data-visible="true"]::before {
+.workbench-dockview-main
+  .dv-tab.dv-active-tab
+  .workbench-dock-tab::before {
   position: absolute;
   z-index: 2;
   inset-block-start: 0;

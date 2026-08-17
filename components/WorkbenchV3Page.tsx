@@ -4908,9 +4908,13 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       const definition = outputById.get(outputId);
       return definition === undefined ? [] : [definition];
     });
+    const hasCompleteSummarySelection = summary?.memberOutputIds.every(
+      (outputId) => selectedById.has(outputId),
+    ) ?? false;
     if (
       summary !== undefined &&
-      summaryDefinitions?.length === summary.memberOutputIds.length
+      summaryDefinitions?.length === summary.memberOutputIds.length &&
+      hasCompleteSummarySelection
     ) {
       summary.memberOutputIds.forEach((outputId) =>
         consumedOutputIds.add(outputId),

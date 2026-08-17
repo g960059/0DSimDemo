@@ -99,6 +99,7 @@ import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
   resolveStudioItemPresentationV1,
   resolveStudioSurfaceItemLabelV1,
+  studioItemPresentationCategoryV1,
   studioItemPresentationMatchesQueryV1,
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 import {
@@ -148,6 +149,25 @@ describe("V3 Dockview Workbench", () => {
     expect(studioItemPresentationMatchesQueryV1(presentation, "とーん")).toBe(
       true,
     );
+  });
+
+  it("classifies valve gradients with valve outputs and describes open PV path work exactly", () => {
+    expect(
+      studioItemPresentationCategoryV1(
+        "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+      ),
+    ).toBe("valves");
+
+    const work = resolveStudioItemPresentationV1({
+      kind: "output",
+      itemId: "myocardium.work.external.LV-transmural-pressure-volume-path",
+      fallbackEnglishLabel: "LV pressure-volume path work",
+      locale: "en",
+    });
+    expect(work.description).toContain("line integral");
+    expect(work.description).toContain("capture-to-capture");
+    expect(work.description).not.toContain("enclosed");
+    expect(work.aliases).not.toContain("stroke work");
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
@@ -311,6 +331,61 @@ describe("V3 Dockview Workbench", () => {
     expect(
       items.some(
         ({ itemId }) => itemId === "hemodynamics.pressure.systolic.Ao",
+      ),
+    ).toBe(false);
+  });
+
+  it("preserves an atomic pressure item when a pane does not select the triplet", async () => {
+    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const defaultPane = createDefaultExperimentSurfaceV3(
+      contract,
+      "scenario/a",
+    ).outputPanes[0]!;
+    const pane = {
+      ...defaultPane,
+      items: [
+        {
+          outputId: "hemodynamics.pressure.systolic.Ao",
+          label: "Aortic systolic pressure",
+          order: 0,
+        },
+      ],
+    };
+    const outputId = "hemodynamics.pressure.systolic.Ao";
+    const frame: StudioSimulationFrameV2 = {
+      modelId: contract.modelId,
+      runtimeSessionId: "runtime/test",
+      scenarioId: "scenario/a",
+      inputEpoch: 0,
+      acceptedRevision: 1,
+      acceptedTimeSec: 1,
+      outputs: {
+        [outputId]: {
+          outputId,
+          value: 94.6,
+          availability: "available",
+          quality: "accepted-derived",
+        },
+      },
+    };
+
+    const items = materializeWorkbenchOutputPresentationItemsV3({
+      contract,
+      frame,
+      locale: "en",
+      notAssessedNotice: "Not assessed",
+      pane,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({
+      itemId: outputId,
+      value: 94.6,
+      unit: "mmHg",
+    });
+    expect(
+      items.some(
+        ({ itemId }) => itemId === "presentation.pressure-summary.Ao",
       ),
     ).toBe(false);
   });

@@ -31935,19 +31935,383 @@ function interpolateValveClosureV3(previous, next, valveId, previousFlowMlPerSec
     )
   });
 }
-const MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v1";
-async function checkpointMainWireIntegratedModelStandardV1(context, state, beatAccumulator, completedBeatMetrics) {
+const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID = "main-wire-normal-adult-common-pericardium-v1";
+const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1 = Object.freeze([
+  "healthy-slack",
+  "effusion-300ml-positive-control",
+  "global-capacity-vh0-430ml-positive-control"
+]);
+const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_POLICY_V1 = Object.freeze({
+  modelId: MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID,
+  referenceConstruction: "phase-consistent-max-of-ED-and-ES-CMR-anchors-plus-five-wall-material-volume",
+  referenceReserveFraction: 0.05,
+  exponentialPressureScalePa: 500,
+  exponentialStiffness: 8,
+  prescribedPressureOffsetPa: 0,
+  healthyBaselineRole: "structural-common-constraint-not-a-pressure-or-PV-loop-fit-knob",
+  patientFitBoundary: "capacity-stiffness-or-effusion-only-with-independent-biventricular-loading-or-effusion-evidence",
+  fixedPositiveControls: Object.freeze({
+    effusion: Object.freeze({
+      caseId: "effusion-300ml-positive-control",
+      prescribedPericardialFluidVolumeMl: 300,
+      role: "static-fluid-occupancy-mechanism-check-not-a-clinical-fit"
+    }),
+    globalCapacity: Object.freeze({
+      caseId: "global-capacity-vh0-430ml-positive-control",
+      referenceHeartVolumeMl: 430,
+      role: "global-capacity-mechanism-check-not-regional-constrictive-pericarditis-or-a-clinical-fit"
+    })
+  })
+});
+function createMainWireNormalAdultCommonPericardiumV1(mode = "on", caseId = "healthy-slack") {
+  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
+  const wallMaterialVolumesM3 = Object.freeze([
+    prior.anatomy.atria.LA.wallMaterialVolumeMl * 1e-6,
+    prior.anatomy.triSeg.wallGeometryParameters.LVFW.wallMaterialVolumeM3,
+    prior.anatomy.triSeg.wallGeometryParameters.SEP.wallMaterialVolumeM3,
+    prior.anatomy.triSeg.wallGeometryParameters.RVFW.wallMaterialVolumeM3,
+    prior.anatomy.atria.RA.wallMaterialVolumeMl * 1e-6
+  ]);
+  const endDiastolicAnchorHeartVolumeM3 = 1e-6 * (prior.anatomy.atria.LA.cavityBloodVolumeMl.minimum + prior.anatomy.triSeg.leftVentricularEndDiastolicVolumeMl + prior.anatomy.atria.RA.cavityBloodVolumeMl.minimum + prior.anatomy.triSeg.rightVentricularEndDiastolicVolumeMl) + wallMaterialVolumesM3.reduce((sum, value) => sum + value, 0);
+  const endSystolicAnchorHeartVolumeM3 = 1e-6 * (prior.anatomy.atria.LA.cavityBloodVolumeMl.maximum + prior.anatomy.triSeg.leftVentricularEndSystolicVolumeMl + prior.anatomy.atria.RA.cavityBloodVolumeMl.maximum + prior.anatomy.triSeg.rightVentricularEndSystolicVolumeMl) + wallMaterialVolumesM3.reduce((sum, value) => sum + value, 0);
+  const phaseConsistentCmrAnchorHeartVolumeM3 = Math.max(
+    endDiastolicAnchorHeartVolumeM3,
+    endSystolicAnchorHeartVolumeM3
+  );
+  const policy = MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_POLICY_V1;
+  if (!MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1.includes(caseId)) {
+    throw new Error("unsupported normal-adult common-pericardium case");
+  }
+  const referenceHeartVolumeM3 = caseId === "global-capacity-vh0-430ml-positive-control" ? policy.fixedPositiveControls.globalCapacity.referenceHeartVolumeMl * 1e-6 : (1 + policy.referenceReserveFraction) * phaseConsistentCmrAnchorHeartVolumeM3;
+  const prescribedPericardialFluidVolumeMl = caseId === "effusion-300ml-positive-control" ? policy.fixedPositiveControls.effusion.prescribedPericardialFluidVolumeMl : 0;
+  return Object.freeze({
+    bindingId: MAIN_WIRE_COMMON_PERICARDIUM_BINDING_V1_ID,
+    parameterSetId: `${policy.modelId}-${caseId}-${mode}`,
+    mode,
+    parameters: Object.freeze({
+      referenceHeartVolumeM3,
+      exponentialPressureScalePa: policy.exponentialPressureScalePa,
+      exponentialStiffness: policy.exponentialStiffness,
+      prescribedPressureOffsetPa: policy.prescribedPressureOffsetPa
+    }),
+    wallMaterialVolumesM3,
+    prescribedPericardialFluidVolumeM3: prescribedPericardialFluidVolumeMl * 1e-6
+  });
+}
+const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID = "main-wire-common-pericardium-research-inputs-v1";
+const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1 = Object.freeze([
+  "referenceCapacityScale",
+  "pressureScale",
+  "exponentialStiffnessScale",
+  "prescribedFluidVolumeMl"
+]);
+const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1 = Object.freeze({
+  referenceCapacityScale: Object.freeze({
+    minimum: 0.75,
+    maximum: 1.25,
+    step: 0.01
+  }),
+  pressureScale: Object.freeze({
+    minimum: 0.25,
+    maximum: 4,
+    step: 0.05
+  }),
+  exponentialStiffnessScale: Object.freeze({
+    minimum: 0.5,
+    maximum: 2,
+    step: 0.05
+  }),
+  prescribedFluidVolumeMl: Object.freeze({
+    minimum: 0,
+    maximum: 500,
+    step: 10
+  })
+});
+const MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1 = Object.freeze({
+  inputId: MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID,
+  referenceCapacityScale: 1,
+  pressureScale: 1,
+  exponentialStiffnessScale: 1,
+  prescribedFluidVolumeMl: 0
+});
+function validateAndOwnMainWireCommonPericardiumResearchInputsV1(input) {
+  const record = exactRecordV1$1(input, [
+    "inputId",
+    ...MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1
+  ]);
+  if (record.inputId !== MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID) {
+    throw new Error("pericardium research input identity is invalid");
+  }
+  const owned = {};
+  for (const key of MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1) {
+    const value = record[key];
+    const range = MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || Object.is(value, -0) || value < range.minimum || value > range.maximum) {
+      throw new RangeError(
+        `pericardium ${key} must lie in [${range.minimum}, ${range.maximum}]`
+      );
+    }
+    owned[key] = value;
+  }
+  return Object.freeze({
+    inputId: MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID,
+    ...owned
+  });
+}
+function createMainWireCommonPericardiumWithResearchInputsV1(input) {
+  const owned = validateAndOwnMainWireCommonPericardiumResearchInputsV1(input);
+  const baseline = createMainWireNormalAdultCommonPericardiumV1();
+  return Object.freeze({
+    ...baseline,
+    parameterSetId: `${MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID}-capacity-${owned.referenceCapacityScale}-pressure-${owned.pressureScale}-stiffness-${owned.exponentialStiffnessScale}-fluid-${owned.prescribedFluidVolumeMl}`,
+    parameters: Object.freeze({
+      ...baseline.parameters,
+      referenceHeartVolumeM3: baseline.parameters.referenceHeartVolumeM3 * owned.referenceCapacityScale,
+      exponentialPressureScalePa: baseline.parameters.exponentialPressureScalePa * owned.pressureScale,
+      exponentialStiffness: baseline.parameters.exponentialStiffness * owned.exponentialStiffnessScale
+    }),
+    prescribedPericardialFluidVolumeM3: owned.prescribedFluidVolumeMl * 1e-6
+  });
+}
+function exactRecordV1$1(input, keys) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("pericardium research inputs must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("pericardium research inputs must be a plain object");
+  }
+  const actual = Object.keys(input).sort();
+  const expected = [...keys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error("pericardium research input fields must match exactly");
+  }
+  return input;
+}
+const MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID = "main-wire-coronary-disease-research-inputs-v2";
+const MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2 = Object.freeze({
+  focalDiameterLossFraction01: Object.freeze({
+    minimum: 0,
+    maximum: 0.85,
+    step: 0.01
+  }),
+  structuralR1ResistanceScale: Object.freeze({
+    minimum: 0.5,
+    maximum: 5,
+    step: 0.05
+  }),
+  structuralRmResistanceScale: Object.freeze({
+    minimum: 0.5,
+    maximum: 5,
+    step: 0.05
+  })
+});
+const unitTerritory = () => Object.freeze({
+  LAD: 0,
+  LCx: 0,
+  RCA: 0
+});
+const unitLayers = () => Object.freeze({
+  LAD: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
+  LCx: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
+  RCA: Object.freeze({ subepicardial: 1, subendocardial: 1 })
+});
+const MAIN_WIRE_CORONARY_DEFAULT_DISEASE_RESEARCH_INPUTS_V2 = Object.freeze({
+  inputId: MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID,
+  focalDiameterLossFraction01ByTerritory: unitTerritory(),
+  structuralR1ResistanceScaleByTerritoryLayer: unitLayers(),
+  structuralRmResistanceScaleByTerritoryLayer: unitLayers()
+});
+function validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(input) {
+  const record = exactRecordV2(
+    input,
+    [
+      "inputId",
+      "focalDiameterLossFraction01ByTerritory",
+      "structuralR1ResistanceScaleByTerritoryLayer",
+      "structuralRmResistanceScaleByTerritoryLayer"
+    ],
+    "coronary disease research inputs"
+  );
+  if (record.inputId !== MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID) {
+    throw new Error("coronary disease research input identity is invalid");
+  }
+  return Object.freeze({
+    inputId: MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID,
+    focalDiameterLossFraction01ByTerritory: ownTerritoryRecordV2(
+      record.focalDiameterLossFraction01ByTerritory,
+      "focal diameter loss",
+      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.focalDiameterLossFraction01
+    ),
+    structuralR1ResistanceScaleByTerritoryLayer: ownLayerRecordV2(
+      record.structuralR1ResistanceScaleByTerritoryLayer,
+      "structural R1 resistance scale",
+      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralR1ResistanceScale
+    ),
+    structuralRmResistanceScaleByTerritoryLayer: ownLayerRecordV2(
+      record.structuralRmResistanceScaleByTerritoryLayer,
+      "structural Rm resistance scale",
+      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralRmResistanceScale
+    )
+  });
+}
+function createMainWireCoronaryDiseaseInputV2(input) {
+  const owned = validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(input);
+  return Object.freeze(
+    Object.fromEntries(
+      CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+        const focal = mapFocalDiameterStenosisV2(
+          territoryId,
+          owned.focalDiameterLossFraction01ByTerritory[territoryId]
+        );
+        const normal = NORMAL_CORONARY_DISEASE_INPUT_V2[territoryId];
+        return [
+          territoryId,
+          Object.freeze({
+            ...focal,
+            layers: Object.freeze(
+              Object.fromEntries(
+                CORONARY_LAYER_IDS_V2.map((layerId) => [
+                  layerId,
+                  Object.freeze({
+                    structuralR1ResistanceScale: owned.structuralR1ResistanceScaleByTerritoryLayer[territoryId][layerId],
+                    structuralRmResistanceScale: owned.structuralRmResistanceScaleByTerritoryLayer[territoryId][layerId],
+                    vasodilatoryToneMinimumResistanceScale: normal.layers[layerId].vasodilatoryToneMinimumResistanceScale
+                  })
+                ])
+              )
+            )
+          })
+        ];
+      })
+    )
+  );
+}
+function ownTerritoryRecordV2(input, label, range) {
+  const record = exactRecordV2(input, CORONARY_TERRITORY_IDS_V2, label);
+  return Object.freeze({
+    LAD: rangedNumberV2(record.LAD, `${label} LAD`, range),
+    LCx: rangedNumberV2(record.LCx, `${label} LCx`, range),
+    RCA: rangedNumberV2(record.RCA, `${label} RCA`, range)
+  });
+}
+function ownLayerRecordV2(input, label, range) {
+  const record = exactRecordV2(input, CORONARY_TERRITORY_IDS_V2, label);
+  const ownTerritory = (territoryId) => {
+    const layers = exactRecordV2(
+      record[territoryId],
+      CORONARY_LAYER_IDS_V2,
+      `${label} ${territoryId}`
+    );
+    return Object.freeze({
+      subepicardial: rangedNumberV2(
+        layers.subepicardial,
+        `${label} ${territoryId} subepicardial`,
+        range
+      ),
+      subendocardial: rangedNumberV2(
+        layers.subendocardial,
+        `${label} ${territoryId} subendocardial`,
+        range
+      )
+    });
+  };
+  return Object.freeze({
+    LAD: ownTerritory("LAD"),
+    LCx: ownTerritory("LCx"),
+    RCA: ownTerritory("RCA")
+  });
+}
+function rangedNumberV2(value, label, range) {
+  if (typeof value !== "number" || !Number.isFinite(value) || Object.is(value, -0) || value < range.minimum || value > range.maximum) {
+    throw new RangeError(
+      `${label} must lie in [${range.minimum}, ${range.maximum}]`
+    );
+  }
+  return value;
+}
+function exactRecordV2(input, keys, label) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const actual = Object.keys(input).sort();
+  const expected = [...keys].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(`${label} fields must match exactly`);
+  }
+  return input;
+}
+const MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID = "main-wire-integrated-model-mechanism-research-inputs-v3";
+const MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3 = Object.freeze({
+  inputId: MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID,
+  valveAreas: MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+  chamberMechanics: MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
+  pericardium: MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1,
+  coronaryDisease: MAIN_WIRE_CORONARY_DEFAULT_DISEASE_RESEARCH_INPUTS_V2,
+  oxygenTransport: DEFAULT_OXYGEN_TRANSPORT_INPUTS_V1
+});
+function validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("integrated V3 mechanism inputs must be a plain object");
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error("integrated V3 mechanism inputs must be a plain object");
+  }
+  const record = input;
+  const actual = Object.keys(record).sort();
+  const expected = [
+    "inputId",
+    "valveAreas",
+    "chamberMechanics",
+    "pericardium",
+    "coronaryDisease",
+    "oxygenTransport"
+  ].sort();
+  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error("integrated V3 mechanism input fields must match exactly");
+  }
+  if (record.inputId !== MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID) {
+    throw new Error("integrated V3 mechanism input identity is invalid");
+  }
+  return Object.freeze({
+    inputId: MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID,
+    valveAreas: validateAndOwnMainWireFourValveAreaInputsV1(record.valveAreas),
+    chamberMechanics: validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(
+      record.chamberMechanics
+    ),
+    pericardium: validateAndOwnMainWireCommonPericardiumResearchInputsV1(
+      record.pericardium
+    ),
+    coronaryDisease: validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(
+      record.coronaryDisease
+    ),
+    oxygenTransport: validateAndOwnOxygenTransportInputsV1(
+      record.oxygenTransport
+    )
+  });
+}
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID = "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2";
+async function checkpointMainWireIntegratedModelStandardV2(context, state, beatAccumulator, completedBeatMetrics) {
   const beatAccumulatorCheckpoint = beatAccumulator.checkpoint();
   const capturedCompletedBeatMetrics = completedBeatMetrics;
-  const numericalCheckpoint = await checkpointMainWireIntegratedModelV3(
-    context,
-    state
+  const ownedMechanismResearchInputs = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+    context.mechanismResearchInputs
   );
+  const [numericalCheckpoint, mechanismResearchInputIdentitySha256] = await Promise.all([
+    checkpointMainWireIntegratedModelV3(context, state),
+    sha256CanonicalJsonHex(ownedMechanismResearchInputs)
+  ]);
   const payload = Object.freeze({
-    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-    schemaVersion: 1,
+    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+    schemaVersion: 2,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
+    mechanismResearchInputIdentitySha256,
     numericalCheckpoint,
     beatAccumulator: beatAccumulatorCheckpoint,
     completedBeatMetrics: capturedCompletedBeatMetrics
@@ -31957,10 +32321,20 @@ async function checkpointMainWireIntegratedModelStandardV1(context, state, beatA
     checkpointSha256: await sha256CanonicalJsonHex(payload)
   });
 }
-async function restoreMainWireIntegratedModelStandardV1(context, input) {
-  const checkpoint = await validateMainWireIntegratedModelStandardCheckpointV1(
+async function restoreMainWireIntegratedModelStandardV2(context, input) {
+  const checkpoint = await validateMainWireIntegratedModelStandardCheckpointV2(
     input
   );
+  const expectedMechanismResearchInputIdentitySha256 = await sha256CanonicalJsonHex(
+    validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+      context.mechanismResearchInputs
+    )
+  );
+  if (checkpoint.mechanismResearchInputIdentitySha256 !== expectedMechanismResearchInputIdentitySha256) {
+    throw new Error(
+      "integrated Standard checkpoint mechanism research input SHA-256 identity mismatch"
+    );
+  }
   const acceptedState2 = await restoreMainWireIntegratedModelV3(
     context,
     checkpoint.numericalCheckpoint
@@ -31977,8 +32351,8 @@ async function restoreMainWireIntegratedModelStandardV1(context, input) {
     completedBeatMetrics
   });
 }
-async function validateMainWireIntegratedModelStandardCheckpointV1(input) {
-  assertStandardCheckpointEnvelopeV1(input);
+async function validateMainWireIntegratedModelStandardCheckpointV2(input) {
+  assertStandardCheckpointEnvelopeV2(input);
   const checkpoint = input;
   const { checkpointSha256, ...payload } = checkpoint;
   if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
@@ -31989,7 +32363,7 @@ async function validateMainWireIntegratedModelStandardCheckpointV1(input) {
   }
   return checkpoint;
 }
-function assertStandardCheckpointEnvelopeV1(input) {
+function assertStandardCheckpointEnvelopeV2(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("integrated Standard checkpoint must be a plain object");
   }
@@ -32003,6 +32377,7 @@ function assertStandardCheckpointEnvelopeV1(input) {
     "schemaVersion",
     "revision",
     "acceptedTimeSec",
+    "mechanismResearchInputIdentitySha256",
     "numericalCheckpoint",
     "beatAccumulator",
     "completedBeatMetrics",
@@ -32012,11 +32387,18 @@ function assertStandardCheckpointEnvelopeV1(input) {
     throw new Error("integrated Standard checkpoint has unexpected fields");
   }
   const checkpoint = input;
-  if (checkpoint.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID || checkpoint.schemaVersion !== 1) {
+  if (checkpoint.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID || checkpoint.schemaVersion !== 2) {
     throw new Error("unsupported integrated Standard checkpoint schema");
   }
   if (typeof checkpoint.revision !== "number" || !Number.isSafeInteger(checkpoint.revision) || checkpoint.revision < 0 || typeof checkpoint.acceptedTimeSec !== "number" || !Number.isFinite(checkpoint.acceptedTimeSec) || checkpoint.acceptedTimeSec < 0) {
     throw new Error("integrated Standard checkpoint clock is invalid");
+  }
+  if (typeof checkpoint.mechanismResearchInputIdentitySha256 !== "string" || !/^[0-9a-f]{64}$/.test(
+    checkpoint.mechanismResearchInputIdentitySha256
+  )) {
+    throw new Error(
+      "integrated Standard checkpoint mechanism research input SHA-256 is invalid"
+    );
   }
   if (typeof checkpoint.checkpointSha256 !== "string" || !/^[0-9a-f]{64}$/.test(checkpoint.checkpointSha256)) {
     throw new Error("integrated Standard checkpoint SHA-256 is invalid");
@@ -39852,366 +40234,6 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
-const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID = "main-wire-normal-adult-common-pericardium-v1";
-const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1 = Object.freeze([
-  "healthy-slack",
-  "effusion-300ml-positive-control",
-  "global-capacity-vh0-430ml-positive-control"
-]);
-const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_POLICY_V1 = Object.freeze({
-  modelId: MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID,
-  referenceConstruction: "phase-consistent-max-of-ED-and-ES-CMR-anchors-plus-five-wall-material-volume",
-  referenceReserveFraction: 0.05,
-  exponentialPressureScalePa: 500,
-  exponentialStiffness: 8,
-  prescribedPressureOffsetPa: 0,
-  healthyBaselineRole: "structural-common-constraint-not-a-pressure-or-PV-loop-fit-knob",
-  patientFitBoundary: "capacity-stiffness-or-effusion-only-with-independent-biventricular-loading-or-effusion-evidence",
-  fixedPositiveControls: Object.freeze({
-    effusion: Object.freeze({
-      caseId: "effusion-300ml-positive-control",
-      prescribedPericardialFluidVolumeMl: 300,
-      role: "static-fluid-occupancy-mechanism-check-not-a-clinical-fit"
-    }),
-    globalCapacity: Object.freeze({
-      caseId: "global-capacity-vh0-430ml-positive-control",
-      referenceHeartVolumeMl: 430,
-      role: "global-capacity-mechanism-check-not-regional-constrictive-pericarditis-or-a-clinical-fit"
-    })
-  })
-});
-function createMainWireNormalAdultCommonPericardiumV1(mode = "on", caseId = "healthy-slack") {
-  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
-  const wallMaterialVolumesM3 = Object.freeze([
-    prior.anatomy.atria.LA.wallMaterialVolumeMl * 1e-6,
-    prior.anatomy.triSeg.wallGeometryParameters.LVFW.wallMaterialVolumeM3,
-    prior.anatomy.triSeg.wallGeometryParameters.SEP.wallMaterialVolumeM3,
-    prior.anatomy.triSeg.wallGeometryParameters.RVFW.wallMaterialVolumeM3,
-    prior.anatomy.atria.RA.wallMaterialVolumeMl * 1e-6
-  ]);
-  const endDiastolicAnchorHeartVolumeM3 = 1e-6 * (prior.anatomy.atria.LA.cavityBloodVolumeMl.minimum + prior.anatomy.triSeg.leftVentricularEndDiastolicVolumeMl + prior.anatomy.atria.RA.cavityBloodVolumeMl.minimum + prior.anatomy.triSeg.rightVentricularEndDiastolicVolumeMl) + wallMaterialVolumesM3.reduce((sum, value) => sum + value, 0);
-  const endSystolicAnchorHeartVolumeM3 = 1e-6 * (prior.anatomy.atria.LA.cavityBloodVolumeMl.maximum + prior.anatomy.triSeg.leftVentricularEndSystolicVolumeMl + prior.anatomy.atria.RA.cavityBloodVolumeMl.maximum + prior.anatomy.triSeg.rightVentricularEndSystolicVolumeMl) + wallMaterialVolumesM3.reduce((sum, value) => sum + value, 0);
-  const phaseConsistentCmrAnchorHeartVolumeM3 = Math.max(
-    endDiastolicAnchorHeartVolumeM3,
-    endSystolicAnchorHeartVolumeM3
-  );
-  const policy = MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_POLICY_V1;
-  if (!MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1.includes(caseId)) {
-    throw new Error("unsupported normal-adult common-pericardium case");
-  }
-  const referenceHeartVolumeM3 = caseId === "global-capacity-vh0-430ml-positive-control" ? policy.fixedPositiveControls.globalCapacity.referenceHeartVolumeMl * 1e-6 : (1 + policy.referenceReserveFraction) * phaseConsistentCmrAnchorHeartVolumeM3;
-  const prescribedPericardialFluidVolumeMl = caseId === "effusion-300ml-positive-control" ? policy.fixedPositiveControls.effusion.prescribedPericardialFluidVolumeMl : 0;
-  return Object.freeze({
-    bindingId: MAIN_WIRE_COMMON_PERICARDIUM_BINDING_V1_ID,
-    parameterSetId: `${policy.modelId}-${caseId}-${mode}`,
-    mode,
-    parameters: Object.freeze({
-      referenceHeartVolumeM3,
-      exponentialPressureScalePa: policy.exponentialPressureScalePa,
-      exponentialStiffness: policy.exponentialStiffness,
-      prescribedPressureOffsetPa: policy.prescribedPressureOffsetPa
-    }),
-    wallMaterialVolumesM3,
-    prescribedPericardialFluidVolumeM3: prescribedPericardialFluidVolumeMl * 1e-6
-  });
-}
-const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID = "main-wire-common-pericardium-research-inputs-v1";
-const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1 = Object.freeze([
-  "referenceCapacityScale",
-  "pressureScale",
-  "exponentialStiffnessScale",
-  "prescribedFluidVolumeMl"
-]);
-const MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1 = Object.freeze({
-  referenceCapacityScale: Object.freeze({
-    minimum: 0.75,
-    maximum: 1.25,
-    step: 0.01
-  }),
-  pressureScale: Object.freeze({
-    minimum: 0.25,
-    maximum: 4,
-    step: 0.05
-  }),
-  exponentialStiffnessScale: Object.freeze({
-    minimum: 0.5,
-    maximum: 2,
-    step: 0.05
-  }),
-  prescribedFluidVolumeMl: Object.freeze({
-    minimum: 0,
-    maximum: 500,
-    step: 10
-  })
-});
-const MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1 = Object.freeze({
-  inputId: MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID,
-  referenceCapacityScale: 1,
-  pressureScale: 1,
-  exponentialStiffnessScale: 1,
-  prescribedFluidVolumeMl: 0
-});
-function validateAndOwnMainWireCommonPericardiumResearchInputsV1(input) {
-  const record = exactRecordV1$1(input, [
-    "inputId",
-    ...MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1
-  ]);
-  if (record.inputId !== MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID) {
-    throw new Error("pericardium research input identity is invalid");
-  }
-  const owned = {};
-  for (const key of MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_KEYS_V1) {
-    const value = record[key];
-    const range = MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1[key];
-    if (typeof value !== "number" || !Number.isFinite(value) || Object.is(value, -0) || value < range.minimum || value > range.maximum) {
-      throw new RangeError(
-        `pericardium ${key} must lie in [${range.minimum}, ${range.maximum}]`
-      );
-    }
-    owned[key] = value;
-  }
-  return Object.freeze({
-    inputId: MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID,
-    ...owned
-  });
-}
-function createMainWireCommonPericardiumWithResearchInputsV1(input) {
-  const owned = validateAndOwnMainWireCommonPericardiumResearchInputsV1(input);
-  const baseline = createMainWireNormalAdultCommonPericardiumV1();
-  return Object.freeze({
-    ...baseline,
-    parameterSetId: `${MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUTS_V1_ID}-capacity-${owned.referenceCapacityScale}-pressure-${owned.pressureScale}-stiffness-${owned.exponentialStiffnessScale}-fluid-${owned.prescribedFluidVolumeMl}`,
-    parameters: Object.freeze({
-      ...baseline.parameters,
-      referenceHeartVolumeM3: baseline.parameters.referenceHeartVolumeM3 * owned.referenceCapacityScale,
-      exponentialPressureScalePa: baseline.parameters.exponentialPressureScalePa * owned.pressureScale,
-      exponentialStiffness: baseline.parameters.exponentialStiffness * owned.exponentialStiffnessScale
-    }),
-    prescribedPericardialFluidVolumeM3: owned.prescribedFluidVolumeMl * 1e-6
-  });
-}
-function exactRecordV1$1(input, keys) {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("pericardium research inputs must be a plain object");
-  }
-  const prototype = Object.getPrototypeOf(input);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error("pericardium research inputs must be a plain object");
-  }
-  const actual = Object.keys(input).sort();
-  const expected = [...keys].sort();
-  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
-    throw new Error("pericardium research input fields must match exactly");
-  }
-  return input;
-}
-const MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID = "main-wire-coronary-disease-research-inputs-v2";
-const MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2 = Object.freeze({
-  focalDiameterLossFraction01: Object.freeze({
-    minimum: 0,
-    maximum: 0.85,
-    step: 0.01
-  }),
-  structuralR1ResistanceScale: Object.freeze({
-    minimum: 0.5,
-    maximum: 5,
-    step: 0.05
-  }),
-  structuralRmResistanceScale: Object.freeze({
-    minimum: 0.5,
-    maximum: 5,
-    step: 0.05
-  })
-});
-const unitTerritory = () => Object.freeze({
-  LAD: 0,
-  LCx: 0,
-  RCA: 0
-});
-const unitLayers = () => Object.freeze({
-  LAD: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
-  LCx: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
-  RCA: Object.freeze({ subepicardial: 1, subendocardial: 1 })
-});
-const MAIN_WIRE_CORONARY_DEFAULT_DISEASE_RESEARCH_INPUTS_V2 = Object.freeze({
-  inputId: MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID,
-  focalDiameterLossFraction01ByTerritory: unitTerritory(),
-  structuralR1ResistanceScaleByTerritoryLayer: unitLayers(),
-  structuralRmResistanceScaleByTerritoryLayer: unitLayers()
-});
-function validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(input) {
-  const record = exactRecordV2(
-    input,
-    [
-      "inputId",
-      "focalDiameterLossFraction01ByTerritory",
-      "structuralR1ResistanceScaleByTerritoryLayer",
-      "structuralRmResistanceScaleByTerritoryLayer"
-    ],
-    "coronary disease research inputs"
-  );
-  if (record.inputId !== MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID) {
-    throw new Error("coronary disease research input identity is invalid");
-  }
-  return Object.freeze({
-    inputId: MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUTS_V2_ID,
-    focalDiameterLossFraction01ByTerritory: ownTerritoryRecordV2(
-      record.focalDiameterLossFraction01ByTerritory,
-      "focal diameter loss",
-      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.focalDiameterLossFraction01
-    ),
-    structuralR1ResistanceScaleByTerritoryLayer: ownLayerRecordV2(
-      record.structuralR1ResistanceScaleByTerritoryLayer,
-      "structural R1 resistance scale",
-      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralR1ResistanceScale
-    ),
-    structuralRmResistanceScaleByTerritoryLayer: ownLayerRecordV2(
-      record.structuralRmResistanceScaleByTerritoryLayer,
-      "structural Rm resistance scale",
-      MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralRmResistanceScale
-    )
-  });
-}
-function createMainWireCoronaryDiseaseInputV2(input) {
-  const owned = validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(input);
-  return Object.freeze(
-    Object.fromEntries(
-      CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
-        const focal = mapFocalDiameterStenosisV2(
-          territoryId,
-          owned.focalDiameterLossFraction01ByTerritory[territoryId]
-        );
-        const normal = NORMAL_CORONARY_DISEASE_INPUT_V2[territoryId];
-        return [
-          territoryId,
-          Object.freeze({
-            ...focal,
-            layers: Object.freeze(
-              Object.fromEntries(
-                CORONARY_LAYER_IDS_V2.map((layerId) => [
-                  layerId,
-                  Object.freeze({
-                    structuralR1ResistanceScale: owned.structuralR1ResistanceScaleByTerritoryLayer[territoryId][layerId],
-                    structuralRmResistanceScale: owned.structuralRmResistanceScaleByTerritoryLayer[territoryId][layerId],
-                    vasodilatoryToneMinimumResistanceScale: normal.layers[layerId].vasodilatoryToneMinimumResistanceScale
-                  })
-                ])
-              )
-            )
-          })
-        ];
-      })
-    )
-  );
-}
-function ownTerritoryRecordV2(input, label, range) {
-  const record = exactRecordV2(input, CORONARY_TERRITORY_IDS_V2, label);
-  return Object.freeze({
-    LAD: rangedNumberV2(record.LAD, `${label} LAD`, range),
-    LCx: rangedNumberV2(record.LCx, `${label} LCx`, range),
-    RCA: rangedNumberV2(record.RCA, `${label} RCA`, range)
-  });
-}
-function ownLayerRecordV2(input, label, range) {
-  const record = exactRecordV2(input, CORONARY_TERRITORY_IDS_V2, label);
-  const ownTerritory = (territoryId) => {
-    const layers = exactRecordV2(
-      record[territoryId],
-      CORONARY_LAYER_IDS_V2,
-      `${label} ${territoryId}`
-    );
-    return Object.freeze({
-      subepicardial: rangedNumberV2(
-        layers.subepicardial,
-        `${label} ${territoryId} subepicardial`,
-        range
-      ),
-      subendocardial: rangedNumberV2(
-        layers.subendocardial,
-        `${label} ${territoryId} subendocardial`,
-        range
-      )
-    });
-  };
-  return Object.freeze({
-    LAD: ownTerritory("LAD"),
-    LCx: ownTerritory("LCx"),
-    RCA: ownTerritory("RCA")
-  });
-}
-function rangedNumberV2(value, label, range) {
-  if (typeof value !== "number" || !Number.isFinite(value) || Object.is(value, -0) || value < range.minimum || value > range.maximum) {
-    throw new RangeError(
-      `${label} must lie in [${range.minimum}, ${range.maximum}]`
-    );
-  }
-  return value;
-}
-function exactRecordV2(input, keys, label) {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error(`${label} must be a plain object`);
-  }
-  const prototype = Object.getPrototypeOf(input);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error(`${label} must be a plain object`);
-  }
-  const actual = Object.keys(input).sort();
-  const expected = [...keys].sort();
-  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
-    throw new Error(`${label} fields must match exactly`);
-  }
-  return input;
-}
-const MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID = "main-wire-integrated-model-mechanism-research-inputs-v3";
-const MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3 = Object.freeze({
-  inputId: MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID,
-  valveAreas: MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
-  chamberMechanics: MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
-  pericardium: MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1,
-  coronaryDisease: MAIN_WIRE_CORONARY_DEFAULT_DISEASE_RESEARCH_INPUTS_V2,
-  oxygenTransport: DEFAULT_OXYGEN_TRANSPORT_INPUTS_V1
-});
-function validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(input) {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("integrated V3 mechanism inputs must be a plain object");
-  }
-  const prototype = Object.getPrototypeOf(input);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error("integrated V3 mechanism inputs must be a plain object");
-  }
-  const record = input;
-  const actual = Object.keys(record).sort();
-  const expected = [
-    "inputId",
-    "valveAreas",
-    "chamberMechanics",
-    "pericardium",
-    "coronaryDisease",
-    "oxygenTransport"
-  ].sort();
-  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
-    throw new Error("integrated V3 mechanism input fields must match exactly");
-  }
-  if (record.inputId !== MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID) {
-    throw new Error("integrated V3 mechanism input identity is invalid");
-  }
-  return Object.freeze({
-    inputId: MAIN_WIRE_INTEGRATED_MODEL_MECHANISM_RESEARCH_INPUTS_V3_ID,
-    valveAreas: validateAndOwnMainWireFourValveAreaInputsV1(record.valveAreas),
-    chamberMechanics: validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(
-      record.chamberMechanics
-    ),
-    pericardium: validateAndOwnMainWireCommonPericardiumResearchInputsV1(
-      record.pericardium
-    ),
-    coronaryDisease: validateAndOwnMainWireCoronaryDiseaseResearchInputsV2(
-      record.coronaryDisease
-    ),
-    oxygenTransport: validateAndOwnOxygenTransportInputsV1(
-      record.oxygenTransport
-    )
-  });
-}
 const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
   ...["LA", "LV", "RA", "RV"].map(
     (chamber) => definition(
@@ -45362,7 +45384,8 @@ function mainWireIntegratedModelCheckpointContextV3(runtime, state) {
   const base2 = createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(runtime);
   return Object.freeze({
     ...base2,
-    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding
+    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
+    mechanismResearchInputs: runtime.mechanismResearchInputs
   });
 }
 const TARGET_TOLERANCE_ML_V3 = 1e-6;
@@ -45648,7 +45671,7 @@ class MainWireIntegratedModelSessionV3 {
       ventricularContractilityScale,
       mechanismResearchInputs
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState
@@ -45731,7 +45754,7 @@ class MainWireIntegratedModelSessionV3 {
    * The legacy operational checkpoint intentionally remains unchanged.
    */
   async checkpointStandardExact() {
-    return checkpointMainWireIntegratedModelStandardV1(
+    return checkpointMainWireIntegratedModelStandardV2(
       this.checkpointContext(),
       this.acceptedState,
       this.beatAccumulator,
@@ -47267,7 +47290,7 @@ function dynamicHydraulicInput(step, input, heartRateBpm) {
   });
 }
 const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-typed-authority-session-v1";
-const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID = "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1";
+const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID = "circleheart-main-wire-flat-authoritative-reference-checkpoint-v2";
 function createExecutionPlanStateInitializationV1(boundExecutionPlan, typedAuthority) {
   if (typedAuthority === null) {
     throw new Error(
@@ -47493,7 +47516,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       ventricularContractilityScale,
       mechanismResearchInputs
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState
@@ -47524,7 +47547,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     );
   }
   static async restoreCanonicalBinary(checkpointBytes, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
-    const checkpoint = validateReferenceCheckpointV1(
+    const checkpoint = validateReferenceCheckpointV2(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes)
     );
     const runtime = await createMainWireIntegratedModelRuntimeV3(
@@ -47532,7 +47555,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       ventricularContractilityScale,
       mechanismResearchInputs
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState
@@ -48318,7 +48341,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   async checkpointStandardExact() {
     this.#acceptedState = this.#authority.current();
     this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
-    return checkpointMainWireIntegratedModelStandardV1(
+    return checkpointMainWireIntegratedModelStandardV2(
       this.checkpointContext(),
       this.#acceptedState,
       this.#beatAccumulator,
@@ -48328,8 +48351,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
   async checkpointCanonicalBinary() {
     return encodeCanonicalFlatCheckpointV1(
       Object.freeze({
-        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID,
-        schemaVersion: 1,
+        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID,
+        schemaVersion: 2,
         standardCheckpoint: await this.checkpointStandardExact(),
         coupledPredictor: checkpointMainWireFiveWallCoupledPredictorV1(
           this.#coupledPredictorWorkspace
@@ -48551,7 +48574,7 @@ function observation(source, acceptedState2, lastAcceptedStep, runtime, complete
 function hasDiscreteRhythmTransition(candidate) {
   return candidate.capturedAtrialActivation !== null || candidate.capturedVentricularActivation !== null || candidate.pacSinusClockPolicyApplied !== null || candidate.proximalAvOutputDecision !== null || candidate.ventricularIntervalStrengthCandidate !== null || candidate.conditionalVviAttempted || candidate.dueProximalAvOutputs.length > 0 || candidate.distalGateDecisions.length > 0 || candidate.deliveredCalciumDeposits.length > 0 || candidate.scheduledCalciumDeposits.length > 0 || candidate.regularAtrialSourceCandidate?.sourceImpulse !== null || candidate.authoredEctopyTrial.sourceImpulses.length > 0 || (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length ?? 0) > 0;
 }
-function validateReferenceCheckpointV1(input) {
+function validateReferenceCheckpointV2(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(
       "flat authoritative reference checkpoint must be a plain object"
@@ -48576,7 +48599,7 @@ function validateReferenceCheckpointV1(input) {
     );
   }
   const candidate = input;
-  if (candidate.checkpointId !== MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID || candidate.schemaVersion !== 1 || candidate.standardCheckpoint === void 0 || candidate.coupledPredictor === void 0) {
+  if (candidate.checkpointId !== MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID || candidate.schemaVersion !== 2 || candidate.standardCheckpoint === void 0 || candidate.coupledPredictor === void 0) {
     throw new Error(
       "unsupported flat authoritative reference checkpoint schema"
     );
@@ -50898,7 +50921,7 @@ const generatedExecutionPlanV1 = {
   updateSchedule
 };
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v3";
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v5";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 = "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v6";
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 = "hot-path-lean";
 const MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1 = validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
 const MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1 = MAIN_WIRE_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
@@ -51732,8 +51755,8 @@ function createMainWireIntegratedStudioExactKernelV1() {
     checkpointCodec: Object.freeze({
       checkpointCodecId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1,
       definition: Object.freeze({
-        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-        schemaVersion: 1,
+        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+        schemaVersion: 2,
         fixturePairing: "regular-sinus-all-off-and-complete-standard-fixture-identity",
         restoreSemantics: "exact-no-migration-no-clock-rebase"
       })
@@ -51760,157 +51783,162 @@ function createMainWireIntegratedStudioExactKernelV1() {
   return manifest;
 }
 function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(fixture, assignments) {
-  return assignments.reduce((current, assignment) => {
-    const definition2 = requiredControlDefinitionV1(assignment.controlId);
-    const issue = studioNumericControlValueIssueV2(
-      assignment.value,
-      definition2
-    );
-    if (issue !== void 0) {
-      throw new Error(
-        `Standard control ${assignment.controlId} value ${issue}`
+  const initial = validateAndOwnStandardFixtureV1(fixture);
+  const candidate = assignments.reduce(
+    (current, assignment) => {
+      const definition2 = requiredControlDefinitionV1(assignment.controlId);
+      const issue = studioNumericControlValueIssueV2(
+        assignment.value,
+        definition2
       );
-    }
-    if (assignment.controlId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          chamberMechanics: {
-            ...current.mechanismResearchInputs.chamberMechanics,
-            activeTensionScaleByWall: {
-              ...current.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall,
-              LVFW: assignment.value,
-              SEP: assignment.value,
-              RVFW: assignment.value
-            }
-          }
-        }
-      });
-    }
-    const hemodynamicBinding = STANDARD_CONTROL_INPUT_KEYS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (hemodynamicBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        hemodynamicResearchInputs: {
-          ...current.hemodynamicResearchInputs,
-          [hemodynamicBinding.inputKey]: assignment.value
-        }
-      });
-    }
-    const mechanicsBinding = STANDARD_MECHANICS_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (mechanicsBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          chamberMechanics: {
-            ...current.mechanismResearchInputs.chamberMechanics,
-            [mechanicsBinding.scaleKind]: {
-              ...current.mechanismResearchInputs.chamberMechanics[mechanicsBinding.scaleKind],
-              [mechanicsBinding.wallId]: assignment.value
-            }
-          }
-        }
-      });
-    }
-    const valveBinding = STANDARD_VALVE_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (valveBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          valveAreas: {
-            ...current.mechanismResearchInputs.valveAreas,
-            [valveBinding.valveId]: {
-              ...current.mechanismResearchInputs.valveAreas[valveBinding.valveId],
-              [valveBinding.areaKey]: assignment.value
-            }
-          }
-        }
-      });
-    }
-    const oxygenBinding = STANDARD_OXYGEN_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (oxygenBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          oxygenTransport: {
-            ...current.mechanismResearchInputs.oxygenTransport,
-            [oxygenBinding.inputKey]: assignment.value
-          }
-        }
-      });
-    }
-    const pericardiumBinding = STANDARD_PERICARDIUM_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (pericardiumBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          pericardium: {
-            ...current.mechanismResearchInputs.pericardium,
-            [pericardiumBinding.inputKey]: assignment.value
-          }
-        }
-      });
-    }
-    const coronaryFocalBinding = STANDARD_CORONARY_FOCAL_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (coronaryFocalBinding !== void 0) {
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          coronaryDisease: {
-            ...current.mechanismResearchInputs.coronaryDisease,
-            focalDiameterLossFraction01ByTerritory: {
-              ...current.mechanismResearchInputs.coronaryDisease.focalDiameterLossFraction01ByTerritory,
-              [coronaryFocalBinding.territoryId]: assignment.value
-            }
-          }
-        }
-      });
-    }
-    const coronaryStructuralBinding = STANDARD_CORONARY_STRUCTURAL_CONTROL_BINDINGS_V1.find(
-      ({ controlId }) => controlId === assignment.controlId
-    );
-    if (coronaryStructuralBinding !== void 0) {
-      const disease = current.mechanismResearchInputs.coronaryDisease;
-      const field = coronaryStructuralBinding.inputKey;
-      return validateAndOwnStandardFixtureV1({
-        ...current,
-        mechanismResearchInputs: {
-          ...current.mechanismResearchInputs,
-          coronaryDisease: {
-            ...disease,
-            [field]: {
-              ...disease[field],
-              [coronaryStructuralBinding.territoryId]: {
-                ...disease[field][coronaryStructuralBinding.territoryId],
-                [coronaryStructuralBinding.layerId]: assignment.value
+      if (issue !== void 0) {
+        throw new Error(
+          `Standard control ${assignment.controlId} value ${issue}`
+        );
+      }
+      if (assignment.controlId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            chamberMechanics: {
+              ...current.mechanismResearchInputs.chamberMechanics,
+              activeTensionScaleByWall: {
+                ...current.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall,
+                LVFW: assignment.value,
+                SEP: assignment.value,
+                RVFW: assignment.value
               }
             }
           }
-        }
-      });
-    }
-    throw new Error(
-      `Standard control is not registered: ${assignment.controlId}`
-    );
-  }, validateAndOwnStandardFixtureV1(fixture));
+        };
+      }
+      const hemodynamicBinding = STANDARD_CONTROL_INPUT_KEYS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (hemodynamicBinding !== void 0) {
+        return {
+          ...current,
+          hemodynamicResearchInputs: {
+            ...current.hemodynamicResearchInputs,
+            [hemodynamicBinding.inputKey]: assignment.value
+          }
+        };
+      }
+      const mechanicsBinding = STANDARD_MECHANICS_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (mechanicsBinding !== void 0) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            chamberMechanics: {
+              ...current.mechanismResearchInputs.chamberMechanics,
+              [mechanicsBinding.scaleKind]: {
+                ...current.mechanismResearchInputs.chamberMechanics[mechanicsBinding.scaleKind],
+                [mechanicsBinding.wallId]: assignment.value
+              }
+            }
+          }
+        };
+      }
+      const valveBinding = STANDARD_VALVE_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (valveBinding !== void 0) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            valveAreas: {
+              ...current.mechanismResearchInputs.valveAreas,
+              [valveBinding.valveId]: {
+                ...current.mechanismResearchInputs.valveAreas[valveBinding.valveId],
+                [valveBinding.areaKey]: assignment.value
+              }
+            }
+          }
+        };
+      }
+      const oxygenBinding = STANDARD_OXYGEN_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (oxygenBinding !== void 0) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            oxygenTransport: {
+              ...current.mechanismResearchInputs.oxygenTransport,
+              [oxygenBinding.inputKey]: assignment.value
+            }
+          }
+        };
+      }
+      const pericardiumBinding = STANDARD_PERICARDIUM_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (pericardiumBinding !== void 0) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            pericardium: {
+              ...current.mechanismResearchInputs.pericardium,
+              [pericardiumBinding.inputKey]: assignment.value
+            }
+          }
+        };
+      }
+      const coronaryFocalBinding = STANDARD_CORONARY_FOCAL_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (coronaryFocalBinding !== void 0) {
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            coronaryDisease: {
+              ...current.mechanismResearchInputs.coronaryDisease,
+              focalDiameterLossFraction01ByTerritory: {
+                ...current.mechanismResearchInputs.coronaryDisease.focalDiameterLossFraction01ByTerritory,
+                [coronaryFocalBinding.territoryId]: assignment.value
+              }
+            }
+          }
+        };
+      }
+      const coronaryStructuralBinding = STANDARD_CORONARY_STRUCTURAL_CONTROL_BINDINGS_V1.find(
+        ({ controlId }) => controlId === assignment.controlId
+      );
+      if (coronaryStructuralBinding !== void 0) {
+        const disease = current.mechanismResearchInputs.coronaryDisease;
+        const field = coronaryStructuralBinding.inputKey;
+        return {
+          ...current,
+          mechanismResearchInputs: {
+            ...current.mechanismResearchInputs,
+            coronaryDisease: {
+              ...disease,
+              [field]: {
+                ...disease[field],
+                [coronaryStructuralBinding.territoryId]: {
+                  ...disease[field][coronaryStructuralBinding.territoryId],
+                  [coronaryStructuralBinding.layerId]: assignment.value
+                }
+              }
+            }
+          }
+        };
+      }
+      throw new Error(
+        `Standard control is not registered: ${assignment.controlId}`
+      );
+    },
+    initial
+  );
+  return validateAndOwnStandardFixtureV1(candidate);
 }
 function standardExecutableBundleV1(host) {
   const captureAdapter = Object.freeze({
@@ -52141,7 +52169,7 @@ function standardExecutableBundleV1(host) {
           const fixture = validateAndOwnStandardFixtureV1(
             scenario.capture.fixture
           );
-          const standardCheckpoint = await validateMainWireIntegratedModelStandardCheckpointV1(
+          const standardCheckpoint = await validateMainWireIntegratedModelStandardCheckpointV2(
             scenario.capture.checkpoint.payload
           );
           const admission = await admitMainWireIntegratedModelSnapshotV3({

@@ -381,10 +381,10 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     category: "myocardium",
     label: textV1("LV pressure–volume path work", "LV圧容積経路仕事"),
     description: textV1(
-      "Signed work enclosed by the LV transmural pressure–volume path",
-      "LV経壁圧–容積経路が囲む符号付き仕事",
+      "Negative signed line integral of LV transmural pressure with respect to volume along the capture-to-capture path",
+      "capture-to-captureのLV経壁圧–容積経路に沿う負の符号付き線積分 −∫Ptm dV",
     ),
-    aliases: ["PV work", "LV work", "stroke work", "圧容積仕事", "一回仕事量"],
+    aliases: ["PV path work", "LV path work", "PV line integral", "圧容積経路仕事"],
   },
   "oxygen.delivery.systemic": {
     category: "oxygen",
@@ -743,6 +743,7 @@ export function studioItemPresentationCategoryV1(
   if (
     normalized.startsWith("valve.") ||
     normalized.includes(".valve-") ||
+    normalized.includes(".valve.") ||
     normalized.includes("regurgitant")
   )
     return "valves";

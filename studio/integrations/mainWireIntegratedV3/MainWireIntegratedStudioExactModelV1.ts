@@ -1,7 +1,7 @@
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-  validateMainWireIntegratedModelStandardCheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+  validateMainWireIntegratedModelStandardCheckpointV2,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -143,7 +143,7 @@ import generatedExecutionPlanV1 from "./MainWireIntegratedExecutionPlanV1.genera
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1 =
   "circleheart.main-wire-integrated-v3-regular-sinus-all-off-fixture.standard-v3" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1 =
-  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v5" as const;
+  "circleheart.main-wire-integrated-v3-studio-checkpoint-codec.standard-v6" as const;
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
 
@@ -1306,8 +1306,8 @@ export function createMainWireIntegratedStudioExactKernelV1(): ExactModelKernelM
       checkpointCodecId:
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CHECKPOINT_CODEC_ID_V1,
       definition: Object.freeze({
-        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V1_ID,
-        schemaVersion: 1,
+        checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
+        schemaVersion: 2,
         fixturePairing:
           "regular-sinus-all-off-and-complete-standard-fixture-identity",
         restoreSemantics: "exact-no-migration-no-clock-rebase",
@@ -1339,7 +1339,9 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
   fixture: MainWireIntegratedStudioStandardFixtureV1,
   assignments: readonly MainWireIntegratedStudioStandardAbsoluteControlAssignmentV1[],
 ): MainWireIntegratedStudioStandardFixtureV1 {
-  return assignments.reduce((current, assignment) => {
+  const initial = validateAndOwnStandardFixtureV1(fixture);
+  const candidate = assignments.reduce<MainWireIntegratedStudioStandardFixtureV1>(
+    (current, assignment) => {
     const definition = requiredControlDefinitionV1(assignment.controlId);
     const issue = studioNumericControlValueIssueV2(
       assignment.value,
@@ -1354,7 +1356,7 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
       assignment.controlId ===
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale
     ) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1369,25 +1371,25 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             },
           },
         },
-      });
+      };
     }
     const hemodynamicBinding = STANDARD_CONTROL_INPUT_KEYS_V1.find(
       ({ controlId }) => controlId === assignment.controlId,
     );
     if (hemodynamicBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         hemodynamicResearchInputs: {
           ...current.hemodynamicResearchInputs,
           [hemodynamicBinding.inputKey]: assignment.value,
         },
-      });
+      };
     }
     const mechanicsBinding = STANDARD_MECHANICS_CONTROL_BINDINGS_V1.find(
       ({ controlId }) => controlId === assignment.controlId,
     );
     if (mechanicsBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1401,13 +1403,13 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             },
           },
         },
-      });
+      };
     }
     const valveBinding = STANDARD_VALVE_CONTROL_BINDINGS_V1.find(
       ({ controlId }) => controlId === assignment.controlId,
     );
     if (valveBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1421,13 +1423,13 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             },
           },
         },
-      });
+      };
     }
     const oxygenBinding = STANDARD_OXYGEN_CONTROL_BINDINGS_V1.find(
       ({ controlId }) => controlId === assignment.controlId,
     );
     if (oxygenBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1436,13 +1438,13 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             [oxygenBinding.inputKey]: assignment.value,
           },
         },
-      });
+      };
     }
     const pericardiumBinding = STANDARD_PERICARDIUM_CONTROL_BINDINGS_V1.find(
       ({ controlId }) => controlId === assignment.controlId,
     );
     if (pericardiumBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1451,14 +1453,14 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             [pericardiumBinding.inputKey]: assignment.value,
           },
         },
-      });
+      };
     }
     const coronaryFocalBinding =
       STANDARD_CORONARY_FOCAL_CONTROL_BINDINGS_V1.find(
         ({ controlId }) => controlId === assignment.controlId,
       );
     if (coronaryFocalBinding !== undefined) {
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1471,7 +1473,7 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             },
           },
         },
-      });
+      };
     }
     const coronaryStructuralBinding =
       STANDARD_CORONARY_STRUCTURAL_CONTROL_BINDINGS_V1.find(
@@ -1480,7 +1482,7 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
     if (coronaryStructuralBinding !== undefined) {
       const disease = current.mechanismResearchInputs.coronaryDisease;
       const field = coronaryStructuralBinding.inputKey;
-      return validateAndOwnStandardFixtureV1({
+      return {
         ...current,
         mechanismResearchInputs: {
           ...current.mechanismResearchInputs,
@@ -1495,12 +1497,15 @@ export function applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV
             },
           },
         },
-      });
+      };
     }
     throw new Error(
       `Standard control is not registered: ${assignment.controlId}`,
     );
-  }, validateAndOwnStandardFixtureV1(fixture));
+    },
+    initial,
+  );
+  return validateAndOwnStandardFixtureV1(candidate);
 }
 
 function standardExecutableBundleV1(
@@ -1847,7 +1852,7 @@ function standardExecutableBundleV1(
             scenario.capture.fixture,
           );
           const standardCheckpoint =
-            await validateMainWireIntegratedModelStandardCheckpointV1(
+            await validateMainWireIntegratedModelStandardCheckpointV2(
               scenario.capture.checkpoint.payload,
             );
           const admission = await admitMainWireIntegratedModelSnapshotV3({

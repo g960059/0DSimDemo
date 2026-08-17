@@ -1801,21 +1801,38 @@ function outputPaneItemManagerEntriesV3(
   const selectedById = new Map(
     input.pane.items.map((item) => [item.outputId, item]),
   );
-  const groupedOutputIds = new Set(
-    STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.flatMap(
-      ({ memberOutputIds }) => memberOutputIds,
-    ),
-  );
-  const summaries = STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.flatMap((summary) => {
+  const summaryStates = STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.map((summary) => {
     const definitions = summary.memberOutputIds.flatMap((outputId) => {
       const definition = outputById.get(outputId);
       return definition === undefined ? [] : [definition];
     });
-    if (definitions.length !== summary.memberOutputIds.length) return [];
     const selectedItems = summary.memberOutputIds.flatMap((outputId) => {
       const item = selectedById.get(outputId);
       return item === undefined ? [] : [item];
     });
+    return { summary, definitions, selectedItems };
+  });
+  const groupedOutputIds = new Set(
+    summaryStates.flatMap(({ summary, definitions, selectedItems }) => {
+      const isPartialSelection =
+        selectedItems.length > 0 &&
+        selectedItems.length < summary.memberOutputIds.length;
+      return definitions.length === summary.memberOutputIds.length &&
+        !isPartialSelection
+        ? summary.memberOutputIds
+        : [];
+    }),
+  );
+  const summaries = summaryStates.flatMap(
+    ({ summary, definitions, selectedItems }) => {
+      const isPartialSelection =
+        selectedItems.length > 0 &&
+        selectedItems.length < summary.memberOutputIds.length;
+      if (
+        definitions.length !== summary.memberOutputIds.length ||
+        isPartialSelection
+      )
+        return [];
     return [
       {
         ...resolvePaneItemManagerPresentationV3({
@@ -1832,7 +1849,7 @@ function outputPaneItemManagerEntriesV3(
             outputKind: "metric",
           },
         }),
-        selected: selectedItems.length > 0,
+        selected: selectedItems.length === summary.memberOutputIds.length,
         disableDeselect: false,
         order:
           selectedItems.length === 0
@@ -1840,7 +1857,8 @@ function outputPaneItemManagerEntriesV3(
             : Math.min(...selectedItems.map(({ order }) => order)),
       },
     ];
-  });
+    },
+  );
   const scalars = input.contract.outputCatalog
     .filter(({ outputId }) => !groupedOutputIds.has(outputId))
     .map((output): PaneItemManagerEntryV3 => {

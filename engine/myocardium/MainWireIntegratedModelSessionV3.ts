@@ -36,10 +36,10 @@ import {
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
-  checkpointMainWireIntegratedModelStandardV1,
-  restoreMainWireIntegratedModelStandardV1,
-  type MainWireIntegratedModelStandardCheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+  checkpointMainWireIntegratedModelStandardV2,
+  restoreMainWireIntegratedModelStandardV2,
+  type MainWireIntegratedModelStandardCheckpointV2,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import { respiratoryExternalPressuresV1 } from "@/engine/core/circulationGraphKernelV1";
 import { warmStartMainWireIntegratedModelV3 } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
 import {
@@ -257,7 +257,7 @@ export class MainWireIntegratedModelSessionV3 {
       ventricularContractilityScale,
       mechanismResearchInputs,
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState,
@@ -354,8 +354,8 @@ export class MainWireIntegratedModelSessionV3 {
    * Captures every state element that affects the Standard exact output ABI.
    * The legacy operational checkpoint intentionally remains unchanged.
    */
-  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV1> {
-    return checkpointMainWireIntegratedModelStandardV1(
+  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV2> {
+    return checkpointMainWireIntegratedModelStandardV2(
       this.checkpointContext(),
       this.acceptedState,
       this.beatAccumulator,

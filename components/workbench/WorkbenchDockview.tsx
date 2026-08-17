@@ -152,7 +152,6 @@ function WorkbenchDockTabV3(
   const [renaming, setRenaming] = React.useState(false);
   const [draftTitle, setDraftTitle] = React.useState(title);
   const [isActive, setIsActive] = React.useState(() => props.api.isActive);
-  const [isVisible, setIsVisible] = React.useState(() => props.api.isVisible);
   const hasMenu =
     pane !== undefined &&
     (context?.onOpenPaneSettings !== undefined ||
@@ -168,15 +167,8 @@ function WorkbenchDockTabV3(
       setIsActive(nextActive);
       if (!nextActive) setMenuPosition(null);
     });
-    const visible = props.api.onDidVisibilityChange(
-      ({ isVisible: nextVisible }) => setIsVisible(nextVisible),
-    );
     setIsActive(props.api.isActive);
-    setIsVisible(props.api.isVisible);
-    return () => {
-      active.dispose();
-      visible.dispose();
-    };
+    return () => active.dispose();
   }, [props.api]);
   React.useEffect(() => {
     if (menuPosition === null) return undefined;
@@ -208,7 +200,6 @@ function WorkbenchDockTabV3(
   return (
     <div
       className="workbench-dock-tab relative flex h-full min-w-[7.5rem] items-center gap-1.5 overflow-hidden px-2.5 text-wb-muted"
-      data-visible={isVisible ? "true" : "false"}
       onClick={() => props.api.setActive()}
       onDoubleClick={() => {
         if (context?.onRenamePane !== undefined) beginRename();
