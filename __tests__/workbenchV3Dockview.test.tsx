@@ -337,10 +337,8 @@ describe("V3 Dockview Workbench", () => {
 
   it("preserves an atomic pressure item when a pane does not select the triplet", async () => {
     const { contract } = await loadStudioDefaultClientCompositionV2();
-    const defaultPane = createDefaultExperimentSurfaceV3(
-      contract,
-      "scenario/a",
-    ).outputPanes[0]!;
+    const defaultPane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
+      .outputPanes[0]!;
     const pane = {
       ...defaultPane,
       items: [
@@ -384,9 +382,7 @@ describe("V3 Dockview Workbench", () => {
       unit: "mmHg",
     });
     expect(
-      items.some(
-        ({ itemId }) => itemId === "presentation.pressure-summary.Ao",
-      ),
+      items.some(({ itemId }) => itemId === "presentation.pressure-summary.Ao"),
     ).toBe(false);
   });
 
@@ -1010,7 +1006,7 @@ describe("V3 Dockview Workbench", () => {
         seriesIds: [],
       },
       {
-        graphId: "hemodynamics.pressure.waveform",
+        graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
         seriesIds: ["AoP", "LVP", "LAP"],
       },
     ]);
@@ -1089,7 +1085,8 @@ describe("V3 Dockview Workbench", () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(composition.contract);
     const pressurePane = surface.graphPanes.find(
-      ({ graphId }) => graphId === "hemodynamics.pressure.waveform",
+      ({ graphId }) =>
+        graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
     )!;
     const pressureGraph = composition.contract.graphCatalog.find(
       ({ graphId }) => graphId === pressurePane.graphId,
@@ -1247,7 +1244,8 @@ describe("V3 Dockview Workbench", () => {
     const pane = createDefaultExperimentSurfaceV3(
       composition.contract,
     ).graphPanes.find(
-      ({ graphId }) => graphId === "hemodynamics.pressure.waveform",
+      ({ graphId }) =>
+        graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
     )!;
     const first = pane.traceColors![0]!;
     const sibling = pane.traceColors![1]!;
@@ -1502,7 +1500,9 @@ describe("V3 Dockview Workbench", () => {
         original,
         kind,
         composition.contract,
-        kind === "graph" ? "hemodynamics.flow.waveform" : undefined,
+        kind === "graph"
+          ? "hemodynamics.flow.waveform.comprehensive-v1"
+          : undefined,
       );
       expect(added.selectedPane?.kind).toBe(kind);
       expect(panes(added.surface)).toHaveLength(panes(original).length + 1);
@@ -1523,20 +1523,23 @@ describe("V3 Dockview Workbench", () => {
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const original = createDefaultExperimentSurfaceV3(composition.contract);
-    expect([
+    const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),
-    ]).toEqual(
-      composition.contract.graphCatalog
-        .map(({ graphId }) => graphId)
-        .sort((left, right) => {
-          const order = [
-            "hemodynamics.pressure-volume",
-            "hemodynamics.pressure.waveform",
-            "hemodynamics.flow.waveform",
-            "hemodynamics.guyton-starling",
-          ];
-          return order.indexOf(left) - order.indexOf(right);
-        }),
+    ];
+    expect(constructorGraphIds).toEqual([
+      "hemodynamics.pressure-volume",
+      "hemodynamics.pressure.waveform.comprehensive-v1",
+      "hemodynamics.flow.waveform.comprehensive-v1",
+      "hemodynamics.guyton-starling",
+    ]);
+    expect(
+      composition.contract.graphCatalog.map(({ graphId }) => graphId),
+    ).toEqual(
+      expect.arrayContaining([
+        ...constructorGraphIds,
+        "hemodynamics.pressure.waveform",
+        "hemodynamics.flow.waveform",
+      ]),
     );
     for (const option of WORKBENCH_GRAPH_PANE_OPTIONS_V3) {
       const added = addWorkbenchSurfacePaneV3(

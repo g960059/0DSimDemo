@@ -24,7 +24,7 @@ import {
 import standardDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import {
   createDefaultExperimentSurfaceV3,
   reconcileWorkbenchSurfaceScenariosV3,

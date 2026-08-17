@@ -253,15 +253,21 @@ is not rounded.
 
 ## Graph Catalog
 
-The registry exposes four constructors rather than many preset panes:
+The current Workbench exposes four constructors rather than many preset panes:
 
-- `hemodynamics.pressure.waveform`: chamber, vascular, post-focal coronary,
-  focal-loss, pericardial, pleural, and alveolar mmHg series; LVP/LAP/AoP are
-  the default;
-- `hemodynamics.flow.waveform`: valve, detailed coronary, support, systemic,
-  pulmonary, and venous-return mL/s series; four valve flows are the default;
+- `hemodynamics.pressure.waveform.comprehensive-v1`: chamber, vascular,
+  post-focal coronary, focal-loss, pericardial, pleural, and alveolar mmHg
+  series; LVP/LAP/AoP are the default;
+- `hemodynamics.flow.waveform.comprehensive-v1`: valve, detailed coronary,
+  support, systemic, pulmonary, and venous-return mL/s series; four valve flows
+  are the default;
 - `hemodynamics.pressure-volume`: LV/RV/RA/LA selectable, LV default;
 - `hemodynamics.guyton-starling`: left, right, or bilateral on-demand analysis.
+
+The immutable `hemodynamics.pressure.waveform` and
+`hemodynamics.flow.waveform` definitions remain in Surface v2 so previously
+authored Experiments retain their exact graph catalogs. New Workbench panes use
+the comprehensive graph IDs above.
 
 Graph color, label, sweep window, history depth, and picked series belong to
 the authored Experiment Surface. Output and Control panes do not use per-item

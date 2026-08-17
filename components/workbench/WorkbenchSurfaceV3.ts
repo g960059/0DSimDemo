@@ -49,12 +49,12 @@ export const WORKBENCH_GRAPH_PANE_OPTIONS_V3 = Object.freeze([
   }),
   Object.freeze({
     optionId: "hemodynamics.pressure.waveform",
-    graphId: "hemodynamics.pressure.waveform",
+    graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
     kind: "pressure-waveform" as const,
   }),
   Object.freeze({
     optionId: "hemodynamics.flow.waveform",
-    graphId: "hemodynamics.flow.waveform",
+    graphId: "hemodynamics.flow.waveform.comprehensive-v1",
     kind: "flow-waveform" as const,
   }),
   Object.freeze({
@@ -363,7 +363,7 @@ export function createDefaultExperimentSurfaceV3(
       structuralSide: "right" as const,
     }),
     Object.freeze({
-      graphId: "hemodynamics.pressure.waveform",
+      graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
       seriesIds: Object.freeze(["AoP", "LVP", "LAP"]),
     }),
   ]);
@@ -713,8 +713,16 @@ export function graphTitleV3(
   graphId: string,
   structuralSide?: "left" | "right",
 ): string {
-  if (graphId === "hemodynamics.pressure.waveform") return "Pressure waveforms";
-  if (graphId === "hemodynamics.flow.waveform") return "Flow waveforms";
+  if (
+    graphId === "hemodynamics.pressure.waveform" ||
+    graphId === "hemodynamics.pressure.waveform.comprehensive-v1"
+  )
+    return "Pressure waveforms";
+  if (
+    graphId === "hemodynamics.flow.waveform" ||
+    graphId === "hemodynamics.flow.waveform.comprehensive-v1"
+  )
+    return "Flow waveforms";
   if (graphId === "hemodynamics.guyton-starling") {
     if (structuralSide === "right") return "Systemic Guyton / Starling";
     if (structuralSide === "left") return "Pulmonary Guyton / Starling";

@@ -18,7 +18,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import standardSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import standardSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 
 export const EXACT_MODEL_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID =
   "circleheart-exact-model-artifact-equivalence-report-v1" as const;

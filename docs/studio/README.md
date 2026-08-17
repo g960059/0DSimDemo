@@ -41,7 +41,7 @@ explicitly superseded vertical-slice plans live only in Git history.
 
 New Sessions resolve one stable active model/Surface bundle. The checked-in
 exact release is Standard-63 and its compatible Surface is
-`circleheart.main-wire.surface.workbench-v1`; the external active bundle
+`circleheart.main-wire.surface.workbench-v2`; the external active bundle
 pointer determines deployed resolution. The exact artifact carries its
 generated execution-plan descriptor; each Scenario Worker validates and binds
 one private plan before it constructs the numerical Session.

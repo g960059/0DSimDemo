@@ -23,7 +23,9 @@ import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
 import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
 import {
+  assertAdditiveModelSurfaceUpgradeV1,
   assertExactModelKernelManifestV3,
+  assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -45,7 +47,8 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import { resolveMainWireIntegratedStudioAnalysisExecutionPlanV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
-import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+import mainWireIntegratedStudioHistoricalSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -756,6 +759,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toEqual([
       "hemodynamics.pressure.waveform",
       "hemodynamics.flow.waveform",
+      "hemodynamics.pressure.waveform.comprehensive-v1",
+      "hemodynamics.flow.waveform.comprehensive-v1",
       "hemodynamics.pressure-volume",
       "hemodynamics.guyton-starling",
     ]);
@@ -766,7 +771,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(workbenchSurface.graphPanes.map(({ graphId }) => graphId)).toEqual([
       "hemodynamics.pressure-volume",
       "hemodynamics.guyton-starling",
-      "hemodynamics.pressure.waveform",
+      "hemodynamics.pressure.waveform.comprehensive-v1",
     ]);
     expect(
       workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId),
@@ -899,8 +904,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           fixture: {
             ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
             mechanismResearchInputs: {
-              ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
-                .mechanismResearchInputs,
+              ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1.mechanismResearchInputs,
               oxygenTransport: {
                 ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1
                   .mechanismResearchInputs.oxygenTransport,
@@ -910,9 +914,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           },
         },
       }),
-    ).rejects.toThrow(
-      "mechanism research input SHA-256 identity mismatch",
-    );
+    ).rejects.toThrow("mechanism research input SHA-256 identity mismatch");
     await expect(
       release.executables.snapshotGate.admitFrozenCandidate({
         model,
@@ -1020,6 +1022,25 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
+  it("publishes the expanded Workbench catalog as an additive Surface v2", () => {
+    assertModelSurfaceReleaseManifestV1(
+      mainWireIntegratedStudioHistoricalSurfaceV1,
+    );
+    assertModelSurfaceReleaseManifestV1(
+      mainWireIntegratedStudioStandardSurfaceV1,
+    );
+    assertAdditiveModelSurfaceUpgradeV1(
+      mainWireIntegratedStudioHistoricalSurfaceV1,
+      mainWireIntegratedStudioStandardSurfaceV1,
+    );
+    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId).toBe(
+      "circleheart.main-wire.surface.workbench-v2",
+    );
+    expect(
+      mainWireIntegratedStudioStandardSurfaceV1.predecessorSurfaceReleaseId,
+    ).toBe(mainWireIntegratedStudioHistoricalSurfaceV1.surfaceReleaseId);
+  });
+
   it("keeps controls in Surface and never introduces a ParameterSet", () => {
     const composition = composeStandardModelContractV1(
       mainWireIntegratedStudioStandardClientV1.manifest,
@@ -1041,7 +1062,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       JSON.stringify(mainWireIntegratedStudioStandardSurfaceV1),
     ).not.toMatch(/ParameterSet/);
     expect(mainWireIntegratedStudioStandardSurfaceV1.graphCatalog).toHaveLength(
-      4,
+      6,
     );
   });
 });

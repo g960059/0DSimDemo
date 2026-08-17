@@ -11,7 +11,7 @@ The checked-in exact release identity is:
 modelId:
   circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-63
 surfaceReleaseId:
-  circleheart.main-wire.surface.workbench-v1
+  circleheart.main-wire.surface.workbench-v2
 ```
 
 Standard-63 contains one self-contained exact executable artifact plus a
