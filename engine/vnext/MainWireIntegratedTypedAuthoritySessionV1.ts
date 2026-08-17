@@ -1,16 +1,10 @@
-import {
-  respiratoryExternalPressuresV1,
-} from "@/engine/core/circulationGraphKernelV1";
-import {
-  fullHotPathInvariantsEnabledV1,
-} from "@/engine/hotPathIntegrityTierV1";
+import { respiratoryExternalPressuresV1 } from "@/engine/core/circulationGraphKernelV1";
+import { fullHotPathInvariantsEnabledV1 } from "@/engine/hotPathIntegrityTierV1";
 import type {
   AcceptedStateAuthorityV1,
   AcceptedStateValidatorV1,
 } from "@/engine/core/acceptedStateAuthorityV1";
-import {
-  restoreDynamicMechanicalSupportAcceptedStateV1,
-} from "@/engine/devices/dynamicNetworkV1";
+import { restoreDynamicMechanicalSupportAcceptedStateV1 } from "@/engine/devices/dynamicNetworkV1";
 import {
   createCoronaryBackwardEulerScratchWorkspaceV2,
   type CoronaryBackwardEulerScratchWorkspaceV2,
@@ -26,9 +20,7 @@ import {
   type NonCoronaryAcceptedNumericalSourceV1,
   type NonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
-import {
-  buildCoronaryTopologyV2,
-} from "@/engine/coronary/topologyPriorV2";
+import { buildCoronaryTopologyV2 } from "@/engine/coronary/topologyPriorV2";
 import {
   MainWireIntegratedModelBeatAccumulatorV3,
   type MainWireIntegratedModelCompletedBeatMetricsV3,
@@ -43,6 +35,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  type MainWireIntegratedModelMechanismResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import type {
   CoronaryAcceptedAutoregulationStateV3,
   CoronaryAutoregulationWindowControlV3,
@@ -72,10 +68,10 @@ import {
   type MainWireIntegratedModelSubstepRecordV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
-  checkpointMainWireIntegratedModelStandardV1,
-  restoreMainWireIntegratedModelStandardV1,
-  type MainWireIntegratedModelStandardCheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV1";
+  checkpointMainWireIntegratedModelStandardV2,
+  restoreMainWireIntegratedModelStandardV2,
+  type MainWireIntegratedModelStandardCheckpointV2,
+} from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import {
   limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
@@ -88,15 +84,9 @@ import {
   type MainWireIntegratedModelStepResultV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
-import {
-  warmStartMainWireIntegratedModelV3,
-} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
-import type {
-  MainWireNormalAdultFiveWallMechanicsStateV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import type {
-  MainWireNormalAdultFiveWallProviderV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import { warmStartMainWireIntegratedModelV3 } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
+import type { MainWireNormalAdultFiveWallMechanicsStateV1 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import type { MainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   decodeCanonicalFlatCheckpointV1,
   encodeCanonicalFlatDataIntoV1,
@@ -127,9 +117,7 @@ import {
   bindExecutionPlanAcceptedTypedStateV1,
   type ExecutionPlanAcceptedTypedStateBindingV1,
 } from "@/engine/vnext/ExecutionPlanAcceptedTypedStateBindingV1";
-import type {
-  BoundExecutionPlanV1,
-} from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import type { BoundExecutionPlanV1 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   createMainWireAcceptedTypedHemodynamicBindingV1,
   createMainWireAcceptedTypedHemodynamicDestinationV1,
@@ -167,14 +155,13 @@ import type {
 
 export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
   "main-wire-integrated-typed-authority-session-v1" as const;
-export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID =
-  "circleheart-main-wire-flat-authoritative-reference-checkpoint-v1" as const;
+export const MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID =
+  "circleheart-main-wire-flat-authoritative-reference-checkpoint-v2" as const;
 
-type MainWireFlatAuthoritativeReferenceCheckpointV1 = Readonly<{
-  checkpointId:
-    typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID;
-  schemaVersion: 1;
-  standardCheckpoint: MainWireIntegratedModelStandardCheckpointV1;
+type MainWireFlatAuthoritativeReferenceCheckpointV2 = Readonly<{
+  checkpointId: typeof MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
+  standardCheckpoint: MainWireIntegratedModelStandardCheckpointV2;
   coupledPredictor: MainWireFiveWallCoupledPredictorCheckpointV2;
 }>;
 
@@ -203,17 +190,17 @@ export type MainWireFlatReferenceAcceptedStateAuthorityFactoryV1 = (
   admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState>,
 ) => AcceptedStateAuthorityV1<AcceptedState>;
 
-type WithoutObservation<T> = T extends Readonly<{ observation: unknown }>
-  ? Omit<T, "observation">
-  : T;
+type WithoutObservation<T> =
+  T extends Readonly<{ observation: unknown }> ? Omit<T, "observation"> : T;
 
 export type MainWireFlatModelOwnedProjectionAdvanceV1 =
   WithoutObservation<MainWireIntegratedModelPresentationAdvanceV3>;
 
 export type MainWireFlatSelectedOutputProjectionAdvanceV1 = Readonly<{
   advance: MainWireFlatModelOwnedProjectionAdvanceV1;
-  projectedValues:
-    ReturnType<typeof projectMainWireIntegratedModelSelectedValuesV3> | null;
+  projectedValues: ReturnType<
+    typeof projectMainWireIntegratedModelSelectedValuesV3
+  > | null;
   outputProjectionDurationMs: number;
 }>;
 
@@ -275,15 +262,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   readonly #runtime: MainWireIntegratedModelRuntimeV3;
   readonly #provider: MainWireNormalAdultFiveWallProviderV1;
   readonly #rhythmInput: MainWireIntegratedComposedRhythmStepContextV3;
-  readonly #dynamicMechanicalSupportConfig:
-    MainWireIntegratedModelRuntimeV3["config"];
+  readonly #dynamicMechanicalSupportConfig: MainWireIntegratedModelRuntimeV3["config"];
   readonly #authority: AcceptedStateAuthorityV1<AcceptedState>;
-  readonly #typedAuthority:
-    MainWireAcceptedTypedStateAuthorityV1 | null;
-  readonly #typedBoundaryBinding:
-    MainWireAcceptedTypedBoundaryBindingV1 | null;
-  #typedHemodynamicBinding:
-    MainWireAcceptedTypedHemodynamicBindingV1 | null;
+  readonly #typedAuthority: MainWireAcceptedTypedStateAuthorityV1 | null;
+  readonly #typedBoundaryBinding: MainWireAcceptedTypedBoundaryBindingV1 | null;
+  #typedHemodynamicBinding: MainWireAcceptedTypedHemodynamicBindingV1 | null;
   readonly #typedHemodynamicScratch: Float64Array;
   readonly #acceptedNumericalReadback = new Float64Array(
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
@@ -292,32 +275,25 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   );
   #acceptedNumericalReadbackAvailable = false;
-  #coupledNewtonWorkspace:
-    MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
-  #installedExecutionPlanCoupledNewtonWorkspace:
-    MainWireFiveWallCoupledNewtonShadowWorkspaceV1 | null = null;
+  #coupledNewtonWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1;
+  #installedExecutionPlanCoupledNewtonWorkspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1 | null =
+    null;
   #installedExecutionPlan: BoundExecutionPlanV1 | null = null;
-  #executionPlanAcceptedTypedStateBinding:
-    ExecutionPlanAcceptedTypedStateBindingV1 | null = null;
+  #executionPlanAcceptedTypedStateBinding: ExecutionPlanAcceptedTypedStateBindingV1 | null =
+    null;
   #executionPlanWorkspaceInstallationClosed = false;
-  readonly #coupledResidualWorkspace:
-    MainWireFiveWallCoupledResidualWorkspaceV1;
-  readonly #coupledPredictorWorkspace:
-    MainWireFiveWallCoupledPredictorWorkspaceV1;
+  readonly #coupledResidualWorkspace: MainWireFiveWallCoupledResidualWorkspaceV1;
+  readonly #coupledPredictorWorkspace: MainWireFiveWallCoupledPredictorWorkspaceV1;
   readonly #nonCoronaryAcceptedNumericalSource:
     NonCoronaryAcceptedNumericalSourceV1 | undefined;
-  readonly #directCompletionPlan:
-    TransactionalTypedStateCompletionPlanV1 | null;
-  readonly #modelOwnedPromotionPlan:
-    TransactionalTypedStatePromotionPlanV1 | null;
-  readonly #coronaryScratchWorkspace:
-    CoronaryBackwardEulerScratchWorkspaceV2;
-  readonly #nonCoronaryScratchWorkspace:
-    NonCoronaryBackwardEulerScratchWorkspaceV1;
-  readonly #coupledAcceptedAdapterTemplate:
-    ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>;
-  #autoregulationOwner:
-    MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3;
+  readonly #directCompletionPlan: TransactionalTypedStateCompletionPlanV1 | null;
+  readonly #modelOwnedPromotionPlan: TransactionalTypedStatePromotionPlanV1 | null;
+  readonly #coronaryScratchWorkspace: CoronaryBackwardEulerScratchWorkspaceV2;
+  readonly #nonCoronaryScratchWorkspace: NonCoronaryBackwardEulerScratchWorkspaceV1;
+  readonly #coupledAcceptedAdapterTemplate: ReturnType<
+    typeof mainWireFiveWallCoronaryBaseStateV2<WallState>
+  >;
+  #autoregulationOwner: MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3;
   #acceptedState: AcceptedState;
   #lastAcceptedStep: SuccessfulStep | null;
   #lastPresentationObservation: MainWireIntegratedModelObservationV3 | null;
@@ -343,45 +319,48 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     exactBeatState?: ExactBeatState,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ) {
-    const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> =
-      (candidate) => {
-        const acceptedCandidate = candidate as AcceptedState;
-        validateMainWireIntegratedModelAcceptedStateV3(
-          acceptedCandidate,
-          { configuration: runtime.rhythm.configuration },
-          runtime.profile,
-          runtime.config,
+    const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> = (
+      candidate,
+    ) => {
+      const acceptedCandidate = candidate as AcceptedState;
+      validateMainWireIntegratedModelAcceptedStateV3(
+        acceptedCandidate,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config,
+      );
+      return acceptedCandidate;
+    };
+    const ownDecodedAcceptedState: AcceptedStateValidatorV1<AcceptedState> = (
+      candidate,
+    ) => {
+      const decoded = candidate as AcceptedState;
+      const dynamicMechanicalSupport =
+        restoreDynamicMechanicalSupportAcceptedStateV1(
+          decoded.dynamicMechanicalSupport,
+          runtime.cold.acceptedState.dynamicMechanicalSupport,
         );
-        return acceptedCandidate;
-      };
-    const ownDecodedAcceptedState: AcceptedStateValidatorV1<AcceptedState> =
-      (candidate) => {
-        const decoded = candidate as AcceptedState;
-        const dynamicMechanicalSupport =
-          restoreDynamicMechanicalSupportAcceptedStateV1(
-            decoded.dynamicMechanicalSupport,
-            runtime.cold.acceptedState.dynamicMechanicalSupport,
-          );
-        return wrapMainWireIntegratedModelAcceptedStateV3(
-          decoded.coronary,
-          decoded.composedRhythm,
-          dynamicMechanicalSupport,
-          { configuration: runtime.rhythm.configuration },
-          runtime.profile,
-          runtime.config,
-        );
-      };
-    const admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState> =
-      (candidate) => {
-        const acceptedCandidate = candidate as AcceptedState;
-        validateMainWireIntegratedModelAcceptedBoundaryV3(
-          acceptedCandidate,
-          { configuration: runtime.rhythm.configuration },
-          runtime.profile,
-          runtime.config,
-        );
-        return acceptedCandidate;
-      };
+      return wrapMainWireIntegratedModelAcceptedStateV3(
+        decoded.coronary,
+        decoded.composedRhythm,
+        dynamicMechanicalSupport,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config,
+      );
+    };
+    const admitCompletedMirror: AcceptedStateValidatorV1<AcceptedState> = (
+      candidate,
+    ) => {
+      const acceptedCandidate = candidate as AcceptedState;
+      validateMainWireIntegratedModelAcceptedBoundaryV3(
+        acceptedCandidate,
+        { configuration: runtime.rhythm.configuration },
+        runtime.profile,
+        runtime.config,
+      );
+      return acceptedCandidate;
+    };
     validateAcceptedState(acceptedState);
     this.#runtime = runtime;
     this.#provider = runtime.provider;
@@ -391,8 +370,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       );
     this.#nonCoronaryScratchWorkspace =
       createNonCoronaryBackwardEulerScratchWorkspaceV1();
-    this.#coupledAcceptedAdapterTemplate =
-      mainWireFiveWallCoronaryBaseStateV2(acceptedState.coronary);
+    this.#coupledAcceptedAdapterTemplate = mainWireFiveWallCoronaryBaseStateV2(
+      acceptedState.coronary,
+    );
     this.#autoregulationOwner =
       autoregulationOwnerFromAcceptedState(acceptedState);
     this.#rhythmInput = Object.freeze({
@@ -409,13 +389,14 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     );
     this.#typedAuthority =
       this.#authority instanceof MainWireAcceptedTypedStateAuthorityV1
-      ? this.#authority
-      : null;
-    this.#typedBoundaryBinding = this.#typedAuthority === null
-      ? null
-      : createMainWireAcceptedTypedBoundaryBindingV1(
-          this.#typedAuthority.manifest(),
-        );
+        ? this.#authority
+        : null;
+    this.#typedBoundaryBinding =
+      this.#typedAuthority === null
+        ? null
+        : createMainWireAcceptedTypedBoundaryBindingV1(
+            this.#typedAuthority.manifest(),
+          );
     const executionPlanStateInitialization =
       executionPlanInitialization === undefined
         ? null
@@ -423,15 +404,16 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
             executionPlanInitialization.boundExecutionPlan,
             this.#typedAuthority,
           );
-    this.#typedHemodynamicBinding = this.#typedAuthority === null
-      ? null
-      : executionPlanStateInitialization?.hemodynamicBinding
-        ?? createMainWireAcceptedTypedHemodynamicBindingV1(
-          this.#typedAuthority.manifest(),
-        );
+    this.#typedHemodynamicBinding =
+      this.#typedAuthority === null
+        ? null
+        : (executionPlanStateInitialization?.hemodynamicBinding ??
+          createMainWireAcceptedTypedHemodynamicBindingV1(
+            this.#typedAuthority.manifest(),
+          ));
     if (
-      executionPlanStateInitialization !== null
-      && executionPlanInitialization !== undefined
+      executionPlanStateInitialization !== null &&
+      executionPlanInitialization !== undefined
     ) {
       this.#installedExecutionPlan =
         executionPlanInitialization.boundExecutionPlan;
@@ -440,9 +422,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     }
     this.#typedHemodynamicScratch =
       createMainWireAcceptedTypedHemodynamicDestinationV1();
-    this.#coupledNewtonWorkspace = executionPlanInitialization
-      ?.coupledNewtonWorkspace
-      ?? createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
+    this.#coupledNewtonWorkspace =
+      executionPlanInitialization?.coupledNewtonWorkspace ??
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1();
     if (executionPlanInitialization !== undefined) {
       this.installExecutionPlanCoupledNewtonWorkspaceV1(
         executionPlanInitialization.coupledNewtonWorkspace,
@@ -463,44 +445,53 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     const directRetainedContinuousSlots =
       this.#typedBoundaryBinding === null
         ? Object.freeze([])
-        : Object.freeze(Array.from(new Set([
-          ...this.#typedBoundaryBinding.directContinuousSlots,
-          ...(runtime.rhythm.configuration
-            .authoredVentricularPacingReplay === null
-            ? []
-            : this.#typedBoundaryBinding
-              .authoredVentricularPacingContinuousSlots),
-          ...(runtime.rhythm.configuration.atrialSource.mode === "regular"
-            ? this.#typedBoundaryBinding.regularAtrialSourceContinuousSlots
-            : []),
-          ...this.#typedBoundaryBinding.postSolverContinuousSlots,
-          ...(this.#typedHemodynamicBinding?.solverRetainedContinuousSlots
-            ?? []),
-        ])));
-    this.#directCompletionPlan = this.#typedAuthority === null
-      ? null
-      : this.#typedAuthority.createDirectCompletionPlan({
-          continuous: directRetainedContinuousSlots,
-          booleans:
-            this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
-        });
-    this.#modelOwnedPromotionPlan = this.#typedAuthority === null
-      ? null
-      : this.#typedAuthority.createModelOwnedPromotionPlan({
-          continuous: directRetainedContinuousSlots,
-          booleans:
-            this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
-          strings: this.#typedHemodynamicBinding === null
-            ? []
-            : [
-                this.#typedHemodynamicBinding
-                  .mechanicsMaterialFingerprintStringSlot,
-              ],
-        });
+        : Object.freeze(
+            Array.from(
+              new Set([
+                ...this.#typedBoundaryBinding.directContinuousSlots,
+                ...(runtime.rhythm.configuration
+                  .authoredVentricularPacingReplay === null
+                  ? []
+                  : this.#typedBoundaryBinding
+                      .authoredVentricularPacingContinuousSlots),
+                ...(runtime.rhythm.configuration.atrialSource.mode === "regular"
+                  ? this.#typedBoundaryBinding
+                      .regularAtrialSourceContinuousSlots
+                  : []),
+                ...this.#typedBoundaryBinding.postSolverContinuousSlots,
+                ...(this.#typedHemodynamicBinding
+                  ?.solverRetainedContinuousSlots ?? []),
+              ]),
+            ),
+          );
+    this.#directCompletionPlan =
+      this.#typedAuthority === null
+        ? null
+        : this.#typedAuthority.createDirectCompletionPlan({
+            continuous: directRetainedContinuousSlots,
+            booleans:
+              this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
+          });
+    this.#modelOwnedPromotionPlan =
+      this.#typedAuthority === null
+        ? null
+        : this.#typedAuthority.createModelOwnedPromotionPlan({
+            continuous: directRetainedContinuousSlots,
+            booleans:
+              this.#typedHemodynamicBinding?.solverRetainedBooleanSlots ?? [],
+            strings:
+              this.#typedHemodynamicBinding === null
+                ? []
+                : [
+                    this.#typedHemodynamicBinding
+                      .mechanicsMaterialFingerprintStringSlot,
+                  ],
+          });
     this.#acceptedState = this.#authority.current();
     this.#lastAcceptedStep = null;
-    this.#beatAccumulator = exactBeatState?.beatAccumulator
-      ?? new MainWireIntegratedModelBeatAccumulatorV3();
+    this.#beatAccumulator =
+      exactBeatState?.beatAccumulator ??
+      new MainWireIntegratedModelBeatAccumulatorV3();
     this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
     this.#lastPresentationSource = observationSource;
     this.#lastPresentationRevision = acceptedState.revision;
@@ -514,14 +505,15 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   static async create(
-    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
@@ -541,16 +533,17 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
    */
   static async restoreStandardExactCheckpoint(
     checkpoint: unknown,
-    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState,
@@ -570,13 +563,14 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   /** Test-only failure seam kept entirely outside the registered model. */
   static async createWithAcceptedStateAuthorityForTestV1(
     authorityFactory: MainWireFlatReferenceAcceptedStateAuthorityFactoryV1,
-    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     return new MainWireIntegratedTypedAuthoritySessionV1(
       runtime,
@@ -588,18 +582,19 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
   static async restoreCanonicalBinary(
     checkpointBytes: Uint8Array,
-    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
-    const checkpoint = validateReferenceCheckpointV1(
+    const checkpoint = validateReferenceCheckpointV2(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes),
     );
     const runtime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
-    const restored = await restoreMainWireIntegratedModelStandardV1(
+    const restored = await restoreMainWireIntegratedModelStandardV2(
       mainWireIntegratedModelCheckpointContextV3(
         runtime,
         runtime.cold.acceptedState,
@@ -618,9 +613,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       Object.freeze({
         revision: restored.acceptedState.revision,
         acceptedTimeSec: restored.acceptedState.acceptedTimeSec,
-        unknownsMl: coupledUnknownsFromAcceptedStateV1(
-          restored.acceptedState,
-        ),
+        unknownsMl: coupledUnknownsFromAcceptedStateV1(restored.acceptedState),
       }),
       session.#coupledPredictorWorkspace,
     );
@@ -639,36 +632,34 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     boundExecutionPlan: BoundExecutionPlanV1,
   ): void {
     if (
-      this.#installedExecutionPlan === boundExecutionPlan
-      && this.#executionPlanAcceptedTypedStateBinding !== null
+      this.#installedExecutionPlan === boundExecutionPlan &&
+      this.#executionPlanAcceptedTypedStateBinding !== null
     ) {
       return;
     }
     if (
-      this.#installedExecutionPlan !== null
-      || this.#executionPlanWorkspaceInstallationClosed
+      this.#installedExecutionPlan !== null ||
+      this.#executionPlanWorkspaceInstallationClosed
     ) {
       throw new Error("Main Wire execution plan cannot be replaced");
     }
     if (
-      this.#typedAuthority === null
-      || this.#typedHemodynamicBinding === null
+      this.#typedAuthority === null ||
+      this.#typedHemodynamicBinding === null
     ) {
       throw new Error(
         "Main Wire execution plan requires typed accepted-state authority",
       );
     }
-    const {
-      acceptedStateBinding,
-      hemodynamicBinding,
-    } = createExecutionPlanStateInitializationV1(
-      boundExecutionPlan,
-      this.#typedAuthority,
-    );
+    const { acceptedStateBinding, hemodynamicBinding } =
+      createExecutionPlanStateInitializationV1(
+        boundExecutionPlan,
+        this.#typedAuthority,
+      );
     if (
-      this.#typedHemodynamicBinding.mvcActiveBooleanSlot
-        !== hemodynamicBinding.mvcActiveBooleanSlot
-      || this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
+      this.#typedHemodynamicBinding.mvcActiveBooleanSlot !==
+        hemodynamicBinding.mvcActiveBooleanSlot ||
+      this.#typedHemodynamicBinding.canonicalContinuousSlots.some(
         (slot, index) =>
           slot !== hemodynamicBinding.canonicalContinuousSlots[index],
       )
@@ -692,8 +683,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   ): void {
     assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
     if (
-      this.#installedExecutionPlanCoupledNewtonWorkspace === workspace
-      && this.#installedExecutionPlan === boundExecutionPlan
+      this.#installedExecutionPlanCoupledNewtonWorkspace === workspace &&
+      this.#installedExecutionPlan === boundExecutionPlan
     ) {
       return;
     }
@@ -703,8 +694,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       );
     }
     if (
-      this.#installedExecutionPlanCoupledNewtonWorkspace !== null
-      || this.#executionPlanWorkspaceInstallationClosed
+      this.#installedExecutionPlanCoupledNewtonWorkspace !== null ||
+      this.#executionPlanWorkspaceInstallationClosed
     ) {
       throw new Error(
         "Main Wire execution-plan Newton workspace cannot be replaced",
@@ -723,10 +714,12 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
     ventricularContractilityScale = 1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
+      mechanismResearchInputs,
     );
     const acceptedState = warmStartMainWireIntegratedModelV3({
       source: this.#authority.snapshot(),
@@ -762,8 +755,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
     validateTypedProjectionOutputIds(outputIds);
     if (
-      this.#typedAuthority !== null
-      && this.#acceptedNumericalReadbackAvailable
+      this.#typedAuthority !== null &&
+      this.#acceptedNumericalReadbackAvailable
     ) {
       const typedPresentation = readMainWireAcceptedTypedPresentationStateV1(
         this.#typedAuthority.currentCursor(),
@@ -789,6 +782,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
               this.#runtime,
             ),
             completedBeatMetrics: this.#completedBeatMetrics,
+            mechanismResearchInputs: this.#runtime.mechanismResearchInputs,
             acceptedNumericalReadback: this.#acceptedNumericalReadback,
           }),
           outputIds,
@@ -838,38 +832,42 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       });
     }
     const projectionStartedAt = performance.now();
-    const typedPresentation = this.#typedAuthority === null
-      ? null
-      : readMainWireAcceptedTypedPresentationStateV1(
-          this.#typedAuthority.currentCursor(),
-          this.requiredTypedBoundaryBinding(),
-          this.#rhythmInput.configuration,
-        );
-    const projectedValues = typedPresentation === null
-      ? projectMainWireIntegratedModelSelectedValuesV3(
-        result.observation,
-        outputIds,
-      )
-      : projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
-        Object.freeze({
-          acceptedTimeSec: typedPresentation.acceptedTimeSec,
-          regularSinusCycleLengthSec:
-            typedPresentation.regularSinusCycleLengthSec,
-          regularSinusNextActivationTimeSec:
-            typedPresentation.regularSinusNextActivationTimeSec,
-          dynamicMechanicalSupportLvadFlowMlPerSec:
-            typedPresentation.lvadFlowMlPerSec,
-          runtimeSignals: result.observation.runtimeSignals,
-          completedBeatMetrics: this.#completedBeatMetrics,
-          acceptedNumericalReadback: this.#acceptedNumericalReadback,
-        }),
-        outputIds,
-      );
+    const typedPresentation =
+      this.#typedAuthority === null
+        ? null
+        : readMainWireAcceptedTypedPresentationStateV1(
+            this.#typedAuthority.currentCursor(),
+            this.requiredTypedBoundaryBinding(),
+            this.#rhythmInput.configuration,
+          );
+    const projectedValues =
+      typedPresentation === null
+        ? projectMainWireIntegratedModelSelectedValuesV3(
+            result.observation,
+            outputIds,
+          )
+        : projectMainWireIntegratedModelSelectedValuesFromNumericalReadbackV1(
+            Object.freeze({
+              acceptedTimeSec: typedPresentation.acceptedTimeSec,
+              regularSinusCycleLengthSec:
+                typedPresentation.regularSinusCycleLengthSec,
+              regularSinusNextActivationTimeSec:
+                typedPresentation.regularSinusNextActivationTimeSec,
+              dynamicMechanicalSupportLvadFlowMlPerSec:
+                typedPresentation.lvadFlowMlPerSec,
+              runtimeSignals: result.observation.runtimeSignals,
+              completedBeatMetrics: this.#completedBeatMetrics,
+              mechanismResearchInputs: this.#runtime.mechanismResearchInputs,
+              acceptedNumericalReadback: this.#acceptedNumericalReadback,
+            }),
+            outputIds,
+          );
     const outputProjectionDurationMs = performance.now() - projectionStartedAt;
     const { observation: _trustedObservation, ...withoutObservation } = result;
     return Object.freeze({
-      advance: Object.freeze(withoutObservation) as
-        MainWireFlatModelOwnedProjectionAdvanceV1,
+      advance: Object.freeze(
+        withoutObservation,
+      ) as MainWireFlatModelOwnedProjectionAdvanceV1,
       projectedValues,
       outputProjectionDurationMs,
     });
@@ -885,25 +883,28 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 | null {
     if (
-      this.#typedAuthority === null
-      || this.#typedHemodynamicBinding === null
-      || fullHotPathInvariantsEnabledV1()
-    ) return null;
+      this.#typedAuthority === null ||
+      this.#typedHemodynamicBinding === null ||
+      fullHotPathInvariantsEnabledV1()
+    )
+      return null;
     const currentClock = this.currentAcceptedClock();
     if (
-      !Number.isFinite(targetTimeSec)
-      || !(targetTimeSec > currentClock.acceptedTimeSec)
-    ) return null;
+      !Number.isFinite(targetTimeSec) ||
+      !(targetTimeSec > currentClock.acceptedTimeSec)
+    )
+      return null;
     const limit = this.limitCandidateTime(targetTimeSec);
     if (
-      limit.candidateTimeSec !== targetTimeSec
-      || !isStrictlyOrdinaryTypedCandidate(
+      limit.candidateTimeSec !== targetTimeSec ||
+      !isStrictlyOrdinaryTypedCandidate(
         currentClock,
         limit,
         this.#rhythmInput,
         this.#autoregulationOwner,
       )
-    ) return null;
+    )
+      return null;
 
     const binding = this.requiredTypedBoundaryBinding();
     const current = this.#typedAuthority.currentCursor();
@@ -986,16 +987,16 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           throw new Error("typed ordinary coupled solve status drifted");
         }
         throw new Error(
-          "typed ordinary coupled solve failed: "
-            + `${failure.reason}: ${failure.message}`,
+          "typed ordinary coupled solve failed: " +
+            `${failure.reason}: ${failure.message}`,
         );
       }
       const solverResult = solved.solver.result;
       if (solverResult.status !== "converged") {
         throw new Error("typed ordinary converged solve status drifted");
       }
-      let nextAutoregulationOwner:
-        MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 | null = null;
+      let nextAutoregulationOwner: MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3 | null =
+        null;
       let borrowed = false;
       solved.context.withConvergedCandidate(
         solverResult.solution,
@@ -1019,17 +1020,15 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
               candidateBorrow.coronaryAutoregulationHydraulicObservables,
             );
           if (
-            regulation.completedWindow !== null
-            || !autoregulationControlsUnchanged(
+            regulation.completedWindow !== null ||
+            !autoregulationControlsUnchanged(
               this.#autoregulationOwner.state,
               regulation.nextState,
-            )
-            || regulation.hydraulicToneUsed
-              !== this.#autoregulationOwner
-                .toneResistanceScaleByTerritoryLayer
-            || regulation.nextToneResistanceScaleByTerritoryLayer
-              !== this.#autoregulationOwner
-                .toneResistanceScaleByTerritoryLayer
+            ) ||
+            regulation.hydraulicToneUsed !==
+              this.#autoregulationOwner.toneResistanceScaleByTerritoryLayer ||
+            regulation.nextToneResistanceScaleByTerritoryLayer !==
+              this.#autoregulationOwner.toneResistanceScaleByTerritoryLayer
           ) {
             throw new Error(
               "typed ordinary autoregulation crossed a discrete boundary",
@@ -1073,8 +1072,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         this.#acceptedNumericalReadback,
         null,
       );
-      this.#completedBeatMetrics = completedBeat
-        ?? this.#completedBeatMetrics;
+      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
       this.#lastAcceptedStep = null;
       this.#lastPresentationSource = "typed-authority-readback";
       this.#lastPresentationRevision = candidateClock.revision;
@@ -1086,9 +1084,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         clippedByCoronaryWindow: false,
         clippedByRhythmBoundary: false,
         rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
-        rhythmBoundaryOwners: Object.freeze([
-          ...limit.rhythmBoundaryOwners,
-        ]),
+        rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
       }) satisfies MainWireIntegratedModelSubstepRecordV3;
       const advance = Object.freeze({
         status: "advanced" as const,
@@ -1121,6 +1117,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
               this.#runtime,
             ),
             completedBeatMetrics: this.#completedBeatMetrics,
+            mechanismResearchInputs: this.#runtime.mechanismResearchInputs,
             acceptedNumericalReadback: this.#acceptedNumericalReadback,
           }),
           outputIds,
@@ -1141,8 +1138,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     detachObservation: boolean,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
     this.#acceptedState = this.#authority.current();
-    this.#autoregulationOwner =
-      autoregulationOwnerFromAcceptedState(this.#acceptedState);
+    this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(
+      this.#acceptedState,
+    );
     let acceptedClock = this.currentAcceptedClock();
     if (!Number.isFinite(targetTimeSec) || targetTimeSec < 0) {
       throw new Error(
@@ -1150,9 +1148,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       );
     }
     if (targetTimeSec < acceptedClock.acceptedTimeSec) {
-      throw new Error(
-        "Main Wire flat reference target precedes accepted time",
-      );
+      throw new Error("Main Wire flat reference target precedes accepted time");
     }
     if (targetTimeSec === acceptedClock.acceptedTimeSec) {
       return Object.freeze({
@@ -1173,8 +1169,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
     while (acceptedClock.acceptedTimeSec !== targetTimeSec) {
       if (
-        substepCount
-          >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3
+        substepCount >= MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3
       ) {
         return this.failedAdvance(
           "substep-budget-exhausted",
@@ -1207,17 +1202,17 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       }
 
       let directCandidateOpen = false;
-      let borrowedAutoregulation:
-        CoronaryAcceptedAutoregulationStateV3 | null = null;
+      let borrowedAutoregulation: CoronaryAcceptedAutoregulationStateV3 | null =
+        null;
       let borrowedAutoregulationCompleted = false;
       let acceptedNumericalReadbackAvailable = false;
       let previousCoupledAcceptedAdapter:
-        ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>
+        | ReturnType<typeof mainWireFiveWallCoronaryBaseStateV2<WallState>>
         | undefined;
-      let directCurrentCursor:
-        TransactionalTypedStateCurrentCursorV1 | null = null;
-      let directCandidateCursor:
-        TransactionalTypedStateCandidateCursorV1 | null = null;
+      let directCurrentCursor: TransactionalTypedStateCurrentCursorV1 | null =
+        null;
+      let directCandidateCursor: TransactionalTypedStateCandidateCursorV1 | null =
+        null;
       if (this.#typedAuthority !== null) {
         try {
           const current = this.#typedAuthority.currentCursor();
@@ -1254,9 +1249,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
             materializeMainWireAcceptedTypedCoupledSolverAdapterV1(
               current,
               this.#typedHemodynamicBinding,
-              mainWireFiveWallCoronaryBaseStateV2(
-                this.#acceptedState.coronary,
-              ),
+              mainWireFiveWallCoronaryBaseStateV2(this.#acceptedState.coronary),
               this.#typedHemodynamicScratch,
             );
         } catch (error) {
@@ -1277,62 +1270,64 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
             profile: this.#runtime.profile,
           }),
         });
-        result = this.#typedAuthority === null
-          ? stepMainWireIntegratedModelV3(
-            this.#provider,
-            this.#acceptedState,
-            stepInput,
-            this.#coronaryScratchWorkspace,
-            this.#nonCoronaryScratchWorkspace,
-            this.#nonCoronaryAcceptedNumericalSource,
-          )
-          : stepMainWireIntegratedModelCoupledV1(
-            this.#provider,
-            this.#acceptedState,
-            stepInput,
-            this.#coupledNewtonWorkspace,
-            Object.freeze({
-              residualWorkspace: this.#coupledResidualWorkspace,
-              previousAcceptedNumericalSource:
-                this.#nonCoronaryAcceptedNumericalSource ?? undefined,
-              previousCoupledAcceptedAdapter,
-              onConvergedCandidate: (candidateBorrow) => {
-                if (
-                  directCandidateCursor === null
-                  || this.#typedHemodynamicBinding === null
-                ) {
-                  throw new Error(
-                    "Main Wire coupled typed candidate cursor is missing",
-                  );
-                }
-                stageMainWireAcceptedTypedCoupledCandidateV1(
-                  directCandidateCursor,
-                  this.#typedHemodynamicBinding,
-                  candidateBorrow,
-                  this.#typedHemodynamicScratch,
-                );
-                this.#acceptedNumericalReadback.set(
-                  candidateBorrow.acceptedNumericalReadback,
-                );
-                acceptedNumericalReadbackAvailable = true;
-                const regulation =
-                  advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
-                    this.#acceptedState.coronary,
-                    Object.freeze({
-                      ...this.#runtime.coronaryStepInput,
-                      dtSec: candidateBorrow.candidateTimeSec
-                        - this.#acceptedState.acceptedTimeSec,
-                    }),
-                    candidateBorrow.candidateTimeSec,
-                    candidateBorrow.candidateRevision,
-                    candidateBorrow.coronaryAutoregulationHydraulicObservables,
-                  );
-                borrowedAutoregulation = regulation.nextState;
-                borrowedAutoregulationCompleted =
-                  regulation.completedWindow !== null;
-              },
-            }),
-          );
+        result =
+          this.#typedAuthority === null
+            ? stepMainWireIntegratedModelV3(
+                this.#provider,
+                this.#acceptedState,
+                stepInput,
+                this.#coronaryScratchWorkspace,
+                this.#nonCoronaryScratchWorkspace,
+                this.#nonCoronaryAcceptedNumericalSource,
+              )
+            : stepMainWireIntegratedModelCoupledV1(
+                this.#provider,
+                this.#acceptedState,
+                stepInput,
+                this.#coupledNewtonWorkspace,
+                Object.freeze({
+                  residualWorkspace: this.#coupledResidualWorkspace,
+                  previousAcceptedNumericalSource:
+                    this.#nonCoronaryAcceptedNumericalSource ?? undefined,
+                  previousCoupledAcceptedAdapter,
+                  onConvergedCandidate: (candidateBorrow) => {
+                    if (
+                      directCandidateCursor === null ||
+                      this.#typedHemodynamicBinding === null
+                    ) {
+                      throw new Error(
+                        "Main Wire coupled typed candidate cursor is missing",
+                      );
+                    }
+                    stageMainWireAcceptedTypedCoupledCandidateV1(
+                      directCandidateCursor,
+                      this.#typedHemodynamicBinding,
+                      candidateBorrow,
+                      this.#typedHemodynamicScratch,
+                    );
+                    this.#acceptedNumericalReadback.set(
+                      candidateBorrow.acceptedNumericalReadback,
+                    );
+                    acceptedNumericalReadbackAvailable = true;
+                    const regulation =
+                      advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
+                        this.#acceptedState.coronary,
+                        Object.freeze({
+                          ...this.#runtime.coronaryStepInput,
+                          dtSec:
+                            candidateBorrow.candidateTimeSec -
+                            this.#acceptedState.acceptedTimeSec,
+                        }),
+                        candidateBorrow.candidateTimeSec,
+                        candidateBorrow.candidateRevision,
+                        candidateBorrow.coronaryAutoregulationHydraulicObservables,
+                      );
+                    borrowedAutoregulation = regulation.nextState;
+                    borrowedAutoregulationCompleted =
+                      regulation.completedWindow !== null;
+                  },
+                }),
+              );
       } catch (error) {
         if (directCandidateOpen) {
           this.#typedAuthority?.abortDirectCandidate();
@@ -1361,15 +1356,16 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           substeps,
         );
       }
-      if (this.#typedAuthority !== null && (
-        borrowedAutoregulation === null
-        || !autoregulationStatesExactlyEqual(
-          borrowedAutoregulation,
-          result.acceptedState.coronary.coronaryAutoregulation,
-        )
-        || borrowedAutoregulationCompleted
-          !== result.coronaryStep.autoregulationWindowCompleted
-      )) {
+      if (
+        this.#typedAuthority !== null &&
+        (borrowedAutoregulation === null ||
+          !autoregulationStatesExactlyEqual(
+            borrowedAutoregulation,
+            result.acceptedState.coronary.coronaryAutoregulation,
+          ) ||
+          borrowedAutoregulationCompleted !==
+            result.coronaryStep.autoregulationWindowCompleted)
+      ) {
         if (directCandidateOpen) {
           this.#typedAuthority?.abortDirectCandidate();
         }
@@ -1378,13 +1374,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         );
       }
       if (
-        this.#typedAuthority !== null
-        && (
-          !acceptedNumericalReadbackAvailable
-          || this.#acceptedNumericalReadback[
+        this.#typedAuthority !== null &&
+        (!acceptedNumericalReadbackAvailable ||
+          this.#acceptedNumericalReadback[
             MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
-          ] !== result.acceptedState.acceptedTimeSec
-        )
+          ] !== result.acceptedState.acceptedTimeSec)
       ) {
         if (directCandidateOpen) this.#typedAuthority.abortDirectCandidate();
         throw new Error(
@@ -1395,10 +1389,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       let committedState: AcceptedState;
       try {
         if (this.#typedAuthority !== null) {
-          if (
-            directCurrentCursor === null
-            || directCandidateCursor === null
-          ) {
+          if (directCurrentCursor === null || directCandidateCursor === null) {
             throw new Error(
               "Main Wire flat reference typed transaction cursors are missing",
             );
@@ -1426,29 +1417,30 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           );
         }
         if (this.#typedAuthority !== null) {
-          const previousAutoregulation = this.#acceptedState.coronary
-            .coronaryAutoregulation;
-          const candidateAutoregulation = result.acceptedState.coronary
-            .coronaryAutoregulation;
+          const previousAutoregulation =
+            this.#acceptedState.coronary.coronaryAutoregulation;
+          const candidateAutoregulation =
+            result.acceptedState.coronary.coronaryAutoregulation;
           const modelOwnedCandidate =
-            !hasDiscreteRhythmTransition(result.composedRhythmCandidate)
-            && !result.coronaryStep.autoregulationWindowCompleted
-            && autoregulationControlsUnchanged(
+            !hasDiscreteRhythmTransition(result.composedRhythmCandidate) &&
+            !result.coronaryStep.autoregulationWindowCompleted &&
+            autoregulationControlsUnchanged(
               previousAutoregulation,
               candidateAutoregulation,
             );
-          committedState = (
-            modelOwnedCandidate
+          committedState =
+            (modelOwnedCandidate
               ? this.#typedAuthority.tryCommitModelOwnedDirectCandidate(
                   result.acceptedState,
                   this.requiredModelOwnedPromotionPlan(),
                   this.requiredDirectCompletionPlan(),
                 )
-              : null
-          ) ?? this.#typedAuthority.tryCommitExactDirectCandidate(
+              : null) ??
+            this.#typedAuthority.tryCommitExactDirectCandidate(
               result.acceptedState,
               this.requiredDirectCompletionPlan(),
-            ) ?? this.#typedAuthority.commitDirectCandidate(
+            ) ??
+            this.#typedAuthority.commitDirectCandidate(
               result.acceptedState,
               this.requiredDirectCompletionPlan(),
             );
@@ -1463,21 +1455,16 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         throw error;
       }
       this.#acceptedState = committedState;
-      if (
-        this.#typedAuthority !== null
-        && acceptedNumericalReadbackAvailable
-      ) {
+      if (this.#typedAuthority !== null && acceptedNumericalReadbackAvailable) {
         this.#acceptedNumericalReadbackAvailable = true;
       }
-      resetMainWireFiveWallCoupledPredictorV1(
-        this.#coupledPredictorWorkspace,
-      );
+      resetMainWireFiveWallCoupledPredictorV1(this.#coupledPredictorWorkspace);
       this.#autoregulationOwner =
         autoregulationOwnerFromAcceptedState(committedState);
       acceptedClock = this.currentAcceptedClock();
       if (
-        acceptedClock.acceptedTimeSec !== committedState.acceptedTimeSec
-        || acceptedClock.revision !== committedState.revision
+        acceptedClock.acceptedTimeSec !== committedState.acceptedTimeSec ||
+        acceptedClock.revision !== committedState.revision
       ) {
         throw new Error(
           "Main Wire flat reference typed clock differs from committed adapter",
@@ -1488,26 +1475,28 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         acceptedState: committedState,
       });
       this.#lastAcceptedStep = committedResult;
-      const completedBeat = this.#typedAuthority === null
-        ? this.#beatAccumulator.accept(committedResult)
-        : this.#beatAccumulator.acceptNumericalReadback(
-          this.#acceptedNumericalReadback,
-          committedResult.composedRhythmCandidate.capturedAtrialActivation
-            ?.capturedActivationId ?? null,
-        );
-      this.#completedBeatMetrics = completedBeat
-        ?? this.#completedBeatMetrics;
+      const completedBeat =
+        this.#typedAuthority === null
+          ? this.#beatAccumulator.accept(committedResult)
+          : this.#beatAccumulator.acceptNumericalReadback(
+              this.#acceptedNumericalReadback,
+              committedResult.composedRhythmCandidate.capturedAtrialActivation
+                ?.capturedActivationId ?? null,
+            );
+      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
       substepCount += 1;
-      substeps.push(Object.freeze({
-        acceptedRevision: committedState.revision,
-        acceptedTimeSec: committedState.acceptedTimeSec,
-        landedOnPresentationTarget:
-          committedState.acceptedTimeSec === targetTimeSec,
-        clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
-        clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
-        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
-        rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
-      }));
+      substeps.push(
+        Object.freeze({
+          acceptedRevision: committedState.revision,
+          acceptedTimeSec: committedState.acceptedTimeSec,
+          landedOnPresentationTarget:
+            committedState.acceptedTimeSec === targetTimeSec,
+          clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
+          clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
+          rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+          rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
+        }),
+      );
     }
 
     if (acceptedClock.acceptedTimeSec !== targetTimeSec) {
@@ -1552,18 +1541,18 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       acceptedRevision: acceptedClock.revision,
       acceptedRevisionSpanFromPrevious,
       internalAcceptedSubstepCount: substepCount,
-      boundaryClippedSubstepCount:
-        substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      boundaryClippedSubstepCount: substeps.filter(
+        (substep) => !substep.landedOnPresentationTarget,
+      ).length,
       substeps: Object.freeze([...substeps]),
       observation: nextObservation,
     });
   }
 
-  async checkpointStandardExact():
-  Promise<MainWireIntegratedModelStandardCheckpointV1> {
+  async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV2> {
     this.#acceptedState = this.#authority.current();
     this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
-    return checkpointMainWireIntegratedModelStandardV1(
+    return checkpointMainWireIntegratedModelStandardV2(
       this.checkpointContext(),
       this.#acceptedState,
       this.#beatAccumulator,
@@ -1574,20 +1563,21 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
     return encodeCanonicalFlatCheckpointV1(
       Object.freeze({
-        checkpointId:
-          MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID,
-        schemaVersion: 1 as const,
+        checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID,
+        schemaVersion: 2 as const,
         standardCheckpoint: await this.checkpointStandardExact(),
         coupledPredictor: checkpointMainWireFiveWallCoupledPredictorV1(
           this.#coupledPredictorWorkspace,
         ),
-      }) satisfies MainWireFlatAuthoritativeReferenceCheckpointV1,
+      }) satisfies MainWireFlatAuthoritativeReferenceCheckpointV2,
     );
   }
 
   authorityReport(): MainWireAcceptedTypedStateAuthorityReportV1 {
     if (this.#typedAuthority === null) {
-      throw new Error("Typed authority Session uses a non-typed test authority");
+      throw new Error(
+        "Typed authority Session uses a non-typed test authority",
+      );
     }
     return this.#typedAuthority.report();
   }
@@ -1604,13 +1594,17 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
   snapshotAcceptedStateBytes(): Uint8Array {
     if (this.#typedAuthority === null) {
-      throw new Error("Typed authority Session uses a non-typed test authority");
+      throw new Error(
+        "Typed authority Session uses a non-typed test authority",
+      );
     }
     const state = this.#typedAuthority.snapshot();
     const encoded = new Uint8Array(measureCanonicalFlatDataV1(state));
     const length = encodeCanonicalFlatDataIntoV1(state, encoded);
     if (length !== encoded.byteLength) {
-      throw new Error("Typed authority accepted-state length changed while encoding");
+      throw new Error(
+        "Typed authority accepted-state length changed while encoding",
+      );
     }
     return encoded;
   }
@@ -1629,12 +1623,13 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
   private detachedObservation(): MainWireIntegratedModelObservationV3 {
     const acceptedState = this.#authority.snapshot();
-    const lastAcceptedStep = this.#lastAcceptedStep === null
-      ? null
-      : Object.freeze({
-          ...this.#lastAcceptedStep,
-          acceptedState,
-        });
+    const lastAcceptedStep =
+      this.#lastAcceptedStep === null
+        ? null
+        : Object.freeze({
+            ...this.#lastAcceptedStep,
+            acceptedState,
+          });
     return observation(
       this.#lastPresentationSource,
       acceptedState,
@@ -1690,26 +1685,25 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     );
   }
 
-  private requiredTypedBoundaryBinding():
-    MainWireAcceptedTypedBoundaryBindingV1 {
+  private requiredTypedBoundaryBinding(): MainWireAcceptedTypedBoundaryBindingV1 {
     if (this.#typedBoundaryBinding === null) {
       throw new Error("Typed authority Session has no typed boundary binding");
     }
     return this.#typedBoundaryBinding;
   }
 
-  private requiredDirectCompletionPlan():
-    TransactionalTypedStateCompletionPlanV1 {
+  private requiredDirectCompletionPlan(): TransactionalTypedStateCompletionPlanV1 {
     if (this.#directCompletionPlan === null) {
       throw new Error("Typed authority direct completion plan is unavailable");
     }
     return this.#directCompletionPlan;
   }
 
-  private requiredModelOwnedPromotionPlan():
-    TransactionalTypedStatePromotionPlanV1 {
+  private requiredModelOwnedPromotionPlan(): TransactionalTypedStatePromotionPlanV1 {
     if (this.#modelOwnedPromotionPlan === null) {
-      throw new Error("Typed authority model-owned promotion plan is unavailable");
+      throw new Error(
+        "Typed authority model-owned promotion plan is unavailable",
+      );
     }
     return this.#modelOwnedPromotionPlan;
   }
@@ -1732,8 +1726,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       acceptedRevision: acceptedClock.revision,
       partiallyAdvanced: substeps.length > 0,
       internalAcceptedSubstepCount: substeps.length,
-      boundaryClippedSubstepCount:
-        substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      boundaryClippedSubstepCount: substeps.filter(
+        (substep) => !substep.landedOnPresentationTarget,
+      ).length,
       substeps: Object.freeze([...substeps]),
       requestedPresentationTimeSec: targetTimeSec,
     });
@@ -1744,32 +1739,35 @@ function isStrictlyOrdinaryTypedCandidate(
   clock: MainWireAcceptedTypedClockV1,
   limit: ReturnType<typeof limitMainWireAcceptedTypedCandidateTimeV1>,
   rhythm: MainWireIntegratedComposedRhythmStepContextV3,
-  autoregulationOwner:
-    MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
+  autoregulationOwner: MainWireFiveWallCoronaryAutoregulationAcceptedOwnerV3,
 ): boolean {
   if (
-    rhythm.configuration.atrialSource.mode !== "regular"
-    || rhythm.configuration.atrialSource.regularSourceConfiguration
-      .rhythmClass !== "sinus"
-    || rhythm.externalAfNextBoundaryTimeSec !== null
-    || rhythm.externalAtrialSourceBatch !== null
-    || limit.rhythmBoundaryTimeSec !== null
-    || limit.rhythmBoundaryOwners.length !== 0
-    || autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec
-    || autoregulationOwner.state.windowControl === null
-    || !optionalAutoregulationControlEqual(
+    rhythm.configuration.atrialSource.mode !== "regular" ||
+    rhythm.configuration.atrialSource.regularSourceConfiguration.rhythmClass !==
+      "sinus" ||
+    rhythm.externalAfNextBoundaryTimeSec !== null ||
+    rhythm.externalAtrialSourceBatch !== null ||
+    limit.rhythmBoundaryTimeSec !== null ||
+    limit.rhythmBoundaryOwners.length !== 0 ||
+    autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec ||
+    autoregulationOwner.state.windowControl === null ||
+    !optionalAutoregulationControlEqual(
       autoregulationOwner.state.windowControl,
       autoregulationOwner.state.desiredControl,
     )
-  ) return false;
-  const windowEndTimeSec = clock.acceptedTimeSec
-    + limit.coronaryWindowMaximumStepSec;
-  const tolerance = 64 * Number.EPSILON * Math.max(
-    1,
-    Math.abs(clock.acceptedTimeSec),
-    Math.abs(limit.candidateTimeSec),
-    Math.abs(windowEndTimeSec),
-  );
+  )
+    return false;
+  const windowEndTimeSec =
+    clock.acceptedTimeSec + limit.coronaryWindowMaximumStepSec;
+  const tolerance =
+    64 *
+    Number.EPSILON *
+    Math.max(
+      1,
+      Math.abs(clock.acceptedTimeSec),
+      Math.abs(limit.candidateTimeSec),
+      Math.abs(windowEndTimeSec),
+    );
   return limit.candidateTimeSec < windowEndTimeSec - tolerance;
 }
 
@@ -1783,9 +1781,7 @@ function validateTypedProjectionOutputIds(
   const seen = new Set<string>();
   for (const outputId of outputIds) {
     if (!MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_ID_SET_V3.has(outputId)) {
-      throw new Error(
-        `selected output ${String(outputId)} is not registered`,
-      );
+      throw new Error(`selected output ${String(outputId)} is not registered`);
     }
     if (seen.has(outputId)) {
       throw new Error(`selected output ${outputId} is duplicated`);
@@ -1852,6 +1848,7 @@ function observation(
       pleuralPressureMmHg: respiratory.pthMmHg,
       alveolarPressureMmHg: respiratory.palvMmHg,
     }),
+    mechanismResearchInputs: runtime.mechanismResearchInputs,
     completedBeatMetrics,
   });
 }
@@ -1859,31 +1856,37 @@ function observation(
 function hasDiscreteRhythmTransition(
   candidate: MainWireIntegratedModelStepSuccessV3<WallState>["composedRhythmCandidate"],
 ): boolean {
-  return candidate.capturedAtrialActivation !== null
-    || candidate.capturedVentricularActivation !== null
-    || candidate.pacSinusClockPolicyApplied !== null
-    || candidate.proximalAvOutputDecision !== null
-    || candidate.ventricularIntervalStrengthCandidate !== null
-    || candidate.conditionalVviAttempted
-    || candidate.dueProximalAvOutputs.length > 0
-    || candidate.distalGateDecisions.length > 0
-    || candidate.deliveredCalciumDeposits.length > 0
-    || candidate.scheduledCalciumDeposits.length > 0
-    || candidate.regularAtrialSourceCandidate?.sourceImpulse !== null
-    || candidate.authoredEctopyTrial.sourceImpulses.length > 0
-    || (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length
-      ?? 0) > 0;
+  return (
+    candidate.capturedAtrialActivation !== null ||
+    candidate.capturedVentricularActivation !== null ||
+    candidate.pacSinusClockPolicyApplied !== null ||
+    candidate.proximalAvOutputDecision !== null ||
+    candidate.ventricularIntervalStrengthCandidate !== null ||
+    candidate.conditionalVviAttempted ||
+    candidate.dueProximalAvOutputs.length > 0 ||
+    candidate.distalGateDecisions.length > 0 ||
+    candidate.deliveredCalciumDeposits.length > 0 ||
+    candidate.scheduledCalciumDeposits.length > 0 ||
+    candidate.regularAtrialSourceCandidate?.sourceImpulse !== null ||
+    candidate.authoredEctopyTrial.sourceImpulses.length > 0 ||
+    (candidate.authoredVentricularPacingReplayTrial?.sourceImpulses.length ??
+      0) > 0
+  );
 }
 
-function validateReferenceCheckpointV1(
+function validateReferenceCheckpointV2(
   input: unknown,
-): MainWireFlatAuthoritativeReferenceCheckpointV1 {
+): MainWireFlatAuthoritativeReferenceCheckpointV2 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("flat authoritative reference checkpoint must be a plain object");
+    throw new Error(
+      "flat authoritative reference checkpoint must be a plain object",
+    );
   }
   const prototype = Object.getPrototypeOf(input);
   if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error("flat authoritative reference checkpoint must be a plain object");
+    throw new Error(
+      "flat authoritative reference checkpoint must be a plain object",
+    );
   }
   const expectedKeys = [
     "checkpointId",
@@ -1893,26 +1896,28 @@ function validateReferenceCheckpointV1(
   ].sort();
   const keys = Reflect.ownKeys(input);
   if (
-    keys.some((key) => typeof key !== "string")
-    || keys.length !== expectedKeys.length
-    || (keys as string[]).sort().some((key, index) =>
-      key !== expectedKeys[index])
+    keys.some((key) => typeof key !== "string") ||
+    keys.length !== expectedKeys.length ||
+    (keys as string[]).sort().some((key, index) => key !== expectedKeys[index])
   ) {
-    throw new Error("flat authoritative reference checkpoint has unexpected fields");
+    throw new Error(
+      "flat authoritative reference checkpoint has unexpected fields",
+    );
   }
-  const candidate = input as Partial<
-    MainWireFlatAuthoritativeReferenceCheckpointV1
-  >;
+  const candidate =
+    input as Partial<MainWireFlatAuthoritativeReferenceCheckpointV2>;
   if (
-    candidate.checkpointId
-      !== MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V1_ID
-    || candidate.schemaVersion !== 1
-    || candidate.standardCheckpoint === undefined
-    || candidate.coupledPredictor === undefined
+    candidate.checkpointId !==
+      MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID ||
+    candidate.schemaVersion !== 2 ||
+    candidate.standardCheckpoint === undefined ||
+    candidate.coupledPredictor === undefined
   ) {
-    throw new Error("unsupported flat authoritative reference checkpoint schema");
+    throw new Error(
+      "unsupported flat authoritative reference checkpoint schema",
+    );
   }
-  return candidate as MainWireFlatAuthoritativeReferenceCheckpointV1;
+  return candidate as MainWireFlatAuthoritativeReferenceCheckpointV2;
 }
 
 function coupledUnknownsFromAcceptedStateV1(
@@ -1924,9 +1929,10 @@ function coupledUnknownsFromAcceptedStateV1(
     index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length;
     index += 1
   ) {
-    unknownsMl[index] = state.coronary.circulation.nodeVolumesMl[
-      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!
-    ];
+    unknownsMl[index] =
+      state.coronary.circulation.nodeVolumesMl[
+        NON_CORONARY_INDEPENDENT_NODE_NAMES_V1[index]!
+      ];
   }
   for (
     let index = 0;
@@ -1945,12 +1951,15 @@ function autoregulationControlsUnchanged(
   previous: CoronaryAcceptedAutoregulationStateV3,
   candidate: CoronaryAcceptedAutoregulationStateV3,
 ): boolean {
-  return optionalAutoregulationControlEqual(
-    previous.windowControl,
-    candidate.windowControl,
-  ) && optionalAutoregulationControlEqual(
-    previous.desiredControl,
-    candidate.desiredControl,
+  return (
+    optionalAutoregulationControlEqual(
+      previous.windowControl,
+      candidate.windowControl,
+    ) &&
+    optionalAutoregulationControlEqual(
+      previous.desiredControl,
+      candidate.desiredControl,
+    )
   );
 }
 
@@ -1959,38 +1968,45 @@ function autoregulationStatesExactlyEqual(
   right: CoronaryAcceptedAutoregulationStateV3,
 ): boolean {
   if (
-    left.stateId !== right.stateId
-    || left.windowIndex !== right.windowIndex
-    || !Object.is(
+    left.stateId !== right.stateId ||
+    left.windowIndex !== right.windowIndex ||
+    !Object.is(
       left.windowOriginAcceptedTimeSec,
       right.windowOriginAcceptedTimeSec,
-    )
-    || !Object.is(
+    ) ||
+    !Object.is(
       left.windowStartAcceptedTimeSec,
       right.windowStartAcceptedTimeSec,
-    )
-    || left.windowStartRevision !== right.windowStartRevision
-    || !Object.is(left.acceptedDurationSec, right.acceptedDurationSec)
-    || left.acceptedStepCount !== right.acceptedStepCount
-    || !optionalAutoregulationControlEqual(
+    ) ||
+    left.windowStartRevision !== right.windowStartRevision ||
+    !Object.is(left.acceptedDurationSec, right.acceptedDurationSec) ||
+    left.acceptedStepCount !== right.acceptedStepCount ||
+    !optionalAutoregulationControlEqual(
       left.windowControl,
       right.windowControl,
-    )
-    || !optionalAutoregulationControlEqual(
+    ) ||
+    !optionalAutoregulationControlEqual(
       left.desiredControl,
       right.desiredControl,
     )
-  ) return false;
+  )
+    return false;
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
-    if (!Object.is(
-      left.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
-      right.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
-    )) return false;
+    if (
+      !Object.is(
+        left.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+        right.perfusionPressureTimeIntegralMmHgSecByTerritory[territoryId],
+      )
+    )
+      return false;
     for (const layerId of CORONARY_LAYER_IDS_V2) {
-      if (!Object.is(
-        left.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
-        right.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
-      )) return false;
+      if (
+        !Object.is(
+          left.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+          right.qmTimeIntegralMlByTerritoryLayer[territoryId][layerId],
+        )
+      )
+        return false;
     }
   }
   return true;
@@ -2005,25 +2021,26 @@ function optionalAutoregulationControlEqual(
   for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
     for (const layerId of CORONARY_LAYER_IDS_V2) {
       if (
-        left.demandScaleByTerritoryLayer[territoryId][layerId]
-          !== right.demandScaleByTerritoryLayer[territoryId][layerId]
-        || left.hyperemia01ByTerritoryLayer[territoryId][layerId]
-          !== right.hyperemia01ByTerritoryLayer[territoryId][layerId]
-        || left.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
-          !== right.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
-      ) return false;
+        left.demandScaleByTerritoryLayer[territoryId][layerId] !==
+          right.demandScaleByTerritoryLayer[territoryId][layerId] ||
+        left.hyperemia01ByTerritoryLayer[territoryId][layerId] !==
+          right.hyperemia01ByTerritoryLayer[territoryId][layerId] ||
+        left.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId] !==
+          right.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
+      )
+        return false;
     }
   }
   return true;
 }
 
 function isNonadvancingLimiterError(error: unknown): boolean {
-  return error instanceof Error
-    && (
-      error.message === "composed integrated requested endpoint must advance"
-      || error.message
-        === "composed integrated coronary-capped step must be positive"
-    );
+  return (
+    error instanceof Error &&
+    (error.message === "composed integrated requested endpoint must advance" ||
+      error.message ===
+        "composed integrated coronary-capped step must be positive")
+  );
 }
 
 function errorMessage(error: unknown): string {

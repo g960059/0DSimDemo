@@ -24,17 +24,27 @@ export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   atrial: PeriodicBiexponentialCalciumClassV1;
   ventricular: PeriodicBiexponentialCalciumClassV1;
   /** Optional mechanistic activation perturbation for research case construction. */
-  peakAmplitudeScaleByWall?: Readonly<Partial<Record<
-    keyof FiveWallCalciumValuesV1,
-    number
-  >>>;
+  peakAmplitudeScaleByWall?: Readonly<
+    Partial<Record<keyof FiveWallCalciumValuesV1, number>>
+  >;
+  /** Prescribed calcium-decay perturbation; not a generic lusitropy scalar. */
+  decayTimeScaleByWall?: Readonly<
+    Partial<Record<keyof FiveWallCalciumValuesV1, number>>
+  >;
 }>;
 
 export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
   waveform: "periodic-analytically-normalized-biexponential" as const,
-  tissueClasses: Object.freeze(["atrial-shared", "ventricular-shared"] as const),
-  atriaShareOneWaveform: true as const,
-  ventricularWallsShareOneWaveform: true as const,
+  tissueClasses: Object.freeze([
+    "atrial-shared",
+    "ventricular-shared",
+  ] as const),
+  sharedBaseWaveforms: Object.freeze([
+    "atrial-shared",
+    "ventricular-shared",
+  ] as const),
+  optionalWallSpecificDecayTimeScale: true as const,
+  genericLusitropyClaimed: false as const,
   volumeInput: false as const,
   pressureInput: false as const,
   flowInput: false as const,
@@ -51,8 +61,8 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
  * These values reconstruct component timing; they are not digitized calcium
  * traces and do not claim SR/RyR/SERCA state ownership.
  */
-export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1:
-  FiveWallNormalCalciumDriveParamsV1 = deepFreeze({
+export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1: FiveWallNormalCalciumDriveParamsV1 =
+  deepFreeze({
     parameterSetId: "five-wall-normal-calcium-component-timing-prior-v1",
     cycleLengthSec: 1,
     atrioventricularDelaySec: 0.16,
@@ -107,8 +117,7 @@ export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
 
 export function evaluateFiveWallNormalCalciumDriveV1(
   timeSec: number,
-  params: FiveWallNormalCalciumDriveParamsV1 =
-    FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  params: FiveWallNormalCalciumDriveParamsV1 = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 ): FiveWallNormalCalciumEvaluationV1 {
   validateParams(params);
   requireFinite(timeSec, "timeSec");
@@ -118,11 +127,15 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     cycle,
   );
   const atrialOnsetPhaseSec = positiveModulo(
-    cycle - params.atrioventricularDelaySec +
+    cycle -
+      params.atrioventricularDelaySec +
       params.atrial.electricalToCalciumDelaySec,
     cycle,
   );
-  const ventricularTime = positiveModulo(timeSec - ventricularOnsetPhaseSec, cycle);
+  const ventricularTime = positiveModulo(
+    timeSec - ventricularOnsetPhaseSec,
+    cycle,
+  );
   const atrialTime = positiveModulo(timeSec - atrialOnsetPhaseSec, cycle);
   const ventricularPulse = normalizedPeriodicBiexponential(
     ventricularTime,
@@ -136,22 +149,64 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     params.atrial.riseTimeConstantSec,
     params.atrial.decayTimeConstantSec,
   );
+  const pulseByWall = Object.freeze({
+    LA: normalizedPeriodicBiexponential(
+      atrialTime,
+      cycle,
+      params.atrial.riseTimeConstantSec,
+      params.atrial.decayTimeConstantSec * decayTimeScale(params, "LA"),
+    ),
+    RA: normalizedPeriodicBiexponential(
+      atrialTime,
+      cycle,
+      params.atrial.riseTimeConstantSec,
+      params.atrial.decayTimeConstantSec * decayTimeScale(params, "RA"),
+    ),
+    LVFW: normalizedPeriodicBiexponential(
+      ventricularTime,
+      cycle,
+      params.ventricular.riseTimeConstantSec,
+      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "LVFW"),
+    ),
+    SEP: normalizedPeriodicBiexponential(
+      ventricularTime,
+      cycle,
+      params.ventricular.riseTimeConstantSec,
+      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "SEP"),
+    ),
+    RVFW: normalizedPeriodicBiexponential(
+      ventricularTime,
+      cycle,
+      params.ventricular.riseTimeConstantSec,
+      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "RVFW"),
+    ),
+  });
   const freeCalciumUMByWall = Object.freeze({
-    LA: params.atrial.diastolicCalciumUM
-      + params.atrial.peakAmplitudeUM * atrialPulse
-        * amplitudeScale(params, "LA"),
-    RA: params.atrial.diastolicCalciumUM
-      + params.atrial.peakAmplitudeUM * atrialPulse
-        * amplitudeScale(params, "RA"),
-    LVFW: params.ventricular.diastolicCalciumUM
-      + params.ventricular.peakAmplitudeUM * ventricularPulse
-        * amplitudeScale(params, "LVFW"),
-    SEP: params.ventricular.diastolicCalciumUM
-      + params.ventricular.peakAmplitudeUM * ventricularPulse
-        * amplitudeScale(params, "SEP"),
-    RVFW: params.ventricular.diastolicCalciumUM
-      + params.ventricular.peakAmplitudeUM * ventricularPulse
-        * amplitudeScale(params, "RVFW"),
+    LA:
+      params.atrial.diastolicCalciumUM +
+      params.atrial.peakAmplitudeUM *
+        pulseByWall.LA *
+        amplitudeScale(params, "LA"),
+    RA:
+      params.atrial.diastolicCalciumUM +
+      params.atrial.peakAmplitudeUM *
+        pulseByWall.RA *
+        amplitudeScale(params, "RA"),
+    LVFW:
+      params.ventricular.diastolicCalciumUM +
+      params.ventricular.peakAmplitudeUM *
+        pulseByWall.LVFW *
+        amplitudeScale(params, "LVFW"),
+    SEP:
+      params.ventricular.diastolicCalciumUM +
+      params.ventricular.peakAmplitudeUM *
+        pulseByWall.SEP *
+        amplitudeScale(params, "SEP"),
+    RVFW:
+      params.ventricular.diastolicCalciumUM +
+      params.ventricular.peakAmplitudeUM *
+        pulseByWall.RVFW *
+        amplitudeScale(params, "RVFW"),
   });
   if (!Object.values(freeCalciumUMByWall).every(Number.isFinite)) {
     throw new Error("five-wall calcium drive produced a non-finite value");
@@ -185,14 +240,12 @@ function normalizedPeriodicBiexponential(
   const raw = (time: number): number =>
     decayCarry * Math.exp(-time / decayTimeConstantSec) -
     riseCarry * Math.exp(-time / riseTimeConstantSec);
-  const peakTimeSec = Math.log(
-    (riseCarry / riseTimeConstantSec) /
-      (decayCarry / decayTimeConstantSec),
-  ) / (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
-  const boundedPeakTimeSec = Math.min(
-    cycleLengthSec,
-    Math.max(0, peakTimeSec),
-  );
+  const peakTimeSec =
+    Math.log(
+      riseCarry / riseTimeConstantSec / (decayCarry / decayTimeConstantSec),
+    ) /
+    (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
+  const boundedPeakTimeSec = Math.min(cycleLengthSec, Math.max(0, peakTimeSec));
   const minimum = raw(0);
   const amplitude = raw(boundedPeakTimeSec) - minimum;
   if (!(amplitude > 0) || !Number.isFinite(amplitude)) {
@@ -207,20 +260,38 @@ function normalizedPeriodicBiexponential(
 }
 
 function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
-  if (typeof params.parameterSetId !== "string" || params.parameterSetId.trim() === "") {
+  if (
+    typeof params.parameterSetId !== "string" ||
+    params.parameterSetId.trim() === ""
+  ) {
     throw new Error("parameterSetId must be non-empty");
   }
   requirePositive(params.cycleLengthSec, "cycleLengthSec");
   requirePositive(params.atrioventricularDelaySec, "atrioventricularDelaySec");
   if (!(params.atrioventricularDelaySec < params.cycleLengthSec)) {
-    throw new Error("atrioventricularDelaySec must be shorter than cycleLengthSec");
+    throw new Error(
+      "atrioventricularDelaySec must be shorter than cycleLengthSec",
+    );
   }
   validateClass(params.atrial, "atrial", params.cycleLengthSec);
   validateClass(params.ventricular, "ventricular", params.cycleLengthSec);
   if (params.peakAmplitudeScaleByWall !== undefined) {
     for (const wall of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
       const scale = params.peakAmplitudeScaleByWall[wall];
-      if (scale !== undefined) requireNonnegative(scale, `${wall} amplitude scale`);
+      if (scale !== undefined)
+        requireNonnegative(scale, `${wall} amplitude scale`);
+    }
+  }
+  if (params.decayTimeScaleByWall !== undefined) {
+    for (const wall of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
+      const scale = params.decayTimeScaleByWall[wall];
+      if (scale === undefined) continue;
+      requirePositive(scale, `${wall} decay-time scale`);
+      const tissue =
+        wall === "LA" || wall === "RA" ? params.atrial : params.ventricular;
+      if (!(tissue.decayTimeConstantSec * scale > tissue.riseTimeConstantSec)) {
+        throw new Error(`${wall} scaled decay time must exceed rise time`);
+      }
     }
   }
 }
@@ -230,6 +301,13 @@ function amplitudeScale(
   wall: keyof FiveWallCalciumValuesV1,
 ): number {
   return params.peakAmplitudeScaleByWall?.[wall] ?? 1;
+}
+
+function decayTimeScale(
+  params: FiveWallNormalCalciumDriveParamsV1,
+  wall: keyof FiveWallCalciumValuesV1,
+): number {
+  return params.decayTimeScaleByWall?.[wall] ?? 1;
 }
 
 function validateClass(
@@ -246,10 +324,14 @@ function validateClass(
     `${label}.electricalToCalciumDelaySec`,
   );
   if (!(value.decayTimeConstantSec > value.riseTimeConstantSec)) {
-    throw new Error(`${label}.decayTimeConstantSec must exceed riseTimeConstantSec`);
+    throw new Error(
+      `${label}.decayTimeConstantSec must exceed riseTimeConstantSec`,
+    );
   }
   if (!(value.electricalToCalciumDelaySec < cycleLengthSec)) {
-    throw new Error(`${label}.electricalToCalciumDelaySec must be shorter than cycle`);
+    throw new Error(
+      `${label}.electricalToCalciumDelaySec must be shorter than cycle`,
+    );
   }
 }
 
@@ -280,7 +362,8 @@ function requireNonnegative(value: number, label: string): number {
 function deepFreeze<T>(value: T): T {
   if (value !== null && typeof value === "object") {
     Object.freeze(value);
-    for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child);
+    for (const child of Object.values(value as Record<string, unknown>))
+      deepFreeze(child);
   }
   return value;
 }

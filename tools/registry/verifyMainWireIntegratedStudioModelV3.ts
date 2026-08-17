@@ -40,7 +40,7 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import mainWireIntegratedStandardSurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import generatedExecutionPlanV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import {

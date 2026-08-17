@@ -42,9 +42,11 @@ import {
   ExperimentGraphPresentationV3,
   ExperimentNumericControlV3,
   ExperimentOutputGridV3,
+  ExperimentPaneAddItemButtonV3,
+  formatExperimentPressureSummaryV3,
+  type ExperimentOutputPresentationItemV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
-export { resolveControlDraftCommitV3 } from
-  "@/components/workbench/ExperimentPanePresentationV3";
+export { resolveControlDraftCommitV3 } from "@/components/workbench/ExperimentPanePresentationV3";
 import {
   defaultArticleBriefingV3,
   materializeSurfaceControlPaneBindingV3,
@@ -58,6 +60,8 @@ import {
   deleteWorkbenchSurfacePaneV3,
   duplicateWorkbenchSurfacePaneV3,
   updateWorkbenchSurfacePaneV3,
+  type WorkbenchPaneEditorItemIntentV3,
+  type WorkbenchPaneEditorSectionV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
 import {
   WorkbenchScenarioManagerV3,
@@ -70,15 +74,23 @@ import {
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
   WORKBENCH_SCENARIO_ID_V3,
-  WORKBENCH_GRAPH_PANE_OPTIONS_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
+  controlLabelV3,
   createDefaultExperimentSurfaceV3,
   isWorkbenchGraphTraceExcludedV3,
   reconcileWorkbenchSurfaceScenariosV3,
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
+  workbenchGraphPaneOptionsForContractV3,
+  outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
+import {
+  resolveStudioItemPresentationV1,
+  resolveStudioOutputPressureSummaryStoredLabelV1,
+  resolveStudioSurfaceItemLabelV1,
+  studioOutputPressureSummaryForOutputIdV1,
+} from "@/studio/presentation/StudioItemPresentationCatalogV1";
 import {
   allocateOpaqueExperimentIdV3,
   isOpaqueExperimentIdV3,
@@ -92,9 +104,7 @@ import {
   myExperimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
-import {
-  studioDevSurfacesEnabledV1,
-} from "@/studio/application/dev/StudioDevAccessV1";
+import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
 import { isLocale } from "@/localeRouting";
 import {
   loadStudioDefaultClientCompositionV2,
@@ -103,12 +113,8 @@ import {
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import {
-  StudioExactModelUnavailableErrorV1,
-} from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
-import type {
-  StudioModelWorkerReleaseTicketV2,
-} from "@/studio/contracts/v2/release";
+import { StudioExactModelUnavailableErrorV1 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
+import type { StudioModelWorkerReleaseTicketV2 } from "@/studio/contracts/v2/release";
 import type {
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceGraphPaneV2,
@@ -125,9 +131,7 @@ import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
 } from "@/studio/contracts/v2/content";
-import {
-  validateExperimentPlacementBriefingV2,
-} from "@/studio/application/authoring/StudioExperimentDataV2";
+import { validateExperimentPlacementBriefingV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
   ControlDefinitionV2,
   ModelContractV2,
@@ -154,12 +158,8 @@ import {
   createStudioSupabaseContentRepositoryV1,
   type StudioRemoteExperimentResourceV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
-import {
-  StudioArticleExperimentAuthoringHandoffStoreV3,
-} from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
-import {
-  StudioExperimentSessionHandoffStoreV3,
-} from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
+import { StudioArticleExperimentAuthoringHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
+import { StudioExperimentSessionHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import {
   GuytonStarlingComparisonCanvasV3,
@@ -216,12 +216,14 @@ type WorkbenchPaneSettingsV3 =
   | Readonly<{
       kind: "output";
       paneId: string;
-      section?: "binding";
+      section?: WorkbenchPaneEditorSectionV3;
+      itemIntent?: WorkbenchPaneEditorItemIntentV3;
     }>
   | Readonly<{
       kind: "control";
       paneId: string;
-      section?: "binding";
+      section?: WorkbenchPaneEditorSectionV3;
+      itemIntent?: WorkbenchPaneEditorItemIntentV3;
     }>;
 
 type WorkbenchScenarioOperationV3 =
@@ -242,8 +244,8 @@ const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
 const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioOrbitHistoryV3;
-const INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3:
-  WorkbenchGroupPlaybackRateStateV3 = Object.freeze({
+const INITIAL_WORKBENCH_PLAYBACK_RATE_STATE_V3: WorkbenchGroupPlaybackRateStateV3 =
+  Object.freeze({
     playbackRate: 0.5,
     maximumRate: null,
     calibrating: true,
@@ -275,7 +277,9 @@ function WorkbenchPerformanceProfilerV3({
     >
       {children}
     </React.Profiler>
-  ) : children;
+  ) : (
+    children
+  );
 }
 const EMPTY_WORKBENCH_GRAPH_HISTORY_V3 = Object.freeze([] as never[]);
 
@@ -292,27 +296,35 @@ export function resolveWorkbenchInitialSaveStateV3(
     : "dirty";
 }
 
-export function shouldConfirmWorkbenchDiscardV3(input: Readonly<{
-  hasUnsavedContentChanges: boolean;
-  hasUncommittedTitleChanges: boolean;
-  hasUncapturedBriefingChanges: boolean;
-}>): boolean {
-  return input.hasUnsavedContentChanges
-    || input.hasUncommittedTitleChanges
-    || input.hasUncapturedBriefingChanges;
+export function shouldConfirmWorkbenchDiscardV3(
+  input: Readonly<{
+    hasUnsavedContentChanges: boolean;
+    hasUncommittedTitleChanges: boolean;
+    hasUncapturedBriefingChanges: boolean;
+  }>,
+): boolean {
+  return (
+    input.hasUnsavedContentChanges ||
+    input.hasUncommittedTitleChanges ||
+    input.hasUncapturedBriefingChanges
+  );
 }
 
 export function modelLabEnabledV3(
-  environment: Pick<ImportMetaEnv, "PROD" | "VITE_MODEL_LAB_ENABLED"> =
-    import.meta.env,
+  environment: Pick<
+    ImportMetaEnv,
+    "PROD" | "VITE_MODEL_LAB_ENABLED"
+  > = import.meta.env,
 ): boolean {
   return studioDevSurfacesEnabledV1(environment);
 }
 
-export function workbenchPublicationAvailableV3(input: Readonly<{
-  modelLab: boolean;
-  releaseStage: StudioReleaseStageV1;
-}>): boolean {
+export function workbenchPublicationAvailableV3(
+  input: Readonly<{
+    modelLab: boolean;
+    releaseStage: StudioReleaseStageV1;
+  }>,
+): boolean {
   return !input.modelLab && input.releaseStage === "stable";
 }
 
@@ -321,9 +333,11 @@ export function workbenchPublicationAvailableV3(input: Readonly<{
  * authoring authority. Durable content starts from the ordinary active-model
  * Experiment Session so its exact identity can be resolved again later.
  */
-export function workbenchDurableContentAvailableV3(input: Readonly<{
-  modelLab: boolean;
-}>): boolean {
+export function workbenchDurableContentAvailableV3(
+  input: Readonly<{
+    modelLab: boolean;
+  }>,
+): boolean {
   return !input.modelLab;
 }
 
@@ -343,14 +357,11 @@ export const WorkbenchV3Page = () => {
 export const WorkbenchModelLabV3Page = () => {
   const { locale } = useParams();
   if (!modelLabEnabledV3()) {
-    return <Navigate to={homeHref(isLocale(locale) ? locale : undefined)} replace />;
+    return (
+      <Navigate to={homeHref(isLocale(locale) ? locale : undefined)} replace />
+    );
   }
-  return (
-    <WorkbenchV3Session
-      initialExperimentId={null}
-      modelLab
-    />
-  );
+  return <WorkbenchV3Session initialExperimentId={null} modelLab />;
 };
 
 const WorkbenchV3Session = ({
@@ -394,13 +405,13 @@ const WorkbenchV3Session = ({
     const queryArticleId = search.get("articleId");
     const querySessionToken = search.get("sessionToken");
     const pending = articleExperimentHandoff.read();
-    return queryArticleId !== null
-      && querySessionToken !== null
-      && pending !== null
-      && pending.snapshotId === null
-      && pending.articleId === queryArticleId
-      && pending.sessionToken === querySessionToken
-      && pending.sessionToken === sessionToken
+    return queryArticleId !== null &&
+      querySessionToken !== null &&
+      pending !== null &&
+      pending.snapshotId === null &&
+      pending.articleId === queryArticleId &&
+      pending.sessionToken === querySessionToken &&
+      pending.sessionToken === sessionToken
       ? pending
       : null;
   }, [articleExperimentHandoff, location.search, sessionToken]);
@@ -409,12 +420,12 @@ const WorkbenchV3Session = ({
     const snapshotId = search.get("snapshotId");
     const querySessionToken = search.get("sessionToken");
     const pending = experimentSessionHandoff.read();
-    return snapshotId !== null
-      && querySessionToken !== null
-      && pending !== null
-      && pending.snapshotId === snapshotId
-      && pending.sessionToken === querySessionToken
-      && pending.sessionToken === sessionToken
+    return snapshotId !== null &&
+      querySessionToken !== null &&
+      pending !== null &&
+      pending.snapshotId === snapshotId &&
+      pending.sessionToken === querySessionToken &&
+      pending.sessionToken === sessionToken
       ? pending
       : null;
   }, [experimentSessionHandoff, location.search, sessionToken]);
@@ -424,17 +435,15 @@ const WorkbenchV3Session = ({
   const [status, setStatus] = React.useState<WorkbenchStatusV3>({
     kind: "loading",
   });
-  const [releaseStage, setReleaseStage] = React.useState<StudioReleaseStageV1>(
-    "stable",
-  );
+  const [releaseStage, setReleaseStage] =
+    React.useState<StudioReleaseStageV1>("stable");
   const [presentationSampleStore] = React.useState(
     () => new WorkbenchScenarioPresentationSampleStoreV3(),
   );
   const [surface, setSurface] = React.useState<ExperimentSurfaceV2 | null>(
     null,
   );
-  const [experiment, setExperiment] =
-    React.useState<ExperimentV2 | null>(null);
+  const [experiment, setExperiment] = React.useState<ExperimentV2 | null>(null);
   const [snapshotCount, setSnapshotCount] = React.useState(0);
   const [saveState, setSaveState] = React.useState<
     "clean" | "dirty" | "saving" | "error"
@@ -460,8 +469,10 @@ const WorkbenchV3Session = ({
     React.useState<ExperimentPlacementBriefingV2 | null>(null);
   const [briefingCaptureSnapshot, setBriefingCaptureSnapshot] =
     React.useState<ExperimentSnapshotV2 | null>(null);
-  const [briefingCaptureSurfaceMutationRevision, setBriefingCaptureSurfaceMutationRevision] =
-    React.useState<number | null>(null);
+  const [
+    briefingCaptureSurfaceMutationRevision,
+    setBriefingCaptureSurfaceMutationRevision,
+  ] = React.useState<number | null>(null);
   const [paneSettings, setPaneSettings] =
     React.useState<WorkbenchPaneSettingsV3 | null>(null);
   const [isPlaying, setIsPlaying] = React.useState(true);
@@ -471,9 +482,9 @@ const WorkbenchV3Session = ({
   const [backgroundWorkerPool, setBackgroundWorkerPool] =
     React.useState<WorkbenchBackgroundWorkerPoolV3 | null>(null);
   const [runtimeGeneration, setRuntimeGeneration] = React.useState(0);
-  const [, setControlValues] = React.useState<
-    Readonly<Record<string, number>>
-  >({});
+  const [, setControlValues] = React.useState<Readonly<Record<string, number>>>(
+    {},
+  );
   const [pendingControlId, setPendingControlId] = React.useState<string | null>(
     null,
   );
@@ -589,16 +600,20 @@ const WorkbenchV3Session = ({
           }
         }
         if (workbenchAnalysisMatchesFrameEpochV3(analysis, frame)) {
-          accepted.push(Object.freeze([
-            workbenchAnalysisHistoryKeyV3(
-              analysis.scenarioId,
-              analysis.analysisId,
-            ),
-            analysis,
-          ]));
+          accepted.push(
+            Object.freeze([
+              workbenchAnalysisHistoryKeyV3(
+                analysis.scenarioId,
+                analysis.analysisId,
+              ),
+              analysis,
+            ]),
+          );
           if (runtime !== null) {
-            for (const [targetScenarioId, sourceScenarioId] of
-              equivalentAnalysisSourceByScenarioRef.current) {
+            for (const [
+              targetScenarioId,
+              sourceScenarioId,
+            ] of equivalentAnalysisSourceByScenarioRef.current) {
               if (sourceScenarioId !== analysis.scenarioId) continue;
               let targetFrame: StudioSimulationFrameV2;
               try {
@@ -610,22 +625,26 @@ const WorkbenchV3Session = ({
                 analysis,
                 targetFrame,
               );
-              accepted.push(Object.freeze([
-                workbenchAnalysisHistoryKeyV3(
-                  cloned.scenarioId,
-                  cloned.analysisId,
-                ),
-                cloned,
-              ]));
+              accepted.push(
+                Object.freeze([
+                  workbenchAnalysisHistoryKeyV3(
+                    cloned.scenarioId,
+                    cloned.analysisId,
+                  ),
+                  cloned,
+                ]),
+              );
             }
           }
         }
       }
       if (accepted.length === 0) return;
-      replaceAnalysisByKeyV3(Object.freeze({
-        ...analysisByKeyRef.current,
-        ...Object.fromEntries(accepted),
-      }));
+      replaceAnalysisByKeyV3(
+        Object.freeze({
+          ...analysisByKeyRef.current,
+          ...Object.fromEntries(accepted),
+        }),
+      );
     },
     [replaceAnalysisByKeyV3],
   );
@@ -633,10 +652,7 @@ const WorkbenchV3Session = ({
   const commitAnalysisV3 = React.useCallback(
     (analysis: StudioSimulationAnalysisV2) => {
       queuedAnalysisProgressByKeyRef.current.delete(
-        workbenchAnalysisHistoryKeyV3(
-          analysis.scenarioId,
-          analysis.analysisId,
-        ),
+        workbenchAnalysisHistoryKeyV3(analysis.scenarioId, analysis.analysisId),
       );
       commitAnalysesV3([analysis]);
     },
@@ -646,10 +662,7 @@ const WorkbenchV3Session = ({
   const queueAnalysisProgressV3 = React.useCallback(
     (analysis: StudioSimulationAnalysisV2) => {
       queuedAnalysisProgressByKeyRef.current.set(
-        workbenchAnalysisHistoryKeyV3(
-          analysis.scenarioId,
-          analysis.analysisId,
-        ),
+        workbenchAnalysisHistoryKeyV3(analysis.scenarioId, analysis.analysisId),
         analysis,
       );
       if (analysisProgressCommitTimerRef.current !== null) return;
@@ -665,13 +678,16 @@ const WorkbenchV3Session = ({
     [commitAnalysesV3],
   );
 
-  React.useEffect(() => () => {
-    if (analysisProgressCommitTimerRef.current !== null) {
-      window.clearTimeout(analysisProgressCommitTimerRef.current);
-      analysisProgressCommitTimerRef.current = null;
-    }
-    queuedAnalysisProgressByKeyRef.current.clear();
-  }, []);
+  React.useEffect(
+    () => () => {
+      if (analysisProgressCommitTimerRef.current !== null) {
+        window.clearTimeout(analysisProgressCommitTimerRef.current);
+        analysisProgressCommitTimerRef.current = null;
+      }
+      queuedAnalysisProgressByKeyRef.current.clear();
+    },
+    [],
+  );
 
   const updateWorkbenchBriefingV3 = React.useCallback(
     (next: ExperimentPlacementBriefingV2) => {
@@ -688,13 +704,10 @@ const WorkbenchV3Session = ({
 
   React.useEffect(() => {
     if (briefingOpen || briefingCaptureSnapshot === null) return undefined;
-    const timeout = window.setTimeout(
-      () => {
-        setBriefingCaptureSnapshot(null);
-        setBriefingCaptureSurfaceMutationRevision(null);
-      },
-      180,
-    );
+    const timeout = window.setTimeout(() => {
+      setBriefingCaptureSnapshot(null);
+      setBriefingCaptureSurfaceMutationRevision(null);
+    }, 180);
     return () => window.clearTimeout(timeout);
   }, [briefingCaptureSnapshot, briefingOpen]);
 
@@ -720,20 +733,22 @@ const WorkbenchV3Session = ({
     };
 
     const start = async () => {
-      const contentStore = remoteContentRepository === null
-        ? new StudioBrowserContentStoreV3()
-        : null;
+      const contentStore =
+        remoteContentRepository === null
+          ? new StudioBrowserContentStoreV3()
+          : null;
       contentStoreRef.current = contentStore;
       const durableExperimentId = experimentIdRef.current;
-      const remoteExperimentResource = durableExperimentId === null
-        || remoteContentRepository === null
-        ? null
-        : await remoteContentRepository.readMyExperiment(durableExperimentId);
-      const storedExperiment = durableExperimentId === null
-        ? null
-        : remoteContentRepository === null
-          ? contentStore!.readExperiment(durableExperimentId)
-          : remoteExperimentResource?.experiment ?? null;
+      const remoteExperimentResource =
+        durableExperimentId === null || remoteContentRepository === null
+          ? null
+          : await remoteContentRepository.readMyExperiment(durableExperimentId);
+      const storedExperiment =
+        durableExperimentId === null
+          ? null
+          : remoteContentRepository === null
+            ? contentStore!.readExperiment(durableExperimentId)
+            : (remoteExperimentResource?.experiment ?? null);
       if (durableExperimentId !== null && storedExperiment === null) {
         navigate(myExperimentsHref(resolvedLocale), { replace: true });
         return;
@@ -741,41 +756,44 @@ const WorkbenchV3Session = ({
       const requestedSnapshotId = new URLSearchParams(location.search).get(
         "snapshotId",
       );
-      const sourceSnapshot = storedExperiment === null
-        && requestedSnapshotId !== null
-        ? remoteContentRepository === null
-          ? contentStore!.readSnapshot(requestedSnapshotId)
-          : await remoteContentRepository.readSnapshot(requestedSnapshotId)
-        : null;
-      const sourceBriefing = sourceSnapshot === null
-        || articleAuthoringContext?.briefing === null
-        || articleAuthoringContext?.briefing === undefined
-        ? null
-        : validateExperimentPlacementBriefingV2(
-            articleAuthoringContext.briefing,
-            sourceSnapshot.content,
-          );
-      const initialContent = storedExperiment?.content ?? sourceSnapshot?.content;
+      const sourceSnapshot =
+        storedExperiment === null && requestedSnapshotId !== null
+          ? remoteContentRepository === null
+            ? contentStore!.readSnapshot(requestedSnapshotId)
+            : await remoteContentRepository.readSnapshot(requestedSnapshotId)
+          : null;
+      const sourceBriefing =
+        sourceSnapshot === null ||
+        articleAuthoringContext?.briefing === null ||
+        articleAuthoringContext?.briefing === undefined
+          ? null
+          : validateExperimentPlacementBriefingV2(
+              articleAuthoringContext.briefing,
+              sourceSnapshot.content,
+            );
+      const initialContent =
+        storedExperiment?.content ?? sourceSnapshot?.content;
       let composition: StudioClientCompositionV2;
       try {
-        composition = storedExperiment !== null
-          ? await loadStudioExperimentClientCompositionV2(
-              storedExperiment.content.modelId,
-              storedExperiment.content.surfaceSeriesId,
-            )
-          : sourceSnapshot !== null
-            ? await loadStudioSnapshotClientCompositionV2(
-                sourceSnapshot.content.modelId,
-                sourceSnapshot.content.surfaceSeriesId,
-                sourceSnapshot.surfaceReleaseId,
+        composition =
+          storedExperiment !== null
+            ? await loadStudioExperimentClientCompositionV2(
+                storedExperiment.content.modelId,
+                storedExperiment.content.surfaceSeriesId,
               )
-            : modelLab
-              ? await loadStudioLocalStandardModelLabClientCompositionV1()
-              : await loadStudioDefaultClientCompositionV2()
+            : sourceSnapshot !== null
+              ? await loadStudioSnapshotClientCompositionV2(
+                  sourceSnapshot.content.modelId,
+                  sourceSnapshot.content.surfaceSeriesId,
+                  sourceSnapshot.surfaceReleaseId,
+                )
+              : modelLab
+                ? await loadStudioLocalStandardModelLabClientCompositionV1()
+                : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
-          initialContent !== undefined
-          && error instanceof StudioExactModelUnavailableErrorV1
+          initialContent !== undefined &&
+          error instanceof StudioExactModelUnavailableErrorV1
         ) {
           playingIntentRef.current = false;
           setIsPlaying(false);
@@ -792,26 +810,27 @@ const WorkbenchV3Session = ({
       workerReleaseTicketRef.current = composition.workerReleaseTicket;
       surfaceSeriesIdRef.current = composition.surfaceSeriesId;
       surfaceReleaseIdRef.current = composition.surfaceReleaseId;
-      const record = storedExperiment === null
-        ? null
-        : remoteExperimentResource === null
-          ? experimentIndex.ensure({
-              experimentId: durableExperimentId!,
-              title: storedExperiment.content.scenarios[0]?.label
-                ?? translationRef.current("workbench.selector.untitled"),
-              nowIso: new Date().toISOString(),
-            })
-          : remoteExperimentRecordV3(remoteExperimentResource);
+      const record =
+        storedExperiment === null
+          ? null
+          : remoteExperimentResource === null
+            ? experimentIndex.ensure({
+                experimentId: durableExperimentId!,
+                title:
+                  storedExperiment.content.scenarios[0]?.label ??
+                  translationRef.current("workbench.selector.untitled"),
+                nowIso: new Date().toISOString(),
+              })
+            : remoteExperimentRecordV3(remoteExperimentResource);
       setExperimentRecord(record);
-      const initialTitle = record?.title
-        ?? sourceBriefing?.defaultTitle
-        ?? sourceSnapshot?.content.scenarios[0]?.label
-        ?? translationRef.current("workbench.selector.untitled");
+      const initialTitle =
+        record?.title ??
+        sourceBriefing?.defaultTitle ??
+        sourceSnapshot?.content.scenarios[0]?.label ??
+        translationRef.current("workbench.selector.untitled");
       setExperimentTitle(initialTitle);
       experimentTitleRef.current = initialTitle;
-      setArticleLinked(
-        articleAuthoringContext !== null,
-      );
+      setArticleLinked(articleAuthoringContext !== null);
       const preferredScenarioId = activeScenarioIdRef.current;
       const initialScenarioId =
         preferredScenarioId !== null &&
@@ -888,9 +907,9 @@ const WorkbenchV3Session = ({
         }),
       );
       setHasUnsavedContentChanges(
-        pendingSurface !== null
-        || pendingFeedback?.saveState === "dirty"
-        || pendingFeedback?.saveState === "error",
+        pendingSurface !== null ||
+          pendingFeedback?.saveState === "dirty" ||
+          pendingFeedback?.saveState === "error",
       );
       setHasUncommittedTitleChanges(false);
       setHasUncapturedBriefingChanges(false);
@@ -1090,9 +1109,10 @@ const WorkbenchV3Session = ({
 
   React.useEffect(() => {
     if (
-      initialExperimentId === null
-      || experimentIdRef.current === initialExperimentId
-    ) return;
+      initialExperimentId === null ||
+      experimentIdRef.current === initialExperimentId
+    )
+      return;
     experimentIdRef.current = initialExperimentId;
     playingIntentRef.current = true;
     setIsPlaying(true);
@@ -1107,8 +1127,8 @@ const WorkbenchV3Session = ({
       if (document.hidden) {
         void runtime.pauseAll();
       } else if (
-        exclusiveOperationRef.current === null
-        && playingIntentRef.current
+        exclusiveOperationRef.current === null &&
+        playingIntentRef.current
       ) {
         runtime.playAll();
       }
@@ -1174,17 +1194,21 @@ const WorkbenchV3Session = ({
   );
 
   const openPaneSettings = React.useCallback(
-    (paneId: string, section?: "binding") => {
+    (
+      paneId: string,
+      section?: WorkbenchPaneEditorSectionV3,
+      itemIntent?: WorkbenchPaneEditorItemIntentV3,
+    ) => {
       if (graphPanes.some((pane) => pane.paneId === paneId)) {
         setPaneSettings({ kind: "graph", paneId });
         return;
       }
       if (outputPanes.some((pane) => pane.paneId === paneId)) {
-        setPaneSettings({ kind: "output", paneId, section });
+        setPaneSettings({ kind: "output", paneId, section, itemIntent });
         return;
       }
       if (controlPanes.some((pane) => pane.paneId === paneId)) {
-        setPaneSettings({ kind: "control", paneId, section });
+        setPaneSettings({ kind: "control", paneId, section, itemIntent });
       }
     },
     [controlPanes, graphPanes, outputPanes],
@@ -1199,7 +1223,7 @@ const WorkbenchV3Session = ({
       if (currentSurface === null || contract === null) return undefined;
       const graphOption =
         kind === "graph"
-          ? WORKBENCH_GRAPH_PANE_OPTIONS_V3.find(
+          ? workbenchGraphPaneOptionsForContractV3(contract).find(
               ({ optionId }) => optionId === graphOptionId,
             )
           : undefined;
@@ -1358,7 +1382,8 @@ const WorkbenchV3Session = ({
         await runtime.pauseAll();
         const uniqueScenarioIds = [...new Set(scenarioIds)];
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
-          runtime.latestFrame(scenarioId));
+          runtime.latestFrame(scenarioId),
+        );
         const structuralAnalysisIds = new Set(
           workbenchStructuralHistoryAnalysisIdsV3(surfaceRef.current, contract),
         );
@@ -1370,29 +1395,31 @@ const WorkbenchV3Session = ({
         // control change. Recomputing a full sweep would also hold every live
         // Scenario for tens of seconds before the slider visibly moved.
         const analysesToArchive = Object.freeze(
-          Object.values(analysisByKeyRef.current).filter(
-            (analysis) => {
-              const acceptedFrame = acceptedFrames.find(({ scenarioId }) =>
-                scenarioId === analysis.scenarioId);
-              return acceptedFrame !== undefined &&
-                structuralAnalysisIds.has(analysis.analysisId) &&
-                analysis.inputEpoch === acceptedFrame.inputEpoch &&
-                workbenchStructuralAnalysisRenderableV3(analysis);
-            },
+          Object.values(analysisByKeyRef.current).filter((analysis) => {
+            const acceptedFrame = acceptedFrames.find(
+              ({ scenarioId }) => scenarioId === analysis.scenarioId,
+            );
+            return (
+              acceptedFrame !== undefined &&
+              structuralAnalysisIds.has(analysis.analysisId) &&
+              analysis.inputEpoch === acceptedFrame.inputEpoch &&
+              workbenchStructuralAnalysisRenderableV3(analysis)
+            );
+          }),
+        );
+        const nextFrames = await Promise.all(
+          acceptedFrames.map((acceptedFrame) =>
+            runtime.applyControl({
+              scenarioId: acceptedFrame.scenarioId,
+              controlId,
+              value,
+              expectedInputEpoch: acceptedFrame.inputEpoch,
+            }),
           ),
         );
-        const nextFrames = await Promise.all(acceptedFrames.map(
-          (acceptedFrame) => runtime.applyControl({
-            scenarioId: acceptedFrame.scenarioId,
-            controlId,
-            value,
-            expectedInputEpoch: acceptedFrame.inputEpoch,
-          }),
-        ));
         const activeId = activeScenarioIdRef.current;
-        const nextRootFrame = activeId === null
-          ? nextFrames[0]!
-          : runtime.latestFrame(activeId);
+        const nextRootFrame =
+          activeId === null ? nextFrames[0]! : runtime.latestFrame(activeId);
         latestFrameRef.current = nextRootFrame;
         lastRootFrameTimeSecRef.current = nextRootFrame.acceptedTimeSec;
         if (analysesToArchive.length > 0) {
@@ -1405,18 +1432,24 @@ const WorkbenchV3Session = ({
           equivalentAnalysisSourceByScenarioRef.current,
           targetScenarioIds,
         );
-        replaceAnalysisByKeyV3(filterWorkbenchAnalysesByScenarioIdsV3(
-          analysisByKeyRef.current,
-          new Set(scenarios
-            .map(({ scenarioId }) => scenarioId)
-            .filter((scenarioId) => !targetScenarioIds.has(scenarioId))),
-        ));
+        replaceAnalysisByKeyV3(
+          filterWorkbenchAnalysesByScenarioIdsV3(
+            analysisByKeyRef.current,
+            new Set(
+              scenarios
+                .map(({ scenarioId }) => scenarioId)
+                .filter((scenarioId) => !targetScenarioIds.has(scenarioId)),
+            ),
+          ),
+        );
         setAnalysisErrorByKey((current) =>
           filterWorkbenchAnalysisErrorsByScenarioIdsV3(
             current,
-            new Set(scenarios
-              .map(({ scenarioId }) => scenarioId)
-              .filter((scenarioId) => !targetScenarioIds.has(scenarioId))),
+            new Set(
+              scenarios
+                .map(({ scenarioId }) => scenarioId)
+                .filter((scenarioId) => !targetScenarioIds.has(scenarioId)),
+            ),
           ),
         );
         appendFramesV3(nextFrames, presentationSampleStore);
@@ -1427,18 +1460,18 @@ const WorkbenchV3Session = ({
         );
         controlValuesByScenarioRef.current = Object.freeze({
           ...controlValuesByScenarioRef.current,
-          ...Object.fromEntries(uniqueScenarioIds.map((scenarioId) => [
-            scenarioId,
-            Object.freeze({
-              ...(controlValuesByScenarioRef.current[scenarioId] ?? {}),
-              [controlId]: value,
-            }),
-          ])),
+          ...Object.fromEntries(
+            uniqueScenarioIds.map((scenarioId) => [
+              scenarioId,
+              Object.freeze({
+                ...(controlValuesByScenarioRef.current[scenarioId] ?? {}),
+                [controlId]: value,
+              }),
+            ]),
+          ),
         });
         if (activeId !== null) {
-          setControlValues(
-            controlValuesByScenarioRef.current[activeId] ?? {},
-          );
+          setControlValues(controlValuesByScenarioRef.current[activeId] ?? {});
         }
         markExperimentDirtyV3();
         if (playingIntentRef.current && !document.hidden) {
@@ -1633,12 +1666,17 @@ const WorkbenchV3Session = ({
       const retainedScenarioIds = new Set(
         next.scenarios.map(({ scenarioId }) => scenarioId),
       );
-      for (const [targetScenarioId, sourceScenarioId] of
-        equivalentAnalysisSourceByScenarioRef.current) {
+      for (const [
+        targetScenarioId,
+        sourceScenarioId,
+      ] of equivalentAnalysisSourceByScenarioRef.current) {
         if (
-          !retainedScenarioIds.has(targetScenarioId)
-          || !retainedScenarioIds.has(sourceScenarioId)
-        ) equivalentAnalysisSourceByScenarioRef.current.delete(targetScenarioId);
+          !retainedScenarioIds.has(targetScenarioId) ||
+          !retainedScenarioIds.has(sourceScenarioId)
+        )
+          equivalentAnalysisSourceByScenarioRef.current.delete(
+            targetScenarioId,
+          );
       }
       replaceAnalysisByKeyV3(
         filterWorkbenchAnalysesByScenarioIdsV3(
@@ -1669,11 +1707,7 @@ const WorkbenchV3Session = ({
         current.kind === "live" ? { ...current, frame: next.frame } : current,
       );
     },
-    [
-      contract,
-      presentationSampleStore,
-      replaceAnalysisByKeyV3,
-    ],
+    [contract, presentationSampleStore, replaceAnalysisByKeyV3],
   );
 
   const runScenarioOperationV3 = React.useCallback(
@@ -1783,11 +1817,13 @@ const WorkbenchV3Session = ({
           // later parameter edit archives this result as visible history while
           // the changed target is recomputed, instead of forcing low-core
           // devices to serialize an identical analysis before first paint.
-          replaceAnalysisByKeyV3(cloneWorkbenchScenarioAnalysesV3(
-            analysisByKeyRef.current,
-            intent.sourceScenarioId,
-            next.frame,
-          ));
+          replaceAnalysisByKeyV3(
+            cloneWorkbenchScenarioAnalysesV3(
+              analysisByKeyRef.current,
+              intent.sourceScenarioId,
+              next.frame,
+            ),
+          );
           const sourceScenarioId =
             equivalentAnalysisSourceByScenarioRef.current.get(
               intent.sourceScenarioId,
@@ -1888,8 +1924,8 @@ const WorkbenchV3Session = ({
       scenarioDescriptorsRef.current,
     );
     const submittedSurfaceMutationRevision = surfaceMutationRevisionRef.current;
-    const submittedTitle = experimentTitle.trim()
-      || t("workbench.selector.untitled");
+    const submittedTitle =
+      experimentTitle.trim() || t("workbench.selector.untitled");
     exclusiveOperationRef.current = "save";
     setSaveState("saving");
     setSaveError(null);
@@ -1915,8 +1951,7 @@ const WorkbenchV3Session = ({
       let remoteSavedResource: StudioRemoteExperimentResourceV1 | null = null;
       if (remoteContentRepository !== null) {
         saved = await remoteContentRepository.saveExperiment({
-          experimentId: currentExperiment?.experimentId
-            ?? currentExperimentId,
+          experimentId: currentExperiment?.experimentId ?? currentExperimentId,
           expectedVersion: currentExperiment?.version ?? null,
           title: submittedTitle,
           content: submittedCandidateContent,
@@ -1928,11 +1963,13 @@ const WorkbenchV3Session = ({
           throw new Error("Saved Experiment could not be read back");
         }
       } else {
-        const targetExperimentId = currentExperiment?.experimentId
-          ?? currentExperimentId
-          ?? allocateOpaqueExperimentIdV3([
-            ...contentStore!.listExperiments().map(({ experimentId }) =>
-              experimentId),
+        const targetExperimentId =
+          currentExperiment?.experimentId ??
+          currentExperimentId ??
+          allocateOpaqueExperimentIdV3([
+            ...contentStore!
+              .listExperiments()
+              .map(({ experimentId }) => experimentId),
             ...experimentIndex.list().map(({ experimentId }) => experimentId),
           ]);
         const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
@@ -1975,23 +2012,24 @@ const WorkbenchV3Session = ({
           experimentRef.current = durableExperiment;
           setExperiment(durableExperiment);
           const nowIso = new Date().toISOString();
-          const existingRecord = experimentRecord?.experimentId
-            === targetExperimentId
-            ? experimentRecord
-            : null;
-          const touchedRecord = remoteContentRepository === null
-            ? existingRecord === null
-              ? experimentIndex.ensure({
-                  experimentId: targetExperimentId,
-                  title: submittedTitle,
-                  nowIso,
-                })
-              : experimentIndex.rename({
-                  experimentId: targetExperimentId,
-                  title: submittedTitle,
-                  nowIso,
-                })
-            : remoteExperimentRecordV3(remoteSavedResource!);
+          const existingRecord =
+            experimentRecord?.experimentId === targetExperimentId
+              ? experimentRecord
+              : null;
+          const touchedRecord =
+            remoteContentRepository === null
+              ? existingRecord === null
+                ? experimentIndex.ensure({
+                    experimentId: targetExperimentId,
+                    title: submittedTitle,
+                    nowIso,
+                  })
+                : experimentIndex.rename({
+                    experimentId: targetExperimentId,
+                    title: submittedTitle,
+                    nowIso,
+                  })
+              : remoteExperimentRecordV3(remoteSavedResource!);
           const isFirstSave = experimentIdRef.current === null;
           experimentIdRef.current = targetExperimentId;
           setExperimentRecord(touchedRecord);
@@ -2022,16 +2060,19 @@ const WorkbenchV3Session = ({
           setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
           setHasUnsavedContentChanges(surfaceResolution.hasNewerMutations);
           setHasUncommittedTitleChanges(
-            (experimentTitleRef.current.trim()
-              || t("workbench.selector.untitled")) !== touchedRecord.title,
+            (experimentTitleRef.current.trim() ||
+              t("workbench.selector.untitled")) !== touchedRecord.title,
           );
           setSnapshotState("idle");
           setSnapshotPurpose(null);
           if (isFirstSave) {
-            navigate(`${experimentDetailHref({
-              experimentId: targetExperimentId,
-              locale: resolvedLocale,
-            })}${location.search}`, { replace: true });
+            navigate(
+              `${experimentDetailHref({
+                experimentId: targetExperimentId,
+                locale: resolvedLocale,
+              })}${location.search}`,
+              { replace: true },
+            );
           }
         },
       });
@@ -2066,236 +2107,242 @@ const WorkbenchV3Session = ({
     t,
   ]);
 
-  const createSnapshotV3 = React.useCallback(async (
-    options:
-      | Readonly<{ kind: "publication" }>
-      | Readonly<{
-          kind: "article";
-          sourceSnapshot: ExperimentSnapshotV2;
-          sourceSurfaceMutationRevision: number;
-          sourceBriefingMutationRevision: number;
-        }>,
-  ): Promise<ExperimentSnapshotV2 | null> => {
-    if (!workbenchDurableContentAvailableV3({ modelLab })) return null;
-    setSnapshotPurpose(null);
-    if (
-      options.kind === "publication"
-      && remoteContentRepository !== null
-      && authIdentity.kind !== "account"
-    ) {
-      setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
-      setSnapshotState("error");
-      return null;
-    }
-    if (
-      options.kind === "publication"
-      && (experimentRef.current === null || saveState !== "clean")
-    ) {
-      setSnapshotError(t(
-        experimentRef.current === null
-          ? "workbench.editor.publishRequiresSave"
-          : "workbench.editor.publishRequiresClean",
-      ));
-      setSnapshotState("error");
-      return null;
-    }
-    const runtime = runtimeRef.current;
-    const frame = latestFrameRef.current;
-    const contentStore = contentStoreRef.current;
-    const submittedSurface = options.kind === "article"
-      ? options.sourceSnapshot.content.surface
-      : surfaceRef.current;
-    const publicationExperiment = options.kind === "publication"
-      ? experimentRef.current
-      : null;
-    if (
-      options.kind === "article"
-      && surfaceMutationRevisionRef.current
-        !== options.sourceSurfaceMutationRevision
-    ) {
-      setSnapshotError(t("workbench.editor.briefingSourceChanged"));
-      setSnapshotState("error");
-      return null;
-    }
-    if (
-      runtime === null ||
-      frame === null ||
-      submittedSurface === null ||
-      (remoteContentRepository === null && contentStore === null) ||
-      backgroundWorkerPool === null
-    ) {
-      setSnapshotError(t("workbench.editor.snapshotNotReady"));
-      setSnapshotState("error");
-      return null;
-    }
-    if (exclusiveOperationRef.current !== null) {
-      setSnapshotError(t("workbench.editor.snapshotBusy"));
-      setSnapshotState("error");
-      return null;
-    }
-    exclusiveOperationRef.current = "snapshot";
-    setSnapshotPurpose(options.kind);
-    setSnapshotState("creating");
-    setSnapshotError(null);
-    try {
-      await runtime.pauseAll();
-      let captures: StudioSimulationWorkerScenarioCapturesV2;
+  const createSnapshotV3 = React.useCallback(
+    async (
+      options:
+        | Readonly<{ kind: "publication" }>
+        | Readonly<{
+            kind: "article";
+            sourceSnapshot: ExperimentSnapshotV2;
+            sourceSurfaceMutationRevision: number;
+            sourceBriefingMutationRevision: number;
+          }>,
+    ): Promise<ExperimentSnapshotV2 | null> => {
+      if (!workbenchDurableContentAvailableV3({ modelLab })) return null;
+      setSnapshotPurpose(null);
+      if (
+        options.kind === "publication" &&
+        remoteContentRepository !== null &&
+        authIdentity.kind !== "account"
+      ) {
+        setSnapshotError(t("workbench.editor.publishRequiresLinkedAccount"));
+        setSnapshotState("error");
+        return null;
+      }
+      if (
+        options.kind === "publication" &&
+        (experimentRef.current === null || saveState !== "clean")
+      ) {
+        setSnapshotError(
+          t(
+            experimentRef.current === null
+              ? "workbench.editor.publishRequiresSave"
+              : "workbench.editor.publishRequiresClean",
+          ),
+        );
+        setSnapshotState("error");
+        return null;
+      }
+      const runtime = runtimeRef.current;
+      const frame = latestFrameRef.current;
+      const contentStore = contentStoreRef.current;
+      const submittedSurface =
+        options.kind === "article"
+          ? options.sourceSnapshot.content.surface
+          : surfaceRef.current;
+      const publicationExperiment =
+        options.kind === "publication" ? experimentRef.current : null;
+      if (
+        options.kind === "article" &&
+        surfaceMutationRevisionRef.current !==
+          options.sourceSurfaceMutationRevision
+      ) {
+        setSnapshotError(t("workbench.editor.briefingSourceChanged"));
+        setSnapshotState("error");
+        return null;
+      }
+      if (
+        runtime === null ||
+        frame === null ||
+        submittedSurface === null ||
+        (remoteContentRepository === null && contentStore === null) ||
+        backgroundWorkerPool === null
+      ) {
+        setSnapshotError(t("workbench.editor.snapshotNotReady"));
+        setSnapshotState("error");
+        return null;
+      }
+      if (exclusiveOperationRef.current !== null) {
+        setSnapshotError(t("workbench.editor.snapshotBusy"));
+        setSnapshotState("error");
+        return null;
+      }
+      exclusiveOperationRef.current = "snapshot";
+      setSnapshotPurpose(options.kind);
+      setSnapshotState("creating");
+      setSnapshotError(null);
       try {
-        captures = await runtime.captureScenarios();
-      } finally {
-        // The exact fixture + checkpoint tuple is now owned by the background
-        // job. Resume every live lane before bounded admission so Snapshot
-        // creation never freezes the visible simulation for that work.
-        if (playingIntentRef.current && !document.hidden) runtime.playAll();
-      }
-      // Freeze authored intent at the click boundary, then opportunistically
-      // reuse an exact cycle-boundary candidate already produced for the same
-      // input epoch. Candidate convergence is never awaited here: the exact
-      // click capture is the fallback and common Snapshot admission remains
-      // the safety authority before persistence.
-      captures = runtime.selectBestAvailableScenarioCaptures(captures);
-      if (
-        options.kind === "article"
-        && !workbenchBriefingSourceScenariosMatchV3(
-          options.sourceSnapshot,
-          captures.scenarios,
-        )
-      ) {
-        throw new Error(t("workbench.editor.briefingSourceChanged"));
-      }
-      const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
-        undefined,
-        backgroundWorkerPool,
-      );
-      const authoringInput = {
-        modelId: frame.modelId,
-        surfaceSeriesId: requiredWorkbenchSurfaceSeriesIdV3(
-          surfaceSeriesIdRef.current,
-        ),
-        surfaceReleaseId: requiredWorkbenchSurfaceReleaseIdV3(
-          surfaceReleaseIdRef.current,
-        ),
-        releaseTicket: requiredWorkbenchReleaseTicketV3(
-          workerReleaseTicketRef.current,
-        ),
-        scenarios: captures.scenarios,
-        activeScenarioId: captures.activeScenarioId,
-        surface: submittedSurface,
-        experiment: publicationExperiment,
-        experimentId: publicationExperiment?.experimentId ?? null,
-        runtimeSessionId: `workbench-admission-${randomPortableTokenV3()}`,
-      };
-      const created = options.kind === "article"
-        ? await coordinator.createSnapshot({
-            ...authoringInput,
-            snapshotSource: "session",
-          })
-        : await coordinator.createSnapshot({
-            ...authoringInput,
-            snapshotSource: "saved-experiment",
-          });
-      if (
-        options.kind === "article"
-        && surfaceMutationRevisionRef.current
-          !== options.sourceSurfaceMutationRevision
-      ) {
-        throw new Error(t("workbench.editor.briefingSourceChanged"));
-      }
-      if (
-        options.kind === "article"
-        && briefingMutationRevisionRef.current
-          !== options.sourceBriefingMutationRevision
-      ) {
-        throw new Error(t("workbench.editor.briefingChangedDuringSnapshot"));
-      }
-      const persistedSnapshot = remoteContentRepository === null
-        ? contentStore!.saveSnapshotCommit(
-            created,
-            {
-              modelId: authoringInput.modelId,
-              surfaceSeriesId: authoringInput.surfaceSeriesId,
-              scenarios: authoringInput.scenarios,
-              surface: authoringInput.surface,
-            },
-            options.kind === "publication" && publicationExperiment !== null
-              ? {
-                  experimentId: publicationExperiment.experimentId,
-                  expectedVersion: publicationExperiment.version,
-                }
-              : undefined,
-          ).snapshot
-        : await remoteContentRepository.commitSnapshot({
-            admitted: created,
-            ...(options.kind === "publication" && publicationExperiment !== null
-              ? {
-                  sourceExperiment: {
-                    experimentId: publicationExperiment.experimentId,
-                    expectedVersion: publicationExperiment.version,
-                  },
-                }
-              : {}),
-          });
-      if (options.kind === "publication" && experimentRef.current !== null) {
-        if (remoteContentRepository !== null) {
-          await remoteContentRepository.publishExperiment({
-            experimentId: experimentRef.current.experimentId,
-            expectedVersion: experimentRef.current.version,
-            snapshotId: persistedSnapshot.snapshotId,
-            publicSlug: publicExperimentSlugV3(
-              experimentRef.current.experimentId,
-            ),
-          });
+        await runtime.pauseAll();
+        let captures: StudioSimulationWorkerScenarioCapturesV2;
+        try {
+          captures = await runtime.captureScenarios();
+        } finally {
+          // The exact fixture + checkpoint tuple is now owned by the background
+          // job. Resume every live lane before bounded admission so Snapshot
+          // creation never freezes the visible simulation for that work.
+          if (playingIntentRef.current && !document.hidden) runtime.playAll();
         }
-        const nowIso = new Date().toISOString();
-        const remotePublishedResource = remoteContentRepository === null
-          ? null
-          : await remoteContentRepository.readMyExperiment(
-              experimentRef.current.experimentId,
-            );
+        // Freeze authored intent at the click boundary, then opportunistically
+        // reuse an exact cycle-boundary candidate already produced for the same
+        // input epoch. Candidate convergence is never awaited here: the exact
+        // click capture is the fallback and common Snapshot admission remains
+        // the safety authority before persistence.
+        captures = runtime.selectBestAvailableScenarioCaptures(captures);
         if (
-          remoteContentRepository !== null
-          && remotePublishedResource === null
+          options.kind === "article" &&
+          !workbenchBriefingSourceScenariosMatchV3(
+            options.sourceSnapshot,
+            captures.scenarios,
+          )
         ) {
-          throw new Error("Published Experiment could not be read back");
+          throw new Error(t("workbench.editor.briefingSourceChanged"));
         }
-        const nextRecord = remoteContentRepository === null
-          ? experimentIndex.publish({
+        const coordinator = new WorkbenchParallelAuthoringCoordinatorV3(
+          undefined,
+          backgroundWorkerPool,
+        );
+        const authoringInput = {
+          modelId: frame.modelId,
+          surfaceSeriesId: requiredWorkbenchSurfaceSeriesIdV3(
+            surfaceSeriesIdRef.current,
+          ),
+          surfaceReleaseId: requiredWorkbenchSurfaceReleaseIdV3(
+            surfaceReleaseIdRef.current,
+          ),
+          releaseTicket: requiredWorkbenchReleaseTicketV3(
+            workerReleaseTicketRef.current,
+          ),
+          scenarios: captures.scenarios,
+          activeScenarioId: captures.activeScenarioId,
+          surface: submittedSurface,
+          experiment: publicationExperiment,
+          experimentId: publicationExperiment?.experimentId ?? null,
+          runtimeSessionId: `workbench-admission-${randomPortableTokenV3()}`,
+        };
+        const created =
+          options.kind === "article"
+            ? await coordinator.createSnapshot({
+                ...authoringInput,
+                snapshotSource: "session",
+              })
+            : await coordinator.createSnapshot({
+                ...authoringInput,
+                snapshotSource: "saved-experiment",
+              });
+        if (
+          options.kind === "article" &&
+          surfaceMutationRevisionRef.current !==
+            options.sourceSurfaceMutationRevision
+        ) {
+          throw new Error(t("workbench.editor.briefingSourceChanged"));
+        }
+        if (
+          options.kind === "article" &&
+          briefingMutationRevisionRef.current !==
+            options.sourceBriefingMutationRevision
+        ) {
+          throw new Error(t("workbench.editor.briefingChangedDuringSnapshot"));
+        }
+        const persistedSnapshot =
+          remoteContentRepository === null
+            ? contentStore!.saveSnapshotCommit(
+                created,
+                {
+                  modelId: authoringInput.modelId,
+                  surfaceSeriesId: authoringInput.surfaceSeriesId,
+                  scenarios: authoringInput.scenarios,
+                  surface: authoringInput.surface,
+                },
+                options.kind === "publication" && publicationExperiment !== null
+                  ? {
+                      experimentId: publicationExperiment.experimentId,
+                      expectedVersion: publicationExperiment.version,
+                    }
+                  : undefined,
+              ).snapshot
+            : await remoteContentRepository.commitSnapshot({
+                admitted: created,
+                ...(options.kind === "publication" &&
+                publicationExperiment !== null
+                  ? {
+                      sourceExperiment: {
+                        experimentId: publicationExperiment.experimentId,
+                        expectedVersion: publicationExperiment.version,
+                      },
+                    }
+                  : {}),
+              });
+        if (options.kind === "publication" && experimentRef.current !== null) {
+          if (remoteContentRepository !== null) {
+            await remoteContentRepository.publishExperiment({
               experimentId: experimentRef.current.experimentId,
+              expectedVersion: experimentRef.current.version,
               snapshotId: persistedSnapshot.snapshotId,
-              nowIso,
-            })
-          : remoteExperimentRecordV3(remotePublishedResource!);
-        setExperimentRecord(nextRecord);
+              publicSlug: publicExperimentSlugV3(
+                experimentRef.current.experimentId,
+              ),
+            });
+          }
+          const nowIso = new Date().toISOString();
+          const remotePublishedResource =
+            remoteContentRepository === null
+              ? null
+              : await remoteContentRepository.readMyExperiment(
+                  experimentRef.current.experimentId,
+                );
+          if (
+            remoteContentRepository !== null &&
+            remotePublishedResource === null
+          ) {
+            throw new Error("Published Experiment could not be read back");
+          }
+          const nextRecord =
+            remoteContentRepository === null
+              ? experimentIndex.publish({
+                  experimentId: experimentRef.current.experimentId,
+                  snapshotId: persistedSnapshot.snapshotId,
+                  nowIso,
+                })
+              : remoteExperimentRecordV3(remotePublishedResource!);
+          setExperimentRecord(nextRecord);
+        }
+        setSnapshotCount((count) => count + 1);
+        setSnapshotState("created");
+        return persistedSnapshot;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        setSnapshotError(message);
+        setSnapshotState("error");
+        return null;
+      } finally {
+        exclusiveOperationRef.current = null;
+        const latest = latestFrameRef.current;
+        if (playingIntentRef.current && !document.hidden && latest !== null) {
+          runtime.playAll();
+        }
       }
-      setSnapshotCount((count) => count + 1);
-      setSnapshotState("created");
-      return persistedSnapshot;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setSnapshotError(message);
-      setSnapshotState("error");
-      return null;
-    } finally {
-      exclusiveOperationRef.current = null;
-      const latest = latestFrameRef.current;
-      if (
-        playingIntentRef.current &&
-        !document.hidden &&
-        latest !== null
-      ) {
-        runtime.playAll();
-      }
-    }
-  }, [
-    authIdentity.kind,
-    backgroundWorkerPool,
-    experimentIndex,
-    experimentRecord,
-    modelLab,
-    remoteContentRepository,
-    saveState,
-    t,
-  ]);
+    },
+    [
+      authIdentity.kind,
+      backgroundWorkerPool,
+      experimentIndex,
+      experimentRecord,
+      modelLab,
+      remoteContentRepository,
+      saveState,
+      t,
+    ],
+  );
 
   const createArticleSnapshotV3 = React.useCallback(async () => {
     const currentBriefing = briefingRef.current;
@@ -2303,10 +2350,11 @@ const WorkbenchV3Session = ({
     const sourceSurfaceMutationRevision =
       briefingCaptureSurfaceMutationRevision;
     if (
-      currentBriefing === null
-      || sourceSnapshot === null
-      || sourceSurfaceMutationRevision === null
-    ) return;
+      currentBriefing === null ||
+      sourceSnapshot === null ||
+      sourceSurfaceMutationRevision === null
+    )
+      return;
     const snapshot = await createSnapshotV3({
       kind: "article",
       sourceSnapshot,
@@ -2316,10 +2364,7 @@ const WorkbenchV3Session = ({
     if (snapshot !== null) {
       setHasUncapturedBriefingChanges(false);
     }
-    if (
-      snapshot === null
-      || articleAuthoringContext === null
-    ) return;
+    if (snapshot === null || articleAuthoringContext === null) return;
     const completed = articleExperimentHandoff.complete({
       sessionToken,
       snapshotId: snapshot.snapshotId,
@@ -2332,10 +2377,12 @@ const WorkbenchV3Session = ({
     setHasUnsavedContentChanges(false);
     setHasUncommittedTitleChanges(false);
     setHasUncapturedBriefingChanges(false);
-    navigate(articleEditorHref({
-      articleId: completed.articleId,
-      locale: resolvedLocale,
-    }));
+    navigate(
+      articleEditorHref({
+        articleId: completed.articleId,
+        locale: resolvedLocale,
+      }),
+    );
   }, [
     articleAuthoringContext,
     articleExperimentHandoff,
@@ -2369,8 +2416,9 @@ const WorkbenchV3Session = ({
     experimentSessionHandoff,
   ]);
   useUnsavedChangesGuardV3({
-    enabled: workbenchDurableContentAvailableV3({ modelLab })
-      && shouldConfirmWorkbenchDiscardV3({
+    enabled:
+      workbenchDurableContentAvailableV3({ modelLab }) &&
+      shouldConfirmWorkbenchDiscardV3({
         hasUnsavedContentChanges,
         hasUncommittedTitleChanges,
         hasUncapturedBriefingChanges,
@@ -2447,7 +2495,8 @@ const WorkbenchV3Session = ({
       currentSurface === null ||
       contract === null ||
       currentScenarios.length === 0
-    ) return;
+    )
+      return;
     const capture = createWorkbenchBriefingSnapshotV3({
       defaultTitle: experimentTitleRef.current,
       modelId: contract.modelId,
@@ -2456,8 +2505,8 @@ const WorkbenchV3Session = ({
       scenarios: currentScenarios,
       surface: currentSurface,
     });
-    const activeId = activeScenarioIdRef.current ??
-      currentScenarios[0]!.scenarioId;
+    const activeId =
+      activeScenarioIdRef.current ?? currentScenarios[0]!.scenarioId;
     const nextBriefing = reconcileWorkbenchBriefingV3({
       briefing: briefingRef.current,
       preferredFocusScenarioId: activeId,
@@ -2473,8 +2522,8 @@ const WorkbenchV3Session = ({
   }, [contract, updateWorkbenchBriefingV3]);
   const briefingSnapshot = briefingCaptureSnapshot;
   const commitExperimentTitleV3 = React.useCallback(() => {
-    const fallback = experimentRecord?.title
-      ?? t("workbench.selector.untitled");
+    const fallback =
+      experimentRecord?.title ?? t("workbench.selector.untitled");
     const nextTitle = experimentTitle.trim() || fallback;
     experimentTitleRef.current = nextTitle;
     setExperimentTitle(nextTitle);
@@ -2519,9 +2568,8 @@ const WorkbenchV3Session = ({
     releaseStage,
   });
   const briefingAvailable = !modelLab && articleLinked;
-  const authoringActionsAvailable = briefingAvailable
-    || durableContentAvailable
-    || publicationAvailable;
+  const authoringActionsAvailable =
+    briefingAvailable || durableContentAvailable || publicationAvailable;
 
   const graphPaneDefinitions: readonly WorkbenchPaneDefinitionV3[] =
     graphPanes.map((pane) => ({
@@ -2541,10 +2589,13 @@ const WorkbenchV3Session = ({
       role: pane.role,
       title: pane.label,
     }));
-  const graphAddOptions = WORKBENCH_GRAPH_PANE_OPTIONS_V3.map((option) => ({
-    id: option.optionId,
-    label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
-  }));
+  const graphAddOptions =
+    contract === null
+      ? []
+      : workbenchGraphPaneOptionsForContractV3(contract).map((option) => ({
+          id: option.optionId,
+          label: t(`workbench.editor.graphPaneKinds.${option.kind}`),
+        }));
   const renderGraphPaneV3 = (paneDefinition: WorkbenchPaneDefinitionV3) => {
     const graphPane = graphPanes.find(
       ({ paneId }) => paneId === paneDefinition.paneId,
@@ -2584,16 +2635,18 @@ const WorkbenchV3Session = ({
       activeScenarioId,
       scenarios,
     );
-    const frame = scenarioId === null
-      ? null
-      : runtimeRef.current?.maybeLatestFrame(scenarioId)
-        ?? (latestFrame?.scenarioId === scenarioId ? latestFrame : null);
+    const frame =
+      scenarioId === null
+        ? null
+        : (runtimeRef.current?.maybeLatestFrame(scenarioId) ??
+          (latestFrame?.scenarioId === scenarioId ? latestFrame : null));
     return (
       <OutputPaneBodyV3
         contract={contract}
         frame={frame}
-        onOpenBindingSettings={() =>
-          openPaneSettings(pane.paneId, "binding")}
+        locale={resolvedLocale}
+        onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
+        onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
         pane={pane}
         scrollMode={scrollMode}
         showBinding={scenarios.length > 1}
@@ -2619,10 +2672,13 @@ const WorkbenchV3Session = ({
         contract={contract}
         controlError={controlError}
         controlValuesByScenario={controlValuesByScenarioRef.current}
-        disabledByAnalysis={analysisCapturePending || scenarioOperation !== null}
+        disabledByAnalysis={
+          analysisCapturePending || scenarioOperation !== null
+        }
+        locale={resolvedLocale}
+        onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onApplyControl={applyControl}
-        onOpenBindingSettings={() =>
-          openPaneSettings(pane.paneId, "binding")}
+        onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
         pane={pane}
         pendingControlId={pendingControlId}
         scenarios={scenarios}
@@ -2630,88 +2686,90 @@ const WorkbenchV3Session = ({
       />
     );
   };
-  const scenarioManagerPendingIds = contract === null
-    ? []
-    : scenarios.flatMap(({ scenarioId }) =>
-      contract.graphCatalog.some(
-          (graph) =>
-            graph.renderer === "structural-return"
-            && pendingAnalysisKeys.includes(
-              workbenchAnalysisHistoryKeyV3(scenarioId, graph.analysisId),
-            ),
-        )
-        ? [scenarioId]
-        : []);
-  const renderScenarioManagerV3 = (
-    variant: "embedded" | "embedded-mobile",
-  ) => contract === null ? null : (
-    <WorkbenchScenarioManagerV3
-      variant={variant}
-      modelId={contract.modelId}
-      scenarios={scenarios}
-      activeScenarioId={activeScenarioId}
-      pendingScenarioIds={scenarioManagerPendingIds}
-      visibleScenarioIds={visibleScenarioIds}
-      scenarioBaseColors={surface?.scenarioColorSeeds ?? []}
-      presets={scenarioPresets}
-      actionDisabledReasons={
-        scenarioOperation === null
-          ? undefined
-          : {
-              add: t("workbench.editor.scenarioManager.busy"),
-              delete: t("workbench.editor.scenarioManager.busy"),
-              duplicate: t("workbench.editor.scenarioManager.busy"),
-              rename: t("workbench.editor.scenarioManager.busy"),
-            }
-      }
-      onSelectScenario={selectScenarioV3}
-      onToggleScenarioVisibility={toggleScenarioVisibilityV3}
-      onChangeScenarioBaseColor={(scenarioId, colorHex) => {
-        updateSurface((current) =>
-          updateWorkbenchScenarioBaseColorV3(current, scenarioId, colorHex),
+  const scenarioManagerPendingIds =
+    contract === null
+      ? []
+      : scenarios.flatMap(({ scenarioId }) =>
+          contract.graphCatalog.some(
+            (graph) =>
+              graph.renderer === "structural-return" &&
+              pendingAnalysisKeys.includes(
+                workbenchAnalysisHistoryKeyV3(scenarioId, graph.analysisId),
+              ),
+          )
+            ? [scenarioId]
+            : [],
         );
-      }}
-      onAddFromPreset={addScenarioFromPresetV3}
-      onDuplicateScenario={duplicateScenarioV3}
-      onRenameScenario={renameScenarioV3}
-      onDeleteScenario={deleteScenarioV3}
-      strings={{
-        addFromPreset: t("workbench.editor.scenarioManager.addFromPreset"),
-        analysisRunning: t("workbench.live.analysisRecalculating"),
-        baseColor: t("workbench.editor.scenarioManager.baseColor"),
-        close: t("workbench.editor.scenarioManager.close"),
-        copySuffix: t("workbench.editor.scenarioManager.copySuffix"),
-        delete: t("workbench.editor.scenarioManager.delete"),
-        deleteLastScenario: t(
-          "workbench.editor.scenarioManager.deleteLastScenario",
-        ),
-        duplicate: t("workbench.editor.scenarioManager.duplicate"),
-        emptyScenarios: t("workbench.editor.scenarioManager.emptyScenarios"),
-        hideScenario: t("workbench.editor.scenarioManager.hideScenario"),
-        incompatiblePreset: t(
-          "workbench.editor.scenarioManager.incompatiblePreset",
-        ),
-        noPresets: t("workbench.editor.scenarioManager.noPresets"),
-        rename: t("workbench.editor.scenarioManager.rename"),
-        scenarioLimitReached: t(
-          "workbench.editor.scenarioManager.scenarioLimitReached",
-        ),
-        scenarioMenu: t("workbench.editor.scenarioManager.scenarioMenu"),
-        scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
-        scenarios: t("workbench.editor.scenarioManager.scenarios"),
-        showScenario: t("workbench.editor.scenarioManager.showScenario"),
-        title: t("workbench.editor.scenarioManager.title"),
-      }}
-    />
-  );
-  const scenarioErrorNotice = scenarioError === null ? null : (
-    <p
-      className="mx-2 mt-2 shrink-0 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger"
-      role="alert"
-    >
-      {scenarioError}
-    </p>
-  );
+  const renderScenarioManagerV3 = (variant: "embedded" | "embedded-mobile") =>
+    contract === null ? null : (
+      <WorkbenchScenarioManagerV3
+        variant={variant}
+        modelId={contract.modelId}
+        scenarios={scenarios}
+        activeScenarioId={activeScenarioId}
+        pendingScenarioIds={scenarioManagerPendingIds}
+        visibleScenarioIds={visibleScenarioIds}
+        scenarioBaseColors={surface?.scenarioColorSeeds ?? []}
+        presets={scenarioPresets}
+        actionDisabledReasons={
+          scenarioOperation === null
+            ? undefined
+            : {
+                add: t("workbench.editor.scenarioManager.busy"),
+                delete: t("workbench.editor.scenarioManager.busy"),
+                duplicate: t("workbench.editor.scenarioManager.busy"),
+                rename: t("workbench.editor.scenarioManager.busy"),
+              }
+        }
+        onSelectScenario={selectScenarioV3}
+        onToggleScenarioVisibility={toggleScenarioVisibilityV3}
+        onChangeScenarioBaseColor={(scenarioId, colorHex) => {
+          updateSurface((current) =>
+            updateWorkbenchScenarioBaseColorV3(current, scenarioId, colorHex),
+          );
+        }}
+        onAddFromPreset={addScenarioFromPresetV3}
+        onDuplicateScenario={duplicateScenarioV3}
+        onRenameScenario={renameScenarioV3}
+        onDeleteScenario={deleteScenarioV3}
+        strings={{
+          addFromPreset: t("workbench.editor.scenarioManager.addFromPreset"),
+          analysisRunning: t("workbench.live.analysisRecalculating"),
+          baseColor: t("workbench.editor.scenarioManager.baseColor"),
+          close: t("workbench.editor.scenarioManager.close"),
+          copySuffix: t("workbench.editor.scenarioManager.copySuffix"),
+          delete: t("workbench.editor.scenarioManager.delete"),
+          deleteLastScenario: t(
+            "workbench.editor.scenarioManager.deleteLastScenario",
+          ),
+          duplicate: t("workbench.editor.scenarioManager.duplicate"),
+          emptyScenarios: t("workbench.editor.scenarioManager.emptyScenarios"),
+          hideScenario: t("workbench.editor.scenarioManager.hideScenario"),
+          incompatiblePreset: t(
+            "workbench.editor.scenarioManager.incompatiblePreset",
+          ),
+          noPresets: t("workbench.editor.scenarioManager.noPresets"),
+          rename: t("workbench.editor.scenarioManager.rename"),
+          scenarioLimitReached: t(
+            "workbench.editor.scenarioManager.scenarioLimitReached",
+          ),
+          scenarioMenu: t("workbench.editor.scenarioManager.scenarioMenu"),
+          scenarioName: t("workbench.editor.scenarioManager.scenarioName"),
+          scenarios: t("workbench.editor.scenarioManager.scenarios"),
+          showScenario: t("workbench.editor.scenarioManager.showScenario"),
+          title: t("workbench.editor.scenarioManager.title"),
+        }}
+      />
+    );
+  const scenarioErrorNotice =
+    scenarioError === null ? null : (
+      <p
+        className="mx-2 mt-2 shrink-0 rounded-lg bg-wb-danger-soft p-2 text-[10px] text-wb-danger"
+        role="alert"
+      >
+        {scenarioError}
+      </p>
+    );
 
   return (
     <div
@@ -2726,30 +2784,36 @@ const WorkbenchV3Session = ({
       <header className="workbench-app-header flex min-h-12 shrink-0 items-center gap-2 px-2.5 py-1.5 sm:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           <Link
-            to={modelLab
-              ? devDashboardHref(resolvedLocale)
-              : articleAuthoringContext !== null
-              ? articleEditorHref({
-                  articleId: articleAuthoringContext.articleId,
-                  locale: resolvedLocale,
-                })
-              : experimentSessionContext?.returnHref
-                ?? homeHref(
-                  locale === "ja" || locale === "en" ? locale : undefined,
-                )}
+            to={
+              modelLab
+                ? devDashboardHref(resolvedLocale)
+                : articleAuthoringContext !== null
+                  ? articleEditorHref({
+                      articleId: articleAuthoringContext.articleId,
+                      locale: resolvedLocale,
+                    })
+                  : (experimentSessionContext?.returnHref ??
+                    homeHref(
+                      locale === "ja" || locale === "en" ? locale : undefined,
+                    ))
+            }
             className="workbench-header-action inline-flex h-9 w-9 shrink-0 items-center justify-center"
             aria-label={t(
               modelLab
                 ? "devDashboard.returnFromModelLab"
-                : articleAuthoringContext === null && experimentSessionContext === null
-                ? "workbench.editor.home"
-                : "workbench.editor.returnToArticle",
+                : articleAuthoringContext === null &&
+                    experimentSessionContext === null
+                  ? "workbench.editor.home"
+                  : "workbench.editor.returnToArticle",
             )}
           >
-            {modelLab
-              || (articleAuthoringContext === null && experimentSessionContext === null)
-              ? <Home className="h-4 w-4" aria-hidden="true" />
-              : <ArrowLeft className="h-4 w-4" aria-hidden="true" />}
+            {modelLab ||
+            (articleAuthoringContext === null &&
+              experimentSessionContext === null) ? (
+              <Home className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            )}
           </Link>
           <input
             type="text"
@@ -2761,8 +2825,8 @@ const WorkbenchV3Session = ({
             style={{ caretColor: "var(--wb-accent)" }}
             onChange={(event) => {
               const nextTitle = event.currentTarget.value;
-              const fallback = experimentRecord?.title
-                ?? t("workbench.selector.untitled");
+              const fallback =
+                experimentRecord?.title ?? t("workbench.selector.untitled");
               experimentTitleRef.current = nextTitle;
               setExperimentTitle(nextTitle);
               setHasUncommittedTitleChanges(
@@ -2777,11 +2841,10 @@ const WorkbenchV3Session = ({
               } else if (event.key === "Escape") {
                 event.preventDefault();
                 setExperimentTitle(
-                  experimentRecord?.title
-                    ?? t("workbench.selector.untitled"),
+                  experimentRecord?.title ?? t("workbench.selector.untitled"),
                 );
-                experimentTitleRef.current = experimentRecord?.title
-                  ?? t("workbench.selector.untitled");
+                experimentTitleRef.current =
+                  experimentRecord?.title ?? t("workbench.selector.untitled");
                 setHasUncommittedTitleChanges(false);
                 event.currentTarget.blur();
               }
@@ -2801,9 +2864,11 @@ const WorkbenchV3Session = ({
           {contract !== null && (
             <WorkbenchSimulationInfoV3
               currentModelId={contract.modelId}
-              limitations={t("modelLimitations.items", {
-                returnObjects: true,
-              }) as string[]}
+              limitations={
+                t("modelLimitations.items", {
+                  returnObjects: true,
+                }) as string[]
+              }
               note={{
                 value: surface?.note.text ?? "",
                 placeholder: t("workbench.editor.notePlaceholder"),
@@ -2813,18 +2878,20 @@ const WorkbenchV3Session = ({
                     note: { text },
                   })),
               }}
-              models={[{
-                contract,
-                publicName: t(
-                  "workbench.editor.simulationInfo.integratedModelName",
-                ),
-                shortLabel: t(
-                  "workbench.editor.simulationInfo.integratedModelVersion",
-                ),
-                description: t(
-                  "workbench.editor.simulationInfo.integratedModelDescription",
-                ),
-              }]}
+              models={[
+                {
+                  contract,
+                  publicName: t(
+                    "workbench.editor.simulationInfo.integratedModelName",
+                  ),
+                  shortLabel: t(
+                    "workbench.editor.simulationInfo.integratedModelVersion",
+                  ),
+                  description: t(
+                    "workbench.editor.simulationInfo.integratedModelDescription",
+                  ),
+                },
+              ]}
               scenarios={simulationInfoScenarios}
             />
           )}
@@ -2879,60 +2946,64 @@ const WorkbenchV3Session = ({
               </span>
             </button>
           )}
-          {durableContentAvailable && <button
-            type="button"
-            className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
-            disabled={status.kind !== "live" || runtimeOperationPending}
-            onClick={() => void saveExperimentV3()}
-            title={saveError ?? undefined}
-            data-testid="v3-save-experiment"
-          >
-            {saveState === "clean" ? (
-              <Check
-                className="h-3.5 w-3.5 text-emerald-500"
-                aria-hidden="true"
-              />
-            ) : (
-              <Save className="h-3.5 w-3.5" aria-hidden="true" />
-            )}
-            <span className="hidden sm:inline">
-              {saveState === "saving"
-                ? t("workbench.editor.saving")
-                : saveState === "clean"
-                  ? t("workbench.editor.saved")
-                  : t("workbench.editor.save")}
-            </span>
-          </button>}
-          {publicationAvailable && <button
-            type="button"
-            className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
-            disabled={
-              status.kind !== "live"
-              || runtimeOperationPending
-              || experiment === null
-              || saveState !== "clean"
-            }
-            onClick={() => void createSnapshotV3({ kind: "publication" })}
-            title={t(
-              status.kind !== "live"
-                ? "workbench.editor.snapshotNotReady"
-                : runtimeOperationPending
-                  ? "workbench.editor.snapshotBusy"
-                  : experiment === null
-                    ? "workbench.editor.publishRequiresSave"
-                    : saveState !== "clean"
-                      ? "workbench.editor.publishRequiresClean"
-                      : "workbench.editor.publishDescription",
-            )}
-            data-testid="v3-publish-experiment"
-          >
-            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="hidden md:inline">
-              {snapshotState === "creating"
-                ? t("workbench.editor.publishing")
-                : t("workbench.editor.publish")}
-            </span>
-          </button>}
+          {durableContentAvailable && (
+            <button
+              type="button"
+              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-wait disabled:opacity-40"
+              disabled={status.kind !== "live" || runtimeOperationPending}
+              onClick={() => void saveExperimentV3()}
+              title={saveError ?? undefined}
+              data-testid="v3-save-experiment"
+            >
+              {saveState === "clean" ? (
+                <Check
+                  className="h-3.5 w-3.5 text-emerald-500"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Save className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">
+                {saveState === "saving"
+                  ? t("workbench.editor.saving")
+                  : saveState === "clean"
+                    ? t("workbench.editor.saved")
+                    : t("workbench.editor.save")}
+              </span>
+            </button>
+          )}
+          {publicationAvailable && (
+            <button
+              type="button"
+              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5 disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={
+                status.kind !== "live" ||
+                runtimeOperationPending ||
+                experiment === null ||
+                saveState !== "clean"
+              }
+              onClick={() => void createSnapshotV3({ kind: "publication" })}
+              title={t(
+                status.kind !== "live"
+                  ? "workbench.editor.snapshotNotReady"
+                  : runtimeOperationPending
+                    ? "workbench.editor.snapshotBusy"
+                    : experiment === null
+                      ? "workbench.editor.publishRequiresSave"
+                      : saveState !== "clean"
+                        ? "workbench.editor.publishRequiresClean"
+                        : "workbench.editor.publishDescription",
+              )}
+              data-testid="v3-publish-experiment"
+            >
+              <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden md:inline">
+                {snapshotState === "creating"
+                  ? t("workbench.editor.publishing")
+                  : t("workbench.editor.publish")}
+              </span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -2965,7 +3036,8 @@ const WorkbenchV3Session = ({
           <span className="min-w-0 flex-1 break-words">
             {t("workbench.editor.snapshotError")}: {snapshotError}
           </span>
-          {snapshotError === t("workbench.editor.publishRequiresLinkedAccount") && (
+          {snapshotError ===
+            t("workbench.editor.publishRequiresLinkedAccount") && (
             <Link
               to={loginHref(resolvedLocale)}
               className="shrink-0 font-semibold text-wb-accent hover:underline"
@@ -3058,11 +3130,11 @@ const WorkbenchV3Session = ({
               scenarioError={scenarioErrorNotice}
               renderGraphPane={renderGraphPaneV3}
               renderOutputPane={(pane) => renderOutputPaneV3(pane, "section")}
-              renderControlPane={(pane) =>
-                renderControlPaneV3(pane, "section")}
+              renderControlPane={(pane) => renderControlPaneV3(pane, "section")}
               onOpenPaneSettings={openPaneSettings}
               onAddGraphPane={(optionId) =>
-                addPaneToRoleArea("graph", optionId)}
+                addPaneToRoleArea("graph", optionId)
+              }
               onAddOutputPane={() => addPaneToRoleArea("output")}
               onAddControlPane={() => addPaneToRoleArea("control")}
             />
@@ -3082,7 +3154,8 @@ const WorkbenchV3Session = ({
                 onDeletePane={deletePaneV3}
                 onSplitPane={splitPaneV3}
                 onAddPane={(graphOptionId) =>
-                  addPaneToRoleArea("graph", graphOptionId)}
+                  addPaneToRoleArea("graph", graphOptionId)
+                }
                 addPaneOptions={graphAddOptions}
                 addPaneLabel={t("workbench.editor.addPane")}
                 renamePaneLabel={t("workbench.editor.renamePane")}
@@ -3102,9 +3175,11 @@ const WorkbenchV3Session = ({
                 onRenamePane={renamePaneV3}
                 onDeletePane={deletePaneV3}
                 onSplitPane={splitPaneV3}
-                onComparePane={scenarios.length > 1
-                  ? compareOutputPaneByScenarioV3
-                  : undefined}
+                onComparePane={
+                  scenarios.length > 1
+                    ? compareOutputPaneByScenarioV3
+                    : undefined
+                }
                 onAddPane={() => addPaneToRoleArea("output")}
                 addPaneLabel={t("workbench.editor.addPane")}
                 renamePaneLabel={t("workbench.editor.renamePane")}
@@ -3148,11 +3223,21 @@ const WorkbenchV3Session = ({
 
       {contract !== null && surface !== null && paneSettings !== null && (
         <WorkbenchPaneEditorV3
-          key={`${paneSettings.kind}:${paneSettings.paneId}`}
+          key={`${paneSettings.kind}:${paneSettings.paneId}:${
+            paneSettings.kind === "graph"
+              ? "general"
+              : `${paneSettings.section ?? "general"}:${
+                  paneSettings.itemIntent ?? "none"
+                }`
+          }`}
           open
-          initialSection={paneSettings.kind !== "graph"
-            ? paneSettings.section
-            : undefined}
+          initialItemIntent={
+            paneSettings.kind !== "graph" ? paneSettings.itemIntent : undefined
+          }
+          initialSection={
+            paneSettings.kind !== "graph" ? paneSettings.section : undefined
+          }
+          locale={resolvedLocale}
           selectedPane={paneSettings}
           contract={contract}
           surface={surface}
@@ -3167,21 +3252,14 @@ const WorkbenchV3Session = ({
             availableItems: t("workbench.editor.availableItems"),
             cancel: t("workbench.editor.cancel"),
             activeSlotBinding: t("workbench.editor.activeSlotBinding"),
-            activeSlotBindingHint: t(
-              "workbench.editor.activeSlotBindingHint",
-            ),
+            activeSlotBindingHint: t("workbench.editor.activeSlotBindingHint"),
             outputActiveSlotBindingHint: t(
               "workbench.editor.outputActiveSlotBindingHint",
             ),
             bindingSection: t("workbench.editor.bindingSection"),
             close: t("workbench.editor.close"),
             chooseItem: t("workbench.editor.chooseItem"),
-            controlPresentation: t(
-              "workbench.editor.controlPresentation",
-            ),
-            controlPresentationHint: t(
-              "workbench.editor.controlPresentationHint",
-            ),
+            controlPresentation: t("workbench.editor.controlPresentation"),
             sliderPresentation: t("workbench.editor.sliderPresentation"),
             buttonsPresentation: t("workbench.editor.buttonsPresentation"),
             buttonLabel: t("workbench.editor.buttonLabel"),
@@ -3199,11 +3277,12 @@ const WorkbenchV3Session = ({
               mechanicalSupport: t(
                 "workbench.editor.catalogCategories.mechanicalSupport",
               ),
+              myocardium: t("workbench.editor.catalogCategories.myocardium"),
+              oxygen: t("workbench.editor.catalogCategories.oxygen"),
+              pericardium: t("workbench.editor.catalogCategories.pericardium"),
               rhythm: t("workbench.editor.catalogCategories.rhythm"),
               valves: t("workbench.editor.catalogCategories.valves"),
-              ventilation: t(
-                "workbench.editor.catalogCategories.ventilation",
-              ),
+              ventilation: t("workbench.editor.catalogCategories.ventilation"),
             },
             catalogDrawerTitle: t("workbench.editor.catalogDrawerTitle"),
             closeDrawer: t("workbench.editor.closeDrawer"),
@@ -3226,13 +3305,12 @@ const WorkbenchV3Session = ({
             outputFixedBindingHint: t(
               "workbench.editor.outputFixedBindingHint",
             ),
-            fixedScenarioBinding: t(
-              "workbench.editor.fixedScenarioBinding",
-            ),
+            fixedScenarioBinding: t("workbench.editor.fixedScenarioBinding"),
             label: t("workbench.editor.label"),
             itemsSection: t("workbench.editor.items"),
             moveDown: t("workbench.editor.moveDown"),
             moveUp: t("workbench.editor.moveUp"),
+            manageItems: t("workbench.editor.manageItems"),
             noCatalogMatches: t("workbench.editor.noCatalogMatches"),
             noConfigurableSeries: t("workbench.editor.noConfigurableSeries"),
             outputCatalog: t("workbench.live.registeredOutputs"),
@@ -3245,14 +3323,10 @@ const WorkbenchV3Session = ({
             scenarioColors: t("workbench.editor.scenarioColors"),
             scenarioColorsHint: t("workbench.editor.scenarioColorsHint"),
             scenarioScope: t("workbench.editor.scenarioScope"),
-            visibleScenarioScope: t(
-              "workbench.editor.visibleScenarioScope",
-            ),
+            visibleScenarioScope: t("workbench.editor.visibleScenarioScope"),
             fixedScenarioScope: t("workbench.editor.fixedScenarioScope"),
             traceVisibility: t("workbench.editor.traceVisibility"),
-            traceVisibilityHint: t(
-              "workbench.editor.traceVisibilityHint",
-            ),
+            traceVisibilityHint: t("workbench.editor.traceVisibilityHint"),
             resetColor: t("workbench.editor.resetColor"),
             removeItem: t("workbench.editor.removeItem"),
             preview: t("workbench.editor.preview"),
@@ -3283,9 +3357,10 @@ const WorkbenchV3Session = ({
               snapshot: briefingSnapshot,
             });
             if (
-              studioCanonicalJsonStringify(resolved)
-              === studioCanonicalJsonStringify(briefing)
-            ) return;
+              studioCanonicalJsonStringify(resolved) ===
+              studioCanonicalJsonStringify(briefing)
+            )
+              return;
             setHasUncapturedBriefingChanges(true);
             updateWorkbenchBriefingV3(resolved);
           }}
@@ -3293,8 +3368,7 @@ const WorkbenchV3Session = ({
             setBriefingOpen(false);
           }}
           snapshotAction={{
-            disabled:
-              status.kind !== "live" || runtimeOperationPending,
+            disabled: status.kind !== "live" || runtimeOperationPending,
             disabledReason:
               status.kind !== "live"
                 ? t("workbench.editor.snapshotNotReady")
@@ -3413,13 +3487,17 @@ export function workbenchBriefingSourceScenariosMatchV3(
   sourceSnapshot: ExperimentSnapshotV2,
   capturedScenarios: readonly ExperimentScenarioV2[],
 ): boolean {
-  return sourceSnapshot.content.scenarios.length === capturedScenarios.length
-    && sourceSnapshot.content.scenarios.every((source, index) => {
+  return (
+    sourceSnapshot.content.scenarios.length === capturedScenarios.length &&
+    sourceSnapshot.content.scenarios.every((source, index) => {
       const captured = capturedScenarios[index];
-      return captured !== undefined
-        && source.scenarioId === captured.scenarioId
-        && source.label === captured.label;
-    });
+      return (
+        captured !== undefined &&
+        source.scenarioId === captured.scenarioId &&
+        source.label === captured.label
+      );
+    })
+  );
 }
 
 /**
@@ -3520,7 +3598,8 @@ export function reconcileWorkbenchBriefingV3(
   const availableOutputKeys = new Set(
     input.snapshot.content.surface.outputPanes.flatMap((pane) =>
       pane.items.map(({ outputId }) =>
-        workbenchBriefingOutputKeyV3(pane.paneId, outputId)),
+        workbenchBriefingOutputKeyV3(pane.paneId, outputId),
+      ),
     ),
   );
   const seenOutputKeys = new Set<string>();
@@ -3543,7 +3622,8 @@ export function reconcileWorkbenchBriefingV3(
   const availableControlKeys = new Set(
     input.snapshot.content.surface.controlPanes.flatMap((pane) =>
       pane.items.map(({ controlId }) =>
-        workbenchBriefingControlKeyV3(pane.paneId, controlId)),
+        workbenchBriefingControlKeyV3(pane.paneId, controlId),
+      ),
     ),
   );
   const seenControlKeys = new Set<string>();
@@ -3551,10 +3631,7 @@ export function reconcileWorkbenchBriefingV3(
     .sort(compareBriefingOrderV3)
     .filter(({ sourcePaneId, controlId }) => {
       const key = workbenchBriefingControlKeyV3(sourcePaneId, controlId);
-      if (
-        !availableControlKeys.has(key) ||
-        seenControlKeys.has(key)
-      ) {
+      if (!availableControlKeys.has(key) || seenControlKeys.has(key)) {
         return false;
       }
       seenControlKeys.add(key);
@@ -3608,12 +3685,14 @@ export function resolveWorkbenchBriefingEditorChangeV3(
     : input.next.scenarioScope.initialFocusScenarioId;
   const existingControlKeys = new Set(
     input.current.controls.map(({ sourcePaneId, controlId }) =>
-      workbenchBriefingControlKeyV3(sourcePaneId, controlId)),
-  );
-  const hasNewControl = input.next.controls.some(
-    ({ sourcePaneId, controlId }) => !existingControlKeys.has(
       workbenchBriefingControlKeyV3(sourcePaneId, controlId),
     ),
+  );
+  const hasNewControl = input.next.controls.some(
+    ({ sourcePaneId, controlId }) =>
+      !existingControlKeys.has(
+        workbenchBriefingControlKeyV3(sourcePaneId, controlId),
+      ),
   );
   const visibleScenarioIds = hasNewControl
     ? availableScenarioIds.filter(
@@ -3628,26 +3707,28 @@ export function resolveWorkbenchBriefingEditorChangeV3(
       ...input.next.scenarioScope,
       visibleScenarioIds: Object.freeze(visibleScenarioIds),
     }),
-    controls: Object.freeze(input.next.controls.map((control) => {
-      const key = workbenchBriefingControlKeyV3(
-        control.sourcePaneId,
-        control.controlId,
-      );
-      if (existingControlKeys.has(key)) return control;
-      const sourcePane = input.snapshot.content.surface.controlPanes.find(
-        ({ paneId }) => paneId === control.sourcePaneId,
-      );
-      return sourcePane === undefined
-        ? control
-        : Object.freeze({
-            ...control,
-            binding: materializeSurfaceControlPaneBindingV3(
-              sourcePane.binding,
-              activeScenarioId,
-              availableScenarioIds,
-            ),
-          });
-    })),
+    controls: Object.freeze(
+      input.next.controls.map((control) => {
+        const key = workbenchBriefingControlKeyV3(
+          control.sourcePaneId,
+          control.controlId,
+        );
+        if (existingControlKeys.has(key)) return control;
+        const sourcePane = input.snapshot.content.surface.controlPanes.find(
+          ({ paneId }) => paneId === control.sourcePaneId,
+        );
+        return sourcePane === undefined
+          ? control
+          : Object.freeze({
+              ...control,
+              binding: materializeSurfaceControlPaneBindingV3(
+                sourcePane.binding,
+                activeScenarioId,
+                availableScenarioIds,
+              ),
+            });
+      }),
+    ),
   });
   return reconcileWorkbenchBriefingV3({
     briefing: candidate,
@@ -3693,11 +3774,12 @@ function reconcileWorkbenchGraphOverridesV3(
     (retainSeries ? series : pane.series)?.map(({ seriesId }) => seriesId),
   );
   const visibleScenarioSet = new Set(visibleScenarioIds);
-  const traceColors = overrides.traceColors?.filter((trace) =>
-    visibleScenarioSet.has(trace.scenarioId)
-    && (trace.seriesId === null
-      ? pane.series.length === 0
-      : selectedSeriesIds.has(trace.seriesId)),
+  const traceColors = overrides.traceColors?.filter(
+    (trace) =>
+      visibleScenarioSet.has(trace.scenarioId) &&
+      (trace.seriesId === null
+        ? pane.series.length === 0
+        : selectedSeriesIds.has(trace.seriesId)),
   );
   const next: ExperimentPlacementBriefingGraphOverridesV2 = Object.freeze({
     ...(overrides.label === undefined ? {} : { label: overrides.label }),
@@ -3705,8 +3787,11 @@ function reconcileWorkbenchGraphOverridesV3(
     ...(retainSeries ? { series: Object.freeze(series) } : {}),
     ...(traceColors === undefined
       ? {}
-      : { traceColors: Object.freeze(traceColors.map((trace) =>
-          Object.freeze({ ...trace }))) }),
+      : {
+          traceColors: Object.freeze(
+            traceColors.map((trace) => Object.freeze({ ...trace })),
+          ),
+        }),
     ...(overrides.windowSec === undefined || pane.windowSec === undefined
       ? {}
       : { windowSec: overrides.windowSec }),
@@ -3875,7 +3960,8 @@ function GraphPaneBodyV3({
         if (
           !scopedVisibleScenarioIds.includes(scenario.scenarioId) ||
           isWorkbenchGraphTraceExcludedV3(pane, scenario.scenarioId, null)
-        ) return [];
+        )
+          return [];
         const key = workbenchAnalysisHistoryKeyV3(
           scenario.scenarioId,
           graph.analysisId,
@@ -3993,9 +4079,10 @@ function SampledGraphPaneBodyV3({
     sampleStore,
     graph.renderer,
   );
-  const samplesByScenarioId = graphPresentation.renderer === "sweep"
-    ? graphPresentation.samplesByScenarioId
-    : EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3;
+  const samplesByScenarioId =
+    graphPresentation.renderer === "sweep"
+      ? graphPresentation.samplesByScenarioId
+      : EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3;
   const exactOrbitSamplesByScenarioId =
     graphPresentation.renderer === "pressure-volume"
       ? graphPresentation.exactOrbitSamplesByScenarioId
@@ -4005,9 +4092,10 @@ function SampledGraphPaneBodyV3({
       ? graphPresentation.orbitHistoryByScenarioId
       : EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3;
   const displayedSeries = React.useMemo(
-    () => Object.freeze([...pane.series].sort(
-      (left, right) => left.order - right.order,
-    )),
+    () =>
+      Object.freeze(
+        [...pane.series].sort((left, right) => left.order - right.order),
+      ),
     [pane.series],
   );
   const authoredScenarioCount = scenarios.length;
@@ -4017,27 +4105,32 @@ function SampledGraphPaneBodyV3({
     pane.pressureVolumeAnalysisMode === "formal-periodic"
       ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
       : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID;
-  const rapidRelationScenarioIds = graph.renderer === "pressure-volume"
-    && displayedSeries.some(({ seriesId }) =>
-      seriesId === "LV" || seriesId === "RV")
-    ? scenarios
-        .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
-        .map(({ scenarioId }) => scenarioId)
-    : [];
+  const rapidRelationScenarioIds =
+    graph.renderer === "pressure-volume" &&
+    displayedSeries.some(
+      ({ seriesId }) => seriesId === "LV" || seriesId === "RV",
+    )
+      ? scenarios
+          .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
+          .map(({ scenarioId }) => scenarioId)
+      : [];
   const missingRapidRelationScenarioIds = rapidRelationScenarioIds.filter(
     (scenarioId) => {
       const key = workbenchAnalysisHistoryKeyV3(
         scenarioId,
         pressureVolumeAnalysisId,
       );
-      return analysisByKey[key] === undefined
-        && analysisErrorByKey[key] === undefined
-        && !pendingAnalysisSet.has(key);
+      return (
+        analysisByKey[key] === undefined &&
+        analysisErrorByKey[key] === undefined &&
+        !pendingAnalysisSet.has(key)
+      );
     },
   );
-  const rapidRelationRequestKey = JSON.stringify(
-    [pressureVolumeAnalysisId, ...missingRapidRelationScenarioIds],
-  );
+  const rapidRelationRequestKey = JSON.stringify([
+    pressureVolumeAnalysisId,
+    ...missingRapidRelationScenarioIds,
+  ]);
   const lastRapidRelationRequestKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     if (missingRapidRelationScenarioIds.length === 0) {
@@ -4045,15 +4138,18 @@ function SampledGraphPaneBodyV3({
       return;
     }
     if (
-      graph.renderer !== "pressure-volume"
-      || (frame?.acceptedRevision ?? 0) <= 0
-      || operationPending
-      || lastRapidRelationRequestKeyRef.current === rapidRelationRequestKey
-    ) return;
-    if (onRequestAnalysis(
-      pressureVolumeAnalysisId,
-      missingRapidRelationScenarioIds,
-    )) {
+      graph.renderer !== "pressure-volume" ||
+      (frame?.acceptedRevision ?? 0) <= 0 ||
+      operationPending ||
+      lastRapidRelationRequestKeyRef.current === rapidRelationRequestKey
+    )
+      return;
+    if (
+      onRequestAnalysis(
+        pressureVolumeAnalysisId,
+        missingRapidRelationScenarioIds,
+      )
+    ) {
       lastRapidRelationRequestKeyRef.current = rapidRelationRequestKey;
     }
   }, [
@@ -4079,36 +4175,41 @@ function SampledGraphPaneBodyV3({
           exactOrbitSamplesByScenarioId[scenario.scenarioId] ?? [];
         if (samples.length === 0) return [];
         return selectedBindings.flatMap(({ binding, series }) => {
-          if (isWorkbenchGraphTraceExcludedV3(
-            pane,
-            scenario.scenarioId,
-            series.seriesId,
-          )) return [];
+          if (
+            isWorkbenchGraphTraceExcludedV3(
+              pane,
+              scenario.scenarioId,
+              series.seriesId,
+            )
+          )
+            return [];
           const analysisKey = workbenchAnalysisHistoryKeyV3(
             scenario.scenarioId,
             pressureVolumeAnalysisId,
           );
           const relationSide = pressureVolumeRelationSideV3(binding.seriesId);
-          const rapidPressureVolumeRelation = relationSide === null
-            ? undefined
-            : rapidPressureVolumeRelationFromAnalysisV3(
-                analysisByKey[analysisKey],
-                relationSide,
-              );
-          const rapidPressureVolumeRelationHistory = relationSide === null
-            ? Object.freeze([])
-            : Object.freeze(
-                workbenchBoundedGraphHistoryV3(
-                  analysisHistoryByKey[analysisKey] ?? [],
-                  pane.historyDepth ?? 1,
-                ).flatMap((analysis) => {
-                  const relation = rapidPressureVolumeRelationFromAnalysisV3(
-                    analysis,
-                    relationSide,
-                  );
-                  return relation === undefined ? [] : [relation];
-                }),
-              );
+          const rapidPressureVolumeRelation =
+            relationSide === null
+              ? undefined
+              : rapidPressureVolumeRelationFromAnalysisV3(
+                  analysisByKey[analysisKey],
+                  relationSide,
+                );
+          const rapidPressureVolumeRelationHistory =
+            relationSide === null
+              ? Object.freeze([])
+              : Object.freeze(
+                  workbenchBoundedGraphHistoryV3(
+                    analysisHistoryByKey[analysisKey] ?? [],
+                    pane.historyDepth ?? 1,
+                  ).flatMap((analysis) => {
+                    const relation = rapidPressureVolumeRelationFromAnalysisV3(
+                      analysis,
+                      relationSide,
+                    );
+                    return relation === undefined ? [] : [relation];
+                  }),
+                );
           const style = resolveWorkbenchGraphTraceStyleV3({
             pane,
             surface,
@@ -4122,30 +4223,32 @@ function SampledGraphPaneBodyV3({
             ),
             appTheme,
           });
-          return [{
-            scenarioId: scenario.scenarioId,
-            scenarioLabel: scenario.label,
-            scenarioStatus: workbenchScenarioRuntimeStatusV3(playbackRunning),
-            scenarioStyleIndex,
-            samples,
-            historySampleSets: workbenchBoundedGraphHistoryV3(
-              orbitHistoryByScenarioId[scenario.scenarioId] ?? [],
-              pane.historyDepth ?? 1,
-            ).map((entry) => entry.samples),
-            volumeOutputId: binding.volumeOutputId,
-            pressureOutputId: binding.pressureOutputId,
-            pressureBasis: binding.pressureBasis,
-            cyclePhaseOutputId: binding.cyclePhaseOutputId,
-            chamberId: binding.seriesId,
-            chamberLabel: series.label,
-            chamberColor: style.color,
-            ...(rapidPressureVolumeRelation === undefined
-              ? {}
-              : { rapidPressureVolumeRelation }),
-            rapidPressureVolumeRelationHistory,
-            rapidPressureVolumeRelationPending:
-              pendingAnalysisSet.has(analysisKey),
-          }];
+          return [
+            {
+              scenarioId: scenario.scenarioId,
+              scenarioLabel: scenario.label,
+              scenarioStatus: workbenchScenarioRuntimeStatusV3(playbackRunning),
+              scenarioStyleIndex,
+              samples,
+              historySampleSets: workbenchBoundedGraphHistoryV3(
+                orbitHistoryByScenarioId[scenario.scenarioId] ?? [],
+                pane.historyDepth ?? 1,
+              ).map((entry) => entry.samples),
+              volumeOutputId: binding.volumeOutputId,
+              pressureOutputId: binding.pressureOutputId,
+              pressureBasis: binding.pressureBasis,
+              cyclePhaseOutputId: binding.cyclePhaseOutputId,
+              chamberId: binding.seriesId,
+              chamberLabel: series.label,
+              chamberColor: style.color,
+              ...(rapidPressureVolumeRelation === undefined
+                ? {}
+                : { rapidPressureVolumeRelation }),
+              rapidPressureVolumeRelationHistory,
+              rapidPressureVolumeRelationPending:
+                pendingAnalysisSet.has(analysisKey),
+            },
+          ];
         });
       });
     const traces = tracesForBindings(bindings);
@@ -4155,9 +4258,7 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
-          analysisMode={
-            pane.pressureVolumeAnalysisMode ?? "responsive-preview"
-          }
+          analysisMode={pane.pressureVolumeAnalysisMode ?? "responsive-preview"}
           traces={traces}
         />
       </ExperimentGraphPresentationV3>
@@ -4194,11 +4295,14 @@ function SampledGraphPaneBodyV3({
       const samples = samplesByScenarioId[scenario.scenarioId] ?? [];
       if (samples.length === 0) return [];
       return bindings.flatMap(({ binding, series }) => {
-        if (isWorkbenchGraphTraceExcludedV3(
-          pane,
-          scenario.scenarioId,
-          series.seriesId,
-        )) return [];
+        if (
+          isWorkbenchGraphTraceExcludedV3(
+            pane,
+            scenario.scenarioId,
+            series.seriesId,
+          )
+        )
+          return [];
         const style = resolveWorkbenchGraphTraceStyleV3({
           pane,
           surface,
@@ -4212,19 +4316,19 @@ function SampledGraphPaneBodyV3({
           ),
           appTheme,
         });
-        return [{
-          scenarioId: scenario.scenarioId,
-          scenarioLabel: scenario.label,
-          scenarioStatus: workbenchScenarioRuntimeStatusV3(playbackRunning),
-          scenarioStyleIndex,
-          samples,
-          outputId: binding.outputId,
-          signalLabel: series.label,
-          signalColor: style.color,
-          ...(cyclePhaseOutputId === undefined
-            ? {}
-            : { cyclePhaseOutputId }),
-        }];
+        return [
+          {
+            scenarioId: scenario.scenarioId,
+            scenarioLabel: scenario.label,
+            scenarioStatus: workbenchScenarioRuntimeStatusV3(playbackRunning),
+            scenarioStyleIndex,
+            samples,
+            outputId: binding.outputId,
+            signalLabel: series.label,
+            signalColor: style.color,
+            ...(cyclePhaseOutputId === undefined ? {} : { cyclePhaseOutputId }),
+          },
+        ];
       });
     });
   const traces = tracesForScenarios(scenarios);
@@ -4257,7 +4361,10 @@ function pressureVolumeRelationSideV3(
 
 const RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3 = new WeakMap<
   StudioSimulationAnalysisV2,
-  Map<"left" | "right", MainWireIntegratedModelRapidPressureVolumeRelationV3 | null>
+  Map<
+    "left" | "right",
+    MainWireIntegratedModelRapidPressureVolumeRelationV3 | null
+  >
 >();
 
 function rapidPressureVolumeRelationFromAnalysisV3(
@@ -4265,9 +4372,8 @@ function rapidPressureVolumeRelationFromAnalysisV3(
   side: "left" | "right",
 ): MainWireIntegratedModelRapidPressureVolumeRelationV3 | undefined {
   if (analysis === undefined) return undefined;
-  const cached = RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3
-    .get(analysis)
-    ?.get(side);
+  const cached =
+    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis)?.get(side);
   if (cached !== undefined) return cached ?? undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(
     analysis.payload,
@@ -4284,8 +4390,8 @@ function rapidPressureVolumeRelationFromAnalysisV3(
   } catch {
     relation = null;
   }
-  const analysisCache = RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis)
-    ?? new Map();
+  const analysisCache =
+    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis) ?? new Map();
   analysisCache.set(side, relation);
   RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.set(analysis, analysisCache);
   return relation ?? undefined;
@@ -4496,8 +4602,9 @@ export function cloneWorkbenchScenarioAnalysesV3(
   sourceScenarioId: string,
   targetFrame: StudioSimulationFrameV2,
 ): Readonly<Record<string, StudioSimulationAnalysisV2>> {
-  const sourceAnalyses = Object.values(current).filter(({ scenarioId }) =>
-    scenarioId === sourceScenarioId);
+  const sourceAnalyses = Object.values(current).filter(
+    ({ scenarioId }) => scenarioId === sourceScenarioId,
+  );
   if (sourceAnalyses.length === 0) return current;
   const cloned = sourceAnalyses.map((analysis) => {
     const targetAnalysis = cloneWorkbenchAnalysisForScenarioV3(
@@ -4543,9 +4650,10 @@ export function invalidateWorkbenchScenarioAnalysisEquivalenceV3(
 ): void {
   for (const [targetScenarioId, sourceScenarioId] of sourceByTarget) {
     if (
-      changedScenarioIds.has(targetScenarioId)
-      || changedScenarioIds.has(sourceScenarioId)
-    ) sourceByTarget.delete(targetScenarioId);
+      changedScenarioIds.has(targetScenarioId) ||
+      changedScenarioIds.has(sourceScenarioId)
+    )
+      sourceByTarget.delete(targetScenarioId);
   }
 }
 
@@ -4583,8 +4691,9 @@ export function workbenchStructuralAnalysisCompleteV3(
 export function workbenchStructuralAnalysisRenderableV3(
   analysis: StudioSimulationAnalysisV2,
 ): boolean {
-  return (["right", "left"] as const).every((side) =>
-    structuralReturnOrientationFromPayloadV3(analysis.payload, side) !== null
+  return (["right", "left"] as const).every(
+    (side) =>
+      structuralReturnOrientationFromPayloadV3(analysis.payload, side) !== null,
   );
 }
 
@@ -4749,9 +4858,157 @@ function workbenchScenarioIdFromAnalysisKeyV3(key: string): string | null {
   }
 }
 
+function resolveWorkbenchPaneItemLabelV3(
+  input: Readonly<{
+    kind: "control" | "output";
+    itemId: string;
+    storedLabel: string | undefined;
+    locale: "en" | "ja";
+  }>,
+): string {
+  const legacyDefaultLabel =
+    input.kind === "output"
+      ? outputLabelV3(input.itemId)
+      : controlLabelV3(input.itemId);
+  const presentation = resolveStudioItemPresentationV1({
+    kind: input.kind,
+    itemId: input.itemId,
+    fallbackEnglishLabel: legacyDefaultLabel,
+    locale: input.locale,
+  });
+  return resolveStudioSurfaceItemLabelV1({
+    storedLabel: input.storedLabel,
+    legacyDefaultLabel,
+    presentation,
+  });
+}
+
+export function materializeWorkbenchOutputPresentationItemsV3(
+  input: Readonly<{
+    contract: ModelContractV2;
+    frame: StudioSimulationFrameV2 | null;
+    locale: "en" | "ja";
+    notAssessedNotice: string;
+    pane: ExperimentSurfaceOutputPaneV2;
+  }>,
+): readonly ExperimentOutputPresentationItemV3[] {
+  const outputById = new Map(
+    input.contract.outputCatalog.map((output) => [output.outputId, output]),
+  );
+  const sortedItems = [...input.pane.items].sort(
+    (left, right) => left.order - right.order,
+  );
+  const selectedById = new Map(
+    sortedItems.map((item) => [item.outputId, item]),
+  );
+  const consumedOutputIds = new Set<string>();
+  const result: ExperimentOutputPresentationItemV3[] = [];
+
+  for (const item of sortedItems) {
+    if (consumedOutputIds.has(item.outputId)) continue;
+    const summary = studioOutputPressureSummaryForOutputIdV1(item.outputId);
+    const summaryDefinitions = summary?.memberOutputIds.flatMap((outputId) => {
+      const definition = outputById.get(outputId);
+      return definition === undefined ? [] : [definition];
+    });
+    const hasCompleteSummarySelection = summary?.memberOutputIds.every(
+      (outputId) => selectedById.has(outputId),
+    ) ?? false;
+    if (
+      summary !== undefined &&
+      summaryDefinitions?.length === summary.memberOutputIds.length &&
+      hasCompleteSummarySelection
+    ) {
+      summary.memberOutputIds.forEach((outputId) =>
+        consumedOutputIds.add(outputId),
+      );
+      const selectedMembers = summary.memberOutputIds.flatMap((outputId) => {
+        const selectedItem = selectedById.get(outputId);
+        return selectedItem === undefined ? [] : [selectedItem];
+      });
+      const outputValues = summary.memberOutputIds.map(
+        (outputId) => input.frame?.outputs[outputId],
+      );
+      const maximum = scalarAvailableOutputV3(
+        input.frame?.outputs[summary.maximumOutputId],
+      );
+      const minimum = scalarAvailableOutputV3(
+        input.frame?.outputs[summary.minimumOutputId],
+      );
+      const mean = scalarAvailableOutputV3(
+        input.frame?.outputs[summary.meanOutputId],
+      );
+      const quality = outputValues.some(
+        (output) => output === undefined || output.quality === "not-assessed",
+      )
+        ? "not-assessed"
+        : outputValues.some((output) => output?.quality === "accepted-derived")
+          ? "accepted-derived"
+          : "authoritative-state";
+      const storedLabel = resolveStudioOutputPressureSummaryStoredLabelV1({
+        summary,
+        items: selectedMembers,
+        locale: input.locale,
+        fallbackEnglishLabel: outputLabelV3,
+      });
+      result.push({
+        itemId: summary.presentationId,
+        label: resolveWorkbenchPaneItemLabelV3({
+          kind: "output",
+          itemId: summary.presentationId,
+          storedLabel,
+          locale: input.locale,
+        }),
+        value: null,
+        displayValue: formatExperimentPressureSummaryV3({
+          maximum,
+          minimum,
+          mean,
+          significantDigits: summaryDefinitions[0]!.significantDigits,
+        }),
+        unit: summaryDefinitions[0]!.unit,
+        availability: outputValues.every(
+          (output) => output?.availability === "available",
+        )
+          ? "available"
+          : "unavailable",
+        quality,
+        ...(quality === "not-assessed"
+          ? { qualityNotice: input.notAssessedNotice }
+          : {}),
+      });
+      continue;
+    }
+
+    const definition = outputById.get(item.outputId);
+    if (definition === undefined) continue;
+    const outputValue = input.frame?.outputs[item.outputId];
+    result.push({
+      itemId: item.outputId,
+      label: resolveWorkbenchPaneItemLabelV3({
+        kind: "output",
+        itemId: item.outputId,
+        storedLabel: item.label,
+        locale: input.locale,
+      }),
+      value: scalarAvailableOutputV3(outputValue),
+      unit: definition.unit,
+      significantDigits: definition.significantDigits,
+      availability: outputValue?.availability ?? "unavailable",
+      quality: outputValue?.quality ?? "not-assessed",
+      ...(outputValue?.quality === "not-assessed"
+        ? { qualityNotice: input.notAssessedNotice }
+        : {}),
+    });
+  }
+  return result;
+}
+
 function OutputPaneBodyV3({
   contract,
   frame,
+  locale,
+  onAddItem,
   onOpenBindingSettings,
   pane,
   scrollMode = "contained",
@@ -4760,6 +5017,8 @@ function OutputPaneBodyV3({
 }: Readonly<{
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
+  locale: "en" | "ja";
+  onAddItem: () => void;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
   scrollMode?: "contained" | "parent" | "section";
@@ -4767,24 +5026,27 @@ function OutputPaneBodyV3({
   scenarioLabel: string;
 }>) {
   const { t } = useTranslation();
-  const bindingModeLabel = pane.binding.mode === "active-slot"
-    ? t("workbench.live.paneBindingModeActive")
-    : t("workbench.live.paneBindingModeFixed");
-  const bindingLabel = pane.binding.mode === "active-slot"
-    ? t("workbench.live.paneBindingActive", { scenario: scenarioLabel })
-    : t("workbench.live.paneBindingFixed", { scenarios: scenarioLabel });
-  const selected = [...pane.items]
-    .sort((left, right) => left.order - right.order)
-    .flatMap((item) => {
-      const definition = contract.outputCatalog.find(
-        (output) => output.outputId === item.outputId,
-      );
-      return definition === undefined ? [] : [{ definition, item }];
-    });
+  const bindingModeLabel =
+    pane.binding.mode === "active-slot"
+      ? t("workbench.live.paneBindingModeActive")
+      : t("workbench.live.paneBindingModeFixed");
+  const bindingLabel =
+    pane.binding.mode === "active-slot"
+      ? t("workbench.live.paneBindingActive", { scenario: scenarioLabel })
+      : t("workbench.live.paneBindingFixed", { scenarios: scenarioLabel });
+  const selected = materializeWorkbenchOutputPresentationItemsV3({
+    contract,
+    frame,
+    locale,
+    notAssessedNotice: t("workbench.live.outputNotAssessed"),
+    pane,
+  });
   return (
-    <div className={`workbench-output-pane flex min-h-0 flex-col bg-wb-aux ${
-      scrollMode === "section" ? "" : "h-full"
-    }`}>
+    <div
+      className={`workbench-output-pane flex min-h-0 flex-col bg-wb-aux ${
+        scrollMode === "section" ? "" : "h-full"
+      }`}
+    >
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
@@ -4794,23 +5056,15 @@ function OutputPaneBodyV3({
         visible={showBinding}
       />
       <ExperimentOutputGridV3
+        addItemAction={{
+          label: t("workbench.editor.addCatalogItem"),
+          onClick: onAddItem,
+          prominent: selected.length === 0,
+        }}
         variant="pane"
         scrollMode={scrollMode === "contained" ? "contained" : "parent"}
         emptyMessage={t("workbench.live.noSelectedOutputs")}
-        items={selected.map(({ definition: output, item }) => {
-          const outputValue = frame?.outputs[item.outputId];
-          return {
-            itemId: item.outputId,
-            label: item.label,
-            value: scalarAvailableOutputV3(outputValue),
-            unit: output.unit,
-            availability: outputValue?.availability ?? "unavailable",
-            quality: outputValue?.quality ?? "not-assessed",
-            ...(outputValue?.quality === "not-assessed"
-              ? { qualityNotice: t("workbench.live.outputNotAssessed") }
-              : {}),
-          };
-        })}
+        items={selected}
       />
     </div>
   );
@@ -4822,6 +5076,8 @@ function ControlPaneBodyV3({
   controlError,
   controlValuesByScenario,
   disabledByAnalysis,
+  locale,
+  onAddItem,
   onApplyControl,
   onOpenBindingSettings,
   pane,
@@ -4836,6 +5092,8 @@ function ControlPaneBodyV3({
     Record<string, Readonly<Record<string, number>>>
   >;
   disabledByAnalysis: boolean;
+  locale: "en" | "ja";
+  onAddItem: () => void;
   onApplyControl: (
     scenarioIds: readonly string[],
     controlId: string,
@@ -4853,19 +5111,23 @@ function ControlPaneBodyV3({
     activeScenarioId,
     scenarios,
   );
-  const targetLabels = targetScenarioIds.map((scenarioId) =>
-    scenarios.find((scenario) => scenario.scenarioId === scenarioId)?.label ??
-      scenarioId);
-  const bindingLabel = pane.binding.mode === "active-slot"
-    ? t("workbench.live.paneBindingActive", {
-        scenario: targetLabels[0] ?? "—",
-      })
-    : t("workbench.live.paneBindingFixed", {
-        scenarios: targetLabels.join(" + "),
-      });
-  const bindingModeLabel = pane.binding.mode === "active-slot"
-    ? t("workbench.live.paneBindingModeActive")
-    : t("workbench.live.paneBindingModeFixed");
+  const targetLabels = targetScenarioIds.map(
+    (scenarioId) =>
+      scenarios.find((scenario) => scenario.scenarioId === scenarioId)?.label ??
+      scenarioId,
+  );
+  const bindingLabel =
+    pane.binding.mode === "active-slot"
+      ? t("workbench.live.paneBindingActive", {
+          scenario: targetLabels[0] ?? "—",
+        })
+      : t("workbench.live.paneBindingFixed", {
+          scenarios: targetLabels.join(" + "),
+        });
+  const bindingModeLabel =
+    pane.binding.mode === "active-slot"
+      ? t("workbench.live.paneBindingModeActive")
+      : t("workbench.live.paneBindingModeFixed");
   const bindingTargetLabel = targetLabels.join(" + ") || "—";
   const selectedControls = [...pane.items]
     .sort((left, right) => left.order - right.order)
@@ -4876,21 +5138,25 @@ function ControlPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   const presentedControls = selectedControls.map(({ definition, item }) => {
-    const values = targetScenarioIds.map((scenarioId) =>
-      controlValuesByScenario[scenarioId]?.[definition.controlId] ??
-        definition.defaultValue);
+    const values = targetScenarioIds.map(
+      (scenarioId) =>
+        controlValuesByScenario[scenarioId]?.[definition.controlId] ??
+        definition.defaultValue,
+    );
     const value = values[0] ?? definition.defaultValue;
     const mixed = values.some((candidate) => candidate !== value);
     return { definition, item, value, mixed };
   });
   return (
-    <section className={`workbench-control-pane flex min-w-0 flex-col bg-wb-aux ${
-      scrollMode === "parent"
-        ? "min-h-full"
-        : scrollMode === "section"
-          ? "min-h-0"
-          : "h-full min-h-0"
-    }`}>
+    <section
+      className={`workbench-control-pane flex min-w-0 flex-col bg-wb-aux ${
+        scrollMode === "parent"
+          ? "min-h-full"
+          : scrollMode === "section"
+            ? "min-h-0"
+            : "h-full min-h-0"
+      }`}
+    >
       <WorkbenchPaneBindingButtonV3
         label={bindingLabel}
         modeLabel={bindingModeLabel}
@@ -4899,9 +5165,11 @@ function ControlPaneBodyV3({
         testId={`control-pane-binding-${pane.paneId}`}
         visible={scenarios.length > 1}
       />
-      <div className={`min-h-0 flex-1 px-2 pb-2 ${
-        scrollMode === "contained" ? "overflow-y-auto" : "overflow-visible"
-      }`}>
+      <div
+        className={`min-h-0 flex-1 px-2 pb-2 ${
+          scrollMode === "contained" ? "overflow-y-auto" : "overflow-visible"
+        }`}
+      >
         {contract.controlCatalog.length === 0 ? (
           <p className="p-3 text-xs leading-5 text-wb-muted">
             {t("workbench.live.noRegisteredControls")}
@@ -4912,27 +5180,38 @@ function ControlPaneBodyV3({
           </p>
         ) : (
           <div className="workbench-control-list">
-            {presentedControls.map(({ definition: control, item, value, mixed }) => (
-              <ExperimentNumericControlV3
-                key={control.controlId}
-                control={control}
-                disabled={
-                  targetScenarioIds.length === 0 ||
-                  pendingControlId !== null ||
-                  disabledByAnalysis
-                }
-                label={item.label}
-                mixed={mixed}
-                pending={pendingControlId === control.controlId}
-                presentation={item.presentation}
-                value={value}
-                onCommit={(nextValue) => onApplyControl(
-                  targetScenarioIds,
-                  control.controlId,
-                  nextValue,
-                )}
-              />
-            ))}
+            {presentedControls.map(
+              ({ definition: control, item, value, mixed }) => {
+                return (
+                  <ExperimentNumericControlV3
+                    key={control.controlId}
+                    control={control}
+                    disabled={
+                      targetScenarioIds.length === 0 ||
+                      pendingControlId !== null ||
+                      disabledByAnalysis
+                    }
+                    label={resolveWorkbenchPaneItemLabelV3({
+                      kind: "control",
+                      itemId: control.controlId,
+                      storedLabel: item.label,
+                      locale,
+                    })}
+                    mixed={mixed}
+                    pending={pendingControlId === control.controlId}
+                    presentation={item.presentation}
+                    value={value}
+                    onCommit={(nextValue) =>
+                      onApplyControl(
+                        targetScenarioIds,
+                        control.controlId,
+                        nextValue,
+                      )
+                    }
+                  />
+                );
+              },
+            )}
           </div>
         )}
         {controlError !== null && (
@@ -4943,6 +5222,11 @@ function ControlPaneBodyV3({
             {controlError}
           </p>
         )}
+        <ExperimentPaneAddItemButtonV3
+          label={t("workbench.editor.addCatalogItem")}
+          onClick={onAddItem}
+          prominent={selectedControls.length === 0}
+        />
       </div>
     </section>
   );
@@ -5010,15 +5294,17 @@ function appendFramesV3(
           inputEpoch: frame.inputEpoch,
           acceptedRevision: frame.acceptedRevision,
           acceptedTimeSec: frame.acceptedTimeSec,
-          values: Object.freeze(Object.fromEntries(
-            (selectedOutputIds === undefined
-              ? Object.keys(frame.outputs)
-              : [...selectedOutputIds]
-            ).map((outputId) => [
-              outputId,
-              scalarAvailableOutputV3(frame.outputs[outputId]),
-            ]),
-          )),
+          values: Object.freeze(
+            Object.fromEntries(
+              (selectedOutputIds === undefined
+                ? Object.keys(frame.outputs)
+                : [...selectedOutputIds]
+              ).map((outputId) => [
+                outputId,
+                scalarAvailableOutputV3(frame.outputs[outputId]),
+              ]),
+            ),
+          ),
         }),
       ),
     }),
@@ -5073,9 +5359,7 @@ function publicExperimentSlugV3(experimentId: string): string {
   return `simulation-${experimentId.toLocaleLowerCase()}`;
 }
 
-function requiredWorkbenchSurfaceSeriesIdV3(
-  value: string | undefined,
-): string {
+function requiredWorkbenchSurfaceSeriesIdV3(value: string | undefined): string {
   if (value === undefined) {
     throw new Error("Workbench Standard Surface series is unavailable");
   }

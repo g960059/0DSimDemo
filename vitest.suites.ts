@@ -33,6 +33,7 @@ export const fastTests = [
   "__tests__/localCirculationTangentsV1.test.ts",
   "__tests__/locales.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
+  "__tests__/mainWireFiveWallMechanicsResearchInputsV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedTypedAuthoritySessionV1.test.ts",
   "__tests__/flatNumericalStateV1.test.ts",
@@ -40,6 +41,8 @@ export const fastTests = [
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
+  "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
+  "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelRapidPressureVolumeRelationV3.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
   "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
@@ -59,6 +62,7 @@ export const fastTests = [
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
   "__tests__/normalAdultFiveWallPriorV1.test.ts",
+  "__tests__/oxygenTransportV1.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
   "__tests__/studioContractsBoundaryV2.test.ts",
   "__tests__/studioBrowserContentStoreV3.test.ts",
@@ -256,10 +260,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireValveResearchBracketNumericalRobustnessEnvelopeV1.test.ts",
 ] as const;
 
-export type TestSuiteName =
-  | "fast"
-  | "regression"
-  | "canonical-scientific";
+export type TestSuiteName = "fast" | "regression" | "canonical-scientific";
 
 const fastSet = new Set<string>(fastTests);
 const regressionSet = new Set<string>(regressionTests);

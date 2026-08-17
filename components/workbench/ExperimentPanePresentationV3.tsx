@@ -1,21 +1,28 @@
 import React from "react";
-import { Undo2 } from "lucide-react";
+import { Plus, Undo2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { studioNumericControlValueIssueV2 } from
-  "@/studio/contracts/v2/control";
-import type { ExperimentControlPresentationV2 } from
-  "@/studio/contracts/v2/content";
+import { studioNumericControlValueIssueV2 } from "@/studio/contracts/v2/control";
+import type { ExperimentControlPresentationV2 } from "@/studio/contracts/v2/content";
 import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
 
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
   label: string;
   value: number | null;
+  /** Presentation-only composition over one or more atomic numerical outputs. */
+  displayValue?: string;
   unit: string;
+  significantDigits?: number;
   availability?: string;
   quality?: string;
   qualityNotice?: string;
+}>;
+
+export type ExperimentPaneAddItemActionV3 = Readonly<{
+  label: string;
+  onClick: () => void;
+  prominent?: boolean;
 }>;
 
 /**
@@ -35,10 +42,12 @@ export function ExperimentGraphPresentationV3({
   children: React.ReactNode;
   label?: string;
   variant: "pane" | "article";
-}> & Omit<React.HTMLAttributes<HTMLElement>, "children">) {
-  const figureClassName = variant === "pane"
-    ? "h-full min-h-0 min-w-0 bg-wb-canvas p-3"
-    : "min-w-0 rounded-xl bg-wb-canvas p-3 sm:p-4";
+}> &
+  Omit<React.HTMLAttributes<HTMLElement>, "children">) {
+  const figureClassName =
+    variant === "pane"
+      ? "h-full min-h-0 min-w-0 bg-wb-canvas p-3"
+      : "min-w-0 rounded-xl bg-wb-canvas p-3 sm:p-4";
   return (
     <figure
       className={`${figureClassName} ${className}`.trim()}
@@ -57,54 +66,139 @@ export function ExperimentGraphPresentationV3({
 
 /** One output vocabulary shared by docked panes and Article Briefings. */
 export function ExperimentOutputGridV3({
+  addItemAction,
   emptyMessage,
   items,
   scrollMode = "contained",
   variant,
 }: Readonly<{
+  addItemAction?: ExperimentPaneAddItemActionV3;
   emptyMessage?: string;
   items: readonly ExperimentOutputPresentationItemV3[];
   scrollMode?: "contained" | "parent";
   variant: "pane" | "article";
 }>) {
-  const layoutClassName = variant === "pane"
-    ? `min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] px-2 pb-2 ${
-      scrollMode === "contained" ? "overflow-auto" : "overflow-visible"
-    }`
-    : "article-output-grid gap-x-2 gap-y-2";
-  const itemClassName = variant === "article"
-    ? "rounded-lg bg-wb-floating/55 px-2 py-2"
-    : "px-2.5 py-2";
+  const layoutClassName =
+    variant === "pane"
+      ? `min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(11.5rem,1fr))] px-2 pb-2 ${
+          scrollMode === "contained" ? "overflow-auto" : "overflow-visible"
+        }`
+      : "article-output-grid gap-x-2 gap-y-2";
+  const itemClassName =
+    variant === "article"
+      ? "rounded-lg bg-wb-floating/55 px-2 py-2"
+      : "px-2.5 py-2";
   return (
     <div
       className={`workbench-output-grid grid ${layoutClassName}`}
       data-experiment-output-presentation={variant}
     >
-      {items.length === 0 ? (
-        emptyMessage === undefined ? null : (
-          <p className="p-4 text-xs text-wb-subtle">{emptyMessage}</p>
-        )
-      ) : items.map((item) => (
-        <div
-          key={item.itemId}
-          className={`workbench-output-item min-w-0 ${itemClassName}`}
-          data-output-availability={item.availability ?? "unavailable"}
-          data-output-quality={item.quality ?? "not-assessed"}
-        >
-          <p className="workbench-output-label truncate">{item.label}</p>
-          <p className="workbench-output-value mt-0.5 tabular-nums">
-            {item.value === null ? "—" : formatExperimentOutputValueV3(item.value)}
-            <span className="workbench-output-unit ml-1">{item.unit}</span>
-          </p>
-          {item.qualityNotice !== undefined && (
-            <p className="mt-1 text-[11px] text-wb-warning">
-              {item.qualityNotice}
+      {items.length === 0 && emptyMessage !== undefined && (
+        <p className="col-span-full p-4 text-xs text-wb-subtle">
+          {emptyMessage}
+        </p>
+      )}
+      {items.map((item) => {
+        const display = resolveExperimentOutputDisplayV3(item);
+        return (
+          <div
+            key={item.itemId}
+            className={`workbench-output-item min-w-0 ${itemClassName}`}
+            data-output-availability={item.availability ?? "unavailable"}
+            data-output-quality={item.quality ?? "not-assessed"}
+          >
+            <p className="workbench-output-label truncate">{item.label}</p>
+            <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums">
+              {display.value}
+              <span className="workbench-output-unit ml-1">
+                {display.unit}
+              </span>
             </p>
-          )}
-        </div>
-      ))}
+            {item.qualityNotice !== undefined && (
+              <p className="mt-1 text-[11px] text-wb-warning">
+                {item.qualityNotice}
+              </p>
+            )}
+          </div>
+        );
+      })}
+      {addItemAction !== undefined && (
+        <ExperimentPaneAddItemButtonV3
+          label={addItemAction.label}
+          layout="output-tile"
+          onClick={addItemAction.onClick}
+          prominent={addItemAction.prominent}
+        />
+      )}
     </div>
   );
+}
+
+/** Shared low-emphasis path from a live output/control pane to its item catalog. */
+export function ExperimentPaneAddItemButtonV3({
+  label,
+  layout = "row",
+  onClick,
+  prominent = false,
+}: Readonly<{
+  label: string;
+  layout?: "row" | "output-tile";
+  onClick: () => void;
+  prominent?: boolean;
+}>) {
+  return (
+    <div
+      className={
+        layout === "output-tile"
+          ? "workbench-pane-add-item-shell min-w-0"
+          : "workbench-pane-add-item-shell shrink-0 px-2 pb-2"
+      }
+      data-prominent={prominent ? "true" : "false"}
+    >
+      <button
+        type="button"
+        className={`workbench-pane-add-item inline-flex w-full items-center justify-center gap-1.5 rounded-md text-[10px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
+          layout === "output-tile"
+            ? "min-h-[3.35rem] px-2.5 py-2"
+            : "min-h-9 px-3"
+        }`}
+        onClick={onClick}
+      >
+        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+        {label}
+      </button>
+    </div>
+  );
+}
+
+const EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3 = Object.freeze([
+  "hemodynamics.ejection-fraction.",
+  "hemodynamics.valve-regurgitant-fraction.",
+  "oxygen.saturation.",
+] as const);
+
+export function resolveExperimentOutputDisplayV3(
+  item: ExperimentOutputPresentationItemV3,
+): Readonly<{ value: string; unit: string }> {
+  if (item.displayValue !== undefined) {
+    return Object.freeze({ value: item.displayValue, unit: item.unit });
+  }
+  const clinicalPercent =
+    item.unit === "1" &&
+    (EXPERIMENT_CLINICAL_PERCENT_OUTPUT_PREFIXES_V3.some((prefix) =>
+      item.itemId.startsWith(prefix),
+    ) || item.itemId === "oxygen.extraction-ratio.required");
+  const value =
+    item.value === null
+      ? "—"
+      : formatExperimentOutputValueV3(
+          clinicalPercent ? item.value * 100 : item.value,
+          item.significantDigits,
+        );
+  return Object.freeze({
+    value,
+    unit: clinicalPercent ? "%" : item.unit,
+  });
 }
 
 export function ExperimentNumericControlV3({
@@ -195,7 +289,10 @@ export function ExperimentNumericControlV3({
                   aria-pressed={active}
                   data-active={active ? "true" : "false"}
                   disabled={disabled || optionIssue !== undefined}
-                  title={optionIssue ?? `${option.value.toFixed(precision)} ${displayUnit}`}
+                  title={
+                    optionIssue ??
+                    `${option.value.toFixed(precision)} ${displayUnit}`
+                  }
                   className="workbench-control-segment"
                   onClick={() => void commit(option.value)}
                 >
@@ -207,9 +304,11 @@ export function ExperimentNumericControlV3({
         ) : (
           <input
             className="workbench-control-range"
-            style={{
-              "--workbench-control-progress": `${progress}%`,
-            } as React.CSSProperties}
+            style={
+              {
+                "--workbench-control-progress": `${progress}%`,
+              } as React.CSSProperties
+            }
             type="range"
             min={control.minimum}
             max={control.maximum}
@@ -322,7 +421,10 @@ export function ExperimentNumericControlV3({
         </button>
       </div>
       {error !== null && (
-        <p className="workbench-control-error text-[11px] text-wb-danger" role="alert">
+        <p
+          className="workbench-control-error text-[11px] text-wb-danger"
+          role="alert"
+        >
           {error}
         </p>
       )}
@@ -357,12 +459,43 @@ export async function resolveControlDraftCommitV3({
   });
 }
 
-function formatExperimentOutputValueV3(value: number): string {
+export function formatExperimentOutputValueV3(
+  value: number,
+  significantDigits?: number,
+): string {
   if (!Number.isFinite(value)) return "—";
+  if (significantDigits !== undefined) {
+    const absolute = Math.abs(value);
+    const decimalPlaces =
+      absolute === 0
+        ? significantDigits - 1
+        : significantDigits - 1 - Math.floor(Math.log10(absolute));
+    if (decimalPlaces > 12) {
+      return value.toExponential(significantDigits - 1);
+    }
+    if (decimalPlaces >= 0) return value.toFixed(decimalPlaces);
+    const scale = 10 ** -decimalPlaces;
+    return (Math.round(value / scale) * scale).toFixed(0);
+  }
   const absolute = Math.abs(value);
   if (absolute >= 100) return value.toFixed(1);
   if (absolute >= 10) return value.toFixed(2);
   return value.toFixed(3);
+}
+
+export function formatExperimentPressureSummaryV3(
+  values: Readonly<{
+    maximum: number | null;
+    minimum: number | null;
+    mean: number | null;
+    significantDigits?: number;
+  }>,
+): string {
+  const format = (value: number | null) =>
+    value === null
+      ? "—"
+      : formatExperimentOutputValueV3(value, values.significantDigits);
+  return `${format(values.maximum)}/${format(values.minimum)}(${format(values.mean)})`;
 }
 
 function workbenchControlDisplayUnitV3(unit: string): string {
@@ -396,8 +529,10 @@ function workbenchControlValueChangedV3(
   value: number,
   control: ControlDefinitionV2,
 ): boolean {
-  return Math.abs(value - control.defaultValue) >
-    Math.max(Math.abs(control.step) * 1e-6, 1e-12);
+  return (
+    Math.abs(value - control.defaultValue) >
+    Math.max(Math.abs(control.step) * 1e-6, 1e-12)
+  );
 }
 
 function normalizeControlValueV3(

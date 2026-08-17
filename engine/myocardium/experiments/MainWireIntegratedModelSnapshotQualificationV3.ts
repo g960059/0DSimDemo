@@ -8,12 +8,8 @@ import {
   type MainWireIntegratedModelPeriodicClassificationV3,
   type MainWireIntegratedModelPeriodicCycleObservationV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
-import {
-  compareMainWireIntegratedModelAcceptedStatesV3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import { compareMainWireIntegratedModelAcceptedStatesV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
   alignMainWireIntegratedModelRegularSinusAllOffCandidateV3,
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
@@ -21,9 +17,7 @@ import {
   runMainWireIntegratedModelRegularSinusAllOffCycleV3,
   type MainWireIntegratedModelRegularSinusAllOffAlignmentV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -33,9 +27,14 @@ import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3,
+  type MainWireIntegratedModelMechanismResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID =
-  "main-wire-integrated-regular-sinus-all-off-snapshot-qualification-v4" as const;
+  "main-wire-integrated-regular-sinus-all-off-snapshot-qualification-v5" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_DEFAULT_NOMINAL_DT_SEC_V3 =
   0.002 as const;
@@ -74,8 +73,8 @@ export type MainWireIntegratedModelSnapshotQualificationOptionsV3 = Readonly<{
   candidateCheckpoint: unknown;
   nominalDtSec?: number;
   maximumCycleCount?: number;
-  hemodynamicResearchInputs?:
-    MainWireIntegratedModelHemodynamicResearchInputsV3;
+  hemodynamicResearchInputs?: MainWireIntegratedModelHemodynamicResearchInputsV3;
+  mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
 }>;
 
 export type MainWireIntegratedModelSnapshotQualificationRejectionReasonV3 =
@@ -121,15 +120,13 @@ export type MainWireIntegratedModelSnapshotQualificationCycleEvidenceV3 =
   }>;
 
 export type MainWireIntegratedModelSnapshotQualificationResultV3 = Readonly<{
-  qualificationId:
-    typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID;
+  qualificationId: typeof MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID;
   status: "accepted" | "rejected";
   accepted: boolean;
   reason:
     | "period1-converged"
     | MainWireIntegratedModelSnapshotQualificationRejectionReasonV3;
-  failureStage:
-    MainWireIntegratedModelSnapshotQualificationFailureStageV3 | null;
+  failureStage: MainWireIntegratedModelSnapshotQualificationFailureStageV3 | null;
   message: string | null;
   protocolIdentityHash: string | null;
   candidateCheckpointSha256: string | null;
@@ -138,8 +135,7 @@ export type MainWireIntegratedModelSnapshotQualificationResultV3 = Readonly<{
   candidateCheckpointExactRoundTripVerified: boolean;
   nominalDtSec: number;
   requestedMaximumCycleCount: number;
-  alignment:
-    MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null;
+  alignment: MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null;
   completedCycleCount: number;
   classification: MainWireIntegratedModelPeriodicClassificationV3 | null;
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
@@ -159,8 +155,8 @@ type ResolvedOptions = Readonly<{
   candidateCheckpoint: unknown;
   nominalDtSec: number;
   maximumCycleCount: number;
-  hemodynamicResearchInputs:
-    MainWireIntegratedModelHemodynamicResearchInputsV3;
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3;
+  mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3;
 }>;
 
 type AcceptedState = ReturnType<
@@ -178,11 +174,11 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
   const resolved = resolveOptions(options);
   const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     resolved.hemodynamicResearchInputs,
+    1,
+    resolved.mechanismResearchInputs,
   );
   const checkpointContext =
-    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
-      fixture,
-    );
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(fixture);
   const classifierOptions = Object.freeze({
     period1NormalizedTolerance:
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
@@ -198,9 +194,8 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
   let candidateAcceptedTimeSec: number | null = null;
   let candidateCheckpointExactRoundTripVerified = false;
   let protocolIdentityHash: string | null = null;
-  let alignment:
-    MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null =
-      null;
+  let alignment: MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null =
+    null;
   const observations: MainWireIntegratedModelPeriodicCycleObservationV3[] = [];
   const cycles: MainWireIntegratedModelSnapshotQualificationCycleEvidenceV3[] =
     [];
@@ -276,6 +271,7 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
         dynamicMechanicalSupportProfile: fixture.profile,
         dynamicMechanicalSupportConfig: fixture.config,
         coronaryStepInput: fixture.coronaryStepInput,
+        mechanismResearchInputs: fixture.mechanismResearchInputs,
       }),
     );
   } catch (error) {
@@ -388,37 +384,41 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
         fixture.config,
       );
-      const period2 = twoBack === null
-        ? null
-        : compareMainWireIntegratedModelAcceptedStatesV3(
-            accepted,
-            twoBack,
-            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-            fixture.config,
-          );
-      observations.push(Object.freeze({
-        cycleIndex,
-        evidenceRole: "canonical-periodic-protocol" as const,
-        protocolIdentityHash: protocolIdentityHash!,
-        period1,
-        period2,
-      }));
+      const period2 =
+        twoBack === null
+          ? null
+          : compareMainWireIntegratedModelAcceptedStatesV3(
+              accepted,
+              twoBack,
+              MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+              fixture.config,
+            );
+      observations.push(
+        Object.freeze({
+          cycleIndex,
+          evidenceRole: "canonical-periodic-protocol" as const,
+          protocolIdentityHash: protocolIdentityHash!,
+          period1,
+          period2,
+        }),
+      );
       classification = classifyMainWireIntegratedModelPeriodicityV3(
         observations,
         classifierOptions,
       );
-      cycles.push(Object.freeze({
-        cycleIndex,
-        startTimeSec: run.startTimeSec,
-        endTimeSec: run.endTimeSec,
-        acceptedStepCount: run.acceptedStepCount,
-        completedWindowIndex: run.coronaryAutoregulationWindow.windowIndex,
-        period1MaximumNormalizedDelta:
-          period1.overall.maximumNormalizedDelta,
-        period2MaximumNormalizedDelta:
-          period2?.overall.maximumNormalizedDelta ?? null,
-        finiteConservationAndExactRegularSinusEventsPassed: true as const,
-      }));
+      cycles.push(
+        Object.freeze({
+          cycleIndex,
+          startTimeSec: run.startTimeSec,
+          endTimeSec: run.endTimeSec,
+          acceptedStepCount: run.acceptedStepCount,
+          completedWindowIndex: run.coronaryAutoregulationWindow.windowIndex,
+          period1MaximumNormalizedDelta: period1.overall.maximumNormalizedDelta,
+          period2MaximumNormalizedDelta:
+            period2?.overall.maximumNormalizedDelta ?? null,
+          finiteConservationAndExactRegularSinusEventsPassed: true as const,
+        }),
+      );
       boundaries.push(accepted);
       if (boundaries.length > 3) boundaries.shift();
       if (classification.status !== "not-converged") break;
@@ -491,13 +491,15 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
   if (classification.status !== "period1-converged") {
     return rejection({
       resolved,
-      reason: classification.status === "period2-suspect"
-        ? "period2-suspect"
-        : "maximum-cycles-reached",
+      reason:
+        classification.status === "period2-suspect"
+          ? "period2-suspect"
+          : "maximum-cycles-reached",
       failureStage: null,
-      message: classification.status === "period2-suspect"
-        ? "candidate settled into a suspected period-2 orbit"
-        : "candidate did not establish period-1 closure before the cycle cap",
+      message:
+        classification.status === "period2-suspect"
+          ? "candidate settled into a suspected period-2 orbit"
+          : "candidate did not establish period-1 closure before the cycle cap",
       protocolIdentityHash,
       candidateCheckpointSha256,
       candidateAcceptedRevision,
@@ -514,8 +516,7 @@ export async function qualifyMainWireIntegratedModelSnapshotV3(
   }
 
   return deepFreeze({
-    qualificationId:
-      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
+    qualificationId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
     status: "accepted" as const,
     accepted: true,
     reason: "period1-converged" as const,
@@ -567,29 +568,28 @@ function alignmentEvidence(
   });
 }
 
-function rejection(input: Readonly<{
-  resolved: ResolvedOptions;
-  reason: MainWireIntegratedModelSnapshotQualificationRejectionReasonV3;
-  failureStage:
-    MainWireIntegratedModelSnapshotQualificationFailureStageV3 | null;
-  message: string;
-  protocolIdentityHash: string | null;
-  candidateCheckpointSha256: string | null;
-  candidateAcceptedRevision: number | null;
-  candidateAcceptedTimeSec: number | null;
-  candidateCheckpointExactRoundTripVerified: boolean;
-  alignment:
-    MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null;
-  classification: MainWireIntegratedModelPeriodicClassificationV3 | null;
-  observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
-  cycles: readonly MainWireIntegratedModelSnapshotQualificationCycleEvidenceV3[];
-  terminalAcceptedRevision: number | null;
-  terminalAcceptedTimeSec: number | null;
-  terminalCheckpointExactRoundTripVerified: boolean;
-}>): MainWireIntegratedModelSnapshotQualificationResultV3 {
+function rejection(
+  input: Readonly<{
+    resolved: ResolvedOptions;
+    reason: MainWireIntegratedModelSnapshotQualificationRejectionReasonV3;
+    failureStage: MainWireIntegratedModelSnapshotQualificationFailureStageV3 | null;
+    message: string;
+    protocolIdentityHash: string | null;
+    candidateCheckpointSha256: string | null;
+    candidateAcceptedRevision: number | null;
+    candidateAcceptedTimeSec: number | null;
+    candidateCheckpointExactRoundTripVerified: boolean;
+    alignment: MainWireIntegratedModelSnapshotQualificationAlignmentEvidenceV3 | null;
+    classification: MainWireIntegratedModelPeriodicClassificationV3 | null;
+    observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
+    cycles: readonly MainWireIntegratedModelSnapshotQualificationCycleEvidenceV3[];
+    terminalAcceptedRevision: number | null;
+    terminalAcceptedTimeSec: number | null;
+    terminalCheckpointExactRoundTripVerified: boolean;
+  }>,
+): MainWireIntegratedModelSnapshotQualificationResultV3 {
   return deepFreeze({
-    qualificationId:
-      MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
+    qualificationId: MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_V3_ID,
     status: "rejected" as const,
     accepted: false,
     reason: input.reason,
@@ -640,16 +640,20 @@ function resolveOptions(
           "nominalDtSec",
           "maximumCycleCount",
           "hemodynamicResearchInputs",
+          "mechanismResearchInputs",
         ].includes(key),
     )
   ) {
-    throw new Error("V3 snapshot qualification options contain unexpected fields");
+    throw new Error(
+      "V3 snapshot qualification options contain unexpected fields",
+    );
   }
   if (!("candidateCheckpoint" in options)) {
     throw new Error("V3 snapshot qualification requires candidateCheckpoint");
   }
   const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
-  const nominalDtSec = options.nominalDtSec ??
+  const nominalDtSec =
+    options.nominalDtSec ??
     MAIN_WIRE_INTEGRATED_MODEL_SNAPSHOT_QUALIFICATION_DEFAULT_NOMINAL_DT_SEC_V3;
   if (
     !Number.isFinite(nominalDtSec) ||
@@ -660,8 +664,8 @@ function resolveOptions(
       `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`,
     );
   }
-  const maximumCycleCount = options.maximumCycleCount ??
-    policy.defaultMaximumCycleCount;
+  const maximumCycleCount =
+    options.maximumCycleCount ?? policy.defaultMaximumCycleCount;
   if (
     !Number.isSafeInteger(maximumCycleCount) ||
     maximumCycleCount < 1 ||
@@ -677,8 +681,13 @@ function resolveOptions(
     maximumCycleCount,
     hemodynamicResearchInputs:
       validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
-        options.hemodynamicResearchInputs
-          ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        options.hemodynamicResearchInputs ??
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      ),
+    mechanismResearchInputs:
+      validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+        options.mechanismResearchInputs ??
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
       ),
   });
 }

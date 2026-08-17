@@ -75,6 +75,42 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
+test("@desktop selected tab accents update immediately in every split group", async ({
+  page,
+}) => {
+  const graphArea = page.getByRole("region", { name: "グラフエリア" });
+  const pvTab = graphArea.locator(".dv-tab").filter({ hasText: "PV loop" });
+  const pressureTab = graphArea
+    .locator(".dv-tab")
+    .filter({ hasText: "Pressure waveforms" });
+  const structuralTab = graphArea
+    .locator(".dv-tab")
+    .filter({ hasText: "Systemic Guyton / Starling" });
+
+  await expect(pressureTab).toHaveClass(/dv-active-tab/);
+  await expect(structuralTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(structuralTab.locator(".workbench-dock-tab"));
+
+  await pvTab.locator(".workbench-dock-tab").click();
+  await expect(pvTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(pvTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(structuralTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
+
+  await structuralTab.locator(".workbench-dock-tab").click();
+  await expect(structuralTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(structuralTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(pvTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
+
+  await pressureTab.locator(".workbench-dock-tab").click();
+  await expect(pressureTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(structuralTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(pvTab.locator(".workbench-dock-tab"));
+});
+
 test("@desktop playback, charts, analysis, controls, and settings stay live", async ({
   page,
 }) => {
@@ -185,9 +221,15 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   expect(outputBox).not.toBeNull();
   expect(areaLayoutBox).not.toBeNull();
   expect(outputBox!.height / areaLayoutBox!.height).toBeLessThan(0.21);
-  const outputItemYs = await outputArea.locator(".workbench-output-item")
-    .evaluateAll((items) => items.map((item) => item.getBoundingClientRect().y));
-  expect(Math.max(...outputItemYs) - Math.min(...outputItemYs)).toBeLessThan(4);
+  const outputGridLayout = await outputArea.locator(".workbench-output-grid")
+    .evaluate((grid) => ({
+      columnCount: getComputedStyle(grid).gridTemplateColumns
+        .split(" ")
+        .filter(Boolean).length,
+      horizontalOverflowPx: grid.scrollWidth - grid.clientWidth,
+    }));
+  expect(outputGridLayout.columnCount).toBeGreaterThan(1);
+  expect(outputGridLayout.horizontalOverflowPx).toBeLessThanOrEqual(1);
 
   await openPaneSettings(page, "Pressure waveforms");
   const waveformSettings = page.getByRole("dialog", { name: "Pane設定" });
@@ -246,6 +288,11 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   });
   await expect(structuralTab).toBeVisible();
   await structuralTab.click();
+  const structuralDockTab = graphArea
+    .locator(".dv-tab")
+    .filter({ hasText: "Systemic Guyton / Starling" });
+  await expect(structuralDockTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(structuralDockTab.locator(".workbench-dock-tab"));
   const structural = page.locator(
     '[data-chart-kind="guyton-starling-structural-orientation-v3"][data-circulation-side="right"]',
   );
@@ -309,6 +356,12 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(structuralTab).toBeVisible();
   await expect(pulmonaryTab).toBeVisible();
   await pulmonaryTab.click();
+  const pulmonaryDockTab = graphArea
+    .locator(".dv-tab")
+    .filter({ hasText: "Pulmonary Guyton / Starling" });
+  await expect(pulmonaryDockTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(pulmonaryDockTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(structuralDockTab.locator(".workbench-dock-tab"));
   const pulmonaryStructural = page.locator(
     '[data-chart-kind="guyton-starling-structural-orientation-v3"][data-circulation-side="left"]',
   );
@@ -327,6 +380,9 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   ).toHaveCount(0);
   await page.getByRole("button", { name: "閉じる" }).click();
   await structuralTab.click();
+  await expect(structuralDockTab).toHaveClass(/dv-active-tab/);
+  await expectDockTabAccent(structuralDockTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(pulmonaryDockTab.locator(".workbench-dock-tab"));
   // Let the source analysis finish when the runner permits it. History itself
   // deliberately retains the last renderable preview, so a slower client does
   // not lose the curve that was visible immediately before this mutation.
@@ -340,7 +396,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   const preControlTime = await modelTime(root);
   const preControlRevision = await acceptedRevision(page);
   const systemicResistance = page.getByRole("slider", {
-    name: "Systemic resistance",
+    name: "体血管抵抗 (SVR)",
   });
   await expect(systemicResistance).toBeEnabled({ timeout: 60_000 });
   await systemicResistance.press("ArrowRight");
@@ -376,33 +432,32 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(settings).toBeVisible();
   await expect(settings.locator('input[type="color"]')).toHaveCount(0);
   const selectedHeartRate = settings.getByRole("button", {
-    name: "Heart rate signal · bpm",
+    name: "心拍数 (HR)",
+    exact: true,
   });
   await expect(selectedHeartRate).toBeVisible();
   await settings.getByRole("button", {
-    name: "項目を編集: Heart rate",
+    name: "項目を編集: 心拍数 (HR)",
   }).click();
   await settings
-    .getByRole("menu", { name: "Heart rate" })
+    .getByRole("menu", { name: "心拍数 (HR)" })
     .getByRole("menuitem", { name: "Paneから外す" })
     .click();
   await expect(selectedHeartRate).toHaveCount(0);
-  await settings.getByRole("button", {
-    name: "項目を追加",
-    exact: true,
-  }).click();
+  await settings.locator(".workbench-pane-add-item").click();
   const catalogDrawer = settings.getByTestId(
     "pane-settings-context-drawer-v3",
   );
   await expect(catalogDrawer).toHaveAttribute("data-open", "true");
+  await catalogDrawer.getByRole("searchbox").fill("心拍数");
   await expect(
-    catalogDrawer.getByRole("button", { name: "項目を追加: Heart rate" }),
+    catalogDrawer.getByRole("button", { name: "項目を追加: 心拍数 (HR)" }),
   ).toBeVisible();
   await catalogDrawer
-    .getByRole("button", { name: "項目を追加: Heart rate" })
+    .getByRole("button", { name: "項目を追加: 心拍数 (HR)" })
     .click();
   await expect(catalogDrawer.getByRole("button", {
-    name: "項目を編集: Heart rate",
+    name: "項目を編集: 心拍数 (HR)",
   })).toBeVisible();
   await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
   await expect(catalogDrawer).toHaveAttribute("data-open", "false");
@@ -416,7 +471,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   await expect(
     page
       .getByRole("dialog", { name: "Pane設定" })
-      .getByRole("button", { name: "Heart rate signal · bpm" }),
+      .getByRole("button", { name: "心拍数 (HR)", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "キャンセル" }).click();
 
@@ -575,7 +630,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(copyScenario).toBeVisible();
   const copyEpoch = await inputEpoch(page);
   const systemicResistance = page.getByRole("slider", {
-    name: "Systemic resistance",
+    name: "体血管抵抗 (SVR)",
   });
   await expect(systemicResistance).toBeEnabled({ timeout: 60_000 });
   await systemicResistance.press("ArrowRight");
@@ -874,12 +929,12 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   const controlGroupToggle = controlGroup.locator("button[aria-expanded]");
   await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "true");
   await expect(
-    page.getByRole("slider", { name: "Systemic resistance" }),
+    page.getByRole("slider", { name: "体血管抵抗 (SVR)" }),
   ).toBeVisible();
   await controlGroupToggle.click();
   await expect(controlGroupToggle).toHaveAttribute("aria-expanded", "false");
   await expect(
-    page.getByRole("slider", { name: "Systemic resistance" }),
+    page.getByRole("slider", { name: "体血管抵抗 (SVR)" }),
   ).toBeHidden();
   await controlGroupToggle.click();
   await graphRail.getByRole("button", { name: "グラフを拡大" }).click();
@@ -892,10 +947,10 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   ).first();
   const outputGroupToggle = outputGroup.locator("button[aria-expanded]");
   await expect(outputGroupToggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByText("Mean arterial pressure", { exact: true }))
+  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
     .toBeVisible();
   await outputGroupToggle.click();
-  await expect(page.getByText("Mean arterial pressure", { exact: true }))
+  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
     .toBeHidden();
   await outputGroupToggle.click();
   await taskDeck.getByRole("tab", { name: "Scenario" }).click();
@@ -912,14 +967,11 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   ).toBeVisible();
   await expect(
     settings.getByRole("button", { name: /項目を並べ替え:/ }),
-  ).toHaveCount(6);
+  ).toHaveCount(8);
   await expect(
     settings.getByRole("button", { name: /Paneから外す:/ }),
   ).toHaveCount(0);
-  await settings.getByRole("button", {
-    name: "項目を追加",
-    exact: true,
-  }).click();
+  await settings.locator(".workbench-pane-add-item").click();
   const catalogDrawer = settings.getByTestId(
     "pane-settings-context-drawer-v3",
   );
@@ -944,16 +996,18 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     return drawerBox.x -
       (contentBoxWithDrawer.x + contentBoxWithDrawer.width);
   }, { timeout: 5_000 }).toBeGreaterThanOrEqual(-1);
-  await expect(
-    catalogDrawer.getByRole("button", { name: /項目を追加:/ }),
-  ).toHaveCount(2);
+  await expect(catalogDrawer.getByText("循環動態", { exact: true }))
+    .toBeVisible();
+  await expect(catalogDrawer.getByText("心筋・心室力学", { exact: true }))
+    .toBeVisible();
   await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
   await expect(catalogDrawerHost).toHaveAttribute("data-open", "false");
   await expect.poll(async () =>
     (await catalogDrawerHost.boundingBox())?.width ?? 0
   ).toBeLessThan(1);
   await settings.getByRole("button", {
-    name: "Heart rate 40–100 bpm",
+    name: "心拍数 (HR)",
+    exact: true,
   }).click();
   await expect(catalogDrawer).toHaveAttribute("data-open", "true");
   await expect(
@@ -1006,6 +1060,16 @@ async function expectNonZeroCanvas(container: Locator): Promise<void> {
       return (box?.width ?? 0) * (box?.height ?? 0);
     })
     .toBeGreaterThan(10_000);
+}
+
+async function expectDockTabAccent(tab: Locator): Promise<void> {
+  await expect(tab).toBeVisible();
+  await expect.poll(() => tab.evaluate((element) => {
+    const style = getComputedStyle(element, "::before");
+    return style.content !== "none" &&
+      style.backgroundColor !== "transparent" &&
+      style.backgroundColor !== "rgba(0, 0, 0, 0)";
+  })).toBe(true);
 }
 
 async function openPaneSettings(page: Page, paneTitle: string): Promise<void> {

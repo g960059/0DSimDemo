@@ -37,20 +37,14 @@ export type WorkbenchAddPaneOptionV3 = Readonly<{
 
 export type WorkbenchPaneSplitDirectionV3 = "right" | "below";
 export type WorkbenchDockDropPositionV3 =
-  | "top"
-  | "bottom"
-  | "left"
-  | "right"
-  | "center";
+  "top" | "bottom" | "left" | "right" | "center";
 
-const GRAPH_SPLIT_DIRECTIONS_V3 = Object.freeze([
-  "right",
-  "below",
-] as const);
+const GRAPH_SPLIT_DIRECTIONS_V3 = Object.freeze(["right", "below"] as const);
 const OUTPUT_SPLIT_DIRECTIONS_V3 = Object.freeze(["right"] as const);
 const CONTROL_SPLIT_DIRECTIONS_V3 = Object.freeze(["below"] as const);
-const NO_SPLIT_DIRECTIONS_V3 = Object.freeze([]) as readonly
-WorkbenchPaneSplitDirectionV3[];
+const NO_SPLIT_DIRECTIONS_V3 = Object.freeze(
+  [],
+) as readonly WorkbenchPaneSplitDirectionV3[];
 
 type WorkbenchDockPanelParametersV3 = Readonly<{
   paneId: string;
@@ -105,9 +99,8 @@ type WorkbenchDockviewContextV3 = Readonly<{
   renderPane: WorkbenchDockviewPropsV3["renderPane"];
 }>;
 
-const WorkbenchDockContextV3 = React.createContext<
-WorkbenchDockviewContextV3 | null
->(null);
+const WorkbenchDockContextV3 =
+  React.createContext<WorkbenchDockviewContextV3 | null>(null);
 
 function WorkbenchDockPanelV3(
   props: IDockviewPanelProps<WorkbenchDockPanelParametersV3>,
@@ -159,16 +152,14 @@ function WorkbenchDockTabV3(
   const [renaming, setRenaming] = React.useState(false);
   const [draftTitle, setDraftTitle] = React.useState(title);
   const [isActive, setIsActive] = React.useState(() => props.api.isActive);
-  const hasMenu = pane !== undefined && (
-    context?.onOpenPaneSettings !== undefined
-    || context?.onRenamePane !== undefined
-    || context?.onDeletePane !== undefined
-    || context?.requestComparePane !== undefined
-    || (
-      context?.requestSplitPane !== undefined
-      && context.splitDirections.length > 0
-    )
-  );
+  const hasMenu =
+    pane !== undefined &&
+    (context?.onOpenPaneSettings !== undefined ||
+      context?.onRenamePane !== undefined ||
+      context?.onDeletePane !== undefined ||
+      context?.requestComparePane !== undefined ||
+      (context?.requestSplitPane !== undefined &&
+        context.splitDirections.length > 0));
 
   React.useEffect(() => setDraftTitle(title), [title]);
   React.useEffect(() => {
@@ -188,10 +179,11 @@ function WorkbenchDockTabV3(
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [menuPosition]);
 
-  const openMenu = (x: number, y: number) => setMenuPosition({
-    x: Math.max(8, Math.min(x, window.innerWidth - 208)),
-    y: Math.max(8, Math.min(y, window.innerHeight - 236)),
-  });
+  const openMenu = (x: number, y: number) =>
+    setMenuPosition({
+      x: Math.max(8, Math.min(x, window.innerWidth - 208)),
+      y: Math.max(8, Math.min(y, window.innerHeight - 340)),
+    });
   const beginRename = () => {
     setMenuPosition(null);
     setDraftTitle(title);
@@ -199,11 +191,8 @@ function WorkbenchDockTabV3(
   };
   const commitRename = () => {
     const nextTitle = draftTitle.trim();
-    if (
-      pane !== undefined
-      && nextTitle.length > 0
-      && nextTitle !== title
-    ) context?.onRenamePane?.(pane.paneId, nextTitle);
+    if (pane !== undefined && nextTitle.length > 0 && nextTitle !== title)
+      context?.onRenamePane?.(pane.paneId, nextTitle);
     setRenaming(false);
     setDraftTitle(nextTitle.length > 0 ? nextTitle : title);
   };
@@ -270,88 +259,90 @@ function WorkbenchDockTabV3(
           <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       )}
-      {menuPosition !== null && pane !== undefined && typeof document !== "undefined"
+      {menuPosition !== null &&
+      pane !== undefined &&
+      typeof document !== "undefined"
         ? createPortal(
-          <>
-            <button
-              type="button"
-              className="fixed inset-0 z-[79] cursor-default"
-              aria-label="Close pane menu"
-              onClick={() => setMenuPosition(null)}
-            />
-            <div
-              role="menu"
-              aria-label={title}
-              className="fixed z-[80] w-48 overflow-hidden rounded-xl bg-wb-panel p-1.5 text-xs text-wb-text shadow-2xl ring-1 ring-wb-line"
-              style={{ left: menuPosition.x, top: menuPosition.y }}
-              onClick={(event) => event.stopPropagation()}
-            >
-              {context?.onRenamePane !== undefined && (
-                <PaneMenuButtonV3
-                  icon={<Pencil className="h-3.5 w-3.5" />}
-                  label={context.renamePaneLabel ?? "Rename"}
-                  onClick={beginRename}
-                />
-              )}
-              {context?.onOpenPaneSettings !== undefined && (
-                <PaneMenuButtonV3
-                  icon={<Settings2 className="h-3.5 w-3.5" />}
-                  label={context.paneSettingsLabel ?? "Pane settings"}
-                  onClick={() => {
-                    setMenuPosition(null);
-                    context.onOpenPaneSettings?.(pane.paneId);
-                  }}
-                />
-              )}
-              {context?.requestSplitPane !== undefined && (
-                <>
-                  {context.splitDirections.includes("right") && (
-                    <PaneMenuButtonV3
-                      icon={<Columns2 className="h-3.5 w-3.5" />}
-                      label={context.splitRightLabel ?? "Split right"}
-                      onClick={() => {
-                        setMenuPosition(null);
-                        context.requestSplitPane?.(pane.paneId, "right");
-                      }}
-                    />
-                  )}
-                  {context.splitDirections.includes("below") && (
-                    <PaneMenuButtonV3
-                      icon={<Rows2 className="h-3.5 w-3.5" />}
-                      label={context.splitDownLabel ?? "Split down"}
-                      onClick={() => {
-                        setMenuPosition(null);
-                        context.requestSplitPane?.(pane.paneId, "below");
-                      }}
-                    />
-                  )}
-                </>
-              )}
-              {context?.requestComparePane !== undefined && (
-                <PaneMenuButtonV3
-                  icon={<GitCompareArrows className="h-3.5 w-3.5" />}
-                  label={context.comparePaneLabel ?? "Compare Scenarios"}
-                  onClick={() => {
-                    setMenuPosition(null);
-                    context.requestComparePane?.(pane.paneId);
-                  }}
-                />
-              )}
-              {context?.onDeletePane !== undefined && (
-                <PaneMenuButtonV3
-                  destructive
-                  icon={<Trash2 className="h-3.5 w-3.5" />}
-                  label={context.deletePaneLabel ?? "Delete pane"}
-                  onClick={() => {
-                    setMenuPosition(null);
-                    context.onDeletePane?.(pane.paneId);
-                  }}
-                />
-              )}
-            </div>
-          </>,
-          document.body,
-        )
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-[79] cursor-default"
+                aria-label="Close pane menu"
+                onClick={() => setMenuPosition(null)}
+              />
+              <div
+                role="menu"
+                aria-label={title}
+                className="fixed z-[80] max-h-[calc(100dvh-1rem)] w-48 overflow-y-auto rounded-xl bg-wb-panel p-1.5 text-xs text-wb-text shadow-2xl ring-1 ring-wb-line"
+                style={{ left: menuPosition.x, top: menuPosition.y }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                {context?.onRenamePane !== undefined && (
+                  <PaneMenuButtonV3
+                    icon={<Pencil className="h-3.5 w-3.5" />}
+                    label={context.renamePaneLabel ?? "Rename"}
+                    onClick={beginRename}
+                  />
+                )}
+                {context?.onOpenPaneSettings !== undefined && (
+                  <PaneMenuButtonV3
+                    icon={<Settings2 className="h-3.5 w-3.5" />}
+                    label={context.paneSettingsLabel ?? "Pane settings"}
+                    onClick={() => {
+                      setMenuPosition(null);
+                      context.onOpenPaneSettings?.(pane.paneId);
+                    }}
+                  />
+                )}
+                {context?.requestSplitPane !== undefined && (
+                  <>
+                    {context.splitDirections.includes("right") && (
+                      <PaneMenuButtonV3
+                        icon={<Columns2 className="h-3.5 w-3.5" />}
+                        label={context.splitRightLabel ?? "Split right"}
+                        onClick={() => {
+                          setMenuPosition(null);
+                          context.requestSplitPane?.(pane.paneId, "right");
+                        }}
+                      />
+                    )}
+                    {context.splitDirections.includes("below") && (
+                      <PaneMenuButtonV3
+                        icon={<Rows2 className="h-3.5 w-3.5" />}
+                        label={context.splitDownLabel ?? "Split down"}
+                        onClick={() => {
+                          setMenuPosition(null);
+                          context.requestSplitPane?.(pane.paneId, "below");
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+                {context?.requestComparePane !== undefined && (
+                  <PaneMenuButtonV3
+                    icon={<GitCompareArrows className="h-3.5 w-3.5" />}
+                    label={context.comparePaneLabel ?? "Compare Scenarios"}
+                    onClick={() => {
+                      setMenuPosition(null);
+                      context.requestComparePane?.(pane.paneId);
+                    }}
+                  />
+                )}
+                {context?.onDeletePane !== undefined && (
+                  <PaneMenuButtonV3
+                    destructive
+                    icon={<Trash2 className="h-3.5 w-3.5" />}
+                    label={context.deletePaneLabel ?? "Delete pane"}
+                    onClick={() => {
+                      setMenuPosition(null);
+                      context.onDeletePane?.(pane.paneId);
+                    }}
+                  />
+                )}
+              </div>
+            </>,
+            document.body,
+          )
         : null}
     </div>
   );
@@ -385,9 +376,7 @@ function PaneMenuButtonV3({
   );
 }
 
-function WorkbenchDockAddPaneActionV3(
-  props: IDockviewHeaderActionsProps,
-) {
+function WorkbenchDockAddPaneActionV3(props: IDockviewHeaderActionsProps) {
   const context = React.useContext(WorkbenchDockContextV3);
   const anchorPaneId = workbenchAddPaneAnchorForGroupV3(
     props.panels.map(({ id }) => id),
@@ -395,12 +384,14 @@ function WorkbenchDockAddPaneActionV3(
   if (context?.requestAddPane === undefined || anchorPaneId === undefined) {
     return null;
   }
-  return <WorkbenchAddPaneButtonV3
-    label={context.addPaneLabel ?? "Add pane"}
-    onAddPane={(optionId) => context.requestAddPane?.(anchorPaneId, optionId)}
-    options={context.addPaneOptions ?? []}
-    className="workbench-dock-add-pane inline-flex h-full min-w-9 touch-manipulation items-center justify-center text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent"
-  />;
+  return (
+    <WorkbenchAddPaneButtonV3
+      label={context.addPaneLabel ?? "Add pane"}
+      onAddPane={(optionId) => context.requestAddPane?.(anchorPaneId, optionId)}
+      options={context.addPaneOptions ?? []}
+      className="workbench-dock-add-pane inline-flex h-full min-w-9 touch-manipulation items-center justify-center text-wb-subtle transition-[color,background-color,transform] duration-150 hover:bg-wb-hover hover:text-wb-text active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-wb-accent"
+    />
+  );
 }
 
 function WorkbenchAddPaneButtonV3({
@@ -435,12 +426,20 @@ function WorkbenchAddPaneButtonV3({
             return;
           }
           const rect = event.currentTarget.getBoundingClientRect();
-          setMenuPosition((current) => current === null
-            ? {
-                x: Math.max(8, Math.min(rect.right - 224, window.innerWidth - 232)),
-                y: Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 260)),
-              }
-            : null);
+          setMenuPosition((current) =>
+            current === null
+              ? {
+                  x: Math.max(
+                    8,
+                    Math.min(rect.right - 224, window.innerWidth - 232),
+                  ),
+                  y: Math.max(
+                    8,
+                    Math.min(rect.bottom + 4, window.innerHeight - 260),
+                  ),
+                }
+              : null,
+          );
         }}
       >
         <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -448,42 +447,42 @@ function WorkbenchAddPaneButtonV3({
       </button>
       {menuPosition !== null && typeof document !== "undefined"
         ? createPortal(
-          <>
-            <button
-              type="button"
-              className="fixed inset-0 z-[79] cursor-default"
-              aria-label="Close add pane menu"
-              onClick={() => setMenuPosition(null)}
-            />
-            <div
-              role="menu"
-              aria-label={label}
-              className="fixed z-[80] w-56 overflow-hidden rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
-              style={{ left: menuPosition.x, top: menuPosition.y }}
-            >
-              {options.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="menuitem"
-                  className="block min-h-10 w-full rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-                  onClick={() => {
-                    setMenuPosition(null);
-                    onAddPane(option.id);
-                  }}
-                >
-                  <span className="block font-semibold">{option.label}</span>
-                  {option.description !== undefined && (
-                    <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
-                      {option.description}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </>,
-          document.body,
-        )
+            <>
+              <button
+                type="button"
+                className="fixed inset-0 z-[79] cursor-default"
+                aria-label="Close add pane menu"
+                onClick={() => setMenuPosition(null)}
+              />
+              <div
+                role="menu"
+                aria-label={label}
+                className="fixed z-[80] w-56 overflow-hidden rounded-xl bg-wb-panel p-1.5 text-xs shadow-2xl ring-1 ring-wb-line"
+                style={{ left: menuPosition.x, top: menuPosition.y }}
+              >
+                {options.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="menuitem"
+                    className="block min-h-10 w-full rounded-lg px-3 py-2 text-left text-wb-muted hover:bg-wb-hover hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                    onClick={() => {
+                      setMenuPosition(null);
+                      onAddPane(option.id);
+                    }}
+                  >
+                    <span className="block font-semibold">{option.label}</span>
+                    {option.description !== undefined && (
+                      <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
+                        {option.description}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body,
+          )
         : null}
     </>
   );
@@ -494,9 +493,8 @@ function addPaneV3(
   pane: WorkbenchPaneDefinitionV3,
   placement: "first" | "right" | "within",
 ): void {
-  const referenceGroup = placement === "within"
-    ? api.panels.at(-1)?.group
-    : api.panels[0]?.group;
+  const referenceGroup =
+    placement === "within" ? api.panels.at(-1)?.group : api.panels[0]?.group;
   api.addPanel<WorkbenchDockPanelParametersV3>({
     id: pane.paneId,
     title: pane.title,
@@ -506,12 +504,12 @@ function addPaneV3(
     ...(placement === "first" || referenceGroup === undefined
       ? {}
       : {
-        position: {
-          referenceGroup,
-          direction: placement,
-        },
-        floating: false,
-      }),
+          position: {
+            referenceGroup,
+            direction: placement,
+          },
+          floating: false,
+        }),
   });
 }
 
@@ -581,15 +579,16 @@ export function applyWorkbenchPanesV3(
 ): void {
   const activePaneId = api.activePanel?.id;
   if (
-    pendingAdd !== undefined
-    && pendingAdd !== null
-    && applyWorkbenchPaneAdditionToAnchorGroupV3(
+    pendingAdd !== undefined &&
+    pendingAdd !== null &&
+    applyWorkbenchPaneAdditionToAnchorGroupV3(
       api,
       panes,
       pendingAdd.paneId,
       pendingAdd.anchorPaneId,
     )
-  ) return;
+  )
+    return;
   api.clear();
   const exceptionalPaneIds = new Set([
     ...(pendingSplit === undefined || pendingSplit === null
@@ -599,18 +598,15 @@ export function applyWorkbenchPanesV3(
       ? []
       : [pendingAdd.paneId]),
   ]);
-  const ordinaryPanes = exceptionalPaneIds.size === 0
-    ? panes
-    : panes.filter(({ paneId }) => !exceptionalPaneIds.has(paneId));
+  const ordinaryPanes =
+    exceptionalPaneIds.size === 0
+      ? panes
+      : panes.filter(({ paneId }) => !exceptionalPaneIds.has(paneId));
   if (layoutMode === "dashboard" && ordinaryPanes.length >= 3) {
     addWorkbenchDashboardPanesV3(api, ordinaryPanes);
   } else {
     ordinaryPanes.forEach((pane, index) => {
-      addPaneV3(
-        api,
-        pane,
-        workbenchPanePlacementV3(index, layoutMode),
-      );
+      addPaneV3(api, pane, workbenchPanePlacementV3(index, layoutMode));
     });
   }
   if (pendingSplit !== undefined && pendingSplit !== null) {
@@ -654,12 +650,13 @@ export function applyWorkbenchPanesV3(
     }
   }
   const requestedPaneId = pendingAdd?.paneId ?? pendingSplit?.paneId;
-  const paneToActivate = requestedPaneId !== undefined
-    ? requestedPaneId
-    : activePaneId !== undefined
-    && panes.some(({ paneId }) => paneId === activePaneId)
-    ? activePaneId
-    : panes[0]?.paneId;
+  const paneToActivate =
+    requestedPaneId !== undefined
+      ? requestedPaneId
+      : activePaneId !== undefined &&
+          panes.some(({ paneId }) => paneId === activePaneId)
+        ? activePaneId
+        : panes[0]?.paneId;
   if (paneToActivate !== undefined) {
     api.getPanel?.(paneToActivate)?.api?.setActive?.();
   }
@@ -688,13 +685,7 @@ export function reconcileWorkbenchPaneMembershipV3(
   }> | null,
 ): void {
   if (api.panels.length === 0) {
-    applyWorkbenchPanesV3(
-      api,
-      panes,
-      layoutMode,
-      pendingSplit,
-      pendingAdd,
-    );
+    applyWorkbenchPanesV3(api, panes, layoutMode, pendingSplit, pendingAdd);
     return;
   }
 
@@ -779,9 +770,10 @@ export function applyWorkbenchPaneAdditionToAnchorGroupV3(
     .filter((candidate) => candidate.paneId !== paneId)
     .map((candidate) => candidate.paneId);
   if (
-    existingPaneIds.size !== expectedExistingPaneIds.length
-    || expectedExistingPaneIds.some((id) => !existingPaneIds.has(id))
-  ) return false;
+    existingPaneIds.size !== expectedExistingPaneIds.length ||
+    expectedExistingPaneIds.some((id) => !existingPaneIds.has(id))
+  )
+    return false;
 
   const referenceGroup = api.getPanel(anchorPaneId)?.group;
   if (referenceGroup === undefined) return false;
@@ -857,9 +849,10 @@ export function getWorkbenchPaneSignatureV3(
 ): string {
   // Titles and pane-specific selections flow through React context. Only the
   // ordered Dockview membership and role require structural reconciliation.
-  return JSON.stringify(
-    [layoutMode, panes.map(({ paneId, role }) => [paneId, role])],
-  );
+  return JSON.stringify([
+    layoutMode,
+    panes.map(({ paneId, role }) => [paneId, role]),
+  ]);
 }
 
 function workbenchLayoutModeFromPaneSignatureV3(
@@ -887,8 +880,8 @@ export function reconcileWorkbenchPanesV3(
   const nextSignature = getWorkbenchPaneSignatureV3(panes, layoutMode);
   if (nextSignature === appliedSignature) return appliedSignature;
   if (
-    appliedSignature !== null
-    && workbenchLayoutModeFromPaneSignatureV3(appliedSignature) !== layoutMode
+    appliedSignature !== null &&
+    workbenchLayoutModeFromPaneSignatureV3(appliedSignature) !== layoutMode
   ) {
     // A responsive desktop-layout→tabs transition is the sole structural
     // rebuild. Pane membership edits must preserve the user's live group tree.
@@ -902,9 +895,7 @@ export function reconcileWorkbenchPanesV3(
 export function getWorkbenchPaneTitleSignatureV3(
   panes: readonly WorkbenchPaneDefinitionV3[],
 ): string {
-  return JSON.stringify(
-    panes.map(({ paneId, title }) => [paneId, title]),
-  );
+  return JSON.stringify(panes.map(({ paneId, title }) => [paneId, title]));
 }
 
 export function reconcileWorkbenchPaneTitlesV3(
@@ -1000,36 +991,39 @@ export function WorkbenchDockview({
     () => ({
       addPaneLabel,
       addPaneOptions,
-      requestAddPane: onAddPane === undefined
-        ? undefined
-        : (anchorPaneId, optionId) => {
-            const paneId = onAddPane(optionId);
-            if (paneId === undefined) return;
-            pendingAddRef.current = { paneId, anchorPaneId };
-          },
+      requestAddPane:
+        onAddPane === undefined
+          ? undefined
+          : (anchorPaneId, optionId) => {
+              const paneId = onAddPane(optionId);
+              if (paneId === undefined) return;
+              pendingAddRef.current = { paneId, anchorPaneId };
+            },
       onDeletePane,
       deletePaneLabel,
       onRenamePane,
       renamePaneLabel,
-      requestSplitPane: onSplitPane === undefined
-        ? undefined
-        : (sourcePaneId, direction) => {
-            if (!splitDirections.includes(direction)) return;
-            const paneId = onSplitPane(sourcePaneId, direction);
-            if (paneId === undefined) return;
-            pendingSplitRef.current = { paneId, sourcePaneId, direction };
-          },
-      requestComparePane: onComparePane === undefined
-        ? undefined
-        : (sourcePaneId) => {
-            const paneId = onComparePane(sourcePaneId);
-            if (paneId === undefined) return;
-            pendingSplitRef.current = {
-              paneId,
-              sourcePaneId,
-              direction: "right",
-            };
-          },
+      requestSplitPane:
+        onSplitPane === undefined
+          ? undefined
+          : (sourcePaneId, direction) => {
+              if (!splitDirections.includes(direction)) return;
+              const paneId = onSplitPane(sourcePaneId, direction);
+              if (paneId === undefined) return;
+              pendingSplitRef.current = { paneId, sourcePaneId, direction };
+            },
+      requestComparePane:
+        onComparePane === undefined
+          ? undefined
+          : (sourcePaneId) => {
+              const paneId = onComparePane(sourcePaneId);
+              if (paneId === undefined) return;
+              pendingSplitRef.current = {
+                paneId,
+                sourcePaneId,
+                direction: "right",
+              };
+            },
       comparePaneLabel,
       splitDownLabel,
       splitDirections,
@@ -1087,8 +1081,8 @@ export function WorkbenchDockview({
     );
     if (nextSignature === appliedPaneSignatureRef.current) return;
     if (
-      appliedPaneSignatureRef.current !== null
-      && workbenchLayoutModeFromPaneSignatureV3(
+      appliedPaneSignatureRef.current !== null &&
+      workbenchLayoutModeFromPaneSignatureV3(
         appliedPaneSignatureRef.current,
       ) !== latestLayoutModeRef.current
     ) {
@@ -1179,10 +1173,10 @@ export function WorkbenchDockview({
           getTabContextMenuItems={() => []}
           getTabGroupChipContextMenuItems={() => []}
           onWillDrop={(event) => {
-            if (!workbenchDockDropPositionAllowedForRoleV3(
-              role,
-              event.position,
-            )) event.preventDefault();
+            if (
+              !workbenchDockDropPositionAllowedForRoleV3(role, event.position)
+            )
+              event.preventDefault();
           }}
           onReady={(event: DockviewReadyEvent) => {
             apiRef.current = event.api;
@@ -1207,8 +1201,9 @@ export function WorkbenchDockview({
 
 function useNarrowWorkbenchDockviewV3(): boolean {
   const query = "(max-width: 1023px)";
-  const [matches, setMatches] = React.useState(() =>
-    typeof window !== "undefined" && window.matchMedia(query).matches);
+  const [matches, setMatches] = React.useState(
+    () => typeof window !== "undefined" && window.matchMedia(query).matches,
+  );
   React.useEffect(() => {
     const media = window.matchMedia(query);
     const update = () => setMatches(media.matches);

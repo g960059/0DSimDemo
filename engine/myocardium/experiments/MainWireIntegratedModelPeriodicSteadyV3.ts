@@ -1,4 +1,4 @@
-import { NORMAL_CORONARY_DISEASE_INPUT_V2 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import { createMainWireCoronaryDiseaseInputV2 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
 import { NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
@@ -33,15 +33,18 @@ import {
   type MainWireIntegratedModelStepInputV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
-import {
-  createMainWireIntegratedRegularSinusRhythmV3,
-} from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
+import { createMainWireIntegratedRegularSinusRhythmV3 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
 import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3,
+  type MainWireIntegratedModelMechanismResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
@@ -55,18 +58,16 @@ import {
   compareMainWireIntegratedModelAcceptedStatesV3,
   type MainWireIntegratedModelPeriodicClosureReportV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import { MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
 import {
   normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
-import { createMainWireNormalAdultCommonPericardiumV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
-import {
-  createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import { createMainWireCommonPericardiumWithResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireCommonPericardiumResearchInputsV1";
+import { createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import { withCommonVentricularActiveTensionScaleV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
+import { createMainWireFourValveContinuousAreaResearchInputV1 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -120,6 +121,7 @@ export type MainWireIntegratedModelPeriodicSteadyOptionsV3 = Readonly<{
   executionPurpose?: MainWireIntegratedModelPeriodicExecutionPurposeV3;
   hemodynamicResearchInputs?: MainWireIntegratedModelHemodynamicResearchInputsV3;
   ventricularContractilityScale?: number;
+  mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
 }>;
 
 export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
@@ -297,7 +299,7 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
 }>;
 
 type Provider = ReturnType<
-  typeof createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1
+  typeof createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1
 >;
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
@@ -308,18 +310,32 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
 >;
 
 export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
-  requestedHemodynamicResearchInputs:
-  MainWireIntegratedModelHemodynamicResearchInputsV3 =
-    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   ventricularContractilityScale = 1,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
 ) {
   const hemodynamicResearchInputs =
     validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
       requestedHemodynamicResearchInputs,
     );
+  const requestedMechanismInputs =
+    validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+      requestedMechanismResearchInputs,
+    );
+  const chamberMechanics =
+    ventricularContractilityScale === 1
+      ? requestedMechanismInputs.chamberMechanics
+      : withCommonVentricularActiveTensionScaleV1(
+          requestedMechanismInputs.chamberMechanics,
+          ventricularContractilityScale,
+        );
+  const mechanismResearchInputs = Object.freeze({
+    ...requestedMechanismInputs,
+    chamberMechanics,
+  });
   const provider =
-    createMainWireNormalAdultFiveWallProviderWithVentricularContractilityScaleV1(
-      ventricularContractilityScale,
+    createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+      chamberMechanics,
     );
   const canonicalRuntime = normalAdultMainWireRuntimeV1();
   const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
@@ -327,9 +343,10 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   const calciumDriveParams = Object.freeze({
     ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
     parameterSetId:
-      `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}`
-      + `-hr-${hemodynamicResearchInputs.heartRateBpm}-bpm`,
+      `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}` +
+      `-hr-${hemodynamicResearchInputs.heartRateBpm}-bpm`,
     cycleLengthSec,
+    decayTimeScaleByWall: chamberMechanics.calciumDecayTimeScaleByWall,
   });
   const runtime = Object.freeze({
     vascular: Object.freeze({
@@ -344,9 +361,16 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       ...canonicalRuntime.respiratory,
       PEEP: peepMmHg,
     }),
-    valveResearchInput: canonicalRuntime.valveResearchInput,
+    valveResearchInput: createMainWireFourValveContinuousAreaResearchInputV1(
+      mechanismResearchInputs.valveAreas,
+    ),
   });
-  const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+  const pericardium = createMainWireCommonPericardiumWithResearchInputsV1(
+    mechanismResearchInputs.pericardium,
+  );
+  const coronaryDisease = createMainWireCoronaryDiseaseInputV2(
+    mechanismResearchInputs.coronaryDisease,
+  );
   const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
     idPrefix: "periodic-v3",
     parameterProvenanceSourceId: "bounded-periodic-v3-construction",
@@ -364,7 +388,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     calciumDriveParams,
     pericardium,
     coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
-    coronaryDisease: NORMAL_CORONARY_DISEASE_INPUT_V2,
+    coronaryDisease,
     collapseHydraulics: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
     impMechanism: "cep-shortening-induced" as const,
     shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
@@ -378,7 +402,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
       calciumDriveParams,
       pericardium,
       coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
-      coronaryDisease: NORMAL_CORONARY_DISEASE_INPUT_V2,
+      coronaryDisease,
       collapseHydraulics:
         MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
       impMechanism: "cep-shortening-induced" as const,
@@ -400,6 +424,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   return Object.freeze({
     hemodynamicResearchInputs,
     ventricularContractilityScale,
+    mechanismResearchInputs,
     provider,
     runtime,
     pericardium,
@@ -420,6 +445,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     resolved.hemodynamicResearchInputs,
     resolved.ventricularContractilityScale,
+    resolved.mechanismResearchInputs,
   );
   const protocolIdentityHash = await sha256CanonicalJsonHex(
     Object.freeze({
@@ -428,8 +454,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       nominalDtSec: resolved.nominalDtSec,
       maximumCycleCount: resolved.maximumCycleCount,
       periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-      referenceScales:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+      referenceScales: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
       provider: providerIdentity(fixture.provider),
       composedRhythmConfiguration: fixture.rhythm.configuration,
       dynamicMechanicalSupportProfile: fixture.profile,
@@ -563,9 +588,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     canonicalPeriod1,
   );
   const checkpointContext =
-    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
-      fixture,
-    );
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(fixture);
   const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
     checkpointContext,
     accepted,
@@ -733,7 +756,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
       acceptedStepCount >=
       MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
     ) {
-      throw new Error("V3 qualification alignment exceeded accepted-step bound");
+      throw new Error(
+        "V3 qualification alignment exceeded accepted-step bound",
+      );
     }
     const nominalTargetTimeSec = Math.min(
       boundaryAcceptedTimeSec,
@@ -757,7 +782,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
       !(maximum.candidateTimeSec > accepted.acceptedTimeSec) ||
       maximum.candidateTimeSec > nominalTargetTimeSec
     ) {
-      throw new Error("V3 qualification alignment scheduler returned an invalid step");
+      throw new Error(
+        "V3 qualification alignment scheduler returned an invalid step",
+      );
     }
     const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
     const stepped = stepMainWireIntegratedModelV3(
@@ -778,7 +805,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
     if (stepped.coronaryStep.autoregulationWindowCompleted) {
       const completion = stepped.coronaryStep.autoregulationCompletion;
       if (completion === null) {
-        throw new Error("V3 qualification completion flag lacks completion state");
+        throw new Error(
+          "V3 qualification completion flag lacks completion state",
+        );
       }
       if (
         completion.windowIndex !== window.windowIndex ||
@@ -857,7 +886,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
     throw new Error("V3 qualification did not reach one exact window boundary");
   }
   if (!oneComposedCalciumOwnerOnly) {
-    throw new Error("V3 qualification alignment detected split calcium ownership");
+    throw new Error(
+      "V3 qualification alignment detected split calcium ownership",
+    );
   }
   if (!allRawValuesFinite) {
     throw new Error("V3 qualification alignment contains nonfinite raw values");
@@ -875,7 +906,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
     maximumDynamicMcsConservationResidualMlPerSec >
       tolerance.dynamicMcsConservationResidualMlPerSec
   ) {
-    throw new Error("V3 qualification alignment exceeds conservation tolerance");
+    throw new Error(
+      "V3 qualification alignment exceeds conservation tolerance",
+    );
   }
   rejectDuplicateIds(
     new Set<string>(),
@@ -964,9 +997,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       acceptedStepCount >=
       MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
     ) {
-      throw new Error(
-        "V3 periodic cycle exceeded accepted-step bound",
-      );
+      throw new Error("V3 periodic cycle exceeded accepted-step bound");
     }
     const nominalTargetTimeSec = Math.min(
       endTimeSec,
@@ -993,8 +1024,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     ) {
       throw new Error("V3 periodic scheduler returned an invalid step");
     }
-    const acceptedDtSec =
-      maximum.candidateTimeSec - accepted.acceptedTimeSec;
+    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
     const stepped = stepMainWireIntegratedModelV3(
       fixture.provider,
       accepted,
@@ -1116,9 +1146,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     maximumDynamicMcsConservationResidualMlPerSec >
       tolerance.dynamicMcsConservationResidualMlPerSec
   ) {
-    throw new Error(
-      "V3 periodic cycle exceeds conservation tolerance",
-    );
+    throw new Error("V3 periodic cycle exceeds conservation tolerance");
   }
   return deepFreeze({
     startTimeSec,
@@ -1499,9 +1527,8 @@ function resolveOptions(
           "executionPurpose",
           "hemodynamicResearchInputs",
           "ventricularContractilityScale",
-        ].includes(
-          key,
-        ),
+          "mechanismResearchInputs",
+        ].includes(key),
     )
   ) {
     throw new Error("V3 periodic options contain unexpected fields");
@@ -1543,8 +1570,12 @@ function resolveOptions(
         options.hemodynamicResearchInputs ??
           MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
       ),
-    ventricularContractilityScale:
-      options.ventricularContractilityScale ?? 1,
+    ventricularContractilityScale: options.ventricularContractilityScale ?? 1,
+    mechanismResearchInputs:
+      validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+        options.mechanismResearchInputs ??
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+      ),
   });
 }
 

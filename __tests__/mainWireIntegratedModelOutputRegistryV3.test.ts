@@ -19,9 +19,7 @@ import {
   mainWireIntegratedModelPresentationTargetTimeSecV3,
   type MainWireIntegratedModelPresentationAdvanceV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 
 const EXACT_OUTPUT_IDS = [
   "hemodynamics.volume.LA",
@@ -50,6 +48,10 @@ const EXACT_OUTPUT_IDS = [
   "hemodynamics.flow.venous.VC_RA",
   "hemodynamics.flow.venous.PVein_LA",
   "pericardium.pressure.excess",
+  "pericardium.volume.heart",
+  "pericardium.volume.fluid",
+  "pericardium.volume.total-occupied",
+  "pericardium.energy.stored",
   "respiration.pressure.pleural",
   "respiration.pressure.alveolar",
   "rhythm.heart-rate.instantaneous",
@@ -57,49 +59,197 @@ const EXACT_OUTPUT_IDS = [
   "coronary.flow.inlet.LAD",
   "coronary.flow.inlet.LCx",
   "coronary.flow.inlet.RCA",
+  "coronary.flow.venous-outlet",
+  "coronary.flow.large-arterial-outflow.LAD",
+  "coronary.flow.large-arterial-storage-rate.LAD",
+  "coronary.flow.large-arterial-outflow.LCx",
+  "coronary.flow.large-arterial-storage-rate.LCx",
+  "coronary.flow.large-arterial-outflow.RCA",
+  "coronary.flow.large-arterial-storage-rate.RCA",
+  "coronary.flow.layer-r1.LAD.subepicardial",
+  "coronary.flow.layer-qm-internal.LAD.subepicardial",
+  "coronary.flow.layer-r2.LAD.subepicardial",
+  "coronary.tone-resistance-scale.LAD.subepicardial",
+  "coronary.flow.layer-r1.LAD.subendocardial",
+  "coronary.flow.layer-qm-internal.LAD.subendocardial",
+  "coronary.flow.layer-r2.LAD.subendocardial",
+  "coronary.tone-resistance-scale.LAD.subendocardial",
+  "coronary.flow.layer-r1.LCx.subepicardial",
+  "coronary.flow.layer-qm-internal.LCx.subepicardial",
+  "coronary.flow.layer-r2.LCx.subepicardial",
+  "coronary.tone-resistance-scale.LCx.subepicardial",
+  "coronary.flow.layer-r1.LCx.subendocardial",
+  "coronary.flow.layer-qm-internal.LCx.subendocardial",
+  "coronary.flow.layer-r2.LCx.subendocardial",
+  "coronary.tone-resistance-scale.LCx.subendocardial",
+  "coronary.flow.layer-r1.RCA.subepicardial",
+  "coronary.flow.layer-qm-internal.RCA.subepicardial",
+  "coronary.flow.layer-r2.RCA.subepicardial",
+  "coronary.tone-resistance-scale.RCA.subepicardial",
+  "coronary.flow.layer-r1.RCA.subendocardial",
+  "coronary.flow.layer-qm-internal.RCA.subendocardial",
+  "coronary.flow.layer-r2.RCA.subendocardial",
+  "coronary.tone-resistance-scale.RCA.subendocardial",
+  "coronary.pressure.post-focal.LAD",
+  "coronary.pressure-loss.focal.LAD",
+  "coronary.pressure.post-focal.LCx",
+  "coronary.pressure-loss.focal.LCx",
+  "coronary.pressure.post-focal.RCA",
+  "coronary.pressure-loss.focal.RCA",
+  "coronary.power.dissipated.total",
   "device.LVAD.flow",
   "rhythm.phase.regular-sinus",
   "hemodynamics.pressure.mean.Ao",
   "hemodynamics.pressure.systolic.Ao",
   "hemodynamics.pressure.diastolic.Ao",
   "hemodynamics.pressure.pulse.Ao",
+  "hemodynamics.pressure.mean.SA",
+  "hemodynamics.pressure.systolic.SA",
+  "hemodynamics.pressure.diastolic.SA",
+  "hemodynamics.pressure.pulse.SA",
   "hemodynamics.pressure.mean.PA",
+  "hemodynamics.pressure.systolic.PA",
+  "hemodynamics.pressure.diastolic.PA",
+  "hemodynamics.pressure.pulse.PA",
+  "hemodynamics.pressure.mean.PVein",
+  "hemodynamics.pressure.mean.VC",
   "hemodynamics.pressure.mean.LA",
   "hemodynamics.pressure.mean.RA",
+  "hemodynamics.pressure.systolic.LV",
+  "hemodynamics.pressure.systolic.RV",
+  "hemodynamics.pressure-gradient.mean.systemic-circuit",
+  "hemodynamics.pressure-gradient.mean.pulmonary-circuit",
   "hemodynamics.volume.maximum.LV",
   "hemodynamics.volume.minimum.LV",
   "hemodynamics.stroke-volume.LV-extrema",
   "hemodynamics.ejection-fraction.LV-extrema",
+  "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+  "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+  "hemodynamics.pressure.transmural.end-diastolic.LV-at-MV-closure",
+  "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+  "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+  "hemodynamics.pressure.transmural.end-systolic.LV-at-AoV-closure",
+  "hemodynamics.stroke-volume.LV-event-defined",
+  "hemodynamics.ejection-fraction.LV-event-defined",
+  "hemodynamics.volume.end-diastolic.RV-at-TV-closure",
+  "hemodynamics.pressure.absolute.end-diastolic.RV-at-TV-closure",
+  "hemodynamics.pressure.transmural.end-diastolic.RV-at-TV-closure",
+  "hemodynamics.volume.end-systolic.RV-at-PV-closure",
+  "hemodynamics.pressure.absolute.end-systolic.RV-at-PV-closure",
+  "hemodynamics.pressure.transmural.end-systolic.RV-at-PV-closure",
+  "hemodynamics.stroke-volume.RV-event-defined",
+  "hemodynamics.ejection-fraction.RV-event-defined",
+  "hemodynamics.valve-volume.forward.MV",
+  "hemodynamics.valve-volume.reverse.MV",
+  "hemodynamics.valve-volume.net.MV",
+  "hemodynamics.valve-regurgitant-fraction.same-valve.MV",
+  "hemodynamics.valve-volume.forward.AoV",
+  "hemodynamics.valve-volume.reverse.AoV",
+  "hemodynamics.valve-volume.net.AoV",
+  "hemodynamics.valve-regurgitant-fraction.same-valve.AoV",
+  "hemodynamics.valve-volume.forward.TV",
+  "hemodynamics.valve-volume.reverse.TV",
+  "hemodynamics.valve-volume.net.TV",
+  "hemodynamics.valve-regurgitant-fraction.same-valve.TV",
+  "hemodynamics.valve-volume.forward.PV",
+  "hemodynamics.valve-volume.reverse.PV",
+  "hemodynamics.valve-volume.net.PV",
+  "hemodynamics.valve-regurgitant-fraction.same-valve.PV",
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.MV",
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.MV",
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV",
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.TV",
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
+  "myocardium.work.external.LV-transmural-pressure-volume-path",
+  "myocardium.work.external.RV-transmural-pressure-volume-path",
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV",
   "hemodynamics.output.native-left",
+  "hemodynamics.output.native-right",
+  "hemodynamics.output.effective-native-left",
+  "hemodynamics.output.effective-native-right",
+  "hemodynamics.return.systemic-venous",
+  "hemodynamics.return.pulmonary-venous",
   "hemodynamics.output.systemic-tissue",
   "hemodynamics.output.pulmonary",
+  "hemodynamics.resistance.systemic-effective",
+  "hemodynamics.resistance.pulmonary-effective",
+  "hemodynamics.compliance.pulmonary-arterial-effective",
+  "coronary.pressure-perfusion.surrogate.Ao-diastolic-minus-LVEDP",
+  "oxygen.pressure.alveolar",
+  "oxygen.pressure.arterial",
+  "oxygen.pressure.gradient.alveolar-arterial",
+  "oxygen.saturation.end-capillary",
+  "oxygen.saturation.arterial",
+  "oxygen.content.end-capillary",
+  "oxygen.content.arterial",
+  "oxygen.content.required-mixed-venous",
+  "oxygen.saturation.required-mixed-venous",
+  "oxygen.pressure.required-mixed-venous",
+  "oxygen.delivery.systemic",
+  "oxygen.consumption.target",
+  "oxygen.extraction-ratio.required",
+  "oxygen.delivery-to-consumption-ratio",
 ] as const;
 
 describe("Main Wire Integrated Model V3 output registry", () => {
   it("locks the exact expanded output catalog and excludes status from frames", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID).toBe(
-      "main-wire-integrated-model-output-registry-v5",
+      "main-wire-integrated-model-output-registry-v9",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID).toBe(
-      "main-wire-integrated-model-output-frame-v5",
+      "main-wire-integrated-model-output-frame-v9",
     );
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3).toEqual(
-      EXACT_OUTPUT_IDS,
-    );
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(49);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.filter(
-      ({ kind }) => kind === "metric",
-    )).toHaveLength(14);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.every(
-      ({ modelingStatus, sourcePath }) =>
-        modelingStatus === "modeled" && sourcePath.length > 0,
-    )).toBe(true);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3)
-      .toMatchObject({
-        unavailableValuePolicy: "null-never-zero",
-      });
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3)
-      .not.toHaveProperty("statusFieldsExcluded");
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3).toEqual(EXACT_OUTPUT_IDS);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(173);
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.filter(
+        ({ kind }) => kind === "metric",
+      ),
+    ).toHaveLength(96);
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.every(
+        ({ modelingStatus, sourcePath, significantDigits }) =>
+          modelingStatus === "modeled" &&
+          sourcePath.length > 0 &&
+          significantDigits === 3,
+      ),
+    ).toBe(true);
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+        ({ outputId }) =>
+          outputId ===
+          "myocardium.work.external.LV-transmural-pressure-volume-path",
+      ),
+    ).toEqual({
+      outputId: "myocardium.work.external.LV-transmural-pressure-volume-path",
+      kind: "metric",
+      quantityKind: "work",
+      unit: "mmHg*mL",
+      modelingStatus: "modeled",
+      sourceKind: "completed-beat",
+      sourcePath:
+        "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
+      significantDigits: 3,
+      scope: "beat",
+      dependencies: [
+        "hemodynamics.volume.LV",
+        "hemodynamics.pressure.transmural.LV",
+      ],
+    });
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
+    ).toMatchObject({
+      unavailableValuePolicy: "null-never-zero",
+    });
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
+    ).not.toHaveProperty("statusFieldsExcluded");
     expect(MAIN_WIRE_INTEGRATED_MODEL_STATUS_FIELDS_V3).toEqual([
       "model-time",
       "accepted-revision",
@@ -115,10 +265,12 @@ describe("Main Wire Integrated Model V3 output registry", () => {
   it("projects cold, restored, accepted-step, and event-substep availability exactly", async () => {
     const session = await MainWireIntegratedModelSessionV3.create();
     const cold = projectMainWireIntegratedModelObservationV3(session.observe());
-    expect(projectMainWireIntegratedModelSelectedValuesV3(
-      session.observe(),
-      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-    )).toEqual(cold.values);
+    expect(
+      projectMainWireIntegratedModelSelectedValuesV3(
+        session.observe(),
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+      ),
+    ).toEqual(cold.values);
 
     expect(Object.keys(cold)).toEqual([
       "frameId",
@@ -141,9 +293,9 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       availability: "available",
       quality: "accepted-derived",
     });
-    expect(cold.values["rhythm.phase.regular-sinus"].value).toBeGreaterThanOrEqual(
-      0,
-    );
+    expect(
+      cold.values["rhythm.phase.regular-sinus"].value,
+    ).toBeGreaterThanOrEqual(0);
     expect(cold.values["rhythm.phase.regular-sinus"].value).toBeLessThan(1);
     expect(cold.values["rhythm.heart-rate.instantaneous"]).toMatchObject({
       value: 60,
@@ -153,10 +305,9 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(cold.values["respiration.pressure.pleural"].value).toBe(0);
     expect(cold.values["respiration.pressure.alveolar"].value).toBe(0);
     for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3) {
-      const definition =
-        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
-          (entry) => entry.outputId === outputId,
-        );
+      const definition = MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+        (entry) => entry.outputId === outputId,
+      );
       if (definition?.sourceKind !== "accepted-step-readback") continue;
       expect(cold.values[outputId]).toEqual({
         outputId,
@@ -176,27 +327,28 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       });
     }
 
-    const first = expectAdvanced(session.advanceToPresentationTime(
-      mainWireIntegratedModelPresentationTargetTimeSecV3(1),
-    ));
-    const firstFrame =
-      projectMainWireIntegratedModelAdvancedFrameV3(first);
-    expect(projectMainWireIntegratedModelSelectedValuesV3(
-      first.observation,
-      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-    )).toEqual(firstFrame.values);
-    expect(projectMainWireIntegratedModelSelectedValuesV3(
-      first.observation,
-      [
+    const first = expectAdvanced(
+      session.advanceToPresentationTime(
+        mainWireIntegratedModelPresentationTargetTimeSecV3(1),
+      ),
+    );
+    const firstFrame = projectMainWireIntegratedModelAdvancedFrameV3(first);
+    expect(
+      projectMainWireIntegratedModelSelectedValuesV3(
+        first.observation,
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+      ),
+    ).toEqual(firstFrame.values);
+    expect(
+      projectMainWireIntegratedModelSelectedValuesV3(first.observation, [
         "hemodynamics.pressure.absolute.LV",
         "hemodynamics.volume.LV",
         "hemodynamics.output.native-left",
-      ],
-    )).toEqual({
+      ]),
+    ).toEqual({
       "hemodynamics.pressure.absolute.LV":
         firstFrame.values["hemodynamics.pressure.absolute.LV"],
-      "hemodynamics.volume.LV":
-        firstFrame.values["hemodynamics.volume.LV"],
+      "hemodynamics.volume.LV": firstFrame.values["hemodynamics.volume.LV"],
       "hemodynamics.output.native-left":
         firstFrame.values["hemodynamics.output.native-left"],
     });
@@ -204,37 +356,33 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(firstStep).not.toBeNull();
     if (firstStep === null) throw new Error("accepted-step readback is absent");
     expect(firstFrame.values["hemodynamics.pressure.absolute.LV"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.LV,
+      firstStep.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg
+        .LV,
     );
     expect(firstFrame.values["hemodynamics.pressure.absolute.Ao"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .nodeAbsolutePressuresMmHg.Ao,
+      firstStep.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg
+        .Ao,
     );
-    expect(firstFrame.values["hemodynamics.pressure.transmural.LV"].value)
-      .toBe(
-        firstStep.coronaryStep.baseStep.mechanicsTrial
-          .transmuralPressuresMmHg.LV,
-      );
+    expect(firstFrame.values["hemodynamics.pressure.transmural.LV"].value).toBe(
+      firstStep.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.LV,
+    );
     expect(firstFrame.values["hemodynamics.flow.valve.AoV"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .valveEvaluations.AoV.flowMlPerSec,
+      firstStep.coronaryStep.baseStep.circulationTrial.valveEvaluations.AoV
+        .flowMlPerSec,
     );
     expect(firstFrame.values["hemodynamics.flow.systemic.SA_Art"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.SA_Art,
+      firstStep.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.SA_Art,
     );
     expect(firstFrame.values["hemodynamics.flow.pulmonary.PA_PArt"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.PA_PArt,
+      firstStep.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec
+        .PA_PArt,
     );
     expect(firstFrame.values["hemodynamics.flow.venous.VC_RA"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.VC_RA,
+      firstStep.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec.VC_RA,
     );
     expect(firstFrame.values["hemodynamics.flow.venous.PVein_LA"].value).toBe(
-      firstStep.coronaryStep.baseStep.circulationTrial
-        .edgeFlowsMlPerSec.PVein_LA,
+      firstStep.coronaryStep.baseStep.circulationTrial.edgeFlowsMlPerSec
+        .PVein_LA,
     );
     expect(firstFrame.values["pericardium.pressure.excess"].value).toBe(
       firstStep.coronaryStep.baseStep.pericardium.excessPressureMmHg,
@@ -280,21 +428,38 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(boundaryAdvance.internalAcceptedSubstepCount).toBe(2);
     const boundaryFrame =
       projectMainWireIntegratedModelAdvancedFrameV3(boundaryAdvance);
-    expect(Object.values(boundaryFrame.values).every(
-      ({ availability }) => availability === "available",
-    )).toBe(true);
-    expect(boundaryFrame.values["hemodynamics.pressure.systolic.Ao"].value)
-      .toBeGreaterThan(
-        boundaryFrame.values["hemodynamics.pressure.diastolic.Ao"].value as number,
-      );
-    expect(boundaryFrame.values["hemodynamics.pressure.pulse.Ao"].value)
-      .toBeCloseTo(
-        (boundaryFrame.values["hemodynamics.pressure.systolic.Ao"].value as number)
-        - (boundaryFrame.values["hemodynamics.pressure.diastolic.Ao"].value as number),
-        10,
-      );
-    expect(boundaryFrame.values["hemodynamics.ejection-fraction.LV-extrema"].value)
-      .toBeGreaterThan(0);
+    expect(
+      Object.values(boundaryFrame.values).every(
+        ({ availability }) => availability === "available",
+      ),
+    ).toBe(true);
+    expect(
+      boundaryFrame.values["hemodynamics.pressure.systolic.Ao"].value,
+    ).toBeGreaterThan(
+      boundaryFrame.values["hemodynamics.pressure.diastolic.Ao"]
+        .value as number,
+    );
+    expect(
+      boundaryFrame.values["hemodynamics.pressure.pulse.Ao"].value,
+    ).toBeCloseTo(
+      (boundaryFrame.values["hemodynamics.pressure.systolic.Ao"]
+        .value as number) -
+        (boundaryFrame.values["hemodynamics.pressure.diastolic.Ao"]
+          .value as number),
+      10,
+    );
+    expect(
+      boundaryFrame.values["hemodynamics.ejection-fraction.LV-extrema"].value,
+    ).toBeGreaterThan(0);
+    expect(
+      boundaryFrame.values[
+        "myocardium.work.external.LV-transmural-pressure-volume-path"
+      ],
+    ).toMatchObject({
+      value: expect.any(Number),
+      availability: "available",
+      quality: "accepted-derived",
+    });
   }, 120_000);
 
   it("refuses failed and already-at-target advances instead of emitting a frame", async () => {
@@ -315,13 +480,14 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     });
 
     expect(() =>
-      projectMainWireIntegratedModelAdvancedFrameV3(alreadyAtTarget)
+      projectMainWireIntegratedModelAdvancedFrameV3(alreadyAtTarget),
     ).toThrow(MainWireIntegratedModelOutputProjectionErrorV3);
-    expect(() =>
-      projectMainWireIntegratedModelAdvancedFrameV3(failed)
-    ).toThrow(MainWireIntegratedModelOutputProjectionErrorV3);
-    expect(projectMainWireIntegratedModelObservationV3(session.observe()))
-      .toEqual(retainedFrame);
+    expect(() => projectMainWireIntegratedModelAdvancedFrameV3(failed)).toThrow(
+      MainWireIntegratedModelOutputProjectionErrorV3,
+    );
+    expect(
+      projectMainWireIntegratedModelObservationV3(session.observe()),
+    ).toEqual(retainedFrame);
   });
 
   it("projects variable HR, fixed TBV, and PEEP from their model-owned reset fixture", async () => {
@@ -332,17 +498,24 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       peepCmH2O: 10,
     });
     const cold = projectMainWireIntegratedModelObservationV3(session.observe());
-    expect(session.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl)
-      .toBe(6_000);
+    expect(
+      session.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl,
+    ).toBe(6_000);
     expect(cold.values["rhythm.heart-rate.instantaneous"].value).toBe(90);
-    expect(cold.values["respiration.pressure.alveolar"].value)
-      .toBeCloseTo(7.355592401, 10);
-    expect(cold.values["respiration.pressure.pleural"].value)
-      .toBeCloseTo(1.4711184802, 10);
+    expect(cold.values["respiration.pressure.alveolar"].value).toBeCloseTo(
+      7.355592401,
+      10,
+    );
+    expect(cold.values["respiration.pressure.pleural"].value).toBeCloseTo(
+      1.4711184802,
+      10,
+    );
 
     const advanced = expectAdvanced(session.advanceToPresentationTime(0.002));
-    expect(advanced.observation.lastAcceptedStep?.coronaryStep.baseStep
-      .commonIntrathoracicPressureMmHg).toBeCloseTo(1.4711184802, 10);
+    expect(
+      advanced.observation.lastAcceptedStep?.coronaryStep.baseStep
+        .commonIntrathoracicPressureMmHg,
+    ).toBeCloseTo(1.4711184802, 10);
   });
 
   it("keeps the V3 projector separate from release and persistence concerns", () => {

@@ -179,11 +179,8 @@ export function WorkbenchPlaybackControlV3({
                   key={preset}
                   type="button"
                   disabled={rateChangeDisabled || preset > calibratedMaximum + 1e-9}
-                  className={`min-h-9 rounded-lg px-1 font-mono text-xs font-medium tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent ${
-                    Math.abs(rate.playbackRate - preset) < 1e-9
-                      ? "bg-wb-hover text-wb-text"
-                      : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-                  }`}
+                  aria-pressed={Math.abs(rate.playbackRate - preset) < 1e-9}
+                  className="workbench-selection-button min-h-9 rounded-lg px-1 font-mono text-xs font-medium tabular-nums transition-[color,background-color,transform] duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                   onClick={() => selectRate(preset)}
                 >
                   {formatWorkbenchPlaybackRateV3(preset)}

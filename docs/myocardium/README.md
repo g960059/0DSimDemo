@@ -23,7 +23,7 @@ production fallback for the active exact release.
 Current entry points include:
 
 - `engine/vnext/MainWireIntegratedTypedAuthoritySessionV1.ts` — accepted-state
-  and checkpoint authority used by Standard-60;
+  and checkpoint authority used by Standard-63;
 - `engine/myocardium/MainWireIntegratedModelTransactionV3.ts` — canonical
   model-owned transaction semantics and cold reference boundary;
 - `engine/myocardium/MainWireIntegratedModelCheckpointV3.ts` — numerical
@@ -37,10 +37,14 @@ Current entry points include:
 - `runtime/executionPlan` plus `engine/executionPlan` — compiled state,
   topology, workspace, and integer-schedule binding.
 
-The active exact model exposes eight numeric controls, 49 outputs, and four
-graph definitions through the separate Workbench Surface. Official Articles
-and Snapshots exist, but they remain product content rather than scientific
-model evidence.
+The active exact model exposes 57 numeric controls, 173 outputs, and four graph
+definitions through the separate Workbench Surface. Standard-63 includes
+wall-explicit mechanics, continuous four-valve areas and event-defined beat
+metrics, common-pericardial and coronary disease axes, detailed accepted
+hydraulic readback, and a beat-mean whole-body oxygen observer. The default
+controller pane deliberately keeps only six common teaching controls. Official
+Articles and Snapshots exist, but they remain product content rather than
+scientific model evidence.
 
 ## Scientific status
 

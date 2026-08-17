@@ -454,7 +454,7 @@ export function WorkbenchScenarioManagerV3(
                   <div
                     key={scenario.scenarioId}
                     className={`workbench-scenario-row group flex min-h-11 items-center gap-1 rounded-lg px-2 transition-colors ${
-                      active ? "bg-wb-active" : "hover:bg-wb-hover"
+                      active ? "bg-wb-selected" : "hover:bg-wb-hover"
                     }`}
                     onContextMenu={(event) => {
                       event.preventDefault();

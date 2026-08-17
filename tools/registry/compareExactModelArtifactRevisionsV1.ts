@@ -4,29 +4,21 @@ import {
   MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1,
   MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_V1_ID,
 } from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
-import type { BoundExecutionPlanV1 } from
-  "@/runtime/executionPlan/BoundExecutionPlanV1";
-import { assertBoundExecutionPlanV1 } from
-  "@/runtime/executionPlan/BoundExecutionPlanV1";
+import type { BoundExecutionPlanV1 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
+import { assertBoundExecutionPlanV1 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
-import type { RegisteredModelExecutableBundleV2 } from
-  "@/studio/contracts/v2/executable";
-import type { ExactModelKernelManifestV3 } from
-  "@/studio/contracts/v2/modelSurface";
-import { composeStandardModelContractV1 } from
-  "@/studio/contracts/v2/modelSurface";
-import type { StudioSimulationScenarioInputV2 } from
-  "@/studio/contracts/v2/simulation";
-import { studioCanonicalJsonStringify } from
-  "@/studio/infrastructure/json/StudioCanonicalJson";
-import { importExactExecutableArtifactModuleV2 } from
-  "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import type { RegisteredModelExecutableBundleV2 } from "@/studio/contracts/v2/executable";
+import type { ExactModelKernelManifestV3 } from "@/studio/contracts/v2/modelSurface";
+import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
+import type { StudioSimulationScenarioInputV2 } from "@/studio/contracts/v2/simulation";
+import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
+import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
+  applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+import standardSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 
 export const EXACT_MODEL_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID =
   "circleheart-exact-model-artifact-equivalence-report-v1" as const;
@@ -65,12 +57,14 @@ const EMPTY_SURFACE_V1: ExperimentSurfaceV2 = Object.freeze({
  * Any accepted numerical, output, clock, metadata, or checkpoint byte change
  * fails closed and therefore still requires a new scientific modelId.
  */
-export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
-  predecessorArtifact: Uint8Array;
-  predecessorArtifactRevisionId: string;
-  candidateArtifact: Uint8Array;
-  candidateArtifactRevisionId: string;
-}>): Promise<ExactModelArtifactEquivalenceReportV1> {
+export async function compareExactModelArtifactRevisionsV1(
+  input: Readonly<{
+    predecessorArtifact: Uint8Array;
+    predecessorArtifactRevisionId: string;
+    candidateArtifact: Uint8Array;
+    candidateArtifactRevisionId: string;
+  }>,
+): Promise<ExactModelArtifactEquivalenceReportV1> {
   const [predecessor, candidate] = await Promise.all([
     importReleaseV1(input.predecessorArtifact, "predecessor"),
     importReleaseV1(input.candidateArtifact, "candidate"),
@@ -79,8 +73,7 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
     predecessor.manifest,
   );
   if (
-    predecessorManifest
-      !== studioCanonicalJsonStringify(candidate.manifest)
+    predecessorManifest !== studioCanonicalJsonStringify(candidate.manifest)
   ) {
     throw new Error(
       "Same-model artifact revision changed the exact numerical manifest",
@@ -89,14 +82,22 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
   const modelId = predecessor.manifest.modelId;
   const cases = [];
   for (const corpusCase of MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1) {
-    const fixture = Object.freeze({
-      ...structuredClone(
-        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      ),
-      hemodynamicResearchInputs: corpusCase.hemodynamicResearchInputs,
-      ventricularContractilityScale:
-        corpusCase.ventricularContractilityScale,
-    });
+    const fixture =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        Object.freeze({
+          ...structuredClone(
+            MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          ),
+          hemodynamicResearchInputs: corpusCase.hemodynamicResearchInputs,
+        }),
+        [
+          {
+            controlId:
+              MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+            value: corpusCase.ventricularContractilityScale,
+          },
+        ],
+      );
     const runtimeSessionId = `session/artifact-equivalence/${corpusCase.caseId}`;
     const scenarioId = `scenario/artifact-equivalence/${corpusCase.caseId}`;
     const scenario = Object.freeze({ scenarioId, fixture });
@@ -122,10 +123,14 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
         stepIndex += 1
       ) {
         const [previousFrame, candidateFrame] = await Promise.all([
-          predecessor.executables.simulationAdapter
-            .advanceOnePresentationStep({ runtimeSessionId, scenarioId }),
-          candidate.executables.simulationAdapter
-            .advanceOnePresentationStep({ runtimeSessionId, scenarioId }),
+          predecessor.executables.simulationAdapter.advanceOnePresentationStep({
+            runtimeSessionId,
+            scenarioId,
+          }),
+          candidate.executables.simulationAdapter.advanceOnePresentationStep({
+            runtimeSessionId,
+            scenarioId,
+          }),
         ]);
         assertCanonicalEqualV1(
           previousFrame,
@@ -154,13 +159,15 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
         candidateCapture,
         `${corpusCase.caseId} exact capture`,
       );
-      cases.push(Object.freeze({
-        caseId: corpusCase.caseId,
-        acceptedStepCount: corpusCase.acceptedStepCount,
-        initialFrameEquality: "byte-exact" as const,
-        advancedFrameEquality: "byte-exact" as const,
-        exactCaptureEquality: "byte-exact" as const,
-      }));
+      cases.push(
+        Object.freeze({
+          caseId: corpusCase.caseId,
+          acceptedStepCount: corpusCase.acceptedStepCount,
+          initialFrameEquality: "byte-exact" as const,
+          advancedFrameEquality: "byte-exact" as const,
+          exactCaptureEquality: "byte-exact" as const,
+        }),
+      );
     } finally {
       predecessor.executables.simulationAdapter.disposeSession(
         runtimeSessionId,
@@ -171,8 +178,7 @@ export async function compareExactModelArtifactRevisionsV1(input: Readonly<{
   return Object.freeze({
     schemaId: EXACT_MODEL_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID,
     modelId,
-    predecessorArtifactRevisionId:
-      input.predecessorArtifactRevisionId,
+    predecessorArtifactRevisionId: input.predecessorArtifactRevisionId,
     candidateArtifactRevisionId: input.candidateArtifactRevisionId,
     corpusId: MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_V1_ID,
     equality: "byte-exact" as const,
@@ -191,18 +197,18 @@ async function importReleaseV1(
   }
   const release: unknown = await factory();
   if (
-    release === null
-    || typeof release !== "object"
-    || Array.isArray(release)
+    release === null ||
+    typeof release !== "object" ||
+    Array.isArray(release)
   ) {
     throw new Error(`${label} artifact returned an invalid exact release`);
   }
   const record = release as Record<string, unknown>;
   if (
-    record.manifest === null
-    || typeof record.manifest !== "object"
-    || record.executables === null
-    || typeof record.executables !== "object"
+    record.manifest === null ||
+    typeof record.manifest !== "object" ||
+    record.executables === null ||
+    typeof record.executables !== "object"
   ) {
     throw new Error(`${label} artifact returned an incomplete exact release`);
   }
@@ -243,11 +249,13 @@ async function captureV1(
     desiredContent: {
       modelId: release.manifest.modelId,
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
-      scenarios: [{
-        scenarioId,
-        label: caseId,
-        fixture,
-      }],
+      scenarios: [
+        {
+          scenarioId,
+          label: caseId,
+          fixture,
+        },
+      ],
       surface: EMPTY_SURFACE_V1,
     },
     correlation: {

@@ -40,8 +40,8 @@ explicitly superseded vertical-slice plans live only in Git history.
 ## Current production boundary
 
 New Sessions resolve one stable active model/Surface bundle. The checked-in
-exact release is Standard-60 and its compatible Surface is
-`circleheart.main-wire.surface.workbench-v1`; the external active bundle
+exact release is Standard-63 and its compatible Surface is
+`circleheart.main-wire.surface.workbench-v2`; the external active bundle
 pointer determines deployed resolution. The exact artifact carries its
 generated execution-plan descriptor; each Scenario Worker validates and binds
 one private plan before it constructs the numerical Session.
@@ -54,13 +54,12 @@ Saved content never follows the active pointer:
 - a historical load failure is reported instead of substituting the active
   release.
 
-All current official Articles, Experiments, and Snapshots were re-created on
-Standard-60 before the pre-release database prune. The registry therefore has
-one executable ABI: every admitted exact artifact owns a generated execution
-plan and packed presentation batches. Generic exact loading remains because a
-future immutable Snapshot may pin an older exact release that still implements
-that ABI; no frame-per-step or execution-plan-free compatibility path remains.
-New exact releases do not decode or reinterpret older checkpoints.
+Durable Articles, Experiments, and Snapshots do not move merely because the
+checked-in active release changes. They must be deliberately re-created and
+re-sealed on Standard-63 or retain a loadable older exact pin. Every admitted
+artifact owns a generated execution plan and packed presentation batches; no
+frame-per-step or execution-plan-free compatibility path remains. New exact
+releases do not decode or reinterpret older checkpoints.
 
 ## Authoring and publication
 

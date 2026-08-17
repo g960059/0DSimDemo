@@ -1,0 +1,921 @@
+{
+  "schemaId": "circleheart-studio-model-surface-release-v1",
+  "surfaceReleaseId": "circleheart.main-wire.surface.workbench-v2",
+  "surfaceSeriesId": "circleheart.main-wire.surface.workbench",
+  "predecessorSurfaceReleaseId": "circleheart.main-wire.surface.workbench-v1",
+  "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+  "displayName": "Main Wire V3",
+  "controlCatalog": [
+    {
+      "controlId": "rhythm.heart-rate-bpm",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/rhythm.heart-rate-bpm"]
+    },
+    {
+      "controlId": "hemodynamics.total-blood-volume-ml",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.total-blood-volume-ml"]
+    },
+    {
+      "controlId": "hemodynamics.systemic-resistance",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.systemic-resistance"]
+    },
+    {
+      "controlId": "myocardium.contractility",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.contractility"]
+    },
+    {
+      "controlId": "hemodynamics.venous-tone",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.venous-tone"]
+    },
+    {
+      "controlId": "ventilation.peep-cm-h2o",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/ventilation.peep-cm-h2o"]
+    },
+    {
+      "controlId": "hemodynamics.pulmonary-resistance",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.pulmonary-resistance"]
+    },
+    {
+      "controlId": "hemodynamics.arterial-stiffness",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/hemodynamics.arterial-stiffness"]
+    },
+    {
+      "controlId": "myocardium.active-tension-scale.LA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.active-tension-scale.LA"]
+    },
+    {
+      "controlId": "myocardium.active-tension-scale.LVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.active-tension-scale.LVFW"]
+    },
+    {
+      "controlId": "myocardium.active-tension-scale.SEP",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.active-tension-scale.SEP"]
+    },
+    {
+      "controlId": "myocardium.active-tension-scale.RVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.active-tension-scale.RVFW"]
+    },
+    {
+      "controlId": "myocardium.active-tension-scale.RA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.active-tension-scale.RA"]
+    },
+    {
+      "controlId": "myocardium.passive-stiffness-scale.LA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.passive-stiffness-scale.LA"]
+    },
+    {
+      "controlId": "myocardium.passive-stiffness-scale.LVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.passive-stiffness-scale.LVFW"
+      ]
+    },
+    {
+      "controlId": "myocardium.passive-stiffness-scale.SEP",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.passive-stiffness-scale.SEP"]
+    },
+    {
+      "controlId": "myocardium.passive-stiffness-scale.RVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.passive-stiffness-scale.RVFW"
+      ]
+    },
+    {
+      "controlId": "myocardium.passive-stiffness-scale.RA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.passive-stiffness-scale.RA"]
+    },
+    {
+      "controlId": "myocardium.calcium-decay-time-scale.LA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.calcium-decay-time-scale.LA"]
+    },
+    {
+      "controlId": "myocardium.calcium-decay-time-scale.LVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.calcium-decay-time-scale.LVFW"
+      ]
+    },
+    {
+      "controlId": "myocardium.calcium-decay-time-scale.SEP",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.calcium-decay-time-scale.SEP"
+      ]
+    },
+    {
+      "controlId": "myocardium.calcium-decay-time-scale.RVFW",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/myocardium.calcium-decay-time-scale.RVFW"
+      ]
+    },
+    {
+      "controlId": "myocardium.calcium-decay-time-scale.RA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/myocardium.calcium-decay-time-scale.RA"]
+    },
+    {
+      "controlId": "valve.maximum-forward-eoa-cm2.MV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.maximum-forward-eoa-cm2.MV"]
+    },
+    {
+      "controlId": "valve.closed-reverse-eroa-cm2.MV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.closed-reverse-eroa-cm2.MV"]
+    },
+    {
+      "controlId": "valve.maximum-forward-eoa-cm2.AoV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.maximum-forward-eoa-cm2.AoV"]
+    },
+    {
+      "controlId": "valve.closed-reverse-eroa-cm2.AoV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.closed-reverse-eroa-cm2.AoV"]
+    },
+    {
+      "controlId": "valve.maximum-forward-eoa-cm2.TV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.maximum-forward-eoa-cm2.TV"]
+    },
+    {
+      "controlId": "valve.closed-reverse-eroa-cm2.TV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.closed-reverse-eroa-cm2.TV"]
+    },
+    {
+      "controlId": "valve.maximum-forward-eoa-cm2.PV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.maximum-forward-eoa-cm2.PV"]
+    },
+    {
+      "controlId": "valve.closed-reverse-eroa-cm2.PV",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/valve.closed-reverse-eroa-cm2.PV"]
+    },
+    {
+      "controlId": "oxygen.hemoglobin-g-per-dl",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.hemoglobin-g-per-dl"]
+    },
+    {
+      "controlId": "oxygen.inspired-oxygen-fraction",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.inspired-oxygen-fraction"]
+    },
+    {
+      "controlId": "oxygen.arterial-carbon-dioxide-pressure-mm-hg",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/oxygen.arterial-carbon-dioxide-pressure-mm-hg"
+      ]
+    },
+    {
+      "controlId": "oxygen.respiratory-exchange-ratio",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.respiratory-exchange-ratio"]
+    },
+    {
+      "controlId": "oxygen.barometric-pressure-mm-hg",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.barometric-pressure-mm-hg"]
+    },
+    {
+      "controlId": "oxygen.true-shunt-fraction",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.true-shunt-fraction"]
+    },
+    {
+      "controlId": "oxygen.target-consumption-ml-per-min",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/oxygen.target-consumption-ml-per-min"]
+    },
+    {
+      "controlId": "pericardium.reference-capacity-scale",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/pericardium.reference-capacity-scale"]
+    },
+    {
+      "controlId": "pericardium.pressure-scale",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/pericardium.pressure-scale"]
+    },
+    {
+      "controlId": "pericardium.exponential-stiffness-scale",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/pericardium.exponential-stiffness-scale"
+      ]
+    },
+    {
+      "controlId": "pericardium.prescribed-fluid-volume-ml",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": ["control/pericardium.prescribed-fluid-volume-ml"]
+    },
+    {
+      "controlId": "coronary.focal-diameter-loss-fraction.LAD",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.focal-diameter-loss-fraction.LAD"
+      ]
+    },
+    {
+      "controlId": "coronary.focal-diameter-loss-fraction.LCx",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.focal-diameter-loss-fraction.LCx"
+      ]
+    },
+    {
+      "controlId": "coronary.focal-diameter-loss-fraction.RCA",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.focal-diameter-loss-fraction.RCA"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.LAD.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.LAD.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.LAD.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.LAD.subendocardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.LCx.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.LCx.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.LCx.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.LCx.subendocardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.RCA.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.RCA.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-r1-resistance-scale.RCA.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-r1-resistance-scale.RCA.subendocardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.LAD.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.LAD.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.LAD.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.LAD.subendocardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.LCx.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.LCx.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.LCx.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.LCx.subendocardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.RCA.subepicardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.RCA.subepicardial"
+      ]
+    },
+    {
+      "controlId": "coronary.structural-rm-resistance-scale.RCA.subendocardial",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/coronary.structural-rm-resistance-scale.RCA.subendocardial"
+      ]
+    }
+  ],
+  "derivedOutputCatalog": [],
+  "graphCatalog": [
+    {
+      "graphId": "hemodynamics.pressure.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "LVP",
+          "outputId": "hemodynamics.pressure.absolute.LV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAP",
+          "outputId": "hemodynamics.pressure.absolute.LA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoP",
+          "outputId": "hemodynamics.pressure.absolute.Ao"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RAP",
+          "outputId": "hemodynamics.pressure.absolute.RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RVP",
+          "outputId": "hemodynamics.pressure.absolute.RV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PAP",
+          "outputId": "hemodynamics.pressure.absolute.PA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVeinP",
+          "outputId": "hemodynamics.pressure.absolute.PVein"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VCP",
+          "outputId": "hemodynamics.pressure.absolute.VC"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Pperi",
+          "outputId": "pericardium.pressure.excess"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Ppl",
+          "outputId": "respiration.pressure.pleural"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Palv",
+          "outputId": "respiration.pressure.alveolar"
+        }
+      ],
+      "defaultSeriesIds": ["LVP", "LAP", "AoP"],
+      "requiredCapabilities": [
+        "output/hemodynamics.pressure.absolute.LV",
+        "output/hemodynamics.pressure.absolute.LA",
+        "output/hemodynamics.pressure.absolute.Ao",
+        "output/hemodynamics.pressure.absolute.RA",
+        "output/hemodynamics.pressure.absolute.RV",
+        "output/hemodynamics.pressure.absolute.PA",
+        "output/hemodynamics.pressure.absolute.PVein",
+        "output/hemodynamics.pressure.absolute.VC",
+        "output/pericardium.pressure.excess",
+        "output/respiration.pressure.pleural",
+        "output/respiration.pressure.alveolar"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.flow.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "MV",
+          "outputId": "hemodynamics.flow.valve.MV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoV",
+          "outputId": "hemodynamics.flow.valve.AoV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "TV",
+          "outputId": "hemodynamics.flow.valve.TV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PV",
+          "outputId": "hemodynamics.flow.valve.PV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Coronary",
+          "outputId": "coronary.flow.total"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAD",
+          "outputId": "coronary.flow.inlet.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCx",
+          "outputId": "coronary.flow.inlet.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCA",
+          "outputId": "coronary.flow.inlet.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVAD",
+          "outputId": "device.LVAD.flow"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "SA_Art",
+          "outputId": "hemodynamics.flow.systemic.SA_Art"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PA_PArt",
+          "outputId": "hemodynamics.flow.pulmonary.PA_PArt"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VC_RA",
+          "outputId": "hemodynamics.flow.venous.VC_RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVein_LA",
+          "outputId": "hemodynamics.flow.venous.PVein_LA"
+        }
+      ],
+      "defaultSeriesIds": ["MV", "AoV", "TV", "PV"],
+      "requiredCapabilities": [
+        "output/hemodynamics.flow.valve.MV",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.TV",
+        "output/hemodynamics.flow.valve.PV",
+        "output/coronary.flow.total",
+        "output/coronary.flow.inlet.LAD",
+        "output/coronary.flow.inlet.LCx",
+        "output/coronary.flow.inlet.RCA",
+        "output/device.LVAD.flow",
+        "output/hemodynamics.flow.systemic.SA_Art",
+        "output/hemodynamics.flow.pulmonary.PA_PArt",
+        "output/hemodynamics.flow.venous.VC_RA",
+        "output/hemodynamics.flow.venous.PVein_LA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.pressure.waveform.comprehensive-v1",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "LVP",
+          "outputId": "hemodynamics.pressure.absolute.LV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAP",
+          "outputId": "hemodynamics.pressure.absolute.LA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoP",
+          "outputId": "hemodynamics.pressure.absolute.Ao"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "SAP",
+          "outputId": "hemodynamics.pressure.absolute.SA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RAP",
+          "outputId": "hemodynamics.pressure.absolute.RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RVP",
+          "outputId": "hemodynamics.pressure.absolute.RV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PAP",
+          "outputId": "hemodynamics.pressure.absolute.PA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVeinP",
+          "outputId": "hemodynamics.pressure.absolute.PVein"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VCP",
+          "outputId": "hemodynamics.pressure.absolute.VC"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Pperi",
+          "outputId": "pericardium.pressure.excess"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Ppl",
+          "outputId": "respiration.pressure.pleural"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Palv",
+          "outputId": "respiration.pressure.alveolar"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADPostP",
+          "outputId": "coronary.pressure.post-focal.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxPostP",
+          "outputId": "coronary.pressure.post-focal.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAPostP",
+          "outputId": "coronary.pressure.post-focal.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADLesionLoss",
+          "outputId": "coronary.pressure-loss.focal.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxLesionLoss",
+          "outputId": "coronary.pressure-loss.focal.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCALesionLoss",
+          "outputId": "coronary.pressure-loss.focal.RCA"
+        }
+      ],
+      "defaultSeriesIds": ["LVP", "LAP", "AoP"],
+      "requiredCapabilities": [
+        "output/hemodynamics.pressure.absolute.LV",
+        "output/hemodynamics.pressure.absolute.LA",
+        "output/hemodynamics.pressure.absolute.Ao",
+        "output/hemodynamics.pressure.absolute.SA",
+        "output/hemodynamics.pressure.absolute.RA",
+        "output/hemodynamics.pressure.absolute.RV",
+        "output/hemodynamics.pressure.absolute.PA",
+        "output/hemodynamics.pressure.absolute.PVein",
+        "output/hemodynamics.pressure.absolute.VC",
+        "output/pericardium.pressure.excess",
+        "output/respiration.pressure.pleural",
+        "output/respiration.pressure.alveolar",
+        "output/coronary.pressure.post-focal.LAD",
+        "output/coronary.pressure.post-focal.LCx",
+        "output/coronary.pressure.post-focal.RCA",
+        "output/coronary.pressure-loss.focal.LAD",
+        "output/coronary.pressure-loss.focal.LCx",
+        "output/coronary.pressure-loss.focal.RCA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.flow.waveform.comprehensive-v1",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "MV",
+          "outputId": "hemodynamics.flow.valve.MV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoV",
+          "outputId": "hemodynamics.flow.valve.AoV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "TV",
+          "outputId": "hemodynamics.flow.valve.TV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PV",
+          "outputId": "hemodynamics.flow.valve.PV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Coronary",
+          "outputId": "coronary.flow.total"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAD",
+          "outputId": "coronary.flow.inlet.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCx",
+          "outputId": "coronary.flow.inlet.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCA",
+          "outputId": "coronary.flow.inlet.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "CoronaryVenous",
+          "outputId": "coronary.flow.venous-outlet"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR1Epi",
+          "outputId": "coronary.flow.layer-r1.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR2Epi",
+          "outputId": "coronary.flow.layer-r2.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR1Endo",
+          "outputId": "coronary.flow.layer-r1.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR2Endo",
+          "outputId": "coronary.flow.layer-r2.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR1Epi",
+          "outputId": "coronary.flow.layer-r1.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR2Epi",
+          "outputId": "coronary.flow.layer-r2.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR1Endo",
+          "outputId": "coronary.flow.layer-r1.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR2Endo",
+          "outputId": "coronary.flow.layer-r2.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR1Epi",
+          "outputId": "coronary.flow.layer-r1.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR2Epi",
+          "outputId": "coronary.flow.layer-r2.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR1Endo",
+          "outputId": "coronary.flow.layer-r1.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR2Endo",
+          "outputId": "coronary.flow.layer-r2.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVAD",
+          "outputId": "device.LVAD.flow"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "SA_Art",
+          "outputId": "hemodynamics.flow.systemic.SA_Art"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PA_PArt",
+          "outputId": "hemodynamics.flow.pulmonary.PA_PArt"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VC_RA",
+          "outputId": "hemodynamics.flow.venous.VC_RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVein_LA",
+          "outputId": "hemodynamics.flow.venous.PVein_LA"
+        }
+      ],
+      "defaultSeriesIds": ["MV", "AoV", "TV", "PV"],
+      "requiredCapabilities": [
+        "output/hemodynamics.flow.valve.MV",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.TV",
+        "output/hemodynamics.flow.valve.PV",
+        "output/coronary.flow.total",
+        "output/coronary.flow.inlet.LAD",
+        "output/coronary.flow.inlet.LCx",
+        "output/coronary.flow.inlet.RCA",
+        "output/coronary.flow.venous-outlet",
+        "output/coronary.flow.large-arterial-outflow.LAD",
+        "output/coronary.flow.large-arterial-storage-rate.LAD",
+        "output/coronary.flow.layer-r1.LAD.subepicardial",
+        "output/coronary.flow.layer-qm-internal.LAD.subepicardial",
+        "output/coronary.flow.layer-r2.LAD.subepicardial",
+        "output/coronary.flow.layer-r1.LAD.subendocardial",
+        "output/coronary.flow.layer-qm-internal.LAD.subendocardial",
+        "output/coronary.flow.layer-r2.LAD.subendocardial",
+        "output/coronary.flow.large-arterial-outflow.LCx",
+        "output/coronary.flow.large-arterial-storage-rate.LCx",
+        "output/coronary.flow.layer-r1.LCx.subepicardial",
+        "output/coronary.flow.layer-qm-internal.LCx.subepicardial",
+        "output/coronary.flow.layer-r2.LCx.subepicardial",
+        "output/coronary.flow.layer-r1.LCx.subendocardial",
+        "output/coronary.flow.layer-qm-internal.LCx.subendocardial",
+        "output/coronary.flow.layer-r2.LCx.subendocardial",
+        "output/coronary.flow.large-arterial-outflow.RCA",
+        "output/coronary.flow.large-arterial-storage-rate.RCA",
+        "output/coronary.flow.layer-r1.RCA.subepicardial",
+        "output/coronary.flow.layer-qm-internal.RCA.subepicardial",
+        "output/coronary.flow.layer-r2.RCA.subepicardial",
+        "output/coronary.flow.layer-r1.RCA.subendocardial",
+        "output/coronary.flow.layer-qm-internal.RCA.subendocardial",
+        "output/coronary.flow.layer-r2.RCA.subendocardial",
+        "output/device.LVAD.flow",
+        "output/hemodynamics.flow.systemic.SA_Art",
+        "output/hemodynamics.flow.pulmonary.PA_PArt",
+        "output/hemodynamics.flow.venous.VC_RA",
+        "output/hemodynamics.flow.venous.PVein_LA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.pressure-volume",
+      "renderer": "pressure-volume",
+      "seriesCatalog": [
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LV",
+          "volumeOutputId": "hemodynamics.volume.LV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RV",
+          "volumeOutputId": "hemodynamics.volume.RV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RA",
+          "volumeOutputId": "hemodynamics.volume.RA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LA",
+          "volumeOutputId": "hemodynamics.volume.LA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        }
+      ],
+      "defaultSeriesIds": ["LV"],
+      "requiredCapabilities": [
+        "output/hemodynamics.volume.LV",
+        "output/hemodynamics.pressure.transmural.LV",
+        "output/hemodynamics.volume.RV",
+        "output/hemodynamics.pressure.transmural.RV",
+        "output/hemodynamics.volume.RA",
+        "output/hemodynamics.pressure.transmural.RA",
+        "output/hemodynamics.volume.LA",
+        "output/hemodynamics.pressure.transmural.LA",
+        "output/rhythm.phase.regular-sinus",
+        "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+        "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.guyton-starling",
+      "renderer": "structural-return",
+      "analysisId": "main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "side": "both",
+      "requiredCapabilities": [
+        "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1"
+      ]
+    }
+  ],
+  "knobCatalog": [],
+  "protocolCatalog": []
+}

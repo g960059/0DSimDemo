@@ -1,17 +1,7 @@
-import type {
-  ModelFamilyIdV2,
-  ModelIdV2,
-} from "./ids";
-import type {
-  ScenarioCaptureV2,
-} from "./content";
-import type {
-  StudioJsonObjectV2,
-  StudioJsonValueV2,
-} from "./json";
-import {
-  studioNumericControlValueIssueV2,
-} from "./control";
+import type { ModelFamilyIdV2, ModelIdV2 } from "./ids";
+import type { ScenarioCaptureV2 } from "./content";
+import type { StudioJsonObjectV2, StudioJsonValueV2 } from "./json";
+import { studioNumericControlValueIssueV2 } from "./control";
 
 /**
  * The public model contract is an allowlisted identity/reference projection
@@ -38,9 +28,7 @@ export type ScalarGraphSeriesDefinitionV2 = Readonly<{
   outputId: string;
 }>;
 
-export type PressureVolumePressureBasisV2 =
-  | "transmural"
-  | "intracavitary";
+export type PressureVolumePressureBasisV2 = "transmural" | "intracavitary";
 
 export type PressureVolumeGraphSeriesDefinitionV2 = Readonly<{
   kind: "pressure-volume";
@@ -52,8 +40,7 @@ export type PressureVolumeGraphSeriesDefinitionV2 = Readonly<{
 }>;
 
 export type GraphSeriesDefinitionV2 =
-  | ScalarGraphSeriesDefinitionV2
-  | PressureVolumeGraphSeriesDefinitionV2;
+  ScalarGraphSeriesDefinitionV2 | PressureVolumeGraphSeriesDefinitionV2;
 
 export type SweepGraphDefinitionV2 = Readonly<{
   graphId: string;
@@ -85,6 +72,8 @@ export type SignalOutputDefinitionV2 = Readonly<{
   outputId: string;
   kind: "signal";
   unit: string;
+  /** Presentation metadata only; numerical values remain unrounded. */
+  significantDigits?: number;
   shape: "scalar" | "vector";
   sampling: "accepted-step" | "event";
 }>;
@@ -93,14 +82,15 @@ export type MetricOutputDefinitionV2 = Readonly<{
   outputId: string;
   kind: "metric";
   unit: string;
+  /** Presentation metadata only; numerical values remain unrounded. */
+  significantDigits?: number;
   shape: "scalar" | "vector";
   scope: "instant" | "beat" | "window";
   dependencies: readonly string[];
 }>;
 
 export type OutputDefinitionV2 =
-  | SignalOutputDefinitionV2
-  | MetricOutputDefinitionV2;
+  SignalOutputDefinitionV2 | MetricOutputDefinitionV2;
 
 /**
  * Public, hash-free model surface delivered by the trusted registry.
@@ -140,14 +130,18 @@ export type RegisteredModelCaptureAdapterV2 = Readonly<{
   modelId: ModelIdV2;
   fixtureSchemaId: string;
   checkpointCodecId: string;
-  validateFixture(input: Readonly<{
-    model: ModelContractV2;
-    fixture: StudioJsonValueV2;
-  }>): undefined;
-  validateCapture(input: Readonly<{
-    model: ModelContractV2;
-    capture: ScenarioCaptureV2;
-  }>): Promise<void>;
+  validateFixture(
+    input: Readonly<{
+      model: ModelContractV2;
+      fixture: StudioJsonValueV2;
+    }>,
+  ): undefined;
+  validateCapture(
+    input: Readonly<{
+      model: ModelContractV2;
+      capture: ScenarioCaptureV2;
+    }>,
+  ): Promise<void>;
 }>;
 
 export class ModelContractValidationErrorV2 extends Error {
@@ -234,41 +228,21 @@ export function assertModelContractV2(
   assertExactKeysV2(value, "$", MODEL_CONTRACT_KEYS_V2);
 
   assertPortableModelIdentifierV2(value.modelId, "$.modelId");
-  assertPortableModelIdentifierV2(
-    value.modelFamilyId,
-    "$.modelFamilyId",
-  );
-  assertNonEmptyTrimmedStringV2(
-    value.displayName,
-    "$.displayName",
-    512,
-  );
-  assertPortableModelIdentifierV2(
-    value.fixtureSchemaId,
-    "$.fixtureSchemaId",
-  );
+  assertPortableModelIdentifierV2(value.modelFamilyId, "$.modelFamilyId");
+  assertNonEmptyTrimmedStringV2(value.displayName, "$.displayName", 512);
+  assertPortableModelIdentifierV2(value.fixtureSchemaId, "$.fixtureSchemaId");
   assertPortableModelIdentifierV2(
     value.checkpointCodecId,
     "$.checkpointCodecId",
   );
-  assertPortableModelIdentifierV2(
-    value.snapshotGateId,
-    "$.snapshotGateId",
-  );
+  assertPortableModelIdentifierV2(value.snapshotGateId, "$.snapshotGateId");
 
-  assertControlCatalogV2(
-    value.controlCatalog,
-    "$.controlCatalog",
-  );
+  assertControlCatalogV2(value.controlCatalog, "$.controlCatalog");
   const outputCatalog = assertOutputCatalogV2(
     value.outputCatalog,
     "$.outputCatalog",
   );
-  assertGraphCatalogV2(
-    value.graphCatalog,
-    "$.graphCatalog",
-    outputCatalog,
-  );
+  assertGraphCatalogV2(value.graphCatalog, "$.graphCatalog", outputCatalog);
 }
 
 export function assertCaptureAdapterMatchesModelV2(
@@ -276,19 +250,19 @@ export function assertCaptureAdapterMatchesModelV2(
   model: ModelContractV2,
 ): void {
   if (
-    adapter === null
-    || typeof adapter !== "object"
-    || adapter.modelId !== model.modelId
-    || adapter.fixtureSchemaId !== model.fixtureSchemaId
-    || adapter.checkpointCodecId !== model.checkpointCodecId
-    || typeof adapter.validateFixture !== "function"
-    || typeof adapter.validateCapture !== "function"
+    adapter === null ||
+    typeof adapter !== "object" ||
+    adapter.modelId !== model.modelId ||
+    adapter.fixtureSchemaId !== model.fixtureSchemaId ||
+    adapter.checkpointCodecId !== model.checkpointCodecId ||
+    typeof adapter.validateFixture !== "function" ||
+    typeof adapter.validateCapture !== "function"
   ) {
     throw new ModelContractValidationErrorV2(
       "$.captureAdapter",
-      `must exactly match model ${model.modelId}, fixture schema `
-        + `${model.fixtureSchemaId}, and checkpoint codec `
-        + model.checkpointCodecId,
+      `must exactly match model ${model.modelId}, fixture schema ` +
+        `${model.fixtureSchemaId}, and checkpoint codec ` +
+        model.checkpointCodecId,
     );
   }
 }
@@ -309,12 +283,7 @@ export function assertPortableStudioJsonObjectV2(
   value: unknown,
   path = "$",
 ): asserts value is StudioJsonObjectV2 {
-  assertPortableStudioJsonValueV2(
-    value,
-    path,
-    new Set<object>(),
-    0,
-  );
+  assertPortableStudioJsonValueV2(value, path, new Set<object>(), 0);
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(
       path,
@@ -335,10 +304,7 @@ function assertPortableStudioJsonValueV2(
       "portable JSON nesting limit exceeded",
     );
   }
-  if (
-    value === null
-    || typeof value === "boolean"
-  ) {
+  if (value === null || typeof value === "boolean") {
     return;
   }
   if (typeof value === "string") {
@@ -391,9 +357,9 @@ function assertPortableStudioJsonValueV2(
       assertUnicodeScalarSequenceV2(key, `${path} property name`);
       const descriptor = descriptors[key];
       if (
-        descriptor === undefined
-        || !descriptor.enumerable
-        || !("value" in descriptor)
+        descriptor === undefined ||
+        !descriptor.enumerable ||
+        !("value" in descriptor)
       ) {
         throw new ModelContractValidationErrorV2(
           propertyPathV2(path, key),
@@ -421,14 +387,11 @@ function assertPortableArrayV2(
   const expectedKeys = new Set<string>(["length"]);
   for (let index = 0; index < value.length; index += 1) {
     expectedKeys.add(String(index));
-    const descriptor = Object.getOwnPropertyDescriptor(
-      value,
-      String(index),
-    );
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
     if (
-      descriptor === undefined
-      || !descriptor.enumerable
-      || !("value" in descriptor)
+      descriptor === undefined ||
+      !descriptor.enumerable ||
+      !("value" in descriptor)
     ) {
       throw new ModelContractValidationErrorV2(
         `${path}[${index}]`,
@@ -463,16 +426,11 @@ function mapArrayByIndexV2<TValue, TResult>(
   return result;
 }
 
-function copyArrayByIndexV2<TValue>(
-  value: readonly TValue[],
-): TValue[] {
+function copyArrayByIndexV2<TValue>(value: readonly TValue[]): TValue[] {
   return mapArrayByIndexV2(value, (entry) => entry);
 }
 
-export function assertControlCatalogV2(
-  value: unknown,
-  path: string,
-): void {
+export function assertControlCatalogV2(value: unknown, path: string): void {
   if (!Array.isArray(value)) {
     throw new ModelContractValidationErrorV2(path, "must be an array");
   }
@@ -481,9 +439,9 @@ export function assertControlCatalogV2(
     const definition = value[index];
     const definitionPath = `${path}[${index}]`;
     if (
-      definition === null
-      || typeof definition !== "object"
-      || Array.isArray(definition)
+      definition === null ||
+      typeof definition !== "object" ||
+      Array.isArray(definition)
     ) {
       throw new ModelContractValidationErrorV2(
         definitionPath,
@@ -491,16 +449,9 @@ export function assertControlCatalogV2(
       );
     }
     const control = definition as Record<string, unknown>;
-    assertExactKeysV2(
-      definition,
-      definitionPath,
-      CONTROL_KEYS_V2,
-    );
+    assertExactKeysV2(definition, definitionPath, CONTROL_KEYS_V2);
     const controlId = control.controlId;
-    assertPortableModelIdentifierV2(
-      controlId,
-      `${definitionPath}.controlId`,
-    );
+    assertPortableModelIdentifierV2(controlId, `${definitionPath}.controlId`);
     if (controlIds.has(controlId)) {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.controlId`,
@@ -520,11 +471,7 @@ export function assertControlCatalogV2(
         'must be "accepted-state-warm-start"',
       );
     }
-    assertNonEmptyTrimmedStringV2(
-      control.unit,
-      `${definitionPath}.unit`,
-      128,
-    );
+    assertNonEmptyTrimmedStringV2(control.unit, `${definitionPath}.unit`, 128);
     const minimum = finiteNumberV2(
       control.minimum,
       `${definitionPath}.minimum`,
@@ -533,10 +480,7 @@ export function assertControlCatalogV2(
       control.maximum,
       `${definitionPath}.maximum`,
     );
-    const step = finiteNumberV2(
-      control.step,
-      `${definitionPath}.step`,
-    );
+    const step = finiteNumberV2(control.step, `${definitionPath}.step`);
     const defaultValue = finiteNumberV2(
       control.defaultValue,
       `${definitionPath}.defaultValue`,
@@ -553,20 +497,24 @@ export function assertControlCatalogV2(
         "must be positive and no larger than the control range",
       );
     }
-    const maximumIssue = studioNumericControlValueIssueV2(
+    const maximumIssue = studioNumericControlValueIssueV2(maximum, {
+      controlId,
+      minimum,
       maximum,
-      { controlId, minimum, maximum, step },
-    );
+      step,
+    });
     if (maximumIssue !== undefined) {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.maximum`,
         maximumIssue,
       );
     }
-    const defaultValueIssue = studioNumericControlValueIssueV2(
-      defaultValue,
-      { controlId, minimum, maximum, step },
-    );
+    const defaultValueIssue = studioNumericControlValueIssueV2(defaultValue, {
+      controlId,
+      minimum,
+      maximum,
+      step,
+    });
     if (defaultValueIssue !== undefined) {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.defaultValue`,
@@ -578,10 +526,13 @@ export function assertControlCatalogV2(
 
 export type ValidatedOutputCatalogV2 = Readonly<{
   ids: ReadonlySet<string>;
-  definitionsById: ReadonlyMap<string, Readonly<{
-    shape: "scalar" | "vector";
-    unit: string;
-  }>>;
+  definitionsById: ReadonlyMap<
+    string,
+    Readonly<{
+      shape: "scalar" | "vector";
+      unit: string;
+    }>
+  >;
 }>;
 
 export function assertOutputCatalogV2(
@@ -592,22 +543,27 @@ export function assertOutputCatalogV2(
     throw new ModelContractValidationErrorV2(path, "must be an array");
   }
   const ids = new Set<string>();
-  const definitionsById = new Map<string, Readonly<{
-    shape: "scalar" | "vector";
-    unit: string;
-  }>>();
-  const metricDependencies: Array<Readonly<{
-    outputId: string;
-    path: string;
-    dependencies: readonly string[];
-  }>> = [];
+  const definitionsById = new Map<
+    string,
+    Readonly<{
+      shape: "scalar" | "vector";
+      unit: string;
+    }>
+  >();
+  const metricDependencies: Array<
+    Readonly<{
+      outputId: string;
+      path: string;
+      dependencies: readonly string[];
+    }>
+  > = [];
   for (let index = 0; index < value.length; index += 1) {
     const definition = value[index];
     const definitionPath = `${path}[${index}]`;
     if (
-      definition === null
-      || typeof definition !== "object"
-      || Array.isArray(definition)
+      definition === null ||
+      typeof definition !== "object" ||
+      Array.isArray(definition)
     ) {
       throw new ModelContractValidationErrorV2(
         definitionPath,
@@ -626,32 +582,45 @@ export function assertOutputCatalogV2(
       );
     }
     ids.add(output.outputId);
-    assertNonEmptyTrimmedStringV2(
-      output.unit,
-      `${definitionPath}.unit`,
-      128,
-    );
+    assertNonEmptyTrimmedStringV2(output.unit, `${definitionPath}.unit`, 128);
+    if (
+      output.significantDigits !== undefined &&
+      (!Number.isSafeInteger(output.significantDigits) ||
+        (output.significantDigits as number) < 1 ||
+        (output.significantDigits as number) > 12)
+    ) {
+      throw new ModelContractValidationErrorV2(
+        `${definitionPath}.significantDigits`,
+        "must be an integer from 1 through 12",
+      );
+    }
     if (output.shape !== "scalar" && output.shape !== "vector") {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.shape`,
         'must be "scalar" or "vector"',
       );
     }
-    definitionsById.set(output.outputId as string, Object.freeze({
-      shape: output.shape,
-      unit: output.unit as string,
-    }));
+    definitionsById.set(
+      output.outputId as string,
+      Object.freeze({
+        shape: output.shape,
+        unit: output.unit as string,
+      }),
+    );
 
     if (output.kind === "signal") {
       assertExactKeysV2(
         definition,
         definitionPath,
-        SIGNAL_OUTPUT_KEYS_V2,
+        output.significantDigits === undefined
+          ? SIGNAL_OUTPUT_KEYS_V2
+          : [
+              ...SIGNAL_OUTPUT_KEYS_V2.slice(0, -1),
+              "significantDigits",
+              "unit",
+            ],
       );
-      if (
-        output.sampling !== "accepted-step"
-        && output.sampling !== "event"
-      ) {
+      if (output.sampling !== "accepted-step" && output.sampling !== "event") {
         throw new ModelContractValidationErrorV2(
           `${definitionPath}.sampling`,
           'must be "accepted-step" or "event"',
@@ -663,12 +632,18 @@ export function assertOutputCatalogV2(
       assertExactKeysV2(
         definition,
         definitionPath,
-        METRIC_OUTPUT_KEYS_V2,
+        output.significantDigits === undefined
+          ? METRIC_OUTPUT_KEYS_V2
+          : [
+              ...METRIC_OUTPUT_KEYS_V2.slice(0, -1),
+              "significantDigits",
+              "unit",
+            ],
       );
       if (
-        output.scope !== "instant"
-        && output.scope !== "beat"
-        && output.scope !== "window"
+        output.scope !== "instant" &&
+        output.scope !== "beat" &&
+        output.scope !== "window"
       ) {
         throw new ModelContractValidationErrorV2(
           `${definitionPath}.scope`,
@@ -739,9 +714,9 @@ export function assertGraphCatalogV2(
     const definition = value[index];
     const definitionPath = `${path}[${index}]`;
     if (
-      definition === null
-      || typeof definition !== "object"
-      || Array.isArray(definition)
+      definition === null ||
+      typeof definition !== "object" ||
+      Array.isArray(definition)
     ) {
       throw new ModelContractValidationErrorV2(
         definitionPath,
@@ -770,10 +745,7 @@ export function assertGraphCatalogV2(
       );
     }
     const graphId = graph.graphId;
-    assertPortableModelIdentifierV2(
-      graphId,
-      `${definitionPath}.graphId`,
-    );
+    assertPortableModelIdentifierV2(graphId, `${definitionPath}.graphId`);
     if (graphIds.has(graphId)) {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.graphId`,
@@ -787,9 +759,9 @@ export function assertGraphCatalogV2(
         `${definitionPath}.analysisId`,
       );
       if (
-        graph.side !== "right"
-        && graph.side !== "left"
-        && graph.side !== "both"
+        graph.side !== "right" &&
+        graph.side !== "left" &&
+        graph.side !== "both"
       ) {
         throw new ModelContractValidationErrorV2(
           `${definitionPath}.side`,
@@ -799,17 +771,18 @@ export function assertGraphCatalogV2(
       continue;
     }
 
-    const seriesIds = graph.renderer === "sweep"
-      ? assertScalarGraphSeriesCatalogV2(
-        graph.seriesCatalog,
-        `${definitionPath}.seriesCatalog`,
-        outputCatalog,
-      )
-      : assertPressureVolumeGraphSeriesCatalogV2(
-        graph.seriesCatalog,
-        `${definitionPath}.seriesCatalog`,
-        outputCatalog,
-      );
+    const seriesIds =
+      graph.renderer === "sweep"
+        ? assertScalarGraphSeriesCatalogV2(
+            graph.seriesCatalog,
+            `${definitionPath}.seriesCatalog`,
+            outputCatalog,
+          )
+        : assertPressureVolumeGraphSeriesCatalogV2(
+            graph.seriesCatalog,
+            `${definitionPath}.seriesCatalog`,
+            outputCatalog,
+          );
     assertDefaultGraphSeriesIdsV2(
       graph.defaultSeriesIds,
       `${definitionPath}.defaultSeriesIds`,
@@ -833,7 +806,10 @@ function assertScalarGraphSeriesCatalogV2(
   const outputIds = new Set<string>();
   let sharedUnit: string | undefined;
   for (let index = 0; index < value.length; index += 1) {
-    const series = requiredGraphSeriesRecordV2(value[index], `${path}[${index}]`);
+    const series = requiredGraphSeriesRecordV2(
+      value[index],
+      `${path}[${index}]`,
+    );
     assertExactKeysV2(series, `${path}[${index}]`, SCALAR_GRAPH_SERIES_KEYS_V2);
     if (series.kind !== "scalar") {
       throw new ModelContractValidationErrorV2(
@@ -883,18 +859,13 @@ function assertPressureVolumeGraphSeriesCatalogV2(
   }
   const seriesIds = new Set<string>();
   const bindings = new Set<string>();
-  const roleUnits: Partial<Record<
-    "volumeOutputId" | "pressureOutputId" | "cyclePhaseOutputId",
-    string
-  >> = {};
+  const roleUnits: Partial<
+    Record<"volumeOutputId" | "pressureOutputId" | "cyclePhaseOutputId", string>
+  > = {};
   for (let index = 0; index < value.length; index += 1) {
     const seriesPath = `${path}[${index}]`;
     const series = requiredGraphSeriesRecordV2(value[index], seriesPath);
-    assertExactKeysV2(
-      series,
-      seriesPath,
-      PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2,
-    );
+    assertExactKeysV2(series, seriesPath, PRESSURE_VOLUME_GRAPH_SERIES_KEYS_V2);
     if (series.kind !== "pressure-volume") {
       throw new ModelContractValidationErrorV2(
         `${seriesPath}.kind`,
@@ -936,8 +907,8 @@ function assertPressureVolumeGraphSeriesCatalogV2(
     }
     bindings.add(bindingKey);
     if (
-      series.pressureBasis !== "transmural"
-      && series.pressureBasis !== "intracavitary"
+      series.pressureBasis !== "transmural" &&
+      series.pressureBasis !== "intracavitary"
     ) {
       throw new ModelContractValidationErrorV2(
         `${seriesPath}.pressureBasis`,
@@ -1045,8 +1016,9 @@ function assertAcyclicMetricDependenciesV2(
   const visit = (outputId: string): void => {
     if (visited.has(outputId)) return;
     if (visiting.has(outputId)) {
-      const metric = metrics.find((candidate) =>
-        candidate.outputId === outputId);
+      const metric = metrics.find(
+        (candidate) => candidate.outputId === outputId,
+      );
       throw new ModelContractValidationErrorV2(
         metric?.path ?? "$.outputCatalog",
         `cyclic metric dependency involving ${outputId}`,
@@ -1072,8 +1044,8 @@ function assertExactKeysV2(
   }
   const actualKeys = Object.keys(value).sort();
   if (
-    actualKeys.length !== expectedKeys.length
-    || actualKeys.some((key, index) => key !== expectedKeys[index])
+    actualKeys.length !== expectedKeys.length ||
+    actualKeys.some((key, index) => key !== expectedKeys[index])
   ) {
     throw new ModelContractValidationErrorV2(
       path,
@@ -1088,10 +1060,10 @@ function assertNonEmptyTrimmedStringV2(
   maximumLength: number,
 ): asserts value is string {
   if (
-    typeof value !== "string"
-    || value.length === 0
-    || value.length > maximumLength
-    || value.trim() !== value
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maximumLength ||
+    value.trim() !== value
   ) {
     throw new ModelContractValidationErrorV2(
       path,
@@ -1102,9 +1074,9 @@ function assertNonEmptyTrimmedStringV2(
 
 function finiteNumberV2(value: unknown, path: string): number {
   if (
-    typeof value !== "number"
-    || !Number.isFinite(value)
-    || Object.is(value, -0)
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    Object.is(value, -0)
   ) {
     throw new ModelContractValidationErrorV2(
       path,
@@ -1114,10 +1086,7 @@ function finiteNumberV2(value: unknown, path: string): number {
   return value;
 }
 
-function assertUnicodeScalarSequenceV2(
-  value: string,
-  path: string,
-): void {
+function assertUnicodeScalarSequenceV2(value: string, path: string): void {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
     if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
