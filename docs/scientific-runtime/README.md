@@ -60,6 +60,11 @@ model:
   audited shared reference root, and a manifest-bound common-directory
   reservation for four frozen cases in three one-time executions before any
   surface.
+- [`INTEGRATED-MODEL-0020-passive-equilibrium-schur-export-seam.md`](./INTEGRATED-MODEL-0020-passive-equilibrium-schur-export-seam.md)
+  narrows only 0019's prospective V1 source-blob accessibility restriction,
+  freezing a seven-byte `export ` insertion and separate historical/runtime
+  blob identities so the unchanged pure Schur owner can be used by the
+  manifest-bound V2 path without minting qualification.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
