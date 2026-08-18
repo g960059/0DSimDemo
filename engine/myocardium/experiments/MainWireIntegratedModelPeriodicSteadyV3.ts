@@ -314,6 +314,14 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   releaseAcceptanceEstablished: false;
   cycles: readonly MainWireIntegratedModelPeriodicSteadyCycleV3[];
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
+  /**
+   * Exact terminal endpoint of the cycle immediately preceding
+   * `terminalCycleTrace`. This supplies the missing left endpoint for the
+   * first accepted segment without changing the retained trace or its hash.
+   * It is null only when no preceding cycle was executed.
+   */
+  terminalCycleStartTraceSample:
+    MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null;
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
   terminalPeriodicExternalWork: MainWireIntegratedModelPeriodicExternalWorkResultV1;
   terminalPeriodicPressureBasisWork:
@@ -570,6 +578,10 @@ async function runMainWireIntegratedModelPeriodicSteadyWithAccessV3(
   );
   let terminalTraceSamples: MainWireIntegratedModelPeriodicTerminalTraceSampleV3[] =
     [];
+  let previousCycleTerminalTraceSample:
+    MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null = null;
+  let terminalCycleStartTraceSample:
+    MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null = null;
   let previousCycleTerminalPressureVolumeBoundary:
     MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 | null = null;
   let terminalCycleStartPressureVolumeBoundary:
@@ -584,6 +596,7 @@ async function runMainWireIntegratedModelPeriodicSteadyWithAccessV3(
     zeroBasedCycleIndex += 1
   ) {
     const start = accepted;
+    terminalCycleStartTraceSample = previousCycleTerminalTraceSample;
     terminalCycleStartPressureVolumeBoundary =
       previousCycleTerminalPressureVolumeBoundary;
     const run =
@@ -660,6 +673,7 @@ async function runMainWireIntegratedModelPeriodicSteadyWithAccessV3(
       periodicPressureVolumeBoundaryFromAcceptedTraceSampleV1(
         terminalTraceSample,
       );
+    previousCycleTerminalTraceSample = terminalTraceSample;
     boundaries.push(accepted);
     if (boundaries.length > 3) boundaries.shift();
     if (
@@ -777,6 +791,7 @@ async function runMainWireIntegratedModelPeriodicSteadyWithAccessV3(
     releaseAcceptanceEstablished: false as const,
     cycles,
     observations,
+    terminalCycleStartTraceSample,
     terminalCycleTrace,
     terminalPeriodicExternalWork,
     terminalPeriodicPressureBasisWork,
