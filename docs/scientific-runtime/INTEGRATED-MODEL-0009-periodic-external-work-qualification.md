@@ -1,7 +1,8 @@
 # Periodic ventricular external-work qualification
 
-Status: analysis-level LV/RV eligibility implemented; numerical-refinement and
-pressure-basis policy preregistered before the new 0.5 ms evidence
+Status: analysis-level LV/RV eligibility implemented; preregistered
+numerical-refinement and pressure-basis gates passed for sealed official
+Experiment results
 
 ## Decision
 
@@ -103,17 +104,16 @@ for LV and 1.89% for RV from 0.005 to 0.002 s, and about 0.286% for LV and
 0.690% for RV from 0.002 to 0.001 s. This is a convergent trend, but these are
 characterization results rather than a post-hoc acceptance threshold.
 
-Consequently, the qualifier is implemented, but official Experiment-result
-admission still depends on the unexecuted preregistered gate. The
-model-condition identity independent of `dt`, exact 1 ms/0.5 ms pair, fixed
-near-zero denominator, 1% limit, and pressure-basis arms are now frozen in
+The model-condition identity independent of `dt`, exact 1 ms/0.5 ms pair,
+fixed near-zero denominator, 1% limit, and pressure-basis arms were frozen in
 [INTEGRATED-MODEL-0010](INTEGRATED-MODEL-0010-periodic-work-admission-preregistration.md).
-A failed gate must remain failed rather than being relaxed to admit the
-observed result.
+All gates then passed without changing that policy; values, hashes, and the
+final decision are retained in
+[INTEGRATED-MODEL-0011](INTEGRATED-MODEL-0011-periodic-work-admission-result.md).
 
-The new analysis also retains cavity absolute-pressure work, transmural work,
-and their external-constraint difference. Passing the gate can make periodic
-work eligible for a sealed official Experiment result. It does not by itself
+The analysis retains cavity absolute-pressure work, transmural work, and their
+external-constraint difference. Periodic work is now eligible for a sealed
+official Experiment result. This does not by itself
 create a public live output: canonical P1 settlement is an analysis lifecycle,
 not the instantaneous lifecycle of the current Output Catalog.
 

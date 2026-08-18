@@ -241,6 +241,13 @@ promoted to stroke work. They do not include potential energy and are not PVA
 or myocardial oxygen consumption. See
 [INTEGRATED-MODEL-0006](INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md).
 
+A separate canonical P1 analysis has passed preregistered numerical-refinement
+and pressure-basis admission for use in sealed official Experiment results. It
+is intentionally absent from this live Output Catalog: a settled periodic
+analysis and an accumulating capture-window observer have different lifecycles
+and must not share one output identity. See
+[INTEGRATED-MODEL-0011](INTEGRATED-MODEL-0011-periodic-work-admission-result.md).
+
 The oxygen outputs are alveolar and arterial PO2, the A-a gradient,
 end-capillary and arterial saturation/content, required mixed-venous
 content/saturation/PO2, systemic DO2, target VO2, required OER, and DO2/VO2.

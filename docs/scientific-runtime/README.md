@@ -29,6 +29,10 @@ model:
   freezes the unseen 1 ms/0.5 ms refinement gate, cavity/transmural/external-
   constraint work identity, and normal/PEEP pressure-basis arms before the new
   fine-grid evidence is executed.
+- [`INTEGRATED-MODEL-0011-periodic-work-admission-result.md`](./INTEGRATED-MODEL-0011-periodic-work-admission-result.md)
+  records the passing retained evidence and admits periodic work only as a
+  sealed official Experiment result, while keeping the public live catalog,
+  PVA, and clinical validation false.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

@@ -1,7 +1,8 @@
 # Periodic ventricular-work admission preregistration
 
-Status: policy and executable protocol declared before the first new 0.5 ms
-result; admission evidence pending
+Status: policy and executable protocol committed as `c11dbef1` before the first
+new 0.5 ms result; frozen protocol subsequently passed and is reported in
+[INTEGRATED-MODEL-0011](INTEGRATED-MODEL-0011-periodic-work-admission-result.md)
 
 ## Decision boundary
 

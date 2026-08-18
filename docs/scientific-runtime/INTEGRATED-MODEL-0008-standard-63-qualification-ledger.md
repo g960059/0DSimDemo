@@ -137,8 +137,8 @@ Standard-63 or add a public output. Its contract is
 
 Continue only in this order:
 
-1. execute the frozen numerical-refinement and pressure-basis admission before
-   promoting periodic LV/RV work into sealed official Experiment results;
+1. use the passing periodic LV/RV work analysis only in sealed official
+   Experiment results, not as a live capture-window replacement;
 2. freeze and qualify multi-load ESPVR/EDPVR measurement contracts;
 3. derive exact PE and PVA geometry from those admitted relations;
 4. build chamber-mechanics and valve anchor Experiments from the qualified
