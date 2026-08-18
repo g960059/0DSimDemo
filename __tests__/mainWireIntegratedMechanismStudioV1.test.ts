@@ -8,6 +8,12 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+import {
+  mainWireIntegratedStudioControlProjectionFromFixtureV3,
+  mainWireIntegratedStudioControlValueFromFixtureV3,
+  mainWireIntegratedStudioControlValuesAfterAssignmentV3,
+  mainWireIntegratedStudioControlValuesFromFixtureV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import {
   MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1,
@@ -17,6 +23,12 @@ import {
   MAIN_WIRE_CORONARY_DEFAULT_DISEASE_RESEARCH_INPUTS_V2,
   createMainWireCoronaryDiseaseInputV2,
 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
+import { MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_LITERATURE_ANCHORS_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFICATION_FAMILIES_V1,
+  auditMainWireIntegratedStudioQualificationLedgerV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualificationLedgerV1";
 
 describe("Standard-63 mechanism research controls", () => {
   it("maps pericardial and coronary authoring axes into kernel parameters", () => {
@@ -65,6 +77,221 @@ describe("Standard-63 mechanism research controls", () => {
     expect(release.manifest.fixtureSchema.fixtureSchemaId).toMatch(
       /fixture\.standard-v3$/,
     );
+  });
+
+  it("projects every registered default control from the complete exact fixture", () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const projected = Object.fromEntries(
+      release.manifest.primitiveControlCatalog.map((control) => [
+        control.controlId,
+        mainWireIntegratedStudioControlValueFromFixtureV3(
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          control.controlId,
+        ),
+      ]),
+    );
+
+    expect(Object.keys(projected)).toHaveLength(57);
+    for (const control of release.manifest.primitiveControlCatalog) {
+      expect(projected[control.controlId], control.controlId).toBe(
+        control.defaultValue,
+      );
+    }
+  });
+
+  it("covers every public control once without promoting component evidence to physiology", () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const audit = auditMainWireIntegratedStudioQualificationLedgerV1(
+      release.manifest.primitiveControlCatalog.map(({ controlId }) => controlId),
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
+    );
+
+    expect(audit).toEqual({
+      ledgerId:
+        "circleheart.main-wire.standard-63-public-mechanism-qualification-ledger-v1",
+      status: "pass",
+      registeredControlCount: 57,
+      coveredControlCount: 57,
+      missingControlIds: [],
+      duplicateControlIds: [],
+      unknownControlIds: [],
+      unknownRepresentativeOutputIds: [],
+      unknownLiteratureAnchorIds: [],
+      closedLoopDirectionalClaimsQualified: false,
+      clinicalValidationClaimed: false,
+    });
+    expect(MAIN_WIRE_INTEGRATED_STUDIO_QUALIFICATION_FAMILIES_V1).toHaveLength(
+      15,
+    );
+    expect(
+      MAIN_WIRE_INTEGRATED_STUDIO_QUALIFICATION_FAMILIES_V1.every(
+        ({ evidence, controlIds, representativeOutputIds }) =>
+          evidence.definitionOwnership === "verified" &&
+          evidence.closedLoopDirection === "not-qualified" &&
+          evidence.clinicalValidation === "not-established" &&
+          evidence.officialDirectionalClaimEligible === false &&
+          controlIds.length > 0 &&
+          representativeOutputIds.length > 0,
+      ),
+    ).toBe(true);
+    expect(
+      MAIN_WIRE_INTEGRATED_STUDIO_LITERATURE_ANCHORS_V1.every(
+        ({ magnitudeValidationEstablished }) =>
+          magnitudeValidationEstablished === false,
+      ),
+    ).toBe(true);
+  });
+
+  it("projects authored mechanism values instead of falling back to catalog defaults", () => {
+    const assignments = [
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.heartRateBpm,
+        value: 70,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionLVFW,
+        value: 0.9,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.passiveStiffnessRVFW,
+        value: 1.2,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.calciumDecayTimeLA,
+        value: 1.3,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.aovMaximumForwardEoaCm2,
+        value: 0.8,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.mvClosedReverseEroaCm2,
+        value: 0.25,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.oxygenHemoglobinGPerDl,
+        value: 10,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.pericardiumPrescribedFluidVolumeMl,
+        value: 100,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.coronaryFocalDiameterLossLAD,
+        value: 0.5,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.coronaryStructuralR1LADSubendocardial,
+        value: 2,
+      },
+      {
+        controlId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.coronaryStructuralRmRCASubepicardial,
+        value: 3,
+      },
+    ] as const;
+    const fixture =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        assignments,
+      );
+
+    for (const assignment of assignments) {
+      expect(
+        mainWireIntegratedStudioControlValueFromFixtureV3(
+          fixture,
+          assignment.controlId,
+        ),
+        assignment.controlId,
+      ).toBe(assignment.value);
+    }
+  });
+
+  it("reports the convenience contractility value only while its three wall owners agree", () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const common =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        [{
+          controlId:
+            MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+          value: 1.1,
+        }],
+      );
+    expect(
+      mainWireIntegratedStudioControlValueFromFixtureV3(
+        common,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+      ),
+    ).toBe(1.1);
+
+    const mixed =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        common,
+        [{
+          controlId:
+            MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionLVFW,
+          value: 0.9,
+        }],
+      );
+    expect(
+      mainWireIntegratedStudioControlValueFromFixtureV3(
+        mixed,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+      ),
+    ).toBeNull();
+    expect(
+      mainWireIntegratedStudioControlProjectionFromFixtureV3(
+        mixed,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+      ),
+    ).toEqual({ kind: "mixed" });
+
+    const projected = mainWireIntegratedStudioControlValuesFromFixtureV3(
+      mixed,
+      release.manifest.primitiveControlCatalog,
+    );
+    expect(
+      projected[
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale
+      ],
+    ).toBeNull();
+
+    const reconciled = mainWireIntegratedStudioControlValuesAfterAssignmentV3(
+      projected,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+      1.2,
+    );
+    expect(
+      [
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionLVFW,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionSEP,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionRVFW,
+      ].map((controlId) => reconciled[controlId]),
+    ).toEqual([1.2, 1.2, 1.2, 1.2]);
+
+    const wallSpecific =
+      mainWireIntegratedStudioControlValuesAfterAssignmentV3(
+        reconciled,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.activeTensionSEP,
+        0.8,
+      );
+    expect(
+      wallSpecific[
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.ventricularContractilityScale
+      ],
+    ).toBeNull();
   });
 
   it("makes common ventricular active tension an atomic three-wall action", () => {

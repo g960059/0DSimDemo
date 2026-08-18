@@ -30,6 +30,10 @@ import {
   workbenchPerformanceNowV3,
 } from "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
 
+export type ArticleReaderControlValueMapV3 = Readonly<
+  Record<string, number | null>
+>;
+
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
     | "idle"
@@ -47,7 +51,7 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   pendingControlInstanceId: string | null;
   pendingAnalysisKeys: readonly string[];
   committedControlValues: Readonly<
-    Record<string, Readonly<Record<string, number>>>
+    Record<string, ArticleReaderControlValueMapV3>
   >;
   analysisByKey: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisHistoryByKey: Readonly<
@@ -96,6 +100,14 @@ type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
   presentationOutputIds?: ReadonlySet<string>;
+  initialControlValuesByScenario?: Readonly<
+    Record<string, ArticleReaderControlValueMapV3>
+  >;
+  reduceControlValuesAfterAssignment?(
+    current: ArticleReaderControlValueMapV3,
+    controlId: string,
+    value: number,
+  ): ArticleReaderControlValueMapV3;
 }>;
 
 export type ArticleReaderLiveRuntimeDependenciesV3 =
@@ -131,6 +143,9 @@ export class ArticleReaderLiveRuntimeV3 {
   readonly #listeners = new Set<() => void>();
   readonly #structuralHistoryDepthByAnalysisId: ReadonlyMap<string, number>;
   readonly #presentationOutputIds: ReadonlySet<string> | undefined;
+  readonly #reduceControlValuesAfterAssignment: NonNullable<
+    ArticleReaderLiveRuntimeCommonDependenciesV3["reduceControlValuesAfterAssignment"]
+  >;
   #state: ArticleReaderLiveRuntimeStateV3;
   #runtime: ArticleReaderParallelRuntimeV3 | null = null;
   #startPromise: Promise<void> | null = null;
@@ -163,6 +178,9 @@ export class ArticleReaderLiveRuntimeV3 {
         dependencies.structuralAnalyses ?? [],
       );
     this.#presentationOutputIds = dependencies.presentationOutputIds;
+    this.#reduceControlValuesAfterAssignment =
+      dependencies.reduceControlValuesAfterAssignment ??
+      defaultArticleReaderControlValuesAfterAssignmentV3;
     this.sampleStore = dependencies.sampleStore
       ?? new WorkbenchScenarioPresentationSampleStoreV3();
     if (dependencies.createRuntime === undefined) {
@@ -193,7 +211,9 @@ export class ArticleReaderLiveRuntimeV3 {
       activeScenarioId,
       pendingControlInstanceId: null,
       pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
-      committedControlValues: EMPTY_ARTICLE_READER_CONTROL_VALUES_V3,
+      committedControlValues:
+        dependencies.initialControlValuesByScenario ??
+        EMPTY_ARTICLE_READER_CONTROL_VALUES_V3,
       analysisByKey: EMPTY_ARTICLE_READER_ANALYSES_V3,
       analysisHistoryByKey: EMPTY_ARTICLE_READER_ANALYSIS_HISTORY_V3,
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
@@ -596,6 +616,7 @@ export class ArticleReaderLiveRuntimeV3 {
         input.scenarioIds,
         input.controlId,
         input.value,
+        this.#reduceControlValuesAfterAssignment,
       );
       const analysisHistoryByKey = archiveArticleReaderAnalysesV3(
         clearZeroDepthArticleReaderAnalysisHistoryV3(
@@ -721,7 +742,7 @@ export class ArticleReaderLiveRuntimeV3 {
 
 const EMPTY_ARTICLE_READER_CONTROL_VALUES_V3 = Object.freeze(
   Object.create(null),
-) as Readonly<Record<string, Readonly<Record<string, number>>>>;
+) as Readonly<Record<string, ArticleReaderControlValueMapV3>>;
 const EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3 = Object.freeze([]) as
   readonly string[];
 const EMPTY_ARTICLE_READER_ANALYSES_V3 = Object.freeze(
@@ -895,17 +916,29 @@ function withArticleReaderCommittedControlValueV3(
   scenarioIds: readonly string[],
   controlId: string,
   value: number,
+  reduceControlValuesAfterAssignment: NonNullable<
+    ArticleReaderLiveRuntimeCommonDependenciesV3["reduceControlValuesAfterAssignment"]
+  >,
 ): ArticleReaderLiveRuntimeStateV3["committedControlValues"] {
-  const next: Record<string, Readonly<Record<string, number>>> = {
+  const next: Record<string, ArticleReaderControlValueMapV3> = {
     ...current,
   };
   for (const scenarioId of scenarioIds) {
-    next[scenarioId] = Object.freeze({
-      ...(current[scenarioId] ?? {}),
-      [controlId]: value,
-    });
+    next[scenarioId] = reduceControlValuesAfterAssignment(
+      current[scenarioId] ?? {},
+      controlId,
+      value,
+    );
   }
   return Object.freeze(next);
+}
+
+function defaultArticleReaderControlValuesAfterAssignmentV3(
+  current: ArticleReaderControlValueMapV3,
+  controlId: string,
+  value: number,
+): ArticleReaderControlValueMapV3 {
+  return Object.freeze({ ...current, [controlId]: value });
 }
 
 export function appendArticleReaderFramesV3(

@@ -160,7 +160,11 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import { StudioArticleExperimentAuthoringHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import { StudioExperimentSessionHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
-import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
+import {
+  mainWireIntegratedStudioControlValuesAfterAssignmentV3,
+  mainWireIntegratedStudioControlValuesFromFixtureV3,
+  type MainWireIntegratedStudioControlValueMapV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import {
   GuytonStarlingComparisonCanvasV3,
   PressureVolumeLoopCanvasV3,
@@ -482,9 +486,8 @@ const WorkbenchV3Session = ({
   const [backgroundWorkerPool, setBackgroundWorkerPool] =
     React.useState<WorkbenchBackgroundWorkerPoolV3 | null>(null);
   const [runtimeGeneration, setRuntimeGeneration] = React.useState(0);
-  const [, setControlValues] = React.useState<Readonly<Record<string, number>>>(
-    {},
-  );
+  const [, setControlValues] =
+    React.useState<MainWireIntegratedStudioControlValueMapV3>({});
   const [pendingControlId, setPendingControlId] = React.useState<string | null>(
     null,
   );
@@ -546,7 +549,7 @@ const WorkbenchV3Session = ({
   const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
   const activeScenarioIdRef = React.useRef<string | null>(null);
   const controlValuesByScenarioRef = React.useRef<
-    Record<string, Readonly<Record<string, number>>>
+    Record<string, MainWireIntegratedStudioControlValueMapV3>
   >({});
   const playingIntentRef = React.useRef(true);
   const exclusiveOperationRef = React.useRef<
@@ -1463,10 +1466,11 @@ const WorkbenchV3Session = ({
           ...Object.fromEntries(
             uniqueScenarioIds.map((scenarioId) => [
               scenarioId,
-              Object.freeze({
-                ...(controlValuesByScenarioRef.current[scenarioId] ?? {}),
-                [controlId]: value,
-              }),
+              mainWireIntegratedStudioControlValuesAfterAssignmentV3(
+                controlValuesByScenarioRef.current[scenarioId] ?? {},
+                controlId,
+                value,
+              ),
             ]),
           ),
         });
@@ -5089,7 +5093,7 @@ function ControlPaneBodyV3({
   contract: ModelContractV2;
   controlError: string | null;
   controlValuesByScenario: Readonly<
-    Record<string, Readonly<Record<string, number>>>
+    Record<string, MainWireIntegratedStudioControlValueMapV3>
   >;
   disabledByAnalysis: boolean;
   locale: "en" | "ja";
@@ -5138,13 +5142,16 @@ function ControlPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   const presentedControls = selectedControls.map(({ definition, item }) => {
-    const values = targetScenarioIds.map(
-      (scenarioId) =>
-        controlValuesByScenario[scenarioId]?.[definition.controlId] ??
-        definition.defaultValue,
+    const projections = targetScenarioIds.map((scenarioId) =>
+      controlValuesByScenario[scenarioId]?.[definition.controlId],
+    );
+    const values = projections.map(
+      (projection) => projection ?? definition.defaultValue,
     );
     const value = values[0] ?? definition.defaultValue;
-    const mixed = values.some((candidate) => candidate !== value);
+    const mixed =
+      projections.some((projection) => projection === null) ||
+      values.some((candidate) => candidate !== value);
     return { definition, item, value, mixed };
   });
   return (
@@ -5248,17 +5255,10 @@ function PaneLoadingV3() {
 function controlValuesForFixtureV3(
   contract: ModelContractV2,
   fixture: unknown,
-): Readonly<Record<string, number>> {
-  return Object.freeze(
-    Object.fromEntries(
-      contract.controlCatalog.map((control) => [
-        control.controlId,
-        mainWireIntegratedStudioControlValueFromFixtureV3(
-          fixture,
-          control.controlId,
-        ) ?? control.defaultValue,
-      ]),
-    ),
+): MainWireIntegratedStudioControlValueMapV3 {
+  return mainWireIntegratedStudioControlValuesFromFixtureV3(
+    fixture,
+    contract.controlCatalog,
   );
 }
 
@@ -5268,8 +5268,8 @@ function controlValuesForFixtureV3(
  * otherwise independent numerical Scenario lanes.
  */
 export function cloneWorkbenchControlValuesV3(
-  source: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
+  source: MainWireIntegratedStudioControlValueMapV3,
+): MainWireIntegratedStudioControlValueMapV3 {
   return Object.freeze({ ...source });
 }
 

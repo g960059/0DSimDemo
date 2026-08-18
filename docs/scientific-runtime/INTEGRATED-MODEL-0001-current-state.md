@@ -106,8 +106,10 @@ playback rate.
 ## Controls, outputs, and graphs
 
 The exact release owns 57 absolute numeric controls. The default Workbench
-pane intentionally presents only six common teaching controls; the remaining
-controls stay available to authored Experiments and user-customized panes.
+pane intentionally presents eight controls: HR, TBV, SVR, PVR, venous tone,
+and LVFW active-tension, prescribed calcium-decay-time, and passive-stiffness
+scales. The remaining controls stay available to authored Experiments and
+user-customized panes.
 The complete catalog comprises:
 
 - systemic resistance;
@@ -176,6 +178,11 @@ research inputs and derived observations, not diagnoses, patient fits, generic
 lusitropy, respiratory dynamics, or a validated oxygen-sufficiency model. The
 exact event and observer boundaries are in
 [INTEGRATED-MODEL-0007](INTEGRATED-MODEL-0007-valve-events-chamber-mechanics-and-oxygen-transport.md).
+
+Every public control family also has a machine-readable evidence boundary in
+[INTEGRATED-MODEL-0008](INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md).
+Direct fixture ownership and component tests are kept separate from
+closed-loop directional characterization and clinical validation.
 
 The Workbench Surface provides pressure and flow sweeps, a pressure-volume
 graph, and on-demand bilateral Guyton/Starling orientation. Surface

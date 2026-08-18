@@ -199,6 +199,37 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       .toMatchObject({ values: { pressure: 44 } });
   });
 
+  it("lets the exact-model projection reconcile composite control readback", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+      initialControlValuesByScenario: {
+        "scenario/one": { "control/common": null, "control/detail": 0.8 },
+      },
+      reduceControlValuesAfterAssignment(current, controlId, value) {
+        return Object.freeze({
+          ...current,
+          [controlId]: value,
+          ...(controlId === "control/common"
+            ? { "control/detail": value }
+            : {}),
+        });
+      },
+    });
+    await controller.start();
+
+    await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/common",
+      controlId: "control/common",
+      scenarioIds: ["scenario/one"],
+      value: 1.2,
+    });
+
+    expect(controller.getSnapshot().committedControlValues["scenario/one"])
+      .toEqual({ "control/common": 1.2, "control/detail": 1.2 });
+  });
+
   it("does not retain control-boundary outputs outside the authored presentation selection", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot);

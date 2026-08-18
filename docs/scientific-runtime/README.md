@@ -19,6 +19,9 @@ model:
   defines Standard-63 valve events and beat volumes, five-wall, pericardial,
   and coronary research controls, the whole-body oxygen observer, and their
   claim limits.
+- [`INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md`](./INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md)
+  separates direct mechanism ownership, component direction, closed-loop
+  characterization, and clinical validation for every public control family.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

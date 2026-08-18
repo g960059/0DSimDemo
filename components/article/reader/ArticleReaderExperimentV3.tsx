@@ -64,9 +64,14 @@ import type {
   StructuralReturnGraphDefinitionV2,
   SweepGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
-import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
+import {
+  mainWireIntegratedStudioControlValuesAfterAssignmentV3,
+  mainWireIntegratedStudioControlValuesFromFixtureV3,
+  mainWireIntegratedStudioControlProjectionFromFixtureV3,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import {
   articleReaderAnalysisKeyV3,
+  type ArticleReaderLiveRuntimeStateV3,
   type ArticleReaderStructuralAnalysisRequestV3,
 } from "./ArticleReaderLiveRuntimeV3";
 import { articleReaderPresentationOutputSelectionV3 } from "./ArticleReaderPresentationOutputSelectionV3";
@@ -445,6 +450,21 @@ function ArticleReaderLiveOwnerV3({
       articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing),
     [briefing, contract, snapshot],
   );
+  const initialControlValuesByScenario = React.useMemo(
+    () =>
+      Object.freeze(
+        Object.fromEntries(
+          snapshot.content.scenarios.map((scenario) => [
+            scenario.scenarioId,
+            mainWireIntegratedStudioControlValuesFromFixtureV3(
+              scenario.capture.fixture,
+              contract.controlCatalog,
+            ),
+          ]),
+        ),
+      ),
+    [contract, snapshot],
+  );
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
     requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
@@ -452,6 +472,8 @@ function ArticleReaderLiveOwnerV3({
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
     presentationOutputIds,
+    initialControlValuesByScenario,
+    mainWireIntegratedStudioControlValuesAfterAssignmentV3,
   );
   const detail = (
     <ArticleReaderLiveDetailV3
@@ -1536,32 +1558,40 @@ export function ArticleReaderControlV3({
   );
   const primaryTargetId =
     targetIds[0] ?? briefing.scenarioScope.initialFocusScenarioId;
-  const targetValues = targetIds.map(
-    (scenarioId) =>
-      runtime.state.committedControlValues[scenarioId]?.[control.controlId] ??
-      readerControlInitialValueV3(snapshot, scenarioId, definition),
+  const targetProjections = targetIds.map((scenarioId) =>
+    readerControlProjectedValueV3(
+      runtime.state.committedControlValues,
+      snapshot,
+      scenarioId,
+      definition,
+    ),
   );
-  const committedRuntimeValue =
-    runtime.state.committedControlValues[primaryTargetId]?.[control.controlId];
-  const initialValue =
-    committedRuntimeValue ??
-    readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+  const targetValues = targetProjections.map(
+    (projection) => projection ?? definition.defaultValue,
+  );
+  const primaryProjection = readerControlProjectedValueV3(
+    runtime.state.committedControlValues,
+    snapshot,
+    primaryTargetId,
+    definition,
+  );
+  const initialValue = primaryProjection ?? definition.defaultValue;
   const [value, setValue] = React.useState(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const committedRef = React.useRef(initialValue);
   const commitInFlightRef = React.useRef(false);
   const controlInstanceId = articleReaderControlInstanceIdV3(control);
   const mixed =
-    targetValues.length > 1 &&
-    targetValues.some((candidate) => candidate !== targetValues[0]);
+    primaryProjection === null ||
+    targetProjections.some((projection) => projection === null) ||
+    (targetValues.length > 1 &&
+      targetValues.some((candidate) => candidate !== targetValues[0]));
 
   React.useEffect(() => {
-    const next =
-      committedRuntimeValue ??
-      readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+    const next = primaryProjection ?? definition.defaultValue;
     setValue(next);
     committedRef.current = next;
-  }, [committedRuntimeValue, definition, primaryTargetId, snapshot]);
+  }, [definition.defaultValue, primaryProjection]);
 
   const commit = async (next: number) => {
     if (next === committedRef.current || commitInFlightRef.current) return;
@@ -2006,20 +2036,27 @@ function controlTargetScenarioIdsV3(
     : [];
 }
 
-function readerControlInitialValueV3(
+function readerControlProjectedValueV3(
+  committedControlValues: ArticleReaderLiveRuntimeStateV3["committedControlValues"],
   snapshot: ExperimentSnapshotV2,
   scenarioId: string,
   definition: ControlDefinitionV2,
-): number {
+): number | null {
+  const committed =
+    committedControlValues[scenarioId]?.[definition.controlId];
+  if (committed !== undefined) return committed;
   const fixture = snapshot.content.scenarios.find(
     (scenario) => scenario.scenarioId === scenarioId,
   )?.capture.fixture;
-  return (
-    mainWireIntegratedStudioControlValueFromFixtureV3(
-      fixture,
-      definition.controlId,
-    ) ?? definition.defaultValue
+  const projection = mainWireIntegratedStudioControlProjectionFromFixtureV3(
+    fixture,
+    definition.controlId,
   );
+  return projection.kind === "value"
+    ? projection.value
+    : projection.kind === "mixed"
+      ? null
+      : definition.defaultValue;
 }
 
 export function selectedSweepOutputIdsV3(

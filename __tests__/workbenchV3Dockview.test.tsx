@@ -40,6 +40,8 @@ import {
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
+  WORKBENCH_DEFAULT_CONTROL_IDS_V3,
+  WORKBENCH_DEFAULT_OUTPUT_IDS_V3,
   WORKBENCH_GRAPH_PANE_OPTIONS_V3,
   workbenchGraphPaneOptionsForContractV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -1014,38 +1016,13 @@ describe("V3 Dockview Workbench", () => {
         seriesIds: ["AoP", "LVP", "LAP"],
       },
     ]);
-    expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
-      "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.systolic.Ao",
-      "hemodynamics.pressure.diastolic.Ao",
-      "hemodynamics.pressure.mean.Ao",
-      "hemodynamics.pressure.systolic.PA",
-      "hemodynamics.pressure.diastolic.PA",
-      "hemodynamics.pressure.mean.PA",
-      "hemodynamics.pressure.mean.LA",
-      "hemodynamics.pressure.mean.RA",
-      "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.stroke-volume.LV-event-defined",
-      "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.valve-volume.net.AoV",
-      "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
-      "oxygen.delivery.systemic",
-    ]);
+    expect(outputPane.items.map(({ outputId }) => outputId)).toEqual(
+      WORKBENCH_DEFAULT_OUTPUT_IDS_V3,
+    );
     expect(outputPane.binding).toEqual({ mode: "active-slot" });
-    expect(controlPane.items.map(({ controlId }) => controlId)).toEqual([
-      "rhythm.heart-rate-bpm",
-      "hemodynamics.total-blood-volume-ml",
-      "hemodynamics.systemic-resistance",
-      "hemodynamics.pulmonary-resistance",
-      "hemodynamics.venous-tone",
-      "myocardium.active-tension-scale.LVFW",
-      "myocardium.calcium-decay-time-scale.LVFW",
-      "myocardium.passive-stiffness-scale.LVFW",
-    ]);
+    expect(controlPane.items.map(({ controlId }) => controlId)).toEqual(
+      WORKBENCH_DEFAULT_CONTROL_IDS_V3,
+    );
     expect(controlPane.items.length).toBeGreaterThan(0);
     expect(graphPanes).toHaveLength(3);
     expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe(

@@ -50,7 +50,11 @@ import { resolveMainWireIntegratedStudioAnalysisExecutionPlanV3 } from "@/studio
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import mainWireIntegratedStudioHistoricalSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
-import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
+import {
+  WORKBENCH_DEFAULT_CONTROL_IDS_V3,
+  WORKBENCH_DEFAULT_OUTPUT_IDS_V3,
+  createDefaultExperimentSurfaceV3,
+} from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const EMPTY_SURFACE_V2: ExperimentSurfaceV2 = Object.freeze({
@@ -775,27 +779,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ]);
     expect(
       workbenchSurface.outputPanes[0]?.items.map(({ outputId }) => outputId),
-    ).toEqual([
-      "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.systolic.Ao",
-      "hemodynamics.pressure.diastolic.Ao",
-      "hemodynamics.pressure.mean.Ao",
-      "hemodynamics.pressure.systolic.PA",
-      "hemodynamics.pressure.diastolic.PA",
-      "hemodynamics.pressure.mean.PA",
-      "hemodynamics.pressure.mean.LA",
-      "hemodynamics.pressure.mean.RA",
-      "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
-      "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
-      "hemodynamics.stroke-volume.LV-event-defined",
-      "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.valve-volume.net.AoV",
-      "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
-      "oxygen.delivery.systemic",
-    ]);
+    ).toEqual(WORKBENCH_DEFAULT_OUTPUT_IDS_V3);
+    expect(
+      workbenchSurface.controlPanes[0]?.items.map(({ controlId }) => controlId),
+    ).toEqual(WORKBENCH_DEFAULT_CONTROL_IDS_V3);
 
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-workbench-parity";
@@ -812,14 +799,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       if (frame.outputs["hemodynamics.output.native-left"]?.value !== null)
         break;
     }
-    for (const outputId of [
-      "hemodynamics.output.native-left",
-      "hemodynamics.valve-volume.net.AoV",
-      "hemodynamics.pressure.mean.Ao",
-      "hemodynamics.ejection-fraction.LV-event-defined",
-      "hemodynamics.pressure.mean.LA",
-      "oxygen.delivery.systemic",
-    ]) {
+    for (const outputId of WORKBENCH_DEFAULT_OUTPUT_IDS_V3) {
       expect(frame.outputs[outputId]).toMatchObject({
         outputId,
         availability: "available",

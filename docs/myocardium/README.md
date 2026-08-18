@@ -42,9 +42,10 @@ definitions through the separate Workbench Surface. Standard-63 includes
 wall-explicit mechanics, continuous four-valve areas and event-defined beat
 metrics, common-pericardial and coronary disease axes, detailed accepted
 hydraulic readback, and a beat-mean whole-body oxygen observer. The default
-controller pane deliberately keeps only six common teaching controls. Official
-Articles and Snapshots exist, but they remain product content rather than
-scientific model evidence.
+controller pane deliberately keeps eight controls: HR, TBV, SVR, PVR, venous
+tone, and LVFW active-tension, calcium-decay-time, and passive-stiffness
+scales. Official Articles and Snapshots exist, but they remain product content
+rather than scientific model evidence.
 
 ## Scientific status
 

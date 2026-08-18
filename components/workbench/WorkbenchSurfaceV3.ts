@@ -36,6 +36,39 @@ export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
   "responsive-preview" as const;
 
+export const WORKBENCH_DEFAULT_OUTPUT_IDS_V3 = Object.freeze([
+  "rhythm.heart-rate.instantaneous",
+  "hemodynamics.pressure.systolic.Ao",
+  "hemodynamics.pressure.diastolic.Ao",
+  "hemodynamics.pressure.mean.Ao",
+  "hemodynamics.pressure.systolic.PA",
+  "hemodynamics.pressure.diastolic.PA",
+  "hemodynamics.pressure.mean.PA",
+  "hemodynamics.pressure.mean.LA",
+  "hemodynamics.pressure.mean.RA",
+  "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+  "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+  "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+  "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+  "hemodynamics.stroke-volume.LV-event-defined",
+  "hemodynamics.ejection-fraction.LV-event-defined",
+  "hemodynamics.valve-volume.net.AoV",
+  "hemodynamics.output.effective-native-left",
+  "myocardium.work.external.LV-transmural-pressure-volume-path",
+  "oxygen.delivery.systemic",
+] as const);
+
+export const WORKBENCH_DEFAULT_CONTROL_IDS_V3 = Object.freeze([
+  "rhythm.heart-rate-bpm",
+  "hemodynamics.total-blood-volume-ml",
+  "hemodynamics.systemic-resistance",
+  "hemodynamics.pulmonary-resistance",
+  "hemodynamics.venous-tone",
+  "myocardium.active-tension-scale.LVFW",
+  "myocardium.calcium-decay-time-scale.LVFW",
+  "myocardium.passive-stiffness-scale.LVFW",
+] as const);
+
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each
  * constructor owns one axis-unit family so any compatible series can be mixed
@@ -439,28 +472,7 @@ export function createDefaultExperimentSurfaceV3(
           }),
         ];
   });
-  const defaultOutputIds = Object.freeze([
-    "rhythm.heart-rate.instantaneous",
-    "hemodynamics.pressure.systolic.Ao",
-    "hemodynamics.pressure.diastolic.Ao",
-    "hemodynamics.pressure.mean.Ao",
-    "hemodynamics.pressure.systolic.PA",
-    "hemodynamics.pressure.diastolic.PA",
-    "hemodynamics.pressure.mean.PA",
-    "hemodynamics.pressure.mean.LA",
-    "hemodynamics.pressure.mean.RA",
-    "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
-    "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
-    "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
-    "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
-    "hemodynamics.stroke-volume.LV-event-defined",
-    "hemodynamics.ejection-fraction.LV-event-defined",
-    "hemodynamics.valve-volume.net.AoV",
-    "hemodynamics.output.effective-native-left",
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
-    "oxygen.delivery.systemic",
-  ]);
-  const defaultOutputs = defaultOutputIds.flatMap((outputId) => {
+  const defaultOutputs = WORKBENCH_DEFAULT_OUTPUT_IDS_V3.flatMap((outputId) => {
     const output = contract.outputCatalog.find(
       (candidate) => candidate.outputId === outputId,
     );
@@ -483,17 +495,7 @@ export function createDefaultExperimentSurfaceV3(
       ),
     ),
   });
-  const defaultControlIds = Object.freeze([
-    "rhythm.heart-rate-bpm",
-    "hemodynamics.total-blood-volume-ml",
-    "hemodynamics.systemic-resistance",
-    "hemodynamics.pulmonary-resistance",
-    "hemodynamics.venous-tone",
-    "myocardium.active-tension-scale.LVFW",
-    "myocardium.calcium-decay-time-scale.LVFW",
-    "myocardium.passive-stiffness-scale.LVFW",
-  ]);
-  const defaultControls = defaultControlIds.flatMap((controlId) => {
+  const defaultControls = WORKBENCH_DEFAULT_CONTROL_IDS_V3.flatMap((controlId) => {
     const control = contract.controlCatalog.find(
       (candidate) => candidate.controlId === controlId,
     );

@@ -123,10 +123,14 @@ All chamber, valve, oxygen, pericardial, and coronary values live in one exact
 coronary inputs alter the numerical runtime; oxygen inputs alter only the
 observer. Every complete fixture is validated before an atomic warm start.
 
-The exact model owns 57 controls. The default controller pane remains a
-curated six-item teaching surface: heart rate, total blood volume, systemic
-resistance, common ventricular active tension, venous tone, and PEEP. This
-curation does not remove any detailed control from the catalog.
+The exact model owns 57 controls. The default controller pane is a curated
+eight-item teaching surface: heart rate, total blood volume, systemic and
+pulmonary resistance, venous tone, and LVFW active-tension,
+calcium-decay-time, and passive-stiffness scales. PEEP and the common
+ventricular convenience action remain available in the picker rather than the
+default pane. This curation does not remove any detailed control from the
+catalog. The exact machine-readable default IDs are exported by
+`WorkbenchSurfaceV3` so documentation and tests do not maintain a second list.
 
 ## Signal Output Catalog
 

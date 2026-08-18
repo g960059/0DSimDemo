@@ -13,6 +13,7 @@ import {
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
 import {
   ArticleReaderLiveRuntimeV3,
+  type ArticleReaderControlValueMapV3,
   type ArticleReaderLiveRuntimeStateV3,
   type ArticleReaderStructuralAnalysisRequestV3,
   validatedArticleReaderVisibleScenarioIdsV3,
@@ -53,6 +54,14 @@ export function useArticleReaderLiveRuntimeV3(
   visibleScenarioIds?: readonly string[],
   structuralAnalyses: readonly ArticleReaderStructuralAnalysisRequestV3[] = [],
   presentationOutputIds?: ReadonlySet<string>,
+  initialControlValuesByScenario?: Readonly<
+    Record<string, ArticleReaderControlValueMapV3>
+  >,
+  reduceControlValuesAfterAssignment?: (
+    current: ArticleReaderControlValueMapV3,
+    controlId: string,
+    value: number,
+  ) => ArticleReaderControlValueMapV3,
 ): UseArticleReaderLiveRuntimeResultV3 {
   const requestedScopeKey = JSON.stringify(visibleScenarioIds ?? null);
   const validatedVisibleScenarioIds = React.useMemo(
@@ -91,6 +100,12 @@ export function useArticleReaderLiveRuntimeV3(
       ...(presentationOutputIds === undefined
         ? {}
         : { presentationOutputIds }),
+      ...(initialControlValuesByScenario === undefined
+        ? {}
+        : { initialControlValuesByScenario }),
+      ...(reduceControlValuesAfterAssignment === undefined
+        ? {}
+        : { reduceControlValuesAfterAssignment }),
       sampleStore,
       releaseTicket: exactModel.releaseTicket,
       ...(exactModel?.resolveAnalysisExecutionPlan === undefined
@@ -132,6 +147,8 @@ export function useArticleReaderLiveRuntimeV3(
     visibleScopeKey,
     exactModel?.releaseTicket,
     exactModel?.resolveAnalysisExecutionPlan,
+    initialControlValuesByScenario,
+    reduceControlValuesAfterAssignment,
   ]);
 
   const play = React.useCallback(() => controllerRef.current?.play(), []);
@@ -207,7 +224,7 @@ function initialStateV3(
     pendingControlInstanceId: null,
     pendingAnalysisKeys: Object.freeze([]),
     committedControlValues: Object.freeze(Object.create(null)) as Readonly<
-      Record<string, Readonly<Record<string, number>>>
+      Record<string, ArticleReaderControlValueMapV3>
     >,
     analysisByKey: Object.freeze(Object.create(null)) as Readonly<
       Record<string, never>

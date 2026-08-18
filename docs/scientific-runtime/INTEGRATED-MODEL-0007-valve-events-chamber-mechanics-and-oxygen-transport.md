@@ -181,11 +181,18 @@ The release gates cover:
 - Fick, shunt, ODC, infeasibility, and direction tests for oxygen transport;
 - exact catalog projection of pericardial and detailed coronary accepted
   readback;
+- exact saved-fixture readback for all 57 controller values, without replacing
+  authored mechanism values with catalog defaults;
 - forward-flow-only valve pressure-gradient accumulation, all-node pressure
   summaries, LV/RV pressure-rate extrema, and LV/RV PV path work;
 - a combined AS/MR runtime smoke test that emits event-defined EDV/ESV/SV/EF,
   MV reverse volume, AoV net volume, and systemic DO2; and
 - exact Standard-63 artifact and registry admission.
+
+The family-level evidence state is audited separately by
+[INTEGRATED-MODEL-0008](INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md).
+That ledger does not promote these implementation and component gates to a
+general closed-loop physiological direction.
 
 These gates establish implementation and numerical-contract behavior only.
 They do not validate normal ranges, disease severity, patient fitting, or
