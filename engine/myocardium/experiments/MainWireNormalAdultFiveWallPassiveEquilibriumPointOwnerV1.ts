@@ -1885,7 +1885,7 @@ function evaluateAtrialWallPointV1(
   });
 }
 
-function reducedFourChamberTangentV1(
+export function reducedFourChamberTangentV1(
   candidate: MainWireNormalAdultPassiveEquilibriumCandidateV1,
 ):
   | MainWireNormalAdultPassiveEquilibratedPointV1["reducedFourChamberPressureVolumeTangentPaPerM3"]

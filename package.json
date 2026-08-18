@@ -58,6 +58,8 @@
     "verify:scientific:periodic-five-wall-mechanical-energy-evidence-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1.ts",
     "verify:scientific:periodic-five-wall-mechanical-energy-corrective-attempt-1": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyCorrectiveAttempt1.ts",
     "verify:scientific:periodic-valve-event-locus-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicValveEventLocusV1.ts",
+    "seal:scientific:passive-equilibrium-point-solver-v2": "vite-node --script tools/runMainWireNormalAdultFiveWallPassiveEquilibriumEngineeringEvidenceV2.ts seal",
+    "verify:scientific:passive-equilibrium-point-solver-v2": "vite-node --script tools/runMainWireNormalAdultFiveWallPassiveEquilibriumEngineeringEvidenceV2.ts",
     "audit:scientific:standard63-qualification": "vite-node --script tools/scientific/auditMainWireIntegratedStudioQualificationLedgerV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",
