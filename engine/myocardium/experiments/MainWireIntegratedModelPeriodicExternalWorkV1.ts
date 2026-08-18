@@ -64,6 +64,7 @@ export type MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 =
     source: "previous-cycle-terminal-accepted-endpoint";
     acceptedTimeSec: number;
     chamberVolumeMl: Readonly<{ LV: number; RV: number }>;
+    absolutePressureMmHg: Readonly<{ LV: number; RV: number }>;
     transmuralPressureMmHg: Readonly<{ LV: number; RV: number }>;
   }>;
 
@@ -306,6 +307,10 @@ export function periodicPressureVolumeBoundaryFromAcceptedTraceSampleV1(
       LV: sample.chamberVolumeMl.LV,
       RV: sample.chamberVolumeMl.RV,
     }),
+    absolutePressureMmHg: Object.freeze({
+      LV: sample.absolutePressureMmHg.LV,
+      RV: sample.absolutePressureMmHg.RV,
+    }),
     transmuralPressureMmHg: Object.freeze({
       LV: sample.transmuralPressureMmHg.LV,
       RV: sample.transmuralPressureMmHg.RV,
@@ -516,6 +521,8 @@ function boundaryIsFiniteV1(
     boundary.acceptedTimeSec,
     boundary.chamberVolumeMl.LV,
     boundary.chamberVolumeMl.RV,
+    boundary.absolutePressureMmHg.LV,
+    boundary.absolutePressureMmHg.RV,
     boundary.transmuralPressureMmHg.LV,
     boundary.transmuralPressureMmHg.RV,
   ].every(Number.isFinite);

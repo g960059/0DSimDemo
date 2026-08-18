@@ -338,6 +338,10 @@ function inputFromPath(
         LV: start!.lvVolumeMl,
         RV: start!.rvVolumeMl ?? start!.lvVolumeMl,
       },
+      absolutePressureMmHg: {
+        LV: start!.lvPressureMmHg,
+        RV: start!.rvPressureMmHg ?? start!.lvPressureMmHg,
+      },
       transmuralPressureMmHg: {
         LV: start!.lvPressureMmHg,
         RV: start!.rvPressureMmHg ?? start!.lvPressureMmHg,

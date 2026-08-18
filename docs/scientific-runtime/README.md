@@ -25,6 +25,10 @@ model:
 - [`INTEGRATED-MODEL-0009-periodic-external-work-qualification.md`](./INTEGRATED-MODEL-0009-periodic-external-work-qualification.md)
   defines the canonical P1, accepted-path, explicit PV-closure, sign, and
   publication boundary for LV/RV external work.
+- [`INTEGRATED-MODEL-0010-periodic-work-admission-preregistration.md`](./INTEGRATED-MODEL-0010-periodic-work-admission-preregistration.md)
+  freezes the unseen 1 ms/0.5 ms refinement gate, cavity/transmural/external-
+  constraint work identity, and normal/PEEP pressure-basis arms before the new
+  fine-grid evidence is executed.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

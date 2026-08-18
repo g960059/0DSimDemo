@@ -1,8 +1,8 @@
 # Integrated V3 pressure-volume work and PVA boundary
 
-Status: exact path-work observer and analysis-level periodic EW qualification
-implemented; public EW admission, PVA, and myocardial oxygen-demand mapping
-remain outstanding
+Status: exact path-work observer and analysis-level periodic work qualification
+implemented; admission policy preregistered; PVA and myocardial oxygen-demand
+mapping remain outstanding
 
 ## Product and scientific priority
 
@@ -158,16 +158,20 @@ Implemented evidence includes:
 - a constant pressure-offset invariant for an exactly closed loop; and
 - canonical single-run LV/RV P1 plus explicit endpoint-closure characterization.
 
-Before public Output Catalog promotion, add:
+Before sealed official Experiment-result promotion, execute the already frozen
+[periodic-work admission protocol](INTEGRATED-MODEL-0010-periodic-work-admission-preregistration.md),
+which requires:
 
-- a preregistered model `dt` refinement identity, sequence, tolerance, and
+- retained 1 ms/0.5 ms refinement evidence under the preregistered 1% and
   near-zero policy;
-- retained refinement evidence rather than a threshold chosen from observed
-  values;
-- absolute-versus-transmural pressure-basis characterization under
-  PEEP/pericardial load; and
+- cavity-absolute/transmural/external-constraint pressure accounting in the
+  required normal and PEEP arms; and
 - directional Experiment sweeps for load and chamber-mechanics controls,
   recorded as observations before any clinical monotonicity claim is admitted.
+
+A passing protocol still does not create a public live Output Catalog item.
+Periodic P1 work and capture-window path work have different lifecycles and
+must not share one label or silently substitute for each other.
 
 PVA then adds valve-event landmark eligibility, self-intersection rejection,
 multi-load fit recovery, fit-failure, measured-domain, extrapolation, and

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_WORK_REFINEMENT_ACCESS_V1_ID,
+  runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
@@ -87,6 +89,13 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       releaseAcceptanceEstablished: false,
       terminalCheckpointExactRoundTripVerified: true,
       allCyclesFiniteConservedAndEventExact: true,
+      numericalAccess: {
+        accessId:
+          "main-wire-integrated-model-periodic-standard-numerical-access-v3",
+        minimumNominalDtSec: 0.001,
+        maximumNominalDtSec: 0.01,
+        refinementEvidenceOnly: false,
+      },
     });
     expect(result.protocolIdentityHash).toMatch(/^[0-9a-f]{64}$/);
     expect(result.modelConditionIdentityHash).toMatch(/^[0-9a-f]{64}$/);
@@ -252,6 +261,51 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     );
   }, 60_000);
 
+  it("keeps the shared 1 ms trajectory exact while giving the preregistered refinement arm a distinct protocol identity", async () => {
+    const options = {
+      nominalDtSec: 0.001,
+      maximumCycleCount: 1,
+      executionPurpose: "bounded-smoke" as const,
+    };
+    const standard = await runMainWireIntegratedModelPeriodicSteadyV3(
+      options,
+    );
+    const refinement =
+      await runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1(
+        options,
+      );
+
+    expect(refinement.numericalAccess).toEqual({
+      accessId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_WORK_REFINEMENT_ACCESS_V1_ID,
+      minimumNominalDtSec: 0.0005,
+      maximumNominalDtSec: 0.001,
+      maximumAcceptedStepCountPerCycle: 2_200,
+      refinementEvidenceOnly: true,
+    });
+    expect(refinement.modelConditionIdentityHash).toBe(
+      standard.modelConditionIdentityHash,
+    );
+    expect(refinement.protocolIdentityHash).not.toBe(
+      standard.protocolIdentityHash,
+    );
+    expect(refinement.terminalCheckpoint.checkpointSha256).toBe(
+      standard.terminalCheckpoint.checkpointSha256,
+    );
+    const {
+      protocolIdentityHash: standardWorkProtocolIdentityHash,
+      ...standardPressureBasisWork
+    } = standard.terminalPeriodicPressureBasisWork;
+    const {
+      protocolIdentityHash: refinementWorkProtocolIdentityHash,
+      ...refinementPressureBasisWork
+    } = refinement.terminalPeriodicPressureBasisWork;
+    expect(refinementWorkProtocolIdentityHash).not.toBe(
+      standardWorkProtocolIdentityHash,
+    );
+    expect(refinementPressureBasisWork).toEqual(standardPressureBasisWork);
+  }, 60_000);
+
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {
     await expect(
       runMainWireIntegratedModelPeriodicSteadyV3({
@@ -273,5 +327,12 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
         unexpected: true,
       } as never),
     ).rejects.toThrow(/unexpected fields/);
+    await expect(
+      runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1({
+        nominalDtSec: 0.0004,
+        maximumCycleCount: 1,
+        executionPurpose: "bounded-smoke",
+      }),
+    ).rejects.toThrow(/exactly 0\.001 or 0\.0005/);
   });
 });

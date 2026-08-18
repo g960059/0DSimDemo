@@ -1,8 +1,7 @@
 # Periodic ventricular external-work qualification
 
-Status: analysis-level LV/RV eligibility implemented; public Output Catalog
-admission remains blocked on a separately preregistered numerical-refinement
-gate
+Status: analysis-level LV/RV eligibility implemented; numerical-refinement and
+pressure-basis policy preregistered before the new 0.5 ms evidence
 
 ## Decision
 
@@ -104,12 +103,19 @@ for LV and 1.89% for RV from 0.005 to 0.002 s, and about 0.286% for LV and
 0.690% for RV from 0.002 to 0.001 s. This is a convergent trend, but these are
 characterization results rather than a post-hoc acceptance threshold.
 
-Consequently, the qualifier is implemented and useful inside official
-Experiments, but catalog promotion remains blocked. The model-condition
-identity independent of `dt` is now frozen. The next change must preregister a
-refinement pair or sequence, a near-zero policy, and an acceptance tolerance
-before inspecting that new admission evidence. A failed preregistered gate
-must remain failed rather than being relaxed to admit the observed result.
+Consequently, the qualifier is implemented, but official Experiment-result
+admission still depends on the unexecuted preregistered gate. The
+model-condition identity independent of `dt`, exact 1 ms/0.5 ms pair, fixed
+near-zero denominator, 1% limit, and pressure-basis arms are now frozen in
+[INTEGRATED-MODEL-0010](INTEGRATED-MODEL-0010-periodic-work-admission-preregistration.md).
+A failed gate must remain failed rather than being relaxed to admit the
+observed result.
+
+The new analysis also retains cavity absolute-pressure work, transmural work,
+and their external-constraint difference. Passing the gate can make periodic
+work eligible for a sealed official Experiment result. It does not by itself
+create a public live output: canonical P1 settlement is an analysis lifecycle,
+not the instantaneous lifecycle of the current Output Catalog.
 
 ## Literature boundary
 
