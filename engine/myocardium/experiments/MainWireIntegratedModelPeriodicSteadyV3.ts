@@ -49,6 +49,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import type {
+  MainWireIntegratedModelPeriodicExternalWorkResultV1,
+  MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicExternalWorkV1";
 import {
   classifyMainWireIntegratedModelPeriodicityV3,
   type MainWireIntegratedModelPeriodicClassificationV3,
@@ -79,6 +83,8 @@ import {
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID =
   "main-wire-integrated-composed-regular-sinus-all-off-periodic-steady-v3" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_V1_ID =
+  "main-wire-integrated-model-periodic-condition-identity-v1" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   scope:
@@ -272,6 +278,9 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   experimentId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID;
   executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3;
   protocolIdentityHash: string;
+  modelConditionIdentityId:
+    typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_V1_ID;
+  modelConditionIdentityHash: string;
   nominalDtSec: number;
   cycleLengthSec: number;
   requestedMaximumCycleCount: number;
@@ -290,6 +299,7 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   cycles: readonly MainWireIntegratedModelPeriodicSteadyCycleV3[];
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
+  terminalPeriodicExternalWork: MainWireIntegratedModelPeriodicExternalWorkResultV1;
   terminalHealthyReferenceProjection: MainWireIntegratedModelHealthyReferenceProjectionV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
@@ -441,11 +451,35 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
 export async function runMainWireIntegratedModelPeriodicSteadyV3(
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
 ): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
+  // Keep analysis-only qualification outside the registered exact-kernel
+  // dependency graph. The exact runtime shares fixture constructors from this
+  // module, but must remain byte-identical when only experiment analysis grows.
+  const {
+    periodicPressureVolumeBoundaryFromAcceptedTraceSampleV1,
+    qualifyMainWireIntegratedModelPeriodicExternalWorkV1,
+  } = await import(
+    "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicExternalWorkV1"
+  );
   const resolved = resolveOptions(options);
   const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     resolved.hemodynamicResearchInputs,
     resolved.ventricularContractilityScale,
     resolved.mechanismResearchInputs,
+  );
+  const modelConditionIdentityHash = await sha256CanonicalJsonHex(
+    Object.freeze({
+      conditionIdentityId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_V1_ID,
+      experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+      hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
+      ventricularContractilityScale: fixture.ventricularContractilityScale,
+      mechanismResearchInputs: fixture.mechanismResearchInputs,
+      provider: providerIdentity(fixture.provider),
+      composedRhythmConfiguration: fixture.rhythm.configuration,
+      dynamicMechanicalSupportProfile: fixture.profile,
+      dynamicMechanicalSupportConfig: fixture.config,
+      coronaryStepInput: fixture.coronaryStepInput,
+    }),
   );
   const protocolIdentityHash = await sha256CanonicalJsonHex(
     Object.freeze({
@@ -482,6 +516,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   );
   let terminalTraceSamples: MainWireIntegratedModelPeriodicTerminalTraceSampleV3[] =
     [];
+  let previousCycleTerminalPressureVolumeBoundary:
+    MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 | null = null;
+  let terminalCycleStartPressureVolumeBoundary:
+    MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 | null = null;
   const allAtrialCaptureIds = new Set<string>();
   const allVentricularCaptureIds = new Set<string>();
   const allDepositIds = new Set<string>();
@@ -492,6 +530,8 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     zeroBasedCycleIndex += 1
   ) {
     const start = accepted;
+    terminalCycleStartPressureVolumeBoundary =
+      previousCycleTerminalPressureVolumeBoundary;
     const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       start,
@@ -550,6 +590,14 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     );
     cycles.push(buildCycleSummary(cycleIndex, run, period1, period2));
     terminalTraceSamples = [...run.traceSamples];
+    const terminalTraceSample = run.traceSamples.at(-1);
+    if (terminalTraceSample === undefined) {
+      throw new Error("V3 periodic cycle lacks a terminal accepted trace sample");
+    }
+    previousCycleTerminalPressureVolumeBoundary =
+      periodicPressureVolumeBoundaryFromAcceptedTraceSampleV1(
+        terminalTraceSample,
+      );
     boundaries.push(accepted);
     if (boundaries.length > 3) boundaries.shift();
     if (
@@ -582,6 +630,21 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   const canonicalPeriod1 =
     resolved.executionPurpose === "canonical-evidence" &&
     classification.status === "period1-converged";
+  const terminalObservation = observations.at(-1);
+  if (terminalObservation === undefined) {
+    throw new Error("V3 periodic experiment lacks terminal P1/P2 evidence");
+  }
+  const terminalPeriodicExternalWork =
+    qualifyMainWireIntegratedModelPeriodicExternalWorkV1({
+      executionPurpose: resolved.executionPurpose,
+      protocolIdentityHash,
+      modelConditionIdentityHash,
+      classification,
+      terminalObservation,
+      terminalCycle,
+      terminalTrace: terminalCycleTrace,
+      startBoundary: terminalCycleStartPressureVolumeBoundary,
+    });
   const terminalHealthyReferenceProjection = healthyReferenceProjection(
     terminalCycleTrace,
     resolved.executionPurpose,
@@ -617,6 +680,9 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
     executionPurpose: resolved.executionPurpose,
     protocolIdentityHash,
+    modelConditionIdentityId:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_V1_ID,
+    modelConditionIdentityHash,
     nominalDtSec: resolved.nominalDtSec,
     cycleLengthSec: fixture.cycleLengthSec,
     requestedMaximumCycleCount: resolved.maximumCycleCount,
@@ -641,6 +707,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     cycles,
     observations,
     terminalCycleTrace,
+    terminalPeriodicExternalWork,
     terminalHealthyReferenceProjection,
     terminalAcceptedState: accepted,
     terminalCheckpoint,

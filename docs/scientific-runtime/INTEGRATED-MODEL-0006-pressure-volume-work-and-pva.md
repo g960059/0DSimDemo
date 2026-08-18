@@ -1,7 +1,8 @@
 # Integrated V3 pressure-volume work and PVA boundary
 
-Status: exact path-work observer implemented; PVA and myocardial oxygen-demand
-mapping preregistered but not implemented
+Status: exact path-work observer and analysis-level periodic EW qualification
+implemented; public EW admission, PVA, and myocardial oxygen-demand mapping
+remain outstanding
 
 ## Product and scientific priority
 
@@ -58,6 +59,23 @@ This output is not pressure-volume area, potential energy, myocardial oxygen
 consumption, efficiency, or a clinical ischemia index. One `mmHg*mL` is
 `1.33322e-4 J`; any joule projection should remain a presentation conversion,
 not a second numerical integration.
+
+## Implemented periodic EW qualification
+
+The canonical periodic runner now supplies the existing raw accepted-endpoint
+trace to a separate LV/RV qualifier. It requires canonical full-state P1,
+latest-cycle lineage, cycle integrity, an exact previous-cycle terminal
+boundary, trace completeness, and explicit transmural pressure-volume endpoint
+closure. A passing chamber exposes the unchanged signed path integral as
+analysis-level external work; a failing chamber retains only path work and its
+failure evidence.
+
+Negative work remains valid signed work rather than a qualification failure.
+Valve events own ED/ES annotations but do not define the line integral.
+Self-intersection also does not invalidate an algebraic line integral; it will
+instead fail any later unsigned area/PVA geometry contract. The complete
+policy and the remaining catalog-admission blocker are in
+[INTEGRATED-MODEL-0009](INTEGRATED-MODEL-0009-periodic-external-work-qualification.md).
 
 ## PVA admission boundary
 
@@ -129,22 +147,30 @@ window to qualified outputs. Exploratory observations can be promoted later by
 creating a new claim specification and rerunning the sealed numerical inputs;
 the original observation is not rewritten into a preregistered result.
 
-## Verification gates for the next release
+## Verification and remaining admission gates
 
-Before `W_path` is promoted to qualified closed-loop EW, add all of:
+Implemented evidence includes:
 
 - analytic clockwise/counter-clockwise and open-path fixtures;
 - exact checkpoint continuation through an in-progress path;
-- model `dt` refinement and event-boundary invariance;
 - independence from presentation cadence and Canvas decimation;
-- declared periodic pressure-volume closure tolerance;
-- self-intersection and valve-event-order rejection;
-- absolute-versus-transmural pressure-basis tests under PEEP/pericardial load;
-  and
+- declared periodic pressure-volume closure tolerance and fail-closed lineage;
+- a constant pressure-offset invariant for an exactly closed loop; and
+- canonical single-run LV/RV P1 plus explicit endpoint-closure characterization.
+
+Before public Output Catalog promotion, add:
+
+- a preregistered model `dt` refinement identity, sequence, tolerance, and
+  near-zero policy;
+- retained refinement evidence rather than a threshold chosen from observed
+  values;
+- absolute-versus-transmural pressure-basis characterization under
+  PEEP/pericardial load; and
 - directional Experiment sweeps for load and chamber-mechanics controls,
   recorded as observations before any clinical monotonicity claim is admitted.
 
-PVA then adds multi-load fit recovery, fit-failure, measured-domain,
-extrapolation, and geometry-reconstruction tests. The PVA-to-MVO2 mapping has a
-separate fitting and held-out validation ledger; it cannot borrow numerical
-verification as clinical validation.
+PVA then adds valve-event landmark eligibility, self-intersection rejection,
+multi-load fit recovery, fit-failure, measured-domain, extrapolation, and
+geometry-reconstruction tests. The PVA-to-MVO2 mapping has a separate fitting
+and held-out validation ledger; it cannot borrow numerical verification as
+clinical validation.

@@ -169,6 +169,11 @@ The value is therefore not labelled PVA, myocardial oxygen consumption, or
 closed-loop stroke work merely because a capture-to-capture window completed.
 Its contract and the qualification boundary for future energetics are in
 [INTEGRATED-MODEL-0006](INTEGRATED-MODEL-0006-pressure-volume-work-and-pva.md).
+The separate canonical P1 and explicit PV-closure analysis that can promote an
+eligible path to signed LV/RV external work is defined in
+[INTEGRATED-MODEL-0009](INTEGRATED-MODEL-0009-periodic-external-work-qualification.md).
+It is not part of the Standard-63 output ABI, and multi-dt public admission is
+still outstanding.
 
 Standard-62 added wall-explicit mechanics fixtures, continuous four-valve
 area fixtures, and a steady whole-body oxygen-content observer. Standard-63

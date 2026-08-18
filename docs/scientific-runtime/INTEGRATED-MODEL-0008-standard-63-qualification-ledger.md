@@ -129,9 +129,16 @@ source actually transcribed into the implementation is marked as such.
 ## Next qualification order
 
 The ledger is intentionally smaller than an Experiment protocol system. The
-next model-owned evidence should be added only in this order:
+first layer of the next model-owned evidence now exists: a separate analysis
+qualifies LV/RV path work only on the latest canonical P1 cycle after explicit
+accepted-trace and transmural PV-endpoint closure. It does not mutate
+Standard-63 or add a public output. Its contract is
+[INTEGRATED-MODEL-0009](INTEGRATED-MODEL-0009-periodic-external-work-qualification.md).
 
-1. qualify a periodic closed LV/RV loop before promoting PV path work to EW;
+Continue only in this order:
+
+1. preregister and pass numerical-refinement and pressure-basis admission before
+   promoting periodic LV/RV EW into the Output Catalog;
 2. freeze and qualify multi-load ESPVR/EDPVR measurement contracts;
 3. derive exact PE and PVA geometry from those admitted relations;
 4. build chamber-mechanics and valve anchor Experiments from the qualified

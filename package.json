@@ -53,6 +53,7 @@
     "run:coronary:v2-periodic": "vite-node --script tools/coronary/runMainWireFiveWallCoronaryPeriodicSteadyV2.ts",
     "verify:scientific:valve-research-bracket-numerical-envelope": "vite-node --script tools/scientific/runMainWireValveResearchBracketNumericalRobustnessEnvelopeV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
+    "verify:scientific:periodic-external-work-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicExternalWorkV1.ts",
     "audit:scientific:standard63-qualification": "vite-node --script tools/scientific/auditMainWireIntegratedStudioQualificationLedgerV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",

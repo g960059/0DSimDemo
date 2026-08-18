@@ -10,6 +10,9 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 
 describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
   it("owns the predeclared V3 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
@@ -86,6 +89,7 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       allCyclesFiniteConservedAndEventExact: true,
     });
     expect(result.protocolIdentityHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.modelConditionIdentityHash).toMatch(/^[0-9a-f]{64}$/);
     expect(result.classification.status).toBe("not-converged");
     expect(result.observations).toHaveLength(1);
     expect(result.observations[0]!.evidenceRole).toBe(
@@ -154,6 +158,36 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       ]);
     }
 
+    expect(result.terminalPeriodicExternalWork).toMatchObject({
+      status: "not-qualified",
+      acceptedSegmentCount: 0,
+      biventricularExternalWorkEstablished: false,
+      syntheticEndToStartClosingSegmentApplied: false,
+      gates: {
+        protocolIdentityValid: true,
+        modelConditionIdentityValid: true,
+        canonicalPeriod1Established: false,
+        terminalCycleOwnsLatestPeriod1Evidence: false,
+        terminalCycleIntegrityPassed: true,
+        previousCycleTerminalBoundaryAvailable: false,
+        acceptedPathTraceComplete: false,
+      },
+      leftVentricle: {
+        pathWorkMmHgMl: null,
+        externalWorkMmHgMl: null,
+        failureReasons: [
+          "canonical-period1-not-established",
+          "previous-cycle-terminal-boundary-unavailable",
+        ],
+      },
+      rightVentricle: {
+        pathWorkMmHgMl: null,
+        externalWorkMmHgMl: null,
+      },
+      physiologicalValidationEstablished: false,
+      clinicalValidationClaimed: false,
+    });
+
     const projection = result.terminalHealthyReferenceProjection;
     expect(projection.assessmentEligibility).toMatchObject({
       eligible: false,
@@ -182,6 +216,39 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     ).toBe(true);
     expect(result.terminalCheckpoint.checkpointSha256).toMatch(
       /^[0-9a-f]{64}$/,
+    );
+
+    const alternateDt = await runMainWireIntegratedModelPeriodicSteadyV3({
+      nominalDtSec: 0.005,
+      maximumCycleCount: 1,
+      executionPurpose: "bounded-smoke",
+    });
+    expect(alternateDt.modelConditionIdentityId).toBe(
+      result.modelConditionIdentityId,
+    );
+    expect(alternateDt.modelConditionIdentityHash).toBe(
+      result.modelConditionIdentityHash,
+    );
+    expect(alternateDt.protocolIdentityHash).not.toBe(
+      result.protocolIdentityHash,
+    );
+
+    const alteredOxygenBoundary =
+      await runMainWireIntegratedModelPeriodicSteadyV3({
+        nominalDtSec: 0.005,
+        maximumCycleCount: 1,
+        executionPurpose: "bounded-smoke",
+        mechanismResearchInputs: {
+          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+          oxygenTransport: {
+            ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+              .oxygenTransport,
+            hemoglobinGPerDl: 14.9,
+          },
+        },
+      });
+    expect(alteredOxygenBoundary.modelConditionIdentityHash).not.toBe(
+      result.modelConditionIdentityHash,
     );
   }, 60_000);
 

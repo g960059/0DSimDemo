@@ -22,6 +22,9 @@ model:
 - [`INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md`](./INTEGRATED-MODEL-0008-standard-63-qualification-ledger.md)
   separates direct mechanism ownership, component direction, closed-loop
   characterization, and clinical validation for every public control family.
+- [`INTEGRATED-MODEL-0009-periodic-external-work-qualification.md`](./INTEGRATED-MODEL-0009-periodic-external-work-qualification.md)
+  defines the canonical P1, accepted-path, explicit PV-closure, sign, and
+  publication boundary for LV/RV external work.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
