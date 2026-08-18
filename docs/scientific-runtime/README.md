@@ -53,6 +53,13 @@ model:
   freezes an analysis-only, factorized five-wall equilibrium-passive state
   function, its selected TriSeg branch, numerical verification gates, and
   separate common-pericardium variants before the first surface result.
+- [`INTEGRATED-MODEL-0019-passive-equilibrium-point-solver-numerical-addendum.md`](./INTEGRATED-MODEL-0019-passive-equilibrium-point-solver-numerical-addendum.md)
+  preserves the V1 implementation and unsealed failure observations, then
+  preregisters the bounded V2 numerical supersession: exact fixed-order
+  compensated per-wall Armijo comparison, narrowing binary64 guards, a fully
+  audited shared reference root, and a manifest-bound common-directory
+  reservation for four frozen cases in three one-time executions before any
+  surface.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
