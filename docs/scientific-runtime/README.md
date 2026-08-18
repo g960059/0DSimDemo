@@ -45,6 +45,10 @@ model:
   freezes the shared ledger-projection correction, new immutable attempt
   identity, unchanged numerical gates, and fresh independent 1 ms/0.5 ms
   execution before the only corrective result is observed.
+- [`INTEGRATED-MODEL-0017-periodic-five-wall-mechanical-energy-corrective-result.md`](./INTEGRATED-MODEL-0017-periodic-five-wall-mechanical-energy-corrective-result.md)
+  records the sealed but non-admitted corrective result, separates stable
+  ventricular/global quantities from first-order BE remainders and unresolved
+  atrial ports, and closes V1 without public, PE, PVA, or MVO2 admission.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
