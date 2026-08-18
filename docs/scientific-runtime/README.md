@@ -49,6 +49,10 @@ model:
   records the sealed but non-admitted corrective result, separates stable
   ventricular/global quantities from first-order BE remainders and unresolved
   atrial ports, and closes V1 without public, PE, PVA, or MVO2 admission.
+- [`INTEGRATED-MODEL-0018-passive-multichamber-equilibrium-energy-surface-preregistration.md`](./INTEGRATED-MODEL-0018-passive-multichamber-equilibrium-energy-surface-preregistration.md)
+  freezes an analysis-only, factorized five-wall equilibrium-passive state
+  function, its selected TriSeg branch, numerical verification gates, and
+  separate common-pericardium variants before the first surface result.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
