@@ -44,6 +44,8 @@ describe("periodic five-wall mechanical-energy canonical evidence V1", () => {
       rawRuntimeInputsReturned: false,
       callerSuppliedProjectionAcceptedByOfficialRunner: false,
       callerSuppliedColdStartClaimAcceptedByOfficialRunner: false,
+      activeDeliveryAbsorptionSplitEstablished: false,
+      instantaneousPowerEstablished: false,
       publicLiveOutputCatalogAdmissionEstablished: false,
       publicGraphCatalogAdmissionEstablished: false,
       PEEstablished: false,

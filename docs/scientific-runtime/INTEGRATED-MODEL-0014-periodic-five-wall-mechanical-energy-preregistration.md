@@ -1,4 +1,4 @@
-# Periodic five-wall mechanical-energy ledger preregistration
+# Periodic five-wall mechanical-port and passive-energy ledger preregistration
 
 Status: declaration only; this policy must be committed before the first new
 0.5 ms mechanical-energy ledger result is evaluated
@@ -21,6 +21,15 @@ storage, and the existing parallel-SLS dissipation terms. Land active stress
 has no admitted thermodynamic stored-energy state in the current model.
 Consequently, the ledger must not be renamed myocardial energy consumption,
 contractile chemical energy, or a closed thermodynamic balance.
+
+The committed internal identifiers retain `mechanical-energy` for V1 lineage,
+but the admitted scientific name is **mechanical-port and passive-energy
+ledger**. The Land-active entry is signed net stress work on the wall: positive
+means work on the wall and negative commonly represents net mechanical
+delivery during shortening. V1 does not publish a sign-split delivery,
+absorption magnitude, or instantaneous power. Defining an interval-internal
+sign crossing would require a separately frozen owner and is not inferred from
+accepted endpoints here.
 
 ## Separate numerical owners
 
@@ -367,6 +376,12 @@ mechanical-energy analysis result and companion evidence type. It must not add
 or widen a generic `ExperimentProtocol`, `ResultSet`, or equivalent platform
 abstraction, and it does not require a public model ID, Output Registry schema,
 or model-surface change.
+
+V1 deliberately replays the complete hashed accepted-step evidence rather than
+adding an accumulator to the registered solver checkpoint. This preserves the
+existing exact model identity. A future model release may own a checkpointed
+accumulator, but it must retain parity with this sealed analysis and cannot be
+introduced as an implementation detail of V1.
 
 ## Declaration and result handling
 

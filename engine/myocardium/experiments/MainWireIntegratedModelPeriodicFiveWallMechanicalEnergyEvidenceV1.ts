@@ -29,6 +29,7 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_WORK_REFINEMENT_ACCESS_V1_ID,
   runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1,
+  type MainWireIntegratedModelPeriodicSteadyResultV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 
@@ -64,6 +65,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFF
     rawRuntimeInputsReturned: false as const,
     callerSuppliedProjectionAcceptedByOfficialRunner: false as const,
     callerSuppliedColdStartClaimAcceptedByOfficialRunner: false as const,
+    activeDeliveryAbsorptionSplitEstablished: false as const,
+    instantaneousPowerEstablished: false as const,
     publicLiveOutputCatalogAdmissionEstablished: false as const,
     publicGraphCatalogAdmissionEstablished: false as const,
     PEEstablished: false as const,
@@ -301,6 +304,8 @@ type EvidenceResultCommonV1 = Readonly<{
   coarse: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1;
   fine: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1;
   officialSealedMechanicalEnergyAnalysisEligible: boolean;
+  activeDeliveryAbsorptionSplitEstablished: false;
+  instantaneousPowerEstablished: false;
   publicLiveOutputCatalogAdmissionEstablished: false;
   publicGraphCatalogAdmissionEstablished: false;
   PEEstablished: false;
@@ -334,43 +339,121 @@ export type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1 =
  * accepted from a caller.
  */
 export async function runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1(): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1> {
-  const coarseSource =
-    await runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1({
-      nominalDtSec:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1.coarseDtSec,
-      maximumCycleCount:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1.requestedMaximumCycleCount,
-      executionPurpose: "canonical-evidence",
-    });
-  const coarseResult =
-    await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1({
-      source: coarseSource,
-    });
-
-  const fineSource =
-    await runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1({
-      nominalDtSec:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1.fineDtSec,
-      maximumCycleCount:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1.requestedMaximumCycleCount,
-      executionPurpose: "canonical-evidence",
-    });
-  const fineResult =
-    await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1({
-      source: fineSource,
-    });
-
-  return assembleOfficialEvidenceV1(coarseResult, fineResult);
+  const policy =
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1;
+  const completedArms: MutableCompletedArmEvidenceV1 = {
+    coarse: null,
+    fine: null,
+  };
+  const coarseResult = await runCanonicalArmV1(
+    "coarse",
+    policy.coarseDtSec,
+    completedArms,
+  );
+  try {
+    completedArms.coarse = await sealSingleArmEvidenceV1(
+      "coarse",
+      policy.coarseDtSec,
+      coarseResult,
+    );
+  } catch (error) {
+    throw executionStageErrorV1("coarse", "arm-sealing", error, completedArms);
+  }
+  const fineResult = await runCanonicalArmV1(
+    "fine",
+    policy.fineDtSec,
+    completedArms,
+  );
+  try {
+    completedArms.fine = await sealSingleArmEvidenceV1(
+      "fine",
+      policy.fineDtSec,
+      fineResult,
+    );
+  } catch (error) {
+    throw executionStageErrorV1("fine", "arm-sealing", error, completedArms);
+  }
+  try {
+    return await assembleSealedEvidenceV1(
+      completedArms.coarse,
+      completedArms.fine,
+    );
+  } catch (error) {
+    throw executionStageErrorV1(null, "pair-sealing", error, completedArms);
+  }
 }
 
-async function assembleOfficialEvidenceV1(
-  coarseResult: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyResultV1,
-  fineResult: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyResultV1,
+type CompletedArmEvidenceV1 = Readonly<{
+  coarse: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1 | null;
+  fine: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1 | null;
+}>;
+
+type MutableCompletedArmEvidenceV1 = {
+  -readonly [K in keyof CompletedArmEvidenceV1]: CompletedArmEvidenceV1[K];
+};
+
+async function runCanonicalArmV1(
+  arm: "coarse" | "fine",
+  nominalDtSec: 0.001 | 0.0005,
+  completedArms: CompletedArmEvidenceV1,
+): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyResultV1> {
+  let source: MainWireIntegratedModelPeriodicSteadyResultV3;
+  try {
+    source = await runMainWireIntegratedModelPeriodicSteadyForWorkRefinementV1({
+      nominalDtSec,
+      maximumCycleCount:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1.requestedMaximumCycleCount,
+      executionPurpose: "canonical-evidence",
+    });
+  } catch (error) {
+    throw executionStageErrorV1(arm, "periodic-source", error, completedArms);
+  }
+  try {
+    return await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1({
+      source,
+    });
+  } catch (error) {
+    throw executionStageErrorV1(
+      arm,
+      "single-arm-mechanical-ledger",
+      error,
+      completedArms,
+    );
+  }
+}
+
+function executionStageErrorV1(
+  arm: "coarse" | "fine" | null,
+  stage:
+    | "periodic-source"
+    | "single-arm-mechanical-ledger"
+    | "arm-sealing"
+    | "pair-sealing",
+  cause: unknown,
+  completedArms: CompletedArmEvidenceV1,
+): Error &
+  Readonly<{
+    arm: "coarse" | "fine" | null;
+    stage: string;
+    completedArms: CompletedArmEvidenceV1;
+  }> {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return Object.assign(
+    new Error(`${arm === null ? "pair" : arm} ${stage} failed: ${detail}`, {
+      cause,
+    }),
+    Object.freeze({
+      arm,
+      stage,
+      completedArms: Object.freeze({ ...completedArms }),
+    }),
+  );
+}
+
+async function assembleSealedEvidenceV1(
+  coarse: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1,
+  fine: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1,
 ): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1> {
-  const [coarse, fine] = await Promise.all([
-    sealSingleArmEvidenceV1("coarse", 0.001, coarseResult),
-    sealSingleArmEvidenceV1("fine", 0.0005, fineResult),
-  ]);
   const common = evidenceCommonV1(coarse, fine);
   if (
     coarse.status !== "projection-sealed" ||
@@ -1094,6 +1177,8 @@ function evidenceCommonV1(
     coarse,
     fine,
     officialSealedMechanicalEnergyAnalysisEligible: false,
+    activeDeliveryAbsorptionSplitEstablished: false as const,
+    instantaneousPowerEstablished: false as const,
     publicLiveOutputCatalogAdmissionEstablished: false as const,
     publicGraphCatalogAdmissionEstablished: false as const,
     PEEstablished: false as const,

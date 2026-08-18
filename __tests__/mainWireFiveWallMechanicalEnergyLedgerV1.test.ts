@@ -218,6 +218,16 @@ describe("main-wire five-wall mechanical-energy ledger V1", () => {
     expect(
       MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_CLAIM_V1.landThermodynamicStoredEnergyClaimed,
     ).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_CLAIM_V1).toMatchObject(
+      {
+        scientificInterpretation:
+          "mechanical-port-passive-storage-and-dissipation-ledger-only",
+        activeStressWorkSign:
+          "positive-is-work-on-wall-negative-is-net-active-mechanical-delivery",
+        activeDeliveryAbsorptionSplitEstablished: false,
+        instantaneousPowerEstablished: false,
+      },
+    );
   });
 });
 

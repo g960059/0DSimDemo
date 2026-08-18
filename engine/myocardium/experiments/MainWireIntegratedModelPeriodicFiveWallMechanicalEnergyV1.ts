@@ -95,8 +95,14 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POL
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CLAIM_V1 =
   Object.freeze({
+    scientificInterpretation:
+      "five-wall-mechanical-port-passive-storage-and-dissipation-only" as const,
     landActiveWorkInterpretation:
       "mechanical-work-of-Land-active-stress-on-wall-only" as const,
+    activeStressWorkSign:
+      "positive-is-work-on-wall-negative-is-net-active-mechanical-delivery" as const,
+    activeDeliveryAbsorptionSplitEstablished: false as const,
+    instantaneousPowerEstablished: false as const,
     landThermodynamicStoredEnergyClaimed: false as const,
     potentialEnergyClaimed: false as const,
     pressureVolumeAreaClaimed: false as const,

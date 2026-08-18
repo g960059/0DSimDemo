@@ -47,6 +47,7 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAdmissionV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1.test.ts",
+  "__tests__/mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceSealerV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicWorkAdmissionV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicWorkEvidenceV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicValveEventLocusV1.test.ts",

@@ -34,9 +34,9 @@ model:
   sealed official Experiment result, while keeping the public live catalog,
   PVA, and clinical validation false.
 - [`INTEGRATED-MODEL-0014-periodic-five-wall-mechanical-energy-preregistration.md`](./INTEGRATED-MODEL-0014-periodic-five-wall-mechanical-energy-preregistration.md)
-  freezes the independent 1 ms/0.5 ms P1 evidence, discrete five-wall ledger,
-  refinement and accounting gates, and sealed-only publication boundary before
-  the first new fine-grid mechanical-energy result.
+  freezes the independent 1 ms/0.5 ms P1 evidence, discrete five-wall
+  mechanical-port and passive-energy ledger, refinement and accounting gates,
+  and sealed-only publication boundary before the first new fine-grid result.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

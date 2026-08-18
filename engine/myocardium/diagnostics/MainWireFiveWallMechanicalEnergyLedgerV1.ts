@@ -15,9 +15,15 @@ export const MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_V1_ID =
 
 export const MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_CLAIM_V1 =
   Object.freeze({
+    scientificInterpretation:
+      "mechanical-port-passive-storage-and-dissipation-ledger-only" as const,
     input: "committed-accepted-step-readback-only" as const,
     addsDynamicState: false as const,
     integration: "backward-Euler-endpoint" as const,
+    activeStressWorkSign:
+      "positive-is-work-on-wall-negative-is-net-active-mechanical-delivery" as const,
+    activeDeliveryAbsorptionSplitEstablished: false as const,
+    instantaneousPowerEstablished: false as const,
     landThermodynamicStoredEnergyClaimed: false as const,
     cavityWorkSign: "positive-is-work-on-wall" as const,
     pericardialWorkSign: "positive-is-work-stored-in-common-bag" as const,
