@@ -33,6 +33,10 @@ model:
   records the passing retained evidence and admits periodic work only as a
   sealed official Experiment result, while keeping the public live catalog,
   PVA, and clinical validation false.
+- [`INTEGRATED-MODEL-0014-periodic-five-wall-mechanical-energy-preregistration.md`](./INTEGRATED-MODEL-0014-periodic-five-wall-mechanical-energy-preregistration.md)
+  freezes the independent 1 ms/0.5 ms P1 evidence, discrete five-wall ledger,
+  refinement and accounting gates, and sealed-only publication boundary before
+  the first new fine-grid mechanical-energy result.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
