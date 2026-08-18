@@ -37,6 +37,10 @@ model:
   freezes the independent 1 ms/0.5 ms P1 evidence, discrete five-wall
   mechanical-port and passive-energy ledger, refinement and accounting gates,
   and sealed-only publication boundary before the first new fine-grid result.
+- [`INTEGRATED-MODEL-0015-periodic-five-wall-mechanical-energy-result.md`](./INTEGRATED-MODEL-0015-periodic-five-wall-mechanical-energy-result.md)
+  retains the first execution's fine-arm evidence-sealing failure, identifies
+  the non-associative duplicate-projection defect, and keeps every analysis and
+  publication admission false pending a newly declared corrective attempt.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
