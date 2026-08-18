@@ -41,6 +41,10 @@ model:
   retains the first execution's fine-arm evidence-sealing failure, identifies
   the non-associative duplicate-projection defect, and keeps every analysis and
   publication admission false pending a newly declared corrective attempt.
+- [`INTEGRATED-MODEL-0016-periodic-five-wall-mechanical-energy-corrective-attempt-preregistration.md`](./INTEGRATED-MODEL-0016-periodic-five-wall-mechanical-energy-corrective-attempt-preregistration.md)
+  freezes the shared ledger-projection correction, new immutable attempt
+  identity, unchanged numerical gates, and fresh independent 1 ms/0.5 ms
+  execution before the only corrective result is observed.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
