@@ -54,6 +54,12 @@ whole-heart parenthesization differs from the ledger owner in the last binary
 place. It must prove that the corrected projection binds exactly and that a
 tampered physical, residual, lineage, or hash field still fails closed.
 
+Each arm must retain raw-free sub-binding diagnostics for physical metrics,
+the two all-five backward-Euler scalars, conjugacy, and algebraic residuals.
+Each diagnostic stores published and recomputed canonical SHA-256 values, an
+exact match flag, and the first ordered mismatch ID. These digests improve
+failure localization but do not replace ledger replay or relax exact binding.
+
 ## New attempt identity
 
 The only corrective execution has this immutable outer identity:

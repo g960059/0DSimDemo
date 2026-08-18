@@ -5,13 +5,11 @@ import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_CHAMBER_IDS_V1,
   MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1,
+  type MainWireFiveWallMechanicalEnergyChamberRecordV1,
   type MainWireFiveWallMechanicalEnergyLedgerAcceptedStepSampleV1,
-  type MainWireFiveWallMechanicalEnergyLedgerV1,
   type MainWireFiveWallMechanicalEnergyWallRecordV1,
 } from "@/engine/myocardium/diagnostics/MainWireFiveWallMechanicalEnergyLedgerV1";
-import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_PHYSICAL_METRIC_IDS_V1 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAdmissionV1";
 import {
   remeasureMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1,
   remeasureMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQuadratureBridgesV1,
@@ -19,19 +17,24 @@ import {
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+  projectMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerProjectionV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CLAIM_V1,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_V1_ID,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyResultV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_WORK_REFINEMENT_ACCESS_V1_ID } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_OUTPUT_PATH,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256,
   createMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyExecutionFailureArtifactPayloadV1,
+  mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1,
   preflightMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceOutputV1,
   writeMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceArtifactCreateOnlyV1,
 } from "@/tools/scientific/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceArtifactV1";
@@ -147,6 +150,118 @@ describe("periodic five-wall mechanical-energy canonical sealer V1", () => {
     expect(result.pairSealedPayloadSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(result.coarse.compactProjectionSha256).toMatch(/^[0-9a-f]{64}$/);
     expect(result.fine.compactProjectionSha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("binds producer and sealer exactly when alternate whole-heart grouping differs by one ULP", async () => {
+    const pair = await syntheticPairV1(wholeHeartUlpProjectionFixtureV1());
+    const canonical =
+      projectMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerV1(
+        pair.coarse.ledger,
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1.algebraicResidualAbsoluteToleranceMilliJ,
+      );
+    const wall = pair.coarse.ledger.perWall;
+    const alternateGroupedWallWork =
+      wall.LA.stressWorkOnWallMilliJ.total +
+      (wall.LVFW.stressWorkOnWallMilliJ.total +
+        wall.SEP.stressWorkOnWallMilliJ.total +
+        wall.RVFW.stressWorkOnWallMilliJ.total) +
+      wall.RA.stressWorkOnWallMilliJ.total;
+    const wholeHeart = canonical.conjugacy.find(
+      ({ aggregateId }) => aggregateId === "whole-heart",
+    )!;
+
+    expect(alternateGroupedWallWork - wholeHeart.wallWorkMilliJ).toBe(
+      Number.EPSILON,
+    );
+    expect(wholeHeart.residualMilliJ).toBe(
+      pair.coarse.ledger.workConjugacyResidualMilliJ.allFiveWalls,
+    );
+    expect(alternateGroupedWallWork - wholeHeart.cavityWorkMilliJ).not.toBe(
+      wholeHeart.residualMilliJ,
+    );
+    expect(pair.coarse.conjugacy).toEqual(canonical.conjugacy);
+    installSyntheticDependenciesV1(pair.coarse, pair.fine);
+
+    const result =
+      await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1();
+
+    expect(result).toMatchObject({
+      status: "sealed-admission-assessed",
+      coarse: {
+        status: "projection-sealed",
+        ledgerProjectionBindings: {
+          projectionOwnerId:
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+          allMatch: true,
+          firstMismatchId: null,
+        },
+      },
+      fine: {
+        status: "projection-sealed",
+        ledgerProjectionBindings: {
+          projectionOwnerId:
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+          allMatch: true,
+          firstMismatchId: null,
+        },
+      },
+      admission: { numericalAdmissionConjunctionPassed: true },
+      officialSealedMechanicalEnergyAnalysisEligible: true,
+    });
+    expect(
+      result.coarse.ledgerProjectionBindings?.conjugacy
+        .publishedCanonicalSha256,
+    ).toMatch(/^[0-9a-f]{64}$/);
+    expect(
+      result.coarse.ledgerProjectionBindings?.conjugacy
+        .recomputedCanonicalSha256,
+    ).toBe(
+      result.coarse.ledgerProjectionBindings?.conjugacy
+        .publishedCanonicalSha256,
+    );
+  });
+
+  it("still fails closed when the canonical whole-heart projection is tampered", async () => {
+    const pair = await syntheticPairV1(wholeHeartUlpProjectionFixtureV1());
+    const coarse = Object.freeze({
+      ...pair.coarse,
+      conjugacy: Object.freeze(
+        pair.coarse.conjugacy.map((entry) =>
+          entry.aggregateId === "whole-heart"
+            ? Object.freeze({
+                ...entry,
+                residualMilliJ: entry.residualMilliJ + Number.EPSILON,
+              })
+            : entry,
+        ),
+      ),
+    }) as MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1;
+    installSyntheticDependenciesV1(coarse, pair.fine);
+
+    const result =
+      await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1();
+
+    expectUnsealedOfficialFailureV1(
+      result,
+      "ledger-projection-binding-mismatch",
+    );
+    expect(result.coarse.ledgerProjectionBindings).toMatchObject({
+      projectionOwnerId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+      allMatch: false,
+      firstMismatchId: "whole-heart",
+      conjugacy: {
+        matches: false,
+        firstMismatchId: "whole-heart",
+      },
+    });
+    expect(
+      result.coarse.ledgerProjectionBindings?.conjugacy
+        .publishedCanonicalSha256,
+    ).not.toBe(
+      result.coarse.ledgerProjectionBindings?.conjugacy
+        .recomputedCanonicalSha256,
+    );
   });
 
   it("labels a coarse periodic-source exception for the failure artifact", async () => {
@@ -401,6 +516,73 @@ describe("periodic five-wall mechanical-energy canonical sealer V1", () => {
     }
   });
 
+  it("binds the corrective attempt to the immutable failed artifact and shared projector", () => {
+    const common =
+      mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1(
+        "corrective-attempt-1",
+      );
+    expect(common).toMatchObject({
+      artifactId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+      rawMechanicalInputsIncluded: false,
+      correctiveAttempt: {
+        attemptId:
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+        executionOrdinalForDefect: "first-and-only",
+        correctsArtifactPayloadSha256:
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256,
+        ledgerProjectionOwnerId:
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+        freshIndependentColdStartsRequired: true,
+        priorCoarseProjectionReused: false,
+        modelOrSolverChanged: false,
+        admissionThresholdChanged: false,
+        priorArtifactOutcomeReinterpreted: false,
+      },
+    });
+    expect(
+      createMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyExecutionFailureArtifactPayloadV1(
+        new Error("synthetic corrective failure"),
+        "corrective-attempt-1",
+      ),
+    ).toMatchObject({
+      artifactId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+      officialSealedMechanicalEnergyAnalysisEligible: false,
+      outcome: { status: "execution-failed" },
+    });
+  });
+
+  it("fixes the corrective output path and preflights it before the official runner", () => {
+    const cliSource = readFileSync(
+      path.resolve(
+        "tools/scientific/runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyCorrectiveAttempt1.ts",
+      ),
+      "utf8",
+    );
+    expect(cliSource).toContain(
+      "MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_OUTPUT_PATH",
+    );
+    expect(cliSource).not.toContain("requiredArgument(");
+    const preflight = cliSource.indexOf(
+      "preflightMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceOutputV1(",
+    );
+    const runner = cliSource.indexOf(
+      "await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1()",
+    );
+    const write = cliSource.indexOf(
+      "await writeMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceArtifactCreateOnlyV1(",
+    );
+    expect(preflight).toBeGreaterThan(0);
+    expect(runner).toBeGreaterThan(preflight);
+    expect(write).toBeGreaterThan(runner);
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_OUTPUT_PATH,
+    ).toBe(
+      "docs/scientific-runtime/evidence/periodic-five-wall-mechanical-energy-evidence-v1-corrective-attempt-1.json",
+    );
+  });
+
   it("keeps CLI preflight before the runner and writes before failure exit", () => {
     const cliSource = readFileSync(
       path.resolve(
@@ -512,7 +694,32 @@ function installSyntheticDependenciesV1(
   );
 }
 
-async function syntheticPairV1(): Promise<
+type SyntheticProjectionFixtureV1 = Readonly<{
+  totalStressWorkMilliJByWall: MainWireFiveWallMechanicalEnergyWallRecordV1<number>;
+  cavityWorkOnWallMilliJ: MainWireFiveWallMechanicalEnergyChamberRecordV1<number>;
+}>;
+
+function wholeHeartUlpProjectionFixtureV1(): SyntheticProjectionFixtureV1 {
+  return Object.freeze({
+    totalStressWorkMilliJByWall: Object.freeze({
+      LA: 1,
+      LVFW: Number.EPSILON / 2,
+      SEP: Number.EPSILON / 2,
+      RVFW: 0,
+      RA: 0,
+    }),
+    cavityWorkOnWallMilliJ: Object.freeze({
+      LA: 1,
+      LV: 0,
+      RA: 0,
+      RV: 0,
+    }),
+  });
+}
+
+async function syntheticPairV1(
+  projectionFixture: SyntheticProjectionFixtureV1 | null = null,
+): Promise<
   Readonly<{
     coarse: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1;
     fine: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1;
@@ -529,11 +736,12 @@ async function syntheticPairV1(): Promise<
   );
   const coarse = await syntheticQualifiedArmV1({
     nominalDtSec: 0.001,
-    componentWorkMilliJ: 0.002,
+    componentWorkMilliJ: projectionFixture === null ? 0.002 : 0.0019,
     protocolIdentityHash: "b".repeat(64),
     checkpointMarker: "coarse",
     materialVolumeBindingPayload,
     materialVolumeBindingSha256,
+    projectionFixture,
   });
   const fine = await syntheticQualifiedArmV1({
     nominalDtSec: 0.0005,
@@ -542,6 +750,7 @@ async function syntheticPairV1(): Promise<
     checkpointMarker: "fine",
     materialVolumeBindingPayload,
     materialVolumeBindingSha256,
+    projectionFixture,
   });
   return Object.freeze({ coarse, fine });
 }
@@ -559,10 +768,19 @@ async function syntheticQualifiedArmV1(
       wallMaterialVolumeMlByWall: MainWireFiveWallMechanicalEnergyWallRecordV1<number>;
     }>;
     materialVolumeBindingSha256: string;
+    projectionFixture: SyntheticProjectionFixtureV1 | null;
   }>,
 ): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1> {
-  const preceding = mechanicalSampleV1(0, input.componentWorkMilliJ);
-  const accepted = mechanicalSampleV1(1, input.componentWorkMilliJ);
+  const preceding = mechanicalSampleV1(
+    0,
+    input.componentWorkMilliJ,
+    input.projectionFixture,
+  );
+  const accepted = mechanicalSampleV1(
+    1,
+    input.componentWorkMilliJ,
+    input.projectionFixture,
+  );
   const precedingObservation = acceptedObservationV1({
     sample: preceding,
     cycleIndex: 11,
@@ -608,9 +826,11 @@ async function syntheticQualifiedArmV1(
       wallMaterialVolumeMlByWall:
         input.materialVolumeBindingPayload.wallMaterialVolumeMlByWall,
     });
-  const physicalMetrics = physicalMetricsV1(ledger);
-  const algebraicResiduals = algebraicResidualsV1(ledger);
-  const conjugacy = conjugacyV1(ledger);
+  const ledgerProjection =
+    projectMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerV1(
+      ledger,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1.algebraicResidualAbsoluteToleranceMilliJ,
+    );
   const externalWork = Object.freeze({
     LV: -0.5 * accepted.chamberTransmuralPressureMmHg.LV,
     RV: -0.5 * accepted.chamberTransmuralPressureMmHg.RV,
@@ -625,20 +845,6 @@ async function syntheticQualifiedArmV1(
         ledger,
         trapezoidalExternalWorkMmHgMl: externalWork,
       },
-    );
-  const allFiveSls = MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1.reduce(
-    (sum, wallId) =>
-      sum +
-      ledger.perWall[wallId].parallelSls
-        .backwardEulerNumericalDissipationMilliJ,
-    0,
-  );
-  const allFivePassive =
-    MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1.reduce(
-      (sum, wallId) =>
-        sum +
-        ledger.perWall[wallId].equilibriumPassiveBackwardEulerRemainderMilliJ,
-      0,
     );
   const rawMechanicalTraceSha256 = await sha256CanonicalJsonHex(
     measurementInputEvidence,
@@ -700,11 +906,7 @@ async function syntheticQualifiedArmV1(
         externalWorkMmHgMl: externalWork.RV,
       }),
     }),
-    physicalMetrics,
-    allFiveSlsBackwardEulerNumericalDissipationMilliJ: allFiveSls,
-    allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ: allFivePassive,
-    conjugacy,
-    algebraicResiduals,
+    ...ledgerProjection,
     quadratureBridges,
     sourceCheckpointExactRoundTripVerified: true as const,
     continuationCheckpointExactRoundTripVerified: true as const,
@@ -719,10 +921,19 @@ async function syntheticQualifiedArmV1(
 function mechanicalSampleV1(
   strain: 0 | 1,
   componentWorkMilliJ: number,
+  projectionFixture: SyntheticProjectionFixtureV1 | null,
 ): MainWireFiveWallMechanicalEnergyLedgerAcceptedStepSampleV1 {
-  const totalWorkMilliJ = componentWorkMilliJ * 2;
+  const defaultTotalWorkMilliJ = componentWorkMilliJ * 2;
   const conversion =
     MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1.pressureVolumeConversionMilliJPerMmHgMl;
+  const cavityWorkOnWallMilliJ =
+    projectionFixture?.cavityWorkOnWallMilliJ ??
+    Object.freeze({
+      LA: defaultTotalWorkMilliJ,
+      LV: 1.5 * defaultTotalWorkMilliJ,
+      RA: defaultTotalWorkMilliJ,
+      RV: 1.5 * defaultTotalWorkMilliJ,
+    });
   return Object.freeze({
     nodeVolumeMl: Object.freeze({
       LA: 10 + strain,
@@ -731,23 +942,27 @@ function mechanicalSampleV1(
       RV: 40 + strain,
     }),
     chamberTransmuralPressureMmHg: Object.freeze({
-      LA: strain === 0 ? 0 : totalWorkMilliJ / conversion,
-      LV: strain === 0 ? 0 : (1.5 * totalWorkMilliJ) / conversion,
-      RA: strain === 0 ? 0 : totalWorkMilliJ / conversion,
-      RV: strain === 0 ? 0 : (1.5 * totalWorkMilliJ) / conversion,
+      LA: strain === 0 ? 0 : cavityWorkOnWallMilliJ.LA / conversion,
+      LV: strain === 0 ? 0 : cavityWorkOnWallMilliJ.LV / conversion,
+      RA: strain === 0 ? 0 : cavityWorkOnWallMilliJ.RA / conversion,
+      RV: strain === 0 ? 0 : cavityWorkOnWallMilliJ.RV / conversion,
     }),
     commonPericardium: Object.freeze({
       excessPressureMmHg: 0,
       storedEnergyMilliJ: 0,
     }),
-    wallStressPa: wallRecordV1(() =>
-      Object.freeze({
+    wallStressPa: wallRecordV1((wallId) => {
+      const totalWorkMilliJ =
+        projectionFixture?.totalStressWorkMilliJByWall[wallId] ??
+        defaultTotalWorkMilliJ;
+      return Object.freeze({
         total: strain === 0 ? 0 : totalWorkMilliJ,
-        landActive: 0,
+        landActive:
+          strain === 0 ? 0 : totalWorkMilliJ - 2 * componentWorkMilliJ,
         equilibriumPassive: strain === 0 ? 0 : componentWorkMilliJ,
         parallelSls: strain === 0 ? 0 : componentWorkMilliJ,
-      }),
-    ),
+      });
+    }),
     wallFiberLogStrain: wallRecordV1(() => strain),
     wallEnergyLedgerDensity: wallRecordV1(() =>
       Object.freeze({
@@ -856,208 +1071,6 @@ function allSingleArmGatesPassedV1() {
     quadratureBridgePassed: true,
     continuationCheckpointExactParityPassed: true,
   });
-}
-
-function physicalMetricsV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1[] {
-  const byId = new Map<string, number>();
-  for (const wallId of MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1) {
-    const wall = ledger.perWall[wallId];
-    byId.set(
-      `wall.${wallId}.stress-work.total`,
-      wall.stressWorkOnWallMilliJ.total,
-    );
-    byId.set(
-      `wall.${wallId}.stress-work.land-active`,
-      wall.stressWorkOnWallMilliJ.landActive,
-    );
-    byId.set(
-      `wall.${wallId}.stress-work.equilibrium-passive`,
-      wall.stressWorkOnWallMilliJ.equilibriumPassive,
-    );
-    byId.set(
-      `wall.${wallId}.stress-work.parallel-sls`,
-      wall.stressWorkOnWallMilliJ.parallelSls,
-    );
-    byId.set(
-      `wall.${wallId}.equilibrium-passive-stored-energy-change`,
-      wall.equilibriumPassiveStoredEnergyChangeMilliJ,
-    );
-    byId.set(
-      `wall.${wallId}.parallel-sls-stored-energy-change`,
-      wall.parallelSls.storedEnergyChangeMilliJ,
-    );
-    byId.set(
-      `wall.${wallId}.sls-physical-dissipation`,
-      wall.parallelSls.physicalDissipationMilliJ,
-    );
-  }
-  for (const chamber of MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_CHAMBER_IDS_V1) {
-    byId.set(
-      `cavity.${chamber}.work-on-wall`,
-      ledger.cavityWorkOnWallMilliJ[chamber],
-    );
-  }
-  for (const [aggregateId, wallIds] of [
-    ["all-five", MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1],
-    ["ventricular-walls", ["LVFW", "SEP", "RVFW"] as const],
-  ] as const) {
-    for (const [metricSuffix, value] of [
-      [
-        "stress-work.total",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.stressWorkOnWallMilliJ.total,
-        ),
-      ],
-      [
-        "stress-work.land-active",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.stressWorkOnWallMilliJ.landActive,
-        ),
-      ],
-      [
-        "stress-work.equilibrium-passive",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.stressWorkOnWallMilliJ.equilibriumPassive,
-        ),
-      ],
-      [
-        "stress-work.parallel-sls",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.stressWorkOnWallMilliJ.parallelSls,
-        ),
-      ],
-      [
-        "equilibrium-passive-stored-energy-change",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.equilibriumPassiveStoredEnergyChangeMilliJ,
-        ),
-      ],
-      [
-        "parallel-sls-stored-energy-change",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.parallelSls.storedEnergyChangeMilliJ,
-        ),
-      ],
-      [
-        "sls-physical-dissipation",
-        sumWallsV1(
-          ledger,
-          wallIds,
-          (wall) => wall.parallelSls.physicalDissipationMilliJ,
-        ),
-      ],
-    ] as const) {
-      byId.set(`aggregate.${aggregateId}.${metricSuffix}`, value);
-    }
-  }
-  return Object.freeze(
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_PHYSICAL_METRIC_IDS_V1.map(
-      (metricId) =>
-        Object.freeze({ metricId, valueMilliJ: byId.get(metricId)! }),
-    ),
-  );
-}
-
-function algebraicResidualsV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1[] {
-  return Object.freeze(
-    MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1.flatMap((wallId) => {
-      const wall = ledger.perWall[wallId];
-      return [
-        ["stress-assembly", wall.stressAssemblyResidualMilliJ],
-        [
-          "parallel-sls.reported-balance",
-          wall.parallelSls.reportedDiscreteBalanceResidualMilliJ,
-        ],
-        [
-          "parallel-sls.reconstructed-balance",
-          wall.parallelSls.reconstructedDiscreteBalanceResidualMilliJ,
-        ],
-        [
-          "parallel-sls.readback-agreement",
-          wall.parallelSls.readbackAgreementResidualMilliJ,
-        ],
-      ].map(([suffix, valueMilliJ]) =>
-        Object.freeze({
-          residualId: `wall.${wallId}.${suffix}`,
-          valueMilliJ: valueMilliJ as number,
-          passed: Math.abs(valueMilliJ as number) <= 1e-8,
-        }),
-      );
-    }),
-  );
-}
-
-function conjugacyV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1[] {
-  const wall = ledger.perWall;
-  const cavity = ledger.cavityWorkOnWallMilliJ;
-  const ventricularWall =
-    wall.LVFW.stressWorkOnWallMilliJ.total +
-    wall.SEP.stressWorkOnWallMilliJ.total +
-    wall.RVFW.stressWorkOnWallMilliJ.total;
-  const ventricularCavity = cavity.LV + cavity.RV;
-  const allWall =
-    wall.LA.stressWorkOnWallMilliJ.total +
-    ventricularWall +
-    wall.RA.stressWorkOnWallMilliJ.total;
-  const allCavity = cavity.LA + ventricularCavity + cavity.RA;
-  return Object.freeze([
-    conjugacyEntryV1(
-      "left-atrium",
-      wall.LA.stressWorkOnWallMilliJ.total,
-      cavity.LA,
-    ),
-    conjugacyEntryV1(
-      "right-atrium",
-      wall.RA.stressWorkOnWallMilliJ.total,
-      cavity.RA,
-    ),
-    conjugacyEntryV1("ventricles-combined", ventricularWall, ventricularCavity),
-    conjugacyEntryV1("whole-heart", allWall, allCavity),
-  ]);
-}
-
-function conjugacyEntryV1(
-  aggregateId: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1["aggregateId"],
-  wallWorkMilliJ: number,
-  cavityWorkMilliJ: number,
-) {
-  return Object.freeze({
-    aggregateId,
-    residualMilliJ: wallWorkMilliJ - cavityWorkMilliJ,
-    wallWorkMilliJ,
-    cavityWorkMilliJ,
-  });
-}
-
-function sumWallsV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-  wallIds: readonly (typeof MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1)[number][],
-  select: (
-    wall: MainWireFiveWallMechanicalEnergyLedgerV1["perWall"]["LA"],
-  ) => number,
-): number {
-  return wallIds.reduce(
-    (sum, wallId) => sum + select(ledger.perWall[wallId]),
-    0,
-  );
 }
 
 function wallRecordV1<T>(

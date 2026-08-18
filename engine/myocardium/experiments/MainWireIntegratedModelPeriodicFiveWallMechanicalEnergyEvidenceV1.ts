@@ -1,6 +1,4 @@
 import {
-  MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_CHAMBER_IDS_V1,
-  MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1,
   measureMainWireFiveWallMechanicalEnergyLedgerV1,
   type MainWireFiveWallMechanicalEnergyLedgerAcceptedStepSampleV1,
   type MainWireFiveWallMechanicalEnergyLedgerV1,
@@ -16,12 +14,14 @@ import {
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergySingleArmProjectionV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAdmissionV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+  projectMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerV1,
+  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerProjectionV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerProjectionV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_V1_ID,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1,
   runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyV1,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1,
-  type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQuadratureBridgeV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyResultV1,
@@ -116,6 +116,32 @@ export type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyHashBindingsV
     bridgeTerminalAcceptedStepSample: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyHashBindingV1;
     materialVolumeBinding: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyHashBindingV1;
     allMatch: boolean;
+  }>;
+
+export type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1 =
+  Readonly<{
+    bindingId:
+      | "physical-metrics"
+      | "all-five-sls-backward-euler-numerical-dissipation"
+      | "all-five-equilibrium-passive-backward-euler-remainder"
+      | "conjugacy"
+      | "algebraic-residuals";
+    publishedCanonicalSha256: string;
+    recomputedCanonicalSha256: string;
+    matches: boolean;
+    firstMismatchId: string | null;
+  }>;
+
+export type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionBindingsV1 =
+  Readonly<{
+    projectionOwnerId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID;
+    physicalMetrics: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1;
+    allFiveSlsBackwardEulerNumericalDissipation: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1;
+    allFiveEquilibriumPassiveBackwardEulerRemainder: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1;
+    conjugacy: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1;
+    algebraicResiduals: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1;
+    allMatch: boolean;
+    firstMismatchId: string | null;
   }>;
 
 /** Pure digest verifier used by the canonical projector and synthetic tests. */
@@ -279,6 +305,7 @@ type ArmEvidenceCommonV1 = Readonly<{
   sourceGatesPassed: boolean;
   lineageBindingsPassed: boolean;
   ledgerRecomputationPassed: boolean;
+  ledgerProjectionBindings: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionBindingsV1 | null;
   ledgerProjectionBindingsPassed: boolean;
   quadratureProvenancePassed: boolean;
   hashBindings: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyHashBindingsV1 | null;
@@ -509,6 +536,7 @@ async function sealSingleArmEvidenceV1(
       false,
       false,
       false,
+      null,
       false,
       false,
       null,
@@ -531,8 +559,12 @@ async function sealSingleArmEvidenceV1(
     recomputed !== null &&
     canonicalJsonStringify(recomputed.ledger) ===
       canonicalJsonStringify(source.ledger);
+  const ledgerProjectionBindings =
+    recomputed === null
+      ? null
+      : await assessLedgerProjectionBindingsV1(source, recomputed);
   const ledgerProjectionBindingsPassed =
-    recomputed !== null && ledgerProjectionBindingsPassedV1(source, recomputed);
+    ledgerProjectionBindings?.allMatch ?? false;
   const quadratureProvenancePassed =
     recomputed !== null &&
     canonicalJsonStringify(recomputed.quadratureBridges) ===
@@ -584,6 +616,7 @@ async function sealSingleArmEvidenceV1(
       sourceGatesPassed,
       lineageBindingsPassed,
       ledgerRecomputationPassed,
+      ledgerProjectionBindings,
       ledgerProjectionBindingsPassed,
       quadratureProvenancePassed,
       hashBindings,
@@ -601,6 +634,7 @@ async function sealSingleArmEvidenceV1(
     sourceGatesPassed,
     lineageBindingsPassed,
     ledgerRecomputationPassed,
+    ledgerProjectionBindings,
     ledgerProjectionBindingsPassed,
     quadratureProvenancePassed,
     hashBindings,
@@ -611,15 +645,12 @@ async function sealSingleArmEvidenceV1(
   });
 }
 
-type RecomputedMechanicalProjectionV1 = Readonly<{
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1;
-  physicalMetrics: readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1[];
-  allFiveSlsBackwardEulerNumericalDissipationMilliJ: number;
-  allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ: number;
-  conjugacy: readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1[];
-  algebraicResiduals: readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1[];
-  quadratureBridges: readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQuadratureBridgeV1[];
-}>;
+type RecomputedMechanicalProjectionV1 =
+  MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerProjectionV1 &
+    Readonly<{
+      ledger: MainWireFiveWallMechanicalEnergyLedgerV1;
+      quadratureBridges: readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQuadratureBridgeV1[];
+    }>;
 
 function recomputeMechanicalProjectionV1(
   source: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1,
@@ -636,28 +667,14 @@ function recomputeMechanicalProjectionV1(
       wallMaterialVolumeMlByWall:
         source.materialVolumeBindingPayload.wallMaterialVolumeMlByWall,
     });
-  const physicalMetrics = physicalMetricsFromLedgerV1(ledger);
-  const algebraicResiduals = algebraicResidualsFromLedgerV1(ledger);
+  const ledgerProjection =
+    projectMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerV1(
+      ledger,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1.algebraicResidualAbsoluteToleranceMilliJ,
+    );
   return Object.freeze({
     ledger,
-    physicalMetrics,
-    allFiveSlsBackwardEulerNumericalDissipationMilliJ:
-      MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1.reduce(
-        (sum, wallId) =>
-          sum +
-          ledger.perWall[wallId].parallelSls
-            .backwardEulerNumericalDissipationMilliJ,
-        0,
-      ),
-    allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ:
-      MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1.reduce(
-        (sum, wallId) =>
-          sum +
-          ledger.perWall[wallId].equilibriumPassiveBackwardEulerRemainderMilliJ,
-        0,
-      ),
-    conjugacy: conjugacyFromLedgerV1(ledger),
-    algebraicResiduals,
+    ...ledgerProjection,
     quadratureBridges:
       remeasureMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQuadratureBridgesV1(
         {
@@ -676,231 +693,156 @@ function recomputeMechanicalProjectionV1(
   });
 }
 
-function ledgerProjectionBindingsPassedV1(
+async function assessLedgerProjectionBindingsV1(
   source: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyQualifiedV1,
   recomputed: RecomputedMechanicalProjectionV1,
-): boolean {
-  return (
-    canonicalJsonStringify(recomputed.physicalMetrics) ===
-      canonicalJsonStringify(source.physicalMetrics) &&
-    recomputed.allFiveSlsBackwardEulerNumericalDissipationMilliJ ===
-      source.allFiveSlsBackwardEulerNumericalDissipationMilliJ &&
-    recomputed.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ ===
-      source.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ &&
-    canonicalJsonStringify(recomputed.conjugacy) ===
-      canonicalJsonStringify(source.conjugacy) &&
-    canonicalJsonStringify(recomputed.algebraicResiduals) ===
-      canonicalJsonStringify(source.algebraicResiduals)
-  );
-}
-
-function physicalMetricsFromLedgerV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1[] {
-  const metrics: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyPhysicalMetricV1[] =
-    [];
-  for (const wallId of MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1) {
-    const wall = ledger.perWall[wallId];
-    for (const component of [
-      "total",
-      "landActive",
-      "equilibriumPassive",
-      "parallelSls",
-    ] as const) {
-      const componentId = (
-        {
-          total: "total",
-          landActive: "land-active",
-          equilibriumPassive: "equilibrium-passive",
-          parallelSls: "parallel-sls",
-        } as const
-      )[component];
-      metrics.push(
-        Object.freeze({
-          metricId: `wall.${wallId}.stress-work.${componentId}`,
-          valueMilliJ: wall.stressWorkOnWallMilliJ[component],
-        }),
-      );
-    }
-    metrics.push(
-      Object.freeze({
-        metricId: `wall.${wallId}.equilibrium-passive-stored-energy-change`,
-        valueMilliJ: wall.equilibriumPassiveStoredEnergyChangeMilliJ,
-      }),
-    );
-    metrics.push(
-      Object.freeze({
-        metricId: `wall.${wallId}.parallel-sls-stored-energy-change`,
-        valueMilliJ: wall.parallelSls.storedEnergyChangeMilliJ,
-      }),
-    );
-    metrics.push(
-      Object.freeze({
-        metricId: `wall.${wallId}.sls-physical-dissipation`,
-        valueMilliJ: wall.parallelSls.physicalDissipationMilliJ,
-      }),
-    );
-  }
-  for (const chamber of MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_CHAMBER_IDS_V1) {
-    metrics.push(
-      Object.freeze({
-        metricId: `cavity.${chamber}.work-on-wall`,
-        valueMilliJ: ledger.cavityWorkOnWallMilliJ[chamber],
-      }),
-    );
-  }
-  const aggregates: readonly Readonly<{
-    aggregateId: "all-five" | "ventricular-walls";
-    walls: readonly (typeof MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1)[number][];
-  }>[] = [
-    Object.freeze({
-      aggregateId: "all-five" as const,
-      walls: MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1,
-    }),
-    Object.freeze({
-      aggregateId: "ventricular-walls" as const,
-      walls: Object.freeze(["LVFW", "SEP", "RVFW"] as const),
-    }),
-  ];
-  for (const aggregate of aggregates) {
-    for (const component of [
-      "total",
-      "landActive",
-      "equilibriumPassive",
-      "parallelSls",
-    ] as const) {
-      const componentId = (
-        {
-          total: "total",
-          landActive: "land-active",
-          equilibriumPassive: "equilibrium-passive",
-          parallelSls: "parallel-sls",
-        } as const
-      )[component];
-      metrics.push(
-        Object.freeze({
-          metricId: `aggregate.${aggregate.aggregateId}.stress-work.${componentId}`,
-          valueMilliJ: aggregate.walls.reduce(
-            (sum, wallId) =>
-              sum + ledger.perWall[wallId].stressWorkOnWallMilliJ[component],
-            0,
-          ),
-        }),
-      );
-    }
-    metrics.push(
-      Object.freeze({
-        metricId: `aggregate.${aggregate.aggregateId}.equilibrium-passive-stored-energy-change`,
-        valueMilliJ: aggregate.walls.reduce(
-          (sum, wallId) =>
-            sum +
-            ledger.perWall[wallId].equilibriumPassiveStoredEnergyChangeMilliJ,
-          0,
-        ),
-      }),
-    );
-    metrics.push(
-      Object.freeze({
-        metricId: `aggregate.${aggregate.aggregateId}.parallel-sls-stored-energy-change`,
-        valueMilliJ: aggregate.walls.reduce(
-          (sum, wallId) =>
-            sum + ledger.perWall[wallId].parallelSls.storedEnergyChangeMilliJ,
-          0,
-        ),
-      }),
-    );
-    metrics.push(
-      Object.freeze({
-        metricId: `aggregate.${aggregate.aggregateId}.sls-physical-dissipation`,
-        valueMilliJ: aggregate.walls.reduce(
-          (sum, wallId) =>
-            sum + ledger.perWall[wallId].parallelSls.physicalDissipationMilliJ,
-          0,
-        ),
-      }),
-    );
-  }
-  return Object.freeze(metrics);
-}
-
-function algebraicResidualsFromLedgerV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1[] {
-  const tolerance =
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_POLICY_V1.algebraicResidualAbsoluteToleranceMilliJ;
-  const residuals: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAlgebraicResidualV1[] =
-    [];
-  for (const wallId of MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1) {
-    const wall = ledger.perWall[wallId];
-    for (const [residualId, valueMilliJ] of [
-      [`wall.${wallId}.stress-assembly`, wall.stressAssemblyResidualMilliJ],
-      [
-        `wall.${wallId}.parallel-sls.reported-balance`,
-        wall.parallelSls.reportedDiscreteBalanceResidualMilliJ,
-      ],
-      [
-        `wall.${wallId}.parallel-sls.reconstructed-balance`,
-        wall.parallelSls.reconstructedDiscreteBalanceResidualMilliJ,
-      ],
-      [
-        `wall.${wallId}.parallel-sls.readback-agreement`,
-        wall.parallelSls.readbackAgreementResidualMilliJ,
-      ],
-    ] as const) {
-      residuals.push(
-        Object.freeze({
-          residualId,
-          valueMilliJ,
-          passed:
-            Number.isFinite(valueMilliJ) && Math.abs(valueMilliJ) <= tolerance,
-        }),
-      );
-    }
-  }
-  return Object.freeze(residuals);
-}
-
-function conjugacyFromLedgerV1(
-  ledger: MainWireFiveWallMechanicalEnergyLedgerV1,
-): readonly MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyConjugacyV1[] {
-  const wall = ledger.perWall;
-  const cavity = ledger.cavityWorkOnWallMilliJ;
-  const ventricularWall =
-    wall.LVFW.stressWorkOnWallMilliJ.total +
-    wall.SEP.stressWorkOnWallMilliJ.total +
-    wall.RVFW.stressWorkOnWallMilliJ.total;
-  const ventricularCavity = cavity.LV + cavity.RV;
-  const allWall =
-    wall.LA.stressWorkOnWallMilliJ.total +
-    ventricularWall +
-    wall.RA.stressWorkOnWallMilliJ.total;
-  const allCavity = cavity.LA + ventricularCavity + cavity.RA;
-  return Object.freeze([
-    Object.freeze({
-      aggregateId: "left-atrium" as const,
-      residualMilliJ: wall.LA.stressWorkOnWallMilliJ.total - cavity.LA,
-      wallWorkMilliJ: wall.LA.stressWorkOnWallMilliJ.total,
-      cavityWorkMilliJ: cavity.LA,
-    }),
-    Object.freeze({
-      aggregateId: "right-atrium" as const,
-      residualMilliJ: wall.RA.stressWorkOnWallMilliJ.total - cavity.RA,
-      wallWorkMilliJ: wall.RA.stressWorkOnWallMilliJ.total,
-      cavityWorkMilliJ: cavity.RA,
-    }),
-    Object.freeze({
-      aggregateId: "ventricles-combined" as const,
-      residualMilliJ: ventricularWall - ventricularCavity,
-      wallWorkMilliJ: ventricularWall,
-      cavityWorkMilliJ: ventricularCavity,
-    }),
-    Object.freeze({
-      aggregateId: "whole-heart" as const,
-      residualMilliJ: allWall - allCavity,
-      wallWorkMilliJ: allWall,
-      cavityWorkMilliJ: allCavity,
-    }),
+): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionBindingsV1> {
+  const [
+    physicalMetrics,
+    allFiveSlsBackwardEulerNumericalDissipation,
+    allFiveEquilibriumPassiveBackwardEulerRemainder,
+    conjugacy,
+    algebraicResiduals,
+  ] = await Promise.all([
+    projectionSubBindingV1(
+      "physical-metrics",
+      source.physicalMetrics,
+      recomputed.physicalMetrics,
+      firstOrderedProjectionMismatchIdV1(
+        "physical-metrics",
+        source.physicalMetrics,
+        recomputed.physicalMetrics,
+        (entry) => entry.metricId,
+      ),
+    ),
+    projectionSubBindingV1(
+      "all-five-sls-backward-euler-numerical-dissipation",
+      source.allFiveSlsBackwardEulerNumericalDissipationMilliJ,
+      recomputed.allFiveSlsBackwardEulerNumericalDissipationMilliJ,
+      source.allFiveSlsBackwardEulerNumericalDissipationMilliJ ===
+        recomputed.allFiveSlsBackwardEulerNumericalDissipationMilliJ
+        ? null
+        : "all-five-sls-backward-euler-numerical-dissipation",
+    ),
+    projectionSubBindingV1(
+      "all-five-equilibrium-passive-backward-euler-remainder",
+      source.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ,
+      recomputed.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ,
+      source.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ ===
+        recomputed.allFiveEquilibriumPassiveBackwardEulerRemainderMilliJ
+        ? null
+        : "all-five-equilibrium-passive-backward-euler-remainder",
+    ),
+    projectionSubBindingV1(
+      "conjugacy",
+      source.conjugacy,
+      recomputed.conjugacy,
+      firstOrderedProjectionMismatchIdV1(
+        "conjugacy",
+        source.conjugacy,
+        recomputed.conjugacy,
+        (entry) => entry.aggregateId,
+      ),
+    ),
+    projectionSubBindingV1(
+      "algebraic-residuals",
+      source.algebraicResiduals,
+      recomputed.algebraicResiduals,
+      firstOrderedProjectionMismatchIdV1(
+        "algebraic-residuals",
+        source.algebraicResiduals,
+        recomputed.algebraicResiduals,
+        (entry) => entry.residualId,
+      ),
+    ),
   ]);
+  const subBindings = Object.freeze([
+    physicalMetrics,
+    allFiveSlsBackwardEulerNumericalDissipation,
+    allFiveEquilibriumPassiveBackwardEulerRemainder,
+    conjugacy,
+    algebraicResiduals,
+  ]);
+  return Object.freeze({
+    projectionOwnerId:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+    physicalMetrics,
+    allFiveSlsBackwardEulerNumericalDissipation,
+    allFiveEquilibriumPassiveBackwardEulerRemainder,
+    conjugacy,
+    algebraicResiduals,
+    allMatch: subBindings.every(({ matches }) => matches),
+    firstMismatchId:
+      subBindings.find(({ matches }) => !matches)?.firstMismatchId ?? null,
+  });
+}
+
+async function projectionSubBindingV1(
+  bindingId: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1["bindingId"],
+  published: unknown,
+  recomputed: unknown,
+  firstMismatchId: string | null,
+): Promise<MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionSubBindingV1> {
+  const [publishedCanonicalSha256, recomputedCanonicalSha256] =
+    await Promise.all([
+      sha256CanonicalJsonHex(published),
+      sha256CanonicalJsonHex(recomputed),
+    ]);
+  const matches =
+    canonicalJsonStringify(published) === canonicalJsonStringify(recomputed);
+  return Object.freeze({
+    bindingId,
+    publishedCanonicalSha256,
+    recomputedCanonicalSha256,
+    matches,
+    firstMismatchId: matches ? null : (firstMismatchId ?? `${bindingId}:shape`),
+  });
+}
+
+function firstOrderedProjectionMismatchIdV1<T>(
+  bindingId: string,
+  published: readonly T[],
+  recomputed: readonly T[],
+  entryId: (entry: T) => string,
+): string | null {
+  const publishedDuplicate = firstDuplicateProjectionIdV1(published, entryId);
+  if (publishedDuplicate !== null) {
+    return `${bindingId}:published-duplicate:${publishedDuplicate}`;
+  }
+  const recomputedDuplicate = firstDuplicateProjectionIdV1(recomputed, entryId);
+  if (recomputedDuplicate !== null) {
+    return `${bindingId}:recomputed-duplicate:${recomputedDuplicate}`;
+  }
+  if (published.length !== recomputed.length) return `${bindingId}:length`;
+  for (let index = 0; index < published.length; index += 1) {
+    const publishedEntry = published[index]!;
+    const recomputedEntry = recomputed[index]!;
+    const publishedId = entryId(publishedEntry);
+    const recomputedId = entryId(recomputedEntry);
+    if (publishedId !== recomputedId) {
+      return `${bindingId}:index-${index}:id`;
+    }
+    if (
+      canonicalJsonStringify(publishedEntry) !==
+      canonicalJsonStringify(recomputedEntry)
+    ) {
+      return publishedId;
+    }
+  }
+  return null;
+}
+
+function firstDuplicateProjectionIdV1<T>(
+  entries: readonly T[],
+  entryId: (entry: T) => string,
+): string | null {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    const id = entryId(entry);
+    if (seen.has(id)) return id;
+    seen.add(id);
+  }
+  return null;
 }
 
 function compactProjectionV1(
@@ -1142,6 +1084,7 @@ function failedArmEvidenceV1(
   sourceGatesPassed: boolean,
   lineageBindingsPassed: boolean,
   ledgerRecomputationPassed: boolean,
+  ledgerProjectionBindings: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyProjectionBindingsV1 | null,
   ledgerProjectionBindingsPassed: boolean,
   quadratureProvenancePassed: boolean,
   hashBindings: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyHashBindingsV1 | null,
@@ -1157,6 +1100,7 @@ function failedArmEvidenceV1(
     sourceGatesPassed,
     lineageBindingsPassed,
     ledgerRecomputationPassed,
+    ledgerProjectionBindings,
     ledgerProjectionBindingsPassed,
     quadratureProvenancePassed,
     hashBindings,

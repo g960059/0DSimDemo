@@ -11,9 +11,22 @@ import {
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArmEvidenceV1,
   type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyLedgerProjectionV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_ARTIFACT_V1_ID =
   "main-wire-integrated-model-periodic-five-wall-mechanical-energy-evidence-v1" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256 =
+  "41998f2dfbe07a2449dc0ca033f56b8753e115339c2cc0d8a0d8e1416927f55a" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID =
+  "main-wire-integrated-model-periodic-five-wall-mechanical-energy-evidence-v1-corrective-attempt-1" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_OUTPUT_PATH =
+  "docs/scientific-runtime/evidence/periodic-five-wall-mechanical-energy-evidence-v1-corrective-attempt-1.json" as const;
+
+export type MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactAttemptV1 =
+  "initial" | "corrective-attempt-1";
 
 export function preflightMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceOutputV1(
   requestedOutputPath: string,
@@ -49,19 +62,51 @@ export async function writeMainWireIntegratedModelPeriodicFiveWallMechanicalEner
   });
 }
 
-export function mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1() {
-  return Object.freeze({
+export function mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1(
+  attempt: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactAttemptV1 = "initial",
+) {
+  const common = {
     artifactSchemaVersion: 1 as const,
-    artifactId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_ARTIFACT_V1_ID,
-    declarationOrder:
-      "preregistration-committed-before-first-new-0.5ms-mechanical-energy-ledger-result" as const,
     rawMechanicalInputsIncluded: false as const,
     policy: Object.freeze({
       officialEvidence:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1,
       admission:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_ADMISSION_POLICY_V1,
+    }),
+  };
+  if (attempt === "initial") {
+    return Object.freeze({
+      ...common,
+      artifactId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_ARTIFACT_V1_ID,
+      declarationOrder:
+        "preregistration-committed-before-first-new-0.5ms-mechanical-energy-ledger-result" as const,
+    });
+  }
+  return Object.freeze({
+    ...common,
+    artifactId:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+    declarationOrder:
+      "corrective-attempt-preregistration-committed-after-immutable-v1-failure-and-before-new-0.5ms-result" as const,
+    correctiveAttempt: Object.freeze({
+      attemptId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_CORRECTIVE_ATTEMPT_1_ARTIFACT_ID,
+      executionOrdinalForDefect: "first-and-only" as const,
+      defectId:
+        "whole-heart-conjugacy-non-associative-projection-binding" as const,
+      correctsArtifactId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_ARTIFACT_V1_ID,
+      correctsArtifactPayloadSha256:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256,
+      ledgerProjectionOwnerId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
+      freshIndependentColdStartsRequired: true as const,
+      priorCoarseProjectionReused: false as const,
+      modelOrSolverChanged: false as const,
+      admissionThresholdChanged: false as const,
+      priorArtifactOutcomeReinterpreted: false as const,
     }),
   });
 }
@@ -80,6 +125,7 @@ export function compactMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAr
     sourceGatesPassed: arm.sourceGatesPassed,
     lineageBindingsPassed: arm.lineageBindingsPassed,
     ledgerRecomputationPassed: arm.ledgerRecomputationPassed,
+    ledgerProjectionBindings: arm.ledgerProjectionBindings,
     ledgerProjectionBindingsPassed: arm.ledgerProjectionBindingsPassed,
     quadratureProvenancePassed: arm.quadratureProvenancePassed,
     hashBindings: arm.hashBindings,
@@ -115,6 +161,7 @@ export function mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyNegativeA
 
 export function createMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyExecutionFailureArtifactPayloadV1(
   error: unknown,
+  attempt: MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactAttemptV1 = "initial",
 ) {
   const context = executionFailureContextV1(error);
   const failure = Object.freeze({
@@ -124,7 +171,9 @@ export function createMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyExe
     stage: context.stage,
   });
   return Object.freeze({
-    ...mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1(),
+    ...mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactCommonV1(
+      attempt,
+    ),
     execution: Object.freeze({
       status: "execution-failed" as const,
       failure,
