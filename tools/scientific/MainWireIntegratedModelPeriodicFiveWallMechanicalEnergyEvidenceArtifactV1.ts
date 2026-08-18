@@ -5,6 +5,7 @@ import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
+import { MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_V1_ID } from "@/engine/myocardium/diagnostics/MainWireFiveWallMechanicalEnergyLedgerV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_ADMISSION_POLICY_V1 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicFiveWallMechanicalEnergyAdmissionV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_OFFICIAL_EVIDENCE_POLICY_V1,
@@ -100,6 +101,7 @@ export function mainWireIntegratedModelPeriodicFiveWallMechanicalEnergyArtifactC
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_ARTIFACT_V1_ID,
       correctsArtifactPayloadSha256:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256,
+      ledgerId: MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_V1_ID,
       ledgerProjectionOwnerId:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
       freshIndependentColdStartsRequired: true as const,

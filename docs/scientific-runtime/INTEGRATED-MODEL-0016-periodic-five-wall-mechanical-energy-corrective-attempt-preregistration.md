@@ -88,6 +88,11 @@ existing file, an output-path race, an execution exception, an unsealed arm,
 or a failed admission must remain a retained failure and must not trigger a
 second execution.
 
+The completed initial V1 CLI is tombstoned before it can reach the numerical
+runner. It cannot write a second artifact with the old artifact ID to an
+alternate path. Only the dedicated, fixed-path corrective command may perform
+the newly declared execution.
+
 ## Frozen numerical protocol
 
 Both arms are recomputed from fresh independent cold starts. The sealed coarse

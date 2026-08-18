@@ -5,6 +5,7 @@ import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_V1_ID,
   MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_WALL_IDS_V1,
   type MainWireFiveWallMechanicalEnergyChamberRecordV1,
   type MainWireFiveWallMechanicalEnergyLedgerAcceptedStepSampleV1,
@@ -531,6 +532,7 @@ describe("periodic five-wall mechanical-energy canonical sealer V1", () => {
         executionOrdinalForDefect: "first-and-only",
         correctsArtifactPayloadSha256:
           MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_EVIDENCE_V1_FAILED_PAYLOAD_SHA256,
+        ledgerId: MAIN_WIRE_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_V1_ID,
         ledgerProjectionOwnerId:
           MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_ENERGY_LEDGER_PROJECTION_V1_ID,
         freshIndependentColdStartsRequired: true,
@@ -583,7 +585,7 @@ describe("periodic five-wall mechanical-energy canonical sealer V1", () => {
     );
   });
 
-  it("keeps CLI preflight before the runner and writes before failure exit", () => {
+  it("tombstones the completed initial CLI before any runner can be reached", () => {
     const cliSource = readFileSync(
       path.resolve(
         "tools/scientific/runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1.ts",
@@ -601,22 +603,18 @@ describe("periodic five-wall mechanical-energy canonical sealer V1", () => {
     expect(`${cliSource}\n${helperSource}`).not.toMatch(
       /\bmeasurementInputEvidence\b|\bmaterialVolumeBindingPayload\b|\bbridgeTerminalAcceptedStepSample\b/,
     );
-    const preflight = cliSource.indexOf(
-      "preflightMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceOutputV1(",
+    expect(cliSource).toContain(
+      "initial five-wall mechanical-energy evidence attempt is closed",
     );
-    const runner = cliSource.indexOf(
-      "await runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1()",
+    expect(cliSource).toContain(
+      "docs/scientific-runtime/evidence/periodic-five-wall-mechanical-energy-evidence-v1.json",
     );
-    const firstWrite = cliSource.indexOf(
-      "await writeMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceArtifactCreateOnlyV1(",
+    expect(cliSource).not.toContain(
+      "runMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceV1(",
     );
-    const firstExit = cliSource.indexOf("process.exitCode = 1");
-    const lastExit = cliSource.lastIndexOf("process.exitCode = 1");
-    expect(preflight).toBeGreaterThan(0);
-    expect(runner).toBeGreaterThan(preflight);
-    expect(firstWrite).toBeGreaterThan(0);
-    expect(firstExit).toBeGreaterThan(firstWrite);
-    expect(lastExit).toBeGreaterThan(firstExit);
+    expect(cliSource).not.toContain(
+      "writeMainWireIntegratedModelPeriodicFiveWallMechanicalEnergyEvidenceArtifactCreateOnlyV1(",
+    );
   });
 });
 
