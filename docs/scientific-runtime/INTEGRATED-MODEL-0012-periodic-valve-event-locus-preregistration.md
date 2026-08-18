@@ -1,7 +1,22 @@
 # Periodic multi-load valve-event PV locus preregistration
 
-Status: policy, executable protocol, and synthetic fail-closed tests prepared;
-the declaration commit must precede the first new independent nine-load run
+Status: initial 0.74 input was rejected before model initialization because it
+fell below the declared TBV input domain; corrected 0.75 policy must be
+committed before the first new independent nine-load numerical output
+
+## Preflight amendment before numerical output
+
+The initial declaration used the existing formal-family lowest ratio `0.74`.
+At the default 5600 mL baseline this resolves to 4144 mL, below the validated
+hemodynamic input domain `[4200, 7000] mL`. The first command stopped in input
+validation before model initialization, settlement, or any numerical output.
+
+The lowest ratio is therefore corrected to `0.75`, exactly 4200 mL. No fit,
+event point, pressure, volume, work, or convergence result was available when
+this correction was chosen. The executable policy records the attempted
+value, input-domain bound, rejection stage, and the negative output-inspection
+claims. The corrected policy requires a second declaration commit before the
+first numerical run.
 
 ## Decision boundary
 
@@ -54,7 +69,7 @@ adjacent load.
 | Item | Frozen value |
 | --- | --- |
 | Baseline | default complete hemodynamic and mechanism fixture |
-| TBV ratios | 0.74, 0.82, 0.90, 0.96, 1.00, 1.06, 1.12, 1.18, 1.24 |
+| TBV ratios | 0.75, 0.82, 0.90, 0.96, 1.00, 1.06, 1.12, 1.18, 1.24 |
 | Nominal step | 0.001 s |
 | Maximum cycles | 250 per load |
 | Settlement | canonical full accepted-state P1 |

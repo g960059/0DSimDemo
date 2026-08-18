@@ -9,7 +9,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_VALVE_EVENT_LOCUS_V1_ID =
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_VALVE_EVENT_TBV_RATIOS_V1 =
   Object.freeze([
-    0.74,
+    0.75,
     0.82,
     0.9,
     0.96,
@@ -29,7 +29,16 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_VALVE_EVENT_LOCUS_POLICY_V1 =
   Object.freeze({
     policyId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_VALVE_EVENT_LOCUS_V1_ID,
     declarationStatus:
-      "declared-before-first-nine-load-canonical-execution" as const,
+      "amended-after-input-preflight-rejection-before-first-numerical-output" as const,
+    preflightAmendment: Object.freeze({
+      attemptedLowestRatio: 0.74 as const,
+      attemptedTotalBloodVolumeMl: 4144 as const,
+      acceptedInputLowerBoundMl: 4200 as const,
+      correctedLowestRatio: 0.75 as const,
+      rejectionStage: "input-validation-before-model-initialization" as const,
+      numericalOutputAvailableAtAmendment: false as const,
+      numericalOutputUsedToChooseCorrection: false as const,
+    }),
     nominalDtSec: 0.001 as const,
     maximumCycleCount: 250 as const,
     executionPurpose: "canonical-evidence" as const,

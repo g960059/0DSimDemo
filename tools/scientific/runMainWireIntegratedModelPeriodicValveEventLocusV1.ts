@@ -69,7 +69,7 @@ const payload = Object.freeze({
   artifactId:
     "main-wire-integrated-model-periodic-valve-event-locus-evidence-v1" as const,
   declarationOrder:
-    "policy-committed-before-first-nine-load-canonical-execution" as const,
+    "preflight-corrected-policy-committed-before-first-nine-load-numerical-output" as const,
   policy,
   baselineTotalBloodVolumeMl,
   runEvidence,
