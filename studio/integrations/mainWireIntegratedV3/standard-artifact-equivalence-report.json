@@ -1,0 +1,52 @@
+{
+  "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-63",
+  "predecessorArtifactRevisionId": "ca29f6d5f5888badab1e61b3e848fce9121372cfcd500e901d4f9b35a7f6c694",
+  "candidateArtifactRevisionId": "e67fcd133f2813c65ac59a42a77ebeef2bfa22c00c797b119d332ba1d955b00b",
+  "corpusId": "main-wire-solver-replacement-corpus-v1",
+  "equality": "byte-exact",
+  "cases": [
+    {
+      "caseId": "baseline",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    },
+    {
+      "caseId": "low-preload",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    },
+    {
+      "caseId": "high-afterload",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    },
+    {
+      "caseId": "high-peep",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    },
+    {
+      "caseId": "tachycardia",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    },
+    {
+      "caseId": "high-contractility",
+      "acceptedStepCount": 500,
+      "initialFrameEquality": "byte-exact",
+      "advancedFrameEquality": "byte-exact",
+      "exactCaptureEquality": "byte-exact"
+    }
+  ]
+}

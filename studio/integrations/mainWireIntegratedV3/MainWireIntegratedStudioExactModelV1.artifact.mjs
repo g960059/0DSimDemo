@@ -44710,6 +44710,7 @@ deepFreeze$2({
   healthyReferenceAssessment: "reported-only-after-canonical-numerical-P1-eligibility",
   healthyReferenceRole: "construction-context-not-independent-validation",
   healthyReferencePassIsPhysiologicalValidation: false,
+  terminalPressureBasisEngineeringProjection: "exact-prior-cycle-terminal-endpoint-plus-current-raw-accepted-endpoint-path-with-no-official-or-pva-claim",
   numericalPeriodicityIsPhysiologicalAcceptance: false,
   normalConstructionTargetIsIndependentValidation: false,
   patientFittingApplied: false,
