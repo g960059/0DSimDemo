@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1,
-  evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1,
-  type MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicExternalWorkV1";
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1,
+  pressureVolumeBoundaryCandidateFromAcceptedTraceSampleV1,
+  projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1,
+  type MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringInputV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1";
 import type { MainWireIntegratedModelPeriodicClassificationV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
 import type { MainWireIntegratedModelPeriodicTerminalTraceSampleV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 
@@ -15,10 +16,10 @@ type PvPoint = Readonly<{
   rvPressureMmHg?: number;
 }>;
 
-describe("periodic ventricular external-work Engineering projection V1", () => {
-  it("computes an exact canonical P1 counter-clockwise path without adding a closing segment", () => {
+describe("periodic ventricular transmural-boundary-work Engineering projection V1", () => {
+  it("projects an input-declared P1 counter-clockwise path without adding a closing segment", () => {
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath([
           point(0, 0),
           point(1, 0),
@@ -29,11 +30,12 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       );
 
     expect(result).toMatchObject({
-      status: "eligible-biventricular",
+      status: "input-gates-passed-biventricular",
       acceptedSegmentCount: 4,
-      biventricularExternalWorkComputed: true,
+      biventricularTransmuralBoundaryWorkComputed: true,
       syntheticEndToStartClosingSegmentApplied: false,
       engineeringProjectionOnly: true,
+      sourceProvenanceVerified: false,
       historicalQualificationTransferred: false,
       officialQualificationEstablished: false,
       publicOutputEstablished: false,
@@ -43,35 +45,38 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       gates: {
         protocolIdentityFormatValid: true,
         modelConditionIdentityFormatValid: true,
-        canonicalPeriod1Established: true,
-        terminalCycleOwnsLatestPeriod1Evidence: true,
-        terminalCycleIntegrityPassed: true,
-        previousCycleTerminalBoundaryAvailable: true,
+        canonicalPeriod1DeclaredByInput: true,
+        terminalCycleMatchesDeclaredPeriod1Evidence: true,
+        terminalCycleIntegrityDeclaredByInput: true,
+        startBoundaryProvided: true,
+        startBoundaryFinite: true,
         acceptedPathTraceComplete: true,
+        sourceProvenanceVerified: false,
       },
       leftVentricle: {
-        pathWorkMmHgMl: 1,
-        externalWorkMmHgMl: 1,
-        direction: "net-work-by-ventricle",
-        externalWorkComputed: true,
+        transmuralPathWorkMmHgMl: 1,
+        transmuralBoundaryWorkMmHgMl: 1,
+        pathWorkDirection: "net-work-by-ventricle",
+        transmuralBoundaryWorkComputed: true,
         failureReasons: [],
         endpointClosure: { maximumNormalizedDelta: 0, withinTolerance: true },
       },
       rightVentricle: {
-        pathWorkMmHgMl: 1,
-        externalWorkMmHgMl: 1,
-        direction: "net-work-by-ventricle",
-        externalWorkComputed: true,
+        transmuralPathWorkMmHgMl: 1,
+        transmuralBoundaryWorkMmHgMl: 1,
+        pathWorkDirection: "net-work-by-ventricle",
+        transmuralBoundaryWorkComputed: true,
       },
     });
     expect(result.policy).toBe(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1,
     );
+    expect(result.policy.sourceProvenanceEstablishedByProjector).toBe(false);
   });
 
   it("preserves signed work and accepts a clockwise loop as net work on the ventricle", () => {
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath([
           point(0, 0),
           point(0, 1),
@@ -81,12 +86,12 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
         ]),
       );
 
-    expect(result.status).toBe("eligible-biventricular");
+    expect(result.status).toBe("input-gates-passed-biventricular");
     expect(result.leftVentricle).toMatchObject({
-      pathWorkMmHgMl: -1,
-      externalWorkMmHgMl: -1,
-      direction: "net-work-on-ventricle",
-      externalWorkComputed: true,
+      transmuralPathWorkMmHgMl: -1,
+      transmuralBoundaryWorkMmHgMl: -1,
+      pathWorkDirection: "net-work-on-ventricle",
+      transmuralBoundaryWorkComputed: true,
     });
   });
 
@@ -105,24 +110,24 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
     }));
 
     const baseResult =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath(base),
       );
     const offsetResult =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath(offset),
       );
-    expect(offsetResult.leftVentricle.externalWorkMmHgMl).toBe(
-      baseResult.leftVentricle.externalWorkMmHgMl,
+    expect(offsetResult.leftVentricle.transmuralBoundaryWorkMmHgMl).toBe(
+      baseResult.leftVentricle.transmuralBoundaryWorkMmHgMl,
     );
-    expect(offsetResult.rightVentricle.externalWorkMmHgMl).toBe(
-      baseResult.rightVentricle.externalWorkMmHgMl,
+    expect(offsetResult.rightVentricle.transmuralBoundaryWorkMmHgMl).toBe(
+      baseResult.rightVentricle.transmuralBoundaryWorkMmHgMl,
     );
   });
 
   it("keeps a self-intersecting closed path as a defined signed integral while reserving polygon rejection for PVA", () => {
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath([
           point(0, 0),
           point(1, 1),
@@ -133,16 +138,16 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       );
 
     expect(result).toMatchObject({
-      status: "eligible-biventricular",
+      status: "input-gates-passed-biventricular",
       leftVentricle: {
-        externalWorkMmHgMl: 0,
-        direction: "zero-net-work",
-        externalWorkComputed: true,
+        transmuralBoundaryWorkMmHgMl: 0,
+        pathWorkDirection: "zero-net-work",
+        transmuralBoundaryWorkComputed: true,
       },
       rightVentricle: {
-        externalWorkMmHgMl: 0,
-        direction: "zero-net-work",
-        externalWorkComputed: true,
+        transmuralBoundaryWorkMmHgMl: 0,
+        pathWorkDirection: "zero-net-work",
+        transmuralBoundaryWorkComputed: true,
       },
       policy: {
         selfIntersectionPolicy:
@@ -153,7 +158,7 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
 
   it("fails closed when finite pressure-volume inputs overflow the path-work reduction", () => {
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath([
           point(0, Number.MAX_VALUE),
           point(Number.MAX_VALUE, Number.MAX_VALUE),
@@ -161,13 +166,13 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
         ]),
       );
 
-    expect(result.status).toBe("not-eligible");
-    expect(result.biventricularExternalWorkComputed).toBe(false);
+    expect(result.status).toBe("input-gates-not-passed");
+    expect(result.biventricularTransmuralBoundaryWorkComputed).toBe(false);
     expect(result.leftVentricle).toMatchObject({
-      pathWorkMmHgMl: null,
-      externalWorkMmHgMl: null,
-      direction: null,
-      externalWorkComputed: false,
+      transmuralPathWorkMmHgMl: null,
+      transmuralBoundaryWorkMmHgMl: null,
+      pathWorkDirection: null,
+      transmuralBoundaryWorkComputed: false,
       failureReasons: ["path-work-non-finite"],
       endpointClosure: { withinTolerance: true },
     });
@@ -176,9 +181,47 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
     ]);
   });
 
-  it("keeps raw path work but withholds EW independently for a chamber whose endpoints do not close", () => {
+  it("contains one-chamber overflow without withholding the finite chamber path", () => {
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        inputFromPath([
+          {
+            lvVolumeMl: 0,
+            lvPressureMmHg: 0,
+            rvVolumeMl: 0,
+            rvPressureMmHg: 0,
+          },
+          {
+            lvVolumeMl: Number.MAX_VALUE,
+            lvPressureMmHg: Number.MAX_VALUE,
+            rvVolumeMl: 1,
+            rvPressureMmHg: 0,
+          },
+          {
+            lvVolumeMl: 0,
+            lvPressureMmHg: 0,
+            rvVolumeMl: 0,
+            rvPressureMmHg: 0,
+          },
+        ]),
+      );
+
+    expect(result.status).toBe("input-gates-passed-right-ventricular-only");
+    expect(result.leftVentricle).toMatchObject({
+      transmuralPathWorkMmHgMl: null,
+      transmuralBoundaryWorkMmHgMl: null,
+      failureReasons: ["path-work-non-finite"],
+    });
+    expect(result.rightVentricle).toMatchObject({
+      transmuralPathWorkMmHgMl: 0,
+      transmuralBoundaryWorkMmHgMl: 0,
+      transmuralBoundaryWorkComputed: true,
+    });
+  });
+
+  it("keeps raw path work but withholds transmural boundary work independently for a chamber whose endpoints do not close", () => {
+    const result =
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
         inputFromPath([
           point(0, 0),
           point(1, 0),
@@ -193,11 +236,11 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
         ]),
       );
 
-    expect(result.status).toBe("eligible-right-ventricular-only");
-    expect(result.leftVentricle.pathWorkMmHgMl).not.toBeNull();
+    expect(result.status).toBe("input-gates-passed-right-ventricular-only");
+    expect(result.leftVentricle.transmuralPathWorkMmHgMl).not.toBeNull();
     expect(result.leftVentricle).toMatchObject({
-      externalWorkMmHgMl: null,
-      externalWorkComputed: false,
+      transmuralBoundaryWorkMmHgMl: null,
+      transmuralBoundaryWorkComputed: false,
       failureReasons: ["pressure-volume-boundary-not-closed"],
       endpointClosure: {
         normalizedVolumeDelta: 0.002,
@@ -205,7 +248,7 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       },
     });
     expect(result.rightVentricle).toMatchObject({
-      externalWorkComputed: true,
+      transmuralBoundaryWorkComputed: true,
       endpointClosure: {
         normalizedVolumeDelta: 0.0005,
         normalizedPressureDelta: 0.0005,
@@ -214,7 +257,7 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
     });
   });
 
-  it("never promotes a closed exploratory path without canonical P1 evidence", () => {
+  it("withholds gated boundary work when the input does not declare canonical P1", () => {
     const candidate = inputFromPath([
       point(0, 0),
       point(1, 0),
@@ -223,23 +266,25 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       point(0, 0),
     ]);
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1({
-        ...candidate,
-        executionPurpose: "bounded-smoke",
-        classification: classification("not-converged"),
-      });
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        {
+          ...candidate,
+          executionPurpose: "bounded-smoke",
+          classification: classification("not-converged"),
+        },
+      );
 
-    expect(result.status).toBe("not-eligible");
+    expect(result.status).toBe("input-gates-not-passed");
     expect(result.gates).toMatchObject({
-      canonicalPeriod1Established: false,
-      terminalCycleOwnsLatestPeriod1Evidence: false,
+      canonicalPeriod1DeclaredByInput: false,
+      terminalCycleMatchesDeclaredPeriod1Evidence: false,
       acceptedPathTraceComplete: true,
     });
     expect(result.leftVentricle).toMatchObject({
-      pathWorkMmHgMl: 1,
-      externalWorkMmHgMl: null,
-      externalWorkComputed: false,
-      failureReasons: ["canonical-period1-not-established"],
+      transmuralPathWorkMmHgMl: 1,
+      transmuralBoundaryWorkMmHgMl: null,
+      transmuralBoundaryWorkComputed: false,
+      failureReasons: ["canonical-period1-not-declared-by-input"],
     });
   });
 
@@ -252,22 +297,99 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       point(0, 0),
     ]);
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1({
-        ...candidate,
-        startBoundary: null,
-      });
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        {
+          ...candidate,
+          startBoundary: null,
+        },
+      );
 
-    expect(result.status).toBe("not-eligible");
+    expect(result.status).toBe("input-gates-not-passed");
     expect(result.acceptedSegmentCount).toBe(0);
     expect(result.gates).toMatchObject({
-      previousCycleTerminalBoundaryAvailable: false,
+      startBoundaryProvided: false,
+      startBoundaryFinite: false,
       acceptedPathTraceComplete: false,
     });
     expect(result.leftVentricle).toMatchObject({
-      pathWorkMmHgMl: null,
-      externalWorkMmHgMl: null,
-      failureReasons: ["previous-cycle-terminal-boundary-unavailable"],
+      transmuralPathWorkMmHgMl: null,
+      transmuralBoundaryWorkMmHgMl: null,
+      failureReasons: ["start-boundary-not-provided"],
     });
+  });
+
+  it("sanitizes a nonfinite start boundary instead of returning NaN closure fields", () => {
+    const candidate = inputFromPath([point(0, 0), point(1, 0), point(0, 0)]);
+    const result =
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        {
+          ...candidate,
+          startBoundary: {
+            ...candidate.startBoundary!,
+            chamberVolumeMl: {
+              ...candidate.startBoundary!.chamberVolumeMl,
+              LV: Number.NaN,
+            },
+          },
+        },
+      );
+
+    expect(result.status).toBe("input-gates-not-passed");
+    expect(result.gates).toMatchObject({
+      startBoundaryProvided: true,
+      startBoundaryFinite: false,
+      acceptedPathTraceComplete: false,
+    });
+    expect(result.leftVentricle).toMatchObject({
+      transmuralPathWorkMmHgMl: null,
+      transmuralBoundaryWorkMmHgMl: null,
+      pathWorkDirection: null,
+      failureReasons: ["pressure-volume-boundary-non-finite"],
+      endpointClosure: {
+        start: null,
+        absoluteVolumeDeltaMl: null,
+        absolutePressureDeltaMmHg: null,
+        normalizedVolumeDelta: null,
+        normalizedPressureDelta: null,
+        maximumNormalizedDelta: null,
+        withinTolerance: false,
+      },
+    });
+    expect(allNumberLeavesAreFinite(result)).toBe(true);
+  });
+
+  it("rejects a nonfinite trace sample when projecting a boundary candidate", () => {
+    const sample = traceSample(8, 1, 11, 1, point(0, 0));
+
+    expect(() =>
+      pressureVolumeBoundaryCandidateFromAcceptedTraceSampleV1({
+        ...sample,
+        transmuralPressureMmHg: {
+          ...sample.transmuralPressureMmHg,
+          LV: Infinity,
+        },
+      }),
+    ).toThrow("periodic PV boundary contains a nonfinite value");
+  });
+
+  it("rejects a start boundary whose declared clock does not start the trace", () => {
+    const candidate = inputFromPath([point(0, 0), point(1, 0), point(0, 0)]);
+    const result =
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        {
+          ...candidate,
+          startBoundary: {
+            ...candidate.startBoundary!,
+            acceptedTimeSec: candidate.terminalTrace.startTimeSec + 0.1,
+          },
+        },
+      );
+
+    expect(result.status).toBe("input-gates-not-passed");
+    expect(result.gates.acceptedPathTraceComplete).toBe(false);
+    expect(result.leftVentricle.failureReasons).toContain(
+      "accepted-path-trace-incomplete",
+    );
   });
 
   it("fails closed on an invalid condition identity or a resampled path", () => {
@@ -279,24 +401,26 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
       point(0, 0),
     ]);
     const result =
-      evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1({
-        ...candidate,
-        modelConditionIdentityHash: "invalid",
-        terminalTrace: {
-          ...candidate.terminalTrace,
-          resamplingApplied: true,
-        } as never,
-      });
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        {
+          ...candidate,
+          modelConditionIdentityHash: "invalid",
+          terminalTrace: {
+            ...candidate.terminalTrace,
+            resamplingApplied: true,
+          } as never,
+        },
+      );
 
-    expect(result.status).toBe("not-eligible");
+    expect(result.status).toBe("input-gates-not-passed");
     expect(result.gates).toMatchObject({
       protocolIdentityFormatValid: true,
       modelConditionIdentityFormatValid: false,
       acceptedPathTraceComplete: false,
     });
     expect(result.leftVentricle).toMatchObject({
-      pathWorkMmHgMl: 1,
-      externalWorkMmHgMl: null,
+      transmuralPathWorkMmHgMl: 1,
+      transmuralBoundaryWorkMmHgMl: null,
       failureReasons: [
         "model-condition-identity-format-invalid",
         "accepted-path-trace-incomplete",
@@ -307,7 +431,7 @@ describe("periodic ventricular external-work Engineering projection V1", () => {
 
 function inputFromPath(
   points: readonly PvPoint[],
-): MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1 {
+): MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringInputV1 {
   if (points.length < 2) throw new Error("test path requires two points");
   const cycleIndex = 8;
   const startTimeSec = 10;
@@ -367,7 +491,7 @@ function inputFromPath(
         "raw-accepted-endpoint-samples-no-resampling-no-shape-acceptance",
     },
     startBoundary: {
-      source: "previous-cycle-terminal-accepted-endpoint",
+      source: "caller-projected-trace-sample",
       acceptedTimeSec: startTimeSec,
       chamberVolumeMl: {
         LV: start!.lvVolumeMl,
@@ -463,4 +587,13 @@ function traceSample(
 
 function point(volumeMl: number, pressureMmHg: number): PvPoint {
   return { lvVolumeMl: volumeMl, lvPressureMmHg: pressureMmHg };
+}
+
+function allNumberLeavesAreFinite(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(allNumberLeavesAreFinite);
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).every(allNumberLeavesAreFinite);
+  }
+  return true;
 }

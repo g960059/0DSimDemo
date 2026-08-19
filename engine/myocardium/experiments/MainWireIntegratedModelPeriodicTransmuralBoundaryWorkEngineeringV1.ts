@@ -15,31 +15,32 @@ import type {
   MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_V1_ID =
-  "main-wire-integrated-model-periodic-transmural-external-work-engineering-projection-v1" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_V1_ID =
+  "main-wire-integrated-model-periodic-transmural-boundary-work-engineering-projection-v1" as const;
 
 /**
  * Engineering extraction boundary.
  *
  * This pure projector was recovered from the PR558 research archive without
  * its canonical runner, one-shot admission, or retained evidence artifact.
- * An `eligible-*` result means only that the supplied input satisfies the
- * gates below. This owner cannot transfer the archived implementation's
- * historical qualification to this reconstructed implementation identity,
- * and it cannot establish an official qualification, public Output, PVA,
- * physiological, or clinical claim.
+ * An `input-gates-passed-*` result means only that the supplied input is
+ * structurally suitable for this numerical projection. The caller-provided
+ * classification, identities, and boundary are declarations: this owner does
+ * not authenticate their source provenance. It cannot transfer the archived
+ * implementation's historical qualification or establish an official
+ * qualification, public Output, PVA, physiological, or clinical claim.
  */
 
 /**
- * Numerical eligibility policy, not a physiological normal range. The volume
+ * Numerical input-gate policy, not a physiological normal range. The volume
  * scale and tolerance reuse the full-state P1 convention. Pressure is an
  * algebraic readback rather than an accepted state, so it receives an explicit
  * fixed dimensional scale instead of an instantaneous denominator.
  */
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1 =
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1 =
   Object.freeze({
     policyId:
-      "main-wire-integrated-model-periodic-transmural-external-work-engineering-projection-policy-v1" as const,
+      "main-wire-integrated-model-periodic-transmural-boundary-work-engineering-projection-policy-v1" as const,
     pressureBasis: "ventricular-transmural" as const,
     workDefinition:
       "negative-accepted-endpoint-trapezoidal-line-integral-of-pressure-against-volume" as const,
@@ -63,39 +64,41 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLIC
     selfIntersectionPolicy:
       "signed-line-integral-remains-defined-self-intersection-is-a-later-pva-geometry-gate" as const,
     valveEventPolicy:
-      "not-an-external-work-eligibility-gate-events-separately-own-ed-es-annotations" as const,
+      "not-a-transmural-boundary-work-input-gate-events-separately-own-ed-es-annotations" as const,
+    sourceProvenanceEstablishedByProjector: false as const,
     numericalPeriodicityIsPhysiologicalValidation: false as const,
     clinicalValidationClaimed: false as const,
   });
 
 export type MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 = Readonly<{
-  source: "previous-cycle-terminal-accepted-endpoint";
+  source: "caller-projected-trace-sample";
   acceptedTimeSec: number;
   chamberVolumeMl: Readonly<{ LV: number; RV: number }>;
   transmuralPressureMmHg: Readonly<{ LV: number; RV: number }>;
 }>;
 
-export type MainWireIntegratedModelPeriodicExternalWorkFailureReasonV1 =
+export type MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1 =
   | "protocol-identity-format-invalid"
   | "model-condition-identity-format-invalid"
-  | "canonical-period1-not-established"
-  | "terminal-cycle-does-not-own-latest-period1-evidence"
-  | "terminal-cycle-integrity-failed"
-  | "previous-cycle-terminal-boundary-unavailable"
+  | "canonical-period1-not-declared-by-input"
+  | "terminal-cycle-does-not-match-declared-period1-evidence"
+  | "terminal-cycle-integrity-not-declared-by-input"
+  | "start-boundary-not-provided"
+  | "pressure-volume-boundary-non-finite"
   | "accepted-path-trace-incomplete"
   | "pressure-volume-boundary-not-closed"
   | "path-work-non-finite";
 
-export type MainWireIntegratedModelPeriodicExternalWorkDirectionV1 =
+export type MainWireIntegratedModelPeriodicPathWorkDirectionV1 =
   "net-work-by-ventricle" | "net-work-on-ventricle" | "zero-net-work";
 
-export type MainWireIntegratedModelPeriodicVentricularExternalWorkV1 =
+export type MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1 =
   Readonly<{
     chamber: "LV" | "RV";
     pressureBasis: "ventricular-transmural";
-    pathWorkMmHgMl: number | null;
-    externalWorkMmHgMl: number | null;
-    direction: MainWireIntegratedModelPeriodicExternalWorkDirectionV1 | null;
+    transmuralPathWorkMmHgMl: number | null;
+    transmuralBoundaryWorkMmHgMl: number | null;
+    pathWorkDirection: MainWireIntegratedModelPeriodicPathWorkDirectionV1 | null;
     endpointClosure: Readonly<{
       start: Readonly<{ volumeMl: number; pressureMmHg: number }> | null;
       end: Readonly<{ volumeMl: number; pressureMmHg: number }> | null;
@@ -106,18 +109,18 @@ export type MainWireIntegratedModelPeriodicVentricularExternalWorkV1 =
       maximumNormalizedDelta: number | null;
       withinTolerance: boolean;
     }>;
-    externalWorkComputed: boolean;
-    failureReasons: readonly MainWireIntegratedModelPeriodicExternalWorkFailureReasonV1[];
+    transmuralBoundaryWorkComputed: boolean;
+    failureReasons: readonly MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1[];
   }>;
 
-export type MainWireIntegratedModelPeriodicExternalWorkEngineeringResultV1 =
+export type MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1 =
   Readonly<{
-    projectionId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_V1_ID;
+    projectionId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_V1_ID;
     status:
-      | "eligible-biventricular"
-      | "eligible-left-ventricular-only"
-      | "eligible-right-ventricular-only"
-      | "not-eligible";
+      | "input-gates-passed-biventricular"
+      | "input-gates-passed-left-ventricular-only"
+      | "input-gates-passed-right-ventricular-only"
+      | "input-gates-not-passed";
     protocolIdentityHash: string;
     modelConditionIdentityHash: string;
     sourceCycleIndex: number;
@@ -127,27 +130,30 @@ export type MainWireIntegratedModelPeriodicExternalWorkEngineeringResultV1 =
     gates: Readonly<{
       protocolIdentityFormatValid: boolean;
       modelConditionIdentityFormatValid: boolean;
-      canonicalPeriod1Established: boolean;
-      terminalCycleOwnsLatestPeriod1Evidence: boolean;
-      terminalCycleIntegrityPassed: boolean;
-      previousCycleTerminalBoundaryAvailable: boolean;
+      canonicalPeriod1DeclaredByInput: boolean;
+      terminalCycleMatchesDeclaredPeriod1Evidence: boolean;
+      terminalCycleIntegrityDeclaredByInput: boolean;
+      startBoundaryProvided: boolean;
+      startBoundaryFinite: boolean;
       acceptedPathTraceComplete: boolean;
+      sourceProvenanceVerified: false;
     }>;
-    leftVentricle: MainWireIntegratedModelPeriodicVentricularExternalWorkV1;
-    rightVentricle: MainWireIntegratedModelPeriodicVentricularExternalWorkV1;
-    biventricularExternalWorkComputed: boolean;
+    leftVentricle: MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1;
+    rightVentricle: MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1;
+    biventricularTransmuralBoundaryWorkComputed: boolean;
     syntheticEndToStartClosingSegmentApplied: false;
     engineeringProjectionOnly: true;
+    sourceProvenanceVerified: false;
     historicalQualificationTransferred: false;
     officialQualificationEstablished: false;
     publicOutputEstablished: false;
     pvaEstablished: false;
     physiologicalValidationEstablished: false;
     clinicalValidationClaimed: false;
-    policy: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1;
+    policy: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1;
   }>;
 
-export type MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1 =
+export type MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringInputV1 =
   Readonly<{
     executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3;
     protocolIdentityHash: string;
@@ -171,44 +177,47 @@ export type MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1 =
   }>;
 
 /**
- * Projects an exact periodic accepted path to signed ventricular external
- * work only after its source cycle passes the canonical full-state P1 and
- * explicit PV-endpoint closure gates. The measured path is never geometrically
- * closed after the fact.
+ * Projects a caller-supplied accepted path to signed ventricular transmural
+ * boundary work after structural, declared-periodicity, and PV-endpoint
+ * closure gates pass. The measured path is never geometrically closed after
+ * the fact. Canonical source provenance remains the responsibility of a later
+ * integration owner.
  */
-export function evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1(
-  input: MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1,
-): MainWireIntegratedModelPeriodicExternalWorkEngineeringResultV1 {
+export function projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+  input: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringInputV1,
+): MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1 {
   const protocolIdentityFormatValid = /^[0-9a-f]{64}$/.test(
     input.protocolIdentityHash,
   );
   const modelConditionIdentityFormatValid = /^[0-9a-f]{64}$/.test(
     input.modelConditionIdentityHash,
   );
-  const canonicalPeriod1Established =
+  const canonicalPeriod1DeclaredByInput =
     input.executionPurpose === "canonical-evidence" &&
     input.classification.classifierId ===
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLASSIFIER_V3_ID &&
     input.classification.status === "period1-converged";
   const evidenceCycleIndices = input.classification.evidenceCycleIndices;
-  const terminalCycleOwnsLatestPeriod1Evidence =
-    canonicalPeriod1Established &&
+  const terminalCycleMatchesDeclaredPeriod1Evidence =
+    canonicalPeriod1DeclaredByInput &&
     input.classification.latestCycleIndex === input.terminalCycle.cycleIndex &&
     evidenceCycleIndices.at(-1) === input.terminalCycle.cycleIndex &&
     input.terminalObservation.cycleIndex === input.terminalCycle.cycleIndex &&
     input.terminalObservation.evidenceRole === "canonical-periodic-protocol" &&
     input.terminalObservation.protocolIdentityHash ===
       input.protocolIdentityHash;
-  const terminalCycleIntegrityPassed =
+  const terminalCycleIntegrityDeclaredByInput =
     input.terminalCycle.conservation.withinInheritedConstructionTolerances &&
     input.terminalCycle.finiteAndEventIdentityChecks.passed;
-  const previousCycleTerminalBoundaryAvailable = input.startBoundary !== null;
+  const startBoundaryProvided = input.startBoundary !== null;
+  const startBoundaryFinite =
+    input.startBoundary !== null && boundaryIsFiniteV1(input.startBoundary);
   const acceptedPathTraceComplete = traceIsCompleteV1(
     input.terminalCycle,
     input.terminalTrace,
     input.startBoundary,
   );
-  const sharedFailureReasons: MainWireIntegratedModelPeriodicExternalWorkFailureReasonV1[] =
+  const sharedFailureReasons: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1[] =
     [];
   if (!protocolIdentityFormatValid) {
     sharedFailureReasons.push("protocol-identity-format-invalid");
@@ -216,60 +225,67 @@ export function evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1
   if (!modelConditionIdentityFormatValid) {
     sharedFailureReasons.push("model-condition-identity-format-invalid");
   }
-  if (!canonicalPeriod1Established) {
-    sharedFailureReasons.push("canonical-period1-not-established");
+  if (!canonicalPeriod1DeclaredByInput) {
+    sharedFailureReasons.push("canonical-period1-not-declared-by-input");
   }
-  if (canonicalPeriod1Established && !terminalCycleOwnsLatestPeriod1Evidence) {
+  if (
+    canonicalPeriod1DeclaredByInput &&
+    !terminalCycleMatchesDeclaredPeriod1Evidence
+  ) {
     sharedFailureReasons.push(
-      "terminal-cycle-does-not-own-latest-period1-evidence",
+      "terminal-cycle-does-not-match-declared-period1-evidence",
     );
   }
-  if (!terminalCycleIntegrityPassed) {
-    sharedFailureReasons.push("terminal-cycle-integrity-failed");
+  if (!terminalCycleIntegrityDeclaredByInput) {
+    sharedFailureReasons.push("terminal-cycle-integrity-not-declared-by-input");
   }
-  if (!previousCycleTerminalBoundaryAvailable) {
-    sharedFailureReasons.push("previous-cycle-terminal-boundary-unavailable");
+  if (!startBoundaryProvided) {
+    sharedFailureReasons.push("start-boundary-not-provided");
   }
-  if (previousCycleTerminalBoundaryAvailable && !acceptedPathTraceComplete) {
+  if (startBoundaryProvided && !startBoundaryFinite) {
+    sharedFailureReasons.push("pressure-volume-boundary-non-finite");
+  }
+  if (startBoundaryFinite && !acceptedPathTraceComplete) {
     sharedFailureReasons.push("accepted-path-trace-incomplete");
   }
 
-  const sharedEligibility =
+  const sharedInputGatesPassed =
     protocolIdentityFormatValid &&
     modelConditionIdentityFormatValid &&
-    canonicalPeriod1Established &&
-    terminalCycleOwnsLatestPeriod1Evidence &&
-    terminalCycleIntegrityPassed &&
-    previousCycleTerminalBoundaryAvailable &&
+    canonicalPeriod1DeclaredByInput &&
+    terminalCycleMatchesDeclaredPeriod1Evidence &&
+    terminalCycleIntegrityDeclaredByInput &&
+    startBoundaryProvided &&
+    startBoundaryFinite &&
     acceptedPathTraceComplete;
   const leftVentricle = ventricularResultV1(
     "LV",
     input.startBoundary,
     input.terminalTrace.samples,
-    sharedEligibility,
+    sharedInputGatesPassed,
     sharedFailureReasons,
   );
   const rightVentricle = ventricularResultV1(
     "RV",
     input.startBoundary,
     input.terminalTrace.samples,
-    sharedEligibility,
+    sharedInputGatesPassed,
     sharedFailureReasons,
   );
-  const leftEligible = leftVentricle.externalWorkComputed;
-  const rightEligible = rightVentricle.externalWorkComputed;
+  const leftInputGatesPassed = leftVentricle.transmuralBoundaryWorkComputed;
+  const rightInputGatesPassed = rightVentricle.transmuralBoundaryWorkComputed;
   const status =
-    leftEligible && rightEligible
-      ? ("eligible-biventricular" as const)
-      : leftEligible
-        ? ("eligible-left-ventricular-only" as const)
-        : rightEligible
-          ? ("eligible-right-ventricular-only" as const)
-          : ("not-eligible" as const);
+    leftInputGatesPassed && rightInputGatesPassed
+      ? ("input-gates-passed-biventricular" as const)
+      : leftInputGatesPassed
+        ? ("input-gates-passed-left-ventricular-only" as const)
+        : rightInputGatesPassed
+          ? ("input-gates-passed-right-ventricular-only" as const)
+          : ("input-gates-not-passed" as const);
 
   return Object.freeze({
     projectionId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_V1_ID,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_V1_ID,
     status,
     protocolIdentityHash: input.protocolIdentityHash,
     modelConditionIdentityHash: input.modelConditionIdentityHash,
@@ -282,17 +298,21 @@ export function evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1
     gates: Object.freeze({
       protocolIdentityFormatValid,
       modelConditionIdentityFormatValid,
-      canonicalPeriod1Established,
-      terminalCycleOwnsLatestPeriod1Evidence,
-      terminalCycleIntegrityPassed,
-      previousCycleTerminalBoundaryAvailable,
+      canonicalPeriod1DeclaredByInput,
+      terminalCycleMatchesDeclaredPeriod1Evidence,
+      terminalCycleIntegrityDeclaredByInput,
+      startBoundaryProvided,
+      startBoundaryFinite,
       acceptedPathTraceComplete,
+      sourceProvenanceVerified: false as const,
     }),
     leftVentricle,
     rightVentricle,
-    biventricularExternalWorkComputed: leftEligible && rightEligible,
+    biventricularTransmuralBoundaryWorkComputed:
+      leftInputGatesPassed && rightInputGatesPassed,
     syntheticEndToStartClosingSegmentApplied: false as const,
     engineeringProjectionOnly: true as const,
+    sourceProvenanceVerified: false as const,
     historicalQualificationTransferred: false as const,
     officialQualificationEstablished: false as const,
     publicOutputEstablished: false as const,
@@ -300,15 +320,15 @@ export function evaluateMainWireIntegratedModelPeriodicExternalWorkEngineeringV1
     physiologicalValidationEstablished: false as const,
     clinicalValidationClaimed: false as const,
     policy:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1,
   });
 }
 
-export function periodicPressureVolumeBoundaryFromAcceptedTraceSampleV1(
+export function pressureVolumeBoundaryCandidateFromAcceptedTraceSampleV1(
   sample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 ): MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 {
   const boundary = Object.freeze({
-    source: "previous-cycle-terminal-accepted-endpoint" as const,
+    source: "caller-projected-trace-sample" as const,
     acceptedTimeSec: sample.acceptedTimeSec,
     chamberVolumeMl: Object.freeze({
       LV: sample.chamberVolumeMl.LV,
@@ -329,25 +349,25 @@ function ventricularResultV1(
   chamber: "LV" | "RV",
   startBoundary: MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 | null,
   samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
-  sharedEligibility: boolean,
-  sharedFailureReasons: readonly MainWireIntegratedModelPeriodicExternalWorkFailureReasonV1[],
-): MainWireIntegratedModelPeriodicVentricularExternalWorkV1 {
+  sharedInputGatesPassed: boolean,
+  sharedFailureReasons: readonly MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1[],
+): MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1 {
   const last = samples.at(-1) ?? null;
-  const start =
+  const startCandidate =
     startBoundary === null
       ? null
       : Object.freeze({
           volumeMl: startBoundary.chamberVolumeMl[chamber],
           pressureMmHg: startBoundary.transmuralPressureMmHg[chamber],
         });
-  const end =
+  const endCandidate =
     last === null
       ? null
       : Object.freeze({
           volumeMl: last.chamberVolumeMl[chamber],
           pressureMmHg: last.transmuralPressureMmHg[chamber],
         });
-  const closure = endpointClosureV1(start, end);
+  const closure = endpointClosureV1(startCandidate, endCandidate);
   const pathGeometryAvailable =
     startBoundary !== null &&
     Number.isFinite(startBoundary.chamberVolumeMl[chamber]) &&
@@ -358,35 +378,56 @@ function ventricularResultV1(
         Number.isFinite(sample.chamberVolumeMl[chamber]) &&
         Number.isFinite(sample.transmuralPressureMmHg[chamber]),
     );
-  const rawPathWorkMmHgMl = !pathGeometryAvailable
+  const rawTransmuralPathWorkMmHgMl = !pathGeometryAvailable
     ? null
-    : acceptedPathWorkV1(chamber, startBoundary!, samples);
-  const pathWorkMmHgMl =
-    rawPathWorkMmHgMl !== null && Number.isFinite(rawPathWorkMmHgMl)
-      ? rawPathWorkMmHgMl
+    : acceptedTransmuralPathWorkV1(chamber, startBoundary!, samples);
+  const transmuralPathWorkMmHgMl =
+    rawTransmuralPathWorkMmHgMl !== null &&
+    Number.isFinite(rawTransmuralPathWorkMmHgMl)
+      ? rawTransmuralPathWorkMmHgMl
       : null;
-  const externalWorkComputed =
-    sharedEligibility && closure.withinTolerance && pathWorkMmHgMl !== null;
+  const transmuralBoundaryWorkComputed =
+    sharedInputGatesPassed &&
+    closure.withinTolerance &&
+    transmuralPathWorkMmHgMl !== null;
   const failureReasons = [...sharedFailureReasons];
+  if (
+    (startCandidate !== null &&
+      !pressureVolumePointIsFiniteV1(startCandidate)) ||
+    (endCandidate !== null && !pressureVolumePointIsFiniteV1(endCandidate))
+  ) {
+    pushUniqueFailureReasonV1(
+      failureReasons,
+      "pressure-volume-boundary-non-finite",
+    );
+  }
   if (closure.maximumNormalizedDelta !== null && !closure.withinTolerance) {
     failureReasons.push("pressure-volume-boundary-not-closed");
   }
-  if (rawPathWorkMmHgMl !== null && !Number.isFinite(rawPathWorkMmHgMl)) {
+  if (
+    rawTransmuralPathWorkMmHgMl !== null &&
+    !Number.isFinite(rawTransmuralPathWorkMmHgMl)
+  ) {
     failureReasons.push("path-work-non-finite");
   }
   return Object.freeze({
     chamber,
     pressureBasis: "ventricular-transmural" as const,
-    pathWorkMmHgMl,
-    externalWorkMmHgMl: externalWorkComputed ? pathWorkMmHgMl : null,
-    direction: pathWorkMmHgMl === null ? null : workDirectionV1(pathWorkMmHgMl),
+    transmuralPathWorkMmHgMl,
+    transmuralBoundaryWorkMmHgMl: transmuralBoundaryWorkComputed
+      ? transmuralPathWorkMmHgMl
+      : null,
+    pathWorkDirection:
+      transmuralPathWorkMmHgMl === null
+        ? null
+        : workDirectionV1(transmuralPathWorkMmHgMl),
     endpointClosure: closure,
-    externalWorkComputed,
+    transmuralBoundaryWorkComputed,
     failureReasons: Object.freeze(failureReasons),
   });
 }
 
-function acceptedPathWorkV1(
+function acceptedTransmuralPathWorkV1(
   chamber: "LV" | "RV",
   startBoundary: MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1,
   samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
@@ -413,11 +454,13 @@ function acceptedPathWorkV1(
 function endpointClosureV1(
   start: Readonly<{ volumeMl: number; pressureMmHg: number }> | null,
   end: Readonly<{ volumeMl: number; pressureMmHg: number }> | null,
-): MainWireIntegratedModelPeriodicVentricularExternalWorkV1["endpointClosure"] {
-  if (start === null || end === null) {
+): MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1["endpointClosure"] {
+  const finiteStart = finitePressureVolumePointOrNullV1(start);
+  const finiteEnd = finitePressureVolumePointOrNullV1(end);
+  if (finiteStart === null || finiteEnd === null) {
     return Object.freeze({
-      start,
-      end,
+      start: finiteStart,
+      end: finiteEnd,
       absoluteVolumeDeltaMl: null,
       absolutePressureDeltaMmHg: null,
       normalizedVolumeDelta: null,
@@ -426,25 +469,27 @@ function endpointClosureV1(
       withinTolerance: false,
     });
   }
-  const absoluteVolumeDeltaMl = Math.abs(end.volumeMl - start.volumeMl);
+  const absoluteVolumeDeltaMl = Math.abs(
+    finiteEnd.volumeMl - finiteStart.volumeMl,
+  );
   const absolutePressureDeltaMmHg = Math.abs(
-    end.pressureMmHg - start.pressureMmHg,
+    finiteEnd.pressureMmHg - finiteStart.pressureMmHg,
   );
   const normalizedVolumeDelta =
     absoluteVolumeDeltaMl /
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1
       .closure.volumeReferenceScaleMl;
   const normalizedPressureDelta =
     absolutePressureDeltaMmHg /
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1
       .closure.pressureReferenceScaleMmHg;
   const maximumNormalizedDelta = Math.max(
     normalizedVolumeDelta,
     normalizedPressureDelta,
   );
   return Object.freeze({
-    start,
-    end,
+    start: finiteStart,
+    end: finiteEnd,
     absoluteVolumeDeltaMl,
     absolutePressureDeltaMmHg,
     normalizedVolumeDelta,
@@ -452,13 +497,13 @@ function endpointClosureV1(
     maximumNormalizedDelta,
     withinTolerance:
       maximumNormalizedDelta <=
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1
         .closure.maximumNormalizedBoundaryDelta,
   });
 }
 
 function traceIsCompleteV1(
-  terminalCycle: MainWireIntegratedModelPeriodicExternalWorkEngineeringInputV1["terminalCycle"],
+  terminalCycle: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringInputV1["terminalCycle"],
   trace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3,
   startBoundary: MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 | null,
 ): boolean {
@@ -481,7 +526,7 @@ function traceIsCompleteV1(
     return false;
   }
   const clockToleranceSec =
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_EXTERNAL_WORK_ENGINEERING_POLICY_V1
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1
       .closure.clockToleranceSec;
   const expectedDurationSec = trace.endTimeSec - trace.startTimeSec;
   if (!Number.isFinite(expectedDurationSec) || expectedDurationSec <= 0) {
@@ -532,6 +577,26 @@ function boundaryIsFiniteV1(
   ].every(Number.isFinite);
 }
 
+function finitePressureVolumePointOrNullV1(
+  point: Readonly<{ volumeMl: number; pressureMmHg: number }> | null,
+): Readonly<{ volumeMl: number; pressureMmHg: number }> | null {
+  if (point === null || !pressureVolumePointIsFiniteV1(point)) return null;
+  return point;
+}
+
+function pressureVolumePointIsFiniteV1(
+  point: Readonly<{ volumeMl: number; pressureMmHg: number }>,
+): boolean {
+  return Number.isFinite(point.volumeMl) && Number.isFinite(point.pressureMmHg);
+}
+
+function pushUniqueFailureReasonV1(
+  failureReasons: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1[],
+  reason: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkFailureReasonV1,
+): void {
+  if (!failureReasons.includes(reason)) failureReasons.push(reason);
+}
+
 function traceSamplePressureVolumeIsFiniteV1(
   sample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 ): boolean {
@@ -545,7 +610,7 @@ function traceSamplePressureVolumeIsFiniteV1(
 
 function workDirectionV1(
   workMmHgMl: number,
-): MainWireIntegratedModelPeriodicExternalWorkDirectionV1 {
+): MainWireIntegratedModelPeriodicPathWorkDirectionV1 {
   if (workMmHgMl > 0) return "net-work-by-ventricle";
   if (workMmHgMl < 0) return "net-work-on-ventricle";
   return "zero-net-work";
