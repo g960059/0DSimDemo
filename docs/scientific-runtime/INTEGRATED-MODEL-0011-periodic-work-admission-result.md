@@ -85,4 +85,3 @@ multi-load measurement protocol for event-defined end-systolic/end-diastolic
 points, ESPVR/EDPVR fit diagnostics, measured-domain and failure policy, and PE
 geometry. Only that layer can decide a PVA pressure-basis contract. An absolute
 PVA-to-MVO2 mapping remains a later fitting and held-out-validation project.
-
