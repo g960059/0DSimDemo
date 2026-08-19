@@ -44,10 +44,11 @@ Numerical development and confirmatory qualification are separate workflows:
 - **Confirmatory mode** is used only after the policy and held-out inputs are
   frozen. It owns immutable qualification evidence and must fail closed.
 
-The first rescue is limited to the periodic external-work analysis core and
-focused tests. Valve-event V2, ledger V2, passive solver V3, a 33 by 33 passive
-surface, PVA, myocardial oxygen consumption, ATP, and efficiency are outside
-that extraction.
+The first rescue is [PR560](https://github.com/g960059/0DSimDemo/pull/560),
+limited to the periodic external-work analysis core and focused tests.
+Valve-event V2, ledger V2, passive solver V3, a 33 by 33 passive surface, PVA,
+myocardial oxygen consumption, ATP, and efficiency are outside that
+extraction.
 
 Residual-merit Newton is the leading V3 candidate, not the selected policy. A
 future Engineering PR must compare it with declared alternatives and preserve
