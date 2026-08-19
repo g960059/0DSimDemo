@@ -1,0 +1,78 @@
+{
+  "schemaId": "main-wire-normal-adult-passive-equilibrium-point-solver-v2-engineering-archive-index-v1",
+  "attemptId": "main-wire-normal-adult-passive-equilibrium-point-solver-v2-engineering-reruns-v1",
+  "archiveRole": "forensic-only",
+  "eligibleAsFutureSurfaceInput": false,
+  "resultStatus": "failed",
+  "officialSealedEngineeringEvidenceEligible": false,
+  "declarationCommitSha": "03fa37844067031612436a5330e6d7cae8a1ff84",
+  "implementationCommitSha": "12311a3b45e45cc524015fea8f6e2ba5533b0987",
+  "observedSealCommitSha": "851a68c0743d6b4332991ea166478f4b8aed83f5",
+  "sealManifestSha256": "4dbfc7e7185ee1152d5095fb4db67a6d81b8e16254e8bc237febabbdb01a91a3",
+  "authoritativeCloneRecordSha256": "6a402d9a800d3eccb0feea1aa56d9d728b9ff0dbb71eef84fef3054ad20dd7a9",
+  "commonDirReservationSha256": "96609fb603e142ef3b527a9c458b62f89654b2a45ae7b5cc6c9eb24cf1e899de",
+  "compression": {
+    "format": "gzip",
+    "command": "gzip -n -9",
+    "implementation": "Apple gzip 479",
+    "headerTimestampOmitted": true,
+    "originalFileNameOmitted": true,
+    "losslessRawByteRoundTripRequired": true
+  },
+  "identityPolicy": {
+    "rawEvidenceCanonicalIdentity": "raw-envelope-schema-plus-raw-byte-size-plus-raw-sha256-plus-canonical-payload-sha256",
+    "archiveEncodingIdentity": "archive-path-plus-archive-byte-size-plus-archive-sha256-plus-git-blob-sha1",
+    "recompressionChangesArchiveIdentityOnlyWhenRawEvidenceCanonicalIdentityIsUnchanged": true
+  },
+  "files": [
+    {
+      "role": "official-failure-artifact",
+      "archiveRole": "forensic-only",
+      "eligibleAsFutureSurfaceInput": false,
+      "rawEvidenceCanonicalIdentity": {
+        "envelopeSchemaId": "main-wire-normal-adult-passive-equilibrium-point-solver-v2-engineering-evidence-v1",
+        "logicalPath": "docs/scientific-runtime/evidence/passive-equilibrium-point-solver-v2-engineering-reruns-v1.json",
+        "byteSize": 129222789,
+        "rawSha256": "78950480d083372cd1304c3cff80b40754d43ad024201885163121130d0426fe",
+        "canonicalPayloadSha256": "31871751324c11be828fb015a42a1aa591e193be43071b62e54f41576bbd84c3"
+      },
+      "archiveEncodingIdentity": {
+        "path": "docs/scientific-runtime/evidence/passive-equilibrium-point-solver-v2-engineering-reruns-v1.json.gz",
+        "byteSize": 8833227,
+        "sha256": "22de7c96a4421bf82192510856a20bf0763f8676771bcca465bd1e6d11524446",
+        "gitBlobSha1": "9efed1140bc75416c96a2952400cbb067b12978d"
+      },
+      "decompressedRawByteSizeVerified": true,
+      "decompressedRawSha256Verified": true
+    },
+    {
+      "role": "terminal-attempt-journal",
+      "archiveRole": "forensic-only",
+      "eligibleAsFutureSurfaceInput": false,
+      "rawEvidenceCanonicalIdentity": {
+        "envelopeSchemaId": "main-wire-normal-adult-passive-equilibrium-point-solver-v2-engineering-attempt-journal-v1",
+        "logicalPath": "docs/scientific-runtime/evidence/passive-equilibrium-point-solver-v2-engineering-reruns-v1.journal.json",
+        "byteSize": 39501361,
+        "rawSha256": "c46ea767b49c14094c81e41b8a9eb9483632d0980ecb1da9ac5a75a590bd014e",
+        "canonicalPayloadSha256": "c2c639e4762dacbdc5ad7c8468e9e5178670600d4fa1d51abd68252addda7362"
+      },
+      "archiveEncodingIdentity": {
+        "path": "docs/scientific-runtime/evidence/passive-equilibrium-point-solver-v2-engineering-reruns-v1.journal.json.gz",
+        "byteSize": 2694880,
+        "sha256": "2d5ebc1f6a29b2126bc4beb3f5959676d079b2791bf50dcd36c044cf0bf01689",
+        "gitBlobSha1": "82c18451752c5f884e6c02f51a3053cc091d66d2"
+      },
+      "decompressedRawByteSizeVerified": true,
+      "decompressedRawSha256Verified": true
+    }
+  ],
+  "archiveBoundary": {
+    "ordinaryRawGitBlobsIncluded": false,
+    "reason": "official artifact exceeds GitHub ordinary-blob 100 MiB limit",
+    "gitLfsUsed": false,
+    "githubImmutableReleaseUsed": false,
+    "githubImmutableReleaseRepositorySettingEnabledAtArchiveTime": false,
+    "archiveIsAResultRerun": false,
+    "archiveChangesScientificOutcome": false
+  }
+}

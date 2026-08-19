@@ -65,6 +65,11 @@ model:
   freezing a seven-byte `export ` insertion and separate historical/runtime
   blob identities so the unchanged pure Schur owner can be used by the
   manifest-bound V2 path without minting qualification.
+- [`INTEGRATED-MODEL-0021-passive-equilibrium-point-solver-v2-engineering-result.md`](./INTEGRATED-MODEL-0021-passive-equilibrium-point-solver-v2-engineering-result.md)
+  records the complete, independently replayed V2 engineering failure,
+  preserves the admitted reference root and failed primary/branch evidence in
+  a lossless archive, closes V2 without a surface claim, and limits subsequent
+  work to an artifact-only postmortem and a separately preregistered V3.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
