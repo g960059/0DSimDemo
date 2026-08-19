@@ -19,6 +19,9 @@ model:
   defines Standard-63 valve events and beat volumes, five-wall, pericardial,
   and coronary research controls, the whole-body oxygen observer, and their
   claim limits.
+- [`INTEGRATED-MODEL-0022-pr558-research-archive-retrospective.md`](./INTEGRATED-MODEL-0022-pr558-research-archive-retrospective.md)
+  records the unmerged PR558 research archive, its retained scientific and
+  numerical conclusions, and the smaller Engineering/Confirmatory work split.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
