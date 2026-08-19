@@ -22,6 +22,10 @@ model:
 - [`INTEGRATED-MODEL-0022-pr558-research-archive-retrospective.md`](./INTEGRATED-MODEL-0022-pr558-research-archive-retrospective.md)
   records the unmerged PR558 research archive, its retained scientific and
   numerical conclusions, and the smaller Engineering/Confirmatory work split.
+- [`INTEGRATED-MODEL-0023-periodic-pressure-basis-engineering.md`](./INTEGRATED-MODEL-0023-periodic-pressure-basis-engineering.md)
+  defines the recovered cavity/transmural/external-constraint work
+  decomposition, exact prior-cycle endpoint integration, verification scope,
+  and nonclaim boundary.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

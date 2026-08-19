@@ -60,6 +60,14 @@ import {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import { MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
+import type {
+  MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringResultV1,
+  MainWireIntegratedModelPeriodicPressureBasisPathPointCandidateV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1";
+import type {
+  MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1,
+  MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1";
 import {
   normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
@@ -79,6 +87,8 @@ import {
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID =
   "main-wire-integrated-composed-regular-sinus-all-off-periodic-steady-v3" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID =
+  "main-wire-integrated-model-periodic-condition-identity-engineering-v1" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   scope:
@@ -103,6 +113,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   healthyReferenceRole:
     "construction-context-not-independent-validation" as const,
   healthyReferencePassIsPhysiologicalValidation: false as const,
+  terminalPressureBasisEngineeringProjection:
+    "exact-prior-cycle-terminal-endpoint-plus-current-raw-accepted-endpoint-path-with-no-official-or-pva-claim" as const,
   numericalPeriodicityIsPhysiologicalAcceptance: false as const,
   normalConstructionTargetIsIndependentValidation: false as const,
   patientFittingApplied: false as const,
@@ -272,6 +284,8 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   experimentId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID;
   executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3;
   protocolIdentityHash: string;
+  modelConditionIdentityId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID;
+  modelConditionIdentityHash: string;
   nominalDtSec: number;
   cycleLengthSec: number;
   requestedMaximumCycleCount: number;
@@ -289,7 +303,15 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   releaseAcceptanceEstablished: false;
   cycles: readonly MainWireIntegratedModelPeriodicSteadyCycleV3[];
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
+  /**
+   * Exact terminal accepted endpoint of the cycle immediately preceding the
+   * retained terminal trace. This is the missing left endpoint of the first
+   * path segment; it remains null when only one cycle was executed.
+   */
+  terminalCycleStartTraceSample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null;
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
+  terminalTransmuralBoundaryWorkEngineering: MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1;
+  terminalPressureBasisDecompositionEngineering: MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringResultV1;
   terminalHealthyReferenceProjection: MainWireIntegratedModelHealthyReferenceProjectionV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
@@ -447,6 +469,21 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     resolved.ventricularContractilityScale,
     resolved.mechanismResearchInputs,
   );
+  const modelConditionIdentityHash = await sha256CanonicalJsonHex(
+    Object.freeze({
+      conditionIdentityId:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID,
+      experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+      hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
+      ventricularContractilityScale: fixture.ventricularContractilityScale,
+      mechanismResearchInputs: fixture.mechanismResearchInputs,
+      provider: providerIdentity(fixture.provider),
+      composedRhythmConfiguration: fixture.rhythm.configuration,
+      dynamicMechanicalSupportProfile: fixture.profile,
+      dynamicMechanicalSupportConfig: fixture.config,
+      coronaryStepInput: fixture.coronaryStepInput,
+    }),
+  );
   const protocolIdentityHash = await sha256CanonicalJsonHex(
     Object.freeze({
       experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
@@ -482,6 +519,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   );
   let terminalTraceSamples: MainWireIntegratedModelPeriodicTerminalTraceSampleV3[] =
     [];
+  let previousCycleTerminalTraceSample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null =
+    null;
+  let terminalCycleStartTraceSample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3 | null =
+    null;
   const allAtrialCaptureIds = new Set<string>();
   const allVentricularCaptureIds = new Set<string>();
   const allDepositIds = new Set<string>();
@@ -492,6 +533,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     zeroBasedCycleIndex += 1
   ) {
     const start = accepted;
+    terminalCycleStartTraceSample = previousCycleTerminalTraceSample;
     const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       fixture,
       start,
@@ -550,6 +592,13 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     );
     cycles.push(buildCycleSummary(cycleIndex, run, period1, period2));
     terminalTraceSamples = [...run.traceSamples];
+    const terminalTraceSample = run.traceSamples.at(-1);
+    if (terminalTraceSample === undefined) {
+      throw new Error(
+        "V3 periodic cycle lacks a terminal accepted trace sample",
+      );
+    }
+    previousCycleTerminalTraceSample = terminalTraceSample;
     boundaries.push(accepted);
     if (boundaries.length > 3) boundaries.shift();
     if (
@@ -582,6 +631,48 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   const canonicalPeriod1 =
     resolved.executionPurpose === "canonical-evidence" &&
     classification.status === "period1-converged";
+  const terminalObservation = observations.at(-1);
+  if (terminalObservation === undefined) {
+    throw new Error("V3 periodic experiment lacks terminal P1/P2 evidence");
+  }
+  const {
+    projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1,
+  } =
+    await import("@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1");
+  const {
+    projectMainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1,
+  } =
+    await import("@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1");
+  const terminalTransmuralBoundaryWorkEngineering =
+    projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1({
+      executionPurpose: resolved.executionPurpose,
+      protocolIdentityHash,
+      modelConditionIdentityHash,
+      classification,
+      terminalObservation,
+      terminalCycle,
+      terminalTrace: terminalCycleTrace,
+      startBoundary:
+        terminalCycleStartTraceSample === null
+          ? null
+          : periodicTransmuralBoundaryCandidateV1(
+              terminalCycleStartTraceSample,
+            ),
+    });
+  const terminalPressureBasisDecompositionEngineering =
+    projectMainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1(
+      {
+        startPoint:
+          terminalCycleStartTraceSample === null
+            ? null
+            : periodicPressureBasisPointCandidateV1(
+                terminalCycleStartTraceSample,
+              ),
+        orderedEndpointCandidates: terminalCycleTrace.samples.map(
+          periodicPressureBasisPointCandidateV1,
+        ),
+      },
+    );
   const terminalHealthyReferenceProjection = healthyReferenceProjection(
     terminalCycleTrace,
     resolved.executionPurpose,
@@ -617,6 +708,9 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
     executionPurpose: resolved.executionPurpose,
     protocolIdentityHash,
+    modelConditionIdentityId:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID,
+    modelConditionIdentityHash,
     nominalDtSec: resolved.nominalDtSec,
     cycleLengthSec: fixture.cycleLengthSec,
     requestedMaximumCycleCount: resolved.maximumCycleCount,
@@ -640,7 +734,10 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     releaseAcceptanceEstablished: false as const,
     cycles,
     observations,
+    terminalCycleStartTraceSample,
     terminalCycleTrace,
+    terminalTransmuralBoundaryWorkEngineering,
+    terminalPressureBasisDecompositionEngineering,
     terminalHealthyReferenceProjection,
     terminalAcceptedState: accepted,
     terminalCheckpoint,
@@ -1599,6 +1696,48 @@ function providerIdentity(provider: Provider) {
     parameterSetId: provider.parameterSetId,
     parameterIdentityHash: provider.parameterIdentityHash,
     stateSchemaVersion: provider.stateSchemaVersion,
+  });
+}
+
+/**
+ * The attached Engineering projectors own fail-closed data validation. Keep
+ * this runner mapper nonthrowing so an optional analysis surface cannot abort
+ * an otherwise valid periodic/checkpoint result.
+ */
+function periodicTransmuralBoundaryCandidateV1(
+  sample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+): MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1 {
+  return Object.freeze({
+    source: "caller-projected-trace-sample" as const,
+    acceptedTimeSec: sample.acceptedTimeSec,
+    chamberVolumeMl: Object.freeze({
+      LV: sample.chamberVolumeMl.LV,
+      RV: sample.chamberVolumeMl.RV,
+    }),
+    transmuralPressureMmHg: Object.freeze({
+      LV: sample.transmuralPressureMmHg.LV,
+      RV: sample.transmuralPressureMmHg.RV,
+    }),
+  });
+}
+
+function periodicPressureBasisPointCandidateV1(
+  sample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+): MainWireIntegratedModelPeriodicPressureBasisPathPointCandidateV1 {
+  return Object.freeze({
+    source: "caller-projected-pressure-basis-point" as const,
+    chamberVolumeMl: Object.freeze({
+      LV: sample.chamberVolumeMl.LV,
+      RV: sample.chamberVolumeMl.RV,
+    }),
+    absolutePressureMmHg: Object.freeze({
+      LV: sample.absolutePressureMmHg.LV,
+      RV: sample.absolutePressureMmHg.RV,
+    }),
+    transmuralPressureMmHg: Object.freeze({
+      LV: sample.transmuralPressureMmHg.LV,
+      RV: sample.transmuralPressureMmHg.RV,
+    }),
   });
 }
 
