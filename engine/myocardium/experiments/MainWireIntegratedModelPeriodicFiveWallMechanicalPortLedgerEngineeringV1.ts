@@ -53,6 +53,9 @@ import {
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_ENGINEERING_V1_ID =
   "main-wire-integrated-model-periodic-five-wall-mechanical-port-ledger-engineering-v1" as const;
 
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_MECHANICAL_PORT_LEDGER_DT_ACCESS_V1_ID =
+  "main-wire-integrated-model-periodic-mechanical-port-ledger-1ms-0.5ms-0.25ms-access-v1" as const;
+
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_ENGINEERING_V1_CLAIM =
   deepFreeze({
     scientificInterpretation:
@@ -162,6 +165,47 @@ export function runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayV1(
   observer?: MainWireIntegratedModelMechanicalPortAcceptedSuccessObserverV1,
 ): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
   assertNominalDt(nominalDtSec);
+  return runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayWithBoundV1(
+    fixture,
+    initial,
+    cycleIndex,
+    nominalDtSec,
+    MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun,
+    observer,
+  );
+}
+
+/**
+ * Analysis-only replay access for the prospectively declared three-grid
+ * mechanical-port characterization. It does not widen Standard V3.
+ */
+export function runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayForDtCharacterizationV1(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: 0.001 | 0.0005 | 0.00025,
+  numericalAccessId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_MECHANICAL_PORT_LEDGER_DT_ACCESS_V1_ID,
+  observer?: MainWireIntegratedModelMechanicalPortAcceptedSuccessObserverV1,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
+  assertCharacterizationNumericalAccessV1(numericalAccessId);
+  return runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayWithBoundV1(
+    fixture,
+    initial,
+    cycleIndex,
+    nominalDtSec,
+    characterizationMaximumAcceptedStepCountV1(nominalDtSec),
+    observer,
+  );
+}
+
+function runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayWithBoundV1(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: number,
+  maximumAcceptedStepCount: number,
+  observer?: MainWireIntegratedModelMechanicalPortAcceptedSuccessObserverV1,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
     throw new Error("mechanical-port replay cycle index must be positive");
   }
@@ -200,10 +244,7 @@ export function runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayV1(
     [];
 
   while (accepted.acceptedTimeSec < endTimeSec) {
-    if (
-      acceptedStepCount >=
-      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
-    ) {
+    if (acceptedStepCount >= maximumAcceptedStepCount) {
       throw new Error("mechanical-port replay exceeded accepted-step bound");
     }
     const nominalTargetTimeSec = Math.min(
@@ -398,13 +439,62 @@ export async function continueMainWireIntegratedModelPeriodicMechanicalPortLedge
     nominalDtSec: number;
   }>,
 ): Promise<MainWireIntegratedModelPeriodicMechanicalPortContinuationV1> {
+  assertNominalDt(input.nominalDtSec);
+  return continueMainWireIntegratedModelPeriodicMechanicalPortLedgerWithReplayV1(
+    input,
+    runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayV1,
+  );
+}
+
+/** Exact-checkpoint continuation through the declared three-grid access. */
+export async function continueMainWireIntegratedModelPeriodicMechanicalPortLedgerForDtCharacterizationV1(
+  input: Readonly<{
+    fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3;
+    sourceCheckpoint: MainWireIntegratedModelCheckpointV3;
+    sourceCycleIndex: number;
+    nominalDtSec: 0.001 | 0.0005 | 0.00025;
+    numericalAccessId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_MECHANICAL_PORT_LEDGER_DT_ACCESS_V1_ID;
+  }>,
+): Promise<MainWireIntegratedModelPeriodicMechanicalPortContinuationV1> {
+  assertCharacterizationNumericalAccessV1(input.numericalAccessId);
+  characterizationMaximumAcceptedStepCountV1(input.nominalDtSec);
+  return continueMainWireIntegratedModelPeriodicMechanicalPortLedgerWithReplayV1(
+    input,
+    (fixture, initial, cycleIndex, nominalDtSec, observer) =>
+      runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayForDtCharacterizationV1(
+        fixture,
+        initial,
+        cycleIndex,
+        nominalDtSec as 0.001 | 0.0005 | 0.00025,
+        input.numericalAccessId,
+        observer,
+      ),
+  );
+}
+
+type MechanicalPortCycleReplayV1 = (
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: number,
+  observer?: MainWireIntegratedModelMechanicalPortAcceptedSuccessObserverV1,
+) => MainWireIntegratedModelRegularSinusAllOffCycleRunV3;
+
+async function continueMainWireIntegratedModelPeriodicMechanicalPortLedgerWithReplayV1(
+  input: Readonly<{
+    fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3;
+    sourceCheckpoint: MainWireIntegratedModelCheckpointV3;
+    sourceCycleIndex: number;
+    nominalDtSec: number;
+  }>,
+  replayCycle: MechanicalPortCycleReplayV1,
+): Promise<MainWireIntegratedModelPeriodicMechanicalPortContinuationV1> {
   if (
     !Number.isSafeInteger(input.sourceCycleIndex) ||
     input.sourceCycleIndex < 0
   ) {
     throw new Error("mechanical-port source cycle index must be nonnegative");
   }
-  assertNominalDt(input.nominalDtSec);
   const context =
     createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
       input.fixture,
@@ -432,42 +522,40 @@ export async function continueMainWireIntegratedModelPeriodicMechanicalPortLedge
 
   let bridgeTerminalEndpoint: MainWireFiveWallMechanicalPortAcceptedEndpointV1 | null =
     null;
-  const bridgeCycle =
-    runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayV1(
-      input.fixture,
-      restoredSource,
-      input.sourceCycleIndex + 1,
-      input.nominalDtSec,
-      (observation) => {
-        bridgeTerminalEndpoint = endpointFromAcceptedSuccess(
-          observation,
-          input.fixture.provider,
-        );
-      },
-    );
+  const bridgeCycle = replayCycle(
+    input.fixture,
+    restoredSource,
+    input.sourceCycleIndex + 1,
+    input.nominalDtSec,
+    (observation) => {
+      bridgeTerminalEndpoint = endpointFromAcceptedSuccess(
+        observation,
+        input.fixture.provider,
+      );
+    },
+  );
   if (bridgeTerminalEndpoint === null) {
     throw new Error("mechanical-port bridge cycle lacks accepted readback");
   }
   const measurementAcceptedIntervals: MainWireFiveWallMechanicalPortAcceptedIntervalV1[] =
     [];
   let previousEndpoint = bridgeTerminalEndpoint;
-  const measurementCycle =
-    runMainWireIntegratedModelPeriodicMechanicalPortCycleReplayV1(
-      input.fixture,
-      bridgeCycle.terminalAcceptedState,
-      input.sourceCycleIndex + 2,
-      input.nominalDtSec,
-      (observation) => {
-        const next = endpointFromAcceptedSuccess(
-          observation,
-          input.fixture.provider,
-        );
-        measurementAcceptedIntervals.push(
-          Object.freeze({ previous: previousEndpoint, next }),
-        );
-        previousEndpoint = next;
-      },
-    );
+  const measurementCycle = replayCycle(
+    input.fixture,
+    bridgeCycle.terminalAcceptedState,
+    input.sourceCycleIndex + 2,
+    input.nominalDtSec,
+    (observation) => {
+      const next = endpointFromAcceptedSuccess(
+        observation,
+        input.fixture.provider,
+      );
+      measurementAcceptedIntervals.push(
+        Object.freeze({ previous: previousEndpoint, next }),
+      );
+      previousEndpoint = next;
+    },
+  );
   if (
     measurementAcceptedIntervals.length !== measurementCycle.acceptedStepCount
   ) {
@@ -925,6 +1013,30 @@ function assertNominalDt(nominalDtSec: number): void {
   ) {
     throw new RangeError("mechanical-port nominal dt is outside V3 policy");
   }
+}
+
+function characterizationMaximumAcceptedStepCountV1(
+  nominalDtSec: 0.001 | 0.0005 | 0.00025,
+): number {
+  if (nominalDtSec === 0.001)
+    return MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun;
+  if (nominalDtSec === 0.0005) return 2_200;
+  if (nominalDtSec === 0.00025) return 4_400;
+  throw new RangeError(
+    "mechanical-port characterization nominal dt is not declared",
+  );
+}
+
+function assertCharacterizationNumericalAccessV1(
+  numericalAccessId: string,
+): asserts numericalAccessId is typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_MECHANICAL_PORT_LEDGER_DT_ACCESS_V1_ID {
+  if (
+    numericalAccessId !==
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_MECHANICAL_PORT_LEDGER_DT_ACCESS_V1_ID
+  )
+    throw new Error(
+      "mechanical-port characterization numerical access differs",
+    );
 }
 
 function assertAllOffAcceptedFlow(state: AcceptedState): void {
