@@ -30,6 +30,14 @@ model:
   defines the accepted-interval five-wall mechanical-port, passive-storage,
   SLS-dissipation, cavity-work, and pericardial-work ledger; its exact
   checkpoint bridge; verification scope; and nonclaim boundary.
+- [`INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md`](./INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md)
+  freezes the repeatable V3 point-solver comparison policies, manufactured and
+  normal-adult corpora, historical-failure diagnostics, ranking rule, and
+  nonclaim boundary before any V3 normal-adult evaluation.
+- [`INTEGRATED-MODEL-0026-passive-equilibrium-point-solver-v3-engineering-result.md`](./INTEGRATED-MODEL-0026-passive-equilibrium-point-solver-v3-engineering-result.md)
+  records the completed fixed-corpus comparison, residual-merit Newton's
+  Engineering lead, the archive-failure diagnostics, and the still-negative
+  solver-selection, surface, branch, PVA, official, and public claims.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
