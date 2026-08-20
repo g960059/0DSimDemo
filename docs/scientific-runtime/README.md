@@ -26,6 +26,10 @@ model:
   defines the recovered cavity/transmural/external-constraint work
   decomposition, exact prior-cycle endpoint integration, verification scope,
   and nonclaim boundary.
+- [`INTEGRATED-MODEL-0024-periodic-five-wall-mechanical-port-ledger-engineering.md`](./INTEGRATED-MODEL-0024-periodic-five-wall-mechanical-port-ledger-engineering.md)
+  defines the accepted-interval five-wall mechanical-port, passive-storage,
+  SLS-dissipation, cavity-work, and pericardial-work ledger; its exact
+  checkpoint bridge; verification scope; and nonclaim boundary.
 - [`INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md`](./INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md)
   freezes the repeatable V3 point-solver comparison policies, manufactured and
   normal-adult corpora, historical-failure diagnostics, ranking rule, and
