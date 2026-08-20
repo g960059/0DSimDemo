@@ -58,6 +58,20 @@ model:
   approximately first-order decay of nontrivial backward-Euler and conjugacy
   residuals, finite-limit observations, closure boundary, compact evidence
   locks, and still-negative qualification, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0031-transient-systemic-venous-return-reduction.md`](./INTEGRATED-MODEL-0031-transient-systemic-venous-return-reduction.md)
+  prospectively freezes one reversible `VC_RA` resistance intervention, its
+  canonical period-1 source, fixed baseline/ramp/plateau/release/recovery
+  schedule, compact biventricular loop family, method-specific isochronal,
+  closure, minimum-volume, support-envelope and hysteresis comparisons, and
+  still-negative ESPVR, EDPVR, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md`](./INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md)
+  prospectively separates producer-time raw projection replay from compact
+  artifact replay and requires post-result exact locks before merge.
+- [`INTEGRATED-MODEL-0033-transient-systemic-venous-return-reduction-result.md`](./INTEGRATED-MODEL-0033-transient-systemic-venous-return-reduction-result.md)
+  retains the single execution as a scientific `landmark-unavailable` failure:
+  the source and all 21 trajectory beats passed, but the strict LV beat-1
+  positive-to-nonpositive semilunar-flow crossing was unavailable, so no PV
+  relation or ESPVR/PVA claim was established.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

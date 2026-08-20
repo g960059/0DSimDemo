@@ -5,7 +5,7 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 98;
+export const FAST_SUITE_FILE_BUDGET = 99;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
@@ -48,6 +48,7 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtCharacterizationV1.test.ts",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelRapidPressureVolumeRelationV3.test.ts",
+  "__tests__/mainWireIntegratedModelTransientVenousReturnReductionV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
   "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
