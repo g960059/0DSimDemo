@@ -58,6 +58,12 @@ model:
   approximately first-order decay of nontrivial backward-Euler and conjugacy
   residuals, finite-limit observations, closure boundary, compact evidence
   locks, and still-negative qualification, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0031-transient-systemic-venous-return-reduction.md`](./INTEGRATED-MODEL-0031-transient-systemic-venous-return-reduction.md)
+  prospectively freezes one reversible `VC_RA` resistance intervention, its
+  canonical period-1 source, fixed baseline/ramp/plateau/release/recovery
+  schedule, compact biventricular loop family, method-specific isochronal,
+  closure, minimum-volume, support-envelope and hysteresis comparisons, and
+  still-negative ESPVR, EDPVR, PVA, official, and public claims.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
