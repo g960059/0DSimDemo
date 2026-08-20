@@ -80,6 +80,10 @@ model:
   replaces only the dynamic diastolic reference with a zero-clamped intrinsic
   passive center slice, quantifies the paired PVA change, and leaves the
   external-work and systolic methods unchanged.
+- [`INTEGRATED-MODEL-0036-pva-common-pericardium-reference-result.md`](./INTEGRATED-MODEL-0036-pva-common-pericardium-reference-result.md)
+  adds the default common pericardium at one fixed normal-prior condition,
+  finds the full sampled reference in its exact slack branch, and records the
+  resulting zero PVA change without mixing pressure bases.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
