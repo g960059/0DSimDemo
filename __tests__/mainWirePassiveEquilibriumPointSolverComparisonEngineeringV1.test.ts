@@ -64,6 +64,17 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
           };
           completedRankedCases: number;
           manufacturedOutcomesPassed: boolean;
+          manufacturedCases: readonly {
+            caseId: string;
+            actualStatus: string;
+            expectedOutcomePassed: boolean;
+            summary: {
+              failureReason: string | null;
+              iterationDecisions: readonly {
+                selectedReason: string | null;
+              }[];
+            };
+          }[];
         }[];
         claims: Record<string, boolean>;
       };
@@ -92,6 +103,33 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
     expect(Object.values(report.payload.claims).every((claim) => !claim)).toBe(
       true,
     );
+    for (const summary of report.payload.policySummaries) {
+      const saddle = summary.manufacturedCases.find(
+        (testCase) => testCase.caseId === "saddle-control",
+      )!;
+      const constantResidual = summary.manufacturedCases.find(
+        (testCase) => testCase.caseId === "constant-residual-control",
+      )!;
+      expect(saddle.expectedOutcomePassed).toBe(true);
+      expect(saddle.summary.failureReason).toBe(
+        "scaled-internal-hessian-not-positive-definite",
+      );
+      expect(constantResidual.expectedOutcomePassed).toBe(true);
+      expect(constantResidual.actualStatus).toBe("point-solve-failed");
+    }
+    const componentEnergy = report.payload.policySummaries.find(
+      (summary) =>
+        summary.policyId ===
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_COMPONENT_ENERGY_TERMINAL_ROOT_GUARD_V3_ID,
+    )!;
+    for (const testCase of componentEnergy.manufacturedCases) {
+      const selectedReason =
+        testCase.summary.iterationDecisions.at(-1)?.selectedReason ?? null;
+      if (testCase.caseId === "large-energy-offset-1e16")
+        expect(selectedReason).toBe("terminal-root-guard-satisfied");
+      else if (testCase.caseId.startsWith("large-energy-offset-"))
+        expect(selectedReason).toBe("component-energy-armijo-satisfied");
+    }
 
     const residual = report.payload.policySummaries.find(
       (summary) =>
@@ -357,6 +395,23 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
         rhsJ: Number.NEGATIVE_INFINITY,
       }).available,
     ).toBe(false);
+
+    const decreasing =
+      evaluateMainWirePassiveEquilibriumComponentEnergyComparisonV3({
+        currentWallStoredEnergyJ: { LVFW: 1, SEP: 0, RVFW: 0 },
+        trialWallStoredEnergyJ: { LVFW: 0.5, SEP: 0, RVFW: 0 },
+        rhsJ: -0.1,
+      });
+    const reversed =
+      evaluateMainWirePassiveEquilibriumComponentEnergyComparisonV3({
+        currentWallStoredEnergyJ: { LVFW: 0.5, SEP: 0, RVFW: 0 },
+        trialWallStoredEnergyJ: { LVFW: 1, SEP: 0, RVFW: 0 },
+        rhsJ: -0.1,
+      });
+    expect(decreasing.accepted).toBe(true);
+    expect(decreasing.exactSign).toBe(-1);
+    expect(reversed.accepted).toBe(false);
+    expect(reversed.exactSign).toBe(1);
   });
 
   it("fails closed on singular, non-finite, and bit-unchanged candidate paths", () => {
@@ -413,6 +468,66 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
         (trial) => trial.reason === "zero-coordinate-step",
       ),
     ).toBe(true);
+  });
+
+  it("evaluates a genuine one-ULP move without relaxing the force gate and retains the 48-update boundary", () => {
+    const initial = coordinates(0.5, 0.5);
+    const nextVolume = nextUp(initial.septalMidwallCapVolumeM3);
+    const scaledStep =
+      (nextVolume - initial.septalMidwallCapVolumeM3) / VOLUME_SCALE;
+    const oneUlp = solveMainWirePassiveEquilibriumPointEngineeringV3({
+      policyId:
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_COMPONENT_ENERGY_TERMINAL_ROOT_GUARD_V3_ID,
+      stageIndex: 0,
+      initialCoordinates: initial,
+      evaluateCandidate: (q) => {
+        const isInitial =
+          q.septalMidwallCapVolumeM3 === initial.septalMidwallCapVolumeM3;
+        return {
+          internalCoordinates: q,
+          wallStoredEnergyJ: { LVFW: 1e16, SEP: 1e16, RVFW: 1e16 },
+          scaledGradient: isInitial ? [-1e8 * scaledStep, 0] : [2e-10, 0],
+          scaledInternalHessian: [
+            [1e8, 0],
+            [0, 1e8],
+          ],
+        };
+      },
+    });
+    expect(oneUlp.status).toBe("point-solve-failed");
+    expect(oneUlp.failureReason).toBe("line-search-failed");
+    expect(
+      oneUlp.trace[0]!.trials[0]!.coordinates!.septalMidwallCapVolumeM3,
+    ).toBe(nextVolume);
+    expect(oneUlp.trace[0]!.trials[0]!.reason).toBe(
+      "component-energy-armijo-not-satisfied",
+    );
+
+    const iterationLimit = solveMainWirePassiveEquilibriumPointEngineeringV3({
+      policyId: MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+      stageIndex: 0,
+      initialCoordinates: coordinates(1, 1),
+      evaluateCandidate: (q) => {
+        const [x, y] = scaledCoordinates(q);
+        return {
+          internalCoordinates: q,
+          wallStoredEnergyJ: {
+            LVFW: 0.25 * x * x,
+            SEP: 0,
+            RVFW: 0.25 * y * y,
+          },
+          scaledGradient: [x, y],
+          scaledInternalHessian: [
+            [100, 0],
+            [0, 100],
+          ],
+        };
+      },
+    });
+    expect(iterationLimit.status).toBe("point-solve-failed");
+    expect(iterationLimit.failureReason).toBe("newton-iteration-limit");
+    expect(iterationLimit.acceptedUpdates).toBe(48);
+    expect(iterationLimit.trace).toHaveLength(48);
   });
 });
 
@@ -506,4 +621,12 @@ function terminalGuardNegativeEvaluator(): MainWirePassiveEquilibriumCandidateEv
       ],
     };
   };
+}
+
+function nextUp(value: number): number {
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  view.setFloat64(0, value, false);
+  view.setBigUint64(0, view.getBigUint64(0, false) + 1n, false);
+  return view.getFloat64(0, false);
 }
