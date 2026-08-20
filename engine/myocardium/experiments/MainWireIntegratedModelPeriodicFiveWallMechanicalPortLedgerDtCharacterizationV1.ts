@@ -318,8 +318,15 @@ export async function runMainWireIntegratedModelPeriodicFiveWallMechanicalPortLe
         exception: null,
       });
     } else {
-      const bindingsPassed = await sourceBindingsPassedV1(source, fixture);
-      if (!bindingsPassed) {
+      const bindingDiagnostics = await sourceBindingDiagnosticsV1(
+        {
+          modelConditionIdentityHash: source.modelConditionIdentityHash,
+          protocolIdentityHash: source.protocolIdentityHash,
+          terminalCheckpointSha256: source.terminalCheckpoint.checkpointSha256,
+        },
+        fixture,
+      );
+      if (!bindingDiagnostics.sourceBindingsMatched) {
         sourceOutcome = deepFreeze({
           status: "source-rejected" as const,
           failureClass: "shared-checkpoint-binding-failure" as const,
@@ -641,14 +648,12 @@ function assessmentV1(
             index
           ]!.maximumAcceptedStepCountPerCycle,
     );
-  const allThreeArmsAttemptedAfterSourceSuccess = sourceP1Established
-    ? armOutcomes.every(
-        (outcome) =>
-          outcome.status === "fulfilled" || outcome.status === "failed",
-      )
-    : armOutcomes.every(
-        (outcome) => outcome.status === "not-attempted-source-unavailable",
-      );
+  const allThreeArmsAttemptedAfterSourceSuccess =
+    sourceP1Established &&
+    armOutcomes.every(
+      (outcome) =>
+        outcome.status === "fulfilled" || outcome.status === "failed",
+    );
   const allThreeArmsFulfilled = armOutcomes.every(isFulfilledArmV1);
   const sharedCheckpoint =
     sourceOutcome.summary?.terminalCheckpointSha256 ?? null;
@@ -797,10 +802,23 @@ function isP1SourceV1(
   );
 }
 
-async function sourceBindingsPassedV1(
-  source: MainWireIntegratedModelPeriodicSteadyResultV3,
+type SourceBindingIdentityInputV1 = Readonly<{
+  modelConditionIdentityHash: string;
+  protocolIdentityHash: string;
+  terminalCheckpointSha256: string;
+}>;
+
+type SourceBindingDiagnosticsV1 = Readonly<{
+  conditionIdentityMatched: boolean;
+  protocolIdentityMatched: boolean;
+  checkpointIdentityFormatValid: boolean;
+  sourceBindingsMatched: boolean;
+}>;
+
+async function sourceBindingDiagnosticsV1(
+  identity: SourceBindingIdentityInputV1,
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
-): Promise<boolean> {
+): Promise<SourceBindingDiagnosticsV1> {
   const [conditionIdentityHash, protocolIdentityHash] = await Promise.all([
     sha256CanonicalJsonHex(
       createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1(
@@ -815,11 +833,22 @@ async function sourceBindingsPassedV1(
       }),
     ),
   ]);
-  return (
-    conditionIdentityHash === source.modelConditionIdentityHash &&
-    protocolIdentityHash === source.protocolIdentityHash &&
-    /^[0-9a-f]{64}$/.test(source.terminalCheckpoint.checkpointSha256)
+  const conditionIdentityMatched =
+    conditionIdentityHash === identity.modelConditionIdentityHash;
+  const protocolIdentityMatched =
+    protocolIdentityHash === identity.protocolIdentityHash;
+  const checkpointIdentityFormatValid = /^[0-9a-f]{64}$/.test(
+    identity.terminalCheckpointSha256,
   );
+  return {
+    conditionIdentityMatched,
+    protocolIdentityMatched,
+    checkpointIdentityFormatValid,
+    sourceBindingsMatched:
+      conditionIdentityMatched &&
+      protocolIdentityMatched &&
+      checkpointIdentityFormatValid,
+  };
 }
 
 function assertContinuationBindingV1(
@@ -908,9 +937,9 @@ function sourceOutcomeShapePassedV1(
     Array.isArray(summary.period1ClassifierInputs) &&
     summary.period1ClassifierInputs.length <=
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.consecutiveCycles &&
-    /^[0-9a-f]{64}$/.test(summary.protocolIdentityHash) &&
-    /^[0-9a-f]{64}$/.test(summary.modelConditionIdentityHash) &&
-    /^[0-9a-f]{64}$/.test(summary.terminalCheckpointSha256) &&
+    typeof summary.protocolIdentityHash === "string" &&
+    typeof summary.modelConditionIdentityHash === "string" &&
+    typeof summary.terminalCheckpointSha256 === "string" &&
     summary.terminalCheckpointExactRoundTripVerified === true &&
     summary.internallyOwnedSourceExecution === true &&
     summary.canonicalSourceAuthenticationEstablished === false &&
@@ -1075,26 +1104,19 @@ async function sourceIdentityReplayPassedV1(
 ): Promise<boolean> {
   if (outcome.status === "source-execution-failed") return true;
   const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
-  const [conditionIdentityHash, protocolIdentityHash] = await Promise.all([
-    sha256CanonicalJsonHex(
-      createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1(
-        fixture,
-      ),
-    ),
-    sha256CanonicalJsonHex(
-      createMainWireIntegratedModelPeriodicProtocolIdentityPayloadV3(fixture, {
-        executionPurpose: "canonical-evidence",
-        nominalDtSec: 0.001,
-        maximumCycleCount: 250,
-      }),
-    ),
-  ]);
+  const bindingDiagnostics = await sourceBindingDiagnosticsV1(
+    outcome.summary,
+    fixture,
+  );
+  const bindingOutcomePassed =
+    outcome.failureClass === "shared-checkpoint-binding-failure"
+      ? !bindingDiagnostics.sourceBindingsMatched
+      : bindingDiagnostics.sourceBindingsMatched;
   return (
     outcome.summary.executionPurpose === "canonical-evidence" &&
     outcome.summary.nominalDtSec === 0.001 &&
     outcome.summary.requestedMaximumCycleCount === 250 &&
-    outcome.summary.modelConditionIdentityHash === conditionIdentityHash &&
-    outcome.summary.protocolIdentityHash === protocolIdentityHash
+    bindingOutcomePassed
   );
 }
 

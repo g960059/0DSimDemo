@@ -397,6 +397,12 @@ describe("periodic five-wall mechanical-port ledger dt characterization V1", () 
         (arm) => arm.status === "not-attempted-source-unavailable",
       ),
     ).toBe(true);
+    expect(report.payload.assessment).toMatchObject({
+      sourceP1Established: false,
+      allThreeArmsAttemptedAfterSourceSuccess: false,
+      threeGridMechanicalPortLedgerCharacterizationCompleted: false,
+      firstFailureClass: "source-not-p1",
+    });
     const audit =
       await auditMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
         report,
@@ -404,6 +410,65 @@ describe("periodic five-wall mechanical-port ledger dt characterization V1", () 
     expect(audit.status, canonicalJsonStringify(audit)).toBe(
       "report-audit-passed",
     );
+  });
+
+  it("retains and audits a shared-checkpoint binding failure without attempting an arm", async () => {
+    const calls: string[] = [];
+    const { dependencies } = await mockedDependencies(calls);
+    const runSource = dependencies.runSource;
+    const report =
+      await runMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtCharacterizationWithDependenciesV1(
+        { implementationCommitSha: IMPLEMENTATION_SHA },
+        {
+          ...dependencies,
+          runSource: async () => {
+            const source = clone(await runSource());
+            const firstHex = source.modelConditionIdentityHash[0]!;
+            mutable(source).modelConditionIdentityHash = `${
+              firstHex === "0" ? "1" : "0"
+            }${source.modelConditionIdentityHash.slice(1)}`;
+            return source;
+          },
+        },
+      );
+    expect(calls).toEqual(["source"]);
+    expect(report.payload.sourceOutcome).toMatchObject({
+      status: "source-rejected",
+      failureClass: "shared-checkpoint-binding-failure",
+      summary: {
+        classification: { status: "period1-converged" },
+        numericalPeriod1Established: true,
+      },
+    });
+    expect(
+      report.payload.armOutcomes.map((arm) => ({
+        status: arm.status,
+        failureClass: arm.failureClass,
+      })),
+    ).toEqual(
+      Array.from({ length: 3 }, () => ({
+        status: "not-attempted-source-unavailable",
+        failureClass: "shared-checkpoint-binding-failure",
+      })),
+    );
+    expect(report.payload.assessment).toMatchObject({
+      sourceP1Established: false,
+      allThreeArmsAttemptedAfterSourceSuccess: false,
+      allThreeArmsFulfilled: false,
+      threeGridMechanicalPortLedgerCharacterizationCompleted: false,
+      firstFailureClass: "shared-checkpoint-binding-failure",
+    });
+    expect(
+      await auditMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+        report,
+      ),
+    ).toMatchObject({
+      status: "report-audit-passed",
+      sourceOutcomeShapePassed: true,
+      sourceIdentityReplayPassed: true,
+      armOutcomeShapePassed: true,
+      assessmentReplayPassed: true,
+    });
   });
 
   it("independently replays a period2-suspect source rejection", async () => {

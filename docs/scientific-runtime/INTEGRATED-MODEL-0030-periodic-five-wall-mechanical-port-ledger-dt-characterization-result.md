@@ -220,29 +220,38 @@ cover classifier inputs, window indices, ledger endpoints, material binding,
 implementation identity, and the outer payload hash. The target model was not
 rerun while adding these archival locks.
 
-All downstream claims remain false, including:
+The payload retains the following exact machine-readable claim keys as false:
 
 ```text
-ledgerNumericallyQualified
-standardNominalDtChanged
-standardAcceptedStepBoundChanged
-canonicalPeriodicOwnerChanged
-sourceProvenanceVerified
+officialQualificationEstablished
+canonicalSourceAuthenticationEstablished
 historicalQualificationTransferred
+numericalPeriodicityEstablishedByCharacterization
+ledgerNumericallyQualified
+continuumLimitEstablished
+temporalConvergenceEstablished
+productionDtSelected
+continuousPowerEstablished
 activeStoredEnergyPotentialEstablished
 activationEnergyEstablished
-atpConsumptionEstablished
+atpUseEstablished
 heatEstablished
 mvo2Established
-wholeHeartTotalEnergyEstablished
-continuumEnergyIdentityEstablished
+mechanicalEfficiencyEstablished
+edpvrEstablished
+peEstablished
 pvaEstablished
-confirmatoryEligibilityEstablished
-officialQualificationEstablished
-publicCatalogEligibilityEstablished
+wholeHeartPvaEstablished
 physiologicalValidationEstablished
 clinicalValidationEstablished
+publicCatalogEligibilityEstablished
 ```
+
+Additional prose nonclaims are that the Standard nominal dt and accepted-step
+bounds were not changed, the canonical periodic owner was not changed, source
+provenance was not independently verified, no whole-heart total-energy or
+continuum energy identity was established, and no confirmatory eligibility was
+established.
 
 ## Interpretation
 
