@@ -372,6 +372,43 @@ describe("periodic ventricular transmural-boundary-work Engineering projection V
     ).toThrow("periodic PV boundary contains a nonfinite value");
   });
 
+  it("sanitizes closure metrics when finite endpoint subtraction overflows", () => {
+    const result =
+      projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1(
+        inputFromPath([
+          point(Number.MAX_VALUE, Number.MAX_VALUE),
+          point(-Number.MAX_VALUE, -Number.MAX_VALUE),
+        ]),
+      );
+
+    expect(result.status).toBe("input-gates-not-passed");
+    expect(result.leftVentricle).toMatchObject({
+      transmuralPathWorkMmHgMl: null,
+      transmuralBoundaryWorkMmHgMl: null,
+      failureReasons: [
+        "pressure-volume-boundary-non-finite",
+        "path-work-non-finite",
+      ],
+      endpointClosure: {
+        start: {
+          volumeMl: Number.MAX_VALUE,
+          pressureMmHg: Number.MAX_VALUE,
+        },
+        end: {
+          volumeMl: -Number.MAX_VALUE,
+          pressureMmHg: -Number.MAX_VALUE,
+        },
+        absoluteVolumeDeltaMl: null,
+        absolutePressureDeltaMmHg: null,
+        normalizedVolumeDelta: null,
+        normalizedPressureDelta: null,
+        maximumNormalizedDelta: null,
+        withinTolerance: false,
+      },
+    });
+    expect(allNumberLeavesAreFinite(result)).toBe(true);
+  });
+
   it("rejects a start boundary whose declared clock does not start the trace", () => {
     const candidate = inputFromPath([point(0, 0), point(1, 0), point(0, 0)]);
     const result =

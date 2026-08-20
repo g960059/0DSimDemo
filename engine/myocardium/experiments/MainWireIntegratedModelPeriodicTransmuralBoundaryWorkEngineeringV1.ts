@@ -394,7 +394,12 @@ function ventricularResultV1(
   if (
     (startCandidate !== null &&
       !pressureVolumePointIsFiniteV1(startCandidate)) ||
-    (endCandidate !== null && !pressureVolumePointIsFiniteV1(endCandidate))
+    (endCandidate !== null && !pressureVolumePointIsFiniteV1(endCandidate)) ||
+    (startCandidate !== null &&
+      endCandidate !== null &&
+      pressureVolumePointIsFiniteV1(startCandidate) &&
+      pressureVolumePointIsFiniteV1(endCandidate) &&
+      closure.maximumNormalizedDelta === null)
   ) {
     pushUniqueFailureReasonV1(
       failureReasons,
@@ -458,16 +463,7 @@ function endpointClosureV1(
   const finiteStart = finitePressureVolumePointOrNullV1(start);
   const finiteEnd = finitePressureVolumePointOrNullV1(end);
   if (finiteStart === null || finiteEnd === null) {
-    return Object.freeze({
-      start: finiteStart,
-      end: finiteEnd,
-      absoluteVolumeDeltaMl: null,
-      absolutePressureDeltaMmHg: null,
-      normalizedVolumeDelta: null,
-      normalizedPressureDelta: null,
-      maximumNormalizedDelta: null,
-      withinTolerance: false,
-    });
+    return unavailableEndpointClosureV1(finiteStart, finiteEnd);
   }
   const absoluteVolumeDeltaMl = Math.abs(
     finiteEnd.volumeMl - finiteStart.volumeMl,
@@ -487,6 +483,17 @@ function endpointClosureV1(
     normalizedVolumeDelta,
     normalizedPressureDelta,
   );
+  if (
+    ![
+      absoluteVolumeDeltaMl,
+      absolutePressureDeltaMmHg,
+      normalizedVolumeDelta,
+      normalizedPressureDelta,
+      maximumNormalizedDelta,
+    ].every(Number.isFinite)
+  ) {
+    return unavailableEndpointClosureV1(finiteStart, finiteEnd);
+  }
   return Object.freeze({
     start: finiteStart,
     end: finiteEnd,
@@ -499,6 +506,22 @@ function endpointClosureV1(
       maximumNormalizedDelta <=
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1
         .closure.maximumNormalizedBoundaryDelta,
+  });
+}
+
+function unavailableEndpointClosureV1(
+  start: Readonly<{ volumeMl: number; pressureMmHg: number }> | null,
+  end: Readonly<{ volumeMl: number; pressureMmHg: number }> | null,
+): MainWireIntegratedModelPeriodicVentricularTransmuralBoundaryWorkV1["endpointClosure"] {
+  return Object.freeze({
+    start,
+    end,
+    absoluteVolumeDeltaMl: null,
+    absolutePressureDeltaMmHg: null,
+    normalizedVolumeDelta: null,
+    normalizedPressureDelta: null,
+    maximumNormalizedDelta: null,
+    withinTolerance: false,
   });
 }
 
