@@ -137,10 +137,48 @@ describe("method-specific PVA research V1", () => {
       ),
     ).toThrow("exactly 21 beats");
   });
+
+  it("keeps a zero-slope relation local instead of aborting the study", () => {
+    const result = analyzeMainWireIntegratedModelMethodSpecificPvaResearchV1(
+      manufacturedBeatFamilyV1({ flatPressureVentricle: "LV" }),
+    );
+    const relation = result.systolicRelations.find(
+      (candidate) =>
+        candidate.ventricleId === "LV" &&
+        candidate.directionId === "occlusion" &&
+        candidate.methodId === "baseline-anchored-isochronal",
+    );
+
+    expect(result.status).toBe("completed");
+    expect(relation).toMatchObject({
+      status: "unavailable",
+      reason: expect.stringContaining("systolic relation fit is unavailable"),
+    });
+  });
+
+  it("requires raw accepted samples to retain the exact beat endpoints", () => {
+    const beats = [...manufacturedBeatFamilyV1()];
+    const first = beats[0]!;
+    const samples = [...first.samples];
+    samples[samples.length - 1] = Object.freeze({
+      ...samples.at(-1)!,
+      timeSec: first.endTimeSec - 1e-6,
+    });
+    beats[0] = Object.freeze({ ...first, samples: Object.freeze(samples) });
+
+    expect(() =>
+      analyzeMainWireIntegratedModelMethodSpecificPvaResearchV1(beats),
+    ).toThrow(
+      "accepted sample endpoints must match the retained beat interval",
+    );
+  });
 });
 
 function manufacturedBeatFamilyV1(
-  options: Readonly<{ missingLvClosureBeatOrdinal?: number }> = {},
+  options: Readonly<{
+    missingLvClosureBeatOrdinal?: number;
+    flatPressureVentricle?: "LV" | "RV";
+  }> = {},
 ): readonly MainWireIntegratedModelTransientPvRawBeatV1[] {
   return Object.freeze(
     Array.from({ length: 21 }, (_, beatIndex) => {
@@ -158,8 +196,15 @@ function manufacturedBeatFamilyV1(
               phase,
               load,
               options.missingLvClosureBeatOrdinal === beatOrdinal,
+              options.flatPressureVentricle === "LV",
             ),
-            RV: manufacturedVentricleV1("RV", phase, load, false),
+            RV: manufacturedVentricleV1(
+              "RV",
+              phase,
+              load,
+              false,
+              options.flatPressureVentricle === "RV",
+            ),
           });
         }),
       );
@@ -178,6 +223,7 @@ function manufacturedVentricleV1(
   phase: number,
   load: number,
   missingClosure: boolean,
+  flatPressure: boolean,
 ) {
   const scale = ventricleId === "LV" ? 1 : 0.42;
   const endDiastolicVolumeMl = scale * (145 - 24 * load);
@@ -190,7 +236,9 @@ function manufacturedVentricleV1(
     Math.max(0, volumeMl - scale * 70) ** 2;
   const activePressureMmHg =
     scale * (105 - 42 * load) * Math.sin(Math.PI * phase) ** 2;
-  const transmuralPressureMmHg = passivePressureMmHg + activePressureMmHg;
+  const transmuralPressureMmHg = flatPressure
+    ? 20
+    : passivePressureMmHg + activePressureMmHg;
   const semilunarFlowMlPerSec = missingClosure
     ? 1
     : 60 * scale * Math.sin(2 * Math.PI * (phase - 0.1));

@@ -84,6 +84,10 @@ model:
   adds the default common pericardium at one fixed normal-prior condition,
   finds the full sampled reference in its exact slack branch, and records the
   resulting zero PVA change without mixing pressure bases.
+- [`INTEGRATED-MODEL-0037-pva-geometry-domain-diagnostics-result.md`](./INTEGRATED-MODEL-0037-pva-geometry-domain-diagnostics-result.md)
+  separates accepted open-path work from synthetic closure, measures
+  systolic-line extrapolation, and reclassifies the existing PVA-like areas by
+  their actual passive-reference domains.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

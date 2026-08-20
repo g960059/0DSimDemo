@@ -593,7 +593,23 @@ function fitSystolicRelationV1(
       internal: null,
     });
   }
-  const relation = support?.relation ?? linearFitV1(points);
+  let relation: MainWireIntegratedModelPvaLinearRelationV1;
+  try {
+    relation = support?.relation ?? linearFitV1(points);
+  } catch (error) {
+    return Object.freeze({
+      outcome: Object.freeze({
+        status: "unavailable" as const,
+        ventricleId,
+        directionId,
+        methodId,
+        pointCount: points.length,
+        unavailablePointCount,
+        reason: `systolic relation fit is unavailable: ${errorMessageV1(error)}`,
+      }),
+      internal: null,
+    });
+  }
   const internal = Object.freeze({ relation, points });
   return Object.freeze({
     outcome: Object.freeze({
@@ -1158,6 +1174,8 @@ function ownRawBeatsV1(
   }
   return Object.freeze(
     rawBeats.map((beat, beatIndex) => {
+      requireFiniteV1(beat.startTimeSec, "beat.startTimeSec");
+      requireFiniteV1(beat.endTimeSec, "beat.endTimeSec");
       if (beat.beatOrdinal !== beatIndex + 1 || beat.samples.length < 2) {
         throw new Error(
           "transient beats must retain ordinal order and samples",
@@ -1168,6 +1186,15 @@ function ownRawBeatsV1(
         beat.startTimeSec !== rawBeats[beatIndex - 1]!.endTimeSec
       ) {
         throw new Error("transient beats must be contiguous");
+      }
+      if (
+        !(beat.endTimeSec > beat.startTimeSec) ||
+        beat.samples[0]!.timeSec !== beat.startTimeSec ||
+        beat.samples[beat.samples.length - 1]!.timeSec !== beat.endTimeSec
+      ) {
+        throw new Error(
+          "accepted sample endpoints must match the retained beat interval",
+        );
       }
       let previousTime = Number.NEGATIVE_INFINITY;
       for (const sample of beat.samples) {
@@ -1315,4 +1342,8 @@ function requireFiniteNumericLeavesV1(value: unknown, name: string): void {
   for (const child of Object.values(value)) {
     requireFiniteNumericLeavesV1(child, name);
   }
+}
+
+function errorMessageV1(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
