@@ -61,6 +61,7 @@
     "characterize:coronary:v3-structural-cmd-active-reserve:v2": "vite-node --script tools/scientific/runCoronaryV3StructuralCmdActiveReserveCharacterizationV2.ts --output artifacts/coronary-v3/structural-cmd-active-reserve-v2.json",
     "characterize:passive-equilibrium:point-solver-comparison:v1": "vite-node --script tools/scientific/runMainWireNormalAdultPassiveEquilibriumPointSolverComparisonEngineeringV1.ts --output artifacts/passive-equilibrium/point-solver-comparison-engineering-v1.json",
     "characterize:passive-equilibrium:intrinsic-ventricular-surface-pilot:v1": "vite-node --script tools/scientific/runMainWireIntrinsicVentricularPassiveReducedSurfacePilotV1.ts",
+    "characterize:mechanical-port-ledger:dt:v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtCharacterizationV1.ts",
     "render:coronary:v3-reduced-pressure-step-diagnostic:v1": "vite-node --script tools/scientific/renderCoronaryV3ReducedPressureStepArtifactsSvgV1.ts --v1-input artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json --v2-input artifacts/coronary-v3/reduced-pressure-step-numerical-v2.json --output artifacts/coronary-v3/reduced-pressure-step-raw-diagnostic-v1.svg",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
