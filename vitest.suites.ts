@@ -45,6 +45,7 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelMethodSpecificPvaResearchV1.test.ts",
   "__tests__/mainWireIntegratedModelPvaDiastolicReferenceComparisonV1.test.ts",
   "__tests__/mainWireIntegratedModelPvaCommonPericardiumReferenceV1.test.ts",
+  "__tests__/mainWireIntegratedModelPvaGeometryDomainDiagnosticsV2.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1.test.ts",
   "__tests__/mainWireFiveWallMechanicalPortLedgerEngineeringV1.test.ts",
