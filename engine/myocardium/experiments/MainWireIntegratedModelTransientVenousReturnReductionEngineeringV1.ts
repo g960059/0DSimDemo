@@ -270,6 +270,29 @@ type FailedTrajectoryV1 = Readonly<{
   failureEvidence: MainWireIntegratedModelTransientVenousReturnReductionFailureEvidenceV1;
 }>;
 
+export type MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1 =
+  | Readonly<{
+      status: "completed";
+      sourceOutcome: Extract<
+        MainWireIntegratedModelTransientVenousReturnReductionSourceOutcomeV1,
+        { status: "source-p1-established" }
+      >;
+      beatExecutions: readonly MainWireIntegratedModelTransientVenousReturnReductionBeatExecutionV1[];
+      rawBeats: readonly MainWireIntegratedModelTransientPvRawBeatV1[];
+      terminalAcceptedTimeSec: number;
+      terminalAcceptedRevision: number;
+      failureEvidence: null;
+    }>
+  | Readonly<{
+      status: "failed";
+      sourceOutcome: MainWireIntegratedModelTransientVenousReturnReductionSourceOutcomeV1;
+      beatExecutions: readonly MainWireIntegratedModelTransientVenousReturnReductionBeatExecutionV1[];
+      rawBeats: readonly MainWireIntegratedModelTransientPvRawBeatV1[];
+      terminalAcceptedTimeSec: null;
+      terminalAcceptedRevision: null;
+      failureEvidence: MainWireIntegratedModelTransientVenousReturnReductionFailureEvidenceV1;
+    }>;
+
 export type MainWireIntegratedModelTransientVenousReturnReductionManufacturedDependenciesV1 =
   Readonly<{
     runSource: () => Promise<MainWireIntegratedModelPeriodicSteadyResultV3>;
@@ -311,6 +334,149 @@ export async function runMainWireIntegratedModelTransientVenousReturnReductionEn
     input,
     OFFICIAL_TRANSIENT_VENOUS_RETURN_REDUCTION_DEPENDENCIES_V1,
   );
+}
+
+/**
+ * Research-only access to the already-owned source and accepted trajectory.
+ * It exposes raw beats in memory so downstream exploratory analyses do not
+ * need to copy the model loop or promote an incomplete V1 report.
+ */
+export async function runMainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1(): Promise<MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1> {
+  const failed = (
+    sourceOutcome: MainWireIntegratedModelTransientVenousReturnReductionSourceOutcomeV1,
+    beatExecutions: readonly MainWireIntegratedModelTransientVenousReturnReductionBeatExecutionV1[],
+    rawBeats: readonly MainWireIntegratedModelTransientPvRawBeatV1[],
+    failureEvidence: MainWireIntegratedModelTransientVenousReturnReductionFailureEvidenceV1,
+  ): MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1 =>
+    Object.freeze({
+      status: "failed" as const,
+      sourceOutcome,
+      beatExecutions: Object.freeze([...beatExecutions]),
+      rawBeats: Object.freeze([...rawBeats]),
+      terminalAcceptedTimeSec: null,
+      terminalAcceptedRevision: null,
+      failureEvidence,
+    });
+
+  let source: MainWireIntegratedModelPeriodicSteadyResultV3;
+  try {
+    source =
+      await OFFICIAL_TRANSIENT_VENOUS_RETURN_REDUCTION_DEPENDENCIES_V1.runSource();
+  } catch (error) {
+    const exception = sanitizeExceptionV1(error);
+    return failed(
+      Object.freeze({
+        status: "source-execution-failed" as const,
+        failureClass: "source-execution-failure" as const,
+        summary: null,
+        bindingDiagnostics: null,
+        exception,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-execution-failure",
+        message: "canonical source execution failed",
+        exception,
+      }),
+    );
+  }
+
+  let summary: MainWireIntegratedModelTransientVenousReturnReductionSourceSummaryV1;
+  try {
+    summary = sourceSummaryV1(source);
+  } catch (error) {
+    const exception = sanitizeExceptionV1(error);
+    return failed(
+      Object.freeze({
+        status: "source-execution-failed" as const,
+        failureClass: "source-execution-failure" as const,
+        summary: null,
+        bindingDiagnostics: null,
+        exception,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-execution-failure",
+        message: "canonical source summary construction failed",
+        exception,
+      }),
+    );
+  }
+  if (!sourceIsP1V1(source)) {
+    return failed(
+      Object.freeze({
+        status: "source-rejected" as const,
+        failureClass: "source-not-p1" as const,
+        summary,
+        bindingDiagnostics: null,
+        exception: null,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-not-p1",
+        message: "canonical source did not establish numerical period 1",
+      }),
+    );
+  }
+
+  const fixture =
+    OFFICIAL_TRANSIENT_VENOUS_RETURN_REDUCTION_DEPENDENCIES_V1.createFixture();
+  const binding =
+    await OFFICIAL_TRANSIENT_VENOUS_RETURN_REDUCTION_DEPENDENCIES_V1.bindAndRestoreSource(
+      source,
+      fixture,
+    );
+  if (binding.status === "binding-failed") {
+    return failed(
+      Object.freeze({
+        status: "source-rejected" as const,
+        failureClass: "source-binding-failure" as const,
+        summary,
+        bindingDiagnostics: binding.diagnostics,
+        exception: null,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-binding-failure",
+        message: binding.message,
+      }),
+    );
+  }
+
+  const sourceOutcome = Object.freeze({
+    status: "source-p1-established" as const,
+    failureClass: null,
+    summary,
+    bindingDiagnostics: binding.diagnostics,
+    exception: null,
+  });
+  const trajectory =
+    await OFFICIAL_TRANSIENT_VENOUS_RETURN_REDUCTION_DEPENDENCIES_V1.runTransientTrajectory(
+      fixture,
+      binding.restoredState,
+      source,
+    );
+  if ("failureEvidence" in trajectory) {
+    return failed(
+      sourceOutcome,
+      trajectory.beatExecutions,
+      trajectory.rawBeats,
+      trajectory.failureEvidence,
+    );
+  }
+  return Object.freeze({
+    status: "completed" as const,
+    sourceOutcome,
+    beatExecutions: trajectory.beatExecutions,
+    rawBeats: trajectory.rawBeats,
+    terminalAcceptedTimeSec: trajectory.terminalAcceptedTimeSec,
+    terminalAcceptedRevision: trajectory.terminalAcceptedRevision,
+    failureEvidence: null,
+  });
 }
 
 /**

@@ -72,6 +72,10 @@ model:
   the source and all 21 trajectory beats passed, but the strict LV beat-1
   positive-to-nonpositive semilunar-flow crossing was unavailable, so no PV
   relation or ESPVR/PVA claim was established.
+- [`INTEGRATED-MODEL-0034-method-specific-pva-research-result.md`](./INTEGRATED-MODEL-0034-method-specific-pva-research-result.md)
+  combines explicit systolic, dynamic maximum-volume diastolic, and area-rule
+  methods into the first research-only `EW + PE` calculation, reports method
+  spread and unavailable rows, and keeps generic PVA/ESPVR/EDPVR claims false.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
