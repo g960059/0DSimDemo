@@ -1,0 +1,5740 @@
+{
+  "studyId": "main-wire-integrated-model-method-specific-pva-research-v1",
+  "status": "completed",
+  "scope": "research-only-method-specific-pva",
+  "pressureBasis": "ventricular-transmural",
+  "externalWorkRule": "accepted-trapezoidal-path-plus-straight-endpoint-closure",
+  "potentialEnergyRule": "integral-of-systolic-line-minus-dynamic-maximum-volume-reference",
+  "trajectory": {
+    "beatCount": 21,
+    "fittingFamilies": {
+      "occlusionBeatOrdinals": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "releaseBeatOrdinals": [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ]
+    }
+  },
+  "beatSummary": [
+    {
+      "beatOrdinal": 1,
+      "phase": "baseline",
+      "resistanceScaleMidpoint": 1,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 0.000049906850222214416,
+          "deltaPressureMmHg": 0.0002443117642485504
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 9649.244362034173,
+          "straightClosureSegmentMmHgMl": 0.005890236308080399,
+          "closedLoopMmHgMl": 9649.250252270482
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 71.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 96.55300194069851,
+            "pressureMmHg": 118.62994031355403
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 71.109,
+            "phase01": 0.10899999999999466,
+            "volumeMl": 64.78495422919205,
+            "pressureMmHg": 99.76476115380463
+          },
+          "maximumVolume": {
+            "timeSec": 71.785,
+            "phase01": 0.7849999999999966,
+            "volumeMl": 155.51892447447682,
+            "pressureMmHg": 13.041869543549707
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -0.0007301730794040395,
+          "deltaPressureMmHg": -0.00012730238994862475
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3182.633170471286,
+          "straightClosureSegmentMmHgMl": -0.030777352163807625,
+          "closedLoopMmHgMl": 3182.602393119122
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 71.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 114.59057788903802,
+            "pressureMmHg": 44.05408944889583
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 71.18,
+            "phase01": 0.18000000000000682,
+            "volumeMl": 76.83351968369881,
+            "pressureMmHg": 12.806078663076415
+          },
+          "maximumVolume": {
+            "timeSec": 71.891,
+            "phase01": 0.8910000000000053,
+            "volumeMl": 167.565817343315,
+            "pressureMmHg": 3.450534215285005
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 2,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 1.1387886347566916,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 0.08474660466812622,
+          "deltaPressureMmHg": 0.05071154129107924
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 9659.133141609467,
+          "straightClosureSegmentMmHgMl": 10.00434374924456,
+          "closedLoopMmHgMl": 9669.137485358711
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 72.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 96.55307648601308,
+            "pressureMmHg": 118.63019748782806
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 72.109,
+            "phase01": 0.10899999999999466,
+            "volumeMl": 64.78512503288493,
+            "pressureMmHg": 99.76509482341184
+          },
+          "maximumVolume": {
+            "timeSec": 72.785,
+            "phase01": 0.7849999999999966,
+            "volumeMl": 155.6698458490313,
+            "pressureMmHg": 13.00542171976657
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -3.9597423070192974,
+          "deltaPressureMmHg": -0.6970275399318382
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3137.6120998771535,
+          "straightClosureSegmentMmHgMl": -165.52588137881432,
+          "closedLoopMmHgMl": 2972.0862184983393
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 72.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 114.58987857610938,
+            "pressureMmHg": 44.05397588599069
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 72.18,
+            "phase01": 0.18000000000000682,
+            "volumeMl": 76.8331325099378,
+            "pressureMmHg": 12.805982677779502
+          },
+          "maximumVolume": {
+            "timeSec": 72.891,
+            "phase01": 0.8910000000000053,
+            "volumeMl": 162.3810997825891,
+            "pressureMmHg": 3.0793052397379177
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 3,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 1.4768261459394991,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -0.3961431155854882,
+          "deltaPressureMmHg": -0.1079021979599446
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 9650.310317860269,
+          "straightClosureSegmentMmHgMl": -46.75339999217285,
+          "closedLoopMmHgMl": 9603.556917868096
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 73.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 96.62933648337615,
+            "pressureMmHg": 118.69049621453242
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 73.109,
+            "phase01": 0.10899999999999466,
+            "volumeMl": 64.82378564087709,
+            "pressureMmHg": 99.78917250256349
+          },
+          "maximumVolume": {
+            "timeSec": 73.783,
+            "phase01": 0.7830000000000013,
+            "volumeMl": 155.0141609095029,
+            "pressureMmHg": 12.654122731187304
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -8.228537086449066,
+          "deltaPressureMmHg": -1.4713757089692976
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 2947.7187849452243,
+          "straightClosureSegmentMmHgMl": -335.0494381789634,
+          "closedLoopMmHgMl": 2612.669346766261
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 73.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 110.81100645711186,
+            "pressureMmHg": 43.4071638222379
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 73.177,
+            "phase01": 0.1770000000000067,
+            "volumeMl": 75.24903713711706,
+            "pressureMmHg": 12.958461140849947
+          },
+          "maximumVolume": {
+            "timeSec": 73.892,
+            "phase01": 0.8919999999999959,
+            "volumeMl": 152.18965697434123,
+            "pressureMmHg": 2.486532538765607
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 4,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 1.9152065613971472,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -1.5469538549142356,
+          "deltaPressureMmHg": -0.5584575222556225
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 9544.185834686361,
+          "straightClosureSegmentMmHgMl": -182.0583820717793,
+          "closedLoopMmHgMl": 9362.127452614583
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 74.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 96.23960801771514,
+            "pressureMmHg": 118.59713016584817
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 74.109,
+            "phase01": 0.10899999999999466,
+            "volumeMl": 64.64630362849877,
+            "pressureMmHg": 99.63076319854021
+          },
+          "maximumVolume": {
+            "timeSec": 74.78,
+            "phase01": 0.7800000000000011,
+            "volumeMl": 152.6643641752364,
+            "pressureMmHg": 11.80922211966895
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -9.660708135874586,
+          "deltaPressureMmHg": -1.766405654818655
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 2646.9959944426173,
+          "straightClosureSegmentMmHgMl": -377.72492510732707,
+          "closedLoopMmHgMl": 2269.27106933529
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 74.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 102.92282292604312,
+            "pressureMmHg": 41.97164518484429
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 74.17,
+            "phase01": 0.1700000000000017,
+            "volumeMl": 71.71176381584876,
+            "pressureMmHg": 13.366496612031733
+          },
+          "maximumVolume": {
+            "timeSec": 74.893,
+            "phase01": 0.8930000000000007,
+            "volumeMl": 140.8976241204641,
+            "pressureMmHg": 1.8873977702004336
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 5,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 2.483715624146968,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -2.559218447446966,
+          "deltaPressureMmHg": -1.0683621132245378
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 9299.10016942075,
+          "straightClosureSegmentMmHgMl": -299.10839602217163,
+          "closedLoopMmHgMl": 8999.991773398579
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 75.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 94.75489686925262,
+            "pressureMmHg": 118.05434460816524
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 75.108,
+            "phase01": 0.10800000000000409,
+            "volumeMl": 63.928097271654686,
+            "pressureMmHg": 99.33029666994264
+          },
+          "maximumVolume": {
+            "timeSec": 75.777,
+            "phase01": 0.777000000000001,
+            "volumeMl": 148.80627871330063,
+            "pressureMmHg": 10.598218200512099
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -10.598262547261768,
+          "deltaPressureMmHg": -2.154580441536872
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 2317.1635429828552,
+          "straightClosureSegmentMmHgMl": -393.6046321119298,
+          "closedLoopMmHgMl": 1923.5589108709255
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 75.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 93.69592316117414,
+            "pressureMmHg": 40.12218016680989
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 75.162,
+            "phase01": 0.16200000000000614,
+            "volumeMl": 67.35781702255639,
+            "pressureMmHg": 13.699733084676135
+          },
+          "maximumVolume": {
+            "timeSec": 75.894,
+            "phase01": 0.8940000000000055,
+            "volumeMl": 128.91930332084073,
+            "pressureMmHg": 1.335415405705135
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 6,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 3.220980663898508,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -3.6239210400715507,
+          "deltaPressureMmHg": -1.6257316261762327
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 8933.61401082457,
+          "straightClosureSegmentMmHgMl": -418.6638118655717,
+          "closedLoopMmHgMl": 8514.950198958999
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 76.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 92.29571775006322,
+            "pressureMmHg": 117.01397311869299
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 76.106,
+            "phase01": 0.10599999999999454,
+            "volumeMl": 62.679851706852716,
+            "pressureMmHg": 98.83116947317512
+          },
+          "maximumVolume": {
+            "timeSec": 76.775,
+            "phase01": 0.7750000000000057,
+            "volumeMl": 143.55090292979457,
+            "pressureMmHg": 9.133071184823923
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -11.169604221100442,
+          "deltaPressureMmHg": -2.559049265938704
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 1970.3676918064732,
+          "straightClosureSegmentMmHgMl": -388.4987727898201,
+          "closedLoopMmHgMl": 1581.868919016653
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 76.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 83.645845720831,
+            "pressureMmHg": 37.84673080204651
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 76.15,
+            "phase01": 0.15000000000000568,
+            "volumeMl": 62.49522484675331,
+            "pressureMmHg": 14.696080930236187
+          },
+          "maximumVolume": {
+            "timeSec": 76.896,
+            "phase01": 0.8960000000000008,
+            "volumeMl": 116.53947758104161,
+            "pressureMmHg": 0.916372660016786
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 7,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 4.177095129709655,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -4.682195558424013,
+          "deltaPressureMmHg": -2.253232093810553
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 8444.142945846315,
+          "straightClosureSegmentMmHgMl": -531.8429599468609,
+          "closedLoopMmHgMl": 7912.299985899454
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 77.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 88.81357749650115,
+            "pressureMmHg": 115.40729990410796
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 77.103,
+            "phase01": 0.10299999999999443,
+            "volumeMl": 60.87664217171411,
+            "pressureMmHg": 98.04316020751327
+          },
+          "maximumVolume": {
+            "timeSec": 77.775,
+            "phase01": 0.7750000000000057,
+            "volumeMl": 136.8612364894241,
+            "pressureMmHg": 7.507231169796126
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -11.096415326009236,
+          "deltaPressureMmHg": -2.906746263372362
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 1612.0435091408988,
+          "straightClosureSegmentMmHgMl": -355.6277637346811,
+          "closedLoopMmHgMl": 1256.4157454062176
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 77.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 73.12843603384648,
+            "pressureMmHg": 35.09829253502108
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 77.134,
+            "phase01": 0.13400000000000034,
+            "volumeMl": 57.663555165293594,
+            "pressureMmHg": 16.231841013485933
+          },
+          "maximumVolume": {
+            "timeSec": 77.898,
+            "phase01": 0.8979999999999961,
+            "volumeMl": 104.47367875256496,
+            "pressureMmHg": 0.5933182606168687
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 8,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 5.41702218774757,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -5.783063710368808,
+          "deltaPressureMmHg": -2.8321170465031145
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 7834.492159878998,
+          "straightClosureSegmentMmHgMl": -642.1843295114431,
+          "closedLoopMmHgMl": 7192.307830367555
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 78.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 84.29854940210045,
+            "pressureMmHg": 113.30105218500452
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 78.1,
+            "phase01": 0.09999999999999432,
+            "volumeMl": 58.52073498977,
+            "pressureMmHg": 96.59268920081723
+          },
+          "maximumVolume": {
+            "timeSec": 78.776,
+            "phase01": 0.7759999999999962,
+            "volumeMl": 128.76031681355624,
+            "pressureMmHg": 5.862422295800459
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -10.551732639390288,
+          "deltaPressureMmHg": -3.1487727658535754
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 1257.7252150354705,
+          "straightClosureSegmentMmHgMl": -306.22318082609115,
+          "closedLoopMmHgMl": 951.5020342093793
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 78.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 62.735889730688974,
+            "pressureMmHg": 31.91979862597923
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 78.116,
+            "phase01": 0.11599999999999966,
+            "volumeMl": 53.05398637966749,
+            "pressureMmHg": 17.68142888422272
+          },
+          "maximumVolume": {
+            "timeSec": 78.787,
+            "phase01": 0.7870000000000061,
+            "volumeMl": 93.11974222944532,
+            "pressureMmHg": 0.4735464782590567
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 9,
+      "phase": "occlusion-ramp",
+      "resistanceScaleMidpoint": 7.025008641493198,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -6.6177497528087486,
+          "deltaPressureMmHg": -3.577804309989986
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 7110.758790072708,
+          "straightClosureSegmentMmHgMl": -713.6629935461993,
+          "closedLoopMmHgMl": 6397.095796526508
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 79.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 78.72603970555681,
+            "pressureMmHg": 110.37571010295241
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 79.095,
+            "phase01": 0.09499999999999886,
+            "volumeMl": 55.597148902004484,
+            "pressureMmHg": 95.03609767619754
+          },
+          "maximumVolume": {
+            "timeSec": 79.892,
+            "phase01": 0.8919999999999959,
+            "volumeMl": 119.50842237878891,
+            "pressureMmHg": 4.094364838469328
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -9.139848424968328,
+          "deltaPressureMmHg": -4.028828907300326
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 939.8821876221738,
+          "straightClosureSegmentMmHgMl": -232.4476130088705,
+          "closedLoopMmHgMl": 707.4345746133033
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 79.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 53.65515536619669,
+            "pressureMmHg": 27.28193029439665
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 79.099,
+            "phase01": 0.09900000000000375,
+            "volumeMl": 48.22103956404329,
+            "pressureMmHg": 18.21047869954624
+          },
+          "maximumVolume": {
+            "timeSec": 79.784,
+            "phase01": 0.784000000000006,
+            "volumeMl": 82.95180741396688,
+            "pressureMmHg": 0.45938716582026257
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 10,
+      "phase": "occlusion-plateau",
+      "resistanceScaleMidpoint": 8,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -7.362140133986216,
+          "deltaPressureMmHg": -4.257255659512609
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 6297.067750280154,
+          "straightClosureSegmentMmHgMl": -765.0971942202265,
+          "closedLoopMmHgMl": 5531.970556059927
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 80.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 72.40498367237028,
+            "pressureMmHg": 106.76091048264001
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 80.09,
+            "phase01": 0.09000000000000341,
+            "volumeMl": 52.24314931657108,
+            "pressureMmHg": 92.7604876653891
+          },
+          "maximumVolume": {
+            "timeSec": 80.896,
+            "phase01": 0.8960000000000008,
+            "volumeMl": 109.27797658138466,
+            "pressureMmHg": 3.131676078316957
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -6.552642511712236,
+          "deltaPressureMmHg": -3.498509117915564
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 696.8899933988513,
+          "straightClosureSegmentMmHgMl": -141.98696887953523,
+          "closedLoopMmHgMl": 554.9030245193161
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 80.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 46.341034406961654,
+            "pressureMmHg": 22.85304796323072
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 80.083,
+            "phase01": 0.08299999999999841,
+            "volumeMl": 43.3394091710105,
+            "pressureMmHg": 17.655911379094295
+          },
+          "maximumVolume": {
+            "timeSec": 80.784,
+            "phase01": 0.784000000000006,
+            "volumeMl": 75.16543780867458,
+            "pressureMmHg": 0.4587104142615323
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 11,
+      "phase": "occlusion-plateau",
+      "resistanceScaleMidpoint": 8,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -7.680512999608268,
+          "deltaPressureMmHg": -4.894513986012342
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 5420.58805388261,
+          "straightClosureSegmentMmHgMl": -763.0383797547505,
+          "closedLoopMmHgMl": 4657.54967412786
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 81.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 65.41033678786135,
+            "pressureMmHg": 102.39811238198753
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 81.085,
+            "phase01": 0.08499999999999375,
+            "volumeMl": 48.5300477639526,
+            "pressureMmHg": 89.74419350021559
+          },
+          "maximumVolume": {
+            "timeSec": 81.898,
+            "phase01": 0.8979999999999961,
+            "volumeMl": 98.60929374352432,
+            "pressureMmHg": 2.365207223800702
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -3.071753564314683,
+          "deltaPressureMmHg": -1.8652882665785242
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 577.1917382783189,
+          "straightClosureSegmentMmHgMl": -58.32264524881363,
+          "closedLoopMmHgMl": 518.8690930295053
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 81.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 40.922587933161346,
+            "pressureMmHg": 19.25226379207959
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 81.073,
+            "phase01": 0.07299999999999329,
+            "volumeMl": 39.10619348547927,
+            "pressureMmHg": 15.998790529000441
+          },
+          "maximumVolume": {
+            "timeSec": 81.785,
+            "phase01": 0.7849999999999966,
+            "volumeMl": 72.1231157578724,
+            "pressureMmHg": 0.4516321141785928
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 12,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 7.025008641493198,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -6.612364877044357,
+          "deltaPressureMmHg": -5.627198449128045
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 4515.493737654219,
+          "straightClosureSegmentMmHgMl": -622.1340259533963,
+          "closedLoopMmHgMl": 3893.359711700823
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 82.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 58.357925067740624,
+            "pressureMmHg": 96.74205001017964
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 82.077,
+            "phase01": 0.07699999999999818,
+            "volumeMl": 45.17832814878991,
+            "pressureMmHg": 86.47538152396886
+          },
+          "maximumVolume": {
+            "timeSec": 82.899,
+            "phase01": 0.8990000000000009,
+            "volumeMl": 89.2320438857358,
+            "pressureMmHg": 1.8922344877951751
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -0.11495921692694822,
+          "deltaPressureMmHg": -0.17408214011059187
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 566.7306174491517,
+          "straightClosureSegmentMmHgMl": -2.065480757177524,
+          "closedLoopMmHgMl": 564.6651366919742
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 82.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 38.15799206008971,
+            "pressureMmHg": 17.287813026465038
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 82.068,
+            "phase01": 0.06799999999999784,
+            "volumeMl": 36.67773638701812,
+            "pressureMmHg": 14.754832842903724
+          },
+          "maximumVolume": {
+            "timeSec": 82.901,
+            "phase01": 0.9009999999999962,
+            "volumeMl": 73.54322526443481,
+            "pressureMmHg": 0.5161382259785273
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 13,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 5.41702218774757,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -4.655361955332985,
+          "deltaPressureMmHg": -4.762005180577617
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3799.219908490292,
+          "straightClosureSegmentMmHgMl": -413.8237905354079,
+          "closedLoopMmHgMl": 3385.3961179548837
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 83.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 52.34870643804778,
+            "pressureMmHg": 91.20508989943781
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 83.07,
+            "phase01": 0.06999999999999318,
+            "volumeMl": 42.416424744872685,
+            "pressureMmHg": 82.61114542769702
+          },
+          "maximumVolume": {
+            "timeSec": 83.9,
+            "phase01": 0.9000000000000057,
+            "volumeMl": 82.78920197592159,
+            "pressureMmHg": 1.877685013617704
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 5.011001097812333,
+          "deltaPressureMmHg": 2.4925264818585617
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 693.068895749755,
+          "straightClosureSegmentMmHgMl": 95.84189109490497,
+          "closedLoopMmHgMl": 788.91078684466
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 83.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 37.72737646838437,
+            "pressureMmHg": 16.968415523941744
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 83.069,
+            "phase01": 0.06900000000000261,
+            "volumeMl": 36.187428496451204,
+            "pressureMmHg": 14.248448392628237
+          },
+          "maximumVolume": {
+            "timeSec": 83.901,
+            "phase01": 0.9009999999999962,
+            "volumeMl": 83.35486152213846,
+            "pressureMmHg": 0.646072406791001
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 14,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 4.177095129709655,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": -1.6692081717594363,
+          "deltaPressureMmHg": -2.795216962808496
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3477.677930685581,
+          "straightClosureSegmentMmHgMl": -142.07173327245206,
+          "closedLoopMmHgMl": 3335.606197413129
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 84.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 48.0697562245254,
+            "pressureMmHg": 86.39024705453264
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 84.066,
+            "phase01": 0.0660000000000025,
+            "volumeMl": 40.293977279415444,
+            "pressureMmHg": 78.6550158879259
+          },
+          "maximumVolume": {
+            "timeSec": 84.9,
+            "phase01": 0.9000000000000057,
+            "volumeMl": 81.79759019272032,
+            "pressureMmHg": 1.981614295556326
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 8.779835052584808,
+          "deltaPressureMmHg": 4.0799437099742875
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 935.8586388881623,
+          "straightClosureSegmentMmHgMl": 196.77832760803926,
+          "closedLoopMmHgMl": 1132.6369664962017
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 84.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 41.2574747937189,
+            "pressureMmHg": 19.22382948602417
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 84.076,
+            "phase01": 0.0759999999999934,
+            "volumeMl": 38.717157083130154,
+            "pressureMmHg": 15.150272231532226
+          },
+          "maximumVolume": {
+            "timeSec": 84.901,
+            "phase01": 0.9009999999999962,
+            "volumeMl": 97.32837375616838,
+            "pressureMmHg": 0.8006792119216729
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 15,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 3.220980663898508,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 1.245650743692977,
+          "deltaPressureMmHg": -0.45482796463144837
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3583.7591195658947,
+          "straightClosureSegmentMmHgMl": 103.99717335258603,
+          "closedLoopMmHgMl": 3687.7562929184805
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 85.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 46.422321063701936,
+            "pressureMmHg": 83.5017097321019
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 85.064,
+            "phase01": 0.06399999999999295,
+            "volumeMl": 39.12497965911256,
+            "pressureMmHg": 76.017714971458
+          },
+          "maximumVolume": {
+            "timeSec": 85.899,
+            "phase01": 0.8990000000000009,
+            "volumeMl": 85.83205909957806,
+            "pressureMmHg": 2.135059351657528
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 12.854327023723137,
+          "deltaPressureMmHg": 4.269522240732645
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 1266.3499121662305,
+          "straightClosureSegmentMmHgMl": 341.7613891976459,
+          "closedLoopMmHgMl": 1608.1113013638765
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 85.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 47.99150399937179,
+            "pressureMmHg": 23.307936073004917
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 85.087,
+            "phase01": 0.0870000000000033,
+            "volumeMl": 43.441439609541845,
+            "pressureMmHg": 16.55739433579208
+          },
+          "maximumVolume": {
+            "timeSec": 85.9,
+            "phase01": 0.9000000000000057,
+            "volumeMl": 114.61617582674162,
+            "pressureMmHg": 0.9254818136012614
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 16,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 2.483715624146968,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 3.438764575501878,
+          "deltaPressureMmHg": 1.3625286248889807
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 4017.958726292456,
+          "straightClosureSegmentMmHgMl": 288.65704550686957,
+          "closedLoopMmHgMl": 4306.615771799326
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 86.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 47.28212703892778,
+            "pressureMmHg": 82.95790818375056
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 86.067,
+            "phase01": 0.06699999999999307,
+            "volumeMl": 38.86964273048773,
+            "pressureMmHg": 74.50497895969195
+          },
+          "maximumVolume": {
+            "timeSec": 86.898,
+            "phase01": 0.8979999999999961,
+            "volumeMl": 93.30961829163299,
+            "pressureMmHg": 2.8293003027324204
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 14.311114407220003,
+          "deltaPressureMmHg": 3.6701188708279204
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 1700.7170925033925,
+          "straightClosureSegmentMmHgMl": 437.30593645300917,
+          "closedLoopMmHgMl": 2138.0230289564015
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 86.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 58.303155273588544,
+            "pressureMmHg": 28.834164426261736
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 86.107,
+            "phase01": 0.10699999999999932,
+            "volumeMl": 49.806270584580034,
+            "pressureMmHg": 16.45135668298143
+          },
+          "maximumVolume": {
+            "timeSec": 86.899,
+            "phase01": 0.8990000000000009,
+            "volumeMl": 131.92555110814703,
+            "pressureMmHg": 1.359839043760642
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 17,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 1.9152065613971472,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 5.256251866737514,
+          "deltaPressureMmHg": 2.936891807030591
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 4668.9304235940435,
+          "straightClosureSegmentMmHgMl": 452.52012448729175,
+          "closedLoopMmHgMl": 5121.450548081335
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 87.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 50.16976854197807,
+            "pressureMmHg": 84.24270312235322
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 87.071,
+            "phase01": 0.07099999999999795,
+            "volumeMl": 39.36301077479121,
+            "pressureMmHg": 74.57926196295502
+          },
+          "maximumVolume": {
+            "timeSec": 87.896,
+            "phase01": 0.8960000000000008,
+            "volumeMl": 102.89338762906777,
+            "pressureMmHg": 3.6066097236288996
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 15.460311382174723,
+          "deltaPressureMmHg": 3.5619148447588103
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 2194.3661301713396,
+          "straightClosureSegmentMmHgMl": 528.326792447588,
+          "closedLoopMmHgMl": 2722.6929226189277
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 87.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 71.55370381493796,
+            "pressureMmHg": 33.89376110376384
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 87.191,
+            "phase01": 0.1910000000000025,
+            "volumeMl": 56.01650358681498,
+            "pressureMmHg": 4.670940861420274
+          },
+          "maximumVolume": {
+            "timeSec": 87.897,
+            "phase01": 0.8970000000000056,
+            "volumeMl": 149.56657481518985,
+            "pressureMmHg": 1.948902732559058
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 18,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 1.4768261459394991,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 6.217225198217712,
+          "deltaPressureMmHg": 3.5667127626736175
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 5419.314796185409,
+          "straightClosureSegmentMmHgMl": 555.4692244867782,
+          "closedLoopMmHgMl": 5974.784020672188
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 88.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 54.74026259523935,
+            "pressureMmHg": 87.09624377054948
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 88.077,
+            "phase01": 0.07699999999999818,
+            "volumeMl": 40.636835236091656,
+            "pressureMmHg": 75.64523198198437
+          },
+          "maximumVolume": {
+            "timeSec": 88.894,
+            "phase01": 0.8940000000000055,
+            "volumeMl": 112.81614563379351,
+            "pressureMmHg": 4.7891737399211545
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 15.525626367057754,
+          "deltaPressureMmHg": 3.277389745252677
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 2709.9008069111633,
+          "straightClosureSegmentMmHgMl": 583.6510519029601,
+          "closedLoopMmHgMl": 3293.5518588141235
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 88.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 86.54367125130406,
+            "pressureMmHg": 38.00135909058605
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 88.2,
+            "phase01": 0.20000000000000284,
+            "volumeMl": 61.59268782617057,
+            "pressureMmHg": 4.978977562770104
+          },
+          "maximumVolume": {
+            "timeSec": 88.895,
+            "phase01": 0.894999999999996,
+            "volumeMl": 166.24248954841963,
+            "pressureMmHg": 2.7043269608579203
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 19,
+      "phase": "release-ramp",
+      "resistanceScaleMidpoint": 1.1387886347566916,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 6.843261494412872,
+          "deltaPressureMmHg": 3.7140215418391023
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 6237.487915140509,
+          "straightClosureSegmentMmHgMl": 636.3135395654473,
+          "closedLoopMmHgMl": 6873.8014547059565
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 89.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 60.27998288099513,
+            "pressureMmHg": 90.76180210142614
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 89.084,
+            "phase01": 0.08400000000000318,
+            "volumeMl": 42.52091695149767,
+            "pressureMmHg": 77.2272808207339
+          },
+          "maximumVolume": {
+            "timeSec": 89.779,
+            "phase01": 0.7789999999999964,
+            "volumeMl": 123.05029987509182,
+            "pressureMmHg": 6.277549309533665
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 14.164108859502903,
+          "deltaPressureMmHg": 2.8532634266562624
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3183.457868446909,
+          "straightClosureSegmentMmHgMl": 575.8854786991565,
+          "closedLoopMmHgMl": 3759.3433471460653
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 89.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 101.81971728993382,
+            "pressureMmHg": 41.54361073704375
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 89.208,
+            "phase01": 0.2079999999999984,
+            "volumeMl": 67.95979379819249,
+            "pressureMmHg": 5.426501965765509
+          },
+          "maximumVolume": {
+            "timeSec": 89.892,
+            "phase01": 0.8919999999999959,
+            "volumeMl": 180.59963814158712,
+            "pressureMmHg": 3.459382017840744
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 20,
+      "phase": "recovery",
+      "resistanceScaleMidpoint": 1,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 6.64634718209939,
+          "deltaPressureMmHg": 3.8940013658188093
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 7078.270772646595,
+          "straightClosureSegmentMmHgMl": 643.2864482211711,
+          "closedLoopMmHgMl": 7721.557220867766
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 90.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 66.6402745233763,
+            "pressureMmHg": 95.04721514691927
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 90.091,
+            "phase01": 0.09099999999999397,
+            "volumeMl": 45.110627070473825,
+            "pressureMmHg": 79.33606086222647
+          },
+          "maximumVolume": {
+            "timeSec": 90.777,
+            "phase01": 0.777000000000001,
+            "volumeMl": 132.6766073703019,
+            "pressureMmHg": 8.044168023135795
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 6.533216632835206,
+          "deltaPressureMmHg": 1.3561986690492205
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3522.7281197242874,
+          "straightClosureSegmentMmHgMl": 279.37871189204117,
+          "closedLoopMmHgMl": 3802.1068316163287
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 90.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 115.84532987435198,
+            "pressureMmHg": 44.33360663578273
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 90.215,
+            "phase01": 0.2150000000000034,
+            "volumeMl": 74.3951193726774,
+            "pressureMmHg": 5.821814687753493
+          },
+          "maximumVolume": {
+            "timeSec": 90.891,
+            "phase01": 0.8910000000000053,
+            "volumeMl": 184.85043683467197,
+            "pressureMmHg": 3.9675572673132353
+          }
+        }
+      }
+    },
+    {
+      "beatOrdinal": 21,
+      "phase": "recovery",
+      "resistanceScaleMidpoint": 1,
+      "LV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 5.8139469658433285,
+          "deltaPressureMmHg": 3.6269460942506697
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 7808.172317076012,
+          "straightClosureSegmentMmHgMl": 584.58331632707,
+          "closedLoopMmHgMl": 8392.755633403081
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 91.016,
+            "phase01": 0.016000000000005343,
+            "volumeMl": 73.01347522645517,
+            "pressureMmHg": 99.03623284743465
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 91.096,
+            "phase01": 0.09600000000000364,
+            "volumeMl": 48.429526874551065,
+            "pressureMmHg": 81.82182198356044
+          },
+          "maximumVolume": {
+            "timeSec": 91.777,
+            "phase01": 0.777000000000001,
+            "volumeMl": 140.5509853872568,
+            "pressureMmHg": 9.57265007862666
+          }
+        }
+      },
+      "RV": {
+        "endpointClosure": {
+          "deltaVolumeMl": 0.4963063094047868,
+          "deltaPressureMmHg": 0.1495431447448894
+        },
+        "externalWork": {
+          "acceptedOpenPathMmHgMl": 3619.6277073053725,
+          "straightClosureSegmentMmHgMl": 21.597107777121863,
+          "closedLoopMmHgMl": 3641.2248150824944
+        },
+        "landmarks": {
+          "baselineAnchoredIsochronal": {
+            "timeSec": 91.034,
+            "phase01": 0.034000000000006025,
+            "volumeMl": 122.3942944416818,
+            "pressureMmHg": 45.53921592384727
+          },
+          "semilunarClosure": {
+            "status": "unavailable",
+            "reason": "flow-remained-positive"
+          },
+          "minimumVolume": {
+            "timeSec": 91.209,
+            "phase01": 0.20900000000000318,
+            "volumeMl": 78.22321660129731,
+            "pressureMmHg": 7.399624972686211
+          },
+          "maximumVolume": {
+            "timeSec": 91.89,
+            "phase01": 0.8900000000000006,
+            "volumeMl": 182.48620003884614,
+            "pressureMmHg": 3.995458226702035
+          }
+        }
+      }
+    }
+  ],
+  "systolicRelations": [
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "occlusion",
+      "methodId": "baseline-anchored-isochronal",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.5083530382753887,
+        "interceptMmHg": 69.86166446225101,
+        "volumeAxisInterceptMl": -137.42745533548882,
+        "measuredVolumeRangeMl": [
+          65.41033678786135,
+          96.62933648337615
+        ],
+        "residualSumOfSquaresMmHgSquared": 1.6385707814405506,
+        "rSquared": 0.9947614343501724
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 96.55300194069851,
+          "pressureMmHg": 118.62994031355403
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 96.55307648601308,
+          "pressureMmHg": 118.63019748782806
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 96.62933648337615,
+          "pressureMmHg": 118.69049621453242
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 96.23960801771514,
+          "pressureMmHg": 118.59713016584817
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 94.75489686925262,
+          "pressureMmHg": 118.05434460816524
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 92.29571775006322,
+          "pressureMmHg": 117.01397311869299
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 88.81357749650115,
+          "pressureMmHg": 115.40729990410796
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 84.29854940210045,
+          "pressureMmHg": 113.30105218500452
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 78.72603970555681,
+          "pressureMmHg": 110.37571010295241
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 72.40498367237028,
+          "pressureMmHg": 106.76091048264001
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 65.41033678786135,
+          "pressureMmHg": 102.39811238198753
+        }
+      ]
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "directionId": "occlusion",
+      "methodId": "semilunar-closure",
+      "pointCount": 0,
+      "unavailablePointCount": 11,
+      "reason": "fewer than three systolic landmarks are available"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "occlusion",
+      "methodId": "minimum-volume",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.5874293628393504,
+        "interceptMmHg": 61.88661820221401,
+        "volumeAxisInterceptMl": -105.35159138638205,
+        "measuredVolumeRangeMl": [
+          48.5300477639526,
+          64.82378564087709
+        ],
+        "residualSumOfSquaresMmHgSquared": 1.138157748125435,
+        "rSquared": 0.9900186860699484
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.109,
+          "phase01": 0.10899999999999466,
+          "volumeMl": 64.78495422919205,
+          "pressureMmHg": 99.76476115380463
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.109,
+          "phase01": 0.10899999999999466,
+          "volumeMl": 64.78512503288493,
+          "pressureMmHg": 99.76509482341184
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.109,
+          "phase01": 0.10899999999999466,
+          "volumeMl": 64.82378564087709,
+          "pressureMmHg": 99.78917250256349
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.109,
+          "phase01": 0.10899999999999466,
+          "volumeMl": 64.64630362849877,
+          "pressureMmHg": 99.63076319854021
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.108,
+          "phase01": 0.10800000000000409,
+          "volumeMl": 63.928097271654686,
+          "pressureMmHg": 99.33029666994264
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.106,
+          "phase01": 0.10599999999999454,
+          "volumeMl": 62.679851706852716,
+          "pressureMmHg": 98.83116947317512
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.103,
+          "phase01": 0.10299999999999443,
+          "volumeMl": 60.87664217171411,
+          "pressureMmHg": 98.04316020751327
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.1,
+          "phase01": 0.09999999999999432,
+          "volumeMl": 58.52073498977,
+          "pressureMmHg": 96.59268920081723
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.095,
+          "phase01": 0.09499999999999886,
+          "volumeMl": 55.597148902004484,
+          "pressureMmHg": 95.03609767619754
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.09,
+          "phase01": 0.09000000000000341,
+          "volumeMl": 52.24314931657108,
+          "pressureMmHg": 92.7604876653891
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.085,
+          "phase01": 0.08499999999999375,
+          "volumeMl": 48.5300477639526,
+          "pressureMmHg": 89.74419350021559
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "occlusion",
+      "methodId": "sampled-common-support-envelope",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.7189473888897725,
+        "interceptMmHg": 60.986667828624824,
+        "volumeAxisInterceptMl": -84.8277200405483,
+        "measuredVolumeRangeMl": [
+          48.5300477639526,
+          155.6698458490313
+        ],
+        "residualSumOfSquaresMmHgSquared": null,
+        "rSquared": null
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "phase01": 0.0625,
+          "volumeMl": 74.97399449923819,
+          "pressureMmHg": 113.66609977138617
+        },
+        {
+          "beatOrdinal": 2,
+          "phase01": 0.0625,
+          "volumeMl": 74.97412930970586,
+          "pressureMmHg": 113.66639335991938
+        },
+        {
+          "beatOrdinal": 3,
+          "phase01": 0.0625,
+          "volumeMl": 75.02128609896344,
+          "pressureMmHg": 113.71499493051292
+        },
+        {
+          "beatOrdinal": 4,
+          "phase01": 0.0625,
+          "volumeMl": 74.67703753254389,
+          "pressureMmHg": 113.61039358329471
+        },
+        {
+          "beatOrdinal": 5,
+          "phase01": 0.0625,
+          "volumeMl": 73.42192600675362,
+          "pressureMmHg": 113.05251641957427
+        },
+        {
+          "beatOrdinal": 6,
+          "phase01": 0.0625,
+          "volumeMl": 71.34168657856645,
+          "pressureMmHg": 111.98658214539986
+        },
+        {
+          "beatOrdinal": 7,
+          "phase01": 0.0625,
+          "volumeMl": 68.42324315381391,
+          "pressureMmHg": 110.15207780871931
+        },
+        {
+          "beatOrdinal": 8,
+          "phase01": 0.0625,
+          "volumeMl": 64.79292235058996,
+          "pressureMmHg": 107.56937017111926
+        },
+        {
+          "beatOrdinal": 9,
+          "phase01": 0.0625,
+          "volumeMl": 60.45948370258485,
+          "pressureMmHg": 104.27753996147351
+        },
+        {
+          "beatOrdinal": 10,
+          "phase01": 0.046875,
+          "volumeMl": 60.05850890199297,
+          "pressureMmHg": 103.61485653901883
+        },
+        {
+          "beatOrdinal": 11,
+          "phase01": 0.046875,
+          "volumeMl": 54.322250869238644,
+          "pressureMmHg": 98.81883347658962
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "occlusion",
+      "methodId": "baseline-anchored-isochronal",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.31019442685970094,
+        "interceptMmHg": 9.964051906601284,
+        "volumeAxisInterceptMl": -32.12195656599583,
+        "measuredVolumeRangeMl": [
+          40.922587933161346,
+          114.59057788903802
+        ],
+        "residualSumOfSquaresMmHgSquared": 36.54489449849996,
+        "rSquared": 0.953233742227714
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 114.59057788903802,
+          "pressureMmHg": 44.05408944889583
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 114.58987857610938,
+          "pressureMmHg": 44.05397588599069
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 110.81100645711186,
+          "pressureMmHg": 43.4071638222379
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 102.92282292604312,
+          "pressureMmHg": 41.97164518484429
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 93.69592316117414,
+          "pressureMmHg": 40.12218016680989
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 83.645845720831,
+          "pressureMmHg": 37.84673080204651
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 73.12843603384648,
+          "pressureMmHg": 35.09829253502108
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 62.735889730688974,
+          "pressureMmHg": 31.91979862597923
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 53.65515536619669,
+          "pressureMmHg": 27.28193029439665
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 46.341034406961654,
+          "pressureMmHg": 22.85304796323072
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 40.922587933161346,
+          "pressureMmHg": 19.25226379207959
+        }
+      ]
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "directionId": "occlusion",
+      "methodId": "semilunar-closure",
+      "pointCount": 0,
+      "unavailablePointCount": 11,
+      "reason": "fewer than three systolic landmarks are available"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "occlusion",
+      "methodId": "minimum-volume",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": -0.13757144401407218,
+        "interceptMmHg": 23.503697968728034,
+        "volumeAxisInterceptMl": 170.8472142396342,
+        "measuredVolumeRangeMl": [
+          39.10619348547927,
+          76.83351968369881
+        ],
+        "residualSumOfSquaresMmHgSquared": 9.419513623333483,
+        "rSquared": 0.7916042527328413
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.18,
+          "phase01": 0.18000000000000682,
+          "volumeMl": 76.83351968369881,
+          "pressureMmHg": 12.806078663076415
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.18,
+          "phase01": 0.18000000000000682,
+          "volumeMl": 76.8331325099378,
+          "pressureMmHg": 12.805982677779502
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.177,
+          "phase01": 0.1770000000000067,
+          "volumeMl": 75.24903713711706,
+          "pressureMmHg": 12.958461140849947
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.17,
+          "phase01": 0.1700000000000017,
+          "volumeMl": 71.71176381584876,
+          "pressureMmHg": 13.366496612031733
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.162,
+          "phase01": 0.16200000000000614,
+          "volumeMl": 67.35781702255639,
+          "pressureMmHg": 13.699733084676135
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.15,
+          "phase01": 0.15000000000000568,
+          "volumeMl": 62.49522484675331,
+          "pressureMmHg": 14.696080930236187
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.134,
+          "phase01": 0.13400000000000034,
+          "volumeMl": 57.663555165293594,
+          "pressureMmHg": 16.231841013485933
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.116,
+          "phase01": 0.11599999999999966,
+          "volumeMl": 53.05398637966749,
+          "pressureMmHg": 17.68142888422272
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.099,
+          "phase01": 0.09900000000000375,
+          "volumeMl": 48.22103956404329,
+          "pressureMmHg": 18.21047869954624
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.083,
+          "phase01": 0.08299999999999841,
+          "volumeMl": 43.3394091710105,
+          "pressureMmHg": 17.655911379094295
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.073,
+          "phase01": 0.07299999999999329,
+          "volumeMl": 39.10619348547927,
+          "pressureMmHg": 15.998790529000441
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "occlusion",
+      "methodId": "sampled-common-support-envelope",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.3740708096440363,
+        "interceptMmHg": 8.55843082460305,
+        "volumeAxisInterceptMl": -22.879173151059838,
+        "measuredVolumeRangeMl": [
+          39.10619348547927,
+          167.565817343315
+        ],
+        "residualSumOfSquaresMmHgSquared": null,
+        "rSquared": null
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "phase01": 0.078125,
+          "volumeMl": 97.06703196134,
+          "pressureMmHg": 40.28659533485904
+        },
+        {
+          "beatOrdinal": 2,
+          "phase01": 0.078125,
+          "volumeMl": 97.06641365257693,
+          "pressureMmHg": 40.286461652637875
+        },
+        {
+          "beatOrdinal": 3,
+          "phase01": 0.0625,
+          "volumeMl": 99.69831669478212,
+          "pressureMmHg": 41.83766787365714
+        },
+        {
+          "beatOrdinal": 4,
+          "phase01": 0.0625,
+          "volumeMl": 92.40805035880229,
+          "pressureMmHg": 40.27881622042531
+        },
+        {
+          "beatOrdinal": 5,
+          "phase01": 0.0625,
+          "volumeMl": 83.93808944901289,
+          "pressureMmHg": 38.24804858810663
+        },
+        {
+          "beatOrdinal": 6,
+          "phase01": 0.0625,
+          "volumeMl": 74.82044515078127,
+          "pressureMmHg": 35.759832515849354
+        },
+        {
+          "beatOrdinal": 7,
+          "phase01": 0.046875,
+          "volumeMl": 69.42211914882876,
+          "pressureMmHg": 34.5155438971599
+        },
+        {
+          "beatOrdinal": 8,
+          "phase01": 0.046875,
+          "volumeMl": 59.629014328092964,
+          "pressureMmHg": 30.863904492588624
+        },
+        {
+          "beatOrdinal": 9,
+          "phase01": 0.03125,
+          "volumeMl": 54.19136260293479,
+          "pressureMmHg": 27.42903682585703
+        },
+        {
+          "beatOrdinal": 10,
+          "phase01": 0.03125,
+          "volumeMl": 46.73590816910441,
+          "pressureMmHg": 22.979332696355648
+        },
+        {
+          "beatOrdinal": 11,
+          "phase01": 0.03125,
+          "volumeMl": 41.2306947153997,
+          "pressureMmHg": 19.371217101263426
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "release",
+      "methodId": "baseline-anchored-isochronal",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.6610980105771818,
+        "interceptMmHg": 53.42640788064519,
+        "volumeAxisInterceptMl": -80.81465535496083,
+        "measuredVolumeRangeMl": [
+          46.422321063701936,
+          73.01347522645517
+        ],
+        "residualSumOfSquaresMmHgSquared": 101.26377850692306,
+        "rSquared": 0.7733368538936283
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 65.41033678786135,
+          "pressureMmHg": 102.39811238198753
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 58.357925067740624,
+          "pressureMmHg": 96.74205001017964
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 52.34870643804778,
+          "pressureMmHg": 91.20508989943781
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 48.0697562245254,
+          "pressureMmHg": 86.39024705453264
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 46.422321063701936,
+          "pressureMmHg": 83.5017097321019
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 47.28212703892778,
+          "pressureMmHg": 82.95790818375056
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 50.16976854197807,
+          "pressureMmHg": 84.24270312235322
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 54.74026259523935,
+          "pressureMmHg": 87.09624377054948
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 60.27998288099513,
+          "pressureMmHg": 90.76180210142614
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 66.6402745233763,
+          "pressureMmHg": 95.04721514691927
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.016,
+          "phase01": 0.016000000000005343,
+          "volumeMl": 73.01347522645517,
+          "pressureMmHg": 99.03623284743465
+        }
+      ]
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "directionId": "release",
+      "methodId": "semilunar-closure",
+      "pointCount": 0,
+      "unavailablePointCount": 11,
+      "reason": "fewer than three systolic landmarks are available"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "release",
+      "methodId": "minimum-volume",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 1.1555107958680586,
+        "interceptMmHg": 30.270903194530412,
+        "volumeAxisInterceptMl": -26.1969886415383,
+        "measuredVolumeRangeMl": [
+          38.86964273048773,
+          48.5300477639526
+        ],
+        "residualSumOfSquaresMmHgSquared": 80.12980301081653,
+        "rSquared": 0.6798870191756017
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.085,
+          "phase01": 0.08499999999999375,
+          "volumeMl": 48.5300477639526,
+          "pressureMmHg": 89.74419350021559
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.077,
+          "phase01": 0.07699999999999818,
+          "volumeMl": 45.17832814878991,
+          "pressureMmHg": 86.47538152396886
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.07,
+          "phase01": 0.06999999999999318,
+          "volumeMl": 42.416424744872685,
+          "pressureMmHg": 82.61114542769702
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.066,
+          "phase01": 0.0660000000000025,
+          "volumeMl": 40.293977279415444,
+          "pressureMmHg": 78.6550158879259
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.064,
+          "phase01": 0.06399999999999295,
+          "volumeMl": 39.12497965911256,
+          "pressureMmHg": 76.017714971458
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.067,
+          "phase01": 0.06699999999999307,
+          "volumeMl": 38.86964273048773,
+          "pressureMmHg": 74.50497895969195
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.071,
+          "phase01": 0.07099999999999795,
+          "volumeMl": 39.36301077479121,
+          "pressureMmHg": 74.57926196295502
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.077,
+          "phase01": 0.07699999999999818,
+          "volumeMl": 40.636835236091656,
+          "pressureMmHg": 75.64523198198437
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.084,
+          "phase01": 0.08400000000000318,
+          "volumeMl": 42.52091695149767,
+          "pressureMmHg": 77.2272808207339
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.091,
+          "phase01": 0.09099999999999397,
+          "volumeMl": 45.110627070473825,
+          "pressureMmHg": 79.33606086222647
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.096,
+          "phase01": 0.09600000000000364,
+          "volumeMl": 48.429526874551065,
+          "pressureMmHg": 81.82182198356044
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "release",
+      "methodId": "sampled-common-support-envelope",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.980280417300104,
+        "interceptMmHg": 45.86042232239796,
+        "volumeAxisInterceptMl": -46.78296282680735,
+        "measuredVolumeRangeMl": [
+          38.86964273048773,
+          140.5509853872568
+        ],
+        "residualSumOfSquaresMmHgSquared": null,
+        "rSquared": null
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "phase01": 0.0625,
+          "volumeMl": 50.668356473900644,
+          "pressureMmHg": 95.5296199505437
+        },
+        {
+          "beatOrdinal": 12,
+          "phase01": 0.046875,
+          "volumeMl": 48.665424121382436,
+          "pressureMmHg": 93.37970509075699
+        },
+        {
+          "beatOrdinal": 13,
+          "phase01": 0.046875,
+          "volumeMl": 44.199828733101505,
+          "pressureMmHg": 87.28309720268902
+        },
+        {
+          "beatOrdinal": 14,
+          "phase01": 0.046875,
+          "volumeMl": 41.3542116271775,
+          "pressureMmHg": 82.17758976379605
+        },
+        {
+          "beatOrdinal": 15,
+          "phase01": 0.046875,
+          "volumeMl": 40.04755095707244,
+          "pressureMmHg": 79.09375105615045
+        },
+        {
+          "beatOrdinal": 16,
+          "phase01": 0.046875,
+          "volumeMl": 40.081390955455106,
+          "pressureMmHg": 78.32902533274186
+        },
+        {
+          "beatOrdinal": 17,
+          "phase01": 0.046875,
+          "volumeMl": 41.33809562065322,
+          "pressureMmHg": 79.66870075948188
+        },
+        {
+          "beatOrdinal": 18,
+          "phase01": 0.046875,
+          "volumeMl": 44.146821586222615,
+          "pressureMmHg": 83.04104642231582
+        },
+        {
+          "beatOrdinal": 19,
+          "phase01": 0.0625,
+          "volumeMl": 44.435831172025345,
+          "pressureMmHg": 83.13962186403866
+        },
+        {
+          "beatOrdinal": 20,
+          "phase01": 0.0625,
+          "volumeMl": 48.81936162673183,
+          "pressureMmHg": 87.2309917162045
+        },
+        {
+          "beatOrdinal": 21,
+          "phase01": 0.0625,
+          "volumeMl": 53.58555515425431,
+          "pressureMmHg": 91.55102852306942
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "release",
+      "methodId": "baseline-anchored-isochronal",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.3420562038272937,
+        "interceptMmHg": 6.123851944843736,
+        "volumeAxisInterceptMl": -17.903057673924568,
+        "measuredVolumeRangeMl": [
+          37.72737646838437,
+          122.3942944416818
+        ],
+        "residualSumOfSquaresMmHgSquared": 42.22684512394121,
+        "rSquared": 0.9667049748110724
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 40.922587933161346,
+          "pressureMmHg": 19.25226379207959
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 38.15799206008971,
+          "pressureMmHg": 17.287813026465038
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 37.72737646838437,
+          "pressureMmHg": 16.968415523941744
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 41.2574747937189,
+          "pressureMmHg": 19.22382948602417
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 47.99150399937179,
+          "pressureMmHg": 23.307936073004917
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 58.303155273588544,
+          "pressureMmHg": 28.834164426261736
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 71.55370381493796,
+          "pressureMmHg": 33.89376110376384
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 86.54367125130406,
+          "pressureMmHg": 38.00135909058605
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 101.81971728993382,
+          "pressureMmHg": 41.54361073704375
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 115.84532987435198,
+          "pressureMmHg": 44.33360663578273
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.034,
+          "phase01": 0.034000000000006025,
+          "volumeMl": 122.3942944416818,
+          "pressureMmHg": 45.53921592384727
+        }
+      ]
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "directionId": "release",
+      "methodId": "semilunar-closure",
+      "pointCount": 0,
+      "unavailablePointCount": 11,
+      "reason": "fewer than three systolic landmarks are available"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "release",
+      "methodId": "minimum-volume",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": -0.2740404167450292,
+        "interceptMmHg": 25.54403040327203,
+        "volumeAxisInterceptMl": 93.21263887523033,
+        "measuredVolumeRangeMl": [
+          36.187428496451204,
+          78.22321660129731
+        ],
+        "residualSumOfSquaresMmHgSquared": 90.7334645596763,
+        "rSquared": 0.6695753177391106
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.073,
+          "phase01": 0.07299999999999329,
+          "volumeMl": 39.10619348547927,
+          "pressureMmHg": 15.998790529000441
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.068,
+          "phase01": 0.06799999999999784,
+          "volumeMl": 36.67773638701812,
+          "pressureMmHg": 14.754832842903724
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.069,
+          "phase01": 0.06900000000000261,
+          "volumeMl": 36.187428496451204,
+          "pressureMmHg": 14.248448392628237
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.076,
+          "phase01": 0.0759999999999934,
+          "volumeMl": 38.717157083130154,
+          "pressureMmHg": 15.150272231532226
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.087,
+          "phase01": 0.0870000000000033,
+          "volumeMl": 43.441439609541845,
+          "pressureMmHg": 16.55739433579208
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.107,
+          "phase01": 0.10699999999999932,
+          "volumeMl": 49.806270584580034,
+          "pressureMmHg": 16.45135668298143
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.191,
+          "phase01": 0.1910000000000025,
+          "volumeMl": 56.01650358681498,
+          "pressureMmHg": 4.670940861420274
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.2,
+          "phase01": 0.20000000000000284,
+          "volumeMl": 61.59268782617057,
+          "pressureMmHg": 4.978977562770104
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.208,
+          "phase01": 0.2079999999999984,
+          "volumeMl": 67.95979379819249,
+          "pressureMmHg": 5.426501965765509
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.215,
+          "phase01": 0.2150000000000034,
+          "volumeMl": 74.3951193726774,
+          "pressureMmHg": 5.821814687753493
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.209,
+          "phase01": 0.20900000000000318,
+          "volumeMl": 78.22321660129731,
+          "pressureMmHg": 7.399624972686211
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "release",
+      "methodId": "sampled-common-support-envelope",
+      "pointCount": 11,
+      "unavailablePointCount": 0,
+      "relation": {
+        "slopeMmHgPerMl": 0.3715299333339833,
+        "interceptMmHg": 8.146914930198665,
+        "volumeAxisInterceptMl": -21.928017635324885,
+        "measuredVolumeRangeMl": [
+          36.187428496451204,
+          184.84774900713782
+        ],
+        "residualSumOfSquaresMmHgSquared": null,
+        "rSquared": null
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "phase01": 0.03125,
+          "volumeMl": 41.2306947153997,
+          "pressureMmHg": 19.371217101263426
+        },
+        {
+          "beatOrdinal": 12,
+          "phase01": 0.03125,
+          "volumeMl": 38.438897033035055,
+          "pressureMmHg": 17.406634953173217
+        },
+        {
+          "beatOrdinal": 13,
+          "phase01": 0.03125,
+          "volumeMl": 38.025377132469494,
+          "pressureMmHg": 17.095301321531487
+        },
+        {
+          "beatOrdinal": 14,
+          "phase01": 0.03125,
+          "volumeMl": 41.65181433627774,
+          "pressureMmHg": 19.38378581440575
+        },
+        {
+          "beatOrdinal": 15,
+          "phase01": 0.03125,
+          "volumeMl": 48.54165250801954,
+          "pressureMmHg": 23.489858909630136
+        },
+        {
+          "beatOrdinal": 16,
+          "phase01": 0.046875,
+          "volumeMl": 55.21640091438087,
+          "pressureMmHg": 27.634685730831254
+        },
+        {
+          "beatOrdinal": 17,
+          "phase01": 0.046875,
+          "volumeMl": 67.43078080981893,
+          "pressureMmHg": 33.19946842912913
+        },
+        {
+          "beatOrdinal": 18,
+          "phase01": 0.0625,
+          "volumeMl": 76.76063912254455,
+          "pressureMmHg": 35.78081617413044
+        },
+        {
+          "beatOrdinal": 19,
+          "phase01": 0.0625,
+          "volumeMl": 90.93492422197315,
+          "pressureMmHg": 39.68568149241634
+        },
+        {
+          "beatOrdinal": 20,
+          "phase01": 0.0625,
+          "volumeMl": 104.12380834651842,
+          "pressureMmHg": 42.62694536262888
+        },
+        {
+          "beatOrdinal": 21,
+          "phase01": 0.078125,
+          "volumeMl": 103.79066712573518,
+          "pressureMmHg": 41.529624124853164
+        }
+      ]
+    }
+  ],
+  "diastolicReferences": [
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "occlusion",
+      "reference": {
+        "method": "dynamic-maximum-volume-positive-pressure-offset-power",
+        "pointCount": 11,
+        "alphaMmHgPerMlPower": 1.2168875837156503e-7,
+        "beta": 3.725,
+        "volumeOffsetMl": 13.01846558526384,
+        "measuredVolumeRangeMl": [
+          98.60929374352432,
+          155.6698458490313
+        ],
+        "rSquared": 0.9976777477583673
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.785,
+          "phase01": 0.7849999999999966,
+          "volumeMl": 155.51892447447682,
+          "pressureMmHg": 13.041869543549707
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.785,
+          "phase01": 0.7849999999999966,
+          "volumeMl": 155.6698458490313,
+          "pressureMmHg": 13.00542171976657
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.783,
+          "phase01": 0.7830000000000013,
+          "volumeMl": 155.0141609095029,
+          "pressureMmHg": 12.654122731187304
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.78,
+          "phase01": 0.7800000000000011,
+          "volumeMl": 152.6643641752364,
+          "pressureMmHg": 11.80922211966895
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.777,
+          "phase01": 0.777000000000001,
+          "volumeMl": 148.80627871330063,
+          "pressureMmHg": 10.598218200512099
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.775,
+          "phase01": 0.7750000000000057,
+          "volumeMl": 143.55090292979457,
+          "pressureMmHg": 9.133071184823923
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.775,
+          "phase01": 0.7750000000000057,
+          "volumeMl": 136.8612364894241,
+          "pressureMmHg": 7.507231169796126
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.776,
+          "phase01": 0.7759999999999962,
+          "volumeMl": 128.76031681355624,
+          "pressureMmHg": 5.862422295800459
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.892,
+          "phase01": 0.8919999999999959,
+          "volumeMl": 119.50842237878891,
+          "pressureMmHg": 4.094364838469328
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.896,
+          "phase01": 0.8960000000000008,
+          "volumeMl": 109.27797658138466,
+          "pressureMmHg": 3.131676078316957
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.898,
+          "phase01": 0.8979999999999961,
+          "volumeMl": 98.60929374352432,
+          "pressureMmHg": 2.365207223800702
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "occlusion",
+      "reference": {
+        "method": "dynamic-maximum-volume-positive-pressure-offset-power",
+        "pointCount": 11,
+        "alphaMmHgPerMlPower": 1.0812790549869262e-10,
+        "beta": 4.5,
+        "volumeOffsetMl": -47.97561707047619,
+        "measuredVolumeRangeMl": [
+          72.1231157578724,
+          167.565817343315
+        ],
+        "rSquared": 0.9907373443311261
+      },
+      "points": [
+        {
+          "beatOrdinal": 1,
+          "timeSec": 71.891,
+          "phase01": 0.8910000000000053,
+          "volumeMl": 167.565817343315,
+          "pressureMmHg": 3.450534215285005
+        },
+        {
+          "beatOrdinal": 2,
+          "timeSec": 72.891,
+          "phase01": 0.8910000000000053,
+          "volumeMl": 162.3810997825891,
+          "pressureMmHg": 3.0793052397379177
+        },
+        {
+          "beatOrdinal": 3,
+          "timeSec": 73.892,
+          "phase01": 0.8919999999999959,
+          "volumeMl": 152.18965697434123,
+          "pressureMmHg": 2.486532538765607
+        },
+        {
+          "beatOrdinal": 4,
+          "timeSec": 74.893,
+          "phase01": 0.8930000000000007,
+          "volumeMl": 140.8976241204641,
+          "pressureMmHg": 1.8873977702004336
+        },
+        {
+          "beatOrdinal": 5,
+          "timeSec": 75.894,
+          "phase01": 0.8940000000000055,
+          "volumeMl": 128.91930332084073,
+          "pressureMmHg": 1.335415405705135
+        },
+        {
+          "beatOrdinal": 6,
+          "timeSec": 76.896,
+          "phase01": 0.8960000000000008,
+          "volumeMl": 116.53947758104161,
+          "pressureMmHg": 0.916372660016786
+        },
+        {
+          "beatOrdinal": 7,
+          "timeSec": 77.898,
+          "phase01": 0.8979999999999961,
+          "volumeMl": 104.47367875256496,
+          "pressureMmHg": 0.5933182606168687
+        },
+        {
+          "beatOrdinal": 8,
+          "timeSec": 78.787,
+          "phase01": 0.7870000000000061,
+          "volumeMl": 93.11974222944532,
+          "pressureMmHg": 0.4735464782590567
+        },
+        {
+          "beatOrdinal": 9,
+          "timeSec": 79.784,
+          "phase01": 0.784000000000006,
+          "volumeMl": 82.95180741396688,
+          "pressureMmHg": 0.45938716582026257
+        },
+        {
+          "beatOrdinal": 10,
+          "timeSec": 80.784,
+          "phase01": 0.784000000000006,
+          "volumeMl": 75.16543780867458,
+          "pressureMmHg": 0.4587104142615323
+        },
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.785,
+          "phase01": 0.7849999999999966,
+          "volumeMl": 72.1231157578724,
+          "pressureMmHg": 0.4516321141785928
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "directionId": "release",
+      "reference": {
+        "method": "dynamic-maximum-volume-positive-pressure-offset-power",
+        "pointCount": 11,
+        "alphaMmHgPerMlPower": 4.12022152784492e-7,
+        "beta": 3.4000000000000004,
+        "volumeOffsetMl": -6.332502599084378,
+        "measuredVolumeRangeMl": [
+          81.79759019272032,
+          140.5509853872568
+        ],
+        "rSquared": 0.9889222785066785
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.898,
+          "phase01": 0.8979999999999961,
+          "volumeMl": 98.60929374352432,
+          "pressureMmHg": 2.365207223800702
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.899,
+          "phase01": 0.8990000000000009,
+          "volumeMl": 89.2320438857358,
+          "pressureMmHg": 1.8922344877951751
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.9,
+          "phase01": 0.9000000000000057,
+          "volumeMl": 82.78920197592159,
+          "pressureMmHg": 1.877685013617704
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.9,
+          "phase01": 0.9000000000000057,
+          "volumeMl": 81.79759019272032,
+          "pressureMmHg": 1.981614295556326
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.899,
+          "phase01": 0.8990000000000009,
+          "volumeMl": 85.83205909957806,
+          "pressureMmHg": 2.135059351657528
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.898,
+          "phase01": 0.8979999999999961,
+          "volumeMl": 93.30961829163299,
+          "pressureMmHg": 2.8293003027324204
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.896,
+          "phase01": 0.8960000000000008,
+          "volumeMl": 102.89338762906777,
+          "pressureMmHg": 3.6066097236288996
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.894,
+          "phase01": 0.8940000000000055,
+          "volumeMl": 112.81614563379351,
+          "pressureMmHg": 4.7891737399211545
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.779,
+          "phase01": 0.7789999999999964,
+          "volumeMl": 123.05029987509182,
+          "pressureMmHg": 6.277549309533665
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.777,
+          "phase01": 0.777000000000001,
+          "volumeMl": 132.6766073703019,
+          "pressureMmHg": 8.044168023135795
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.777,
+          "phase01": 0.777000000000001,
+          "volumeMl": 140.5509853872568,
+          "pressureMmHg": 9.57265007862666
+        }
+      ]
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "directionId": "release",
+      "reference": {
+        "method": "dynamic-maximum-volume-positive-pressure-offset-power",
+        "pointCount": 11,
+        "alphaMmHgPerMlPower": 4.190796082960639e-11,
+        "beta": 4.5,
+        "volumeOffsetMl": -88.79513507925898,
+        "measuredVolumeRangeMl": [
+          72.1231157578724,
+          184.85043683467197
+        ],
+        "rSquared": 0.9884586139807928
+      },
+      "points": [
+        {
+          "beatOrdinal": 11,
+          "timeSec": 81.785,
+          "phase01": 0.7849999999999966,
+          "volumeMl": 72.1231157578724,
+          "pressureMmHg": 0.4516321141785928
+        },
+        {
+          "beatOrdinal": 12,
+          "timeSec": 82.901,
+          "phase01": 0.9009999999999962,
+          "volumeMl": 73.54322526443481,
+          "pressureMmHg": 0.5161382259785273
+        },
+        {
+          "beatOrdinal": 13,
+          "timeSec": 83.901,
+          "phase01": 0.9009999999999962,
+          "volumeMl": 83.35486152213846,
+          "pressureMmHg": 0.646072406791001
+        },
+        {
+          "beatOrdinal": 14,
+          "timeSec": 84.901,
+          "phase01": 0.9009999999999962,
+          "volumeMl": 97.32837375616838,
+          "pressureMmHg": 0.8006792119216729
+        },
+        {
+          "beatOrdinal": 15,
+          "timeSec": 85.9,
+          "phase01": 0.9000000000000057,
+          "volumeMl": 114.61617582674162,
+          "pressureMmHg": 0.9254818136012614
+        },
+        {
+          "beatOrdinal": 16,
+          "timeSec": 86.899,
+          "phase01": 0.8990000000000009,
+          "volumeMl": 131.92555110814703,
+          "pressureMmHg": 1.359839043760642
+        },
+        {
+          "beatOrdinal": 17,
+          "timeSec": 87.897,
+          "phase01": 0.8970000000000056,
+          "volumeMl": 149.56657481518985,
+          "pressureMmHg": 1.948902732559058
+        },
+        {
+          "beatOrdinal": 18,
+          "timeSec": 88.895,
+          "phase01": 0.894999999999996,
+          "volumeMl": 166.24248954841963,
+          "pressureMmHg": 2.7043269608579203
+        },
+        {
+          "beatOrdinal": 19,
+          "timeSec": 89.892,
+          "phase01": 0.8919999999999959,
+          "volumeMl": 180.59963814158712,
+          "pressureMmHg": 3.459382017840744
+        },
+        {
+          "beatOrdinal": 20,
+          "timeSec": 90.891,
+          "phase01": 0.8910000000000053,
+          "volumeMl": 184.85043683467197,
+          "pressureMmHg": 3.9675572673132353
+        },
+        {
+          "beatOrdinal": 21,
+          "timeSec": 91.89,
+          "phase01": 0.8900000000000006,
+          "volumeMl": 182.48620003884614,
+          "pressureMmHg": 3.995458226702035
+        }
+      ]
+    }
+  ],
+  "pvaRows": [
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 96.55300194069851,
+        "pressureMmHg": 118.62994031355403
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 9649.250252270482,
+      "potentialEnergyMmHgMl": 13884.343166333721,
+      "pressureVolumeAreaMmHgMl": 23533.593418604203,
+      "pressureVolumeAreaJ": 3.13754574175515,
+      "endpointClosureDeltaVolumeMl": 0.000049906850222214416,
+      "endpointClosureDeltaPressureMmHg": 0.0002443117642485504,
+      "straightClosureSegmentWorkMmHgMl": 0.005890236308080399
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 64.78495422919205,
+        "pressureMmHg": 99.76476115380463
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 9649.250252270482,
+      "potentialEnergyMmHgMl": 8498.761706515914,
+      "pressureVolumeAreaMmHgMl": 18148.011958786396,
+      "pressureVolumeAreaJ": 2.41952925036932,
+      "endpointClosureDeltaVolumeMl": 0.000049906850222214416,
+      "endpointClosureDeltaPressureMmHg": 0.0002443117642485504,
+      "straightClosureSegmentWorkMmHgMl": 0.005890236308080399
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 74.97399449923819,
+        "pressureMmHg": 113.66609977138617
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 9649.250252270482,
+      "potentialEnergyMmHgMl": 9172.17327149456,
+      "pressureVolumeAreaMmHgMl": 18821.423523765043,
+      "pressureVolumeAreaJ": 2.5093098270354033,
+      "endpointClosureDeltaVolumeMl": 0.000049906850222214416,
+      "endpointClosureDeltaPressureMmHg": 0.0002443117642485504,
+      "straightClosureSegmentWorkMmHgMl": 0.005890236308080399
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 114.59057788903802,
+        "pressureMmHg": 44.05408944889583
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 3182.602393119122,
+      "potentialEnergyMmHgMl": 3309.940131346658,
+      "pressureVolumeAreaMmHgMl": 6492.54252446578,
+      "pressureVolumeAreaJ": 0.8655987544468268,
+      "endpointClosureDeltaVolumeMl": -0.0007301730794040395,
+      "endpointClosureDeltaPressureMmHg": -0.00012730238994862475,
+      "straightClosureSegmentWorkMmHgMl": -0.030777352163807625
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 97.06703196134,
+        "pressureMmHg": 40.28659533485904
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 3182.602393119122,
+      "potentialEnergyMmHgMl": 2675.698049844303,
+      "pressureVolumeAreaMmHgMl": 5858.300442963426,
+      "pressureVolumeAreaJ": 0.7810403316567699,
+      "endpointClosureDeltaVolumeMl": -0.0007301730794040395,
+      "endpointClosureDeltaPressureMmHg": -0.00012730238994862475,
+      "straightClosureSegmentWorkMmHgMl": -0.030777352163807625
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 96.55307648601308,
+        "pressureMmHg": 118.63019748782806
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 9669.137485358711,
+      "potentialEnergyMmHgMl": 13884.351902298964,
+      "pressureVolumeAreaMmHgMl": 23553.489387657675,
+      "pressureVolumeAreaJ": 3.1401983121412966,
+      "endpointClosureDeltaVolumeMl": 0.08474660466812622,
+      "endpointClosureDeltaPressureMmHg": 0.05071154129107924,
+      "straightClosureSegmentWorkMmHgMl": 10.00434374924456
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 64.78512503288493,
+        "pressureMmHg": 99.76509482341184
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 9669.137485358711,
+      "potentialEnergyMmHgMl": 8498.778726775,
+      "pressureVolumeAreaMmHgMl": 18167.916212133714,
+      "pressureVolumeAreaJ": 2.422182925234091,
+      "endpointClosureDeltaVolumeMl": 0.08474660466812622,
+      "endpointClosureDeltaPressureMmHg": 0.05071154129107924,
+      "straightClosureSegmentWorkMmHgMl": 10.00434374924456
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 74.97412930970586,
+        "pressureMmHg": 113.66639335991938
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 9669.137485358711,
+      "potentialEnergyMmHgMl": 9172.188682034839,
+      "pressureVolumeAreaMmHgMl": 18841.32616739355,
+      "pressureVolumeAreaJ": 2.511963287289243,
+      "endpointClosureDeltaVolumeMl": 0.08474660466812622,
+      "endpointClosureDeltaPressureMmHg": 0.05071154129107924,
+      "straightClosureSegmentWorkMmHgMl": 10.00434374924456
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 114.58987857610938,
+        "pressureMmHg": 44.05397588599069
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 2972.0862184983393,
+      "potentialEnergyMmHgMl": 3309.908979453905,
+      "pressureVolumeAreaMmHgMl": 6281.995197952245,
+      "pressureVolumeAreaJ": 0.8375281637813893,
+      "endpointClosureDeltaVolumeMl": -3.9597423070192974,
+      "endpointClosureDeltaPressureMmHg": -0.6970275399318382,
+      "straightClosureSegmentWorkMmHgMl": -165.52588137881432
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 97.06641365257693,
+        "pressureMmHg": 40.286461652637875
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 2972.0862184983393,
+      "potentialEnergyMmHgMl": 2675.670663751212,
+      "pressureVolumeAreaMmHgMl": 5647.756882249551,
+      "pressureVolumeAreaJ": 0.7529702430552747,
+      "endpointClosureDeltaVolumeMl": -3.9597423070192974,
+      "endpointClosureDeltaPressureMmHg": -0.6970275399318382,
+      "straightClosureSegmentWorkMmHgMl": -165.52588137881432
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 96.62933648337615,
+        "pressureMmHg": 118.69049621453242
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 9603.556917868096,
+      "potentialEnergyMmHgMl": 13893.290062911408,
+      "pressureVolumeAreaMmHgMl": 23496.846980779505,
+      "pressureVolumeAreaJ": 3.1326466331714853,
+      "endpointClosureDeltaVolumeMl": -0.3961431155854882,
+      "endpointClosureDeltaPressureMmHg": -0.1079021979599446,
+      "straightClosureSegmentWorkMmHgMl": -46.75339999217285
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 64.82378564087709,
+        "pressureMmHg": 99.78917250256349
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 9603.556917868096,
+      "potentialEnergyMmHgMl": 8502.631606898709,
+      "pressureVolumeAreaMmHgMl": 18106.188524766803,
+      "pressureVolumeAreaJ": 2.41395326649896,
+      "endpointClosureDeltaVolumeMl": -0.3961431155854882,
+      "endpointClosureDeltaPressureMmHg": -0.1079021979599446,
+      "straightClosureSegmentWorkMmHgMl": -46.75339999217285
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 75.02128609896344,
+        "pressureMmHg": 113.71499493051292
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 9603.556917868096,
+      "potentialEnergyMmHgMl": 9177.580062044695,
+      "pressureVolumeAreaMmHgMl": 18781.136979912793,
+      "pressureVolumeAreaJ": 2.5039387444359336,
+      "endpointClosureDeltaVolumeMl": -0.3961431155854882,
+      "endpointClosureDeltaPressureMmHg": -0.1079021979599446,
+      "straightClosureSegmentWorkMmHgMl": -46.75339999217285
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 110.81100645711186,
+        "pressureMmHg": 43.4071638222379
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 2612.669346766261,
+      "potentialEnergyMmHgMl": 3143.6036536910387,
+      "pressureVolumeAreaMmHgMl": 5756.2730004572995,
+      "pressureVolumeAreaJ": 0.7674378289669681,
+      "endpointClosureDeltaVolumeMl": -8.228537086449066,
+      "endpointClosureDeltaPressureMmHg": -1.4713757089692976,
+      "straightClosureSegmentWorkMmHgMl": -335.0494381789634
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 99.69831669478212,
+        "pressureMmHg": 41.83766787365714
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 2612.669346766261,
+      "potentialEnergyMmHgMl": 2793.474782882065,
+      "pressureVolumeAreaMmHgMl": 5406.144129648326,
+      "pressureVolumeAreaJ": 0.7207579476529742,
+      "endpointClosureDeltaVolumeMl": -8.228537086449066,
+      "endpointClosureDeltaPressureMmHg": -1.4713757089692976,
+      "straightClosureSegmentWorkMmHgMl": -335.0494381789634
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 96.23960801771514,
+        "pressureMmHg": 118.59713016584817
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 9362.127452614583,
+      "potentialEnergyMmHgMl": 13847.637672959729,
+      "pressureVolumeAreaMmHgMl": 23209.76512557431,
+      "pressureVolumeAreaJ": 3.0943723060718185,
+      "endpointClosureDeltaVolumeMl": -1.5469538549142356,
+      "endpointClosureDeltaPressureMmHg": -0.5584575222556225,
+      "straightClosureSegmentWorkMmHgMl": -182.0583820717793
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 64.64630362849877,
+        "pressureMmHg": 99.63076319854021
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 9362.127452614583,
+      "potentialEnergyMmHgMl": 8484.950890554928,
+      "pressureVolumeAreaMmHgMl": 17847.07834316951,
+      "pressureVolumeAreaJ": 2.3794081788680455,
+      "endpointClosureDeltaVolumeMl": -1.5469538549142356,
+      "endpointClosureDeltaPressureMmHg": -0.5584575222556225,
+      "straightClosureSegmentWorkMmHgMl": -182.0583820717793
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 74.67703753254389,
+        "pressureMmHg": 113.61039358329471
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 9362.127452614583,
+      "potentialEnergyMmHgMl": 9138.257528916512,
+      "pressureVolumeAreaMmHgMl": 18500.384981531097,
+      "pressureVolumeAreaJ": 2.466508326507689,
+      "endpointClosureDeltaVolumeMl": -1.5469538549142356,
+      "endpointClosureDeltaPressureMmHg": -0.5584575222556225,
+      "straightClosureSegmentWorkMmHgMl": -182.0583820717793
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 102.92282292604312,
+        "pressureMmHg": 41.97164518484429
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 2269.27106933529,
+      "potentialEnergyMmHgMl": 2809.6275479437563,
+      "pressureVolumeAreaMmHgMl": 5078.898617279046,
+      "pressureVolumeAreaJ": 0.6771289214528771,
+      "endpointClosureDeltaVolumeMl": -9.660708135874586,
+      "endpointClosureDeltaPressureMmHg": -1.766405654818655,
+      "straightClosureSegmentWorkMmHgMl": -377.72492510732707
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 92.40805035880229,
+        "pressureMmHg": 40.27881622042531
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 2269.27106933529,
+      "potentialEnergyMmHgMl": 2473.2150930827283,
+      "pressureVolumeAreaMmHgMl": 4742.4861624180185,
+      "pressureVolumeAreaJ": 0.6322777401458951,
+      "endpointClosureDeltaVolumeMl": -9.660708135874586,
+      "endpointClosureDeltaPressureMmHg": -1.766405654818655,
+      "straightClosureSegmentWorkMmHgMl": -377.72492510732707
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 94.75489686925262,
+        "pressureMmHg": 118.05434460816524
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 8999.991773398579,
+      "potentialEnergyMmHgMl": 13674.32102349098,
+      "pressureVolumeAreaMmHgMl": 22674.312796889557,
+      "pressureVolumeAreaJ": 3.0229847307069098,
+      "endpointClosureDeltaVolumeMl": -2.559218447446966,
+      "endpointClosureDeltaPressureMmHg": -1.0683621132245378,
+      "straightClosureSegmentWorkMmHgMl": -299.10839602217163
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 63.928097271654686,
+        "pressureMmHg": 99.33029666994264
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 8999.991773398579,
+      "potentialEnergyMmHgMl": 8413.585567639857,
+      "pressureVolumeAreaMmHgMl": 17413.577341038435,
+      "pressureVolumeAreaJ": 2.3216129582619263,
+      "endpointClosureDeltaVolumeMl": -2.559218447446966,
+      "endpointClosureDeltaPressureMmHg": -1.0683621132245378,
+      "straightClosureSegmentWorkMmHgMl": -299.10839602217163
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 73.42192600675362,
+        "pressureMmHg": 113.05251641957427
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 8999.991773398579,
+      "potentialEnergyMmHgMl": 8995.577436780124,
+      "pressureVolumeAreaMmHgMl": 17995.569210178703,
+      "pressureVolumeAreaJ": 2.399205278239445,
+      "endpointClosureDeltaVolumeMl": -2.559218447446966,
+      "endpointClosureDeltaPressureMmHg": -1.0683621132245378,
+      "straightClosureSegmentWorkMmHgMl": -299.10839602217163
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 93.69592316117414,
+        "pressureMmHg": 40.12218016680989
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 1923.5589108709255,
+      "potentialEnergyMmHgMl": 2441.855946632545,
+      "pressureVolumeAreaMmHgMl": 4365.414857503471,
+      "pressureVolumeAreaJ": 0.5820058396320777,
+      "endpointClosureDeltaVolumeMl": -10.598262547261768,
+      "endpointClosureDeltaPressureMmHg": -2.154580441536872,
+      "straightClosureSegmentWorkMmHgMl": -393.6046321119298
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 83.93808944901289,
+        "pressureMmHg": 38.24804858810663
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 1923.5589108709255,
+      "potentialEnergyMmHgMl": 2125.0421717030167,
+      "pressureVolumeAreaMmHgMl": 4048.601082573942,
+      "pressureVolumeAreaJ": 0.5397675935309232,
+      "endpointClosureDeltaVolumeMl": -10.598262547261768,
+      "endpointClosureDeltaPressureMmHg": -2.154580441536872,
+      "straightClosureSegmentWorkMmHgMl": -393.6046321119298
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 92.29571775006322,
+        "pressureMmHg": 117.01397311869299
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 8514.950198958999,
+      "potentialEnergyMmHgMl": 13389.361950620809,
+      "pressureVolumeAreaMmHgMl": 21904.312149579808,
+      "pressureVolumeAreaJ": 2.9203267044062793,
+      "endpointClosureDeltaVolumeMl": -3.6239210400715507,
+      "endpointClosureDeltaPressureMmHg": -1.6257316261762327,
+      "straightClosureSegmentWorkMmHgMl": -418.6638118655717
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 62.679851706852716,
+        "pressureMmHg": 98.83116947317512
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 8514.950198958999,
+      "potentialEnergyMmHgMl": 8290.24862496582,
+      "pressureVolumeAreaMmHgMl": 16805.198823924817,
+      "pressureVolumeAreaJ": 2.2405027176033045,
+      "endpointClosureDeltaVolumeMl": -3.6239210400715507,
+      "endpointClosureDeltaPressureMmHg": -1.6257316261762327,
+      "straightClosureSegmentWorkMmHgMl": -418.6638118655717
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 71.34168657856645,
+        "pressureMmHg": 111.98658214539986
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 8514.950198958999,
+      "potentialEnergyMmHgMl": 8761.480751699391,
+      "pressureVolumeAreaMmHgMl": 17276.43095065839,
+      "pressureVolumeAreaJ": 2.303328327203678,
+      "endpointClosureDeltaVolumeMl": -3.6239210400715507,
+      "endpointClosureDeltaPressureMmHg": -1.6257316261762327,
+      "straightClosureSegmentWorkMmHgMl": -418.6638118655717
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 83.645845720831,
+        "pressureMmHg": 37.84673080204651
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 1581.868919016653,
+      "potentialEnergyMmHgMl": 2069.731594407082,
+      "pressureVolumeAreaMmHgMl": 3651.600513423735,
+      "pressureVolumeAreaJ": 0.4868386836506792,
+      "endpointClosureDeltaVolumeMl": -11.169604221100442,
+      "endpointClosureDeltaPressureMmHg": -2.559049265938704,
+      "straightClosureSegmentWorkMmHgMl": -388.4987727898201
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 74.82044515078127,
+        "pressureMmHg": 35.759832515849354
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 1581.868919016653,
+      "potentialEnergyMmHgMl": 1779.2116063477065,
+      "pressureVolumeAreaMmHgMl": 3361.0805253643593,
+      "pressureVolumeAreaJ": 0.4481059778026271,
+      "endpointClosureDeltaVolumeMl": -11.169604221100442,
+      "endpointClosureDeltaPressureMmHg": -2.559049265938704,
+      "straightClosureSegmentWorkMmHgMl": -388.4987727898201
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 88.81357749650115,
+        "pressureMmHg": 115.40729990410796
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 7912.299985899454,
+      "potentialEnergyMmHgMl": 12990.431024039342,
+      "pressureVolumeAreaMmHgMl": 20902.731009938798,
+      "pressureVolumeAreaJ": 2.7867939037070606,
+      "endpointClosureDeltaVolumeMl": -4.682195558424013,
+      "endpointClosureDeltaPressureMmHg": -2.253232093810553,
+      "straightClosureSegmentWorkMmHgMl": -531.8429599468609
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 60.87664217171411,
+        "pressureMmHg": 98.04316020751327
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 7912.299985899454,
+      "potentialEnergyMmHgMl": 8113.641133559862,
+      "pressureVolumeAreaMmHgMl": 16025.941119459316,
+      "pressureVolumeAreaJ": 2.136610521928555,
+      "endpointClosureDeltaVolumeMl": -4.682195558424013,
+      "endpointClosureDeltaPressureMmHg": -2.253232093810553,
+      "straightClosureSegmentWorkMmHgMl": -531.8429599468609
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 68.42324315381391,
+        "pressureMmHg": 110.15207780871931
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 7912.299985899454,
+      "potentialEnergyMmHgMl": 8438.090358200436,
+      "pressureVolumeAreaMmHgMl": 16350.390344099891,
+      "pressureVolumeAreaJ": 2.179866741456086,
+      "endpointClosureDeltaVolumeMl": -4.682195558424013,
+      "endpointClosureDeltaPressureMmHg": -2.253232093810553,
+      "straightClosureSegmentWorkMmHgMl": -531.8429599468609
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 73.12843603384648,
+        "pressureMmHg": 35.09829253502108
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 1256.4157454062176,
+      "potentialEnergyMmHgMl": 1712.4762718017687,
+      "pressureVolumeAreaMmHgMl": 2968.892017207986,
+      "pressureVolumeAreaJ": 0.39581862151820313,
+      "endpointClosureDeltaVolumeMl": -11.096415326009236,
+      "endpointClosureDeltaPressureMmHg": -2.906746263372362,
+      "straightClosureSegmentWorkMmHgMl": -355.6277637346811
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 69.42211914882876,
+        "pressureMmHg": 34.5155438971599
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 1256.4157454062176,
+      "potentialEnergyMmHgMl": 1588.7043447121603,
+      "pressureVolumeAreaMmHgMl": 2845.120090118378,
+      "pressureVolumeAreaJ": 0.37931710065476243,
+      "endpointClosureDeltaVolumeMl": -11.096415326009236,
+      "endpointClosureDeltaPressureMmHg": -2.906746263372362,
+      "straightClosureSegmentWorkMmHgMl": -355.6277637346811
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 84.29854940210045,
+        "pressureMmHg": 113.30105218500452
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 7192.307830367555,
+      "potentialEnergyMmHgMl": 12481.273443926257,
+      "pressureVolumeAreaMmHgMl": 19673.58127429381,
+      "pressureVolumeAreaJ": 2.6229212026513995,
+      "endpointClosureDeltaVolumeMl": -5.783063710368808,
+      "endpointClosureDeltaPressureMmHg": -2.8321170465031145,
+      "straightClosureSegmentWorkMmHgMl": -642.1843295114431
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 58.52073498977,
+        "pressureMmHg": 96.59268920081723
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 7192.307830367555,
+      "potentialEnergyMmHgMl": 7885.696838930897,
+      "pressureVolumeAreaMmHgMl": 15078.00466929845,
+      "pressureVolumeAreaJ": 2.0102297385202084,
+      "endpointClosureDeltaVolumeMl": -5.783063710368808,
+      "endpointClosureDeltaPressureMmHg": -2.8321170465031145,
+      "straightClosureSegmentWorkMmHgMl": -642.1843295114431
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 64.79292235058996,
+        "pressureMmHg": 107.56937017111926
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 7192.307830367555,
+      "potentialEnergyMmHgMl": 8044.062864220598,
+      "pressureVolumeAreaMmHgMl": 15236.370694588153,
+      "pressureVolumeAreaJ": 2.031343413743882,
+      "endpointClosureDeltaVolumeMl": -5.783063710368808,
+      "endpointClosureDeltaPressureMmHg": -2.8321170465031145,
+      "straightClosureSegmentWorkMmHgMl": -642.1843295114431
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 62.735889730688974,
+        "pressureMmHg": 31.91979862597923
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 951.5020342093793,
+      "potentialEnergyMmHgMl": 1392.1259027807814,
+      "pressureVolumeAreaMmHgMl": 2343.627936990161,
+      "pressureVolumeAreaJ": 0.31245716381540223,
+      "endpointClosureDeltaVolumeMl": -10.551732639390288,
+      "endpointClosureDeltaPressureMmHg": -3.1487727658535754,
+      "straightClosureSegmentWorkMmHgMl": -306.22318082609115
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 59.629014328092964,
+        "pressureMmHg": 30.863904492588624
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 951.5020342093793,
+      "potentialEnergyMmHgMl": 1270.3213711252154,
+      "pressureVolumeAreaMmHgMl": 2221.8234053345946,
+      "pressureVolumeAreaJ": 0.2962179400460188,
+      "endpointClosureDeltaVolumeMl": -10.551732639390288,
+      "endpointClosureDeltaPressureMmHg": -3.1487727658535754,
+      "straightClosureSegmentWorkMmHgMl": -306.22318082609115
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 78.72603970555681,
+        "pressureMmHg": 110.37571010295241
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 6397.095796526508,
+      "potentialEnergyMmHgMl": 11865.741199560649,
+      "pressureVolumeAreaMmHgMl": 18262.836996087157,
+      "pressureVolumeAreaJ": 2.434837953992332,
+      "endpointClosureDeltaVolumeMl": -6.6177497528087486,
+      "endpointClosureDeltaPressureMmHg": -3.577804309989986,
+      "straightClosureSegmentWorkMmHgMl": -713.6629935461993
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 55.597148902004484,
+        "pressureMmHg": 95.03609767619754
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 6397.095796526508,
+      "potentialEnergyMmHgMl": 7607.246442392386,
+      "pressureVolumeAreaMmHgMl": 14004.342238918893,
+      "pressureVolumeAreaJ": 1.8670869159771448,
+      "endpointClosureDeltaVolumeMl": -6.6177497528087486,
+      "endpointClosureDeltaPressureMmHg": -3.577804309989986,
+      "straightClosureSegmentWorkMmHgMl": -713.6629935461993
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 60.45948370258485,
+        "pressureMmHg": 104.27753996147351
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 6397.095796526508,
+      "potentialEnergyMmHgMl": 7585.763018520336,
+      "pressureVolumeAreaMmHgMl": 13982.858815046844,
+      "pressureVolumeAreaJ": 1.8642227029396754,
+      "endpointClosureDeltaVolumeMl": -6.6177497528087486,
+      "endpointClosureDeltaPressureMmHg": -3.577804309989986,
+      "straightClosureSegmentWorkMmHgMl": -713.6629935461993
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 53.65515536619669,
+        "pressureMmHg": 27.28193029439665
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 707.4345746133033,
+      "potentialEnergyMmHgMl": 1139.0119629525034,
+      "pressureVolumeAreaMmHgMl": 1846.4465375658067,
+      "pressureVolumeAreaJ": 0.2461719452813485,
+      "endpointClosureDeltaVolumeMl": -9.139848424968328,
+      "endpointClosureDeltaPressureMmHg": -4.028828907300326,
+      "straightClosureSegmentWorkMmHgMl": -232.4476130088705
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 54.19136260293479,
+        "pressureMmHg": 27.42903682585703
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 707.4345746133033,
+      "potentialEnergyMmHgMl": 1108.7545095619305,
+      "pressureVolumeAreaMmHgMl": 1816.1890841752338,
+      "pressureVolumeAreaJ": 0.24213796108041052,
+      "endpointClosureDeltaVolumeMl": -9.139848424968328,
+      "endpointClosureDeltaPressureMmHg": -4.028828907300326,
+      "straightClosureSegmentWorkMmHgMl": -232.4476130088705
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 72.40498367237028,
+        "pressureMmHg": 106.76091048264001
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 5531.970556059927,
+      "potentialEnergyMmHgMl": 11185.116178785875,
+      "pressureVolumeAreaMmHgMl": 16717.0867348458,
+      "pressureVolumeAreaJ": 2.228755437663112,
+      "endpointClosureDeltaVolumeMl": -7.362140133986216,
+      "endpointClosureDeltaPressureMmHg": -4.257255659512609,
+      "straightClosureSegmentWorkMmHgMl": -765.0971942202265
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 52.24314931657108,
+        "pressureMmHg": 92.7604876653891
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 5531.970556059927,
+      "potentialEnergyMmHgMl": 7293.85607356383,
+      "pressureVolumeAreaMmHgMl": 12825.826629623756,
+      "pressureVolumeAreaJ": 1.7099648579146984,
+      "endpointClosureDeltaVolumeMl": -7.362140133986216,
+      "endpointClosureDeltaPressureMmHg": -4.257255659512609,
+      "straightClosureSegmentWorkMmHgMl": -765.0971942202265
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 60.05850890199297,
+        "pressureMmHg": 103.61485653901883
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 5531.970556059927,
+      "potentialEnergyMmHgMl": 7544.021629903932,
+      "pressureVolumeAreaMmHgMl": 13075.99218596386,
+      "pressureVolumeAreaJ": 1.7433174302170737,
+      "endpointClosureDeltaVolumeMl": -7.362140133986216,
+      "endpointClosureDeltaPressureMmHg": -4.257255659512609,
+      "straightClosureSegmentWorkMmHgMl": -765.0971942202265
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 46.341034406961654,
+        "pressureMmHg": 22.85304796323072
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 554.9030245193161,
+      "potentialEnergyMmHgMl": 953.421926930241,
+      "pressureVolumeAreaMmHgMl": 1508.3249514495571,
+      "pressureVolumeAreaJ": 0.20109289917715786,
+      "endpointClosureDeltaVolumeMl": -6.552642511712236,
+      "endpointClosureDeltaPressureMmHg": -3.498509117915564,
+      "straightClosureSegmentWorkMmHgMl": -141.98696887953523
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 46.73590816910441,
+        "pressureMmHg": 22.979332696355648
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 554.9030245193161,
+      "potentialEnergyMmHgMl": 904.9649855566967,
+      "pressureVolumeAreaMmHgMl": 1459.8680100760128,
+      "pressureVolumeAreaJ": 0.19463252283935417,
+      "endpointClosureDeltaVolumeMl": -6.552642511712236,
+      "endpointClosureDeltaPressureMmHg": -3.498509117915564,
+      "straightClosureSegmentWorkMmHgMl": -141.98696887953523
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 65.41033678786135,
+        "pressureMmHg": 102.39811238198753
+      },
+      "systolicDiastolicIntersectionVolumeMl": -137.42745533548882,
+      "externalWorkMmHgMl": 4657.54967412786,
+      "potentialEnergyMmHgMl": 10454.205000823265,
+      "pressureVolumeAreaMmHgMl": 15111.754674951126,
+      "pressureVolumeAreaJ": 2.014729356773834,
+      "endpointClosureDeltaVolumeMl": -7.680512999608268,
+      "endpointClosureDeltaPressureMmHg": -4.894513986012342,
+      "straightClosureSegmentWorkMmHgMl": -763.0383797547505
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 48.5300477639526,
+        "pressureMmHg": 89.74419350021559
+      },
+      "systolicDiastolicIntersectionVolumeMl": -105.35159138638205,
+      "externalWorkMmHgMl": 4657.54967412786,
+      "potentialEnergyMmHgMl": 6954.4891510684265,
+      "pressureVolumeAreaMmHgMl": 11612.038825196287,
+      "pressureVolumeAreaJ": 1.5481402402528195,
+      "endpointClosureDeltaVolumeMl": -7.680512999608268,
+      "endpointClosureDeltaPressureMmHg": -4.894513986012342,
+      "straightClosureSegmentWorkMmHgMl": -763.0383797547505
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 54.322250869238644,
+        "pressureMmHg": 98.81883347658962
+      },
+      "systolicDiastolicIntersectionVolumeMl": -84.8277200405483,
+      "externalWorkMmHgMl": 4657.54967412786,
+      "potentialEnergyMmHgMl": 6959.27372339869,
+      "pressureVolumeAreaMmHgMl": 11616.82339752655,
+      "pressureVolumeAreaJ": 1.5487781290050349,
+      "endpointClosureDeltaVolumeMl": -7.680512999608268,
+      "endpointClosureDeltaPressureMmHg": -4.894513986012342,
+      "straightClosureSegmentWorkMmHgMl": -763.0383797547505
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 40.922587933161346,
+        "pressureMmHg": 19.25226379207959
+      },
+      "systolicDiastolicIntersectionVolumeMl": -32.121868886589525,
+      "externalWorkMmHgMl": 518.8690930295053,
+      "potentialEnergyMmHgMl": 826.4929420829573,
+      "pressureVolumeAreaMmHgMl": 1345.3620351124625,
+      "pressureVolumeAreaJ": 0.17936635724526373,
+      "endpointClosureDeltaVolumeMl": -3.071753564314683,
+      "endpointClosureDeltaPressureMmHg": -1.8652882665785242,
+      "straightClosureSegmentWorkMmHgMl": -58.32264524881363
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 41.2306947153997,
+        "pressureMmHg": 19.371217101263426
+      },
+      "systolicDiastolicIntersectionVolumeMl": -22.878598659632345,
+      "externalWorkMmHgMl": 518.8690930295053,
+      "potentialEnergyMmHgMl": 767.6816111475094,
+      "pressureVolumeAreaMmHgMl": 1286.5507041770147,
+      "pressureVolumeAreaJ": 0.17152551298228796,
+      "endpointClosureDeltaVolumeMl": -3.071753564314683,
+      "endpointClosureDeltaPressureMmHg": -1.8652882665785242,
+      "straightClosureSegmentWorkMmHgMl": -58.32264524881363
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 58.357925067740624,
+        "pressureMmHg": 96.74205001017964
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 3893.359711700823,
+      "potentialEnergyMmHgMl": 6393.713157971816,
+      "pressureVolumeAreaMmHgMl": 10287.07286967264,
+      "pressureVolumeAreaJ": 1.3714931291304957,
+      "endpointClosureDeltaVolumeMl": -6.612364877044357,
+      "endpointClosureDeltaPressureMmHg": -5.627198449128045,
+      "straightClosureSegmentWorkMmHgMl": -622.1340259533963
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 45.17832814878991,
+        "pressureMmHg": 86.47538152396886
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 3893.359711700823,
+      "potentialEnergyMmHgMl": 2940.1475834117527,
+      "pressureVolumeAreaMmHgMl": 6833.507295112576,
+      "pressureVolumeAreaJ": 0.9110568595989988,
+      "endpointClosureDeltaVolumeMl": -6.612364877044357,
+      "endpointClosureDeltaPressureMmHg": -5.627198449128045,
+      "straightClosureSegmentWorkMmHgMl": -622.1340259533963
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 48.665424121382436,
+        "pressureMmHg": 93.37970509075699
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 3893.359711700823,
+      "potentialEnergyMmHgMl": 4461.114793226085,
+      "pressureVolumeAreaMmHgMl": 8354.474504926908,
+      "pressureVolumeAreaJ": 1.1138352499458652,
+      "endpointClosureDeltaVolumeMl": -6.612364877044357,
+      "endpointClosureDeltaPressureMmHg": -5.627198449128045,
+      "straightClosureSegmentWorkMmHgMl": -622.1340259533963
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 38.15799206008971,
+        "pressureMmHg": 17.287813026465038
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 564.6651366919742,
+      "potentialEnergyMmHgMl": 534.7979587619316,
+      "pressureVolumeAreaMmHgMl": 1099.4630954539057,
+      "pressureVolumeAreaJ": 0.14658261881210563,
+      "endpointClosureDeltaVolumeMl": -0.11495921692694822,
+      "endpointClosureDeltaPressureMmHg": -0.17408214011059187,
+      "straightClosureSegmentWorkMmHgMl": -2.065480757177524
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 38.438897033035055,
+        "pressureMmHg": 17.406634953173217
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 564.6651366919742,
+      "potentialEnergyMmHgMl": 674.1755910383644,
+      "pressureVolumeAreaMmHgMl": 1238.8407277303386,
+      "pressureVolumeAreaJ": 0.16516472350246422,
+      "endpointClosureDeltaVolumeMl": -0.11495921692694822,
+      "endpointClosureDeltaPressureMmHg": -0.17408214011059187,
+      "straightClosureSegmentWorkMmHgMl": -2.065480757177524
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 52.34870643804778,
+        "pressureMmHg": 91.20508989943781
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 3385.3961179548837,
+      "potentialEnergyMmHgMl": 5855.793314339637,
+      "pressureVolumeAreaMmHgMl": 9241.18943229452,
+      "pressureVolumeAreaJ": 1.2320538574923703,
+      "endpointClosureDeltaVolumeMl": -4.655361955332985,
+      "endpointClosureDeltaPressureMmHg": -4.762005180577617,
+      "straightClosureSegmentWorkMmHgMl": -413.8237905354079
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 42.416424744872685,
+        "pressureMmHg": 82.61114542769702
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 3385.3961179548837,
+      "potentialEnergyMmHgMl": 2717.453841931911,
+      "pressureVolumeAreaMmHgMl": 6102.849959886795,
+      "pressureVolumeAreaJ": 0.8136441623520273,
+      "endpointClosureDeltaVolumeMl": -4.655361955332985,
+      "endpointClosureDeltaPressureMmHg": -4.762005180577617,
+      "straightClosureSegmentWorkMmHgMl": -413.8237905354079
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 44.199828733101505,
+        "pressureMmHg": 87.28309720268902
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 3385.3961179548837,
+      "potentialEnergyMmHgMl": 4054.3840644114107,
+      "pressureVolumeAreaMmHgMl": 7439.780182366294,
+      "pressureVolumeAreaJ": 0.9918863734734391,
+      "endpointClosureDeltaVolumeMl": -4.655361955332985,
+      "endpointClosureDeltaPressureMmHg": -4.762005180577617,
+      "straightClosureSegmentWorkMmHgMl": -413.8237905354079
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 37.72737646838437,
+        "pressureMmHg": 16.968415523941744
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 788.91078684466,
+      "potentialEnergyMmHgMl": 526.6245914745,
+      "pressureVolumeAreaMmHgMl": 1315.53537831916,
+      "pressureVolumeAreaJ": 0.17538980770826704,
+      "endpointClosureDeltaVolumeMl": 5.011001097812333,
+      "endpointClosureDeltaPressureMmHg": 2.4925264818585617,
+      "straightClosureSegmentWorkMmHgMl": 95.84189109490497
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 38.025377132469494,
+        "pressureMmHg": 17.095301321531487
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 788.91078684466,
+      "potentialEnergyMmHgMl": 664.983739244888,
+      "pressureVolumeAreaMmHgMl": 1453.894526089548,
+      "pressureVolumeAreaJ": 0.19383612600731073,
+      "endpointClosureDeltaVolumeMl": 5.011001097812333,
+      "endpointClosureDeltaPressureMmHg": 2.4925264818585617,
+      "straightClosureSegmentWorkMmHgMl": 95.84189109490497
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 48.0697562245254,
+        "pressureMmHg": 86.39024705453264
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 3335.606197413129,
+      "potentialEnergyMmHgMl": 5486.756054167768,
+      "pressureVolumeAreaMmHgMl": 8822.362251580897,
+      "pressureVolumeAreaJ": 1.1762149801052684,
+      "endpointClosureDeltaVolumeMl": -1.6692081717594363,
+      "endpointClosureDeltaPressureMmHg": -2.795216962808496,
+      "straightClosureSegmentWorkMmHgMl": -142.07173327245206
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 40.293977279415444,
+        "pressureMmHg": 78.6550158879259
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 3335.606197413129,
+      "potentialEnergyMmHgMl": 2552.226634921618,
+      "pressureVolumeAreaMmHgMl": 5887.832832334747,
+      "pressureVolumeAreaJ": 0.7849776488725332,
+      "endpointClosureDeltaVolumeMl": -1.6692081717594363,
+      "endpointClosureDeltaPressureMmHg": -2.795216962808496,
+      "straightClosureSegmentWorkMmHgMl": -142.07173327245206
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 41.3542116271775,
+        "pressureMmHg": 82.17758976379605
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 3335.606197413129,
+      "potentialEnergyMmHgMl": 3805.2162661212665,
+      "pressureVolumeAreaMmHgMl": 7140.822463534396,
+      "pressureVolumeAreaJ": 0.9520287324833328,
+      "endpointClosureDeltaVolumeMl": -1.6692081717594363,
+      "endpointClosureDeltaPressureMmHg": -2.795216962808496,
+      "straightClosureSegmentWorkMmHgMl": -142.07173327245206
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 41.2574747937189,
+        "pressureMmHg": 19.22382948602417
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 1132.6369664962017,
+      "potentialEnergyMmHgMl": 595.4751032053234,
+      "pressureVolumeAreaMmHgMl": 1728.1120697015251,
+      "pressureVolumeAreaJ": 0.23039535735674674,
+      "endpointClosureDeltaVolumeMl": 8.779835052584808,
+      "endpointClosureDeltaPressureMmHg": 4.0799437099742875,
+      "straightClosureSegmentWorkMmHgMl": 196.77832760803926
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 41.65181433627774,
+        "pressureMmHg": 19.38378581440575
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 1132.6369664962017,
+      "potentialEnergyMmHgMl": 747.7315769317039,
+      "pressureVolumeAreaMmHgMl": 1880.3685434279055,
+      "pressureVolumeAreaJ": 0.2506944949468952,
+      "endpointClosureDeltaVolumeMl": 8.779835052584808,
+      "endpointClosureDeltaPressureMmHg": 4.0799437099742875,
+      "straightClosureSegmentWorkMmHgMl": 196.77832760803926
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 46.422321063701936,
+        "pressureMmHg": 83.5017097321019
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 3687.7562929184805,
+      "potentialEnergyMmHgMl": 5347.796467890626,
+      "pressureVolumeAreaMmHgMl": 9035.552760809107,
+      "pressureVolumeAreaJ": 1.204637965176592,
+      "endpointClosureDeltaVolumeMl": 1.245650743692977,
+      "endpointClosureDeltaPressureMmHg": -0.45482796463144837,
+      "straightClosureSegmentWorkMmHgMl": 103.99717335258603
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 39.12497965911256,
+        "pressureMmHg": 76.017714971458
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 3687.7562929184805,
+      "potentialEnergyMmHgMl": 2463.418426634157,
+      "pressureVolumeAreaMmHgMl": 6151.174719552638,
+      "pressureVolumeAreaJ": 0.8200869159601968,
+      "endpointClosureDeltaVolumeMl": 1.245650743692977,
+      "endpointClosureDeltaPressureMmHg": -0.45482796463144837,
+      "straightClosureSegmentWorkMmHgMl": 103.99717335258603
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 40.04755095707244,
+        "pressureMmHg": 79.09375105615045
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 3687.7562929184805,
+      "potentialEnergyMmHgMl": 3693.420190626861,
+      "pressureVolumeAreaMmHgMl": 7381.176483545341,
+      "pressureVolumeAreaJ": 0.9840732111392321,
+      "endpointClosureDeltaVolumeMl": 1.245650743692977,
+      "endpointClosureDeltaPressureMmHg": -0.45482796463144837,
+      "straightClosureSegmentWorkMmHgMl": 103.99717335258603
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 47.99150399937179,
+        "pressureMmHg": 23.307936073004917
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 1608.1113013638765,
+      "potentialEnergyMmHgMl": 738.4674530795487,
+      "pressureVolumeAreaMmHgMl": 2346.578754443425,
+      "pressureVolumeAreaJ": 0.31285057269990635,
+      "endpointClosureDeltaVolumeMl": 12.854327023723137,
+      "endpointClosureDeltaPressureMmHg": 4.269522240732645,
+      "straightClosureSegmentWorkMmHgMl": 341.7613891976459
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 48.54165250801954,
+        "pressureMmHg": 23.489858909630136
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 1608.1113013638765,
+      "potentialEnergyMmHgMl": 918.2246621334085,
+      "pressureVolumeAreaMmHgMl": 2526.335963497285,
+      "pressureVolumeAreaJ": 0.33681616332538505,
+      "endpointClosureDeltaVolumeMl": 12.854327023723137,
+      "endpointClosureDeltaPressureMmHg": 4.269522240732645,
+      "straightClosureSegmentWorkMmHgMl": 341.7613891976459
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 47.28212703892778,
+        "pressureMmHg": 82.95790818375056
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 4306.615771799326,
+      "potentialEnergyMmHgMl": 5420.103130033136,
+      "pressureVolumeAreaMmHgMl": 9726.71890183246,
+      "pressureVolumeAreaJ": 1.2967856174301073,
+      "endpointClosureDeltaVolumeMl": 3.438764575501878,
+      "endpointClosureDeltaPressureMmHg": 1.3625286248889807,
+      "straightClosureSegmentWorkMmHgMl": 288.65704550686957
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 38.86964273048773,
+        "pressureMmHg": 74.50497895969195
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 4306.615771799326,
+      "potentialEnergyMmHgMl": 2444.2282571078554,
+      "pressureVolumeAreaMmHgMl": 6750.8440289071805,
+      "pressureVolumeAreaJ": 0.9000360276219632,
+      "endpointClosureDeltaVolumeMl": 3.438764575501878,
+      "endpointClosureDeltaPressureMmHg": 1.3625286248889807,
+      "straightClosureSegmentWorkMmHgMl": 288.65704550686957
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 40.081390955455106,
+        "pressureMmHg": 78.32902533274186
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 4306.615771799326,
+      "potentialEnergyMmHgMl": 3696.294690701604,
+      "pressureVolumeAreaMmHgMl": 8002.9104625009295,
+      "pressureVolumeAreaJ": 1.066964028681549,
+      "endpointClosureDeltaVolumeMl": 3.438764575501878,
+      "endpointClosureDeltaPressureMmHg": 1.3625286248889807,
+      "straightClosureSegmentWorkMmHgMl": 288.65704550686957
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 58.303155273588544,
+        "pressureMmHg": 28.834164426261736
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 2138.0230289564015,
+      "potentialEnergyMmHgMl": 986.976678987826,
+      "pressureVolumeAreaMmHgMl": 3124.9997079442273,
+      "pressureVolumeAreaJ": 0.4166312110625403,
+      "endpointClosureDeltaVolumeMl": 14.311114407220003,
+      "endpointClosureDeltaPressureMmHg": 3.6701188708279204,
+      "straightClosureSegmentWorkMmHgMl": 437.30593645300917
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 55.21640091438087,
+        "pressureMmHg": 27.634685730831254
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 2138.0230289564015,
+      "potentialEnergyMmHgMl": 1099.9552714689903,
+      "pressureVolumeAreaMmHgMl": 3237.978300425392,
+      "pressureVolumeAreaJ": 0.4316937429693141,
+      "endpointClosureDeltaVolumeMl": 14.311114407220003,
+      "endpointClosureDeltaPressureMmHg": 3.6701188708279204,
+      "straightClosureSegmentWorkMmHgMl": 437.30593645300917
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 50.16976854197807,
+        "pressureMmHg": 84.24270312235322
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 5121.450548081335,
+      "potentialEnergyMmHgMl": 5666.410156520617,
+      "pressureVolumeAreaMmHgMl": 10787.860704601953,
+      "pressureVolumeAreaJ": 1.4382591648589418,
+      "endpointClosureDeltaVolumeMl": 5.256251866737514,
+      "endpointClosureDeltaPressureMmHg": 2.936891807030591,
+      "straightClosureSegmentWorkMmHgMl": 452.52012448729175
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 39.36301077479121,
+        "pressureMmHg": 74.57926196295502
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 5121.450548081335,
+      "potentialEnergyMmHgMl": 2481.3750235844223,
+      "pressureVolumeAreaMmHgMl": 7602.825571665757,
+      "pressureVolumeAreaJ": 1.0136239108656222,
+      "endpointClosureDeltaVolumeMl": 5.256251866737514,
+      "endpointClosureDeltaPressureMmHg": 2.936891807030591,
+      "straightClosureSegmentWorkMmHgMl": 452.52012448729175
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 41.33809562065322,
+        "pressureMmHg": 79.66870075948188
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 5121.450548081335,
+      "potentialEnergyMmHgMl": 3803.827360820354,
+      "pressureVolumeAreaMmHgMl": 8925.27790890169,
+      "pressureVolumeAreaJ": 1.189935901370591,
+      "endpointClosureDeltaVolumeMl": 5.256251866737514,
+      "endpointClosureDeltaPressureMmHg": 2.936891807030591,
+      "straightClosureSegmentWorkMmHgMl": 452.52012448729175
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 71.55370381493796,
+        "pressureMmHg": 33.89376110376384
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 2722.6929226189277,
+      "potentialEnergyMmHgMl": 1358.5413374064879,
+      "pressureVolumeAreaMmHgMl": 4081.2342600254156,
+      "pressureVolumeAreaJ": 0.5441183140151085,
+      "endpointClosureDeltaVolumeMl": 15.460311382174723,
+      "endpointClosureDeltaPressureMmHg": 3.5619148447588103,
+      "straightClosureSegmentWorkMmHgMl": 528.326792447588
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 67.43078080981893,
+        "pressureMmHg": 33.19946842912913
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 2722.6929226189277,
+      "potentialEnergyMmHgMl": 1474.5527606182563,
+      "pressureVolumeAreaMmHgMl": 4197.2456832371845,
+      "pressureVolumeAreaJ": 0.559585188980548,
+      "endpointClosureDeltaVolumeMl": 15.460311382174723,
+      "endpointClosureDeltaPressureMmHg": 3.5619148447588103,
+      "straightClosureSegmentWorkMmHgMl": 528.326792447588
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 54.74026259523935,
+        "pressureMmHg": 87.09624377054948
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 5974.784020672188,
+      "potentialEnergyMmHgMl": 6067.134509547943,
+      "pressureVolumeAreaMmHgMl": 12041.91853022013,
+      "pressureVolumeAreaJ": 1.6054526622860081,
+      "endpointClosureDeltaVolumeMl": 6.217225198217712,
+      "endpointClosureDeltaPressureMmHg": 3.5667127626736175,
+      "straightClosureSegmentWorkMmHgMl": 555.4692244867782
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 40.636835236091656,
+        "pressureMmHg": 75.64523198198437
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 5974.784020672188,
+      "potentialEnergyMmHgMl": 2578.5692568655363,
+      "pressureVolumeAreaMmHgMl": 8553.353277537724,
+      "pressureVolumeAreaJ": 1.1403501656678845,
+      "endpointClosureDeltaVolumeMl": 6.217225198217712,
+      "endpointClosureDeltaPressureMmHg": 3.5667127626736175,
+      "straightClosureSegmentWorkMmHgMl": 555.4692244867782
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 44.146821586222615,
+        "pressureMmHg": 83.04104642231582
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 5974.784020672188,
+      "potentialEnergyMmHgMl": 4049.6713145589392,
+      "pressureVolumeAreaMmHgMl": 10024.455335231127,
+      "pressureVolumeAreaJ": 1.3364804342036845,
+      "endpointClosureDeltaVolumeMl": 6.217225198217712,
+      "endpointClosureDeltaPressureMmHg": 3.5667127626736175,
+      "straightClosureSegmentWorkMmHgMl": 555.4692244867782
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 86.54367125130406,
+        "pressureMmHg": 38.00135909058605
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 3293.5518588141235,
+      "potentialEnergyMmHgMl": 1849.1599051080605,
+      "pressureVolumeAreaMmHgMl": 5142.711763922184,
+      "pressureVolumeAreaJ": 0.6856366177896335,
+      "endpointClosureDeltaVolumeMl": 15.525626367057754,
+      "endpointClosureDeltaPressureMmHg": 3.277389745252677,
+      "straightClosureSegmentWorkMmHgMl": 583.6510519029601
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 76.76063912254455,
+        "pressureMmHg": 35.78081617413044
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 3293.5518588141235,
+      "potentialEnergyMmHgMl": 1797.1386605526134,
+      "pressureVolumeAreaMmHgMl": 5090.690519366737,
+      "pressureVolumeAreaJ": 0.6787010414230121,
+      "endpointClosureDeltaVolumeMl": 15.525626367057754,
+      "endpointClosureDeltaPressureMmHg": 3.277389745252677,
+      "straightClosureSegmentWorkMmHgMl": 583.6510519029601
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 60.27998288099513,
+        "pressureMmHg": 90.76180210142614
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 6873.8014547059565,
+      "potentialEnergyMmHgMl": 6570.581324158811,
+      "pressureVolumeAreaMmHgMl": 13444.382778864769,
+      "pressureVolumeAreaJ": 1.7924320008438088,
+      "endpointClosureDeltaVolumeMl": 6.843261494412872,
+      "endpointClosureDeltaPressureMmHg": 3.7140215418391023,
+      "straightClosureSegmentWorkMmHgMl": 636.3135395654473
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 42.52091695149767,
+        "pressureMmHg": 77.2272808207339
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 6873.8014547059565,
+      "potentialEnergyMmHgMl": 2725.7209666401504,
+      "pressureVolumeAreaMmHgMl": 9599.522421346108,
+      "pressureVolumeAreaJ": 1.279827528258706,
+      "endpointClosureDeltaVolumeMl": 6.843261494412872,
+      "endpointClosureDeltaPressureMmHg": 3.7140215418391023,
+      "straightClosureSegmentWorkMmHgMl": 636.3135395654473
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 44.435831172025345,
+        "pressureMmHg": 83.13962186403866
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 6873.8014547059565,
+      "potentialEnergyMmHgMl": 4075.399370133913,
+      "pressureVolumeAreaMmHgMl": 10949.20082483987,
+      "pressureVolumeAreaJ": 1.4597693523693014,
+      "endpointClosureDeltaVolumeMl": 6.843261494412872,
+      "endpointClosureDeltaPressureMmHg": 3.7140215418391023,
+      "straightClosureSegmentWorkMmHgMl": 636.3135395654473
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 101.81971728993382,
+        "pressureMmHg": 41.54361073704375
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 3759.3433471460653,
+      "potentialEnergyMmHgMl": 2425.081059540824,
+      "pressureVolumeAreaMmHgMl": 6184.424406686889,
+      "pressureVolumeAreaJ": 0.8245198307483095,
+      "endpointClosureDeltaVolumeMl": 14.164108859502903,
+      "endpointClosureDeltaPressureMmHg": 2.8532634266562624,
+      "straightClosureSegmentWorkMmHgMl": 575.8854786991565
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 90.93492422197315,
+        "pressureMmHg": 39.68568149241634
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 3759.3433471460653,
+      "potentialEnergyMmHgMl": 2347.2077133638645,
+      "pressureVolumeAreaMmHgMl": 6106.55106050993,
+      "pressureVolumeAreaJ": 0.814137600489305,
+      "endpointClosureDeltaVolumeMl": 14.164108859502903,
+      "endpointClosureDeltaPressureMmHg": 2.8532634266562624,
+      "straightClosureSegmentWorkMmHgMl": 575.8854786991565
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 66.6402745233763,
+        "pressureMmHg": 95.04721514691927
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 7721.557220867766,
+      "potentialEnergyMmHgMl": 7172.342753796787,
+      "pressureVolumeAreaMmHgMl": 14893.899974664553,
+      "pressureVolumeAreaJ": 1.9856845324222276,
+      "endpointClosureDeltaVolumeMl": 6.64634718209939,
+      "endpointClosureDeltaPressureMmHg": 3.8940013658188093,
+      "straightClosureSegmentWorkMmHgMl": 643.2864482211711
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 45.110627070473825,
+        "pressureMmHg": 79.33606086222647
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 7721.557220867766,
+      "potentialEnergyMmHgMl": 2934.5849962825855,
+      "pressureVolumeAreaMmHgMl": 10656.142217150351,
+      "pressureVolumeAreaJ": 1.4206981926749191,
+      "endpointClosureDeltaVolumeMl": 6.64634718209939,
+      "endpointClosureDeltaPressureMmHg": 3.8940013658188093,
+      "straightClosureSegmentWorkMmHgMl": 643.2864482211711
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 48.81936162673183,
+        "pressureMmHg": 87.2309917162045
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 7721.557220867766,
+      "potentialEnergyMmHgMl": 4475.477089625072,
+      "pressureVolumeAreaMmHgMl": 12197.034310492838,
+      "pressureVolumeAreaJ": 1.6261330083435261,
+      "endpointClosureDeltaVolumeMl": 6.64634718209939,
+      "endpointClosureDeltaPressureMmHg": 3.8940013658188093,
+      "straightClosureSegmentWorkMmHgMl": 643.2864482211711
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 115.84532987435198,
+        "pressureMmHg": 44.33360663578273
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 3802.1068316163287,
+      "potentialEnergyMmHgMl": 3020.4546773789625,
+      "pressureVolumeAreaMmHgMl": 6822.561508995292,
+      "pressureVolumeAreaJ": 0.9095975455022703,
+      "endpointClosureDeltaVolumeMl": 6.533216632835206,
+      "endpointClosureDeltaPressureMmHg": 1.3561986690492205,
+      "straightClosureSegmentWorkMmHgMl": 279.37871189204117
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 104.12380834651842,
+        "pressureMmHg": 42.62694536262888
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 3802.1068316163287,
+      "potentialEnergyMmHgMl": 2923.4335249351093,
+      "pressureVolumeAreaMmHgMl": 6725.540356551438,
+      "pressureVolumeAreaJ": 0.8966624914161508,
+      "endpointClosureDeltaVolumeMl": 6.533216632835206,
+      "endpointClosureDeltaPressureMmHg": 1.3561986690492205,
+      "straightClosureSegmentWorkMmHgMl": 279.37871189204117
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 73.01347522645517,
+        "pressureMmHg": 99.03623284743465
+      },
+      "systolicDiastolicIntersectionVolumeMl": -80.81465535496083,
+      "externalWorkMmHgMl": 8392.755633403081,
+      "potentialEnergyMmHgMl": 7800.463104496795,
+      "pressureVolumeAreaMmHgMl": 16193.218737899875,
+      "pressureVolumeAreaJ": 2.1589123085742874,
+      "endpointClosureDeltaVolumeMl": 5.8139469658433285,
+      "endpointClosureDeltaPressureMmHg": 3.6269460942506697,
+      "straightClosureSegmentWorkMmHgMl": 584.58331632707
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "systolicEndpoint": {
+        "volumeMl": 48.429526874551065,
+        "pressureMmHg": 81.82182198356044
+      },
+      "systolicDiastolicIntersectionVolumeMl": -26.1969886415383,
+      "externalWorkMmHgMl": 8392.755633403081,
+      "potentialEnergyMmHgMl": 3213.4111365046665,
+      "pressureVolumeAreaMmHgMl": 11606.166769907748,
+      "pressureVolumeAreaJ": 1.547357366097641,
+      "endpointClosureDeltaVolumeMl": 5.8139469658433285,
+      "endpointClosureDeltaPressureMmHg": 3.6269460942506697,
+      "straightClosureSegmentWorkMmHgMl": 584.58331632707
+    },
+    {
+      "status": "available",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 53.58555515425431,
+        "pressureMmHg": 91.55102852306942
+      },
+      "systolicDiastolicIntersectionVolumeMl": -46.78296282680735,
+      "externalWorkMmHgMl": 8392.755633403081,
+      "potentialEnergyMmHgMl": 4931.389030514951,
+      "pressureVolumeAreaMmHgMl": 13324.144663918032,
+      "pressureVolumeAreaJ": 1.77640161488288,
+      "endpointClosureDeltaVolumeMl": 5.8139469658433285,
+      "endpointClosureDeltaPressureMmHg": 3.6269460942506697,
+      "straightClosureSegmentWorkMmHgMl": 584.58331632707
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "systolicEndpoint": {
+        "volumeMl": 122.3942944416818,
+        "pressureMmHg": 45.53921592384727
+      },
+      "systolicDiastolicIntersectionVolumeMl": -17.87695962447205,
+      "externalWorkMmHgMl": 3641.2248150824944,
+      "potentialEnergyMmHgMl": 3320.0014212130154,
+      "pressureVolumeAreaMmHgMl": 6961.22623629551,
+      "pressureVolumeAreaJ": 0.92808460427539,
+      "endpointClosureDeltaVolumeMl": 0.4963063094047868,
+      "endpointClosureDeltaPressureMmHg": 0.1495431447448894,
+      "straightClosureSegmentWorkMmHgMl": 21.597107777121863
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable"
+    },
+    {
+      "status": "unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope"
+    },
+    {
+      "status": "available",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "systolicEndpoint": {
+        "volumeMl": 103.79066712573518,
+        "pressureMmHg": 41.529624124853164
+      },
+      "systolicDiastolicIntersectionVolumeMl": -21.90955477573376,
+      "externalWorkMmHgMl": 3641.2248150824944,
+      "potentialEnergyMmHgMl": 2908.120025293734,
+      "pressureVolumeAreaMmHgMl": 6549.344840376229,
+      "pressureVolumeAreaJ": 0.8731717528086396,
+      "endpointClosureDeltaVolumeMl": 0.4963063094047868,
+      "endpointClosureDeltaPressureMmHg": 0.1495431447448894,
+      "straightClosureSegmentWorkMmHgMl": 21.597107777121863
+    }
+  ],
+  "summary": {
+    "attemptedRowCount": 168,
+    "availableRowCount": 105,
+    "unavailableRowCount": 63,
+    "selectedBeatOrdinals": [
+      1,
+      10,
+      21
+    ],
+    "selectedMethodSpread": [
+      {
+        "ventricleId": "LV",
+        "beatOrdinal": 1,
+        "availableMethodCount": 3,
+        "minimumPvaJ": 2.41952925036932,
+        "maximumPvaJ": 3.13754574175515,
+        "spreadJ": 0.7180164913858298
+      },
+      {
+        "ventricleId": "LV",
+        "beatOrdinal": 10,
+        "availableMethodCount": 3,
+        "minimumPvaJ": 1.7099648579146984,
+        "maximumPvaJ": 2.228755437663112,
+        "spreadJ": 0.5187905797484136
+      },
+      {
+        "ventricleId": "LV",
+        "beatOrdinal": 21,
+        "availableMethodCount": 3,
+        "minimumPvaJ": 1.547357366097641,
+        "maximumPvaJ": 2.1589123085742874,
+        "spreadJ": 0.6115549424766464
+      },
+      {
+        "ventricleId": "RV",
+        "beatOrdinal": 1,
+        "availableMethodCount": 2,
+        "minimumPvaJ": 0.7810403316567699,
+        "maximumPvaJ": 0.8655987544468268,
+        "spreadJ": 0.08455842279005688
+      },
+      {
+        "ventricleId": "RV",
+        "beatOrdinal": 10,
+        "availableMethodCount": 2,
+        "minimumPvaJ": 0.19463252283935417,
+        "maximumPvaJ": 0.20109289917715786,
+        "spreadJ": 0.006460376337803692
+      },
+      {
+        "ventricleId": "RV",
+        "beatOrdinal": 21,
+        "availableMethodCount": 2,
+        "minimumPvaJ": 0.8731717528086396,
+        "maximumPvaJ": 0.92808460427539,
+        "spreadJ": 0.0549128514667504
+      }
+    ]
+  },
+  "interpretation": {
+    "genericPvaEstablished": false,
+    "espvrEstablished": false,
+    "edpvrEstablished": false,
+    "periodicOrbitPerTransientBeatEstablished": false,
+    "oxygenConsumptionEstablished": false
+  }
+}
