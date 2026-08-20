@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { canonicalJsonStringify } from "@/engine/integrity";
 import { runMainWireNormalAdultPassiveEquilibriumPointSolverComparisonEngineeringV1 } from "@/engine/myocardium/experiments/MainWireNormalAdultPassiveEquilibriumPointSolverComparisonEngineeringV1";
@@ -43,6 +43,10 @@ async function main(): Promise<void> {
   if (!requestedOutput)
     throw new Error("--output requires a non-empty path argument");
   const outputPath = resolve(repositoryRoot, requestedOutput);
+  if (existsSync(outputPath))
+    throw new Error(
+      "point-solver comparison output already exists; use a new create-only path",
+    );
   const report =
     await runMainWireNormalAdultPassiveEquilibriumPointSolverComparisonEngineeringV1(
       { implementationCommitSha },
