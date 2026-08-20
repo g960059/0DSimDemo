@@ -16,6 +16,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_REPORT_V1_ID,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelTransientVenousReturnReductionDefinitionV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_IMPLEMENTATION_COMMIT_SHA_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_PAYLOAD_SHA256_V1,
+  auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1,
   auditMainWireIntegratedModelTransientVenousReturnReductionReportV1,
   runMainWireIntegratedModelTransientVenousReturnReductionManufacturedV1,
   type MainWireIntegratedModelTransientVenousReturnReductionBeatExecutionV1,
@@ -38,7 +41,10 @@ import {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelTransientVenousReturnReductionPureV1";
 import type { MainWireIntegratedModelPeriodicSteadyResultV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
-  parseAndAuditMainWireIntegratedModelTransientVenousReturnReductionArtifactV1,
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_RAW_FILE_SHA256_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_SIZE_BYTES_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_OUTPUT_PATH_V1,
+  parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1,
   serializeMainWireIntegratedModelTransientVenousReturnReductionArtifactV1,
   writeMainWireIntegratedModelTransientVenousReturnReductionArtifactCreateOnlyV1,
 } from "@/tools/scientific/MainWireIntegratedModelTransientVenousReturnReductionArtifactV1";
@@ -293,7 +299,7 @@ describe("transient systemic venous-return reduction Engineering V1", () => {
     });
   });
 
-  it("retains an audited source-execution failure and enforces create-only canonical artifacts", async () => {
+  it("retains an audited source-execution failure", async () => {
     const report = await manufacturedSourceFailureReportV1();
     expect(
       await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
@@ -305,35 +311,6 @@ describe("transient systemic venous-return reduction Engineering V1", () => {
       reportShapePassed: true,
       payloadHashPassed: true,
     });
-    const serialized =
-      await serializeMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
-        report,
-      );
-    expect(serialized.endsWith("\n")).toBe(true);
-    await expect(
-      parseAndAuditMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
-        `${serialized}\n`,
-      ),
-    ).rejects.toThrow(/not canonical JSON/);
-
-    const directory = mkdtempSync(join(tmpdir(), "transient-vr-v1-"));
-    const outputPath = join(directory, "artifact.json");
-    try {
-      await expect(
-        writeMainWireIntegratedModelTransientVenousReturnReductionArtifactCreateOnlyV1(
-          outputPath,
-          report,
-        ),
-      ).resolves.toMatchObject({ sizeBytes: serialized.length });
-      await expect(
-        writeMainWireIntegratedModelTransientVenousReturnReductionArtifactCreateOnlyV1(
-          outputPath,
-          report,
-        ),
-      ).rejects.toThrow(/already exists/);
-    } finally {
-      rmSync(directory, { recursive: true, force: true });
-    }
 
     const extraField = {
       ...report,
@@ -347,6 +324,147 @@ describe("transient systemic venous-return reduction Engineering V1", () => {
       status: "report-audit-failed",
       firstMismatchPath: "reportShapePassed",
       reportShapePassed: false,
+    });
+  });
+
+  it("locks, audits, and create-only rewrites the committed scientific failure", async () => {
+    const raw = readFileSync(
+      join(
+        process.cwd(),
+        MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_OUTPUT_PATH_V1,
+      ),
+      "utf8",
+    );
+    expect(Buffer.byteLength(raw, "utf8")).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_SIZE_BYTES_V1,
+    );
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_RAW_FILE_SHA256_V1,
+    ).toBe("81a37af6c8f68497efb75102d737f6b28bb8a2e837dc2089f30790bf04358a26");
+    const report =
+      await parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+        raw,
+      );
+    expect(report.payload.implementationCommitSha).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_IMPLEMENTATION_COMMIT_SHA_V1,
+    );
+    expect(report.payloadSha256).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_PAYLOAD_SHA256_V1,
+    );
+    expect(report.payload).toMatchObject({
+      sourceOutcome: { status: "source-p1-established" },
+      beatExecutions: { length: 21 },
+      producerProjectionAudit: null,
+      comparison: null,
+      comparisonAudit: null,
+      failureEvidence: {
+        failureClass: "landmark-unavailable",
+        completedBeatCount: 21,
+        exception: { message: "LV beat 1 lacks semilunar closure" },
+      },
+      assessment: {
+        sourceP1Established: true,
+        sourceBindingsReplayed: true,
+        allTwentyOneBeatsCompleted: true,
+        allBeatIntegrityGatesPassed: true,
+        transientVenousReturnReductionCharacterizationCompleted: false,
+      },
+    });
+    expect(
+      await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        report,
+      ),
+    ).toMatchObject({ status: "report-audit-passed" });
+    await expect(
+      serializeMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+        report,
+      ),
+    ).resolves.toBe(raw);
+
+    const directory = mkdtempSync(join(tmpdir(), "transient-vr-v1-"));
+    const outputPath = join(directory, "artifact.json");
+    try {
+      await expect(
+        writeMainWireIntegratedModelTransientVenousReturnReductionArtifactCreateOnlyV1(
+          outputPath,
+          report,
+        ),
+      ).resolves.toEqual({
+        sizeBytes:
+          MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_SIZE_BYTES_V1,
+      });
+      await expect(
+        writeMainWireIntegratedModelTransientVenousReturnReductionArtifactCreateOnlyV1(
+          outputPath,
+          report,
+        ),
+      ).rejects.toThrow(/already exists/);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+
+    await expect(
+      parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+        `${raw}\n`,
+      ),
+    ).rejects.toThrow(/byte count differs/);
+    const extraFieldRaw = `${canonicalJsonStringify({
+      ...report,
+      injectedQualificationClaim: true,
+    })}\n`;
+    await expect(
+      parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+        extraFieldRaw,
+      ),
+    ).rejects.toThrow(/byte count differs|raw SHA differs/);
+
+    const implementationTamperedPayload = Object.freeze({
+      ...report.payload,
+      implementationCommitSha: "f".repeat(40),
+    });
+    const implementationTampered = Object.freeze({
+      payload: implementationTamperedPayload,
+      payloadSha256: await sha256CanonicalJsonHex(
+        implementationTamperedPayload,
+      ),
+    });
+    expect(
+      await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        implementationTampered,
+      ),
+    ).toMatchObject({ status: "report-audit-passed" });
+    expect(
+      await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        implementationTampered,
+      ),
+    ).toMatchObject({
+      status: "report-audit-failed",
+      firstMismatchPath: "committedImplementationCommitSha",
+    });
+
+    const traceTamperedPayload = Object.freeze({
+      ...report.payload,
+      failureEvidence: Object.freeze({
+        ...report.payload.failureEvidence!,
+        message: `${report.payload.failureEvidence!.message} (rewritten)`,
+      }),
+    });
+    const traceTampered = Object.freeze({
+      payload: traceTamperedPayload,
+      payloadSha256: await sha256CanonicalJsonHex(traceTamperedPayload),
+    });
+    expect(
+      await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        traceTampered,
+      ),
+    ).toMatchObject({ status: "report-audit-passed" });
+    expect(
+      await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        traceTampered,
+      ),
+    ).toMatchObject({
+      status: "report-audit-failed",
+      firstMismatchPath: "committedPayloadSha256",
     });
   });
 
@@ -713,6 +831,39 @@ describe("transient systemic venous-return reduction Engineering V1", () => {
         payloadHashPassed: true,
       });
     }
+  });
+
+  it("uses the exact result lock to reject a fully coordinated compact relation reseal", async () => {
+    const base = await manufacturedPipelineFixtureV1();
+    const outcome =
+      await runMainWireIntegratedModelTransientVenousReturnReductionManufacturedV1(
+        {
+          implementationCommitSha:
+            MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_IMPLEMENTATION_COMMIT_SHA_V1,
+          dependencies: base.dependencies,
+        },
+      );
+    const resealed = await coordinatedSemanticProjectionResealReportV1(
+      outcome.report,
+    );
+    expect(
+      await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        resealed,
+      ),
+    ).toMatchObject({
+      status: "report-audit-passed",
+      producerProjectionAuditReplayPassed: true,
+      comparisonReplayPassed: true,
+      payloadHashPassed: true,
+    });
+    expect(
+      await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+        resealed,
+      ),
+    ).toMatchObject({
+      status: "report-audit-failed",
+      firstMismatchPath: "committedPayloadSha256",
+    });
   });
 
   it("rejects shifted source lineage, negative residuals, scale escape, and repeated event IDs", async () => {
@@ -1428,6 +1579,56 @@ async function coordinatedCompactLoopTamperReportV1(
     ...report.payload,
     producerProjectionAudit: tamperedProducerAudit,
     comparison: tamperedComparison,
+  }) satisfies MainWireIntegratedModelTransientVenousReturnReductionPayloadV1;
+  return Object.freeze({
+    payload,
+    payloadSha256: await sha256CanonicalJsonHex(payload),
+  });
+}
+
+async function coordinatedSemanticProjectionResealReportV1(
+  report: MainWireIntegratedModelTransientVenousReturnReductionReportV1,
+): Promise<MainWireIntegratedModelTransientVenousReturnReductionReportV1> {
+  const comparison = report.payload.comparison!;
+  const producerAudit = report.payload.producerProjectionAudit!;
+  const first = comparison.beatProjections[0]!;
+  const compactLoop = Object.freeze(
+    first.LV.compactLoop.map((point, index) =>
+      index === 0
+        ? Object.freeze({ ...point, volumeMl: point.volumeMl + 0.25 })
+        : point,
+    ),
+  );
+  const LV = Object.freeze({
+    ...first.LV,
+    compactLoop,
+    compactLoopSha256: await sha256CanonicalJsonHex(compactLoop),
+  });
+  const { payloadSha256: _firstPayloadSha256, ...firstBody } = first;
+  const resealedFirstBody = Object.freeze({ ...firstBody, LV });
+  const resealedFirst = Object.freeze({
+    ...resealedFirstBody,
+    payloadSha256: await sha256CanonicalJsonHex(resealedFirstBody),
+  });
+  const beatProjections = Object.freeze([
+    resealedFirst,
+    ...comparison.beatProjections.slice(1),
+  ]);
+  const resealedComparison =
+    await compareMainWireIntegratedModelTransientPvRelationsV1(beatProjections);
+  const resealedComparisonAudit =
+    await auditMainWireIntegratedModelTransientPvComparisonV1(
+      resealedComparison,
+    );
+  const resealedProducerAudit = Object.freeze({
+    ...producerAudit,
+    projectionFamilySha256: await sha256CanonicalJsonHex(beatProjections),
+  });
+  const payload = Object.freeze({
+    ...report.payload,
+    producerProjectionAudit: resealedProducerAudit,
+    comparison: resealedComparison,
+    comparisonAudit: resealedComparisonAudit,
   }) satisfies MainWireIntegratedModelTransientVenousReturnReductionPayloadV1;
   return Object.freeze({
     payload,

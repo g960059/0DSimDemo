@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import { canonicalJsonStringify } from "@/engine/integrity";
 import {
-  auditMainWireIntegratedModelTransientVenousReturnReductionReportV1,
+  auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1,
   type MainWireIntegratedModelTransientVenousReturnReductionReportV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelTransientVenousReturnReductionEngineeringV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_PROTOCOL_PAYLOAD_V1 } from "@/engine/myocardium/experiments/MainWireIntegratedModelTransientVenousReturnReductionDefinitionV1";
@@ -10,6 +11,12 @@ import { MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_PROTOCOL_P
 export const MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_OUTPUT_PATH_V1 =
   MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_PROTOCOL_PAYLOAD_V1
     .artifact.path;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_RAW_FILE_SHA256_V1 =
+  "81a37af6c8f68497efb75102d737f6b28bb8a2e837dc2089f30790bf04358a26" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_SIZE_BYTES_V1 =
+  100_788 as const;
 
 export function assertMainWireIntegratedModelTransientVenousReturnReductionOutputAbsentV1(
   outputPath: string,
@@ -40,7 +47,7 @@ export async function serializeMainWireIntegratedModelTransientVenousReturnReduc
   report: MainWireIntegratedModelTransientVenousReturnReductionReportV1,
 ): Promise<string> {
   const audit =
-    await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+    await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
       report,
     );
   if (audit.status !== "report-audit-passed") {
@@ -53,7 +60,7 @@ export async function serializeMainWireIntegratedModelTransientVenousReturnReduc
     serialized,
   );
   const parsed =
-    await parseAndAuditMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+    await parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
       serialized,
     );
   if (parsed.payloadSha256 !== report.payloadSha256) {
@@ -62,12 +69,27 @@ export async function serializeMainWireIntegratedModelTransientVenousReturnReduc
   return serialized;
 }
 
-export async function parseAndAuditMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+export async function parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
   rawArtifact: string,
 ): Promise<MainWireIntegratedModelTransientVenousReturnReductionReportV1> {
-  assertMainWireIntegratedModelTransientVenousReturnReductionArtifactSizeV1(
-    rawArtifact,
-  );
+  const sizeBytes = Buffer.byteLength(rawArtifact, "utf8");
+  if (
+    sizeBytes !==
+    MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_SIZE_BYTES_V1
+  ) {
+    throw new Error(
+      "transient venous-return committed artifact byte count differs",
+    );
+  }
+  const rawSha256 = createHash("sha256").update(rawArtifact).digest("hex");
+  if (
+    rawSha256 !==
+    MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_RAW_FILE_SHA256_V1
+  ) {
+    throw new Error(
+      "transient venous-return committed artifact raw SHA differs",
+    );
+  }
   const parsed = JSON.parse(
     rawArtifact,
   ) as MainWireIntegratedModelTransientVenousReturnReductionReportV1;
@@ -75,7 +97,7 @@ export async function parseAndAuditMainWireIntegratedModelTransientVenousReturnR
     throw new Error("transient venous-return artifact is not canonical JSON");
   }
   const audit =
-    await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+    await auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
       parsed,
     );
   if (audit.status !== "report-audit-passed") {
@@ -102,7 +124,7 @@ export async function writeMainWireIntegratedModelTransientVenousReturnReduction
   if (readback !== serialized) {
     throw new Error("transient venous-return artifact readback differs");
   }
-  await parseAndAuditMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
+  await parseAndAuditCommittedMainWireIntegratedModelTransientVenousReturnReductionArtifactV1(
     readback,
   );
   return Object.freeze({ sizeBytes: Buffer.byteLength(readback, "utf8") });

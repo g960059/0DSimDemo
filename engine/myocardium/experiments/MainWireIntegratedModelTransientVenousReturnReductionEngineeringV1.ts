@@ -61,6 +61,12 @@ import {
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
 
+export const MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_IMPLEMENTATION_COMMIT_SHA_V1 =
+  "a9fb20b281912ca72712ca08e68ef370989527b2" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_PAYLOAD_SHA256_V1 =
+  "2a851337ed35fb0858209c64a883002a9834c59f7db0236c9a2b0a97b655b5bb" as const;
+
 export type MainWireIntegratedModelTransientVenousReturnReductionSanitizedExceptionV1 =
   Readonly<{
     name: string;
@@ -707,6 +713,31 @@ export async function auditMainWireIntegratedModelTransientVenousReturnReduction
     firstMismatchPath,
     ...gates,
   });
+}
+
+export async function auditCommittedMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+  report: MainWireIntegratedModelTransientVenousReturnReductionReportV1,
+): Promise<MainWireIntegratedModelTransientVenousReturnReductionReportAuditV1> {
+  const audit =
+    await auditMainWireIntegratedModelTransientVenousReturnReductionReportV1(
+      report,
+    );
+  if (audit.status !== "report-audit-passed") return audit;
+  const firstMismatchPath =
+    report.payload.implementationCommitSha !==
+    MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_IMPLEMENTATION_COMMIT_SHA_V1
+      ? "committedImplementationCommitSha"
+      : report.payloadSha256 !==
+          MAIN_WIRE_INTEGRATED_MODEL_TRANSIENT_VENOUS_RETURN_REDUCTION_COMMITTED_PAYLOAD_SHA256_V1
+        ? "committedPayloadSha256"
+        : null;
+  return firstMismatchPath === null
+    ? audit
+    : Object.freeze({
+        ...audit,
+        status: "report-audit-failed" as const,
+        firstMismatchPath,
+      });
 }
 
 async function sourceIdentityReplayPassedV1(

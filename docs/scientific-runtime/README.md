@@ -67,6 +67,11 @@ model:
 - [`INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md`](./INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md)
   prospectively separates producer-time raw projection replay from compact
   artifact replay and requires post-result exact locks before merge.
+- [`INTEGRATED-MODEL-0033-transient-systemic-venous-return-reduction-result.md`](./INTEGRATED-MODEL-0033-transient-systemic-venous-return-reduction-result.md)
+  retains the single execution as a scientific `landmark-unavailable` failure:
+  the source and all 21 trajectory beats passed, but the strict LV beat-1
+  positive-to-nonpositive semilunar-flow crossing was unavailable, so no PV
+  relation or ESPVR/PVA claim was established.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
