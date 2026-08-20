@@ -12,6 +12,7 @@ import {
 import {
   createMainWirePassiveEquilibriumManufacturedCasesV1,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_ARCHIVE_DIAGNOSTIC_CASES_V1,
+  MAIN_WIRE_PASSIVE_EQUILIBRIUM_MANUFACTURED_CASE_IDS_V1,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_CORPUS_PAYLOAD_V1,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_CORPUS_V1_ID,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_DECLARATION_V1,
@@ -19,10 +20,13 @@ import {
   type MainWirePassiveEquilibriumRankedTargetV1,
 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonCorpusV1";
 import {
+  MAIN_WIRE_PASSIVE_EQUILIBRIUM_COMPONENT_ENERGY_TERMINAL_ROOT_GUARD_V3_ID,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_ENGINEERING_V1_ID,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_POLICIES_V3,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_POLICY_ORDER_V3,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_SHARED_POLICY_V3,
+  MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+  MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_LM_V3_ID,
   solveMainWirePassiveEquilibriumPointEngineeringV3,
   type MainWirePassiveEquilibriumCandidateEvaluatorV3,
   type MainWirePassiveEquilibriumPointSolverPolicyIdV3,
@@ -121,6 +125,36 @@ type PolicySummaryV1 = Readonly<{
   }>;
 }>;
 
+export type MainWirePassiveEquilibriumRankedCaseMetricsInputV1 = Readonly<{
+  primaryHomotopyEstablished: boolean;
+  totalCandidateEvaluations: number;
+  totalAcceptedUpdates: number;
+  totalRejectedTrials: number;
+}>;
+
+export type MainWirePassiveEquilibriumManufacturedContractCaseV1 = Readonly<{
+  caseId: string;
+  actualStatus: string;
+  summary: Readonly<{
+    failureReason: string | null;
+    terminal: Readonly<{
+      internalCoordinates: MainWireNormalAdultPassiveEquilibriumCoordinatesV3;
+      rawStoredEnergyJ: number;
+      scaledForceInfinityNorm: number;
+      minimumScaledInternalHessianEigenvalue: number;
+    }> | null;
+    iterationDecisions: readonly Readonly<{
+      iterationIndex: number;
+      currentScaledForceInfinityNorm: number;
+      currentMinimumScaledHessianEigenvalue: number;
+      selectedTrialIndex: number | null;
+      selectedReason: string | null;
+      scaledUpdateInfinityNorm: number | null;
+      trialCount: number;
+    }>[];
+  }>;
+}>;
+
 export type MainWireNormalAdultPassiveEquilibriumPointSolverComparisonReportV1 =
   Readonly<{
     reportSchemaId: typeof MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_REPORT_V1_ID;
@@ -216,21 +250,29 @@ function runPolicyComparisonV1(
         initialCoordinates: testCase.initialCoordinates,
         evaluateCandidate: testCase.evaluateCandidate,
       });
+      const summary = compactStageResultV1(
+        result,
+        { LV: 0, RV: 0 },
+        testCase.caseId.includes("control"),
+      );
       return deepFreezeV3({
         caseId: testCase.caseId,
         expectedStatus: testCase.expectedOutcome,
         actualStatus: result.status,
-        expectedOutcomePassed: result.status === testCase.expectedOutcome,
-        summary: compactStageResultV1(
-          result,
-          { LV: 0, RV: 0 },
-          testCase.caseId.includes("control"),
+        expectedOutcomePassed: manufacturedCaseOutcomePassedV1(
+          testCase.caseId,
+          result.status,
+          result.failureReason,
         ),
+        summary,
       });
     });
-  const manufacturedOutcomesPassed = manufacturedCases.every(
-    (testCase) => testCase.expectedOutcomePassed,
-  );
+  const manufacturedOutcomesPassed =
+    manufacturedCases.every((testCase) => testCase.expectedOutcomePassed) &&
+    evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+      policyId,
+      manufacturedCases,
+    );
   const referenceVolumes =
     MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_REFERENCE_VOLUMES_M3_V3;
   const referenceResult = solveNormalAdultStageV1(
@@ -281,27 +323,18 @@ function runPolicyComparisonV1(
         ),
       }),
     );
+  const rankedMetrics =
+    summarizeMainWirePassiveEquilibriumCompletedRankedCasesV1(rankedCases);
   return deepFreezeV3({
     policyId,
     manufacturedOutcomesPassed,
     manufacturedCases,
     referenceRoot,
     rankedCases,
-    completedRankedCases: rankedCases.filter(
-      (testCase) => testCase.primaryHomotopyEstablished,
-    ).length,
-    rankedCandidateEvaluations: rankedCases.reduce(
-      (sum, testCase) => sum + testCase.totalCandidateEvaluations,
-      0,
-    ),
-    rankedAcceptedUpdates: rankedCases.reduce(
-      (sum, testCase) => sum + testCase.totalAcceptedUpdates,
-      0,
-    ),
-    rankedRejectedTrials: rankedCases.reduce(
-      (sum, testCase) => sum + testCase.totalRejectedTrials,
-      0,
-    ),
+    completedRankedCases: rankedMetrics.completedRankedCases,
+    rankedCandidateEvaluations: rankedMetrics.rankedCandidateEvaluations,
+    rankedAcceptedUpdates: rankedMetrics.rankedAcceptedUpdates,
+    rankedRejectedTrials: rankedMetrics.rankedRejectedTrials,
     archiveDiagnostics: {
       homotopyCases: archiveHomotopies,
       directPointCases: archiveDirect,
@@ -309,6 +342,250 @@ function runPolicyComparisonV1(
       historicalQualificationTransferred: false,
     },
   });
+}
+
+export function summarizeMainWirePassiveEquilibriumCompletedRankedCasesV1(
+  rankedCases: readonly MainWirePassiveEquilibriumRankedCaseMetricsInputV1[],
+): Readonly<{
+  completedRankedCases: number;
+  rankedCandidateEvaluations: number;
+  rankedAcceptedUpdates: number;
+  rankedRejectedTrials: number;
+}> {
+  const completed = rankedCases.filter(
+    (testCase) => testCase.primaryHomotopyEstablished,
+  );
+  return deepFreezeV3({
+    completedRankedCases: completed.length,
+    rankedCandidateEvaluations: completed.reduce(
+      (sum, testCase) => sum + testCase.totalCandidateEvaluations,
+      0,
+    ),
+    rankedAcceptedUpdates: completed.reduce(
+      (sum, testCase) => sum + testCase.totalAcceptedUpdates,
+      0,
+    ),
+    rankedRejectedTrials: completed.reduce(
+      (sum, testCase) => sum + testCase.totalRejectedTrials,
+      0,
+    ),
+  });
+}
+
+export function evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+  policyId: MainWirePassiveEquilibriumPointSolverPolicyIdV3,
+  cases: readonly MainWirePassiveEquilibriumManufacturedContractCaseV1[],
+): boolean {
+  const byId = new Map(cases.map((testCase) => [testCase.caseId, testCase]));
+  if (
+    !MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_POLICY_ORDER_V3.includes(
+      policyId,
+    ) ||
+    cases.length !==
+      MAIN_WIRE_PASSIVE_EQUILIBRIUM_MANUFACTURED_CASE_IDS_V1.length ||
+    MAIN_WIRE_PASSIVE_EQUILIBRIUM_MANUFACTURED_CASE_IDS_V1.some(
+      (caseId) => !byId.has(caseId),
+    )
+  )
+    return false;
+  for (const caseId of [
+    "quadratic-spd",
+    "near-flat-quartic",
+    "magnitude-imbalanced",
+    "large-energy-offset-0",
+    "large-energy-offset-1e8",
+    "large-energy-offset-1e16",
+  ] as const) {
+    const testCase = byId.get(caseId);
+    if (
+      testCase?.actualStatus !== "point-local-stable-root-established" ||
+      testCase.summary.failureReason !== null ||
+      !terminalGatesPassedV1(testCase.summary.terminal)
+    )
+      return false;
+  }
+  const saddleTerminal = byId.get("saddle-control")?.summary.terminal;
+  if (
+    byId.get("saddle-control")?.actualStatus !== "point-solve-failed" ||
+    byId.get("saddle-control")?.summary.failureReason !==
+      "scaled-internal-hessian-not-positive-definite" ||
+    saddleTerminal === null ||
+    saddleTerminal === undefined ||
+    !Number.isFinite(saddleTerminal.scaledForceInfinityNorm) ||
+    saddleTerminal.scaledForceInfinityNorm > 1e-10 ||
+    !Number.isFinite(saddleTerminal.minimumScaledInternalHessianEigenvalue) ||
+    saddleTerminal.minimumScaledInternalHessianEigenvalue > 1e-10
+  )
+    return false;
+  if (
+    byId.get("constant-residual-control")?.actualStatus !==
+      "point-solve-failed" ||
+    byId.get("constant-residual-control")?.summary.failureReason === null
+  )
+    return false;
+
+  const magnitude = byId.get("magnitude-imbalanced")?.summary.terminal;
+  if (magnitude === null || magnitude === undefined) return false;
+  const magnitudeScaledDifference = Math.max(
+    Math.abs(
+      magnitude.internalCoordinates.septalMidwallCapVolumeM3 / 42e-6 - 0.125,
+    ),
+    Math.abs(
+      (magnitude.internalCoordinates.junctionRadiusM - 0.033) / 0.033 - 0.25,
+    ),
+  );
+  const magnitudeRootClusterRadius =
+    MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_SHARED_POLICY_V3.scaledForceInfinityTolerance /
+    1e-3;
+  if (magnitudeScaledDifference > magnitudeRootClusterRadius) return false;
+
+  const offsetCases = [
+    byId.get("large-energy-offset-0")!,
+    byId.get("large-energy-offset-1e8")!,
+    byId.get("large-energy-offset-1e16")!,
+  ];
+  const offsetTerminals = offsetCases.map(
+    (testCase) => testCase.summary.terminal,
+  );
+  if (offsetTerminals.some((terminal) => terminal === null)) return false;
+  if (
+    offsetTerminals.some(
+      (terminal) => !sameTerminalMechanicsV1(offsetTerminals[0]!, terminal!),
+    )
+  )
+    return false;
+
+  if (
+    policyId === MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID ||
+    policyId === MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_LM_V3_ID
+  ) {
+    if (
+      offsetCases.some(
+        (testCase) =>
+          !sameIterationDecisionsV1(
+            offsetCases[0]!.summary.iterationDecisions,
+            testCase.summary.iterationDecisions,
+          ),
+      )
+    )
+      return false;
+  }
+
+  for (const testCase of cases) {
+    const guardDecisionIndices = testCase.summary.iterationDecisions
+      .map((decision, index) =>
+        decision.selectedReason === "terminal-root-guard-satisfied"
+          ? index
+          : -1,
+      )
+      .filter((index) => index >= 0);
+    if (
+      policyId !==
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_COMPONENT_ENERGY_TERMINAL_ROOT_GUARD_V3_ID &&
+      guardDecisionIndices.length > 0
+    )
+      return false;
+    for (const index of guardDecisionIndices) {
+      const decision = testCase.summary.iterationDecisions[index]!;
+      if (
+        testCase.actualStatus !== "point-local-stable-root-established" ||
+        testCase.summary.failureReason !== null ||
+        index !== testCase.summary.iterationDecisions.length - 1 ||
+        decision.selectedTrialIndex !== 0 ||
+        decision.scaledUpdateInfinityNorm === null ||
+        !(decision.scaledUpdateInfinityNorm > 0) ||
+        !terminalGatesPassedV1(testCase.summary.terminal)
+      )
+        return false;
+    }
+  }
+  return true;
+}
+
+function terminalGatesPassedV1(
+  terminal: MainWirePassiveEquilibriumManufacturedContractCaseV1["summary"]["terminal"],
+): boolean {
+  return (
+    terminal !== null &&
+    Number.isFinite(terminal.internalCoordinates.septalMidwallCapVolumeM3) &&
+    Number.isFinite(terminal.internalCoordinates.junctionRadiusM) &&
+    terminal.internalCoordinates.junctionRadiusM > 1e-5 &&
+    Number.isFinite(terminal.rawStoredEnergyJ) &&
+    Number.isFinite(terminal.scaledForceInfinityNorm) &&
+    terminal.scaledForceInfinityNorm <= 1e-10 &&
+    Number.isFinite(terminal.minimumScaledInternalHessianEigenvalue) &&
+    terminal.minimumScaledInternalHessianEigenvalue > 1e-10
+  );
+}
+
+function sameTerminalMechanicsV1(
+  left: NonNullable<
+    MainWirePassiveEquilibriumManufacturedContractCaseV1["summary"]["terminal"]
+  >,
+  right: NonNullable<
+    MainWirePassiveEquilibriumManufacturedContractCaseV1["summary"]["terminal"]
+  >,
+): boolean {
+  return (
+    Object.is(
+      left.internalCoordinates.septalMidwallCapVolumeM3,
+      right.internalCoordinates.septalMidwallCapVolumeM3,
+    ) &&
+    Object.is(
+      left.internalCoordinates.junctionRadiusM,
+      right.internalCoordinates.junctionRadiusM,
+    ) &&
+    Object.is(left.scaledForceInfinityNorm, right.scaledForceInfinityNorm) &&
+    Object.is(
+      left.minimumScaledInternalHessianEigenvalue,
+      right.minimumScaledInternalHessianEigenvalue,
+    )
+  );
+}
+
+function sameIterationDecisionsV1(
+  left: MainWirePassiveEquilibriumManufacturedContractCaseV1["summary"]["iterationDecisions"],
+  right: MainWirePassiveEquilibriumManufacturedContractCaseV1["summary"]["iterationDecisions"],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((leftDecision, index) => {
+      const rightDecision = right[index]!;
+      return (
+        leftDecision.iterationIndex === rightDecision.iterationIndex &&
+        Object.is(
+          leftDecision.currentScaledForceInfinityNorm,
+          rightDecision.currentScaledForceInfinityNorm,
+        ) &&
+        Object.is(
+          leftDecision.currentMinimumScaledHessianEigenvalue,
+          rightDecision.currentMinimumScaledHessianEigenvalue,
+        ) &&
+        leftDecision.selectedTrialIndex === rightDecision.selectedTrialIndex &&
+        leftDecision.selectedReason === rightDecision.selectedReason &&
+        Object.is(
+          leftDecision.scaledUpdateInfinityNorm,
+          rightDecision.scaledUpdateInfinityNorm,
+        ) &&
+        leftDecision.trialCount === rightDecision.trialCount
+      );
+    })
+  );
+}
+
+function manufacturedCaseOutcomePassedV1(
+  caseId: string,
+  status: MainWirePassiveEquilibriumPointSolverResultV3["status"],
+  failureReason: MainWirePassiveEquilibriumPointSolverResultV3["failureReason"],
+): boolean {
+  if (caseId === "saddle-control")
+    return (
+      status === "point-solve-failed" &&
+      failureReason === "scaled-internal-hessian-not-positive-definite"
+    );
+  if (caseId === "constant-residual-control")
+    return status === "point-solve-failed";
+  return status === "point-local-stable-root-established";
 }
 
 function solveNormalAdultStageV1(

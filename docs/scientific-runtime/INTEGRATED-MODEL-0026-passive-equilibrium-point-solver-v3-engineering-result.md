@@ -47,6 +47,23 @@ The create-only report is:
 It is 2.1 MiB, contains no archived PR558 artifact, and is repeatable
 Engineering output rather than qualification evidence or runtime input.
 
+An independent post-result code review found two report-policy gaps: efficiency
+totals had not explicitly excluded failed ranked homotopies, and the
+manufactured eligibility boolean had checked broad solve status without
+replaying every case-specific requirement. The implementation now aggregates
+work only over completed ranked cases and independently checks strict saddle
+rejection, the magnitude-imbalanced root cluster, residual offset invariance,
+and terminal-guard validity. Negative fixtures cover each boundary.
+
+The magnitude-imbalanced cluster radius is not fitted to the observed result:
+it is `1e-7` in scaled-coordinate units, obtained from the fixed force
+tolerance `1e-10` divided by that declared case's weakest curvature `1e-3`.
+
+This correction does not alter the recorded report or its hashes. All three
+policies completed 16 of 16 ranked cases, and the retained manufactured records
+pass the stricter replay. The report remains the immutable result of the single
+declared run rather than a regenerated post-review artifact.
+
 ## Reference point
 
 Residual Newton and component-energy Newton reproduced the retained reference

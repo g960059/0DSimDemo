@@ -5,6 +5,10 @@ import {
   evaluateMainWireNormalAdultPassiveEquilibriumVentricularCandidateEngineeringV1,
   MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_VENTRICULAR_CANDIDATE_ENGINEERING_V1_CLAIM,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultPassiveEquilibriumCandidateEngineeringV1";
+import {
+  evaluateMainWirePassiveEquilibriumManufacturedContractV1,
+  summarizeMainWirePassiveEquilibriumCompletedRankedCasesV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultPassiveEquilibriumPointSolverComparisonEngineeringV1";
 import type { MainWireNormalAdultPassiveEquilibriumCoordinatesV3 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonDefinitionV1";
 import { MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_REFERENCE_VOLUMES_M3_V3 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonDefinitionV1";
 import {
@@ -70,8 +74,20 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
             expectedOutcomePassed: boolean;
             summary: {
               failureReason: string | null;
+              terminal: {
+                internalCoordinates: MainWireNormalAdultPassiveEquilibriumCoordinatesV3;
+                rawStoredEnergyJ: number;
+                scaledForceInfinityNorm: number;
+                minimumScaledInternalHessianEigenvalue: number;
+              } | null;
               iterationDecisions: readonly {
+                iterationIndex: number;
+                currentScaledForceInfinityNorm: number;
+                currentMinimumScaledHessianEigenvalue: number;
+                selectedTrialIndex: number | null;
                 selectedReason: string | null;
+                scaledUpdateInfinityNorm: number | null;
+                trialCount: number;
               }[];
             };
           }[];
@@ -116,6 +132,12 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
       );
       expect(constantResidual.expectedOutcomePassed).toBe(true);
       expect(constantResidual.actualStatus).toBe("point-solve-failed");
+      expect(
+        evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+          summary.policyId as MainWirePassiveEquilibriumPointSolverPolicyIdV3,
+          summary.manufacturedCases,
+        ),
+      ).toBe(true);
     }
     const componentEnergy = report.payload.policySummaries.find(
       (summary) =>
@@ -136,6 +158,90 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
         summary.policyId ===
         MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
     )!;
+    const saddleTamper = residual.manufacturedCases.map((testCase) =>
+      testCase.caseId === "saddle-control"
+        ? {
+            ...testCase,
+            summary: {
+              ...testCase.summary,
+              failureReason: "line-search-failed",
+            },
+          }
+        : testCase,
+    );
+    expect(
+      evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+        saddleTamper,
+      ),
+    ).toBe(false);
+    const magnitudeTamper = residual.manufacturedCases.map((testCase) =>
+      testCase.caseId === "magnitude-imbalanced"
+        ? {
+            ...testCase,
+            summary: {
+              ...testCase.summary,
+              terminal: {
+                ...testCase.summary.terminal!,
+                internalCoordinates: {
+                  ...testCase.summary.terminal!.internalCoordinates,
+                  junctionRadiusM:
+                    testCase.summary.terminal!.internalCoordinates
+                      .junctionRadiusM + 1e-3,
+                },
+              },
+            },
+          }
+        : testCase,
+    );
+    expect(
+      evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+        magnitudeTamper,
+      ),
+    ).toBe(false);
+    const offsetDecisionTamper = residual.manufacturedCases.map((testCase) =>
+      testCase.caseId === "large-energy-offset-1e8"
+        ? {
+            ...testCase,
+            summary: {
+              ...testCase.summary,
+              iterationDecisions: testCase.summary.iterationDecisions.map(
+                (decision, index) =>
+                  index === 0
+                    ? { ...decision, selectedTrialIndex: 1 }
+                    : decision,
+              ),
+            },
+          }
+        : testCase,
+    );
+    expect(
+      evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+        offsetDecisionTamper,
+      ),
+    ).toBe(false);
+    const guardTamper = componentEnergy.manufacturedCases.map((testCase) =>
+      testCase.caseId === "large-energy-offset-1e16"
+        ? {
+            ...testCase,
+            summary: {
+              ...testCase.summary,
+              terminal: {
+                ...testCase.summary.terminal!,
+                scaledForceInfinityNorm: 1e-6,
+              },
+            },
+          }
+        : testCase,
+    );
+    expect(
+      evaluateMainWirePassiveEquilibriumManufacturedContractV1(
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_COMPONENT_ENERGY_TERMINAL_ROOT_GUARD_V3_ID,
+        guardTamper,
+      ),
+    ).toBe(false);
     const candidate =
       evaluateMainWireNormalAdultPassiveEquilibriumVentricularCandidateEngineeringV1(
         {
@@ -157,6 +263,36 @@ describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
     expect(
       MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_VENTRICULAR_CANDIDATE_ENGINEERING_V1_CLAIM.surfaceEstablished,
     ).toBe(false);
+  });
+
+  it("counts efficiency only across completed ranked cases", () => {
+    expect(
+      summarizeMainWirePassiveEquilibriumCompletedRankedCasesV1([
+        {
+          primaryHomotopyEstablished: true,
+          totalCandidateEvaluations: 11,
+          totalAcceptedUpdates: 7,
+          totalRejectedTrials: 3,
+        },
+        {
+          primaryHomotopyEstablished: false,
+          totalCandidateEvaluations: 10_000,
+          totalAcceptedUpdates: 9_000,
+          totalRejectedTrials: 8_000,
+        },
+        {
+          primaryHomotopyEstablished: true,
+          totalCandidateEvaluations: 13,
+          totalAcceptedUpdates: 5,
+          totalRejectedTrials: 2,
+        },
+      ]),
+    ).toEqual({
+      completedRankedCases: 2,
+      rankedCandidateEvaluations: 24,
+      rankedAcceptedUpdates: 12,
+      rankedRejectedTrials: 5,
+    });
   });
 
   it("freezes the declaration, 16 ranked targets, and non-ranking archive diagnostics without evaluating normal-adult mechanics", () => {
