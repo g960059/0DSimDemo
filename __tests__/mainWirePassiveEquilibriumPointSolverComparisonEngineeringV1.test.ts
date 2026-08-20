@@ -1,5 +1,12 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { sha256CanonicalJsonHex, sha256TextHex } from "@/engine/integrity";
+import {
+  evaluateMainWireNormalAdultPassiveEquilibriumVentricularCandidateEngineeringV1,
+  MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_VENTRICULAR_CANDIDATE_ENGINEERING_V1_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultPassiveEquilibriumCandidateEngineeringV1";
 import type { MainWireNormalAdultPassiveEquilibriumCoordinatesV3 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonDefinitionV1";
+import { MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_REFERENCE_VOLUMES_M3_V3 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonDefinitionV1";
 import {
   createMainWirePassiveEquilibriumManufacturedCasesV1,
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_ARCHIVE_DIAGNOSTIC_CASES_V1,
@@ -24,6 +31,96 @@ const RADIUS_SCALE = 0.033;
 const RADIUS_ORIGIN = 0.033;
 
 describe("passive-equilibrium point-solver V3 Engineering comparison", () => {
+  it("replays the compact Engineering result identity and keeps every downstream claim false", async () => {
+    const raw = readFileSync(
+      new URL(
+        "../artifacts/passive-equilibrium/point-solver-comparison-engineering-v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const report = JSON.parse(raw) as {
+      reportSchemaId: string;
+      payloadSha256: string;
+      payload: {
+        implementationCommitSha: string;
+        engineeringLeadingPolicyId: string | null;
+        ranking: readonly {
+          policyId: string;
+          completedRankedCases: number;
+          manufacturedOutcomesPassed: boolean;
+          rankedCandidateEvaluations: number;
+          rankedAcceptedUpdates: number;
+        }[];
+        policySummaries: readonly {
+          policyId: string;
+          referenceRoot: {
+            terminal: {
+              internalCoordinates: MainWireNormalAdultPassiveEquilibriumCoordinatesV3;
+              rawStoredEnergyJ: number;
+              scaledForceInfinityNorm: number;
+              minimumScaledInternalHessianEigenvalue: number;
+            };
+          };
+          completedRankedCases: number;
+          manufacturedOutcomesPassed: boolean;
+        }[];
+        claims: Record<string, boolean>;
+      };
+    };
+    expect(await sha256TextHex(raw)).toBe(
+      "a48c49fd1b187bd0f625d6292123f5b686b5ba99b56bb675a2fefd2dfe4cbe2b",
+    );
+    expect(report.payloadSha256).toBe(
+      "d30ca8cd148affb8d5f3964769b24dacf21afc38dcfa596fc25fbb0c1d3bb433",
+    );
+    expect(await sha256CanonicalJsonHex(report.payload)).toBe(
+      report.payloadSha256,
+    );
+    expect(report.payload.implementationCommitSha).toBe(
+      "a87637f6e8070b8d1eb0c0bd0d78464d4d23393f",
+    );
+    expect(report.payload.engineeringLeadingPolicyId).toBe(
+      MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+    );
+    expect(
+      report.payload.ranking.map((entry) => entry.completedRankedCases),
+    ).toEqual([16, 16, 16]);
+    expect(
+      report.payload.ranking.every((entry) => entry.manufacturedOutcomesPassed),
+    ).toBe(true);
+    expect(Object.values(report.payload.claims).every((claim) => !claim)).toBe(
+      true,
+    );
+
+    const residual = report.payload.policySummaries.find(
+      (summary) =>
+        summary.policyId ===
+        MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
+    )!;
+    const candidate =
+      evaluateMainWireNormalAdultPassiveEquilibriumVentricularCandidateEngineeringV1(
+        {
+          chamberVolumesM3:
+            MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_REFERENCE_VOLUMES_M3_V3,
+          internalCoordinates:
+            residual.referenceRoot.terminal.internalCoordinates,
+        },
+      );
+    expect(candidate.rawStoredEnergyJ).toBe(
+      residual.referenceRoot.terminal.rawStoredEnergyJ,
+    );
+    expect(candidate.scaledForceInfinityNorm).toBe(
+      residual.referenceRoot.terminal.scaledForceInfinityNorm,
+    );
+    expect(candidate.minimumScaledInternalHessianEigenvalue).toBe(
+      residual.referenceRoot.terminal.minimumScaledInternalHessianEigenvalue,
+    );
+    expect(
+      MAIN_WIRE_NORMAL_ADULT_PASSIVE_EQUILIBRIUM_VENTRICULAR_CANDIDATE_ENGINEERING_V1_CLAIM.surfaceEstablished,
+    ).toBe(false);
+  });
+
   it("freezes the declaration, 16 ranked targets, and non-ranking archive diagnostics without evaluating normal-adult mechanics", () => {
     expect(
       MAIN_WIRE_PASSIVE_EQUILIBRIUM_POINT_SOLVER_COMPARISON_DECLARATION_V1.commitSha,
