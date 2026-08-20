@@ -64,6 +64,9 @@ model:
   schedule, compact biventricular loop family, method-specific isochronal,
   closure, minimum-volume, support-envelope and hysteresis comparisons, and
   still-negative ESPVR, EDPVR, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md`](./INTEGRATED-MODEL-0032-transient-venous-return-evidence-boundary-addendum.md)
+  prospectively separates producer-time raw projection replay from compact
+  artifact replay and requires post-result exact locks before merge.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
