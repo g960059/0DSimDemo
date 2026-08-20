@@ -48,6 +48,11 @@ model:
   gradient, Schur-tangent, Maxwell and rectangular-path audits, the diagnostic
   lineage near-threshold observation, and the still-negative continuous
   surface, EDPVR, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0029-periodic-five-wall-mechanical-port-ledger-dt-characterization.md`](./INTEGRATED-MODEL-0029-periodic-five-wall-mechanical-port-ledger-dt-characterization.md)
+  prospectively freezes one shared-source 1 ms, 0.5 ms, and 0.25 ms
+  mechanical-port ledger characterization, its analysis-only fine-grid
+  access, metric taxonomy, compact artifact, integrity rule, and nonclaim
+  boundary before the first target execution.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
