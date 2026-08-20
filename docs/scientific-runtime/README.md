@@ -76,6 +76,10 @@ model:
   combines explicit systolic, dynamic maximum-volume diastolic, and area-rule
   methods into the first research-only `EW + PE` calculation, reports method
   spread and unavailable rows, and keeps generic PVA/ESPVR/EDPVR claims false.
+- [`INTEGRATED-MODEL-0035-pva-diastolic-reference-comparison-result.md`](./INTEGRATED-MODEL-0035-pva-diastolic-reference-comparison-result.md)
+  replaces only the dynamic diastolic reference with a zero-clamped intrinsic
+  passive center slice, quantifies the paired PVA change, and leaves the
+  external-work and systolic methods unchanged.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
