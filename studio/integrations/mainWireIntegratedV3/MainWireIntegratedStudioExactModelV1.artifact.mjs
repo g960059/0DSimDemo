@@ -44632,6 +44632,52 @@ function boundaryJson(report, side) {
     coronaryWindowStartAcceptedTimeSec: current ? coronary.currentAutoregulationWindowStartAcceptedTimeSec : coronary.referenceAutoregulationWindowStartAcceptedTimeSec
   });
 }
+const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1 = Object.freeze({
+  policyId: "main-wire-integrated-model-periodic-transmural-boundary-work-engineering-projection-policy-v1",
+  pressureBasis: "ventricular-transmural",
+  workDefinition: "negative-accepted-endpoint-trapezoidal-line-integral-of-pressure-against-volume",
+  requiredPeriodicity: "canonical-full-accepted-state-period1-converged",
+  syntheticEndToStartClosingSegmentApplied: false,
+  closure: Object.freeze({
+    volumeReferenceScaleMl: 100,
+    pressureReferenceScaleMmHg: 100,
+    maximumNormalizedBoundaryDelta: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
+    clockToleranceSec: MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance.acceptedOwnerClockSkewSec
+  }),
+  signConvention: Object.freeze({
+    positive: "net-work-by-ventricle",
+    negative: "net-work-on-ventricle",
+    zero: "zero-net-work"
+  }),
+  selfIntersectionPolicy: "signed-line-integral-remains-defined-self-intersection-is-a-later-pva-geometry-gate",
+  valveEventPolicy: "not-a-transmural-boundary-work-input-gate-events-separately-own-ed-es-annotations",
+  sourceProvenanceEstablishedByProjector: false,
+  numericalPeriodicityIsPhysiologicalValidation: false,
+  clinicalValidationClaimed: false
+});
+Object.freeze({
+  policyId: "main-wire-integrated-model-periodic-pressure-basis-decomposition-engineering-projection-policy-v1",
+  pressureDefinitions: Object.freeze({
+    cavityAbsolutePressure: "cavity-absolute-pressure",
+    ventricularTransmuralPressure: "ventricular-transmural-pressure",
+    externalConstraintPressure: "cavity-absolute-minus-ventricular-transmural-pressure"
+  }),
+  workDefinition: "negative-caller-ordered-endpoint-trapezoidal-line-integral-of-pressure-against-volume",
+  algebraicIdentity: "cavity-absolute-work-equals-ventricular-transmural-work-plus-external-constraint-exchange",
+  maximumAbsoluteDecompositionResidualMmHgMl: 1e-8,
+  closure: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1.closure,
+  signConvention: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_TRANSMURAL_BOUNDARY_WORK_ENGINEERING_POLICY_V1.signConvention,
+  syntheticEndToStartClosingSegmentApplied: false,
+  acceptedEndpointIdentityVerifiedByProjector: false,
+  periodicityEstablishedByProjector: false,
+  sourceProvenanceEstablishedByProjector: false,
+  commonPericardiumStoredEnergyEstablishedByProjector: false,
+  perChamberPericardialEnergyAllocationEstablishedByProjector: false,
+  wholeHeartExternalConstraintWorkEstablishedByProjector: false,
+  pvaEstablishedByProjector: false,
+  physiologicalValidationEstablishedByProjector: false,
+  clinicalValidationClaimed: false
+});
 Object.freeze({
   contextId: "main-wire-integrated-model-v3-healthy-reference-context-v1",
   referenceSubject: Object.freeze({

@@ -36,6 +36,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PRESSURE_BASIS_DECOMPOSITION_EN
     acceptedEndpointIdentityVerifiedByProjector: false as const,
     periodicityEstablishedByProjector: false as const,
     sourceProvenanceEstablishedByProjector: false as const,
+    commonPericardiumStoredEnergyEstablishedByProjector: false as const,
+    perChamberPericardialEnergyAllocationEstablishedByProjector: false as const,
+    wholeHeartExternalConstraintWorkEstablishedByProjector: false as const,
     pvaEstablishedByProjector: false as const,
     physiologicalValidationEstablishedByProjector: false as const,
     clinicalValidationClaimed: false as const,
@@ -124,6 +127,9 @@ export type MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineering
     historicalQualificationTransferred: false;
     officialQualificationEstablished: false;
     publicOutputEstablished: false;
+    commonPericardiumStoredEnergyEstablished: false;
+    perChamberPericardialEnergyAllocationEstablished: false;
+    wholeHeartExternalConstraintWorkEstablished: false;
     pvaEstablished: false;
     physiologicalValidationEstablished: false;
     clinicalValidationClaimed: false;
@@ -172,6 +178,9 @@ export function projectMainWireIntegratedModelPeriodicPressureBasisDecomposition
     historicalQualificationTransferred: false as const,
     officialQualificationEstablished: false as const,
     publicOutputEstablished: false as const,
+    commonPericardiumStoredEnergyEstablished: false as const,
+    perChamberPericardialEnergyAllocationEstablished: false as const,
+    wholeHeartExternalConstraintWorkEstablished: false as const,
     pvaEstablished: false as const,
     physiologicalValidationEstablished: false as const,
     clinicalValidationClaimed: false as const,

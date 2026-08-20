@@ -45,6 +45,7 @@ import {
   validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3,
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import type { NonCoronaryCirculationNewtonOptionsV1 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
@@ -60,13 +61,15 @@ import {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
 import { MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
-import type {
-  MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringResultV1,
-  MainWireIntegratedModelPeriodicPressureBasisPathPointCandidateV1,
+import {
+  projectMainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1,
+  type MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringResultV1,
+  type MainWireIntegratedModelPeriodicPressureBasisPathPointCandidateV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1";
-import type {
-  MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1,
-  MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1,
+import {
+  projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1,
+  type MainWireIntegratedModelPeriodicPressureVolumeBoundaryV1,
+  type MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringResultV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1";
 import {
   normalAdultMainWireRuntimeV1,
@@ -331,6 +334,22 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
 >;
 
+type MainWireIntegratedModelPeriodicIdentityFixtureV3 = Readonly<
+  Omit<
+    MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+    "coronaryStepInput"
+  > & {
+    coronaryStepInput: Readonly<
+      Omit<
+        MainWireIntegratedModelRegularSinusAllOffFixtureV3["coronaryStepInput"],
+        "circulationNewtonOptions"
+      > & {
+        circulationNewtonOptions: Required<NonCoronaryCirculationNewtonOptionsV1>;
+      }
+    >;
+  }
+>;
+
 export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   ventricularContractilityScale = 1,
@@ -460,6 +479,63 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   });
 }
 
+/**
+ * Model/physical condition identity for cross-protocol comparisons.
+ *
+ * Keep this payload as an explicit allowlist. In particular, numerical
+ * circulation-solver options belong only to the protocol identity and must
+ * not enter this condition identity through a broad step-input snapshot.
+ */
+export function createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1(
+  fixture: MainWireIntegratedModelPeriodicIdentityFixtureV3,
+) {
+  return Object.freeze({
+    conditionIdentityId:
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID,
+    experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
+    ventricularContractilityScale: fixture.ventricularContractilityScale,
+    mechanismResearchInputs: fixture.mechanismResearchInputs,
+    provider: providerIdentity(fixture.provider),
+    composedRhythmConfiguration: fixture.rhythm.configuration,
+    dynamicMechanicalSupportProfile: fixture.profile,
+    dynamicMechanicalSupportConfig: fixture.config,
+    coronaryModelCondition: Object.freeze({
+      runtime: fixture.coronaryStepInput.runtime,
+      calciumDriveParams: fixture.coronaryStepInput.calciumDriveParams,
+      pericardium: fixture.coronaryStepInput.pericardium,
+      coronaryPrior: fixture.coronaryStepInput.coronaryPrior,
+      coronaryDisease: fixture.coronaryStepInput.coronaryDisease,
+      collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
+      impMechanism: fixture.coronaryStepInput.impMechanism,
+      shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
+    }),
+  });
+}
+
+export function createMainWireIntegratedModelPeriodicProtocolIdentityPayloadV3(
+  fixture: MainWireIntegratedModelPeriodicIdentityFixtureV3,
+  input: Readonly<{
+    executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3;
+    nominalDtSec: number;
+    maximumCycleCount: number;
+  }>,
+) {
+  return Object.freeze({
+    experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+    executionPurpose: input.executionPurpose,
+    nominalDtSec: input.nominalDtSec,
+    maximumCycleCount: input.maximumCycleCount,
+    periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+    referenceScales: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+    provider: providerIdentity(fixture.provider),
+    composedRhythmConfiguration: fixture.rhythm.configuration,
+    dynamicMechanicalSupportProfile: fixture.profile,
+    dynamicMechanicalSupportConfig: fixture.config,
+    coronaryStepInput: fixture.coronaryStepInput,
+  });
+}
+
 export async function runMainWireIntegratedModelPeriodicSteadyV3(
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
 ): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
@@ -470,33 +546,15 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     resolved.mechanismResearchInputs,
   );
   const modelConditionIdentityHash = await sha256CanonicalJsonHex(
-    Object.freeze({
-      conditionIdentityId:
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CONDITION_IDENTITY_ENGINEERING_V1_ID,
-      experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
-      hemodynamicResearchInputs: fixture.hemodynamicResearchInputs,
-      ventricularContractilityScale: fixture.ventricularContractilityScale,
-      mechanismResearchInputs: fixture.mechanismResearchInputs,
-      provider: providerIdentity(fixture.provider),
-      composedRhythmConfiguration: fixture.rhythm.configuration,
-      dynamicMechanicalSupportProfile: fixture.profile,
-      dynamicMechanicalSupportConfig: fixture.config,
-      coronaryStepInput: fixture.coronaryStepInput,
-    }),
+    createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1(
+      fixture,
+    ),
   );
   const protocolIdentityHash = await sha256CanonicalJsonHex(
-    Object.freeze({
-      experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+    createMainWireIntegratedModelPeriodicProtocolIdentityPayloadV3(fixture, {
       executionPurpose: resolved.executionPurpose,
       nominalDtSec: resolved.nominalDtSec,
       maximumCycleCount: resolved.maximumCycleCount,
-      periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-      referenceScales: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-      provider: providerIdentity(fixture.provider),
-      composedRhythmConfiguration: fixture.rhythm.configuration,
-      dynamicMechanicalSupportProfile: fixture.profile,
-      dynamicMechanicalSupportConfig: fixture.config,
-      coronaryStepInput: fixture.coronaryStepInput,
     }),
   );
   const classifierOptions = Object.freeze({
@@ -635,14 +693,6 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   if (terminalObservation === undefined) {
     throw new Error("V3 periodic experiment lacks terminal P1/P2 evidence");
   }
-  const {
-    projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1,
-  } =
-    await import("@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1");
-  const {
-    projectMainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1,
-  } =
-    await import("@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPressureBasisDecompositionEngineeringV1");
   const terminalTransmuralBoundaryWorkEngineering =
     projectMainWireIntegratedModelPeriodicTransmuralBoundaryWorkEngineeringV1({
       executionPurpose: resolved.executionPurpose,

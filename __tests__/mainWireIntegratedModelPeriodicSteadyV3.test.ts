@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1,
+  createMainWireIntegratedModelPeriodicProtocolIdentityPayloadV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
   it("owns the predeclared V3 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
@@ -59,6 +62,101 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
           .acceptedFlowMlPerSec,
       ),
     ).toEqual([0, 0, 0, 0]);
+  });
+
+  it("keeps model condition identity stable across numerical-only changes and moves both identities for physical/model changes", async () => {
+    const baseFixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const identityHashes = async (
+      fixture: Parameters<
+        typeof createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1
+      >[0],
+      protocol: Readonly<{
+        executionPurpose?: "bounded-smoke" | "canonical-evidence";
+        nominalDtSec?: number;
+        maximumCycleCount?: number;
+      }> = {},
+    ) =>
+      Object.freeze({
+        condition: await sha256CanonicalJsonHex(
+          createMainWireIntegratedModelPeriodicConditionIdentityPayloadEngineeringV1(
+            fixture,
+          ),
+        ),
+        protocol: await sha256CanonicalJsonHex(
+          createMainWireIntegratedModelPeriodicProtocolIdentityPayloadV3(
+            fixture,
+            {
+              executionPurpose: protocol.executionPurpose ?? "bounded-smoke",
+              nominalDtSec: protocol.nominalDtSec ?? 0.002,
+              maximumCycleCount: protocol.maximumCycleCount ?? 2,
+            },
+          ),
+        ),
+      });
+
+    const base = await identityHashes(baseFixture);
+    expect(await identityHashes(baseFixture)).toEqual(base);
+
+    for (const numericalProtocolOnly of [
+      await identityHashes(baseFixture, { nominalDtSec: 0.001 }),
+      await identityHashes(baseFixture, { maximumCycleCount: 1 }),
+    ]) {
+      expect(numericalProtocolOnly.condition).toBe(base.condition);
+      expect(numericalProtocolOnly.protocol).not.toBe(base.protocol);
+    }
+
+    const newtonPolicyFixture = Object.freeze({
+      ...baseFixture,
+      coronaryStepInput: Object.freeze({
+        ...baseFixture.coronaryStepInput,
+        circulationNewtonOptions: Object.freeze({
+          ...baseFixture.coronaryStepInput.circulationNewtonOptions,
+          scaledResidualInfinityTolerance:
+            baseFixture.coronaryStepInput.circulationNewtonOptions
+              .scaledResidualInfinityTolerance * 2,
+        }),
+      }),
+    });
+    const newtonPolicy = await identityHashes(newtonPolicyFixture);
+    expect(newtonPolicy.condition).toBe(base.condition);
+    expect(newtonPolicy.protocol).not.toBe(base.protocol);
+
+    const peepFixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3({
+        ...baseFixture.hemodynamicResearchInputs,
+        peepCmH2O: 5,
+      });
+    const valveAreaFixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+        baseFixture.hemodynamicResearchInputs,
+        1,
+        {
+          ...baseFixture.mechanismResearchInputs,
+          valveAreas: {
+            ...baseFixture.mechanismResearchInputs.valveAreas,
+            AoV: {
+              ...baseFixture.mechanismResearchInputs.valveAreas.AoV,
+              maximumForwardEoaCm2: 3.45,
+            },
+          },
+        },
+      );
+    const contractilityFixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+        baseFixture.hemodynamicResearchInputs,
+        1.1,
+        baseFixture.mechanismResearchInputs,
+      );
+
+    for (const physicalOrModelCondition of [
+      await identityHashes(peepFixture),
+      await identityHashes(valveAreaFixture),
+      await identityHashes(contractilityFixture),
+    ]) {
+      expect(physicalOrModelCondition.condition).not.toBe(base.condition);
+      expect(physicalOrModelCondition.protocol).not.toBe(base.protocol);
+    }
   });
 
   it("advances one canonical-provider cycle with exact event ownership, conservation, raw trace, healthy projection, and V3 checkpoint", async () => {
@@ -251,6 +349,9 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       historicalQualificationTransferred: false,
       officialQualificationEstablished: false,
       publicOutputEstablished: false,
+      commonPericardiumStoredEnergyEstablished: false,
+      perChamberPericardialEnergyAllocationEstablished: false,
+      wholeHeartExternalConstraintWorkEstablished: false,
       pvaEstablished: false,
       physiologicalValidationEstablished: false,
       clinicalValidationClaimed: false,

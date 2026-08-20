@@ -44,6 +44,11 @@ segment is inserted.
 ventricular external work and must not be confused with `W_transmural` or the
 absolute-pressure catheter PV-loop area.
 
+It is a chamber-coordinate pressure-basis exchange term. It is not a unique
+allocation of common-pericardial stored energy, per-chamber pericardial work,
+or whole-heart external-constraint work. The result keeps all three stronger
+interpretations machine-readable `false`.
+
 The numerical decomposition gate is:
 
 ```text
@@ -90,6 +95,9 @@ sourceProvenanceVerified
 historicalQualificationTransferred
 officialQualificationEstablished
 publicOutputEstablished
+commonPericardiumStoredEnergyEstablished
+perChamberPericardialEnergyAllocationEstablished
+wholeHeartExternalConstraintWorkEstablished
 pvaEstablished
 physiologicalValidationEstablished
 clinicalValidationClaimed
@@ -106,13 +114,15 @@ endpoints after the cycle boundary; it does not otherwise contain the left
 endpoint of its first segment. The connection does not alter, resample, or add
 points to the trace.
 
-The periodic result also owns a model-condition identity hash over the
-hemodynamic inputs, ventricular contractility, mechanism inputs, provider
-identity, rhythm configuration, all-off support configuration, and coronary
-step input. Protocol identity and model-condition identity remain separate.
-Their payloads intentionally overlap: a condition change moves both hashes,
-while a numerical protocol-only change can move the protocol hash without
-changing the condition hash.
+The periodic result also owns a model-condition identity hash over an explicit
+allowlist of hemodynamic inputs, ventricular contractility, mechanism inputs,
+provider identity, rhythm configuration, all-off support configuration, and
+physical/model coronary inputs. Numerical circulation-Newton options are
+excluded from this condition payload and remain in the protocol identity.
+Protocol identity and model-condition identity remain separate. Their payloads
+intentionally overlap: a condition change moves both hashes, while a numerical
+protocol-only change moves the protocol hash without changing the condition
+hash.
 
 Each periodic run attaches:
 
@@ -138,6 +148,10 @@ Synthetic tests cover:
 - derived external-constraint pressure overflow;
 - missing path endpoints; and
 - trace-sample helper rejection of nonfinite values.
+
+Identity-contract tests additionally require deterministic replay to preserve
+both hashes, timestep/horizon/Newton-policy changes to move only the protocol
+hash, and PEEP/valve-area/contractility changes to move both hashes.
 
 A real-model regression additionally executes two bounded-smoke cycles and
 checks:
