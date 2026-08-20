@@ -43,6 +43,11 @@ model:
   intrinsic ventricular passive pilot and freezes its independent point
   lineages, reduced-energy, Schur-tangent, Maxwell, path-refinement, compact
   artifact, and nonclaim contracts before the first target evaluation.
+- [`INTEGRATED-MODEL-0028-intrinsic-ventricular-passive-reduced-surface-pilot-result.md`](./INTEGRATED-MODEL-0028-intrinsic-ventricular-passive-reduced-surface-pilot-result.md)
+  records the passing 25-point intrinsic ventricular pilot, its independent
+  gradient, Schur-tangent, Maxwell and rectangular-path audits, the diagnostic
+  lineage near-threshold observation, and the still-negative continuous
+  surface, EDPVR, PVA, official, and public claims.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

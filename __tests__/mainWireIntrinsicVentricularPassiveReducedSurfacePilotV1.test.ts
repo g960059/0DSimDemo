@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { sha256CanonicalJsonHex, sha256TextHex } from "@/engine/integrity";
 import {
   MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_DECLARATION_V1,
   MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_GRID_V1,
@@ -15,6 +15,10 @@ import {
   type MainWireIntrinsicVentricularPassiveReducedSurfaceMathPointV1,
 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotMathematicsV1";
 import { createMainWireIntrinsicVentricularPassiveReducedSurfaceStageRecordV1 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotEngineeringV1";
+import {
+  auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1,
+  type MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1,
+} from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotEngineeringV1";
 import { createMainWirePassiveEquilibriumManufacturedCasesV1 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonCorpusV1";
 import {
   MAIN_WIRE_PASSIVE_EQUILIBRIUM_RESIDUAL_ARMIJO_NEWTON_V3_ID,
@@ -293,6 +297,60 @@ describe("intrinsic ventricular passive reduced-surface pilot V1", () => {
     expect(preflight).toBeGreaterThan(0);
     expect(runner).toBeGreaterThan(preflight);
     expect(source).not.toContain("--output");
+  });
+
+  it("independently replays the committed compact pilot result", async () => {
+    const raw = readFileSync(
+      new URL(
+        "../artifacts/passive-equilibrium/intrinsic-ventricular-passive-reduced-surface-pilot-v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const report = JSON.parse(
+      raw,
+    ) as MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1;
+    expect(Buffer.byteLength(raw, "utf8")).toBe(332_372);
+    expect(await sha256TextHex(raw)).toBe(
+      "0ba4d56c98cf933d3d693db36fa5b6086eff2e46b2aa71f7a67f1a5f19caddc7",
+    );
+    expect(report.payloadSha256).toBe(
+      "dbdf2b76d23fc902e7b1b75fab75731c7456ff3d69ab9a23994569a723daf294",
+    );
+    expect(await sha256CanonicalJsonHex(report.payload)).toBe(
+      report.payloadSha256,
+    );
+    expect(report.payload.implementationCommitSha).toBe(
+      "63dcab1626c43e67f80a870365470f24238de417",
+    );
+    expect(
+      report.payload.primaryGrid.filter(
+        (point) => point.primaryLineageEstablished,
+      ),
+    ).toHaveLength(25);
+    expect(
+      report.payload
+        .sampledLocalIntrinsicVentricularReducedPotentialConsistencyPassed,
+    ).toBe(true);
+    expect(report.payload.firstFailureClass).toBeNull();
+    expect(report.payload.executionExceptions).toEqual([]);
+    expect(Object.values(report.payload.claims).every((claim) => !claim)).toBe(
+      true,
+    );
+    expect(report.payload.diagnosticLineages).toHaveLength(20);
+    expect(
+      report.payload.diagnosticLineages.every(
+        (lineage) => lineage.status === "diagnostic-lineage-established",
+      ),
+    ).toBe(true);
+    expect(
+      report.payload.diagnosticLineageComparisonsAllWithinReportingThresholds,
+    ).toBe(false);
+    expect(
+      await auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1(
+        report,
+      ),
+    ).toMatchObject({ status: "report-audit-passed" });
   });
 });
 
