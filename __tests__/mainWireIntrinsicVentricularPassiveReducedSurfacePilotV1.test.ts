@@ -14,9 +14,13 @@ import {
   projectMainWireIntrinsicVentricularPassiveReducedHessianV1,
   type MainWireIntrinsicVentricularPassiveReducedSurfaceMathPointV1,
 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotMathematicsV1";
-import { createMainWireIntrinsicVentricularPassiveReducedSurfaceStageRecordV1 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotEngineeringV1";
 import {
   auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1,
+  createMainWireIntrinsicVentricularPassiveReducedSurfaceStageRecordV1,
+  MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_COMMITTED_PAYLOAD_SHA256_V1,
+  MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_IMPLEMENTATION_COMMIT_SHA_V1,
+  projectMainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointToMathInputV1,
+  type MainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointV1,
   type MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1,
 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotEngineeringV1";
 import { createMainWirePassiveEquilibriumManufacturedCasesV1 } from "@/engine/myocardium/experiments/MainWirePassiveEquilibriumPointSolverComparisonCorpusV1";
@@ -315,13 +319,13 @@ describe("intrinsic ventricular passive reduced-surface pilot V1", () => {
       "0ba4d56c98cf933d3d693db36fa5b6086eff2e46b2aa71f7a67f1a5f19caddc7",
     );
     expect(report.payloadSha256).toBe(
-      "dbdf2b76d23fc902e7b1b75fab75731c7456ff3d69ab9a23994569a723daf294",
+      MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_COMMITTED_PAYLOAD_SHA256_V1,
     );
     expect(await sha256CanonicalJsonHex(report.payload)).toBe(
       report.payloadSha256,
     );
     expect(report.payload.implementationCommitSha).toBe(
-      "63dcab1626c43e67f80a870365470f24238de417",
+      MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_IMPLEMENTATION_COMMIT_SHA_V1,
     );
     expect(
       report.payload.primaryGrid.filter(
@@ -351,6 +355,154 @@ describe("intrinsic ventricular passive reduced-surface pilot V1", () => {
         report,
       ),
     ).toMatchObject({ status: "report-audit-passed" });
+  });
+
+  it("rejects coordinated primary-terminal, mathematical-audit, and hash resealing", async () => {
+    const report = JSON.parse(
+      readFileSync(
+        new URL(
+          "../artifacts/passive-equilibrium/intrinsic-ventricular-passive-reduced-surface-pilot-v1.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ) as MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1;
+    const targetPointId = "grid-lv-1-rv-1";
+    const originalTarget = report.payload.primaryGrid.find(
+      (point) => point.pointId === targetPointId,
+    );
+    if (originalTarget?.terminal === null || originalTarget === undefined)
+      throw new Error("expected an established non-diagnostic primary point");
+
+    const {
+      pointPayloadSha256: _originalPointPayloadSha256,
+      ...tamperedPointPreimage
+    } = {
+      ...originalTarget,
+      terminal: {
+        ...originalTarget.terminal,
+        rawStoredEnergyJ: originalTarget.terminal.rawStoredEnergyJ + 1e-12,
+      },
+    };
+    const tamperedPoint: MainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointV1 =
+      {
+        ...tamperedPointPreimage,
+        pointPayloadSha256: await sha256CanonicalJsonHex(tamperedPointPreimage),
+      };
+    const tamperedPrimaryGrid = report.payload.primaryGrid.map((point) =>
+      point.pointId === targetPointId ? tamperedPoint : point,
+    );
+    const tamperedMathematicalAudits =
+      evaluateMainWireIntrinsicVentricularPassiveReducedSurfaceMathematicalAuditsV1(
+        tamperedPrimaryGrid.map(
+          projectMainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointToMathInputV1,
+        ),
+      );
+    expect(tamperedMathematicalAudits).toMatchObject({
+      pointAndProjectionAuditsPassed: true,
+      energyGradientAuditsPassed: true,
+      reducedHessianAuditsPassed: true,
+      maxwellAuditsPassed: true,
+      rectangularPathAuditsPassed: true,
+    });
+    const tamperedPayload = {
+      ...report.payload,
+      primaryGrid: tamperedPrimaryGrid,
+      mathematicalAudits: tamperedMathematicalAudits,
+    };
+    const tamperedReport: MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1 =
+      {
+        ...report,
+        payload: tamperedPayload,
+        payloadSha256: await sha256CanonicalJsonHex(tamperedPayload),
+      };
+
+    const audit =
+      await auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1(
+        tamperedReport,
+      );
+    expect(audit).toMatchObject({
+      status: "report-audit-failed",
+      primaryTerminalCandidatesReplayPassed: false,
+      primaryPointHashesReplayPassed: true,
+      mathematicalAuditsReplayPassed: true,
+      resultConjunctionReplayPassed: true,
+      payloadSha256ReplayPassed: true,
+      committedResultPayloadSha256BindingPassed: false,
+    });
+  });
+
+  it("rejects fixed implementation and diagnostic-trace resealing", async () => {
+    const report = JSON.parse(
+      readFileSync(
+        new URL(
+          "../artifacts/passive-equilibrium/intrinsic-ventricular-passive-reduced-surface-pilot-v1.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    ) as MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1;
+
+    const implementationTamperedPayload = {
+      ...report.payload,
+      implementationCommitSha: "0000000000000000000000000000000000000000",
+    };
+    const implementationTamperedAudit =
+      await auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1(
+        {
+          ...report,
+          payload: implementationTamperedPayload,
+          payloadSha256: await sha256CanonicalJsonHex(
+            implementationTamperedPayload,
+          ),
+        },
+      );
+    expect(implementationTamperedAudit).toMatchObject({
+      status: "report-audit-failed",
+      implementationCommitBindingReplayPassed: false,
+      payloadSha256ReplayPassed: true,
+      committedResultPayloadSha256BindingPassed: false,
+    });
+
+    const originalTrace = report.payload.selectedDiagnosticTraces[0]!;
+    const originalStage = originalTrace.stages[0]!;
+    const originalDecision = originalStage.iterationDecisions[0]!;
+    const traceTamperedPayload = {
+      ...report.payload,
+      selectedDiagnosticTraces: [
+        {
+          ...originalTrace,
+          stages: [
+            {
+              ...originalStage,
+              iterationDecisions: [
+                {
+                  ...originalDecision,
+                  selectedReason: "unregistered-fallback-accepted",
+                },
+                ...originalStage.iterationDecisions.slice(1),
+              ],
+            },
+            ...originalTrace.stages.slice(1),
+          ],
+        },
+        ...report.payload.selectedDiagnosticTraces.slice(1),
+      ],
+    };
+    const traceTamperedAudit =
+      await auditMainWireIntrinsicVentricularPassiveReducedSurfacePilotReportV1(
+        {
+          ...report,
+          payload: traceTamperedPayload,
+          payloadSha256: await sha256CanonicalJsonHex(traceTamperedPayload),
+        },
+      );
+    expect(traceTamperedAudit).toMatchObject({
+      status: "report-audit-failed",
+      selectedTraceShapeReplayPassed: true,
+      payloadSha256ReplayPassed: true,
+      committedResultPayloadSha256BindingPassed: false,
+    });
   });
 });
 

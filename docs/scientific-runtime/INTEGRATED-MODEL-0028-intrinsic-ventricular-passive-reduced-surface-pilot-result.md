@@ -191,12 +191,32 @@ multi-seed robustness, a continuous branch, or global uniqueness.
 
 ## Integrity and claim boundary
 
-The writer independently replayed declaration and protocol bindings, the
-selected solver payload, all primary point and stage digests, compact stage
-endpoints against the candidate owner, diagnostic endpoint candidates,
-mathematical audit tables, the pass conjunction, failure classification,
-negative claims, and canonical hashes before write and again after disk
-readback.
+The create-time writer replayed declaration and protocol bindings, the selected
+solver payload, compact point envelopes, stage endpoint force and stability,
+diagnostic endpoint candidates, mathematical audit tables, the pass
+conjunction, failure classification, negative claims, canonical hashes, and
+disk readback.
+
+A post-result read-only review found that the non-diagnostic primary terminal
+energy, pressure, and reduced-Hessian fields were being re-audited from the
+retained terminal values rather than reconstructed from the candidate owner.
+It also found that successful-stage digests were format-bound fingerprints,
+not independently reconstructible preimages in this compact artifact. The
+corrective auditor now reconstructs all 25 primary terminal candidate
+projections exactly and rejects coordinated terminal, mathematical-audit, and
+hash resealing. A negative regression fixture covers that case. The official
+pilot was not rerun, and the committed artifact values and hashes are
+unchanged.
+
+The corrective auditor also binds the fixed implementation commit and the
+committed report payload SHA-256 exactly. That archival content lock rejects
+implementation or diagnostic-trace changes even when a caller recomputes the
+outer canonical hash. It is separate from the scientific replay gates and is
+not presented as a semantic reconstruction of omitted iteration preimages.
+
+Successful-stage digests remain repeatability fingerprints. The artifact
+retains all compact stage endpoints and selected diagnostic traces, but it does
+not claim full successful-stage preimage replay.
 
 There were no execution exceptions and no failure class. Every machine-readable
 downstream claim remains `false`, including:

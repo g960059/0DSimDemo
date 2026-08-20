@@ -42,6 +42,12 @@ import {
   type MainWireIntrinsicVentricularPassiveReducedSurfaceMathPointV1,
 } from "@/engine/myocardium/experiments/MainWireIntrinsicVentricularPassiveReducedSurfacePilotMathematicsV1";
 
+export const MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_IMPLEMENTATION_COMMIT_SHA_V1 =
+  "63dcab1626c43e67f80a870365470f24238de417" as const;
+
+export const MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_COMMITTED_PAYLOAD_SHA256_V1 =
+  "dbdf2b76d23fc902e7b1b75fab75731c7456ff3d69ab9a23994569a723daf294" as const;
+
 export type MainWireIntrinsicVentricularPassiveReducedSurfaceStageRecordV1 =
   Readonly<{
     stageIndex: number;
@@ -222,12 +228,14 @@ export type MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportAuditV1 
   Readonly<{
     status: "report-audit-passed" | "report-audit-failed";
     identityAndClaimBindingsReplayPassed: boolean;
+    implementationCommitBindingReplayPassed: boolean;
     protocolPayloadReplayPassed: boolean;
     protocolPayloadSha256ReplayPassed: boolean;
     selectedSolverPolicyPayloadSha256ReplayPassed: boolean;
     primaryGridDefinitionReplayPassed: boolean;
     primaryOutcomeSemanticsReplayPassed: boolean;
     primaryStageEndpointsReplayPassed: boolean;
+    primaryTerminalCandidatesReplayPassed: boolean;
     primaryPointHashesReplayPassed: boolean;
     diagnosticLineageHashesReplayPassed: boolean;
     diagnosticLineageDefinitionReplayPassed: boolean;
@@ -240,6 +248,7 @@ export type MainWireIntrinsicVentricularPassiveReducedSurfacePilotReportAuditV1 
     firstFailureClassReplayPassed: boolean;
     negativeClaimsReplayPassed: boolean;
     payloadSha256ReplayPassed: boolean;
+    committedResultPayloadSha256BindingPassed: boolean;
   }>;
 
 export async function runMainWireIntrinsicVentricularPassiveReducedSurfacePilotEngineeringV1(
@@ -445,7 +454,6 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
     report.payload.ownerId ===
       MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_V1_ID &&
     report.payload.status === "engineering-pilot-completed" &&
-    /^[0-9a-f]{40}$/.test(report.payload.implementationCommitSha) &&
     canonicalJsonStringify(report.payload.declaration) ===
       canonicalJsonStringify(
         MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_DECLARATION_V1,
@@ -470,6 +478,9 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
         createOnly: true,
         runtimeInput: false,
       });
+  const implementationCommitBindingReplayPassed =
+    report.payload.implementationCommitSha ===
+    MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_IMPLEMENTATION_COMMIT_SHA_V1;
   const protocolPayloadReplayPassed =
     canonicalJsonStringify(report.payload.protocolPayload) ===
     canonicalJsonStringify(
@@ -612,6 +623,27 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
       ),
     )
   ).every(Boolean);
+  const primaryTerminalCandidatesReplayPassed =
+    report.payload.primaryGrid.every((point) => {
+      if (point.terminal === null) return !point.primaryLineageEstablished;
+      try {
+        const replay = terminalPointV1(
+          evaluateMainWireNormalAdultPassiveEquilibriumVentricularCandidateEngineeringV1(
+            {
+              chamberVolumesM3: point.chamberVolumesM3,
+              internalCoordinates: point.terminal.internalCoordinates,
+            },
+          ),
+        );
+        return (
+          point.primaryLineageEstablished &&
+          canonicalJsonStringify(replay) ===
+            canonicalJsonStringify(point.terminal)
+        );
+      } catch {
+        return false;
+      }
+    });
   const primaryPointHashesReplayPassed = (
     await Promise.all(
       report.payload.primaryGrid.map(
@@ -721,7 +753,9 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
         ));
   const independentlyRecomputedMathematicalAudits =
     evaluateMainWireIntrinsicVentricularPassiveReducedSurfaceMathematicalAuditsV1(
-      report.payload.primaryGrid.map(outputMathPointV1),
+      report.payload.primaryGrid.map(
+        projectMainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointToMathInputV1,
+      ),
     );
   const mathematicalAuditsReplayPassed =
     canonicalJsonStringify(report.payload.mathematicalAudits) ===
@@ -845,14 +879,19 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
     );
   const payloadSha256ReplayPassed =
     report.payloadSha256 === (await sha256CanonicalJsonHex(report.payload));
+  const committedResultPayloadSha256BindingPassed =
+    report.payloadSha256 ===
+    MAIN_WIRE_INTRINSIC_VENTRICULAR_PASSIVE_REDUCED_SURFACE_PILOT_COMMITTED_PAYLOAD_SHA256_V1;
   const gates = {
     identityAndClaimBindingsReplayPassed,
+    implementationCommitBindingReplayPassed,
     protocolPayloadReplayPassed,
     protocolPayloadSha256ReplayPassed,
     selectedSolverPolicyPayloadSha256ReplayPassed,
     primaryGridDefinitionReplayPassed,
     primaryOutcomeSemanticsReplayPassed,
     primaryStageEndpointsReplayPassed,
+    primaryTerminalCandidatesReplayPassed,
     primaryPointHashesReplayPassed,
     diagnosticLineageHashesReplayPassed,
     diagnosticLineageDefinitionReplayPassed,
@@ -865,6 +904,7 @@ export async function auditMainWireIntrinsicVentricularPassiveReducedSurfacePilo
     firstFailureClassReplayPassed,
     negativeClaimsReplayPassed,
     payloadSha256ReplayPassed,
+    committedResultPayloadSha256BindingPassed,
   };
   return deepFreezeV1({
     status: Object.values(gates).every(Boolean)
@@ -1541,7 +1581,7 @@ function runtimeMathPointV1(
   });
 }
 
-function outputMathPointV1(
+export function projectMainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointToMathInputV1(
   point: MainWireIntrinsicVentricularPassiveReducedSurfacePrimaryPointV1,
 ): MainWireIntrinsicVentricularPassiveReducedSurfaceMathPointV1 {
   const terminal = point.terminal;
