@@ -44,6 +44,12 @@ import {
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
 
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1 =
+  "bcc57e4b41659492eb86a08d9be5597e6bc5ef80" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_PAYLOAD_SHA256_V1 =
+  "f80da199e50e18e395e958c51e98dd0ea7e878bb6c8171f2c7d23071d6414921" as const;
+
 export type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtSanitizedExceptionV1 =
   Readonly<{
     name: string;
@@ -234,6 +240,7 @@ export type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportAuditV1 =
     firstMismatchPath: string | null;
     protocolBindingPassed: boolean;
     reportIdentityPassed: boolean;
+    implementationCommitBindingPassed: boolean;
     sourceOutcomeShapePassed: boolean;
     sourceIdentityReplayPassed: boolean;
     armOutcomeShapePassed: boolean;
@@ -241,6 +248,10 @@ export type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportAuditV1 =
     assessmentReplayPassed: boolean;
     payloadHashReplayPassed: boolean;
   }>;
+
+export type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtCommittedReportAuditV1 =
+  MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportAuditV1 &
+    Readonly<{ committedPayloadBindingPassed: boolean }>;
 
 type PreparedSourceV1 = Readonly<{
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3;
@@ -387,11 +398,14 @@ export async function auditMainWireIntegratedModelPeriodicFiveWallMechanicalPort
     MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_PROTOCOL_PAYLOAD_V1,
   );
   const reportIdentityPassed =
+    exactObjectKeysPassedV1(report, ["payload", "payloadSha256"]) &&
     report.payload.reportSchemaId ===
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_REPORT_V1_ID &&
     report.payload.characterizationOwnerId ===
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_CHARACTERIZATION_V1_ID &&
-    /^[0-9a-f]{40}$/.test(report.payload.implementationCommitSha);
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_CHARACTERIZATION_V1_ID;
+  const implementationCommitBindingPassed =
+    report.payload.implementationCommitSha ===
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1;
   const protocolBindingPassed =
     canonicalJsonStringify(report.payload.declaration) ===
       canonicalJsonStringify(
@@ -437,6 +451,7 @@ export async function auditMainWireIntegratedModelPeriodicFiveWallMechanicalPort
     report.payloadSha256 === (await sha256CanonicalJsonHex(report.payload));
   const gates = {
     reportIdentityPassed,
+    implementationCommitBindingPassed,
     protocolBindingPassed,
     sourceOutcomeShapePassed,
     sourceIdentityReplayPassed,
@@ -454,6 +469,30 @@ export async function auditMainWireIntegratedModelPeriodicFiveWallMechanicalPort
         : ("report-audit-failed" as const),
     firstMismatchPath,
     ...gates,
+  });
+}
+
+export async function auditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+  report: MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportV1,
+): Promise<MainWireIntegratedModelPeriodicMechanicalPortLedgerDtCommittedReportAuditV1> {
+  const structuralAudit =
+    await auditMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+      report,
+    );
+  const committedPayloadBindingPassed =
+    report.payloadSha256 ===
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_PAYLOAD_SHA256_V1;
+  return deepFreeze({
+    ...structuralAudit,
+    status:
+      structuralAudit.status === "report-audit-passed" &&
+      committedPayloadBindingPassed
+        ? ("report-audit-passed" as const)
+        : ("report-audit-failed" as const),
+    firstMismatchPath:
+      structuralAudit.firstMismatchPath ??
+      (committedPayloadBindingPassed ? null : "committedPayloadBindingPassed"),
+    committedPayloadBindingPassed,
   });
 }
 
@@ -1343,8 +1382,11 @@ function sanitizeExceptionV1(
 }
 
 function assertImplementationCommitShaV1(value: string): void {
-  if (!/^[0-9a-f]{40}$/.test(value))
-    throw new Error("mechanical-port dt implementation commit SHA is invalid");
+  if (
+    value !==
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1
+  )
+    throw new Error("mechanical-port dt implementation commit SHA differs");
 }
 
 function allNumericLeavesFiniteV1(value: unknown): boolean {
@@ -1353,6 +1395,15 @@ function allNumericLeavesFiniteV1(value: unknown): boolean {
   if (value !== null && typeof value === "object")
     return Object.values(value).every(allNumericLeavesFiniteV1);
   return true;
+}
+
+function exactObjectKeysPassedV1(
+  value: object,
+  expectedKeys: readonly string[],
+): boolean {
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  return canonicalJsonStringify(actual) === canonicalJsonStringify(expected);
 }
 
 function deepFreeze<T>(value: T): T {

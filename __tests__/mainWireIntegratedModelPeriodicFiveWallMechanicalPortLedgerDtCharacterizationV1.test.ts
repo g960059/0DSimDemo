@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +18,10 @@ import {
   type MainWireFiveWallMechanicalPortWallRecordV1,
 } from "@/engine/myocardium/diagnostics/MainWireFiveWallMechanicalPortLedgerEngineeringV1";
 import {
+  auditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1,
   auditMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_PAYLOAD_SHA256_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1,
   runMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtCharacterizationWithDependenciesV1,
   type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtExecutionDependenciesV1,
   type MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportV1,
@@ -53,13 +57,18 @@ import {
   sha256CanonicalJsonHex,
 } from "@/engine/integrity";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_RAW_FILE_SHA256_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_SIZE_BYTES_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_OUTPUT_PATH_V1,
   assertMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactSizeV1,
   assertMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtOutputAbsentV1,
+  parseAndAuditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1,
   serializeMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1,
   writeMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactCreateOnlyV1,
 } from "@/tools/scientific/MainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1";
 
-const IMPLEMENTATION_SHA = "1".repeat(40);
+const IMPLEMENTATION_SHA =
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1;
 const CHECKPOINT_SHA = "2".repeat(64);
 
 describe("periodic five-wall mechanical-port ledger dt characterization V1", () => {
@@ -302,11 +311,8 @@ describe("periodic five-wall mechanical-port ledger dt characterization V1", () 
       ),
     ).toMatchObject({ status: "report-audit-passed", firstMismatchPath: null });
     expect(
-      Buffer.byteLength(
-        await serializeMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1(
-          report,
-        ),
-        "utf8",
+      assertMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactSizeV1(
+        `${canonicalJsonStringify(report)}\n`,
       ),
     ).toBeLessThanOrEqual(524_288);
   });
@@ -721,16 +727,86 @@ describe("periodic five-wall mechanical-port ledger dt characterization V1", () 
     });
   });
 
-  it("writes create-only with exact readback and enforces the size boundary", async () => {
+  it("locks, audits, and create-only rewrites the committed artifact", async () => {
+    const raw = readFileSync(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_OUTPUT_PATH_V1,
+      "utf8",
+    );
+    expect(Buffer.byteLength(raw, "utf8")).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_SIZE_BYTES_V1,
+    );
+    expect(createHash("sha256").update(raw).digest("hex")).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_RAW_FILE_SHA256_V1,
+    );
+    const report = JSON.parse(
+      raw,
+    ) as MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportV1;
+    expect(report.payload.implementationCommitSha).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_IMPLEMENTATION_COMMIT_SHA_V1,
+    );
+    expect(report.payloadSha256).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_PAYLOAD_SHA256_V1,
+    );
+    expect(await sha256CanonicalJsonHex(report.payload)).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_FIVE_WALL_MECHANICAL_PORT_LEDGER_DT_COMMITTED_PAYLOAD_SHA256_V1,
+    );
+    expect(
+      await auditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+        report,
+      ),
+    ).toMatchObject({
+      status: "report-audit-passed",
+      implementationCommitBindingPassed: true,
+      committedPayloadBindingPassed: true,
+    });
+    expect(
+      await serializeMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1(
+        report,
+      ),
+    ).toBe(raw);
+
+    const extraTopLevel = {
+      ...report,
+      injectedClaim: true,
+    } as unknown as MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportV1;
+    expect(
+      await auditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+        extraTopLevel,
+      ),
+    ).toMatchObject({
+      status: "report-audit-failed",
+      reportIdentityPassed: false,
+    });
+    await expect(
+      serializeMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1(
+        extraTopLevel,
+      ),
+    ).rejects.toThrow(/audit failed/);
+    await expect(
+      parseAndAuditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtArtifactV1(
+        raw.replace(/\n$/, " \n"),
+      ),
+    ).rejects.toThrow(/byte count differs/);
+
+    const tampered = clone(report);
+    mutable(tampered.payload).implementationCommitSha = "3".repeat(40);
+    mutable(tampered).payloadSha256 = await sha256CanonicalJsonHex(
+      tampered.payload,
+    );
+    expect(
+      await auditCommittedMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtReportV1(
+        tampered,
+      ),
+    ).toMatchObject({
+      status: "report-audit-failed",
+      implementationCommitBindingPassed: false,
+      payloadHashReplayPassed: true,
+      committedPayloadBindingPassed: false,
+    });
+
     const directory = mkdtempSync(join(tmpdir(), "mechanical-port-dt-v1-"));
     const outputPath = join(directory, "artifact.json");
     try {
-      const { dependencies } = await mockedDependencies([]);
-      const report =
-        await runMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtCharacterizationWithDependenciesV1(
-          { implementationCommitSha: IMPLEMENTATION_SHA },
-          dependencies,
-        );
       assertMainWireIntegratedModelPeriodicFiveWallMechanicalPortLedgerDtOutputAbsentV1(
         outputPath,
       );
