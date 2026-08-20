@@ -565,6 +565,17 @@ function sampleFromStepV3(
   return sample;
 }
 
+/**
+ * Read-only analysis seam for an already accepted integrated step. It owns no
+ * state, performs no interpolation, and exposes the same finite sample used by
+ * the canonical beat accumulator.
+ */
+export function sampleMainWireIntegratedModelBeatFromAcceptedStepV3(
+  step: SuccessfulStep,
+): MainWireIntegratedModelAcceptedBeatSampleV3 {
+  return sampleFromStepV3(step);
+}
+
 export function sampleMainWireIntegratedModelBeatFromNumericalReadbackV1(
   readback: Float64Array,
 ): MainWireIntegratedModelAcceptedBeatSampleV3 {
