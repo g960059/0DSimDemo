@@ -26,6 +26,10 @@ model:
   defines the recovered cavity/transmural/external-constraint work
   decomposition, exact prior-cycle endpoint integration, verification scope,
   and nonclaim boundary.
+- [`INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md`](./INTEGRATED-MODEL-0025-passive-equilibrium-point-solver-v3-engineering-comparison.md)
+  freezes the repeatable V3 point-solver comparison policies, manufactured and
+  normal-adult corpora, historical-failure diagnostics, ranking rule, and
+  nonclaim boundary before any V3 normal-adult evaluation.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
