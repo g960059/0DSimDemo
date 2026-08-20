@@ -38,6 +38,11 @@ model:
   records the completed fixed-corpus comparison, residual-merit Newton's
   Engineering lead, the archive-failure diagnostics, and the still-negative
   solver-selection, surface, branch, PVA, official, and public claims.
+- [`INTEGRATED-MODEL-0027-intrinsic-ventricular-passive-reduced-surface-pilot.md`](./INTEGRATED-MODEL-0027-intrinsic-ventricular-passive-reduced-surface-pilot.md)
+  prospectively selects residual-merit Newton for one nonofficial 5 by 5
+  intrinsic ventricular passive pilot and freezes its independent point
+  lineages, reduced-energy, Schur-tangent, Maxwell, path-refinement, compact
+  artifact, and nonclaim contracts before the first target evaluation.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.
