@@ -454,6 +454,232 @@ export type PvaMainCandidateDisplayV1 = Readonly<{
   nextRequiredStudy: string | null;
 }>;
 
+const PVA_QUALIFICATION_LIMITATIONS_V2 = Object.freeze([
+  "systolic-relation-extrapolation-required",
+  "baseline-exclusion-sensitive",
+  "phase-resolution-sensitive",
+  "selected-phase-state-dispersion-retained",
+  "protocol-direction-sensitivity-retained",
+  "fixed-contralateral-intrinsic-passive-reference",
+] as const);
+
+export type PvaQualificationLimitationV2 =
+  (typeof PVA_QUALIFICATION_LIMITATIONS_V2)[number];
+
+export type PvaQualificationArtifactInputV2 = Readonly<{
+  qualificationId: string;
+  status: "completed" | "unavailable";
+  targetSurface: "completed-protocol-analysis";
+  methodId: string;
+  stages: Readonly<{
+    source: string;
+    transient: string;
+    periodicLedger: string;
+    passiveReference: string;
+    qualification: string;
+  }>;
+  sourceIdentity: Readonly<{
+    singlePeriodicSourceExecution: boolean;
+    transientAndLedgerShareCheckpoint: boolean;
+    passiveReferenceExecutedInSameAnalysisTransaction: boolean;
+    passiveReferenceCanonicalOwnerBindingsPassed: boolean;
+    allInputsBound: boolean;
+  }>;
+  outputs: readonly Readonly<{
+    outputId: string;
+    methodId: string;
+    ventricleId: PvaResearchVentricleIdV1;
+    status: "qualified-estimate" | "limited-estimate";
+    unit: "J";
+    mainOutputValueJ: number;
+    energy: Readonly<{
+      externalWorkJ: number;
+      potentialEnergyEquivalentJ: number;
+      pvaEstimateJ: number;
+      mechanicalConversionRatio: number;
+    }>;
+    systolicRelation: Readonly<{
+      phaseSampleCount: number;
+      phaseIndex: number;
+      phase01: number;
+      elastanceMmHgPerMl: number;
+      volumeAxisInterceptMl: number;
+      measuredVolumeRangeMl: readonly [number, number];
+      rSquared: number | null;
+      rootMeanSquaredResidualMmHg: number;
+      releaseSlopeDifferenceFraction: number;
+    }>;
+    passiveReference: Readonly<{
+      canonicalOwnerBindingsPassed: boolean;
+      fixedContralateralVentricleId: PvaResearchVentricleIdV1;
+      fixedContralateralVolumeMl: number;
+      supportedVolumeRangeMl: readonly [number, number];
+    }>;
+    sensitivity: Readonly<{
+      baselineExclusion: Readonly<{
+        available: boolean;
+        estimateJ: number;
+        absoluteDifferenceJ: number;
+        relativeDifference: number;
+        selectedPhaseIndex: number;
+      }>;
+      phaseResolution: Readonly<{
+        available: boolean;
+        baselineSampleCount: number;
+        refinedSampleCount: number;
+        refinedEstimateJ: number;
+        absoluteDifferenceJ: number;
+        relativeDifference: number;
+        refinedPhaseIndex: number;
+        circularPhaseDifference: number;
+      }>;
+      selectedPhaseStateDispersion: Readonly<{
+        available: boolean;
+        beatCount: number;
+        maximumNormalizedSpan: number;
+      }>;
+      externalWorkCoarseFineDifferenceJ: number;
+      systolicAreaOutsideMeasuredRangeFraction: number;
+    }>;
+    limitations: readonly string[];
+  }>[];
+  failure: null | Readonly<{ stage: string; message: string }>;
+  interpretation: Readonly<{
+    methodSpecificPvaEstimateAvailable: boolean;
+    genericPvaEstablished: boolean;
+    clinicalPvaEstablished: boolean;
+    oxygenConsumptionEstablished: boolean;
+    liveSingleBeatOutput: boolean;
+    automaticLmFallbackUsed: boolean;
+    productValuePublished: boolean;
+  }>;
+}>;
+
+export type PvaQualificationDisplayV2 = Readonly<{
+  status: "completed";
+  targetSurface: "completed-protocol-analysis";
+  methodSpecificOutputAvailable: true;
+  singleSourceTransactionEstablished: true;
+  rows: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    status: "qualified-estimate" | "limited-estimate";
+    mainOutputValueJ: number;
+    externalWorkJ: number;
+    potentialEnergyEquivalentJ: number;
+    mechanicalConversionRatio: number;
+    phaseIndex: number;
+    phase01: number;
+    baselineExclusionRelativeDifference: number;
+    phaseResolutionRelativeDifference: number;
+    selectedPhaseStateDispersionIndex: number;
+    externalWorkCoarseFineDifferenceJ: number;
+    systolicAreaOutsideMeasuredRangeFraction: number;
+    releaseSlopeDifferenceFraction: number;
+    limitations: readonly PvaQualificationLimitationV2[];
+  }>[];
+  genericPvaEstablished: false;
+  clinicalPvaEstablished: false;
+  liveSingleBeatOutput: false;
+}>;
+
+export function projectPvaQualificationDisplayV2(
+  artifact: PvaQualificationArtifactInputV2,
+): PvaQualificationDisplayV2 {
+  const stages = Object.values(artifact.stages);
+  if (
+    artifact.qualificationId !==
+      "main-wire-integrated-model-phase-wise-pva-qualification-v2" ||
+    artifact.status !== "completed" ||
+    artifact.targetSurface !== "completed-protocol-analysis" ||
+    artifact.methodId !==
+      "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1" ||
+    artifact.failure !== null ||
+    artifact.outputs.length !== 2 ||
+    stages.some((status) => status !== "completed") ||
+    !Object.values(artifact.sourceIdentity).every(Boolean) ||
+    !artifact.interpretation.methodSpecificPvaEstimateAvailable ||
+    artifact.interpretation.productValuePublished ||
+    artifact.interpretation.genericPvaEstablished ||
+    artifact.interpretation.clinicalPvaEstablished ||
+    artifact.interpretation.oxygenConsumptionEstablished ||
+    artifact.interpretation.liveSingleBeatOutput ||
+    artifact.interpretation.automaticLmFallbackUsed
+  ) {
+    throw new Error("PVA qualification result is not displayable");
+  }
+  assertFiniteNumericLeavesForViewV1(artifact, "PVA qualification result");
+  const rows = PVA_RESEARCH_VENTRICLE_IDS_V1.map((ventricleId) => {
+    const output = artifact.outputs.find(
+      (candidate) => candidate.ventricleId === ventricleId,
+    );
+    if (
+      output === undefined ||
+      output.outputId !==
+        `protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.${ventricleId}` ||
+      output.methodId !== artifact.methodId ||
+      output.unit !== "J" ||
+      output.mainOutputValueJ !== output.energy.pvaEstimateJ ||
+      !(output.mainOutputValueJ > 0) ||
+      output.systolicRelation.phaseSampleCount !== 64 ||
+      output.systolicRelation.phase01 !==
+        output.systolicRelation.phaseIndex / 64 ||
+      !output.passiveReference.canonicalOwnerBindingsPassed ||
+      !output.sensitivity.baselineExclusion.available ||
+      !output.sensitivity.phaseResolution.available ||
+      output.sensitivity.phaseResolution.baselineSampleCount !== 64 ||
+      output.sensitivity.phaseResolution.refinedSampleCount !== 128 ||
+      !output.sensitivity.selectedPhaseStateDispersion.available
+    ) {
+      throw new Error(
+        `PVA qualification output is inconsistent for ${ventricleId}`,
+      );
+    }
+    const limitations = output.limitations.map((limitation) => {
+      if (
+        !PVA_QUALIFICATION_LIMITATIONS_V2.includes(
+          limitation as PvaQualificationLimitationV2,
+        )
+      ) {
+        throw new Error(`unknown PVA qualification limitation: ${limitation}`);
+      }
+      return limitation as PvaQualificationLimitationV2;
+    });
+    return Object.freeze({
+      ventricleId,
+      status: output.status,
+      mainOutputValueJ: output.mainOutputValueJ,
+      externalWorkJ: output.energy.externalWorkJ,
+      potentialEnergyEquivalentJ: output.energy.potentialEnergyEquivalentJ,
+      mechanicalConversionRatio: output.energy.mechanicalConversionRatio,
+      phaseIndex: output.systolicRelation.phaseIndex,
+      phase01: output.systolicRelation.phase01,
+      baselineExclusionRelativeDifference:
+        output.sensitivity.baselineExclusion.relativeDifference,
+      phaseResolutionRelativeDifference:
+        output.sensitivity.phaseResolution.relativeDifference,
+      selectedPhaseStateDispersionIndex:
+        output.sensitivity.selectedPhaseStateDispersion.maximumNormalizedSpan,
+      externalWorkCoarseFineDifferenceJ:
+        output.sensitivity.externalWorkCoarseFineDifferenceJ,
+      systolicAreaOutsideMeasuredRangeFraction:
+        output.sensitivity.systolicAreaOutsideMeasuredRangeFraction,
+      releaseSlopeDifferenceFraction:
+        output.systolicRelation.releaseSlopeDifferenceFraction,
+      limitations: Object.freeze(limitations),
+    });
+  });
+  return Object.freeze({
+    status: "completed" as const,
+    targetSurface: "completed-protocol-analysis" as const,
+    methodSpecificOutputAvailable: true as const,
+    singleSourceTransactionEstablished: true as const,
+    rows: Object.freeze(rows),
+    genericPvaEstablished: false as const,
+    clinicalPvaEstablished: false as const,
+    liveSingleBeatOutput: false as const,
+  });
+}
+
 export function projectPvaMainCandidateDisplayV1(
   artifact: PvaMainCandidateArtifactInputV1,
 ): PvaMainCandidateDisplayV1 {

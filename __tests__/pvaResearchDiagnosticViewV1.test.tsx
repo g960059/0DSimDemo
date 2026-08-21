@@ -6,16 +6,19 @@ import { describe, expect, it } from "vitest";
 import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v2.json";
 import mainCandidateArtifactJson from "@/artifacts/transient-preload/method-specific-pva-main-candidate-v1.json";
 import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
+import qualificationArtifactJson from "@/artifacts/transient-preload/phase-wise-pva-qualification-v2.json";
 import { PvaResearchDiagnosticViewV1 } from "@/components/research/PvaResearchDiagnosticViewV1";
 import {
   filterPvaResearchRowsV1,
   projectPvaMainCandidateDisplayV1,
   projectPvaPhaseWiseEmaxDisplayV1,
+  projectPvaQualificationDisplayV2,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
   type PvaMainCandidateArtifactInputV1,
   type PvaPhaseWiseEmaxArtifactInputV1,
+  type PvaQualificationArtifactInputV2,
 } from "@/components/research/PvaResearchDiagnosticsV1";
 import i18n from "@/i18n";
 
@@ -27,6 +30,9 @@ const EMAX_DATASET = projectPvaPhaseWiseEmaxDisplayV1(
 );
 const MAIN_CANDIDATE = projectPvaMainCandidateDisplayV1(
   mainCandidateArtifactJson as unknown as PvaMainCandidateArtifactInputV1,
+);
+const QUALIFICATION = projectPvaQualificationDisplayV2(
+  qualificationArtifactJson as unknown as PvaQualificationArtifactInputV2,
 );
 
 describe("PVA research diagnostic view V1", () => {
@@ -122,6 +128,51 @@ describe("PVA research diagnostic view V1", () => {
     );
   });
 
+  it("projects the completed on-demand method-specific output without a generic claim", () => {
+    expect(QUALIFICATION.status).toBe("completed");
+    expect(QUALIFICATION.methodSpecificOutputAvailable).toBe(true);
+    expect(QUALIFICATION.singleSourceTransactionEstablished).toBe(true);
+    expect(QUALIFICATION.genericPvaEstablished).toBe(false);
+    expect(QUALIFICATION.clinicalPvaEstablished).toBe(false);
+    expect(QUALIFICATION.liveSingleBeatOutput).toBe(false);
+    expect(
+      QUALIFICATION.rows.map((row) => ({
+        ventricleId: row.ventricleId,
+        status: row.status,
+        valueJ: row.mainOutputValueJ,
+        phaseResolutionRelativeDifference:
+          row.phaseResolutionRelativeDifference,
+        releaseSlopeDifferenceFraction: row.releaseSlopeDifferenceFraction,
+      })),
+    ).toEqual([
+      {
+        ventricleId: "LV",
+        status: "limited-estimate",
+        valueJ: 1.581500908199982,
+        phaseResolutionRelativeDifference: 0,
+        releaseSlopeDifferenceFraction: 0.3165487054843358,
+      },
+      {
+        ventricleId: "RV",
+        status: "limited-estimate",
+        valueJ: 0.5884018254881368,
+        phaseResolutionRelativeDifference: 0.04147103571838847,
+        releaseSlopeDifferenceFraction: -0.013987115331836634,
+      },
+    ]);
+  });
+
+  it("refuses to display a qualification result that promotes a generic PVA", () => {
+    const claimed = structuredClone(qualificationArtifactJson);
+    claimed.interpretation.genericPvaEstablished = true;
+
+    expect(() =>
+      projectPvaQualificationDisplayV2(
+        claimed as unknown as PvaQualificationArtifactInputV2,
+      ),
+    ).toThrow(/not displayable/);
+  });
+
   it("refuses to present an artifact that claims product-qualified PVA", () => {
     const claimed = structuredClone(artifactJson);
     claimed.interpretation.existingAbsolutePvaReadyForProductDisplay = true;
@@ -214,10 +265,16 @@ describe("PVA research diagnostic view V1", () => {
     expect(markup).toContain("PVA geometry diagnostics");
     expect(markup).toContain("An unqualified generic PVA is not established");
     expect(markup).toContain("Phase-wise Emax candidate and periodic PVA");
-    expect(markup).toContain("Method-specific PVA path to main");
+    expect(markup).toContain("Previous method-selection decision");
+    expect(markup).toContain("Method-specific PVA output");
+    expect(markup).toContain('data-testid="pva-on-demand-output-v2"');
+    expect(markup).toContain("Analysis completed");
+    expect(markup).toContain("Limited estimate");
     expect(markup).toContain('data-testid="pva-main-integration-candidate-v1"');
     expect(markup).toContain("Selected method:");
-    expect(markup).toContain("Research estimate; no product value published");
+    expect(markup).toContain(
+      "Pre-qualification record; see the completed V2 output above",
+    );
     expect(markup).toContain("Extrapolated systolic area");
     expect(markup).toContain("Release slope difference");
     expect(markup).toContain('data-testid="pva-emax-card-LV"');

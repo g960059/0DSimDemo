@@ -1,0 +1,638 @@
+{
+  "qualificationId": "main-wire-integrated-model-phase-wise-pva-qualification-v2",
+  "status": "completed",
+  "targetSurface": "completed-protocol-analysis",
+  "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+  "stages": {
+    "source": "completed",
+    "transient": "completed",
+    "periodicLedger": "completed",
+    "passiveReference": "completed",
+    "qualification": "completed"
+  },
+  "sourceIdentity": {
+    "singlePeriodicSourceExecution": true,
+    "transientAndLedgerShareCheckpoint": true,
+    "passiveReferenceExecutedInSameAnalysisTransaction": true,
+    "passiveReferenceCanonicalOwnerBindingsPassed": true,
+    "allInputsBound": true
+  },
+  "outputs": [
+    {
+      "outputId": "protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.LV",
+      "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+      "ventricleId": "LV",
+      "status": "limited-estimate",
+      "unit": "J",
+      "mainOutputValueJ": 1.581500908199982,
+      "energy": {
+        "externalWorkJ": 1.2864541324474803,
+        "potentialEnergyEquivalentJ": 0.2950467757525017,
+        "pvaEstimateJ": 1.581500908199982,
+        "mechanicalConversionRatio": 0.8134387566755714
+      },
+      "systolicRelation": {
+        "phaseSampleCount": 64,
+        "phaseIndex": 8,
+        "phase01": 0.125,
+        "elastanceMmHgPerMl": 1.7997034535053218,
+        "volumeAxisInterceptMl": 15.193248153119717,
+        "measuredVolumeRangeMl": [
+          48.5300477639526,
+          64.82378564087709
+        ],
+        "rSquared": 0.999644563151442,
+        "rootMeanSquaredResidualMmHg": 0.18507017898395536,
+        "releaseSlopeDifferenceFraction": 0.3165487054843358
+      },
+      "passiveReference": {
+        "referenceId": "same-transaction-fixed-contralateral-intrinsic-passive-center-slice-v2",
+        "canonicalOwnerBindingsPassed": true,
+        "fixedContralateralVentricleId": "RV",
+        "fixedContralateralVolumeMl": 150.21875,
+        "supportedVolumeRangeMl": [
+          53.199999999999996,
+          144.4
+        ]
+      },
+      "sensitivity": {
+        "baselineExclusion": {
+          "available": true,
+          "estimateJ": 1.5813884338948623,
+          "absoluteDifferenceJ": 0.00011247430511973633,
+          "relativeDifference": 0.00007111871042031287,
+          "selectedPhaseIndex": 8
+        },
+        "phaseResolution": {
+          "available": true,
+          "baselineSampleCount": 64,
+          "refinedSampleCount": 128,
+          "refinedEstimateJ": 1.581500908199982,
+          "absoluteDifferenceJ": 0,
+          "relativeDifference": 0,
+          "refinedPhaseIndex": 16,
+          "circularPhaseDifference": 0
+        },
+        "selectedPhaseStateDispersion": {
+          "available": true,
+          "beatCount": 11,
+          "selectedPhase01": 0.125,
+          "contralateralVolumeMl": {
+            "minimum": 39.10619348547927,
+            "maximum": 82.01998977016959,
+            "mean": 62.90961307064054,
+            "span": 42.91379628469032,
+            "normalizedSpan": 0.6821500592684122
+          },
+          "commonPericardialPressureMmHg": {
+            "minimum": 0,
+            "maximum": 0,
+            "mean": 0,
+            "span": 0,
+            "normalizedSpan": 0
+          },
+          "maximumVentricularPericardialPressureMismatchMmHg": 0,
+          "septalMidwallCapVolumeMl": {
+            "minimum": 20.5288599439354,
+            "maximum": 21.754806614161847,
+            "mean": 21.238300271879776,
+            "span": 1.2259466702264454,
+            "normalizedSpan": 0.05772338909105829
+          },
+          "junctionRadiusM": {
+            "minimum": 0.025522041347214492,
+            "maximum": 0.027960490431840363,
+            "mean": 0.027082742352880277,
+            "span": 0.002438449084625871,
+            "normalizedSpan": 0.09003700780569364
+          },
+          "freeCalciumUMByWall": {
+            "LVFW": {
+              "minimum": 0.5140044677791836,
+              "maximum": 0.5140044677791868,
+              "mean": 0.5140044677791843,
+              "span": 3.219646771412954e-15,
+              "normalizedSpan": 6.263849778045335e-15
+            },
+            "SEP": {
+              "minimum": 0.5140044677791836,
+              "maximum": 0.5140044677791868,
+              "mean": 0.5140044677791843,
+              "span": 3.219646771412954e-15,
+              "normalizedSpan": 6.263849778045335e-15
+            },
+            "RVFW": {
+              "minimum": 0.5140044677791836,
+              "maximum": 0.5140044677791868,
+              "mean": 0.5140044677791843,
+              "span": 3.219646771412954e-15,
+              "normalizedSpan": 6.263849778045335e-15
+            }
+          },
+          "fiberLogStrainByWall": {
+            "LVFW": {
+              "minimum": -0.14035887247536505,
+              "maximum": -0.0703394326430905,
+              "mean": -0.09072580239713586,
+              "span": 0.07001943983227454,
+              "normalizedSpan": 0.7001943983227454
+            },
+            "SEP": {
+              "minimum": -0.16657933790297513,
+              "maximum": -0.132317880093803,
+              "mean": -0.14170323669576768,
+              "span": 0.03426145780917214,
+              "normalizedSpan": 0.24178317029363555
+            },
+            "RVFW": {
+              "minimum": -0.20720515515062163,
+              "maximum": -0.08142068850020126,
+              "mean": -0.13437788811192228,
+              "span": 0.12578446665042037,
+              "normalizedSpan": 0.9360503310310658
+            }
+          },
+          "fiberLogStrainRatePerSecByWall": {
+            "LVFW": {
+              "minimum": -0.23349361026740267,
+              "maximum": -0.0983681832291438,
+              "mean": -0.18916265164300763,
+              "span": 0.13512542703825886,
+              "normalizedSpan": 0.13512542703825886
+            },
+            "SEP": {
+              "minimum": 0.2507729818246279,
+              "maximum": 0.5959135961724894,
+              "mean": 0.48555070152048496,
+              "span": 0.3451406143478615,
+              "normalizedSpan": 0.3451406143478615
+            },
+            "RVFW": {
+              "minimum": -0.5105791135021677,
+              "maximum": 0.08615643102949873,
+              "mean": -0.1672850826549086,
+              "span": 0.5967355445316664,
+              "normalizedSpan": 0.5967355445316664
+            }
+          },
+          "landStateByWall": {
+            "LVFW": [
+              {
+                "minimum": 0.18856085617674195,
+                "maximum": 0.23713317278368104,
+                "mean": 0.22203044403968983,
+                "span": 0.04857231660693909,
+                "normalizedSpan": 0.2187642186503774
+              },
+              {
+                "minimum": 0.7485973773668457,
+                "maximum": 0.8690480390664586,
+                "mean": 0.7883175575243644,
+                "span": 0.12045066169961283,
+                "normalizedSpan": 0.1527945947035311
+              },
+              {
+                "minimum": 0.02358184126048684,
+                "maximum": 0.06414865457472668,
+                "mean": 0.05025632919907696,
+                "span": 0.04056681331423984,
+                "normalizedSpan": 0.8071980974484886
+              },
+              {
+                "minimum": 0.0891229268895897,
+                "maximum": 0.13512943016719975,
+                "mean": 0.12103471861539729,
+                "span": 0.04600650327761005,
+                "normalizedSpan": 0.3801099701301523
+              },
+              {
+                "minimum": -0.005431385661110666,
+                "maximum": -0.002172863778389316,
+                "mean": -0.004330368863372882,
+                "span": 0.00325852188272135,
+                "normalizedSpan": 0.065170437654427
+              },
+              {
+                "minimum": -0.12324040576557228,
+                "maximum": -0.05521497306277339,
+                "mean": -0.10068910975977598,
+                "span": 0.0680254327027989,
+                "normalizedSpan": 0.6755987103778546
+              }
+            ],
+            "SEP": [
+              {
+                "minimum": 0.17311854705202487,
+                "maximum": 0.19008738483392942,
+                "mean": 0.18530968323614136,
+                "span": 0.016968837781904555,
+                "normalizedSpan": 0.09157016236588701
+              },
+              {
+                "minimum": 0.8710169419735163,
+                "maximum": 0.9067746088083158,
+                "mean": 0.8817618154356398,
+                "span": 0.03575766683479953,
+                "normalizedSpan": 0.04055252360540611
+              },
+              {
+                "minimum": 0.014821078359563108,
+                "maximum": 0.022200916588427683,
+                "mean": 0.01997506744367544,
+                "span": 0.0073798382288645745,
+                "normalizedSpan": 0.14759676457729148
+              },
+              {
+                "minimum": 0.06646868439009652,
+                "maximum": 0.08817121468609825,
+                "mean": 0.08163979863153367,
+                "span": 0.02170253029600172,
+                "normalizedSpan": 0.265832726927122
+              },
+              {
+                "minimum": 0.005397598812187404,
+                "maximum": 0.012726199110747613,
+                "mean": 0.010377576638701739,
+                "span": 0.007328600298560209,
+                "normalizedSpan": 0.14657200597120418
+              },
+              {
+                "minimum": 0.021693088945023704,
+                "maximum": 0.04054119356380401,
+                "mean": 0.030151478032213297,
+                "span": 0.018848104618780302,
+                "normalizedSpan": 0.376962092375606
+              }
+            ],
+            "RVFW": [
+              {
+                "minimum": 0.15601272236950095,
+                "maximum": 0.23026923190328372,
+                "mean": 0.19549960477880476,
+                "span": 0.07425650953378277,
+                "normalizedSpan": 0.37982946112755184
+              },
+              {
+                "minimum": 0.7639540445342438,
+                "maximum": 0.9308432041488244,
+                "mean": 0.8480665204144612,
+                "span": 0.16688915961458062,
+                "normalizedSpan": 0.19678781746155916
+              },
+              {
+                "minimum": 0.00950075725260745,
+                "maximum": 0.05758792015422513,
+                "mean": 0.03158296818867039,
+                "span": 0.048087162901617686,
+                "normalizedSpan": 0.9617432580323537
+              },
+              {
+                "minimum": 0.05224698026266477,
+                "maximum": 0.1317851455287374,
+                "mean": 0.09528414807176872,
+                "span": 0.07953816526607263,
+                "normalizedSpan": 0.8347470893706674
+              },
+              {
+                "minimum": -0.012175853894424061,
+                "maximum": 0.0018455764472679545,
+                "mean": -0.004149008816790486,
+                "span": 0.014021430341692016,
+                "normalizedSpan": 0.2804286068338403
+              },
+              {
+                "minimum": -0.16035815044445148,
+                "maximum": 0.006901474297277006,
+                "mean": -0.07538433272033346,
+                "span": 0.16725962474172848,
+                "normalizedSpan": 2.2187584436442647
+              }
+            ]
+          },
+          "maximumNormalizedSpan": 2.2187584436442647
+        },
+        "externalWorkCoarseFineDifferenceJ": 0.004339933917046013,
+        "systolicAreaOutsideMeasuredRangeFraction": 0.4518868571139322
+      },
+      "limitations": [
+        "systolic-relation-extrapolation-required",
+        "selected-phase-state-dispersion-retained",
+        "protocol-direction-sensitivity-retained",
+        "fixed-contralateral-intrinsic-passive-reference"
+      ]
+    },
+    {
+      "outputId": "protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.RV",
+      "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+      "ventricleId": "RV",
+      "status": "limited-estimate",
+      "unit": "J",
+      "mainOutputValueJ": 0.5884018254881368,
+      "energy": {
+        "externalWorkJ": 0.42431207785891467,
+        "potentialEnergyEquivalentJ": 0.16408974762922215,
+        "pvaEstimateJ": 0.5884018254881368,
+        "mechanicalConversionRatio": 0.721126379081007
+      },
+      "systolicRelation": {
+        "phaseSampleCount": 64,
+        "phaseIndex": 7,
+        "phase01": 0.109375,
+        "elastanceMmHgPerMl": 0.4651694927806835,
+        "volumeAxisInterceptMl": 13.39842031010182,
+        "measuredVolumeRangeMl": [
+          39.10619348547927,
+          86.14275881988328
+        ],
+        "rSquared": 0.9827499096307943,
+        "rootMeanSquaredResidualMmHg": 1.0253401365720534,
+        "releaseSlopeDifferenceFraction": -0.013987115331836634
+      },
+      "passiveReference": {
+        "referenceId": "same-transaction-fixed-contralateral-intrinsic-passive-center-slice-v2",
+        "canonicalOwnerBindingsPassed": true,
+        "fixedContralateralVentricleId": "LV",
+        "fixedContralateralVolumeMl": 138.70000000000002,
+        "supportedVolumeRangeMl": [
+          66.5,
+          155.79999999999998
+        ]
+      },
+      "sensitivity": {
+        "baselineExclusion": {
+          "available": true,
+          "estimateJ": 0.5882429381285853,
+          "absoluteDifferenceJ": 0.00015888735955149613,
+          "relativeDifference": 0.00027003206426098956,
+          "selectedPhaseIndex": 7
+        },
+        "phaseResolution": {
+          "available": true,
+          "baselineSampleCount": 64,
+          "refinedSampleCount": 128,
+          "refinedEstimateJ": 0.5640001923665533,
+          "absoluteDifferenceJ": 0.0244016331215835,
+          "relativeDifference": 0.04147103571838847,
+          "refinedPhaseIndex": 15,
+          "circularPhaseDifference": 0.0078125
+        },
+        "selectedPhaseStateDispersion": {
+          "available": true,
+          "beatCount": 11,
+          "selectedPhase01": 0.109375,
+          "contralateralVolumeMl": {
+            "minimum": 48.5300477639526,
+            "maximum": 64.82378564087709,
+            "mean": 60.128712786724776,
+            "span": 16.29373787692449,
+            "normalizedSpan": 0.2709809859844833
+          },
+          "commonPericardialPressureMmHg": {
+            "minimum": 0,
+            "maximum": 0,
+            "mean": 0,
+            "span": 0,
+            "normalizedSpan": 0
+          },
+          "maximumVentricularPericardialPressureMismatchMmHg": 0,
+          "septalMidwallCapVolumeMl": {
+            "minimum": 19.680360474572478,
+            "maximum": 21.323028813642175,
+            "mean": 20.595376694117206,
+            "span": 1.6426683390696972,
+            "normalizedSpan": 0.07975908202440907
+          },
+          "junctionRadiusM": {
+            "minimum": 0.025487741871573693,
+            "maximum": 0.027917091335732332,
+            "mean": 0.027036012756762286,
+            "span": 0.0024293494641586394,
+            "normalizedSpan": 0.08985605555135001
+          },
+          "freeCalciumUMByWall": {
+            "LVFW": {
+              "minimum": 0.5609643958761904,
+              "maximum": 0.5609643958761941,
+              "mean": 0.5609643958761914,
+              "span": 3.6637359812630166e-15,
+              "normalizedSpan": 6.531138175963003e-15
+            },
+            "SEP": {
+              "minimum": 0.5609643958761904,
+              "maximum": 0.5609643958761941,
+              "mean": 0.5609643958761914,
+              "span": 3.6637359812630166e-15,
+              "normalizedSpan": 6.531138175963003e-15
+            },
+            "RVFW": {
+              "minimum": 0.5609643958761904,
+              "maximum": 0.5609643958761941,
+              "mean": 0.5609643958761914,
+              "span": 3.6637359812630166e-15,
+              "normalizedSpan": 6.531138175963003e-15
+            }
+          },
+          "fiberLogStrainByWall": {
+            "LVFW": {
+              "minimum": -0.13865508166614146,
+              "maximum": -0.06662211888760693,
+              "mean": -0.08770173097775245,
+              "span": 0.07203296277853453,
+              "normalizedSpan": 0.7203296277853453
+            },
+            "SEP": {
+              "minimum": -0.17094000894154732,
+              "maximum": -0.14112938704274522,
+              "mean": -0.14915099335962853,
+              "span": 0.029810621898802098,
+              "normalizedSpan": 0.19986874527160267
+            },
+            "RVFW": {
+              "minimum": -0.2081927448779573,
+              "maximum": -0.07239521217713718,
+              "mean": -0.13111245488946374,
+              "span": 0.13579753270082012,
+              "normalizedSpan": 1.03573327808793
+            }
+          },
+          "fiberLogStrainRatePerSecByWall": {
+            "LVFW": {
+              "minimum": -0.24153764071470207,
+              "maximum": -0.12188386780109894,
+              "mean": -0.20004668363593858,
+              "span": 0.11965377291360313,
+              "normalizedSpan": 0.11965377291360313
+            },
+            "SEP": {
+              "minimum": 0.3128624728041312,
+              "maximum": 0.5105180850304474,
+              "mean": 0.4613938158410225,
+              "span": 0.19765561222631617,
+              "normalizedSpan": 0.19765561222631617
+            },
+            "RVFW": {
+              "minimum": -0.627376925424377,
+              "maximum": 0.09959963370200957,
+              "mean": -0.2464849108511486,
+              "span": 0.7269765591263865,
+              "normalizedSpan": 0.7269765591263865
+            }
+          },
+          "landStateByWall": {
+            "LVFW": [
+              {
+                "minimum": 0.21715230150893305,
+                "maximum": 0.27387854503211684,
+                "mean": 0.25602601615547516,
+                "span": 0.056726243523183784,
+                "normalizedSpan": 0.2215643721485555
+              },
+              {
+                "minimum": 0.6370034107148675,
+                "maximum": 0.8100615651828961,
+                "mean": 0.6936127150622666,
+                "span": 0.17305815446802852,
+                "normalizedSpan": 0.24950256924354802
+              },
+              {
+                "minimum": 0.0438792243753051,
+                "maximum": 0.10880892311250577,
+                "mean": 0.08710167292368619,
+                "span": 0.06492969873720067,
+                "normalizedSpan": 0.745447206210248
+              },
+              {
+                "minimum": 0.1109682707294246,
+                "maximum": 0.16082203478038004,
+                "mean": 0.14590567885241226,
+                "span": 0.04985376405095544,
+                "normalizedSpan": 0.34168487781331625
+              },
+              {
+                "minimum": -0.007922691556052967,
+                "maximum": -0.0026877888785390154,
+                "mean": -0.0056740469652106435,
+                "span": 0.005234902677513951,
+                "normalizedSpan": 0.10469805355027902
+              },
+              {
+                "minimum": -0.18098811038668142,
+                "maximum": -0.08230553892394235,
+                "mean": -0.1486539087104234,
+                "span": 0.09868257146273907,
+                "normalizedSpan": 0.663841081064151
+              }
+            ],
+            "SEP": [
+              {
+                "minimum": 0.19635782549876118,
+                "maximum": 0.2138232129501181,
+                "mean": 0.20873796138935702,
+                "span": 0.017465387451356923,
+                "normalizedSpan": 0.08367135203921483
+              },
+              {
+                "minimum": 0.8171084111149042,
+                "maximum": 0.8680363138035079,
+                "mean": 0.8328652009029726,
+                "span": 0.0509279026886037,
+                "normalizedSpan": 0.061147833567051287
+              },
+              {
+                "minimum": 0.026248493257427,
+                "maximum": 0.040035409903279806,
+                "mean": 0.03549478126399479,
+                "span": 0.013786916645852805,
+                "normalizedSpan": 0.2757383329170561
+              },
+              {
+                "minimum": 0.08401895000833765,
+                "maximum": 0.11032746908707425,
+                "mean": 0.10245895881533197,
+                "span": 0.026308519078736603,
+                "normalizedSpan": 0.2567712905042696
+              },
+              {
+                "minimum": 0.006671432300013894,
+                "maximum": 0.010263972417268938,
+                "mean": 0.008917743650676126,
+                "span": 0.003592540117255044,
+                "normalizedSpan": 0.07185080234510088
+              },
+              {
+                "minimum": -0.06420726823022903,
+                "maximum": 0.02009734413399245,
+                "mean": -0.03201560602530094,
+                "span": 0.08430461236422147,
+                "normalizedSpan": 1.6860922472844293
+              }
+            ],
+            "RVFW": [
+              {
+                "minimum": 0.17925838781566333,
+                "maximum": 0.27016012517736,
+                "mean": 0.22673715956298518,
+                "span": 0.09090173736169666,
+                "normalizedSpan": 0.4009123936142682
+              },
+              {
+                "minimum": 0.6489463809864632,
+                "maximum": 0.9014534947482397,
+                "mean": 0.7766136132811995,
+                "span": 0.2525071137617765,
+                "normalizedSpan": 0.3251386654103727
+              },
+              {
+                "minimum": 0.018066730295341688,
+                "maximum": 0.10357418831559963,
+                "mean": 0.0580222772505783,
+                "span": 0.08550745802025794,
+                "normalizedSpan": 1.473700483195111
+              },
+              {
+                "minimum": 0.0663251837998415,
+                "maximum": 0.15772146951848273,
+                "mean": 0.11684362591174086,
+                "span": 0.09139628571864124,
+                "normalizedSpan": 0.7822102832351201
+              },
+              {
+                "minimum": -0.015100770201797403,
+                "maximum": 0.0021559866105416007,
+                "mean": -0.006060190884083611,
+                "span": 0.017256756812339003,
+                "normalizedSpan": 0.34513513624678005
+              },
+              {
+                "minimum": -0.1847255583549645,
+                "maximum": 0.002048687760916034,
+                "mean": -0.09933304350133199,
+                "span": 0.18677424611588053,
+                "normalizedSpan": 1.8802831316990305
+              }
+            ]
+          },
+          "maximumNormalizedSpan": 1.8802831316990305
+        },
+        "externalWorkCoarseFineDifferenceJ": 0.0022527979052508473,
+        "systolicAreaOutsideMeasuredRangeFraction": 0.12489082104389465
+      },
+      "limitations": [
+        "systolic-relation-extrapolation-required",
+        "phase-resolution-sensitive",
+        "selected-phase-state-dispersion-retained",
+        "fixed-contralateral-intrinsic-passive-reference"
+      ]
+    }
+  ],
+  "failure": null,
+  "interpretation": {
+    "methodSpecificPvaEstimateAvailable": true,
+    "genericPvaEstablished": false,
+    "clinicalPvaEstablished": false,
+    "oxygenConsumptionEstablished": false,
+    "liveSingleBeatOutput": false,
+    "automaticLmFallbackUsed": false,
+    "productValuePublished": false
+  }
+}

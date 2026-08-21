@@ -268,7 +268,7 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
   );
   const baselinePva = Object.freeze(
     candidates.map((candidate) =>
-      baselinePvaV1(
+      evaluateMainWireIntegratedModelBaselineResearchPvaV2(
         candidate,
         slices.get(candidate.ventricleId)!,
         periodicExternalWork.get(candidate.ventricleId)!,
@@ -766,8 +766,11 @@ function periodicExternalWorkV1(
   );
 }
 
-function baselinePvaV1(
-  candidate: MainWireIntegratedModelPhaseWiseEmaxCandidateV1,
+export function evaluateMainWireIntegratedModelBaselineResearchPvaV2(
+  candidate: Pick<
+    MainWireIntegratedModelPhaseWiseEmaxCandidateV1,
+    "ventricleId" | "selectedRelation" | "baselineEndpoint"
+  >,
   slice: MainWireIntrinsicPassiveCenterSliceV1,
   externalWorkByDt: readonly Readonly<{
     nominalDtSec: number;
@@ -988,6 +991,15 @@ function linearFitV1(
         ? null
         : 1 - residualSumOfSquaresMmHgSquared / pressureVariance,
   });
+}
+
+export function fitMainWireIntegratedModelPhaseWiseIsochronalRelationV2(
+  points: readonly Readonly<{
+    volumeMl: number;
+    pressureMmHg: number;
+  }>[],
+): MainWireIntegratedModelPvaLinearRelationV1 {
+  return linearFitV1(points);
 }
 
 function extrapolatedPotentialEnergyV1(
