@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Activity,
   ArrowUpRight,
   BookOpenText,
   Boxes,
@@ -17,6 +18,7 @@ import {
   experimentSnapshotHref,
   homeHref,
   modelLabHref,
+  pvaResearchDiagnosticsHref,
 } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
 import {
@@ -256,6 +258,14 @@ export function DevDashboardV3Page() {
             >
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
             </button>
+            <Link
+              to={pvaResearchDiagnosticsHref(locale)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-wb-panel px-4 text-sm font-semibold text-wb-text ring-1 ring-wb-line transition-[background-color,transform] duration-150 hover:bg-wb-hover active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              data-testid="open-pva-research-diagnostics-v1"
+            >
+              <Activity className="h-4 w-4 text-wb-accent" aria-hidden="true" />
+              {t("devDashboard.openPvaResearch")}
+            </Link>
             <Link
               to={modelLabHref(locale)}
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-wb-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-wb-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"

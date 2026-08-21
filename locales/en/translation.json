@@ -38,6 +38,7 @@
     "title": "Development content",
     "description": "Review simulations, articles, Snapshots, and Models currently in development in one place.",
     "openModelLab": "Open Model Lab",
+    "openPvaResearch": "PVA diagnostics",
     "returnFromModelLab": "Back to development content",
     "refresh": "Refresh inventory",
     "loading": "Loading development content…",
@@ -71,6 +72,91 @@
       "model-lab": "Model Lab",
       "referenced": "Used by content"
     }
+  },
+  "pvaResearch": {
+    "back": "Back to development content",
+    "eyebrow": "INTERNAL RESEARCH",
+    "title": "PVA geometry diagnostics",
+    "description": "Inspect how each transient method, passive reference, and retained beat behaves before any PVA quantity is promoted to a product output.",
+    "pressureBasis": "Pressure basis",
+    "pressure": {
+      "ventricular-transmural": "Ventricular transmural"
+    },
+    "rows": "Method rows",
+    "boundaryTitle": "Not ready for a product PVA readout",
+    "boundaryDescription": "None of the 168 rows establishes a domain-supported PVA. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "referencesTitle": "Passive reference comparison",
+    "referencesDescription": "Choose one reference to classify the same 168 transient method rows.",
+    "selectReference": "Select a card to update the rows",
+    "selected": "Selected",
+    "reference": {
+      "dynamic-maximum-volume": "Dynamic maximum-volume reference",
+      "intrinsic-passive-center-slice": "Intrinsic passive center slice"
+    },
+    "referenceDescription": {
+      "dynamic-maximum-volume": "Transient dynamic fit; all four fits touch a declared search-grid boundary.",
+      "intrinsic-passive-center-slice": "Myocardium-only passive surface center slice; no pericardial or atrial contribution."
+    },
+    "classification": {
+      "domain-supported-pva": "Domain-supported PVA",
+      "transient-pva-like-area": "Transient PVA-like area",
+      "out-of-domain": "Out of domain",
+      "method-unavailable": "Method unavailable"
+    },
+    "classificationShort": {
+      "domain-supported-pva": "Supported",
+      "transient-pva-like-area": "PVA-like",
+      "out-of-domain": "Out of domain",
+      "method-unavailable": "Unavailable"
+    },
+    "areaStrips": "Observed-domain area strips",
+    "intersections": "Supported intersections",
+    "diagnosticsTitle": "Shared geometry signals",
+    "metrics": {
+      "closedBeats": "Exactly closed beats",
+      "closedBeatsDetail": "Every retained transient beat needs a synthetic endpoint closure.",
+      "closureMedian": "Median closure / open path",
+      "closureMedianDetail": "{{count}} of 42 beats exceed a 5% synthetic-closure fraction.",
+      "extrapolationMedian": "Median systolic extrapolation",
+      "extrapolationMedianDetail": "{{count}} of 105 available rows place more than 75% of the line area outside landmark contact."
+    },
+    "filtersTitle": "FILTERS",
+    "rowsTitle": "Method-level evidence",
+    "filters": {
+      "ventricle": "Ventricle",
+      "method": "Systolic relation",
+      "classification": "Classification",
+      "allVentricles": "All ventricles",
+      "allMethods": "All methods",
+      "allClassifications": "All classifications"
+    },
+    "method": {
+      "baseline-anchored-isochronal": "Baseline-anchored isochronal",
+      "minimum-volume": "Minimum-volume locus",
+      "sampled-common-support-envelope": "Sampled common-support envelope",
+      "semilunar-closure": "Semilunar-closure locus"
+    },
+    "direction": {
+      "occlusion": "Occlusion ramp",
+      "release": "Release ramp"
+    },
+    "domain": {
+      "below-supported-domain": "Endpoint below supported domain",
+      "inside-supported-domain": "Endpoint inside supported domain"
+    },
+    "filteredRows": "{{count}} rows",
+    "empty": "No rows match these filters.",
+    "beat": "Beat {{count}}",
+    "rowMetrics": {
+      "openPath": "Open-path work",
+      "syntheticClosure": "Synthetic closure",
+      "extrapolation": "Line outside range",
+      "areaStrip": "Observed-domain strip"
+    },
+    "notAvailable": "Not available",
+    "why": "Why this row is limited",
+    "showMore": "Show {{count}} more",
+    "footer": "Internal research view backed only by the checked-in V2 result. It does not run the model, select a production PVA method, or expose a public output."
   },
   "home": {
     "headline": "Learn circulation by moving it.",

@@ -27,6 +27,11 @@ const DevDashboardV3Page = React.lazy(
     default: module.DevDashboardV3Page,
   })),
 );
+const PvaResearchDiagnosticViewV1 = React.lazy(
+  () => import('./components/research/PvaResearchDiagnosticViewV1').then((module) => ({
+    default: module.PvaResearchDiagnosticViewV1,
+  })),
+);
 const WorkbenchSelectorV3Page = React.lazy(
   () => import('./components/WorkbenchSelectorV3Page').then((module) => ({
     default: module.WorkbenchSelectorV3Page,
@@ -132,6 +137,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Model Lab…" />}>
           <WorkbenchModelLabV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="dev/research/pva"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading PVA research diagnostics…" />}>
+          <PvaResearchDiagnosticViewV1 />
         </React.Suspense>
       )}
     />

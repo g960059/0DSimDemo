@@ -75,6 +75,7 @@ export const fastTests = [
   "__tests__/normalAdultFiveWallPriorV1.test.ts",
   "__tests__/oxygenTransportV1.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
+  "__tests__/pvaResearchDiagnosticViewV1.test.tsx",
   "__tests__/studioContractsBoundaryV2.test.ts",
   "__tests__/studioBrowserContentStoreV3.test.ts",
   "__tests__/studioBrowserExperimentResourceV3.test.ts",
