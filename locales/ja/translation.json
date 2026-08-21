@@ -85,10 +85,39 @@
     "rows": "手法別row",
     "boundaryTitle": "無修飾のgeneric PVAはまだ確立していません",
     "boundaryDescription": "{{attempted}}件のmethod rowのうち、いずれかのpassive referenceでdomain-supported PVAを確立したものは{{supported}}件です。以下はaccepted open-path work、synthetic closureへの感度、収縮期直線の外挿、観測domain内のarea stripを示す研究診断です。",
+    "qualification": {
+      "eyebrow": "ON-DEMAND ANALYSIS RESULT",
+      "title": "Method-specific PVA出力",
+      "description": "1回のanalysis transactionで、同じperiodic sourceをtransient preload familyと3-grid mechanical workに再利用し、固定intrinsic passive referenceも同時に解きます。完了した解析から、制約を保持したLV・RVのversioned推定値を返します。",
+      "completed": "解析完了",
+      "status": {
+        "qualified-estimate": "Qualified estimate",
+        "limited-estimate": "制約付き推定値"
+      },
+      "phase": "選択phase {{phase}} · sample {{index}} / 64",
+      "outputValue": "Method-specific PVA",
+      "externalWork": "Periodic EW",
+      "potentialEnergy": "PE equivalent",
+      "conversionRatio": "EW / PVA",
+      "baselineSensitivity": "Baseline除外時",
+      "phaseSensitivity": "64 → 128 phase",
+      "stateDispersion": "状態分散index",
+      "limitationsTitle": "保持している手法上の制約",
+      "limitation": {
+        "systolic-relation-extrapolation-required": "収縮期relationを計測したpreload範囲の外まで外挿しています",
+        "baseline-exclusion-sensitive": "Baseline beatを除外すると推定値が宣言thresholdを超えて変化します",
+        "phase-resolution-sensitive": "64から128 phaseへ細分化すると宣言thresholdを超えて変化します",
+        "selected-phase-state-dispersion-retained": "選択phaseでpreload beat間の心筋状態が一意に揃いません",
+        "protocol-direction-sensitivity-retained": "Occlusionとreleaseの傾きに方向依存性が残ります",
+        "fixed-contralateral-intrinsic-passive-reference": "Intrinsic passive sliceでは反対側心室volumeを固定しています"
+      },
+      "executionMode": "実行方式: 明示的なon-demand completed-protocol解析。この画面は最後にcheck-inした結果を読み、通常描画ではモデルを再実行しません。",
+      "claimBoundary": "これはversioned method-specific推定値です。generic／clinical PVA、酸素消費量、live単一beat出力ではありません。Product公開には、このresearch view外でのcached executionが必要です。"
+    },
     "mainCandidate": {
       "eyebrow": "MAIN INTEGRATION PATH",
-      "title": "Method-specific PVAのmain導入経路",
-      "description": "方式は選定済みです。PVAはliveの単一beat信号ではなく、preload protocol完了後に実行するon-demand解析としてmainへ導入します。現在値は外挿依存の研究推定値で、product値はまだ公開していません。",
+      "title": "先行する方式選定の記録",
+      "description": "この先行resultで方式を選び、公開前に必要な検討を固定しました。上のV2出力で、その限定studyは完了しています。このカードは判断の経緯として残します。",
       "status": {
         "qualification-required": "Qualificationが必要",
         "ready-for-on-demand-main": "On-demand main導入可能",
@@ -100,11 +129,11 @@
         "extrapolation-dependent": "外挿依存",
         "unavailable": "利用不可"
       },
-      "notReady": "研究推定値・product値は未公開",
+      "notReady": "Qualification前の記録。上のV2完了結果を参照",
       "readyValue": "on-demand main出力として利用可能",
       "extrapolatedArea": "収縮期面積の外挿率",
       "directionSensitivity": "release方向の傾き差",
-      "remainingTitle": "On-demand main導入までの条件",
+      "remainingTitle": "V2以前に記録した条件",
       "noBlockers": "Method-specific on-demand出力の条件を満たしています。",
       "blocker": {
         "transient-periodic-source-compatibility-not-established": "Transient familyとperiodic EWを同一baselineへ結合する",

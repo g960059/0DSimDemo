@@ -98,6 +98,11 @@ model:
   main analysis, keeps current values research-only, and fixes the bounded
   source, baseline-exclusion, state-dispersion, and phase-resolution work
   required before product publication.
+- [`INTEGRATED-MODEL-0040-phase-wise-pva-qualification-v2-result.md`](./INTEGRATED-MODEL-0040-phase-wise-pva-qualification-v2-result.md)
+  completes that bounded analysis in one source transaction, returns the
+  versioned LV and RV values as on-demand `limited-estimate` outputs, and
+  retains extrapolation, state, direction, phase-resolution, and passive-slice
+  limitations without promoting a generic or live PVA.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

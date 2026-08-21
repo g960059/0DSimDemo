@@ -511,9 +511,27 @@ function compactLoopV1(
   beat: MainWireIntegratedModelTransientPvRawBeatV1,
   ventricleId: MainWireIntegratedModelTransientPvVentricleIdV1,
 ): readonly MainWireIntegratedModelTransientPvCompactLoopPointV1[] {
+  return sampleMainWireIntegratedModelTransientPvCompactLoopAtResolutionV2(
+    beat,
+    ventricleId,
+    COMPACT_LOOP_SAMPLE_COUNT_V1,
+  );
+}
+
+export function sampleMainWireIntegratedModelTransientPvCompactLoopAtResolutionV2(
+  beat: MainWireIntegratedModelTransientPvRawBeatV1,
+  ventricleId: MainWireIntegratedModelTransientPvVentricleIdV1,
+  sampleCount: number,
+): readonly MainWireIntegratedModelTransientPvCompactLoopPointV1[] {
+  if (
+    !Number.isSafeInteger(sampleCount) ||
+    sampleCount < 16 ||
+    sampleCount > 512
+  )
+    throw new RangeError("transient PV phase resolution must be 16..512");
   return Object.freeze(
-    Array.from({ length: COMPACT_LOOP_SAMPLE_COUNT_V1 }, (_, index) => {
-      const phase01 = index / COMPACT_LOOP_SAMPLE_COUNT_V1;
+    Array.from({ length: sampleCount }, (_, index) => {
+      const phase01 = index / sampleCount;
       const point = interpolatePointAtTimeV1(
         beat,
         ventricleId,

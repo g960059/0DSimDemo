@@ -85,10 +85,39 @@
     "rows": "Method rows",
     "boundaryTitle": "An unqualified generic PVA is not established",
     "boundaryDescription": "{{supported}} of {{attempted}} method rows establishes a domain-supported PVA under either passive reference. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "qualification": {
+      "eyebrow": "ON-DEMAND ANALYSIS RESULT",
+      "title": "Method-specific PVA output",
+      "description": "One analysis transaction reuses a single periodic source for the transient preload family and three-grid mechanical work, and solves the fixed intrinsic passive reference alongside them. The completed result returns the versioned LV and RV estimates with their limitations.",
+      "completed": "Analysis completed",
+      "status": {
+        "qualified-estimate": "Qualified estimate",
+        "limited-estimate": "Limited estimate"
+      },
+      "phase": "Selected phase {{phase}} · sample {{index}} / 64",
+      "outputValue": "Method-specific PVA",
+      "externalWork": "Periodic EW",
+      "potentialEnergy": "PE equivalent",
+      "conversionRatio": "EW / PVA",
+      "baselineSensitivity": "Without baseline",
+      "phaseSensitivity": "64 → 128 phase",
+      "stateDispersion": "State dispersion index",
+      "limitationsTitle": "Retained method limitations",
+      "limitation": {
+        "systolic-relation-extrapolation-required": "The systolic relation is extrapolated beyond the measured preload range",
+        "baseline-exclusion-sensitive": "The estimate is sensitive to excluding the baseline beat",
+        "phase-resolution-sensitive": "The estimate changes beyond the declared 64-to-128 phase threshold",
+        "selected-phase-state-dispersion-retained": "The selected phase does not identify one common myocardial state across preload beats",
+        "protocol-direction-sensitivity-retained": "Occlusion and release slopes retain direction sensitivity",
+        "fixed-contralateral-intrinsic-passive-reference": "The intrinsic passive slice fixes the contralateral ventricular volume"
+      },
+      "executionMode": "Execution: explicit on-demand completed-protocol analysis. This screen reads the last checked-in result and never reruns the model during ordinary rendering.",
+      "claimBoundary": "This is a versioned method-specific estimate, not generic or clinical PVA, oxygen consumption, or a live single-beat output. Product publication still requires cached execution outside this research view."
+    },
     "mainCandidate": {
       "eyebrow": "MAIN INTEGRATION PATH",
-      "title": "Method-specific PVA path to main",
-      "description": "The method is selected. PVA will enter main as an on-demand analysis after a preload protocol, not as a live single-beat signal. The current numbers are extrapolation-dependent research estimates; no product value is published yet.",
+      "title": "Previous method-selection decision",
+      "description": "This earlier result selected the method and fixed the work required before publication. The completed V2 output above now satisfies that bounded study; this card remains as the decision record.",
       "status": {
         "qualification-required": "Qualification required",
         "ready-for-on-demand-main": "Ready for on-demand main",
@@ -100,11 +129,11 @@
         "extrapolation-dependent": "Extrapolation-dependent",
         "unavailable": "Unavailable"
       },
-      "notReady": "Research estimate; no product value published",
+      "notReady": "Pre-qualification record; see the completed V2 output above",
       "readyValue": "Available as an on-demand main result",
       "extrapolatedArea": "Extrapolated systolic area",
       "directionSensitivity": "Release slope difference",
-      "remainingTitle": "Required before on-demand main integration",
+      "remainingTitle": "Requirements recorded before V2",
       "noBlockers": "The method-specific on-demand output requirements are met.",
       "blocker": {
         "transient-periodic-source-compatibility-not-established": "Bind the transient family and periodic EW to the same baseline",

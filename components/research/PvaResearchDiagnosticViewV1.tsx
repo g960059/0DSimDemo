@@ -14,6 +14,7 @@ import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diag
 import correctedArtifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v3.json";
 import mainCandidateArtifactJson from "@/artifacts/transient-preload/method-specific-pva-main-candidate-v1.json";
 import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
+import qualificationArtifactJson from "@/artifacts/transient-preload/phase-wise-pva-qualification-v2.json";
 import { devDashboardHref } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
 import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
@@ -25,6 +26,7 @@ import {
   PVA_RESEARCH_METHOD_IDS_V1,
   projectPvaMainCandidateDisplayV1,
   projectPvaPhaseWiseEmaxDisplayV1,
+  projectPvaQualificationDisplayV2,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
@@ -33,6 +35,8 @@ import {
   type PvaMainCandidateDisplayV1,
   type PvaPhaseWiseEmaxArtifactInputV1,
   type PvaPhaseWiseEmaxDisplayV1,
+  type PvaQualificationArtifactInputV2,
+  type PvaQualificationDisplayV2,
   type PvaResearchClassificationV1,
   type PvaResearchDatasetV1,
   type PvaResearchDisplayRowV1,
@@ -65,6 +69,10 @@ export const PVA_PHASE_WISE_EMAX_DATASET_V1 = projectPvaPhaseWiseEmaxDisplayV1(
 
 export const PVA_MAIN_CANDIDATE_DATASET_V1 = projectPvaMainCandidateDisplayV1(
   mainCandidateArtifactJson as unknown as PvaMainCandidateArtifactInputV1,
+);
+
+export const PVA_QUALIFICATION_DATASET_V2 = projectPvaQualificationDisplayV2(
+  qualificationArtifactJson as unknown as PvaQualificationArtifactInputV2,
 );
 
 export function PvaResearchDiagnosticViewV1() {
@@ -165,6 +173,11 @@ export function PvaResearchDiagnosticViewV1() {
             </p>
           </div>
         </section>
+
+        <OnDemandPvaQualificationSectionV2
+          qualification={PVA_QUALIFICATION_DATASET_V2}
+          locale={locale}
+        />
 
         <MainIntegrationCandidateSectionV1
           candidate={PVA_MAIN_CANDIDATE_DATASET_V1}
@@ -374,6 +387,145 @@ export function PvaResearchDiagnosticViewV1() {
         </footer>
       </main>
     </div>
+  );
+}
+
+function OnDemandPvaQualificationSectionV2({
+  qualification,
+  locale,
+}: Readonly<{
+  qualification: PvaQualificationDisplayV2;
+  locale: Locale;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <section
+      className="mt-7 overflow-hidden rounded-2xl bg-wb-panel shadow-sm ring-1 ring-wb-accent/35"
+      data-testid="pva-on-demand-output-v2"
+      aria-labelledby="pva-on-demand-output-title"
+    >
+      <header className="flex flex-col gap-3 border-b border-wb-line/70 bg-wb-accent/[0.035] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div>
+          <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-wb-accent">
+            <Activity className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("pvaResearch.qualification.eyebrow")}
+          </p>
+          <h2
+            id="pva-on-demand-output-title"
+            className="mt-1 text-base font-semibold"
+          >
+            {t("pvaResearch.qualification.title")}
+          </h2>
+          <p className="mt-1 max-w-4xl text-xs leading-5 text-wb-muted">
+            {t("pvaResearch.qualification.description")}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-wb-accent/10 px-2.5 py-1 text-[10px] font-semibold text-wb-accent">
+          {t("pvaResearch.qualification.completed")}
+        </span>
+      </header>
+
+      <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-2">
+        {qualification.rows.map((row) => (
+          <article
+            key={row.ventricleId}
+            className="overflow-hidden rounded-xl bg-wb-app/45 ring-1 ring-wb-line/70"
+            data-testid={`pva-on-demand-output-${row.ventricleId}`}
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-wb-line/60 px-4 py-3.5">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">
+                    {row.ventricleId}
+                  </span>
+                  <span className="rounded-full bg-wb-warning-soft px-2 py-0.5 text-[9px] font-semibold text-wb-warning">
+                    {t(`pvaResearch.qualification.status.${row.status}`)}
+                  </span>
+                </div>
+                <p className="mt-1 text-[10px] text-wb-subtle">
+                  {t("pvaResearch.qualification.phase", {
+                    phase: formatNumberV1(row.phase01, locale, 4),
+                    index: row.phaseIndex,
+                  })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-wb-subtle">
+                  {t("pvaResearch.qualification.outputValue")}
+                </p>
+                <p className="mt-1 text-2xl font-semibold tracking-[-0.035em] tabular-nums">
+                  {formatEnergyV1(row.mainOutputValueJ, locale)}
+                </p>
+              </div>
+            </header>
+
+            <div className="px-4 py-3.5">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.externalWork")}
+                  value={formatEnergyV1(row.externalWorkJ, locale)}
+                />
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.potentialEnergy")}
+                  value={formatEnergyV1(row.potentialEnergyEquivalentJ, locale)}
+                />
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.conversionRatio")}
+                  value={formatPercentV1(row.mechanicalConversionRatio, locale)}
+                />
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.baselineSensitivity")}
+                  value={formatPercentV1(
+                    row.baselineExclusionRelativeDifference,
+                    locale,
+                  )}
+                />
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.phaseSensitivity")}
+                  value={formatPercentV1(
+                    row.phaseResolutionRelativeDifference,
+                    locale,
+                  )}
+                />
+                <CompactMetricV1
+                  label={t("pvaResearch.qualification.stateDispersion")}
+                  value={formatNumberV1(
+                    row.selectedPhaseStateDispersionIndex,
+                    locale,
+                    3,
+                  )}
+                />
+              </dl>
+
+              <div className="mt-4 border-t border-wb-line/60 pt-3">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.1em] text-wb-subtle">
+                  {t("pvaResearch.qualification.limitationsTitle")}
+                </p>
+                <ul className="mt-2 space-y-1.5 text-[11px] leading-5 text-wb-muted">
+                  {row.limitations.map((limitation) => (
+                    <li key={limitation} className="flex gap-2">
+                      <span className="text-wb-warning" aria-hidden="true">
+                        •
+                      </span>
+                      <span>
+                        {t(
+                          `pvaResearch.qualification.limitation.${limitation}`,
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <footer className="flex flex-col gap-1 border-t border-wb-line/70 px-4 py-3 text-[10px] leading-5 text-wb-subtle sm:px-5">
+        <span>{t("pvaResearch.qualification.executionMode")}</span>
+        <span>{t("pvaResearch.qualification.claimBoundary")}</span>
+      </footer>
+    </section>
   );
 }
 

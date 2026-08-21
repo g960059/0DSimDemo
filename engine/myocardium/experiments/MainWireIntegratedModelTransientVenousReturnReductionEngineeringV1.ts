@@ -293,6 +293,50 @@ export type MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1 =
       failureEvidence: MainWireIntegratedModelTransientVenousReturnReductionFailureEvidenceV1;
     }>;
 
+const PVA_STATE_WALL_IDS_V2 = Object.freeze(["LVFW", "SEP", "RVFW"] as const);
+type PvaStateWallIdV2 = (typeof PVA_STATE_WALL_IDS_V2)[number];
+
+export type MainWireIntegratedModelTransientPvaStateSampleV2 = Readonly<{
+  timeSec: number;
+  commonPericardialPressureMmHg: number;
+  ventricularPericardialPressureMismatchMmHg: number;
+  internalCoordinates: Readonly<{
+    septalMidwallCapVolumeMl: number;
+    junctionRadiusM: number;
+  }>;
+  freeCalciumUMByWall: Readonly<Record<PvaStateWallIdV2, number>>;
+  fiberLogStrainByWall: Readonly<Record<PvaStateWallIdV2, number>>;
+  landStateByWall: Readonly<
+    Record<
+      PvaStateWallIdV2,
+      readonly [number, number, number, number, number, number]
+    >
+  >;
+}>;
+
+export type MainWireIntegratedModelTransientPvaStateBeatV2 = Readonly<{
+  beatOrdinal: number;
+  startTimeSec: number;
+  endTimeSec: number;
+  samples: readonly MainWireIntegratedModelTransientPvaStateSampleV2[];
+}>;
+
+export type MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV2 =
+  | (Extract<
+      MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1,
+      { status: "completed" }
+    > &
+      Readonly<{
+        stateBeats: readonly MainWireIntegratedModelTransientPvaStateBeatV2[];
+      }>)
+  | (Extract<
+      MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV1,
+      { status: "failed" }
+    > &
+      Readonly<{
+        stateBeats: readonly MainWireIntegratedModelTransientPvaStateBeatV2[];
+      }>);
+
 export type MainWireIntegratedModelTransientVenousReturnReductionManufacturedDependenciesV1 =
   Readonly<{
     runSource: () => Promise<MainWireIntegratedModelPeriodicSteadyResultV3>;
@@ -473,6 +517,160 @@ export async function runMainWireIntegratedModelTransientVenousReturnResearchTra
     sourceOutcome,
     beatExecutions: trajectory.beatExecutions,
     rawBeats: trajectory.rawBeats,
+    terminalAcceptedTimeSec: trajectory.terminalAcceptedTimeSec,
+    terminalAcceptedRevision: trajectory.terminalAcceptedRevision,
+    failureEvidence: null,
+  });
+}
+
+/**
+ * Runs the transient family from a caller-owned periodic source without
+ * solving that source a second time. The additional state samples are kept in
+ * memory for phase-dispersion analysis and are not part of the V1 evidence
+ * artifact.
+ */
+export async function runMainWireIntegratedModelTransientVenousReturnResearchTrajectoryFromSourceV2(
+  source: MainWireIntegratedModelPeriodicSteadyResultV3,
+): Promise<MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV2> {
+  const failed = (
+    sourceOutcome: MainWireIntegratedModelTransientVenousReturnReductionSourceOutcomeV1,
+    beatExecutions: readonly MainWireIntegratedModelTransientVenousReturnReductionBeatExecutionV1[],
+    rawBeats: readonly MainWireIntegratedModelTransientPvRawBeatV1[],
+    stateBeats: readonly MainWireIntegratedModelTransientPvaStateBeatV2[],
+    failureEvidence: MainWireIntegratedModelTransientVenousReturnReductionFailureEvidenceV1,
+  ): MainWireIntegratedModelTransientVenousReturnResearchTrajectoryV2 =>
+    Object.freeze({
+      status: "failed" as const,
+      sourceOutcome,
+      beatExecutions: Object.freeze([...beatExecutions]),
+      rawBeats: Object.freeze([...rawBeats]),
+      stateBeats: Object.freeze([...stateBeats]),
+      terminalAcceptedTimeSec: null,
+      terminalAcceptedRevision: null,
+      failureEvidence,
+    });
+
+  let summary: MainWireIntegratedModelTransientVenousReturnReductionSourceSummaryV1;
+  try {
+    summary = sourceSummaryV1(source);
+  } catch (error) {
+    const exception = sanitizeExceptionV1(error);
+    return failed(
+      Object.freeze({
+        status: "source-execution-failed" as const,
+        failureClass: "source-execution-failure" as const,
+        summary: null,
+        bindingDiagnostics: null,
+        exception,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-execution-failure",
+        message: "shared periodic source summary construction failed",
+        exception,
+      }),
+    );
+  }
+  if (!sourceIsP1V1(source)) {
+    return failed(
+      Object.freeze({
+        status: "source-rejected" as const,
+        failureClass: "source-not-p1" as const,
+        summary,
+        bindingDiagnostics: null,
+        exception: null,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-not-p1",
+        message: "shared periodic source did not establish numerical period 1",
+      }),
+    );
+  }
+
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const binding = await bindAndRestoreSourceV1(source, fixture);
+  if (binding.status === "binding-failed") {
+    return failed(
+      Object.freeze({
+        status: "source-rejected" as const,
+        failureClass: "source-binding-failure" as const,
+        summary,
+        bindingDiagnostics: binding.diagnostics,
+        exception: null,
+      }),
+      Object.freeze([]),
+      Object.freeze([]),
+      Object.freeze([]),
+      failureEvidenceV1({
+        failureClass: "source-binding-failure",
+        message: binding.message,
+      }),
+    );
+  }
+
+  const stateSamplesByBeat = new Map<
+    number,
+    MainWireIntegratedModelTransientPvaStateSampleV2[]
+  >();
+  const trajectory = await runTransientTrajectoryV1(
+    fixture,
+    binding.restoredState,
+    source,
+    {
+      observe: (beatOrdinal, rawSample, acceptedState) => {
+        const samples = stateSamplesByBeat.get(beatOrdinal) ?? [];
+        samples.push(pvaStateSampleV2(rawSample, acceptedState));
+        stateSamplesByBeat.set(beatOrdinal, samples);
+      },
+    },
+  );
+  const stateBeats = Object.freeze(
+    trajectory.rawBeats.map((beat) => {
+      const samples = stateSamplesByBeat.get(beat.beatOrdinal) ?? [];
+      if (
+        samples.length !== beat.samples.length ||
+        samples[0]?.timeSec !== beat.startTimeSec ||
+        samples.at(-1)?.timeSec !== beat.endTimeSec
+      ) {
+        throw new Error(
+          `transient PVA state samples differ for beat ${beat.beatOrdinal}`,
+        );
+      }
+      return Object.freeze({
+        beatOrdinal: beat.beatOrdinal,
+        startTimeSec: beat.startTimeSec,
+        endTimeSec: beat.endTimeSec,
+        samples: Object.freeze(samples),
+      });
+    }),
+  );
+  const sourceOutcome = Object.freeze({
+    status: "source-p1-established" as const,
+    failureClass: null,
+    summary,
+    bindingDiagnostics: binding.diagnostics,
+    exception: null,
+  });
+  if ("failureEvidence" in trajectory) {
+    return failed(
+      sourceOutcome,
+      trajectory.beatExecutions,
+      trajectory.rawBeats,
+      stateBeats,
+      trajectory.failureEvidence,
+    );
+  }
+  return Object.freeze({
+    status: "completed" as const,
+    sourceOutcome,
+    beatExecutions: trajectory.beatExecutions,
+    rawBeats: trajectory.rawBeats,
+    stateBeats,
     terminalAcceptedTimeSec: trajectory.terminalAcceptedTimeSec,
     terminalAcceptedRevision: trajectory.terminalAcceptedRevision,
     failureEvidence: null,
@@ -1195,6 +1393,13 @@ async function runTransientTrajectoryV1(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
   initial: AcceptedStateV1,
   source: MainWireIntegratedModelPeriodicSteadyResultV3,
+  pvaStateObserver?: Readonly<{
+    observe: (
+      beatOrdinal: number,
+      rawSample: MainWireIntegratedModelTransientPvAcceptedSampleV1,
+      acceptedState: AcceptedStateV1,
+    ) => void;
+  }>,
 ): Promise<CompletedTrajectoryV1 | FailedTrajectoryV1> {
   const sourceTimeSec = initial.acceptedTimeSec;
   const terminalSourceSample = source.terminalCycleTrace.samples.at(-1);
@@ -1227,6 +1432,7 @@ async function runTransientTrajectoryV1(
         beatStartSample,
         sourceTimeSec,
         beatOrdinal,
+        pvaStateObserver,
       );
     } catch (error) {
       return Object.freeze({
@@ -1283,6 +1489,13 @@ async function runTransientBeatV1(
   startSample: MainWireIntegratedModelTransientPvAcceptedSampleV1,
   sourceTimeSec: number,
   beatOrdinal: number,
+  pvaStateObserver?: Readonly<{
+    observe: (
+      beatOrdinal: number,
+      rawSample: MainWireIntegratedModelTransientPvAcceptedSampleV1,
+      acceptedState: AcceptedStateV1,
+    ) => void;
+  }>,
 ): Promise<
   | Readonly<{
       status: "completed";
@@ -1334,6 +1547,7 @@ async function runTransientBeatV1(
   const rawSamples: MainWireIntegratedModelTransientPvAcceptedSampleV1[] = [
     startSample,
   ];
+  pvaStateObserver?.observe(beatOrdinal, startSample, initial);
   while (accepted.acceptedTimeSec < endTimeSec) {
     if (
       acceptedStepCount >=
@@ -1456,7 +1670,9 @@ async function runTransientBeatV1(
     try {
       const sample =
         sampleMainWireIntegratedModelBeatFromAcceptedStepV3(stepped);
-      rawSamples.push(rawPvSampleFromAcceptedBeatSampleV1(sample));
+      const rawSample = rawPvSampleFromAcceptedBeatSampleV1(sample);
+      rawSamples.push(rawSample);
+      pvaStateObserver?.observe(beatOrdinal, rawSample, accepted);
       minimumSystemicVenousReturnMlPerSec = Math.min(
         minimumSystemicVenousReturnMlPerSec,
         sample.systemicVenousReturnMlPerSec,
@@ -1662,6 +1878,58 @@ function rawPvSampleFromAcceptedBeatSampleV1(
       semilunarFlowMlPerSec: sample.pulmonaryValveFlowMlPerSec,
     }),
   });
+}
+
+function pvaStateSampleV2(
+  sample: MainWireIntegratedModelTransientPvAcceptedSampleV1,
+  acceptedState: AcceptedStateV1,
+): MainWireIntegratedModelTransientPvaStateSampleV2 {
+  const materialState = acceptedState.coronary.mechanics.materialState;
+  const leftPericardialPressureMmHg =
+    sample.LV.absolutePressureMmHg - sample.LV.transmuralPressureMmHg;
+  const rightPericardialPressureMmHg =
+    sample.RV.absolutePressureMmHg - sample.RV.transmuralPressureMmHg;
+  const wallRecord = <T>(
+    project: (wallState: WallStateV1["wallStateByWall"][PvaStateWallIdV2]) => T,
+  ): Readonly<Record<PvaStateWallIdV2, T>> =>
+    Object.freeze(
+      Object.fromEntries(
+        PVA_STATE_WALL_IDS_V2.map((wallId) => [
+          wallId,
+          project(materialState.wallStateByWall[wallId]),
+        ]),
+      ),
+    ) as Readonly<Record<PvaStateWallIdV2, T>>;
+  const result = Object.freeze({
+    timeSec: sample.timeSec,
+    commonPericardialPressureMmHg:
+      (leftPericardialPressureMmHg + rightPericardialPressureMmHg) / 2,
+    ventricularPericardialPressureMismatchMmHg: Math.abs(
+      leftPericardialPressureMmHg - rightPericardialPressureMmHg,
+    ),
+    internalCoordinates: Object.freeze({
+      septalMidwallCapVolumeMl:
+        materialState.trisegCoordinates.septalMidwallCapVolumeM3 * 1e6,
+      junctionRadiusM: materialState.trisegCoordinates.junctionRadiusM,
+    }),
+    freeCalciumUMByWall: wallRecord((state) => state.previousFreeCalciumUM),
+    fiberLogStrainByWall: wallRecord((state) => state.previousFiberLogStrain),
+    landStateByWall: wallRecord((state) => {
+      if (state.landState.length !== 6)
+        throw new Error("transient PVA Land state must retain six entries");
+      return Object.freeze([
+        state.landState[0]!,
+        state.landState[1]!,
+        state.landState[2]!,
+        state.landState[3]!,
+        state.landState[4]!,
+        state.landState[5]!,
+      ] as const);
+    }),
+  });
+  if (!allNumericLeavesFiniteV1(result))
+    throw new Error("transient PVA state sample must be finite");
+  return result;
 }
 
 function updateStepEvidenceV1(
