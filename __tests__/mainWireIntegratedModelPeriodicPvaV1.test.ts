@@ -9,6 +9,14 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
 
 describe("settled hot-start PVA V1", () => {
@@ -94,6 +102,23 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
+  it("keeps every formal load inside the declared TBV input range", () => {
+    const sourceTbvMl =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3
+        .totalBloodVolumeMl;
+    const range =
+      MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3
+        .totalBloodVolumeMl;
+    const targets = [
+      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+      1,
+      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3,
+    ].map((scale) => sourceTbvMl * scale);
+
+    expect(Math.min(...targets)).toBe(range.minimum);
+    expect(Math.max(...targets)).toBeLessThanOrEqual(range.maximum);
+  });
+
   it("fails closed when semilunar closure landmarks are unavailable", () => {
     const points = settledPointsV1().map((point) =>
       Object.freeze({
@@ -153,6 +178,8 @@ describe("settled hot-start PVA V1", () => {
     expect(html).toContain("PVA ");
     expect(html).toContain("estimated MVO₂");
     expect(html).toContain("exponential EDPVR");
+    expect(html).toContain("linear ESPVR R²");
+    expect(html).toContain("quadratic comparator R²");
   });
 
   it("renders settled-point progress in the PV pane", () => {
@@ -183,6 +210,35 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain("PVA analysis 5/9 points");
+  });
+
+  it("renders a formal analysis failure instead of leaving an empty pane", () => {
+    const html = renderToStaticMarkup(
+      React.createElement(PressureVolumeLoopCanvasV3, {
+        analysisMode: "formal-periodic",
+        traces: [
+          {
+            scenarioId: "scenario/current",
+            scenarioLabel: "Current",
+            samples: Object.freeze([]),
+            volumeOutputId: "LV.volume",
+            pressureOutputId: "LV.pressure",
+            pressureBasis: "transmural" as const,
+            cyclePhaseOutputId: "clock.phase",
+            chamberId: "LV",
+            chamberLabel: "LV",
+            chamberColor: "#d9822b",
+            periodicPvaAnalysisError:
+              "formal pressure-volume load 0.96 rejected: qualification failed",
+            rapidPressureVolumeRelationPending: false,
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain('data-testid="workbench-pva-analysis-error"');
+    expect(html).toContain("PVA analysis unavailable");
+    expect(html).toContain("formal pressure-volume load 0.96 rejected");
   });
 
   it("rejects non-finite and overflowing literature projections", () => {

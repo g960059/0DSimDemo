@@ -61,7 +61,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
  * operating point. Each direction runs in its own persistent analysis Worker.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 =
-  Object.freeze([0.96, 0.9, 0.82, 0.74] as const);
+  Object.freeze([0.96, 0.9, 0.82, 0.75] as const);
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3 =
   Object.freeze([1.06, 1.12, 1.18, 1.24] as const);
 
@@ -172,6 +172,7 @@ function pressureVolumeSamplePairV3(
 type AcceptedBranchV3 = Readonly<{
   status: "accepted";
   branch: MainWireIntegratedModelSessionV3;
+  observation: MainWireIntegratedModelObservationV3;
   pair: StarlingPairV3;
 }>;
 
@@ -255,7 +256,7 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
         : "responsive Starling center did not establish local period-1 closure",
     );
   }
-  anchorObservation = center.branch.observe();
+  anchorObservation = center.observation;
   append(center.pair);
   if (!center.pair.left.curveEligible || !center.pair.right.curveEligible) {
     return result(true);
@@ -335,7 +336,7 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
         : "formal pressure-volume center did not establish periodic closure",
     );
   }
-  anchorObservation = center.branch.observe();
+  anchorObservation = center.observation;
   append(center.pair);
 
   if (
@@ -382,8 +383,16 @@ async function runFormalPressureVolumeChainV3(
       hemodynamicResearchInputs,
       "continuation",
     );
-    if (measured.status === "rejected" || !formalPairQualifiedV3(measured.pair))
-      break;
+    if (measured.status === "rejected") {
+      throw new Error(
+        `formal pressure-volume load ${scale} rejected: ${measured.reason}`,
+      );
+    }
+    if (!formalPairQualifiedV3(measured.pair)) {
+      throw new Error(
+        `formal pressure-volume load ${scale} did not retain a qualified periodic pair`,
+      );
+    }
     append(measured.pair);
     reliableBranch = measured.branch;
   }
@@ -632,7 +641,17 @@ async function measureFormalPressureVolumeBranchV3(
       );
     }
 
-    let branch =
+    const qualifiedBranch =
+      await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+        qualification.terminalCheckpoint,
+        targetInputs,
+        1,
+        sourceSession.observe().mechanismResearchInputs,
+      );
+    // Keep the exact qualified boundary as the persistent hot-start seed.
+    // Post-qualification PV-loop collection advances a separate clone so its
+    // presentation-grid window quadrature cannot leak into the next load.
+    let measurementBranch =
       await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
         qualification.terminalCheckpoint,
         targetInputs,
@@ -650,8 +669,9 @@ async function measureFormalPressureVolumeBranchV3(
       beats.length < FORMAL_POST_QUALIFICATION_COMPLETE_BEAT_COUNT_V3;
       ordinal += 1
     ) {
-      const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
-      const advance = branch.advanceToPresentationTime(
+      const acceptedTimeSec =
+        measurementBranch.currentAcceptedState().acceptedTimeSec;
+      const advance = measurementBranch.advanceToPresentationTime(
         acceptedTimeSec + PROTOCOL_SAMPLE_DT_SEC_V3,
       );
       if (advance.status !== "advanced") {
@@ -713,11 +733,13 @@ async function measureFormalPressureVolumeBranchV3(
       evidence: "qualified-periodic" as const,
       measurementWindowStatus: "canonical-period1-qualified" as const,
       acceptedMeasurementDurationSec:
-        branch.currentAcceptedState().acceptedTimeSec - originTimeSec,
+        measurementBranch.currentAcceptedState().acceptedTimeSec -
+        originTimeSec,
     });
     return Object.freeze({
       status: "accepted" as const,
-      branch,
+      branch: qualifiedBranch,
+      observation: measurementBranch.observe(),
       pair: Object.freeze({
         right: Object.freeze({
           ...common,
@@ -884,6 +906,7 @@ function measureBranchV3(
   return Object.freeze({
     status: "accepted" as const,
     branch,
+    observation: branch.observe(),
     pair: Object.freeze({
       right: Object.freeze({
         ...common,

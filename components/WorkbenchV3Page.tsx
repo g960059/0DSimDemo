@@ -4256,6 +4256,11 @@ function SampledGraphPaneBodyV3({
                 ? {}
                 : { rapidPressureVolumeRelation }),
               ...(periodicPva === undefined ? {} : { periodicPva }),
+              ...(analysisErrorByKey[analysisKey] === undefined
+                ? {}
+                : {
+                    periodicPvaAnalysisError: analysisErrorByKey[analysisKey],
+                  }),
               rapidPressureVolumeRelationHistory,
               rapidPressureVolumeRelationPending:
                 pendingAnalysisSet.has(analysisKey),

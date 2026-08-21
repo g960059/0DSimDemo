@@ -57,6 +57,7 @@ export type WorkbenchPressureVolumeTraceV3 =
     rapidPressureVolumeRelation?:
       MainWireIntegratedModelRapidPressureVolumeRelationV3;
     periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+    periodicPvaAnalysisError?: string;
     rapidPressureVolumeRelationHistory?: readonly MainWireIntegratedModelRapidPressureVolumeRelationV3[];
     rapidPressureVolumeRelationPending?: boolean;
   }>;
@@ -813,6 +814,12 @@ export function PressureVolumeLoopCanvasV3(
     .map(({ periodicPva }) => periodicPva)
     .find((periodicPva) =>
       periodicPva !== null && periodicPva.status === "collecting")?.progress;
+  const pvaAnalysisError = formalAnalysisSelected
+    ? visibleRenderedTraces
+        .map(({ trace }) => trace.periodicPvaAnalysisError)
+        .find((message): message is string =>
+          typeof message === "string" && message.length > 0)
+    : undefined;
 
   return (
     <div
@@ -894,6 +901,14 @@ export function PressureVolumeLoopCanvasV3(
                 <span>SW {periodicPva.strokeWork.joule.toFixed(3)} J</span>
                 <span>PE {periodicPva.potentialEnergy.joule.toFixed(3)} J</span>
                 <span>PVA {periodicPva.pva.joule.toFixed(3)} J</span>
+                <span>linear ESPVR R² {periodicPva.espvr.rSquared.toFixed(3)}</span>
+                {periodicPva.espvr.nonlinearComparator !== null && (
+                  <span>
+                    quadratic comparator R²{" "}
+                    {periodicPva.espvr.nonlinearComparator.rSquared.toFixed(3)}
+                  </span>
+                )}
+                <span>exponential EDPVR R² {periodicPva.edpvr.rSquared.toFixed(3)}</span>
                 {periodicPva.estimatedMvo2?.status === "available" && (
                   <span>
                     estimated MVO₂ @{periodicPva.estimatedMvo2.heartRateBpm} bpm{" "}
@@ -907,6 +922,15 @@ export function PressureVolumeLoopCanvasV3(
               Settled hot-start load chain · linear ESPVR · exponential EDPVR ·
               MVO₂ is a Suga literature estimate
             </span>
+          </div>
+        )}
+        {pvaAnalysisError !== undefined && (
+          <div
+            className="absolute bottom-2 left-2 right-2 rounded-lg border border-red-400/40 bg-wb-app/95 px-2.5 py-2 text-[10px] leading-4 text-red-500 shadow-sm backdrop-blur"
+            data-testid="workbench-pva-analysis-error"
+            role="alert"
+          >
+            PVA analysis unavailable: {pvaAnalysisError}
           </div>
         )}
       </div>
@@ -960,6 +984,7 @@ function sameWorkbenchPressureVolumeTraceV3(
     && left.rapidPressureVolumeRelation
       === right.rapidPressureVolumeRelation
     && left.periodicPva === right.periodicPva
+    && left.periodicPvaAnalysisError === right.periodicPvaAnalysisError
     && shallowIdentityArrayEqualV3(
       left.rapidPressureVolumeRelationHistory ?? [],
       right.rapidPressureVolumeRelationHistory ?? [],
