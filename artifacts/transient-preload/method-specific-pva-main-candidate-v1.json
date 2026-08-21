@@ -1,0 +1,169 @@
+{
+  "candidateId": "main-wire-integrated-model-method-specific-pva-main-candidate-v1",
+  "status": "qualification-required",
+  "targetSurface": "completed-protocol-analysis",
+  "methodSelection": {
+    "status": "selected-for-main-qualification",
+    "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+    "loadProtocol": "transient-venous-return-reduction-occlusion-ramp",
+    "systolicRelation": "maximum-positive-occlusion-phase-wise-isochronal",
+    "diastolicReference": "fixed-contralateral-intrinsic-passive-center-slice-v1",
+    "pressureBasis": "ventricular-transmural",
+    "externalWork": "periodic-1ms-trapezoidal-cavity-work",
+    "areaRule": "periodic-external-work-plus-systolic-minus-passive-area",
+    "potentialEnergyBoundary": "explicit-systolic-v0-extrapolation",
+    "releaseDirectionUse": "retained-sensitivity-diagnostic"
+  },
+  "outputs": [
+    {
+      "outputId": "protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.LV",
+      "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+      "ventricleId": "LV",
+      "unit": "J",
+      "researchEstimateJ": 1.581500908199982,
+      "mainOutputValueJ": null,
+      "evidenceStatus": "extrapolation-dependent",
+      "sourceIdentity": {
+        "transientPeriodicCompatibilityEstablished": true,
+        "passiveReferenceSourceIdentityEstablished": false
+      },
+      "systolicRelation": {
+        "phase01": 0.125,
+        "elastanceMmHgPerMl": 1.7997034535053218,
+        "volumeAxisInterceptMl": 15.193248153119717,
+        "measuredVolumeRangeMl": [
+          48.5300477639526,
+          64.82378564087709
+        ],
+        "rSquared": 0.999644563151442,
+        "rootMeanSquaredResidualMmHg": 0.18507017898395536,
+        "leaveOneOutSlopeRangeMmHgPerMl": [
+          1.7799403508111793,
+          1.8029908131715187
+        ],
+        "leaveOneOutVolumeAxisInterceptRangeMl": [
+          14.665848412817345,
+          15.26394053030703
+        ],
+        "releaseSlopeDifferenceFraction": 0.3165487054843358
+      },
+      "passiveReference": {
+        "referenceId": "fixed-contralateral-intrinsic-passive-center-slice-v1",
+        "fixedContralateralVentricleId": "RV",
+        "fixedContralateralVolumeMl": 150.21875,
+        "supportedVolumeRangeMl": [
+          53.199999999999996,
+          144.4
+        ]
+      },
+      "energy": {
+        "externalWorkJ": 1.2864541324474803,
+        "potentialEnergyEquivalentJ": 0.2950467757525017,
+        "pvaEstimateJ": 1.581500908199982,
+        "mechanicalConversionRatio": 0.8134387566755714
+      },
+      "uncertainty": {
+        "systolicAreaOutsideMeasuredRangeFraction": 0.4518868571139322,
+        "externalWorkCoarseFineDifferenceJ": 0.004339933917046013,
+        "baselineExclusionSensitivityJ": null,
+        "selectedPhaseStateDispersionAvailable": false
+      },
+      "blockers": [
+        "passive-reference-source-identity-not-established",
+        "baseline-exclusion-sensitivity-not-characterized",
+        "selected-phase-state-dispersion-not-characterized",
+        "phase-resolution-sensitivity-not-characterized"
+      ],
+      "limitations": [
+        "domain-supported-potential-energy-not-established",
+        "systolic-relation-extrapolation-required",
+        "fixed-contralateral-passive-reference",
+        "protocol-direction-sensitivity-retained"
+      ]
+    },
+    {
+      "outputId": "protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.RV",
+      "methodId": "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1",
+      "ventricleId": "RV",
+      "unit": "J",
+      "researchEstimateJ": 0.5884018254881368,
+      "mainOutputValueJ": null,
+      "evidenceStatus": "extrapolation-dependent",
+      "sourceIdentity": {
+        "transientPeriodicCompatibilityEstablished": true,
+        "passiveReferenceSourceIdentityEstablished": false
+      },
+      "systolicRelation": {
+        "phase01": 0.109375,
+        "elastanceMmHgPerMl": 0.4651694927806835,
+        "volumeAxisInterceptMl": 13.39842031010182,
+        "measuredVolumeRangeMl": [
+          39.10619348547927,
+          86.14275881988328
+        ],
+        "rSquared": 0.9827499096307943,
+        "rootMeanSquaredResidualMmHg": 1.0253401365720534,
+        "leaveOneOutSlopeRangeMmHgPerMl": [
+          0.44955466463681615,
+          0.4741424944098046
+        ],
+        "leaveOneOutVolumeAxisInterceptRangeMl": [
+          12.171076864772722,
+          18.62945828198478
+        ],
+        "releaseSlopeDifferenceFraction": -0.013987115331836634
+      },
+      "passiveReference": {
+        "referenceId": "fixed-contralateral-intrinsic-passive-center-slice-v1",
+        "fixedContralateralVentricleId": "LV",
+        "fixedContralateralVolumeMl": 138.70000000000002,
+        "supportedVolumeRangeMl": [
+          66.5,
+          155.79999999999998
+        ]
+      },
+      "energy": {
+        "externalWorkJ": 0.42431207785891467,
+        "potentialEnergyEquivalentJ": 0.16408974762922215,
+        "pvaEstimateJ": 0.5884018254881368,
+        "mechanicalConversionRatio": 0.721126379081007
+      },
+      "uncertainty": {
+        "systolicAreaOutsideMeasuredRangeFraction": 0.12489082104389465,
+        "externalWorkCoarseFineDifferenceJ": 0.0022527979052508473,
+        "baselineExclusionSensitivityJ": null,
+        "selectedPhaseStateDispersionAvailable": false
+      },
+      "blockers": [
+        "passive-reference-source-identity-not-established",
+        "baseline-exclusion-sensitivity-not-characterized",
+        "selected-phase-state-dispersion-not-characterized",
+        "phase-resolution-sensitivity-not-characterized"
+      ],
+      "limitations": [
+        "domain-supported-potential-energy-not-established",
+        "systolic-relation-extrapolation-required",
+        "fixed-contralateral-passive-reference"
+      ]
+    }
+  ],
+  "promotion": {
+    "mainIntegrationReady": false,
+    "blockers": [
+      "passive-reference-source-identity-not-established",
+      "baseline-exclusion-sensitivity-not-characterized",
+      "selected-phase-state-dispersion-not-characterized",
+      "phase-resolution-sensitivity-not-characterized"
+    ],
+    "nextRequiredStudy": "phase-wise-pva-qualification-v2"
+  },
+  "interpretation": {
+    "genericPvaEstablished": false,
+    "clinicalPvaEstablished": false,
+    "oxygenConsumptionEstablished": false,
+    "liveSingleBeatOutput": false,
+    "methodSpecificProtocolOutputSelected": true,
+    "productValuePublished": false,
+    "domainSupportedVariantEstablished": false
+  }
+}

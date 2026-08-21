@@ -83,8 +83,70 @@
       "ventricular-transmural": "Ventricular transmural"
     },
     "rows": "Method rows",
-    "boundaryTitle": "Not ready for a product PVA readout",
-    "boundaryDescription": "None of the 168 rows establishes a domain-supported PVA. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "boundaryTitle": "An unqualified generic PVA is not established",
+    "boundaryDescription": "{{supported}} of {{attempted}} method rows establishes a domain-supported PVA under either passive reference. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "mainCandidate": {
+      "eyebrow": "MAIN INTEGRATION PATH",
+      "title": "Method-specific PVA path to main",
+      "description": "The method is selected. PVA will enter main as an on-demand analysis after a preload protocol, not as a live single-beat signal. The current numbers are extrapolation-dependent research estimates; no product value is published yet.",
+      "status": {
+        "qualification-required": "Qualification required",
+        "ready-for-on-demand-main": "Ready for on-demand main",
+        "unavailable": "No estimate"
+      },
+      "methodSelected": "Selected method:",
+      "evidence": {
+        "domain-supported": "Domain-supported",
+        "extrapolation-dependent": "Extrapolation-dependent",
+        "unavailable": "Unavailable"
+      },
+      "notReady": "Research estimate; no product value published",
+      "readyValue": "Available as an on-demand main result",
+      "extrapolatedArea": "Extrapolated systolic area",
+      "directionSensitivity": "Release slope difference",
+      "remainingTitle": "Required before on-demand main integration",
+      "noBlockers": "The method-specific on-demand output requirements are met.",
+      "blocker": {
+        "transient-periodic-source-compatibility-not-established": "Bind the transient family and periodic EW to the same baseline",
+        "passive-reference-source-identity-not-established": "Generate the passive reference in the same analysis transaction",
+        "baseline-exclusion-sensitivity-not-characterized": "Measure sensitivity when the baseline beat is excluded from the fit",
+        "selected-phase-state-dispersion-not-characterized": "Measure Ca, Land, strain, and septal state dispersion at the selected phase",
+        "phase-resolution-sensitivity-not-characterized": "Measure phase-resolution sensitivity near Emax",
+        "candidate-value-unavailable": "Obtain a finite candidate value"
+      },
+      "limitationsTitle": "Limitations that remain visible after publication",
+      "limitation": {
+        "domain-supported-potential-energy-not-established": "This is a method-specific V0-extrapolated value, not domain-supported PE",
+        "systolic-relation-extrapolation-required": "The potential-energy equivalent includes systolic-relation extrapolation",
+        "fixed-contralateral-passive-reference": "The passive reference is an intrinsic center slice at fixed contralateral ventricular volume",
+        "protocol-direction-sensitivity-retained": "Occlusion and release relations differ, retaining load-history sensitivity"
+      },
+      "targetSurface": "The target is an on-demand completed-protocol analysis. Generic PVA and the live output registry remain separate promotion decisions."
+    },
+    "emax": {
+      "eyebrow": "BASELINE SYNTHESIS",
+      "title": "Phase-wise Emax candidate and periodic PVA",
+      "description": "The transient family identifies one maximum-elastance phase; periodic ledger work supplies EW. PE and total area remain explicitly extrapolation-dependent.",
+      "status": {
+        "domain-supported-baseline-pva": "Domain-supported",
+        "extrapolation-dependent-baseline-pva": "Extrapolation-dependent",
+        "unavailable": "Unavailable"
+      },
+      "phase": "Selected phase {{phase}} · sample {{index}} / 64",
+      "baselinePva": "Baseline research PVA",
+      "phaseScan": "Elastance across retained phase",
+      "elastance": "Elastance",
+      "releaseDifference": "Release difference",
+      "components": "EW + PE components",
+      "externalWork": "Periodic EW",
+      "potentialEnergy": "Potential energy",
+      "extrapolation": "Line area outside fit",
+      "observedStrip": "Observed-domain strip",
+      "loo": "Leave-one-beat-out phase",
+      "releasePeak": "Release peak sample",
+      "noSupportedIntersection": "No supported systolic–passive intersection",
+      "supportedIntersection": "Supported systolic–passive intersection retained"
+    },
     "referencesTitle": "Passive reference comparison",
     "referencesDescription": "Choose one reference to classify the same 168 transient method rows.",
     "selectReference": "Select a card to update the rows",
@@ -101,20 +163,22 @@
       "domain-supported-pva": "Domain-supported PVA",
       "transient-pva-like-area": "Transient PVA-like area",
       "out-of-domain": "Out of domain",
+      "relation-inadmissible": "Relation inadmissible",
       "method-unavailable": "Method unavailable"
     },
     "classificationShort": {
       "domain-supported-pva": "Supported",
       "transient-pva-like-area": "PVA-like",
       "out-of-domain": "Out of domain",
+      "relation-inadmissible": "Inadmissible",
       "method-unavailable": "Unavailable"
     },
     "areaStrips": "Observed-domain area strips",
     "intersections": "Supported intersections",
     "diagnosticsTitle": "Shared geometry signals",
     "metrics": {
-      "closedBeats": "Exactly closed beats",
-      "closedBeatsDetail": "Every retained transient beat needs a synthetic endpoint closure.",
+      "closedBeats": "Bitwise-closed PV endpoints",
+      "closedBeatsDetail": "This raw endpoint diagnostic is not a numerical periodic-orbit qualification; every retained transient beat needs a synthetic endpoint closure.",
       "closureMedian": "Median closure / open path",
       "closureMedianDetail": "{{count}} of 42 beats exceed a 5% synthetic-closure fraction.",
       "extrapolationMedian": "Median systolic extrapolation",
@@ -154,9 +218,18 @@
       "areaStrip": "Observed-domain strip"
     },
     "notAvailable": "Not available",
+    "reason": {
+      "dynamic-fit-grid-boundary": "The dynamic reference fit touches a declared search-grid boundary.",
+      "no-supported-intersection": "No systolic–passive intersection exists in the common supported domain.",
+      "transient-path-needs-synthetic-closure": "The retained transient path needs a synthetic straight endpoint closure.",
+      "endpoint-below-supported-domain": "The systolic endpoint lies below the supported passive domain.",
+      "systolic-line-outside-landmark-range": "The systolic line area extends outside its landmark volume range.",
+      "systolic-relation-nonpositive-slope": "The retained relation exists, but its nonpositive slope is inadmissible as an energetic upper boundary.",
+      "systolic-relation-unavailable": "The systolic relation is unavailable."
+    },
     "why": "Why this row is limited",
     "showMore": "Show {{count}} more",
-    "footer": "Internal research view backed only by the checked-in V2 result. It does not run the model, select a production PVA method, or expose a public output."
+    "footer": "Internal view backed by checked-in results and the path to main. It does not run the model or add a generic PVA output."
   },
   "home": {
     "headline": "Learn circulation by moving it.",

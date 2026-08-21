@@ -5,22 +5,34 @@ import {
   ChevronDown,
   CircleAlert,
   Filter,
+  TrendingUp,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v2.json";
+import correctedArtifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v3.json";
+import mainCandidateArtifactJson from "@/artifacts/transient-preload/method-specific-pva-main-candidate-v1.json";
+import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
 import { devDashboardHref } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
 import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
 
 import {
   filterPvaResearchRowsV1,
+  bindPvaGeometryV3ToResearchDatasetV1,
   PVA_RESEARCH_CLASSIFICATIONS_V1,
   PVA_RESEARCH_METHOD_IDS_V1,
+  projectPvaMainCandidateDisplayV1,
+  projectPvaPhaseWiseEmaxDisplayV1,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
+  type PvaGeometryDomainArtifactInputV3,
+  type PvaMainCandidateArtifactInputV1,
+  type PvaMainCandidateDisplayV1,
+  type PvaPhaseWiseEmaxArtifactInputV1,
+  type PvaPhaseWiseEmaxDisplayV1,
   type PvaResearchClassificationV1,
   type PvaResearchDatasetV1,
   type PvaResearchDisplayRowV1,
@@ -40,8 +52,19 @@ const INITIAL_FILTERS_V1: PvaResearchFiltersV1 = Object.freeze({
 
 const PAGE_SIZE_V1 = 24;
 
-export const PVA_RESEARCH_DATASET_V1 = projectPvaResearchDatasetV1(
-  artifactJson as unknown as PvaGeometryDomainArtifactInputV2,
+export const PVA_RESEARCH_DATASET_V1 = bindPvaGeometryV3ToResearchDatasetV1(
+  correctedArtifactJson as unknown as PvaGeometryDomainArtifactInputV3,
+  projectPvaResearchDatasetV1(
+    artifactJson as unknown as PvaGeometryDomainArtifactInputV2,
+  ),
+);
+
+export const PVA_PHASE_WISE_EMAX_DATASET_V1 = projectPvaPhaseWiseEmaxDisplayV1(
+  phaseWiseArtifactJson as unknown as PvaPhaseWiseEmaxArtifactInputV1,
+);
+
+export const PVA_MAIN_CANDIDATE_DATASET_V1 = projectPvaMainCandidateDisplayV1(
+  mainCandidateArtifactJson as unknown as PvaMainCandidateArtifactInputV1,
 );
 
 export function PvaResearchDiagnosticViewV1() {
@@ -135,10 +158,20 @@ export function PvaResearchDiagnosticViewV1() {
               {t("pvaResearch.boundaryTitle")}
             </h2>
             <p className="mt-1 max-w-4xl text-xs leading-6 text-wb-muted">
-              {t("pvaResearch.boundaryDescription")}
+              {t("pvaResearch.boundaryDescription", {
+                attempted: PVA_RESEARCH_DATASET_V1.attemptedRowCount,
+                supported: PVA_RESEARCH_DATASET_V1.domainSupportedRowCount,
+              })}
             </p>
           </div>
         </section>
+
+        <MainIntegrationCandidateSectionV1
+          candidate={PVA_MAIN_CANDIDATE_DATASET_V1}
+          locale={locale}
+        />
+
+        <PhaseWiseBaselinePvaSectionV1 locale={locale} />
 
         <section className="mt-7" aria-labelledby="pva-reference-heading">
           <div className="flex items-end justify-between gap-4">
@@ -340,6 +373,422 @@ export function PvaResearchDiagnosticViewV1() {
           </p>
         </footer>
       </main>
+    </div>
+  );
+}
+
+function MainIntegrationCandidateSectionV1({
+  candidate,
+  locale,
+}: Readonly<{
+  candidate: PvaMainCandidateDisplayV1;
+  locale: Locale;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <section
+      className="mt-7 overflow-hidden rounded-2xl bg-wb-panel shadow-sm ring-1 ring-wb-line/70"
+      data-testid="pva-main-integration-candidate-v1"
+      aria-labelledby="pva-main-candidate-title"
+    >
+      <header className="flex flex-col gap-3 border-b border-wb-line/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div>
+          <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-wb-accent">
+            <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("pvaResearch.mainCandidate.eyebrow")}
+          </p>
+          <h2
+            id="pva-main-candidate-title"
+            className="mt-1 text-base font-semibold"
+          >
+            {t("pvaResearch.mainCandidate.title")}
+          </h2>
+        </div>
+        <span className="w-fit rounded-full bg-wb-warning-soft px-2.5 py-1 text-[10px] font-semibold text-wb-warning">
+          {t(`pvaResearch.mainCandidate.status.${candidate.status}`)}
+        </span>
+      </header>
+      <div className="grid gap-5 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+        <div>
+          <p className="text-xs leading-6 text-wb-muted">
+            {t("pvaResearch.mainCandidate.description")}
+          </p>
+          <p className="mt-3 rounded-lg bg-wb-app/55 px-3 py-2 text-[11px] leading-5 text-wb-subtle ring-1 ring-wb-line/60">
+            {t("pvaResearch.mainCandidate.methodSelected")}
+            <span className="ml-1 font-medium text-wb-text">
+              {candidate.methodLabel}
+            </span>
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {candidate.rows.map((row) => (
+              <div
+                key={row.ventricleId}
+                className="rounded-xl bg-wb-app/45 px-3 py-3 ring-1 ring-wb-line/60"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold">
+                    {row.ventricleId}
+                  </span>
+                  <span className="text-[10px] text-wb-subtle">
+                    {t(
+                      `pvaResearch.mainCandidate.evidence.${row.evidenceStatus}`,
+                    )}
+                  </span>
+                </div>
+                <p className="mt-2 text-xl font-semibold tracking-[-0.03em] tabular-nums">
+                  {row.researchEstimateJ === null
+                    ? t("pvaResearch.notAvailable")
+                    : formatEnergyV1(row.researchEstimateJ, locale)}
+                </p>
+                <p className="mt-1 text-[10px] text-wb-subtle">
+                  {row.mainOutputValueJ === null
+                    ? t("pvaResearch.mainCandidate.notReady")
+                    : t("pvaResearch.mainCandidate.readyValue")}
+                </p>
+                <dl className="mt-2 grid grid-cols-2 gap-2 border-t border-wb-line/60 pt-2 text-[10px] text-wb-subtle">
+                  <div>
+                    <dt>{t("pvaResearch.mainCandidate.extrapolatedArea")}</dt>
+                    <dd className="mt-0.5 font-medium text-wb-text tabular-nums">
+                      {formatPercentV1(row.extrapolationFraction, locale)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      {t("pvaResearch.mainCandidate.directionSensitivity")}
+                    </dt>
+                    <dd className="mt-0.5 font-medium text-wb-text tabular-nums">
+                      {formatSignedPercentV1(
+                        row.directionSensitivityFraction,
+                        locale,
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-wb-warning/25 bg-wb-warning-soft/35 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-wb-warning">
+            {t("pvaResearch.mainCandidate.remainingTitle")}
+          </p>
+          <ul className="mt-2 space-y-2 text-xs leading-5 text-wb-muted">
+            {candidate.blockers.length === 0 ? (
+              <li className="flex gap-2 text-wb-text">
+                <span aria-hidden="true">✓</span>
+                <span>{t("pvaResearch.mainCandidate.noBlockers")}</span>
+              </li>
+            ) : null}
+            {candidate.blockers.map((blocker) => (
+              <li key={blocker} className="flex gap-2">
+                <span aria-hidden="true">•</span>
+                <span>{t(`pvaResearch.mainCandidate.blocker.${blocker}`)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 border-t border-wb-warning/20 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-wb-subtle">
+            {t("pvaResearch.mainCandidate.limitationsTitle")}
+          </p>
+          <ul className="mt-2 space-y-2 text-xs leading-5 text-wb-muted">
+            {candidate.limitations.map((limitation) => (
+              <li key={limitation} className="flex gap-2">
+                <span aria-hidden="true">•</span>
+                <span>
+                  {t(`pvaResearch.mainCandidate.limitation.${limitation}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 border-t border-wb-warning/20 pt-3 text-[10px] leading-5 text-wb-subtle">
+            {t("pvaResearch.mainCandidate.targetSurface")}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PhaseWiseBaselinePvaSectionV1({
+  locale,
+}: Readonly<{ locale: Locale }>) {
+  const { t } = useTranslation();
+  return (
+    <section className="mt-7" aria-labelledby="pva-emax-heading">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-wb-accent/10 text-wb-accent">
+          <TrendingUp className="h-4 w-4" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wb-accent">
+            {t("pvaResearch.emax.eyebrow")}
+          </p>
+          <h2 id="pva-emax-heading" className="mt-1 text-lg font-semibold">
+            {t("pvaResearch.emax.title")}
+          </h2>
+          <p className="mt-1 max-w-4xl text-xs leading-5 text-wb-subtle">
+            {t("pvaResearch.emax.description")}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">
+        {PVA_PHASE_WISE_EMAX_DATASET_V1.rows.map((row) => (
+          <PhaseWiseBaselinePvaCardV1
+            key={row.ventricleId}
+            locale={locale}
+            row={row}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PhaseWiseBaselinePvaCardV1({
+  locale,
+  row,
+}: Readonly<{
+  locale: Locale;
+  row: PvaPhaseWiseEmaxDisplayV1["rows"][number];
+}>) {
+  const { t } = useTranslation();
+  const total = row.pressureVolumeAreaJ;
+  const componentTotal =
+    row.periodicExternalWorkJ + (row.potentialEnergyJ ?? 0);
+  const externalShare =
+    componentTotal > 0 ? row.periodicExternalWorkJ / componentTotal : 0;
+  const potentialShare = 1 - externalShare;
+  return (
+    <article
+      className="overflow-hidden rounded-2xl bg-wb-panel shadow-sm ring-1 ring-wb-line/70"
+      data-testid={`pva-emax-card-${row.ventricleId}`}
+    >
+      <header className="flex items-start justify-between gap-4 border-b border-wb-line/70 px-4 py-4 sm:px-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold">{row.ventricleId}</span>
+            <span className="rounded-full bg-wb-warning-soft px-2 py-1 text-[10px] font-semibold text-wb-warning">
+              {t(`pvaResearch.emax.status.${row.status}`)}
+            </span>
+          </div>
+          <p className="mt-2 text-[11px] text-wb-subtle">
+            {t("pvaResearch.emax.phase", {
+              phase: formatNumberV1(row.selectedPhase01, locale, 4),
+              index: row.selectedPhaseIndex,
+            })}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-wb-subtle">
+            {t("pvaResearch.emax.baselinePva")}
+          </p>
+          <p className="mt-1 text-2xl font-semibold tracking-[-0.035em] tabular-nums">
+            {total === null
+              ? t("pvaResearch.notAvailable")
+              : formatEnergyV1(total, locale)}
+          </p>
+        </div>
+      </header>
+
+      <div className="grid gap-5 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.8fr)]">
+        <div>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-[11px] font-semibold text-wb-muted">
+              {t("pvaResearch.emax.phaseScan")}
+            </p>
+            <div className="flex items-center gap-3 text-[10px] text-wb-subtle">
+              <span className="flex items-center gap-1">
+                <span className="h-0.5 w-3 bg-wb-accent" />
+                {t("pvaResearch.direction.occlusion")}
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="h-0.5 w-3 bg-wb-warning" />
+                {t("pvaResearch.direction.release")}
+              </span>
+            </div>
+          </div>
+          <PhaseSlopeChartV1 row={row} />
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+            <CompactMetricV1
+              label={t("pvaResearch.emax.elastance")}
+              value={`${formatNumberV1(row.elastanceMmHgPerMl, locale, 4)} mmHg/mL`}
+            />
+            <CompactMetricV1
+              label="V0"
+              value={`${formatNumberV1(row.volumeAxisInterceptMl, locale, 3)} mL`}
+            />
+            <CompactMetricV1
+              label="R²"
+              value={
+                row.rSquared === null
+                  ? t("pvaResearch.notAvailable")
+                  : formatNumberV1(row.rSquared, locale, 5)
+              }
+            />
+            <CompactMetricV1
+              label={t("pvaResearch.emax.releaseDifference")}
+              value={formatPercentV1(
+                row.releaseSlopeDifferenceFraction,
+                locale,
+              )}
+            />
+          </dl>
+        </div>
+
+        <div className="rounded-xl bg-wb-app/55 p-3 ring-1 ring-wb-line/60">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-wb-subtle">
+            {t("pvaResearch.emax.components")}
+          </p>
+          <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-wb-hover">
+            <span
+              className="bg-wb-accent"
+              style={{ width: `${100 * externalShare}%` }}
+            />
+            <span
+              className="bg-wb-warning"
+              style={{ width: `${100 * potentialShare}%` }}
+            />
+          </div>
+          <dl className="mt-3 grid gap-2 text-xs">
+            <ValuePairV1
+              label={t("pvaResearch.emax.externalWork")}
+              value={formatEnergyV1(row.periodicExternalWorkJ, locale)}
+            />
+            <ValuePairV1
+              label={t("pvaResearch.emax.potentialEnergy")}
+              value={
+                row.potentialEnergyJ === null
+                  ? t("pvaResearch.notAvailable")
+                  : formatEnergyV1(row.potentialEnergyJ, locale)
+              }
+            />
+            <ValuePairV1
+              label={t("pvaResearch.emax.extrapolation")}
+              value={formatPercentV1(row.extrapolationFraction, locale)}
+            />
+            <ValuePairV1
+              label={t("pvaResearch.emax.observedStrip")}
+              value={
+                row.observedDomainAreaStripJ === null
+                  ? t("pvaResearch.notAvailable")
+                  : formatEnergyV1(row.observedDomainAreaStripJ, locale)
+              }
+            />
+          </dl>
+        </div>
+      </div>
+
+      <footer className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-wb-line/70 px-4 py-3 text-[10px] text-wb-subtle sm:px-5">
+        <span>
+          {t("pvaResearch.emax.loo")}: {row.leaveOneOutStable ? "✓" : "—"} [
+          {row.leaveOneOutPhaseRange.join("–")}]
+        </span>
+        <span>
+          {t("pvaResearch.emax.releasePeak")}: {row.releasePeakPhaseIndex}
+        </span>
+        <span>
+          {row.supportedIntersectionEstablished
+            ? t("pvaResearch.emax.supportedIntersection")
+            : t("pvaResearch.emax.noSupportedIntersection")}
+        </span>
+      </footer>
+    </article>
+  );
+}
+
+function PhaseSlopeChartV1({
+  row,
+}: Readonly<{ row: PvaPhaseWiseEmaxDisplayV1["rows"][number] }>) {
+  const width = 420;
+  const height = 112;
+  const padding = 8;
+  const values = [...row.occlusionSlopeByPhase, ...row.releaseSlopeByPhase];
+  const minimum = Math.min(0, ...values);
+  const maximum = Math.max(...values);
+  const span = maximum - minimum || 1;
+  const x = (index: number) => padding + (index / 63) * (width - 2 * padding);
+  const y = (value: number) =>
+    height - padding - ((value - minimum) / span) * (height - 2 * padding);
+  const path = (series: readonly number[]) =>
+    series
+      .map(
+        (value, index) =>
+          `${index === 0 ? "M" : "L"}${x(index).toFixed(2)},${y(value).toFixed(2)}`,
+      )
+      .join(" ");
+  const selectedX = x(row.selectedPhaseIndex);
+  return (
+    <svg
+      className="mt-2 h-28 w-full overflow-visible"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label={`${row.ventricleId} phase-wise elastance`}
+    >
+      <line
+        x1={padding}
+        x2={width - padding}
+        y1={y(0)}
+        y2={y(0)}
+        className="stroke-wb-line"
+        strokeWidth="1"
+      />
+      <line
+        x1={selectedX}
+        x2={selectedX}
+        y1={padding}
+        y2={height - padding}
+        className="stroke-wb-accent/35"
+        strokeDasharray="3 3"
+        strokeWidth="1"
+      />
+      <path
+        d={path(row.occlusionSlopeByPhase)}
+        fill="none"
+        className="stroke-wb-accent"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.25"
+      />
+      <path
+        d={path(row.releaseSlopeByPhase)}
+        fill="none"
+        className="stroke-wb-warning"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.75"
+      />
+      <circle
+        cx={selectedX}
+        cy={y(row.elastanceMmHgPerMl)}
+        r="3.5"
+        className="fill-wb-panel stroke-wb-accent"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+}
+
+function CompactMetricV1({
+  label,
+  value,
+}: Readonly<{ label: string; value: string }>) {
+  return (
+    <div>
+      <dt className="text-[9px] font-semibold uppercase tracking-[0.08em] text-wb-subtle">
+        {label}
+      </dt>
+      <dd className="mt-1 text-[11px] font-semibold tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function ValuePairV1({
+  label,
+  value,
+}: Readonly<{ label: string; value: string }>) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-wb-subtle">{label}</dt>
+      <dd className="font-semibold tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -552,7 +1001,11 @@ function ResearchRowV1({
             />
             <RowMetricV1
               label={t("pvaResearch.rowMetrics.syntheticClosure")}
-              value={formatPercentV1(row.syntheticClosureFraction, locale)}
+              value={
+                row.syntheticClosureFraction === null
+                  ? t("pvaResearch.notAvailable")
+                  : formatPercentV1(row.syntheticClosureFraction, locale)
+              }
             />
             <RowMetricV1
               label={t("pvaResearch.rowMetrics.extrapolation")}
@@ -585,8 +1038,8 @@ function ResearchRowV1({
               {t("pvaResearch.why")}
             </summary>
             <ul className="mt-2 grid gap-1 border-l-2 border-wb-line pl-3 text-[11px] leading-5 text-wb-subtle">
-              {row.reference.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
+              {row.reference.reasons.map((reasonId) => (
+                <li key={reasonId}>{t(`pvaResearch.reason.${reasonId}`)}</li>
               ))}
             </ul>
           </details>
@@ -645,6 +1098,8 @@ function classificationDotClassV1(
       return "bg-wb-accent";
     case "out-of-domain":
       return "bg-wb-warning";
+    case "relation-inadmissible":
+      return "bg-wb-danger";
     case "method-unavailable":
       return "bg-wb-subtle";
   }
@@ -660,6 +1115,8 @@ function classificationBadgeClassV1(
       return "bg-wb-accent/10 text-wb-accent";
     case "out-of-domain":
       return "bg-wb-warning-soft text-wb-warning";
+    case "relation-inadmissible":
+      return "bg-wb-danger/10 text-wb-danger";
     case "method-unavailable":
       return "bg-wb-hover text-wb-subtle";
   }
@@ -681,6 +1138,23 @@ function formatPercentV1(value: number, locale: Locale): string {
     style: "percent",
     maximumSignificantDigits: 4,
   }).format(value);
+}
+
+function formatSignedPercentV1(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    signDisplay: "always",
+  }).format(value);
+}
+
+function formatNumberV1(
+  value: number,
+  locale: Locale,
+  maximumFractionDigits: number,
+): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
 }
 
 export default PvaResearchDiagnosticViewV1;

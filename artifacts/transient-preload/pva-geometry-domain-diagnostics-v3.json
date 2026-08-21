@@ -1,0 +1,4084 @@
+{
+  "studyId": "main-wire-integrated-model-pva-geometry-domain-diagnostics-v3",
+  "status": "completed",
+  "scope": "research-promotion-diagnostics-with-corrected-semantics",
+  "source": {
+    "methodSpecificPvaStudyId": "main-wire-integrated-model-method-specific-pva-research-v1",
+    "diastolicReferenceComparisonStudyId": "main-wire-integrated-model-pva-diastolic-reference-comparison-v1",
+    "geometryV2StudyId": "main-wire-integrated-model-pva-geometry-domain-diagnostics-v2",
+    "semanticRowBindingEstablished": true
+  },
+  "closureDiagnostics": [
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 6.104349819614962e-7
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.000009670405137909783
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.0010357392948801998
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.05275536813020805
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.004844756122053838
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.11366397632302953
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.0190753182330258
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.14269946985199927
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.03216530530618033
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.16986484760814402
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.04686387965254491
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.19717069783743588
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.06298365190613871
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.22060680230907953
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.08196885214846669
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.24347383447938192
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.10036383100809726
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.24731569133887327
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.12150054986881595
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.20374373319243771
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.1407667161145382
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.10104553024750805
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.1377776301106316
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.0036445547383238803
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.10892335808480495
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.13828623919303745
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.04085246998259105
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.21026501164943012
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.029019018824340888
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.2698791115427374
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.07184171495291239
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.2571303236620684
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.09692158233939828
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.24076510532284573
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.10249805471307301
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.2153772752177691
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.1020143923679431
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.18089935613946406
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.09088186491919743
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.07930748624276666
+    },
+    {
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.07486813720140637
+    },
+    {
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "exactEndpointClosure": false,
+      "numericallyPeriodicClosureQualified": false,
+      "transientOpenPath": true,
+      "syntheticClosureAbsoluteFractionOfAcceptedOpenPath": 0.005966665503618825
+    }
+  ],
+  "rows": [
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 1,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 2,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 3,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 4,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 5,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 6,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 7,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 8,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 9,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 10,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 11,
+      "directionId": "occlusion",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 12,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 13,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 14,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 15,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 16,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 17,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 18,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 19,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 20,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "LV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "out-of-domain",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "systolic endpoint is below-supported-domain",
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "baseline-anchored-isochronal",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    },
+    {
+      "status": "method-unavailable",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "semilunar-closure",
+      "reason": "systolic relation is unavailable",
+      "dynamicReferenceClassification": "method-unavailable",
+      "intrinsicReferenceClassification": "method-unavailable"
+    },
+    {
+      "status": "relation-inadmissible",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "minimum-volume",
+      "reason": "systolic relation does not have positive slope",
+      "dynamicReferenceClassification": "relation-inadmissible",
+      "intrinsicReferenceClassification": "relation-inadmissible"
+    },
+    {
+      "status": "diagnosed",
+      "ventricleId": "RV",
+      "beatOrdinal": 21,
+      "directionId": "release",
+      "systolicMethodId": "sampled-common-support-envelope",
+      "dynamicMaximumVolume": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range",
+          "dynamic reference fit touches a declared search-grid boundary"
+        ]
+      },
+      "intrinsicPassiveCenterSlice": {
+        "classification": "transient-pva-like-area",
+        "firstSupportedIntersectionVolumeMl": null,
+        "singleSupportedIntersectionConfirmed": null,
+        "reasons": [
+          "no systolic-passive intersection exists in the common supported domain",
+          "retained transient path requires a synthetic straight closure segment",
+          "systolic line area extends outside its landmark volume range"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "attemptedRowCount": 168,
+    "semanticRowBindingEstablished": true,
+    "exactEndpointClosureCount": 0,
+    "numericallyPeriodicClosureQualifiedCount": 0,
+    "transientOpenPathCount": 42,
+    "relationInadmissibleRowCount": 21,
+    "methodUnavailableRowCount": 42,
+    "byReference": [
+      {
+        "referenceId": "dynamic-maximum-volume",
+        "domainSupportedPvaRowCount": 0,
+        "transientPvaLikeAreaRowCount": 21,
+        "outOfDomainRowCount": 84,
+        "relationInadmissibleRowCount": 21,
+        "methodUnavailableRowCount": 42
+      },
+      {
+        "referenceId": "intrinsic-passive-center-slice",
+        "domainSupportedPvaRowCount": 0,
+        "transientPvaLikeAreaRowCount": 61,
+        "outOfDomainRowCount": 44,
+        "relationInadmissibleRowCount": 21,
+        "methodUnavailableRowCount": 42
+      }
+    ]
+  },
+  "interpretation": {
+    "exactEndpointClosureIsPeriodicQualification": false,
+    "transientRowsNumericallyPeriodic": false,
+    "nonpositiveSlopeIsMethodUnavailable": false,
+    "everySupportedIntersectionIsSingleCrossingChecked": true,
+    "genericPvaEstablished": false,
+    "mainIntegrationReady": false
+  }
+}
