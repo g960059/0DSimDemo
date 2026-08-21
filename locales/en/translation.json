@@ -15,8 +15,7 @@
   "nav": {
     "home": "Home",
     "workbench": "Simulations",
-    "articles": "Articles",
-    "pvaEstimate": "PVA / MVO₂ reference"
+    "articles": "Articles"
   },
   "siteHeader": {
     "home": "CircleHeart home",
@@ -88,68 +87,6 @@
     "startFirstSimulation": "Start your first simulation",
     "simulationMeta": "{{count}} scenarios · Updated {{date}}",
     "articleFallback": "An article about circulatory physiology"
-  },
-  "pvaEstimate": {
-    "back": "Back to home",
-    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "Normal-adult PVA / MVO₂ reference",
-    "description": "A precomputed, method-specific PVA reference and an LV MVO₂ teaching reference mapped with literature coefficients for the canonical normal-adult condition. Neither is derived from the current simulation scenario.",
-    "referenceTitle": "Canonical normal-adult reference",
-    "referenceDescription": "Displays external work previously obtained from accepted periodic PV paths and a PE equivalent defined by phase-wise venous occlusion. Production does not rerun that protocol or integrate a live PV path.",
-    "show": "Show PVA / MVO₂ reference",
-    "showAgain": "Show reference again",
-    "idle": "The compact reference remains hidden until you request it.",
-    "resultsTitle": "Canonical normal-adult reference",
-    "method": "Method: {{methodId}}",
-    "ventricle": "{{ventricle}} PVA estimate",
-    "status": {
-      "limited": "Limited estimate",
-      "unavailable": "Unavailable"
-    },
-    "metrics": {
-      "externalWork": "Periodic external work (EW)",
-      "peEquivalent": "PE equivalent",
-      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
-      "emax": "Emax candidate",
-      "v0": "V0"
-    },
-    "geometryChartLabel": "{{ventricle}} ESPVR candidate and PE-equivalent geometry",
-    "chart": {
-      "geometryNotice": "ESPVR candidate and PE-equivalent geometry; this is not a PV-loop PVA rendering.",
-      "measured": "Measured volume range",
-      "extrapolated": "Extrapolated segment",
-      "outside": "Extrapolated systolic area {{value}}"
-    },
-    "limitations": "Limitations",
-    "limitation": {
-      "systolic-relation-extrapolation": "{{value}}% of the systolic area lies outside the measured volume range.",
-      "protocol-direction-sensitivity": "Occlusion and release slopes differ by about {{value}}%.",
-      "phase-resolution-sensitivity": "The estimate changes by {{value}}% at finer phase resolution.",
-      "fixed-contralateral-passive-reference": "The intrinsic passive reference fixes the contralateral ventricular volume."
-    },
-    "mvo2": {
-      "eyebrow": "LV OXYGEN-DEMAND MAPPING",
-      "title": "LV MVO₂ literature reference",
-      "description": "The retained LV PVA is mapped through the classic linear PVA–MVO₂ relation using a fixed normal-adult LV mass and heart rate.",
-      "limitedLiteratureMapping": "Limited literature mapping",
-      "totalPerBeatPer100G": "Estimated total LV MVO₂",
-      "pvaDependent": "PVA-dependent component",
-      "unloaded": "Unloaded component",
-      "perBeatPer100G": "per beat per 100 g",
-      "perMinute": "Reference minute rate",
-      "perMinutePer100G": "per minute per 100 g at {{heartRate}} bpm",
-      "lvMass": "LV mass convention",
-      "lvMassDetail": "LV free wall + septum",
-      "inheritedPvaLimitations": "This mapping inherits the source LV PVA limitations: about {{extrapolation}}% systolic-area extrapolation and about {{slopeDifference}}% occlusion–release slope difference.",
-      "coefficients": "Literature coefficients: slope {{slope}} mL O₂/(mmHg·mL) and unloaded intercept {{intercept}} mL O₂/beat/100 g.",
-      "boundary": "These canine coefficients provide an educational reference mapping. They are not a model-specific calibration, and the contractility-dependent intercept has not been recalibrated for this model or a patient.",
-      "coefficientSource": "Coefficient source (PMID 3790043)",
-      "humanContextSource": "Human heart-disease cohort context (PMID 1478216)"
-    },
-    "boundaryTitle": "What this value means",
-    "boundaryDescription": "This is a versioned, precomputed method-specific PVA reference with a separate LV MVO₂ teaching projection mapped from literature coefficients. Production does not rerun the archived protocol. Neither value is current-scenario, measured, patient-specific, whole-heart, clinical, or a model-validated oxygen-consumption prediction.",
-    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
-    "researchArchive": "View the immutable PR #558–#573 research source on GitHub"
   },
   "publicExperiments": {
     "title": "Public simulations",
@@ -309,7 +246,6 @@
     },
     "editor": {
       "experimentTitle": "Untitled simulation",
-      "pvaMvo2Reference": "PVA / MVO₂ reference",
       "save": "Save",
       "saved": "Saved",
       "saving": "Saving…",
@@ -451,8 +387,8 @@
       "series": "Graph series",
       "historyDepth": "Previous states",
       "historyDepthHint": "0–3 completed parameter states",
-      "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR analysis",
-      "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+      "formalPressureVolumeAnalysis": "Settled PVA / MVO₂ analysis",
+      "formalPressureVolumeAnalysisHint": "Runs the persistent hot-start load chain, then calculates SW, ESPVR, exponential EDPVR, PE, PVA, and an LV literature MVO₂ estimate.",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",
@@ -745,7 +681,7 @@
       "A 0D lumped-parameter model cannot resolve spatial blood flow, local wall stress, or three-dimensional hemodynamics.",
       "The current exact V3 package is an experimental development default. It does not claim release readiness, simulation readiness, or clinical validation.",
       "Parameters and outputs are approximations and require validation for each intended scientific use.",
-      "PV panes default to a responsive fixed-TBV multi-load PV-loop support-envelope preview, which is not qualified evidence. Their optional formal mode admits only full-state period-1 qualified loads, but remains a numerical analysis rather than independent physiological or clinical validation, PVA, or oxygen-consumption evidence.",
+      "PV panes default to a responsive fixed-TBV multi-load preview. Their optional formal mode admits only full-state period-1 qualified loads and computes a method-specific SW/ESPVR/exponential-EDPVR/PE/PVA decomposition plus an LV literature-coefficient MVO₂ estimate; neither is independent physiological or clinical validation or measured oxygen consumption.",
       "The Guyton / Starling response starts from a locally period-1-settled operating anchor with slow coronary tone frozen. Off-centre adaptive points are preview data; nonconverged or period-2 boundary points are excluded from the connected curve, and the result is not canonical qualified evidence."
     ]
   }

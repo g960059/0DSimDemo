@@ -45,9 +45,6 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await page.getByTestId("create-workbench-v3").click();
   await expect(page).toHaveURL(/\/ja\/experiments\/new$/);
   await expect(page.getByTestId("v3-dockview-workbench")).toBeVisible();
-  await expect(
-    page.getByTestId("workbench-pva-mvo2-reference-link"),
-  ).toHaveAttribute("href", "/ja/analysis/pva");
   await expect(page.getByTestId("workbench-unavailable-model-v3")).toHaveCount(
     0,
   );

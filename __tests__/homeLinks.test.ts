@@ -18,7 +18,6 @@ import {
   myExperimentsHref,
   newArticleEditorHref,
   newExperimentHref,
-  pvaEstimateHref,
 } from '../homeLinks';
 import {
   allocateOpaqueExperimentIdV3,
@@ -41,7 +40,6 @@ describe('homeLinks', () => {
     expect(authoringCliDocsHref()).toBe('/ja/docs/authoring-cli');
     expect(devDashboardHref()).toBe('/ja/dev');
     expect(modelLabHref()).toBe('/ja/dev/model-lab');
-    expect(pvaEstimateHref()).toBe('/ja/analysis/pva');
   });
 
   it('always prefixes localized hrefs', () => {
@@ -54,7 +52,6 @@ describe('homeLinks', () => {
     expect(myArticlesHref('en')).toBe('/en/me/articles');
     expect(devDashboardHref('en')).toBe('/en/dev');
     expect(modelLabHref('en')).toBe('/en/dev/model-lab');
-    expect(pvaEstimateHref('en')).toBe('/en/analysis/pva');
   });
 
   it('builds a URL-safe Experiment detail route without deriving identity from a model', () => {

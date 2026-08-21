@@ -206,9 +206,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     generalSection: "General",
     historyDepth: "Previous states",
     historyDepthHint: "0–3 completed parameter states",
-    formalPressureVolumeAnalysis: "Formal ESPVR / EDPVR analysis",
+    formalPressureVolumeAnalysis: "Settled PVA / MVO₂ analysis",
     formalPressureVolumeAnalysisHint:
-      "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+      "Runs the persistent hot-start load chain, then calculates SW, ESPVR, exponential EDPVR, PE, PVA, and an LV literature MVO₂ estimate.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",

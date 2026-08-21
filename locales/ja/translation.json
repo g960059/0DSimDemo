@@ -15,8 +15,7 @@
   "nav": {
     "home": "ホーム",
     "workbench": "シミュレーション",
-    "articles": "記事",
-    "pvaEstimate": "PVA / MVO₂リファレンス"
+    "articles": "記事"
   },
   "siteHeader": {
     "home": "CircleHeart ホーム",
@@ -88,68 +87,6 @@
     "startFirstSimulation": "最初のシミュレーションを始める",
     "simulationMeta": "{{count}}シナリオ · {{date}}更新",
     "articleFallback": "循環動態を学ぶ記事"
-  },
-  "pvaEstimate": {
-    "back": "ホームへ戻る",
-    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "正常成人PVA / MVO₂リファレンス",
-    "description": "正常成人の標準条件について事前計算したmethod-specific PVAと、文献係数による左室MVO₂教育リファレンスです。どちらも現在のsimulation scenarioから導出する値ではありません。",
-    "referenceTitle": "正常成人の標準リファレンス",
-    "referenceDescription": "accepted periodic PV pathから研究laneで得た外的仕事と、phase-wise venous occlusionで定めたPE equivalentを表示します。productionではprotocolの再実行やlive PV pathの積分を行いません。",
-    "show": "PVA / MVO₂リファレンスを表示",
-    "showAgain": "リファレンスをもう一度表示",
-    "idle": "ボタンを押すまでcompact referenceは表示されません。",
-    "resultsTitle": "正常成人リファレンス",
-    "method": "Method: {{methodId}}",
-    "ventricle": "{{ventricle}} PVA estimate",
-    "status": {
-      "limited": "限定推定",
-      "unavailable": "利用不可"
-    },
-    "metrics": {
-      "externalWork": "周期外的仕事 (EW)",
-      "peEquivalent": "PE equivalent",
-      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
-      "emax": "Emax候補",
-      "v0": "V0"
-    },
-    "geometryChartLabel": "{{ventricle}}のESPVR候補とPE-equivalent geometry",
-    "chart": {
-      "geometryNotice": "ESPVR候補とPE-equivalentの幾何です。PV loop上のPVA表示ではありません。",
-      "measured": "測定volume範囲",
-      "extrapolated": "外挿区間",
-      "outside": "収縮末期面積の外挿 {{value}}"
-    },
-    "limitations": "制限事項",
-    "limitation": {
-      "systolic-relation-extrapolation": "収縮末期面積の{{value}}%が測定volume範囲外です。",
-      "protocol-direction-sensitivity": "occlusionとreleaseで傾きが約{{value}}%異なります。",
-      "phase-resolution-sensitivity": "phase解像度を上げると推定値が{{value}}%変化します。",
-      "fixed-contralateral-passive-reference": "反対側心室volumeを固定したintrinsic passive referenceです。"
-    },
-    "mvo2": {
-      "eyebrow": "LV OXYGEN-DEMAND MAPPING",
-      "title": "左室MVO₂文献リファレンス",
-      "description": "保存された左室PVAを、固定した正常成人の左室心筋重量と心拍数のもとで、古典的な線形PVA–MVO₂関係に対応付けます。",
-      "limitedLiteratureMapping": "限定的な文献係数換算",
-      "totalPerBeatPer100G": "左室総MVO₂推定値",
-      "pvaDependent": "PVA依存成分",
-      "unloaded": "unloaded成分",
-      "perBeatPer100G": "1心拍・100 gあたり",
-      "perMinute": "参照時の分時値",
-      "perMinutePer100G": "{{heartRate}} bpmで1分・100 gあたり",
-      "lvMass": "左室心筋重量の定義",
-      "lvMassDetail": "LV free wall + septum",
-      "inheritedPvaLimitations": "元となる左室PVA推定の制限を継承します。収縮末期面積の約{{extrapolation}}%が外挿で、occlusionとreleaseの傾きが約{{slopeDifference}}%異なります。",
-      "coefficients": "文献係数: slope {{slope}} mL O₂/(mmHg·mL)、unloaded intercept {{intercept}} mL O₂/beat/100 g。",
-      "boundary": "犬左室由来の係数を教育用の換算に使用します。model固有の較正ではなく、収縮性に依存するinterceptも、このmodelや患者に対して再調整していません。",
-      "coefficientSource": "係数の出典 (PMID 3790043)",
-      "humanContextSource": "ヒト心疾患患者での線形性 (PMID 1478216)"
-    },
-    "boundaryTitle": "この値が意味する範囲",
-    "boundaryDescription": "これは事前計算済みのversioned method-specific PVAと、別ownerの文献係数による左室MVO₂教育リファレンスです。productionでは保存されたprotocolを再実行しません。現在のscenario、実測値、患者固有値、whole-heart値、臨床判断、またはmodelで検証済みの酸素消費予測値ではありません。",
-    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
-    "researchArchive": "固定された研究source（PR #558–#573）をGitHubで見る"
   },
   "publicExperiments": {
     "title": "公開シミュレーション",
@@ -309,7 +246,6 @@
     },
     "editor": {
       "experimentTitle": "名称未設定のシミュレーション",
-      "pvaMvo2Reference": "PVA / MVO₂リファレンス",
       "save": "保存",
       "saved": "保存済み",
       "saving": "保存中…",
@@ -451,8 +387,8 @@
       "series": "グラフ系列",
       "historyDepth": "変更前の状態",
       "historyDepthHint": "完了したパラメータ状態を0〜3件表示",
-      "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR解析",
-      "formalPressureVolumeAnalysisHint": "各fixed-TBV loadで完全stateのP1周期収束を確認してからfitします。計算時間は長くなります。",
+      "formalPressureVolumeAnalysis": "Settled PVA / MVO₂解析",
+      "formalPressureVolumeAnalysisHint": "persistent hot-start load chainを実行し、SW、ESPVR、指数型EDPVR、PE、PVA、LVの文献式MVO₂推定値を計算します。",
       "windowSec": "表示時間幅",
       "windowSecHint": "1〜6秒、0.5秒刻み",
       "items": "Items",
@@ -745,7 +681,7 @@
       "0D集中定数モデルでは、空間的な血流、局所壁応力、3D血行動態を解像できません。",
       "現在のexact V3 packageは開発用experimental defaultです。releaseReady、simulationReady、臨床validationを主張しません。",
       "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。",
-      "PV paneの既定は未qualifiedなresponsive fixed-TBV multi-load PV-loop support-envelope previewです。任意のformal modeは完全stateのP1周期収束を通過したloadだけを採用しますが、独立した生理学的・臨床的validation、PVA、酸素消費量のevidenceではありません。",
+      "PV paneの既定はresponsive fixed-TBV multi-load previewです。任意のformal modeは完全stateのP1周期収束を通過したloadだけを採用し、method-specificなSW／ESPVR／指数型EDPVR／PE／PVAと、文献係数によるLV MVO₂推定値を計算しますが、独立した生理学的・臨床的validationや実測酸素消費量ではありません。",
       "Guyton / Starling応答は、遅い冠血流toneを固定した局所period-1 settledの作動点から開始します。作動点以外は適応的preview dataであり、非収束またはperiod-2境界点は接続曲線から除外されます。canonical qualified evidenceではありません。"
     ]
   }

@@ -103,7 +103,6 @@ import {
   loginHref,
   myExperimentsHref,
   newExperimentHref,
-  pvaEstimateHref,
 } from "@/homeLinks";
 import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
 import { isLocale } from "@/localeRouting";
@@ -198,6 +197,10 @@ import {
   buildMainWireIntegratedModelRapidPressureVolumeRelationV3,
   type MainWireIntegratedModelRapidPressureVolumeRelationV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
+import {
+  buildMainWireIntegratedModelPeriodicPvaV1,
+  type MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
@@ -2854,20 +2857,6 @@ const WorkbenchV3Session = ({
         </div>
         <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">
-          {!modelLab && (
-            <Link
-              to={pvaEstimateHref(resolvedLocale)}
-              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5"
-              aria-label={t("workbench.editor.pvaMvo2Reference")}
-              title={t("workbench.editor.pvaMvo2Reference")}
-              data-testid="workbench-pva-mvo2-reference-link"
-            >
-              <Activity className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="hidden lg:inline">
-                {t("workbench.editor.pvaMvo2Reference")}
-              </span>
-            </Link>
-          )}
           {modelLab && (
             <span
               className="hidden rounded-full bg-wb-accent/10 px-2 py-1 text-[11px] font-semibold text-wb-accent sm:inline"
@@ -4210,6 +4199,13 @@ function SampledGraphPaneBodyV3({
                   analysisByKey[analysisKey],
                   relationSide,
                 );
+          const periodicPva =
+            relationSide === null
+              ? undefined
+              : periodicPvaFromAnalysisV3(
+                  analysisByKey[analysisKey],
+                  relationSide,
+                );
           const rapidPressureVolumeRelationHistory =
             relationSide === null
               ? Object.freeze([])
@@ -4259,6 +4255,7 @@ function SampledGraphPaneBodyV3({
               ...(rapidPressureVolumeRelation === undefined
                 ? {}
                 : { rapidPressureVolumeRelation }),
+              ...(periodicPva === undefined ? {} : { periodicPva }),
               rapidPressureVolumeRelationHistory,
               rapidPressureVolumeRelationPending:
                 pendingAnalysisSet.has(analysisKey),
@@ -4410,6 +4407,39 @@ function rapidPressureVolumeRelationFromAnalysisV3(
   analysisCache.set(side, relation);
   RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.set(analysis, analysisCache);
   return relation ?? undefined;
+}
+
+const PERIODIC_PVA_CACHE_V3 = new WeakMap<
+  StudioSimulationAnalysisV2,
+  Map<"left" | "right", MainWireIntegratedModelPeriodicPvaV1 | null>
+>();
+
+function periodicPvaFromAnalysisV3(
+  analysis: StudioSimulationAnalysisV2 | undefined,
+  side: "left" | "right",
+): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  if (analysis === undefined) return undefined;
+  const cached = PERIODIC_PVA_CACHE_V3.get(analysis)?.get(side);
+  if (cached !== undefined) return cached ?? undefined;
+  const orientation = structuralReturnOrientationFromPayloadV3(
+    analysis.payload,
+    side,
+  );
+  let pva: MainWireIntegratedModelPeriodicPvaV1 | null = null;
+  try {
+    if (orientation !== null) {
+      pva = buildMainWireIntegratedModelPeriodicPvaV1(
+        orientation.starlingLocus,
+        side === "left" ? "LV" : "RV",
+      );
+    }
+  } catch {
+    pva = null;
+  }
+  const analysisCache = PERIODIC_PVA_CACHE_V3.get(analysis) ?? new Map();
+  analysisCache.set(side, pva);
+  PERIODIC_PVA_CACHE_V3.set(analysis, analysisCache);
+  return pva ?? undefined;
 }
 
 type StructuralReturnScenarioTraceV3 = Readonly<{
