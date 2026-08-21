@@ -204,6 +204,68 @@ export type PvaResearchDatasetV1 = Readonly<{
   genericPvaEstablished: false;
 }>;
 
+export type PvaGeometryDomainArtifactInputV3 = Readonly<{
+  studyId: string;
+  status: "completed";
+  source: Readonly<{ semanticRowBindingEstablished: true }>;
+  summary: Readonly<{
+    attemptedRowCount: number;
+    exactEndpointClosureCount: number;
+    numericallyPeriodicClosureQualifiedCount: number;
+    transientOpenPathCount: number;
+    relationInadmissibleRowCount: number;
+    methodUnavailableRowCount: number;
+    byReference: readonly Readonly<{
+      referenceId: PvaResearchReferenceIdV1;
+      domainSupportedPvaRowCount: number;
+      transientPvaLikeAreaRowCount: number;
+      outOfDomainRowCount: number;
+      relationInadmissibleRowCount: number;
+      methodUnavailableRowCount: number;
+    }>[];
+  }>;
+}>;
+
+export function bindPvaGeometryV3ToResearchDatasetV1(
+  artifact: PvaGeometryDomainArtifactInputV3,
+  dataset: PvaResearchDatasetV1,
+): PvaResearchDatasetV1 {
+  if (
+    artifact.studyId !==
+      "main-wire-integrated-model-pva-geometry-domain-diagnostics-v3" ||
+    artifact.status !== "completed" ||
+    !artifact.source.semanticRowBindingEstablished ||
+    artifact.summary.attemptedRowCount !== dataset.attemptedRowCount ||
+    artifact.summary.exactEndpointClosureCount !==
+      dataset.exactlyClosedBeatWorkCount ||
+    artifact.summary.relationInadmissibleRowCount +
+      artifact.summary.methodUnavailableRowCount !==
+      dataset.sourceUnavailableRowCount
+  ) {
+    throw new Error("PVA V3 result does not bind the displayed dataset");
+  }
+  for (const summary of dataset.referenceSummaries) {
+    const corrected = artifact.summary.byReference.find(
+      (value) => value.referenceId === summary.referenceId,
+    );
+    if (
+      corrected === undefined ||
+      corrected.domainSupportedPvaRowCount !==
+        summary.counts["domain-supported-pva"] ||
+      corrected.transientPvaLikeAreaRowCount !==
+        summary.counts["transient-pva-like-area"] ||
+      corrected.outOfDomainRowCount !== summary.counts["out-of-domain"] ||
+      corrected.relationInadmissibleRowCount !==
+        summary.counts["relation-inadmissible"] ||
+      corrected.methodUnavailableRowCount !==
+        summary.counts["method-unavailable"]
+    ) {
+      throw new Error("PVA V3 classifications do not match displayed rows");
+    }
+  }
+  return Object.freeze({ ...dataset, studyId: artifact.studyId });
+}
+
 export type PvaResearchFiltersV1 = Readonly<{
   referenceId: PvaResearchReferenceIdV1;
   ventricleId: PvaResearchVentricleIdV1 | "all";
@@ -232,6 +294,15 @@ export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
       volumeAxisInterceptMl: number;
       rSquared: number | null;
     }>;
+  }>[];
+  phaseFitFailures: readonly Readonly<{
+    status: "unavailable";
+    ventricleId: PvaResearchVentricleIdV1;
+    directionId: "occlusion" | "release";
+    phaseIndex: number;
+    phase01: number;
+    failureClass: string;
+    message: string;
   }>[];
   candidates: readonly Readonly<{
     ventricleId: PvaResearchVentricleIdV1;
@@ -274,12 +345,14 @@ export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
     domainSupportedBaselinePvaCount: number;
     extrapolationDependentBaselinePvaCount: number;
     unavailableBaselinePvaCount: number;
+    phaseFitFailureCount: number;
   }>;
   interpretation: Readonly<{
     operationalEmaxEstablished: false;
     genericPvaEstablished: false;
     baselineResearchPvaComputed: boolean;
-    crossArtifactSourceIdentityEstablished: false;
+    transientPeriodicSourceCompatibilityEstablished: boolean;
+    allPvaSourceIdentityEstablished: false;
     productionOutputEstablished: false;
   }>;
 }>;
@@ -315,6 +388,123 @@ export type PvaPhaseWiseEmaxDisplayV1 = Readonly<{
   genericPvaEstablished: false;
   productDisplayReady: false;
 }>;
+
+export type PvaMainCandidateArtifactInputV1 = Readonly<{
+  candidateId: string;
+  status: "qualification-required" | "ready-for-on-demand-main" | "unavailable";
+  targetSurface: "completed-protocol-analysis";
+  methodSelection: Readonly<{
+    status: "selected-for-main-qualification";
+    methodId: string;
+    loadProtocol: string;
+    systolicRelation: string;
+    diastolicReference: string;
+    pressureBasis: string;
+    externalWork: string;
+    areaRule: string;
+    releaseDirectionUse: string;
+  }>;
+  outputs: readonly Readonly<{
+    outputId: string;
+    ventricleId: PvaResearchVentricleIdV1;
+    unit: "J";
+    researchEstimateJ: number | null;
+    mainOutputValueJ: number | null;
+    evidenceStatus: string;
+    systolicRelation: Readonly<{
+      releaseSlopeDifferenceFraction: number;
+    }>;
+    uncertainty: Readonly<{
+      systolicAreaOutsideMeasuredRangeFraction: number;
+      externalWorkCoarseFineDifferenceJ: number;
+      baselineExclusionSensitivityJ: null;
+      selectedPhaseStateDispersionAvailable: false;
+    }>;
+    blockers: readonly string[];
+    limitations: readonly string[];
+  }>[];
+  promotion: Readonly<{
+    mainIntegrationReady: boolean;
+    blockers: readonly string[];
+    nextRequiredStudy: string | null;
+  }>;
+  interpretation: Readonly<{
+    genericPvaEstablished: false;
+    liveSingleBeatOutput: false;
+    methodSpecificProtocolOutputSelected: true;
+    productValuePublished: false;
+  }>;
+}>;
+
+export type PvaMainCandidateDisplayV1 = Readonly<{
+  status: "qualification-required" | "ready-for-on-demand-main" | "unavailable";
+  targetSurface: "completed-protocol-analysis";
+  methodSelected: true;
+  methodLabel: string;
+  rows: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    researchEstimateJ: number | null;
+    mainOutputValueJ: number | null;
+    evidenceStatus: string;
+    extrapolationFraction: number;
+    directionSensitivityFraction: number;
+  }>[];
+  blockers: readonly string[];
+  limitations: readonly string[];
+  nextRequiredStudy: string | null;
+}>;
+
+export function projectPvaMainCandidateDisplayV1(
+  artifact: PvaMainCandidateArtifactInputV1,
+): PvaMainCandidateDisplayV1 {
+  if (
+    artifact.candidateId !==
+      "main-wire-integrated-model-method-specific-pva-main-candidate-v1" ||
+    artifact.targetSurface !== "completed-protocol-analysis" ||
+    artifact.methodSelection.status !== "selected-for-main-qualification" ||
+    artifact.outputs.length !== 2 ||
+    artifact.interpretation.genericPvaEstablished ||
+    artifact.interpretation.liveSingleBeatOutput ||
+    artifact.interpretation.productValuePublished ||
+    !artifact.interpretation.methodSpecificProtocolOutputSelected
+  ) {
+    throw new Error("PVA main candidate artifact is inconsistent");
+  }
+  const rows = PVA_RESEARCH_VENTRICLE_IDS_V1.map((ventricleId) => {
+    const output = artifact.outputs.find(
+      (candidate) => candidate.ventricleId === ventricleId,
+    );
+    if (output === undefined) {
+      throw new Error(`PVA main candidate is missing ${ventricleId}`);
+    }
+    return Object.freeze({
+      ventricleId,
+      researchEstimateJ: output.researchEstimateJ,
+      mainOutputValueJ: output.mainOutputValueJ,
+      evidenceStatus: output.evidenceStatus,
+      extrapolationFraction:
+        output.uncertainty.systolicAreaOutsideMeasuredRangeFraction,
+      directionSensitivityFraction:
+        output.systolicRelation.releaseSlopeDifferenceFraction,
+    });
+  });
+  return Object.freeze({
+    status: artifact.status,
+    targetSurface: artifact.targetSurface,
+    methodSelected: true as const,
+    methodLabel: [
+      artifact.methodSelection.loadProtocol,
+      artifact.methodSelection.systolicRelation,
+      artifact.methodSelection.diastolicReference,
+    ].join(" · "),
+    rows: Object.freeze(rows),
+    blockers: Object.freeze([...artifact.promotion.blockers]),
+    limitations: Object.freeze([
+      ...new Set(artifact.outputs.flatMap((output) => output.limitations)),
+    ]),
+    nextRequiredStudy: artifact.promotion.nextRequiredStudy,
+  });
+}
 
 export function projectPvaPhaseWiseEmaxDisplayV1(
   artifact: PvaPhaseWiseEmaxArtifactInputV1,
@@ -738,17 +928,21 @@ function assertPhaseWiseArtifactForViewV1(
     artifact.status !== "completed" ||
     artifact.scope !== "research-only-phase-wise-emax-and-baseline-pva" ||
     artifact.pressureBasis !== "ventricular-transmural" ||
-    artifact.interpretation.crossArtifactSourceIdentityEstablished !== false
+    typeof artifact.interpretation
+      .transientPeriodicSourceCompatibilityEstablished !== "boolean" ||
+    artifact.interpretation.allPvaSourceIdentityEstablished
   ) {
     throw new Error(
       "phase-wise PVA view requires the completed research artifact",
     );
   }
   if (
-    artifact.phaseFits.length !== 256 ||
+    artifact.phaseFits.length + artifact.phaseFitFailures.length !== 256 ||
     artifact.candidates.length !== 2 ||
     artifact.baselinePva.length !== 2 ||
-    artifact.summary.phaseFitCount !== 256 ||
+    artifact.summary.phaseFitCount !== artifact.phaseFits.length ||
+    artifact.summary.phaseFitFailureCount !==
+      artifact.phaseFitFailures.length ||
     artifact.summary.candidateCount !== 2
   ) {
     throw new Error("phase-wise PVA artifact has an incomplete result shape");

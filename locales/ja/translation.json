@@ -83,8 +83,46 @@
       "ventricular-transmural": "心室transmural pressure"
     },
     "rows": "手法別row",
-    "boundaryTitle": "製品表示できるPVAはまだありません",
+    "boundaryTitle": "無修飾のgeneric PVAはまだ確立していません",
     "boundaryDescription": "{{attempted}}件のmethod rowのうち、いずれかのpassive referenceでdomain-supported PVAを確立したものは{{supported}}件です。以下はaccepted open-path work、synthetic closureへの感度、収縮期直線の外挿、観測domain内のarea stripを示す研究診断です。",
+    "mainCandidate": {
+      "eyebrow": "MAIN INTEGRATION PATH",
+      "title": "Method-specific PVAのmain導入経路",
+      "description": "方式は選定済みです。PVAはliveの単一beat信号ではなく、preload protocol完了後に実行するon-demand解析としてmainへ導入します。現在値は外挿依存の研究推定値で、product値はまだ公開していません。",
+      "status": {
+        "qualification-required": "Qualificationが必要",
+        "ready-for-on-demand-main": "On-demand main導入可能",
+        "unavailable": "推定値なし"
+      },
+      "methodSelected": "選定方式:",
+      "evidence": {
+        "domain-supported": "Domain内で支持",
+        "extrapolation-dependent": "外挿依存",
+        "unavailable": "利用不可"
+      },
+      "notReady": "研究推定値・product値は未公開",
+      "readyValue": "on-demand main出力として利用可能",
+      "extrapolatedArea": "収縮期面積の外挿率",
+      "directionSensitivity": "release方向の傾き差",
+      "remainingTitle": "On-demand main導入までの条件",
+      "noBlockers": "Method-specific on-demand出力の条件を満たしています。",
+      "blocker": {
+        "transient-periodic-source-compatibility-not-established": "Transient familyとperiodic EWを同一baselineへ結合する",
+        "passive-reference-source-identity-not-established": "Passive referenceを同一analysis transactionから生成する",
+        "baseline-exclusion-sensitivity-not-characterized": "Baseline beatをfitから除外した感度を評価する",
+        "selected-phase-state-dispersion-not-characterized": "選択phaseのCa・Land・strain・SEP状態分散を評価する",
+        "phase-resolution-sensitivity-not-characterized": "Emax近傍のphase解像度感度を評価する",
+        "candidate-value-unavailable": "有限な候補値を得る"
+      },
+      "limitationsTitle": "公開時に必ず表示する制約",
+      "limitation": {
+        "domain-supported-potential-energy-not-established": "Domain-supported PEではなく、V0外挿を用いるmethod-specific値です",
+        "systolic-relation-extrapolation-required": "Potential-energy equivalentに収縮期relationの外挿を含みます",
+        "fixed-contralateral-passive-reference": "Passive referenceは反対側心室volumeを固定したintrinsic center sliceです",
+        "protocol-direction-sensitivity-retained": "Occlusionとreleaseでrelationが異なり、load-history依存性を保持します"
+      },
+      "targetSurface": "導入先はcompleted protocol analysisのon-demand機能です。generic PVAやlive output registryへの昇格は別判断とします。"
+    },
     "emax": {
       "eyebrow": "BASELINE SYNTHESIS",
       "title": "Phase-wise Emax候補とperiodic PVA",
@@ -191,7 +229,7 @@
     },
     "why": "このrowを制限する理由",
     "showMore": "さらに{{count}}件表示",
-    "footer": "チェックイン済みV2 resultだけを読む内部研究画面です。モデル実行、production PVA手法の選択、public outputの追加は行いません。"
+    "footer": "チェックイン済みresultとmain導入経路を読む内部画面です。モデル実行やgeneric PVAの追加は行いません。"
   },
   "home": {
     "headline": "循環動態を、動かして学ぶ。",

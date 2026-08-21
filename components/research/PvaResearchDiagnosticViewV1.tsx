@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 import { Link, Navigate, useParams } from "react-router-dom";
 
 import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v2.json";
+import correctedArtifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v3.json";
+import mainCandidateArtifactJson from "@/artifacts/transient-preload/method-specific-pva-main-candidate-v1.json";
 import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
 import { devDashboardHref } from "@/homeLinks";
 import { isLocale, type Locale } from "@/localeRouting";
@@ -18,12 +20,17 @@ import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAc
 
 import {
   filterPvaResearchRowsV1,
+  bindPvaGeometryV3ToResearchDatasetV1,
   PVA_RESEARCH_CLASSIFICATIONS_V1,
   PVA_RESEARCH_METHOD_IDS_V1,
+  projectPvaMainCandidateDisplayV1,
   projectPvaPhaseWiseEmaxDisplayV1,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
+  type PvaGeometryDomainArtifactInputV3,
+  type PvaMainCandidateArtifactInputV1,
+  type PvaMainCandidateDisplayV1,
   type PvaPhaseWiseEmaxArtifactInputV1,
   type PvaPhaseWiseEmaxDisplayV1,
   type PvaResearchClassificationV1,
@@ -45,12 +52,19 @@ const INITIAL_FILTERS_V1: PvaResearchFiltersV1 = Object.freeze({
 
 const PAGE_SIZE_V1 = 24;
 
-export const PVA_RESEARCH_DATASET_V1 = projectPvaResearchDatasetV1(
-  artifactJson as unknown as PvaGeometryDomainArtifactInputV2,
+export const PVA_RESEARCH_DATASET_V1 = bindPvaGeometryV3ToResearchDatasetV1(
+  correctedArtifactJson as unknown as PvaGeometryDomainArtifactInputV3,
+  projectPvaResearchDatasetV1(
+    artifactJson as unknown as PvaGeometryDomainArtifactInputV2,
+  ),
 );
 
 export const PVA_PHASE_WISE_EMAX_DATASET_V1 = projectPvaPhaseWiseEmaxDisplayV1(
   phaseWiseArtifactJson as unknown as PvaPhaseWiseEmaxArtifactInputV1,
+);
+
+export const PVA_MAIN_CANDIDATE_DATASET_V1 = projectPvaMainCandidateDisplayV1(
+  mainCandidateArtifactJson as unknown as PvaMainCandidateArtifactInputV1,
 );
 
 export function PvaResearchDiagnosticViewV1() {
@@ -151,6 +165,11 @@ export function PvaResearchDiagnosticViewV1() {
             </p>
           </div>
         </section>
+
+        <MainIntegrationCandidateSectionV1
+          candidate={PVA_MAIN_CANDIDATE_DATASET_V1}
+          locale={locale}
+        />
 
         <PhaseWiseBaselinePvaSectionV1 locale={locale} />
 
@@ -355,6 +374,137 @@ export function PvaResearchDiagnosticViewV1() {
         </footer>
       </main>
     </div>
+  );
+}
+
+function MainIntegrationCandidateSectionV1({
+  candidate,
+  locale,
+}: Readonly<{
+  candidate: PvaMainCandidateDisplayV1;
+  locale: Locale;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <section
+      className="mt-7 overflow-hidden rounded-2xl bg-wb-panel shadow-sm ring-1 ring-wb-line/70"
+      data-testid="pva-main-integration-candidate-v1"
+      aria-labelledby="pva-main-candidate-title"
+    >
+      <header className="flex flex-col gap-3 border-b border-wb-line/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div>
+          <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-wb-accent">
+            <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+            {t("pvaResearch.mainCandidate.eyebrow")}
+          </p>
+          <h2
+            id="pva-main-candidate-title"
+            className="mt-1 text-base font-semibold"
+          >
+            {t("pvaResearch.mainCandidate.title")}
+          </h2>
+        </div>
+        <span className="w-fit rounded-full bg-wb-warning-soft px-2.5 py-1 text-[10px] font-semibold text-wb-warning">
+          {t(`pvaResearch.mainCandidate.status.${candidate.status}`)}
+        </span>
+      </header>
+      <div className="grid gap-5 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+        <div>
+          <p className="text-xs leading-6 text-wb-muted">
+            {t("pvaResearch.mainCandidate.description")}
+          </p>
+          <p className="mt-3 rounded-lg bg-wb-app/55 px-3 py-2 text-[11px] leading-5 text-wb-subtle ring-1 ring-wb-line/60">
+            {t("pvaResearch.mainCandidate.methodSelected")}
+            <span className="ml-1 font-medium text-wb-text">
+              {candidate.methodLabel}
+            </span>
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {candidate.rows.map((row) => (
+              <div
+                key={row.ventricleId}
+                className="rounded-xl bg-wb-app/45 px-3 py-3 ring-1 ring-wb-line/60"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold">
+                    {row.ventricleId}
+                  </span>
+                  <span className="text-[10px] text-wb-subtle">
+                    {t(
+                      `pvaResearch.mainCandidate.evidence.${row.evidenceStatus}`,
+                    )}
+                  </span>
+                </div>
+                <p className="mt-2 text-xl font-semibold tracking-[-0.03em] tabular-nums">
+                  {row.researchEstimateJ === null
+                    ? t("pvaResearch.notAvailable")
+                    : formatEnergyV1(row.researchEstimateJ, locale)}
+                </p>
+                <p className="mt-1 text-[10px] text-wb-subtle">
+                  {row.mainOutputValueJ === null
+                    ? t("pvaResearch.mainCandidate.notReady")
+                    : t("pvaResearch.mainCandidate.readyValue")}
+                </p>
+                <dl className="mt-2 grid grid-cols-2 gap-2 border-t border-wb-line/60 pt-2 text-[10px] text-wb-subtle">
+                  <div>
+                    <dt>{t("pvaResearch.mainCandidate.extrapolatedArea")}</dt>
+                    <dd className="mt-0.5 font-medium text-wb-text tabular-nums">
+                      {formatPercentV1(row.extrapolationFraction, locale)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>
+                      {t("pvaResearch.mainCandidate.directionSensitivity")}
+                    </dt>
+                    <dd className="mt-0.5 font-medium text-wb-text tabular-nums">
+                      {formatSignedPercentV1(
+                        row.directionSensitivityFraction,
+                        locale,
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-wb-warning/25 bg-wb-warning-soft/35 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-wb-warning">
+            {t("pvaResearch.mainCandidate.remainingTitle")}
+          </p>
+          <ul className="mt-2 space-y-2 text-xs leading-5 text-wb-muted">
+            {candidate.blockers.length === 0 ? (
+              <li className="flex gap-2 text-wb-text">
+                <span aria-hidden="true">✓</span>
+                <span>{t("pvaResearch.mainCandidate.noBlockers")}</span>
+              </li>
+            ) : null}
+            {candidate.blockers.map((blocker) => (
+              <li key={blocker} className="flex gap-2">
+                <span aria-hidden="true">•</span>
+                <span>{t(`pvaResearch.mainCandidate.blocker.${blocker}`)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 border-t border-wb-warning/20 pt-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-wb-subtle">
+            {t("pvaResearch.mainCandidate.limitationsTitle")}
+          </p>
+          <ul className="mt-2 space-y-2 text-xs leading-5 text-wb-muted">
+            {candidate.limitations.map((limitation) => (
+              <li key={limitation} className="flex gap-2">
+                <span aria-hidden="true">•</span>
+                <span>
+                  {t(`pvaResearch.mainCandidate.limitation.${limitation}`)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 border-t border-wb-warning/20 pt-3 text-[10px] leading-5 text-wb-subtle">
+            {t("pvaResearch.mainCandidate.targetSurface")}
+          </p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -987,6 +1137,15 @@ function formatPercentV1(value: number, locale: Locale): string {
   return new Intl.NumberFormat(locale, {
     style: "percent",
     maximumSignificantDigits: 4,
+  }).format(value);
+}
+
+function formatSignedPercentV1(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale === "ja" ? "ja-JP" : "en-US", {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    signDisplay: "always",
   }).format(value);
 }
 

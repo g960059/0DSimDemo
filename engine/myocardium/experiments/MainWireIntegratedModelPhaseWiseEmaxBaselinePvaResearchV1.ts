@@ -29,6 +29,26 @@ const DIRECTIONS_V1 = Object.freeze(["occlusion", "release"] as const);
 export type MainWireIntegratedModelPhaseWiseEmaxDirectionV1 =
   (typeof DIRECTIONS_V1)[number];
 
+export type MainWireIntegratedModelPhaseWiseEmaxSourceCompatibilityInputV1 =
+  Readonly<{
+    transientSource: Readonly<{
+      modelConditionIdentityHash: string;
+      protocolIdentityHash: string;
+      terminalCheckpointSha256: string;
+      nominalDtSec: number;
+      terminalAcceptedTimeSec: number;
+      terminalAcceptedRevision: number;
+    }>;
+    periodicLedgerSource: Readonly<{
+      modelConditionIdentityHash: string;
+      protocolIdentityHash: string;
+      terminalCheckpointSha256: string;
+      nominalDtSec: number;
+      terminalAcceptedTimeSec: number;
+      terminalAcceptedRevision: number;
+    }>;
+  }>;
+
 export type MainWireIntegratedModelPhaseWiseEmaxFitV1 = Readonly<{
   ventricleId: MainWireIntegratedModelPvaVentricleV1;
   directionId: MainWireIntegratedModelPhaseWiseEmaxDirectionV1;
@@ -39,6 +59,17 @@ export type MainWireIntegratedModelPhaseWiseEmaxFitV1 = Readonly<{
   relation: MainWireIntegratedModelPvaLinearRelationV1;
   rootMeanSquaredResidualMmHg: number;
   measuredVolumeSpanMl: number;
+}>;
+
+export type MainWireIntegratedModelPhaseWiseEmaxFitFailureV1 = Readonly<{
+  status: "unavailable";
+  ventricleId: MainWireIntegratedModelPvaVentricleV1;
+  directionId: MainWireIntegratedModelPhaseWiseEmaxDirectionV1;
+  phaseIndex: number;
+  phase01: number;
+  failureClass:
+    "degenerate-volume-span" | "nonfinite-fit" | "fit-execution-failed";
+  message: string;
 }>;
 
 export type MainWireIntegratedModelPhaseWiseEmaxCandidateV1 = Readonly<{
@@ -131,7 +162,28 @@ export type MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 =
       transientBeatCount: 21;
       phaseSampleCount: 64;
       periodicLedgerDtSec: 0.001;
-      passiveReference: "intrinsic-passive-center-slice";
+      transientPeriodicCompatibility: Readonly<{
+        evaluated: boolean;
+        modelConditionMatched: boolean;
+        protocolMatched: boolean;
+        terminalCheckpointMatched: boolean;
+        terminalAcceptedStateMatched: boolean;
+        established: boolean;
+      }>;
+      passiveReference: Readonly<{
+        referenceId: "fixed-contralateral-intrinsic-passive-center-slice-v1";
+        sourceIdentityEstablished: false;
+        atriaIncluded: false;
+        pericardiumIncluded: false;
+        activeStressIncluded: false;
+        slices: readonly Readonly<{
+          ventricleId: MainWireIntegratedModelPvaVentricleV1;
+          fixedContralateralVentricleId: MainWireIntegratedModelPvaVentricleV1;
+          fixedContralateralVolumeMl: number;
+          supportedVolumeRangeMl: readonly [number, number];
+          zeroPressureVolumeMl: number;
+        }>[];
+      }>;
     }>;
     method: Readonly<{
       phaseScan: "linear-isochronal-fit-at-each-retained-compact-loop-phase";
@@ -141,6 +193,7 @@ export type MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 =
       potentialEnergy: "systolic-line-minus-intrinsic-passive-center-slice";
     }>;
     phaseFits: readonly MainWireIntegratedModelPhaseWiseEmaxFitV1[];
+    phaseFitFailures: readonly MainWireIntegratedModelPhaseWiseEmaxFitFailureV1[];
     candidates: readonly MainWireIntegratedModelPhaseWiseEmaxCandidateV1[];
     baselinePva: readonly MainWireIntegratedModelBaselineResearchPvaV1[];
     summary: Readonly<{
@@ -149,6 +202,7 @@ export type MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 =
       domainSupportedBaselinePvaCount: number;
       extrapolationDependentBaselinePvaCount: number;
       unavailableBaselinePvaCount: number;
+      phaseFitFailureCount: number;
       allLeaveOneOutPeakPhasesStableWithinOneSample: boolean;
       maximumPeakPhaseDifferenceSamples: number;
     }>;
@@ -158,7 +212,8 @@ export type MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 =
       baselineResearchPvaComputed: boolean;
       transientBeatPvaComputed: false;
       syntheticStraightClosureUsedAsExternalWork: false;
-      crossArtifactSourceIdentityEstablished: false;
+      transientPeriodicSourceCompatibilityEstablished: boolean;
+      allPvaSourceIdentityEstablished: false;
       productionOutputEstablished: false;
       oxygenConsumptionEstablished: false;
     }>;
@@ -169,18 +224,36 @@ type CompactLoopFamilyV1 = ReadonlyMap<
   readonly MainWireIntegratedModelTransientPvCompactLoopPointV1[]
 >;
 
+type PhaseFitOutcomeV1 =
+  | Readonly<{
+      status: "available";
+      fit: MainWireIntegratedModelPhaseWiseEmaxFitV1;
+    }>
+  | MainWireIntegratedModelPhaseWiseEmaxFitFailureV1;
+
 export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1(
   rawBeats: readonly MainWireIntegratedModelTransientPvRawBeatV1[],
   ledgerReport: MainWireIntegratedModelPeriodicMechanicalPortLedgerDtReportV1,
   passiveComparison: MainWireIntegratedModelPvaDiastolicReferenceComparisonV1,
+  sourceCompatibilityInput: MainWireIntegratedModelPhaseWiseEmaxSourceCompatibilityInputV1 | null = null,
 ): MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 {
   const beats = ownBeatFamilyV1(rawBeats);
   const loops = compactLoopsV1(beats);
-  const phaseFits = Object.freeze(
+  const phaseOutcomes = Object.freeze(
     VENTRICLES_V1.flatMap((ventricleId) =>
       DIRECTIONS_V1.flatMap((directionId) =>
         phaseScanV1(beats, loops, ventricleId, directionId),
       ),
+    ),
+  );
+  const phaseFits = Object.freeze(
+    phaseOutcomes.flatMap((outcome) =>
+      outcome.status === "available" ? [outcome.fit] : [],
+    ),
+  );
+  const phaseFitFailures = Object.freeze(
+    phaseOutcomes.flatMap((outcome) =>
+      outcome.status === "unavailable" ? [outcome] : [],
     ),
   );
   const candidates = Object.freeze(
@@ -190,6 +263,9 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
   );
   const slices = availableSlicesV1(passiveComparison);
   const periodicExternalWork = periodicExternalWorkV1(ledgerReport);
+  const transientPeriodicCompatibility = transientPeriodicCompatibilityV1(
+    sourceCompatibilityInput,
+  );
   const baselinePva = Object.freeze(
     candidates.map((candidate) =>
       baselinePvaV1(
@@ -210,7 +286,31 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
       transientBeatCount: 21 as const,
       phaseSampleCount: 64 as const,
       periodicLedgerDtSec: 0.001 as const,
-      passiveReference: "intrinsic-passive-center-slice" as const,
+      transientPeriodicCompatibility,
+      passiveReference: Object.freeze({
+        referenceId:
+          "fixed-contralateral-intrinsic-passive-center-slice-v1" as const,
+        sourceIdentityEstablished: false as const,
+        atriaIncluded: false as const,
+        pericardiumIncluded: false as const,
+        activeStressIncluded: false as const,
+        slices: Object.freeze(
+          VENTRICLES_V1.map((ventricleId) => {
+            const slice = slices.get(ventricleId)!;
+            return Object.freeze({
+              ventricleId,
+              fixedContralateralVentricleId:
+                slice.fixedContralateralVentricleId,
+              fixedContralateralVolumeMl: slice.fixedContralateralVolumeMl,
+              supportedVolumeRangeMl: Object.freeze([
+                slice.modelMinimumVolumeMl,
+                slice.maximumSampledVolumeMl,
+              ] as const),
+              zeroPressureVolumeMl: slice.zeroPressureVolumeMl,
+            });
+          }),
+        ),
+      }),
     }),
     method: Object.freeze({
       phaseScan:
@@ -223,6 +323,7 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
         "systolic-line-minus-intrinsic-passive-center-slice" as const,
     }),
     phaseFits,
+    phaseFitFailures,
     candidates,
     baselinePva,
     summary: Object.freeze({
@@ -237,6 +338,7 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
       unavailableBaselinePvaCount: baselinePva.filter(
         ({ status }) => status === "unavailable",
       ).length,
+      phaseFitFailureCount: phaseFitFailures.length,
       allLeaveOneOutPeakPhasesStableWithinOneSample: candidates.every(
         ({ leaveOneBeatOut }) =>
           leaveOneBeatOut.allSelectedPhasesWithinOneSampleOfFullFit,
@@ -256,13 +358,58 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
       ),
       transientBeatPvaComputed: false as const,
       syntheticStraightClosureUsedAsExternalWork: false as const,
-      crossArtifactSourceIdentityEstablished: false as const,
+      transientPeriodicSourceCompatibilityEstablished:
+        transientPeriodicCompatibility.established,
+      allPvaSourceIdentityEstablished: false as const,
       productionOutputEstablished: false as const,
       oxygenConsumptionEstablished: false as const,
     }),
   });
   requireFiniteNumericLeavesV1(result, "phase-wise Emax/baseline PVA result");
   return result;
+}
+
+function transientPeriodicCompatibilityV1(
+  input: MainWireIntegratedModelPhaseWiseEmaxSourceCompatibilityInputV1 | null,
+) {
+  if (input === null) {
+    return Object.freeze({
+      evaluated: false,
+      modelConditionMatched: false,
+      protocolMatched: false,
+      terminalCheckpointMatched: false,
+      terminalAcceptedStateMatched: false,
+      established: false,
+    });
+  }
+  const modelConditionMatched =
+    input.transientSource.modelConditionIdentityHash ===
+    input.periodicLedgerSource.modelConditionIdentityHash;
+  const protocolMatched =
+    input.transientSource.protocolIdentityHash ===
+    input.periodicLedgerSource.protocolIdentityHash;
+  const terminalCheckpointMatched =
+    input.transientSource.terminalCheckpointSha256 ===
+    input.periodicLedgerSource.terminalCheckpointSha256;
+  const terminalAcceptedStateMatched =
+    input.transientSource.nominalDtSec ===
+      input.periodicLedgerSource.nominalDtSec &&
+    input.transientSource.terminalAcceptedTimeSec ===
+      input.periodicLedgerSource.terminalAcceptedTimeSec &&
+    input.transientSource.terminalAcceptedRevision ===
+      input.periodicLedgerSource.terminalAcceptedRevision;
+  return Object.freeze({
+    evaluated: true,
+    modelConditionMatched,
+    protocolMatched,
+    terminalCheckpointMatched,
+    terminalAcceptedStateMatched,
+    established:
+      modelConditionMatched &&
+      protocolMatched &&
+      terminalCheckpointMatched &&
+      terminalAcceptedStateMatched,
+  });
 }
 
 function ownBeatFamilyV1(
@@ -311,17 +458,49 @@ function phaseScanV1(
   loops: CompactLoopFamilyV1,
   ventricleId: MainWireIntegratedModelPvaVentricleV1,
   directionId: MainWireIntegratedModelPhaseWiseEmaxDirectionV1,
-): readonly MainWireIntegratedModelPhaseWiseEmaxFitV1[] {
+): readonly PhaseFitOutcomeV1[] {
   const family = beats.filter((beat) =>
     directionId === "occlusion"
       ? beat.beatOrdinal <= 11
       : beat.beatOrdinal >= 11,
   );
   return Object.freeze(
-    Array.from({ length: PHASE_SAMPLE_COUNT_V1 }, (_, phaseIndex) =>
-      fitAtPhaseV1(family, loops, ventricleId, directionId, phaseIndex),
-    ),
+    Array.from({ length: PHASE_SAMPLE_COUNT_V1 }, (_, phaseIndex) => {
+      try {
+        return Object.freeze({
+          status: "available" as const,
+          fit: fitAtPhaseV1(
+            family,
+            loops,
+            ventricleId,
+            directionId,
+            phaseIndex,
+          ),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return Object.freeze({
+          status: "unavailable" as const,
+          ventricleId,
+          directionId,
+          phaseIndex,
+          phase01: phaseIndex / PHASE_SAMPLE_COUNT_V1,
+          failureClass: phaseFitFailureClassV1(message),
+          message,
+        });
+      }
+    }),
   );
+}
+
+function phaseFitFailureClassV1(
+  message: string,
+): MainWireIntegratedModelPhaseWiseEmaxFitFailureV1["failureClass"] {
+  if (message.includes("volumes are degenerate")) {
+    return "degenerate-volume-span";
+  }
+  if (message.includes("must be finite")) return "nonfinite-fit";
+  return "fit-execution-failed";
 }
 
 function fitAtPhaseV1(
@@ -379,7 +558,9 @@ function emaxCandidateV1(
   );
   const selected = maximumPositiveSlopeFitV1(occlusion);
   const releasePeak = maximumPositiveSlopeFitV1(release);
-  const releaseAtSelected = release[selected.phaseIndex];
+  const releaseAtSelected = release.find(
+    ({ phaseIndex }) => phaseIndex === selected.phaseIndex,
+  );
   if (releaseAtSelected === undefined)
     throw new Error("release phase scan is incomplete");
   const baselinePoint = loops.get(loopKeyV1(1, ventricleId))?.[
@@ -451,8 +632,13 @@ function leaveOneBeatOutV1(
       const retained = occlusion.filter(
         ({ beatOrdinal }) => beatOrdinal !== omittedBeatOrdinal,
       );
-      const scan = Array.from({ length: PHASE_SAMPLE_COUNT_V1 }, (_, index) =>
-        fitAtPhaseV1(retained, loops, ventricleId, "occlusion", index),
+      const scan = phaseScanV1(
+        retained,
+        loops,
+        ventricleId,
+        "occlusion",
+      ).flatMap((outcome) =>
+        outcome.status === "available" ? [outcome.fit] : [],
       );
       const selected = maximumPositiveSlopeFitV1(scan);
       return Object.freeze({

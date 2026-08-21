@@ -67,7 +67,9 @@
     "research:pva-diastolic-reference-comparison:v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPvaDiastolicReferenceComparisonV1.ts",
     "research:pva-common-pericardium-reference:v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPvaCommonPericardiumReferenceV1.ts",
     "research:pva-geometry-domain-diagnostics:v2": "vite-node --script tools/scientific/runMainWireIntegratedModelPvaGeometryDomainDiagnosticsV2.ts",
+    "research:pva-geometry-domain-diagnostics:v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPvaGeometryDomainDiagnosticsV3.ts",
     "research:phase-wise-emax-baseline-pva:v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1.ts",
+    "project:pva-main-candidate:v1": "vite-node --script tools/scientific/projectMainWireIntegratedModelMethodSpecificPvaMainCandidateV1.ts",
     "render:coronary:v3-reduced-pressure-step-diagnostic:v1": "vite-node --script tools/scientific/renderCoronaryV3ReducedPressureStepArtifactsSvgV1.ts --v1-input artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json --v2-input artifacts/coronary-v3/reduced-pressure-step-numerical-v2.json --output artifacts/coronary-v3/reduced-pressure-step-raw-diagnostic-v1.svg",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"

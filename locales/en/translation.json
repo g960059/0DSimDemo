@@ -83,8 +83,46 @@
       "ventricular-transmural": "Ventricular transmural"
     },
     "rows": "Method rows",
-    "boundaryTitle": "Not ready for a product PVA readout",
+    "boundaryTitle": "An unqualified generic PVA is not established",
     "boundaryDescription": "{{supported}} of {{attempted}} method rows establishes a domain-supported PVA under either passive reference. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "mainCandidate": {
+      "eyebrow": "MAIN INTEGRATION PATH",
+      "title": "Method-specific PVA path to main",
+      "description": "The method is selected. PVA will enter main as an on-demand analysis after a preload protocol, not as a live single-beat signal. The current numbers are extrapolation-dependent research estimates; no product value is published yet.",
+      "status": {
+        "qualification-required": "Qualification required",
+        "ready-for-on-demand-main": "Ready for on-demand main",
+        "unavailable": "No estimate"
+      },
+      "methodSelected": "Selected method:",
+      "evidence": {
+        "domain-supported": "Domain-supported",
+        "extrapolation-dependent": "Extrapolation-dependent",
+        "unavailable": "Unavailable"
+      },
+      "notReady": "Research estimate; no product value published",
+      "readyValue": "Available as an on-demand main result",
+      "extrapolatedArea": "Extrapolated systolic area",
+      "directionSensitivity": "Release slope difference",
+      "remainingTitle": "Required before on-demand main integration",
+      "noBlockers": "The method-specific on-demand output requirements are met.",
+      "blocker": {
+        "transient-periodic-source-compatibility-not-established": "Bind the transient family and periodic EW to the same baseline",
+        "passive-reference-source-identity-not-established": "Generate the passive reference in the same analysis transaction",
+        "baseline-exclusion-sensitivity-not-characterized": "Measure sensitivity when the baseline beat is excluded from the fit",
+        "selected-phase-state-dispersion-not-characterized": "Measure Ca, Land, strain, and septal state dispersion at the selected phase",
+        "phase-resolution-sensitivity-not-characterized": "Measure phase-resolution sensitivity near Emax",
+        "candidate-value-unavailable": "Obtain a finite candidate value"
+      },
+      "limitationsTitle": "Limitations that remain visible after publication",
+      "limitation": {
+        "domain-supported-potential-energy-not-established": "This is a method-specific V0-extrapolated value, not domain-supported PE",
+        "systolic-relation-extrapolation-required": "The potential-energy equivalent includes systolic-relation extrapolation",
+        "fixed-contralateral-passive-reference": "The passive reference is an intrinsic center slice at fixed contralateral ventricular volume",
+        "protocol-direction-sensitivity-retained": "Occlusion and release relations differ, retaining load-history sensitivity"
+      },
+      "targetSurface": "The target is an on-demand completed-protocol analysis. Generic PVA and the live output registry remain separate promotion decisions."
+    },
     "emax": {
       "eyebrow": "BASELINE SYNTHESIS",
       "title": "Phase-wise Emax candidate and periodic PVA",
@@ -191,7 +229,7 @@
     },
     "why": "Why this row is limited",
     "showMore": "Show {{count}} more",
-    "footer": "Internal research view backed only by the checked-in V2 result. It does not run the model, select a production PVA method, or expose a public output."
+    "footer": "Internal view backed by checked-in results and the path to main. It does not run the model or add a generic PVA output."
   },
   "home": {
     "headline": "Learn circulation by moving it.",

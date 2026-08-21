@@ -7,7 +7,43 @@
     "transientBeatCount": 21,
     "phaseSampleCount": 64,
     "periodicLedgerDtSec": 0.001,
-    "passiveReference": "intrinsic-passive-center-slice"
+    "transientPeriodicCompatibility": {
+      "evaluated": true,
+      "modelConditionMatched": true,
+      "protocolMatched": true,
+      "terminalCheckpointMatched": true,
+      "terminalAcceptedStateMatched": true,
+      "established": true
+    },
+    "passiveReference": {
+      "referenceId": "fixed-contralateral-intrinsic-passive-center-slice-v1",
+      "sourceIdentityEstablished": false,
+      "atriaIncluded": false,
+      "pericardiumIncluded": false,
+      "activeStressIncluded": false,
+      "slices": [
+        {
+          "ventricleId": "LV",
+          "fixedContralateralVentricleId": "RV",
+          "fixedContralateralVolumeMl": 150.21875,
+          "supportedVolumeRangeMl": [
+            53.199999999999996,
+            144.4
+          ],
+          "zeroPressureVolumeMl": 69.16366862150763
+        },
+        {
+          "ventricleId": "RV",
+          "fixedContralateralVentricleId": "LV",
+          "fixedContralateralVolumeMl": 138.70000000000002,
+          "supportedVolumeRangeMl": [
+            66.5,
+            155.79999999999998
+          ],
+          "zeroPressureVolumeMl": 103.1326929494056
+        }
+      ]
+    }
   },
   "method": {
     "phaseScan": "linear-isochronal-fit-at-each-retained-compact-loop-phase",
@@ -8466,6 +8502,7 @@
       "measuredVolumeSpanMl": 94.91032951850796
     }
   ],
+  "phaseFitFailures": [],
   "candidates": [
     {
       "ventricleId": "LV",
@@ -8816,6 +8853,7 @@
     "domainSupportedBaselinePvaCount": 0,
     "extrapolationDependentBaselinePvaCount": 2,
     "unavailableBaselinePvaCount": 0,
+    "phaseFitFailureCount": 0,
     "allLeaveOneOutPeakPhasesStableWithinOneSample": true,
     "maximumPeakPhaseDifferenceSamples": 1
   },
@@ -8825,7 +8863,8 @@
     "baselineResearchPvaComputed": true,
     "transientBeatPvaComputed": false,
     "syntheticStraightClosureUsedAsExternalWork": false,
-    "crossArtifactSourceIdentityEstablished": false,
+    "transientPeriodicSourceCompatibilityEstablished": true,
+    "allPvaSourceIdentityEstablished": false,
     "productionOutputEstablished": false,
     "oxygenConsumptionEstablished": false
   }

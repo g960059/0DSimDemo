@@ -39,6 +39,12 @@ const result = analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1(
   trajectory.rawBeats,
   ledgerReport,
   passiveComparison,
+  ledgerReport.payload.sourceOutcome.status === "source-p1-established"
+    ? {
+        transientSource: trajectory.sourceOutcome.summary,
+        periodicLedgerSource: ledgerReport.payload.sourceOutcome.summary,
+      }
+    : null,
 );
 
 await mkdir(dirname(outputPath), { recursive: true });

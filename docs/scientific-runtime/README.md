@@ -93,6 +93,11 @@ model:
   occlusion relation with periodic ledger external work and the intrinsic
   passive center slice, and reports one explicitly extrapolation-dependent
   baseline research PVA per ventricle.
+- [`INTEGRATED-MODEL-0039-method-specific-pva-main-integration-path.md`](./INTEGRATED-MODEL-0039-method-specific-pva-main-integration-path.md)
+  selects a versioned phase-wise venous-occlusion estimate for an on-demand
+  main analysis, keeps current values research-only, and fixes the bounded
+  source, baseline-exclusion, state-dispersion, and phase-resolution work
+  required before product publication.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

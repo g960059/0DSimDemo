@@ -4,14 +4,17 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v2.json";
+import mainCandidateArtifactJson from "@/artifacts/transient-preload/method-specific-pva-main-candidate-v1.json";
 import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
 import { PvaResearchDiagnosticViewV1 } from "@/components/research/PvaResearchDiagnosticViewV1";
 import {
   filterPvaResearchRowsV1,
+  projectPvaMainCandidateDisplayV1,
   projectPvaPhaseWiseEmaxDisplayV1,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
+  type PvaMainCandidateArtifactInputV1,
   type PvaPhaseWiseEmaxArtifactInputV1,
 } from "@/components/research/PvaResearchDiagnosticsV1";
 import i18n from "@/i18n";
@@ -21,6 +24,9 @@ const DATASET = projectPvaResearchDatasetV1(
 );
 const EMAX_DATASET = projectPvaPhaseWiseEmaxDisplayV1(
   phaseWiseArtifactJson as unknown as PvaPhaseWiseEmaxArtifactInputV1,
+);
+const MAIN_CANDIDATE = projectPvaMainCandidateDisplayV1(
+  mainCandidateArtifactJson as unknown as PvaMainCandidateArtifactInputV1,
 );
 
 describe("PVA research diagnostic view V1", () => {
@@ -99,6 +105,21 @@ describe("PVA research diagnostic view V1", () => {
         extrapolationFraction: 0.12489082104389465,
       },
     ]);
+  });
+
+  it("selects a method-specific main target while retaining promotion blockers", () => {
+    expect(MAIN_CANDIDATE.methodSelected).toBe(true);
+    expect(MAIN_CANDIDATE.targetSurface).toBe("completed-protocol-analysis");
+    expect(MAIN_CANDIDATE.status).toBe("qualification-required");
+    expect(
+      MAIN_CANDIDATE.rows.every((row) => row.mainOutputValueJ === null),
+    ).toBe(true);
+    expect(MAIN_CANDIDATE.blockers).toContain(
+      "passive-reference-source-identity-not-established",
+    );
+    expect(MAIN_CANDIDATE.limitations).toContain(
+      "domain-supported-potential-energy-not-established",
+    );
   });
 
   it("refuses to present an artifact that claims product-qualified PVA", () => {
@@ -191,17 +212,21 @@ describe("PVA research diagnostic view V1", () => {
 
     expect(markup).toContain('data-testid="pva-research-diagnostic-view-v1"');
     expect(markup).toContain("PVA geometry diagnostics");
-    expect(markup).toContain("Not ready for a product PVA readout");
+    expect(markup).toContain("An unqualified generic PVA is not established");
     expect(markup).toContain("Phase-wise Emax candidate and periodic PVA");
+    expect(markup).toContain("Method-specific PVA path to main");
+    expect(markup).toContain('data-testid="pva-main-integration-candidate-v1"');
+    expect(markup).toContain("Selected method:");
+    expect(markup).toContain("Research estimate; no product value published");
+    expect(markup).toContain("Extrapolated systolic area");
+    expect(markup).toContain("Release slope difference");
     expect(markup).toContain('data-testid="pva-emax-card-LV"');
     expect(markup).toContain("1.582 J");
     expect(markup).toContain("0.588 J");
     expect(markup).toContain("Domain-supported PVA");
     expect(markup).toContain("0 / 42");
     expect(markup).toContain("Relation inadmissible");
-    expect(markup).toContain(
-      "Internal research view backed only by the checked-in V2 result",
-    );
+    expect(markup).toContain("path to main");
     expect(markup).not.toContain("Generic PVA:");
     expect(markup).not.toContain("Product PVA:");
   });

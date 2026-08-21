@@ -16,6 +16,7 @@ describe("phase-wise Emax and baseline PVA research V1", () => {
     const result = manufacturedResultV1();
 
     expect(result.phaseFits).toHaveLength(256);
+    expect(result.phaseFitFailures).toHaveLength(0);
     expect(result.candidates).toHaveLength(2);
     expect(
       result.candidates.map((candidate) => ({
@@ -104,10 +105,70 @@ describe("phase-wise Emax and baseline PVA research V1", () => {
       baselineResearchPvaComputed: true,
       transientBeatPvaComputed: false,
       syntheticStraightClosureUsedAsExternalWork: false,
-      crossArtifactSourceIdentityEstablished: false,
+      transientPeriodicSourceCompatibilityEstablished: false,
+      allPvaSourceIdentityEstablished: false,
       productionOutputEstablished: false,
       oxygenConsumptionEstablished: false,
     });
+  });
+
+  it("establishes simple cross-source compatibility without a certification layer", () => {
+    const identity = {
+      modelConditionIdentityHash: "condition-v1",
+      protocolIdentityHash: "protocol-v1",
+      terminalCheckpointSha256: "checkpoint-v1",
+      nominalDtSec: 0.001,
+      terminalAcceptedTimeSec: 71,
+      terminalAcceptedRevision: 71142,
+    };
+    const result =
+      analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1(
+        manufacturedBeatsV1(),
+        manufacturedLedgerV1(),
+        manufacturedPassiveComparisonV1(),
+        { transientSource: identity, periodicLedgerSource: identity },
+      );
+
+    expect(result.source.transientPeriodicCompatibility).toEqual({
+      evaluated: true,
+      modelConditionMatched: true,
+      protocolMatched: true,
+      terminalCheckpointMatched: true,
+      terminalAcceptedStateMatched: true,
+      established: true,
+    });
+    expect(
+      result.interpretation.transientPeriodicSourceCompatibilityEstablished,
+    ).toBe(true);
+    expect(result.interpretation.allPvaSourceIdentityEstablished).toBe(false);
+  });
+
+  it("retains a degenerate phase as unavailable while keeping the rest of the scan", () => {
+    const result =
+      analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1(
+        manufacturedBeatsWithDegenerateLvPhaseV1(),
+        manufacturedLedgerV1(),
+        manufacturedPassiveComparisonV1(),
+      );
+
+    expect(result.phaseFits).toHaveLength(254);
+    expect(result.phaseFitFailures).toEqual([
+      expect.objectContaining({
+        status: "unavailable",
+        ventricleId: "LV",
+        directionId: "occlusion",
+        phaseIndex: 0,
+        failureClass: "degenerate-volume-span",
+      }),
+      expect.objectContaining({
+        status: "unavailable",
+        ventricleId: "LV",
+        directionId: "release",
+        phaseIndex: 0,
+        failureClass: "degenerate-volume-span",
+      }),
+    ]);
+    expect(result.candidates).toHaveLength(2);
   });
 
   it("retains the compact normal-adult research result", () => {
@@ -127,8 +188,21 @@ describe("phase-wise Emax and baseline PVA research V1", () => {
       domainSupportedBaselinePvaCount: 0,
       extrapolationDependentBaselinePvaCount: 2,
       unavailableBaselinePvaCount: 0,
+      phaseFitFailureCount: 0,
       allLeaveOneOutPeakPhasesStableWithinOneSample: true,
       maximumPeakPhaseDifferenceSamples: 1,
+    });
+    expect(result.source.transientPeriodicCompatibility.established).toBe(true);
+    expect(
+      result.interpretation.transientPeriodicSourceCompatibilityEstablished,
+    ).toBe(true);
+    expect(result.interpretation.allPvaSourceIdentityEstablished).toBe(false);
+    expect(result.source.passiveReference).toMatchObject({
+      referenceId: "fixed-contralateral-intrinsic-passive-center-slice-v1",
+      sourceIdentityEstablished: false,
+      atriaIncluded: false,
+      pericardiumIncluded: false,
+      activeStressIncluded: false,
     });
     expect(
       result.candidates.map((candidate) => ({
@@ -224,6 +298,14 @@ function manufacturedBeatsV1(): readonly MainWireIntegratedModelTransientPvRawBe
       });
     }),
   );
+}
+
+function manufacturedBeatsWithDegenerateLvPhaseV1(): readonly MainWireIntegratedModelTransientPvRawBeatV1[] {
+  const beats = structuredClone(manufacturedBeatsV1()) as unknown as Array<{
+    samples: Array<{ LV: { volumeMl: number } }>;
+  }>;
+  for (const beat of beats) beat.samples[0]!.LV.volumeMl = 100;
+  return beats as unknown as readonly MainWireIntegratedModelTransientPvRawBeatV1[];
 }
 
 function manufacturedSampleV1(

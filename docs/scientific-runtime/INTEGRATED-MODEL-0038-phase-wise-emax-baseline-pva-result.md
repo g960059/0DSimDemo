@@ -33,9 +33,15 @@ The calculation uses three existing research owners:
 Raw accepted-step arrays and waveform traces are not written to the result.
 The artifact retains only the 256 fitted phase relations, two candidates,
 leave-one-beat-out summaries, and two baseline PVA decompositions.
-The transient trajectory, periodic ledger, and intrinsic passive slice are
-separate research inputs; this study does not claim that their source identity
-has been authenticated as one shared artifact lineage.
+The transient trajectory and periodic ledger match on their retained model
+condition, protocol, terminal checkpoint, accepted time, accepted revision,
+and nominal 1 ms step. The intrinsic passive center slice remains a separate
+research input and is not bound to that same analysis transaction. The result
+therefore does not claim one shared identity across all three inputs.
+
+The retained passive-reference metadata makes the method explicit. The LV
+slice fixes RV volume at 150.21875 mL; the RV slice fixes LV volume at
+138.70 mL. Both exclude atria, common pericardium, and active stress.
 
 ## Phase-wise systolic relation
 
@@ -133,14 +139,17 @@ It does not establish:
 
 ## Next decision
 
-The research UI should present the phase scan, selected relation, release
-sensitivity, periodic EW, PE, total area, and extrapolated fraction together.
-No single unqualified PVA headline should be shown.
+The phase-wise occlusion relation is selected as the method-specific
+qualification candidate in Integrated Model 0039. The research UI presents its
+phase scan, release sensitivity, periodic EW, PE equivalent, total estimate,
+extrapolated fraction, and remaining main-integration conditions together. No
+unqualified PVA headline is shown.
 
-If a domain-supported lower intersection is required, the next numerical study
-should widen the preload family rather than add another area formula. The LV
-occlusion-release difference should also remain visible when deciding whether
-one relation can represent both directions.
+The next study is deliberately bounded: generate all inputs from one analysis
+transaction, measure baseline-exclusion and local phase-resolution sensitivity,
+and retain hidden-state dispersion at the selected phase. A domain-supported
+variant may be studied separately, but the present V0-extrapolated method is
+not silently renamed or replaced.
 
 Before an older V2 geometry row is promoted, its merged diagnostic should be
 corrected separately: nonpositive relations must be distinguished from missing
