@@ -1,8 +1,8 @@
 # Integrated V3 pressure-volume work and PVA boundary
 
 Status: exact path-work observer, a precomputed canonical normal-adult
-method-specific PVA reference, and a literature-calibrated LV MVO2 teaching
-reference implemented
+method-specific PVA reference, and an LV MVO2 teaching reference mapped with
+literature coefficients implemented
 
 ## Product and scientific priority
 
@@ -83,7 +83,7 @@ The output includes the pressure basis, Emax candidate, V0, measured volume
 range, extrapolated area fraction, and the dominant sensitivity. It is not a
 scenario-specific live output. It does not establish generic or clinical PVA.
 The PVA owner alone does not establish MVO2 or oxygen consumption; the separate
-literature-calibrated projection below owns the narrower teaching reference.
+literature-coefficient projection below owns the narrower teaching reference.
 
 The retained EW numbers were produced in the research lane from the accepted
 periodic PV-path work owner. Production preserves those reference values; it
@@ -118,6 +118,13 @@ relation:
 PVA_LV = 1.581500908199982 J
 PVA_LV = 11862.265104033708 mmHg*mL
 
+LV_mass = (67.07543664065403 + 35.77356620834881) * 1.053
+        = 108.3 g (reported to 0.1 g)
+
+PVA_LV_per_100g
+  = 11862.265104033708 * 100 / 108.3
+  = 10953.153373992343 mmHg*mL/100g
+
 MVO2_per_beat_per_100g
   = 1.8e-5 * PVA_per_100g + 0.02
   = 0.2171567607318622 mL O2/beat/100g
@@ -127,17 +134,23 @@ reference minute rate = 13.029405643911732 mL O2/min/100g
 ```
 
 The LV myocardial-mass convention is LV free wall plus septum from the fixed
-normal-adult five-wall prior: `67.07543664065403 + 35.77356620834881 mL` at
-`1.053 g/mL`, reported as `108.3 g`. The PVA-dependent contribution is
+normal-adult five-wall prior. The implementation derives the displayed mass
+from those two material volumes and `1.053 g/mL`, then reports it to `0.1 g`.
+The PVA-dependent contribution is
 `0.1971567607318622 mL O2/beat/100g`; the unloaded contribution is
 `0.02 mL O2/beat/100g`.
 
-The slope and unloaded intercept are retained from the canine LV calibration
+The slope and unloaded intercept are retained from the canine LV coefficients
 reported in [Suga et al. (PMID 3790043)](https://pubmed.ncbi.nlm.nih.gov/3790043/).
-[A human study (PMID 1478216)](https://pubmed.ncbi.nlm.nih.gov/1478216/)
-provides supporting context for a linear relation, but does not replace the
-calibration owner. The unloaded intercept changes with contractile state; this
-reference does not recalibrate it for the model, a scenario, or a patient.
+[A study of nine patients with heart disease (PMID 1478216)](https://pubmed.ncbi.nlm.nih.gov/1478216/)
+provides supporting human context for a linear relation, but is not the
+coefficient owner. The unloaded intercept changes with contractile state; this
+reference does not calibrate it for the model, a scenario, or a patient.
+
+The UI deliberately presents only about `0.22 mL O2/beat/100g` and about
+`13 mL O2/min/100g`. Full binary64 values remain available to code and tests,
+but the source coefficients and between-subject context do not justify showing
+three or four significant digits to a learner.
 
 Accordingly the machine-readable result keeps all of these false:
 
@@ -160,7 +173,7 @@ accepted LV PV path
   -> qualified closed-loop external work (EW)
   -> qualified multi-load systolic/passive relations and potential energy (PE)
   -> PVA = EW + PE
-  -> separately calibrated PVA-to-MVO2 mapping
+  -> separately identified literature-coefficient PVA-to-MVO2 mapping
 ```
 
 PE cannot be inferred honestly from one displayed loop. The existing
@@ -199,13 +212,15 @@ oxygen demand. It should coexist with inexpensive contextual proxies such as
 heart rate or rate-pressure product, but those proxies must not become the
 mechanistic owner of the PV-loop lesson.
 
-The implemented LV value is a separately identified literature-calibrated
-reference. It retains the PVA coefficient, unloaded intercept, heart-rate
-convention, unit conversion, LV-mass convention, and calibration population.
-It has not received model-specific fitting or held-out validation, and the
-contractility-dependent intercept has not been recalibrated. Therefore it must
-remain visibly labelled as a literature reference rather than model-predicted,
-measured, scenario-specific, patient-specific, or clinical MVO2.
+The implemented LV value is a separately identified literature-coefficient
+reference mapping. It retains the PVA coefficient, unloaded intercept,
+heart-rate convention, unit conversion, LV-mass convention, and source
+population. It has not received model-specific fitting or held-out validation,
+and the contractility-dependent intercept has not been recalibrated. Therefore
+it remains visibly labelled as a limited literature mapping rather than
+model-predicted, measured, scenario-specific, patient-specific, or clinical
+MVO2. The card also repeats the source LV PVA extrapolation and protocol-
+direction limitations so that they are not lost when the mapping is read alone.
 
 ## Graph and Experiment contract
 

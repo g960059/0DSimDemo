@@ -84,7 +84,23 @@ describe("method-specific PVA reference V1", () => {
     expect(reference.ventricleId).toBe("LV");
     expect(reference.pvaSource.pvaEstimateJ).toBe(1.581500908199982);
     expect(reference.pvaSource.pvaEstimateMmHgMl).toBe(11862.265104033708);
+    expect(reference.pvaSource.pvaEstimateMmHgMlPer100G).toBe(
+      10953.153373992343,
+    );
+    expect(reference.pvaSource.sensitivity).toEqual({
+      systolicAreaOutsideMeasuredRangeFraction: 0.4518868571139322,
+      releaseSlopeDifferenceFraction: 0.3165487054843358,
+    });
     expect(reference.massReference.myocardialMassG).toBe(108.3);
+    expect(reference.massReference.myocardialMassG).toBe(
+      Number(
+        (
+          (reference.massReference.wallMaterialVolumeMl.LVFW +
+            reference.massReference.wallMaterialVolumeMl.SEP) *
+          reference.massReference.myocardialDensityGPerMl
+        ).toFixed(reference.massReference.myocardialMassRoundingDigits),
+      ),
+    );
     expect(reference.referenceHeartRateBpm).toBe(60);
     expect(reference.oxygenDemand).toEqual({
       pvaDependentMlO2PerBeat: 0.21352077187260673,
@@ -96,7 +112,9 @@ describe("method-specific PVA reference V1", () => {
       totalMlO2PerMinPer100G: 13.029405643911732,
     });
     expect(reference.interpretation).toEqual({
-      literatureCalibratedReferenceAvailable: true,
+      literatureCoefficientProjectionAvailable: true,
+      modelSpecificCalibrationEstablished: false,
+      validatedModelPredictionEstablished: false,
       modelPredictedOxygenConsumption: false,
       measuredOxygenConsumption: false,
       scenarioSpecificEstimate: false,
@@ -252,10 +270,16 @@ describe("method-specific PVA reference V1", () => {
     expect(pageMarkup).toContain("research-pva-mvo2-558-573-final");
     expect(pageMarkup).toContain("MVO₂");
     expect(mvo2Markup).toContain('data-testid="mvo2-reference-v1-result"');
-    expect(mvo2Markup).toContain("0.217");
-    expect(mvo2Markup).toContain("13.03");
+    expect(mvo2Markup).toContain("≈ 0.22");
+    expect(mvo2Markup).toContain("≈ 13 mL O₂");
     expect(mvo2Markup).toContain("108.3 g");
+    expect(mvo2Markup).toContain("Limited literature mapping");
+    expect(mvo2Markup).toContain("about 45% systolic-area extrapolation");
+    expect(mvo2Markup).toContain(
+      "about 32% occlusion–release slope difference",
+    );
     expect(mvo2Markup).toContain("PMID 3790043");
+    expect(mvo2Markup).toContain("Human heart-disease cohort context");
     expect(mvo2Markup).toContain("canine coefficients");
   });
 

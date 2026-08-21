@@ -24,7 +24,7 @@ import { homeHref } from "@/homeLinks";
 import { localeFromPathname, type Locale } from "@/localeRouting";
 
 const RESEARCH_ARCHIVE_URL_V1 = `https://github.com/g960059/0DSimDemo/tree/${MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1.sourceResearchTag}`;
-const MVO2_CALIBRATION_SOURCE_URL_V1 =
+const MVO2_COEFFICIENT_SOURCE_URL_V1 =
   "https://pubmed.ncbi.nlm.nih.gov/3790043/";
 const MVO2_HUMAN_CONTEXT_SOURCE_URL_V1 =
   "https://pubmed.ncbi.nlm.nih.gov/1478216/";
@@ -193,7 +193,7 @@ export function LvMvo2ReferenceCardV1({
           </p>
         </div>
         <span className="w-fit rounded-full bg-wb-warning-soft px-2.5 py-1 text-[11px] font-semibold text-wb-warning">
-          {t("pvaEstimate.mvo2.literatureReference")}
+          {t("pvaEstimate.mvo2.limitedLiteratureMapping")}
         </span>
       </header>
 
@@ -203,11 +203,11 @@ export function LvMvo2ReferenceCardV1({
             {t("pvaEstimate.mvo2.totalPerBeatPer100G")}
           </p>
           <p className="mt-1 text-3xl font-semibold tracking-[-0.035em] tabular-nums">
-            {formatNumberV1(
+            {`≈ ${formatNumberV1(
               reference.oxygenDemand.totalMlO2PerBeatPer100G,
               locale,
-              3,
-            )}
+              2,
+            )}`}
             <span className="ml-1.5 text-sm font-medium text-wb-muted">
               mL O₂/beat/100 g
             </span>
@@ -217,17 +217,17 @@ export function LvMvo2ReferenceCardV1({
         <dl className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MetricV1
             label={t("pvaEstimate.mvo2.pvaDependent")}
-            value={`${formatNumberV1(reference.oxygenDemand.pvaDependentMlO2PerBeatPer100G, locale, 3)} mL O₂`}
+            value={`${formatNumberV1(reference.oxygenDemand.pvaDependentMlO2PerBeatPer100G, locale, 2)} mL O₂`}
             detail={t("pvaEstimate.mvo2.perBeatPer100G")}
           />
           <MetricV1
             label={t("pvaEstimate.mvo2.unloaded")}
-            value={`${formatNumberV1(reference.oxygenDemand.unloadedMlO2PerBeatPer100G, locale, 3)} mL O₂`}
+            value={`${formatNumberV1(reference.oxygenDemand.unloadedMlO2PerBeatPer100G, locale, 2)} mL O₂`}
             detail={t("pvaEstimate.mvo2.perBeatPer100G")}
           />
           <MetricV1
             label={t("pvaEstimate.mvo2.perMinute")}
-            value={`${formatNumberV1(reference.oxygenDemand.totalMlO2PerMinPer100G, locale, 2)} mL O₂`}
+            value={`≈ ${formatNumberV1(reference.oxygenDemand.totalMlO2PerMinPer100G, locale, 0)} mL O₂`}
             detail={t("pvaEstimate.mvo2.perMinutePer100G", {
               heartRate: reference.referenceHeartRateBpm,
             })}
@@ -239,13 +239,36 @@ export function LvMvo2ReferenceCardV1({
           />
         </dl>
 
+        <div className="mt-5 flex gap-2.5 rounded-xl border border-wb-warning/30 bg-wb-warning-soft px-4 py-3 text-xs leading-5 text-wb-muted">
+          <CircleAlert
+            className="mt-0.5 h-4 w-4 shrink-0 text-wb-warning"
+            aria-hidden="true"
+          />
+          <p>
+            {t("pvaEstimate.mvo2.inheritedPvaLimitations", {
+              extrapolation: Math.round(
+                reference.pvaSource.sensitivity
+                  .systolicAreaOutsideMeasuredRangeFraction * 100,
+              ),
+              slopeDifference: Math.round(
+                Math.abs(
+                  reference.pvaSource.sensitivity
+                    .releaseSlopeDifferenceFraction,
+                ) * 100,
+              ),
+            })}
+          </p>
+        </div>
+
         <div className="mt-5 rounded-xl bg-wb-soft/55 px-4 py-3 text-xs leading-6 text-wb-muted">
           <p>
-            {t("pvaEstimate.mvo2.calibration", {
+            {t("pvaEstimate.mvo2.coefficients", {
               slope:
-                reference.calibration.pvaSlopeMlO2PerMmHgMl.toExponential(1),
+                reference.coefficientMapping.pvaSlopeMlO2PerMmHgMl.toExponential(
+                  1,
+                ),
               intercept:
-                reference.calibration.unloadedInterceptMlO2PerBeatPer100G.toFixed(
+                reference.coefficientMapping.unloadedInterceptMlO2PerBeatPer100G.toFixed(
                   2,
                 ),
             })}
@@ -253,12 +276,12 @@ export function LvMvo2ReferenceCardV1({
           <p className="mt-1">{t("pvaEstimate.mvo2.boundary")}</p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
             <a
-              href={MVO2_CALIBRATION_SOURCE_URL_V1}
+              href={MVO2_COEFFICIENT_SOURCE_URL_V1}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 font-semibold text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
             >
-              {t("pvaEstimate.mvo2.calibrationSource")}
+              {t("pvaEstimate.mvo2.coefficientSource")}
               <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
             </a>
             <a

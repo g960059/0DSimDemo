@@ -15,26 +15,43 @@ const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 /**
  * Literature coefficients for the classic per-beat LV PVA-MVO2 relation.
  * They are retained as an educational reference, not fitted to this model or
- * asserted as a patient-specific clinical calibration.
+ * asserted as a model-specific or patient-specific clinical calibration.
  */
-export const MAIN_WIRE_INTEGRATED_MODEL_MVO2_CALIBRATION_V1 = Object.freeze({
-  calibrationId: MAIN_WIRE_INTEGRATED_MODEL_MVO2_METHOD_V1_ID,
-  relation: "MVO2_per_beat_per_100g = a * PVA_per_100g + b" as const,
-  pvaSlopeMlO2PerMmHgMl: 1.8e-5,
-  unloadedInterceptMlO2PerBeatPer100G: 0.02,
-  coefficientSource: Object.freeze({
-    pubmedId: "3790043" as const,
-    doi: "10.1007/978-3-662-11374-5_5" as const,
-    sourcePopulation: "canine-left-ventricle" as const,
-  }),
-  humanContextSource: Object.freeze({
-    pubmedId: "1478216" as const,
-    doi: "10.1093/eurheartj/13.suppl_e.85" as const,
-    role: "supporting-human-linearity-context-not-calibration-owner" as const,
-  }),
-  contractilityBoundary:
-    "unloaded-intercept-varies-with-contractile-state" as const,
-});
+export const MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1 =
+  Object.freeze({
+    mappingId: MAIN_WIRE_INTEGRATED_MODEL_MVO2_METHOD_V1_ID,
+    relation: "MVO2_per_beat_per_100g = a * PVA_per_100g + b" as const,
+    pvaSlopeMlO2PerMmHgMl: 1.8e-5,
+    unloadedInterceptMlO2PerBeatPer100G: 0.02,
+    coefficientSource: Object.freeze({
+      pubmedId: "3790043" as const,
+      doi: "10.1007/978-3-662-11374-5_5" as const,
+      sourcePopulation: "canine-left-ventricle" as const,
+    }),
+    humanContextSource: Object.freeze({
+      pubmedId: "1478216" as const,
+      doi: "10.1093/eurheartj/13.suppl_e.85" as const,
+      population: "nine-patients-with-heart-disease" as const,
+      role: "supporting-human-linearity-context-not-coefficient-owner" as const,
+    }),
+    contractilityBoundary:
+      "unloaded-intercept-varies-with-contractile-state" as const,
+  });
+
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1 =
+  Object.freeze({
+    LVFW: 67.07543664065403,
+    SEP: 35.77356620834881,
+  });
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1 = 1.053;
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1 = 1;
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_G_V1 = Number(
+  (
+    (MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.LVFW +
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.SEP) *
+    MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1
+  ).toFixed(MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1),
+);
 
 /**
  * Compact projection of the fixed normal-adult five-wall prior. LV mass uses
@@ -45,12 +62,13 @@ export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_REFERENCE_V1 =
   Object.freeze({
     sourcePriorId: "normal-adult-five-wall-fixed-prior-v1" as const,
     allocation: "LVFW-plus-SEP" as const,
-    myocardialDensityGPerMl: 1.053,
-    wallMaterialVolumeMl: Object.freeze({
-      LVFW: 67.07543664065403,
-      SEP: 35.77356620834881,
-    }),
-    myocardialMassG: 108.3,
+    myocardialDensityGPerMl:
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1,
+    wallMaterialVolumeMl:
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1,
+    myocardialMassRoundingDigits:
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1,
+    myocardialMassG: MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_G_V1,
   });
 
 export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MVO2_REFERENCE_HEART_RATE_BPM_V1 =
@@ -80,8 +98,13 @@ export type MainWireIntegratedModelLvMvo2ReferenceV1 =
         pvaMethodId: string;
         pvaEstimateJ: number;
         pvaEstimateMmHgMl: number;
+        pvaEstimateMmHgMlPer100G: number;
+        sensitivity: Readonly<{
+          systolicAreaOutsideMeasuredRangeFraction: number;
+          releaseSlopeDifferenceFraction: number;
+        }>;
       }>;
-      calibration: typeof MAIN_WIRE_INTEGRATED_MODEL_MVO2_CALIBRATION_V1;
+      coefficientMapping: typeof MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1;
       massReference: typeof MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_REFERENCE_V1;
       referenceHeartRateBpm: number;
       oxygenDemand: Readonly<{
@@ -95,7 +118,9 @@ export type MainWireIntegratedModelLvMvo2ReferenceV1 =
       }>;
       limitations: readonly MainWireIntegratedModelMvo2LimitationV1[];
       interpretation: Readonly<{
-        literatureCalibratedReferenceAvailable: true;
+        literatureCoefficientProjectionAvailable: true;
+        modelSpecificCalibrationEstablished: false;
+        validatedModelPredictionEstablished: false;
         modelPredictedOxygenConsumption: false;
         measuredOxygenConsumption: false;
         scenarioSpecificEstimate: false;
@@ -134,7 +159,7 @@ export function evaluateMainWireIntegratedModelLvMvo2ReferenceV1(
 
   if (input.pvaOutput.ventricleId !== "LV") {
     return unavailable(
-      "The literature calibration is limited to the LV reference",
+      "The literature-coefficient mapping is limited to the LV reference",
     );
   }
   if (input.pvaOutput.status !== "limited") {
@@ -162,15 +187,16 @@ export function evaluateMainWireIntegratedModelLvMvo2ReferenceV1(
   }
 
   const pvaEstimateMmHgMl = input.pvaOutput.pvaEstimateJ / MMHG_ML_TO_JOULE_V1;
+  const normalizationPer100G = 100 / input.lvMyocardialMassG;
+  const pvaEstimateMmHgMlPer100G = pvaEstimateMmHgMl * normalizationPer100G;
   const pvaDependentMlO2PerBeat =
-    MAIN_WIRE_INTEGRATED_MODEL_MVO2_CALIBRATION_V1.pvaSlopeMlO2PerMmHgMl *
+    MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1.pvaSlopeMlO2PerMmHgMl *
     pvaEstimateMmHgMl;
   const unloadedMlO2PerBeat =
-    (MAIN_WIRE_INTEGRATED_MODEL_MVO2_CALIBRATION_V1.unloadedInterceptMlO2PerBeatPer100G *
+    (MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1.unloadedInterceptMlO2PerBeatPer100G *
       input.lvMyocardialMassG) /
     100;
   const totalMlO2PerBeat = pvaDependentMlO2PerBeat + unloadedMlO2PerBeat;
-  const normalizationPer100G = 100 / input.lvMyocardialMassG;
   const pvaDependentMlO2PerBeatPer100G =
     pvaDependentMlO2PerBeat * normalizationPer100G;
   const unloadedMlO2PerBeatPer100G = unloadedMlO2PerBeat * normalizationPer100G;
@@ -179,6 +205,7 @@ export function evaluateMainWireIntegratedModelLvMvo2ReferenceV1(
     totalMlO2PerBeatPer100G * input.referenceHeartRateBpm;
   const computed = [
     pvaEstimateMmHgMl,
+    pvaEstimateMmHgMlPer100G,
     pvaDependentMlO2PerBeat,
     unloadedMlO2PerBeat,
     totalMlO2PerBeat,
@@ -204,8 +231,15 @@ export function evaluateMainWireIntegratedModelLvMvo2ReferenceV1(
       pvaMethodId: input.pvaOutput.methodId,
       pvaEstimateJ: input.pvaOutput.pvaEstimateJ,
       pvaEstimateMmHgMl,
+      pvaEstimateMmHgMlPer100G,
+      sensitivity: Object.freeze({
+        systolicAreaOutsideMeasuredRangeFraction:
+          input.pvaOutput.sensitivity.systolicAreaOutsideMeasuredRangeFraction,
+        releaseSlopeDifferenceFraction:
+          input.pvaOutput.sensitivity.releaseSlopeDifferenceFraction,
+      }),
     }),
-    calibration: MAIN_WIRE_INTEGRATED_MODEL_MVO2_CALIBRATION_V1,
+    coefficientMapping: MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1,
     massReference: MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_REFERENCE_V1,
     referenceHeartRateBpm: input.referenceHeartRateBpm,
     oxygenDemand: Object.freeze({
@@ -224,7 +258,9 @@ export function evaluateMainWireIntegratedModelLvMvo2ReferenceV1(
       "inherits-method-specific-pva-limitations",
     ] as const),
     interpretation: Object.freeze({
-      literatureCalibratedReferenceAvailable: true as const,
+      literatureCoefficientProjectionAvailable: true as const,
+      modelSpecificCalibrationEstablished: false as const,
+      validatedModelPredictionEstablished: false as const,
       modelPredictedOxygenConsumption: false as const,
       measuredOxygenConsumption: false as const,
       scenarioSpecificEstimate: false as const,
