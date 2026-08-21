@@ -50,6 +50,10 @@ export const devDashboardHref = (locale?: Locale) => prefixPath("/dev", locale);
 export const modelLabHref = (locale?: Locale) =>
   prefixPath("/dev/model-lab", locale);
 
+/** Internal, result-backed PVA research diagnostics. */
+export const pvaResearchDiagnosticsHref = (locale?: Locale) =>
+  prefixPath("/dev/research/pva", locale);
+
 export const articleEditorHref = ({
   articleId,
   locale,

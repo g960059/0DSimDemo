@@ -38,6 +38,7 @@
     "title": "開発コンテンツ",
     "description": "作成中のシミュレーション、記事、Snapshot、利用中のModelを一箇所で確認します。",
     "openModelLab": "Model Labを開く",
+    "openPvaResearch": "PVA診断",
     "returnFromModelLab": "開発コンテンツへ戻る",
     "refresh": "一覧を更新",
     "loading": "開発コンテンツを読み込んでいます…",
@@ -71,6 +72,91 @@
       "model-lab": "Model Lab",
       "referenced": "Contentで使用"
     }
+  },
+  "pvaResearch": {
+    "back": "開発コンテンツへ戻る",
+    "eyebrow": "INTERNAL RESEARCH",
+    "title": "PVA幾何・domain診断",
+    "description": "PVAを製品出力へ昇格する前に、transient手法、passive reference、各beatの幾何学的な制約を確認します。",
+    "pressureBasis": "圧の基準",
+    "pressure": {
+      "ventricular-transmural": "心室transmural pressure"
+    },
+    "rows": "手法別row",
+    "boundaryTitle": "製品表示できるPVAはまだありません",
+    "boundaryDescription": "168 rowのうち、domain-supported PVAを確立したものは0件です。以下はaccepted open-path work、synthetic closureへの感度、収縮期直線の外挿、観測domain内のarea stripを示す研究診断です。",
+    "referencesTitle": "Passive referenceの比較",
+    "referencesDescription": "同じ168件のtransient method rowを、2種類のreferenceで判定します。",
+    "selectReference": "カードを選ぶとrowが切り替わります",
+    "selected": "選択中",
+    "reference": {
+      "dynamic-maximum-volume": "Dynamic maximum-volume reference",
+      "intrinsic-passive-center-slice": "Intrinsic passive center slice"
+    },
+    "referenceDescription": {
+      "dynamic-maximum-volume": "Transient dynamic fit。4 fitすべてが宣言済みsearch gridの境界に接しています。",
+      "intrinsic-passive-center-slice": "心筋のみのpassive surface中心slice。心膜と心房の寄与は含みません。"
+    },
+    "classification": {
+      "domain-supported-pva": "Domain-supported PVA",
+      "transient-pva-like-area": "Transient PVA-like area",
+      "out-of-domain": "Domain外",
+      "method-unavailable": "手法を利用不可"
+    },
+    "classificationShort": {
+      "domain-supported-pva": "Supported",
+      "transient-pva-like-area": "PVA-like",
+      "out-of-domain": "Domain外",
+      "method-unavailable": "利用不可"
+    },
+    "areaStrips": "観測domain内area strip",
+    "intersections": "Supported intersection",
+    "diagnosticsTitle": "共通する幾何診断",
+    "metrics": {
+      "closedBeats": "Endpointがexactに閉じたbeat",
+      "closedBeatsDetail": "保持したtransient beatはすべて、endpoint間のsynthetic closureを必要とします。",
+      "closureMedian": "Closure / open pathの中央値",
+      "closureMedianDetail": "42 beat中{{count}}件でsynthetic closureの比率が5%を超えます。",
+      "extrapolationMedian": "収縮期外挿率の中央値",
+      "extrapolationMedianDetail": "利用可能な105 row中{{count}}件で、直線面積の75%超がlandmark contactの外側です。"
+    },
+    "filtersTitle": "FILTERS",
+    "rowsTitle": "手法ごとの診断結果",
+    "filters": {
+      "ventricle": "心室",
+      "method": "収縮期relation",
+      "classification": "判定",
+      "allVentricles": "すべての心室",
+      "allMethods": "すべての手法",
+      "allClassifications": "すべての判定"
+    },
+    "method": {
+      "baseline-anchored-isochronal": "Baseline-anchored isochronal",
+      "minimum-volume": "Minimum-volume locus",
+      "sampled-common-support-envelope": "Sampled common-support envelope",
+      "semilunar-closure": "Semilunar-closure locus"
+    },
+    "direction": {
+      "occlusion": "Occlusion ramp",
+      "release": "Release ramp"
+    },
+    "domain": {
+      "below-supported-domain": "Endpointがsupported domain未満",
+      "inside-supported-domain": "Endpointがsupported domain内"
+    },
+    "filteredRows": "{{count}} row",
+    "empty": "条件に一致するrowはありません。",
+    "beat": "Beat {{count}}",
+    "rowMetrics": {
+      "openPath": "Open-path work",
+      "syntheticClosure": "Synthetic closure",
+      "extrapolation": "直線のdomain外率",
+      "areaStrip": "観測domain内strip"
+    },
+    "notAvailable": "利用不可",
+    "why": "このrowを制限する理由",
+    "showMore": "さらに{{count}}件表示",
+    "footer": "チェックイン済みV2 resultだけを読む内部研究画面です。モデル実行、production PVA手法の選択、public outputの追加は行いません。"
   },
   "home": {
     "headline": "循環動態を、動かして学ぶ。",
