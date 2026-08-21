@@ -1,7 +1,7 @@
 # Integrated V3 pressure-volume work and PVA boundary
 
-Status: exact path-work observer implemented; PVA and myocardial oxygen-demand
-mapping preregistered but not implemented
+Status: exact path-work observer and canonical normal-adult method-specific PVA
+estimate implemented; myocardial oxygen-demand mapping not implemented
 
 ## Product and scientific priority
 
@@ -59,9 +59,37 @@ consumption, efficiency, or a clinical ischemia index. One `mmHg*mL` is
 `1.33322e-4 J`; any joule projection should remain a presentation conversion,
 not a second numerical integration.
 
-## PVA admission boundary
+## Production PVA estimate V1
 
-The intended future hierarchy is:
+Production exposes one deliberately narrow completed-protocol result at
+`/:locale/analysis/pva`. It is computed only after an explicit user action and
+is limited to the canonical normal-adult reference. The method identity is:
+
+```text
+suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1
+```
+
+The retained compact inputs reproduce:
+
+| chamber | periodic EW | PE equivalent | PVA estimate | status  |
+| ------- | ----------: | ------------: | -----------: | ------- |
+| LV      |  1.286454 J |    0.295047 J |   1.581501 J | limited |
+| RV      |  0.424312 J |    0.164090 J |   0.588402 J | limited |
+
+The output includes the pressure basis, Emax candidate, V0, measured volume
+range, extrapolated area fraction, and the dominant sensitivity. It is not a
+scenario-specific live output. It does not establish generic or clinical PVA,
+and it does not establish MVO2 or oxygen consumption.
+
+The exploratory owners, unsuccessful methods, large artifacts, and detailed
+auditors remain in Git history on branch
+[`research/pva-mvo2-558-573`](https://github.com/g960059/0DSimDemo/tree/research/pva-mvo2-558-573)
+and tag `research-pva-mvo2-558-573-final`. They are not production runtime
+dependencies.
+
+## Generic PVA admission boundary
+
+The hierarchy beyond the limited method-specific result remains:
 
 ```text
 accepted LV PV path

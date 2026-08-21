@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Activity,
   ArrowRight,
   BookOpenText,
   FlaskConical,
@@ -28,6 +29,7 @@ import {
   experimentSnapshotHref,
   experimentsHref,
   newExperimentHref,
+  pvaEstimateHref,
 } from "@/homeLinks";
 import { type Locale, localeFromPathname } from "@/localeRouting";
 
@@ -116,13 +118,20 @@ export const Home = () => {
             <p className="mt-4 max-w-xl text-pretty text-sm leading-7 text-wb-muted sm:mt-5 sm:text-[15px] sm:leading-8">
               {t("home.lead")}
             </p>
-            <div className="mt-6 flex sm:mt-7">
+            <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row">
               <Link
                 to={newExperimentHref(locale)}
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-wb-primary px-7 text-sm font-bold text-white transition-[background-color,transform] duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:w-auto"
               >
                 <FlaskConical className="h-4 w-4" aria-hidden="true" />
                 {t("home.startExperiment")}
+              </Link>
+              <Link
+                to={pvaEstimateHref(locale)}
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-wb-line bg-wb-panel px-7 text-sm font-bold text-wb-text transition-[background-color,border-color,transform] duration-150 hover:border-wb-line-strong hover:bg-wb-hover active:scale-[0.98] motion-reduce:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent sm:w-auto"
+              >
+                <Activity className="h-4 w-4 text-wb-accent" aria-hidden="true" />
+                {t("home.openPvaEstimate")}
               </Link>
             </div>
           </div>
@@ -214,6 +223,12 @@ export const Home = () => {
               to={articlesHref(locale)}
             >
               {t("nav.articles")}
+            </Link>
+            <Link
+              className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              to={pvaEstimateHref(locale)}
+            >
+              {t("nav.pvaEstimate")}
             </Link>
             <Link
               className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"

@@ -77,6 +77,11 @@ const AuthoringCliDocsV3Page = React.lazy(
     default: module.AuthoringCliDocsV3Page,
   })),
 );
+const PvaEstimateV1Page = React.lazy(
+  () => import('./components/analysis/PvaEstimateV1Page').then((module) => ({
+    default: module.PvaEstimateV1Page,
+  })),
+);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -204,6 +209,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Authoring CLI guide…" />}>
           <AuthoringCliDocsV3Page />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="analysis/pva"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading PVA estimate…" />}>
+          <PvaEstimateV1Page />
         </React.Suspense>
       )}
     />
