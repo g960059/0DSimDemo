@@ -88,6 +88,11 @@ model:
   separates accepted open-path work from synthetic closure, measures
   systolic-line extrapolation, and reclassifies the existing PVA-like areas by
   their actual passive-reference domains.
+- [`INTEGRATED-MODEL-0038-phase-wise-emax-baseline-pva-result.md`](./INTEGRATED-MODEL-0038-phase-wise-emax-baseline-pva-result.md)
+  scans all retained phases for maximum-elastance candidates, combines the
+  occlusion relation with periodic ledger external work and the intrinsic
+  passive center slice, and reports one explicitly extrapolation-dependent
+  baseline research PVA per ventricle.
 
 Historical release candidates, implementation diaries, and superseded runtime
 bridges are intentionally absent; Git history is their archive.

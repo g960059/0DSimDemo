@@ -524,6 +524,13 @@ function compactLoopV1(
   );
 }
 
+export function sampleMainWireIntegratedModelTransientPvCompactLoopV1(
+  beat: MainWireIntegratedModelTransientPvRawBeatV1,
+  ventricleId: MainWireIntegratedModelTransientPvVentricleIdV1,
+): readonly MainWireIntegratedModelTransientPvCompactLoopPointV1[] {
+  return compactLoopV1(beat, ventricleId);
+}
+
 function maximumPressurePhaseV1(
   beat: MainWireIntegratedModelTransientPvRawBeatV1,
   ventricleId: MainWireIntegratedModelTransientPvVentricleIdV1,

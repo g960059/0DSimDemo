@@ -181,6 +181,167 @@ export type PvaResearchDisplayRowV1 = PvaResearchRowV1 &
     reference: PvaResearchReferenceResultV1;
   }>;
 
+export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
+  studyId: string;
+  pressureBasis: string;
+  phaseFits: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    directionId: "occlusion" | "release";
+    phaseIndex: number;
+    phase01: number;
+    relation: Readonly<{
+      slopeMmHgPerMl: number;
+      rSquared: number | null;
+    }>;
+  }>[];
+  candidates: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    selectedPhaseIndex: number;
+    selectedPhase01: number;
+    selectedRelation: Readonly<{
+      slopeMmHgPerMl: number;
+      volumeAxisInterceptMl: number;
+      rSquared: number | null;
+    }>;
+    selectedRootMeanSquaredResidualMmHg: number;
+    selectedMeasuredVolumeSpanMl: number;
+    releaseAtSelectedPhase: Readonly<{
+      releaseMinusOcclusionSlopeMmHgPerMl: number;
+    }>;
+    releasePeak: Readonly<{
+      phaseIndex: number;
+      phase01: number;
+    }>;
+    leaveOneBeatOut: Readonly<{
+      allSelectedPhasesWithinOneSampleOfFullFit: boolean;
+      minimumSelectedPhaseIndex: number;
+      maximumSelectedPhaseIndex: number;
+    }>;
+  }>[];
+  baselinePva: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    status: string;
+    periodicExternalWorkJ: number;
+    reportedPotentialEnergyJ: number | null;
+    reportedPressureVolumeAreaJ: number | null;
+    observedDomainAreaStripJ: number | null;
+    systolicLineAreaOutsideMeasuredRangeFraction: number;
+    supportedIntersectionVolumeMl: number | null;
+    reasons: readonly string[];
+  }>[];
+  interpretation: Readonly<{
+    operationalEmaxEstablished: false;
+    genericPvaEstablished: false;
+    baselineResearchPvaComputed: boolean;
+    productionOutputEstablished: false;
+  }>;
+}>;
+
+export type PvaPhaseWiseEmaxDisplayV1 = Readonly<{
+  studyId: string;
+  pressureBasis: string;
+  rows: readonly Readonly<{
+    ventricleId: PvaResearchVentricleIdV1;
+    selectedPhaseIndex: number;
+    selectedPhase01: number;
+    elastanceMmHgPerMl: number;
+    volumeAxisInterceptMl: number;
+    rSquared: number | null;
+    rootMeanSquaredResidualMmHg: number;
+    measuredVolumeSpanMl: number;
+    releaseSlopeDifferenceFraction: number;
+    releasePeakPhaseIndex: number;
+    leaveOneOutStable: boolean;
+    leaveOneOutPhaseRange: readonly [number, number];
+    status: string;
+    periodicExternalWorkJ: number;
+    potentialEnergyJ: number | null;
+    pressureVolumeAreaJ: number | null;
+    observedDomainAreaStripJ: number | null;
+    extrapolationFraction: number;
+    supportedIntersectionEstablished: boolean;
+    reasons: readonly string[];
+    occlusionSlopeByPhase: readonly number[];
+    releaseSlopeByPhase: readonly number[];
+  }>[];
+  operationalEmaxEstablished: false;
+  genericPvaEstablished: false;
+  productDisplayReady: false;
+}>;
+
+export function projectPvaPhaseWiseEmaxDisplayV1(
+  artifact: PvaPhaseWiseEmaxArtifactInputV1,
+): PvaPhaseWiseEmaxDisplayV1 {
+  if (
+    artifact.interpretation.operationalEmaxEstablished ||
+    artifact.interpretation.genericPvaEstablished ||
+    artifact.interpretation.productionOutputEstablished
+  ) {
+    throw new Error("phase-wise PVA research view cannot promote claims");
+  }
+  const rows = PVA_RESEARCH_VENTRICLE_IDS_V1.map((ventricleId) => {
+    const candidate = artifact.candidates.find(
+      (value) => value.ventricleId === ventricleId,
+    );
+    const pva = artifact.baselinePva.find(
+      (value) => value.ventricleId === ventricleId,
+    );
+    if (candidate === undefined || pva === undefined) {
+      throw new Error(`phase-wise PVA row is missing for ${ventricleId}`);
+    }
+    const phaseFits = artifact.phaseFits.filter(
+      (fit) => fit.ventricleId === ventricleId,
+    );
+    const slopeByDirection = (directionId: "occlusion" | "release") =>
+      Object.freeze(
+        phaseFits
+          .filter((fit) => fit.directionId === directionId)
+          .sort((left, right) => left.phaseIndex - right.phaseIndex)
+          .map((fit) => fit.relation.slopeMmHgPerMl),
+      );
+    return Object.freeze({
+      ventricleId,
+      selectedPhaseIndex: candidate.selectedPhaseIndex,
+      selectedPhase01: candidate.selectedPhase01,
+      elastanceMmHgPerMl: candidate.selectedRelation.slopeMmHgPerMl,
+      volumeAxisInterceptMl: candidate.selectedRelation.volumeAxisInterceptMl,
+      rSquared: candidate.selectedRelation.rSquared,
+      rootMeanSquaredResidualMmHg:
+        candidate.selectedRootMeanSquaredResidualMmHg,
+      measuredVolumeSpanMl: candidate.selectedMeasuredVolumeSpanMl,
+      releaseSlopeDifferenceFraction:
+        candidate.releaseAtSelectedPhase.releaseMinusOcclusionSlopeMmHgPerMl /
+        candidate.selectedRelation.slopeMmHgPerMl,
+      releasePeakPhaseIndex: candidate.releasePeak.phaseIndex,
+      leaveOneOutStable:
+        candidate.leaveOneBeatOut.allSelectedPhasesWithinOneSampleOfFullFit,
+      leaveOneOutPhaseRange: Object.freeze([
+        candidate.leaveOneBeatOut.minimumSelectedPhaseIndex,
+        candidate.leaveOneBeatOut.maximumSelectedPhaseIndex,
+      ] as const),
+      status: pva.status,
+      periodicExternalWorkJ: pva.periodicExternalWorkJ,
+      potentialEnergyJ: pva.reportedPotentialEnergyJ,
+      pressureVolumeAreaJ: pva.reportedPressureVolumeAreaJ,
+      observedDomainAreaStripJ: pva.observedDomainAreaStripJ,
+      extrapolationFraction: pva.systolicLineAreaOutsideMeasuredRangeFraction,
+      supportedIntersectionEstablished:
+        pva.supportedIntersectionVolumeMl !== null,
+      reasons: Object.freeze([...pva.reasons]),
+      occlusionSlopeByPhase: slopeByDirection("occlusion"),
+      releaseSlopeByPhase: slopeByDirection("release"),
+    });
+  });
+  return Object.freeze({
+    studyId: artifact.studyId,
+    pressureBasis: artifact.pressureBasis,
+    rows: Object.freeze(rows),
+    operationalEmaxEstablished: false,
+    genericPvaEstablished: false,
+    productDisplayReady: false,
+  });
+}
+
 /**
  * Presentation-only projection of the checked-in V2 result. It deliberately
  * carries no model runner, qualification, admission, or artifact-writing seam.

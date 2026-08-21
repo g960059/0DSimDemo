@@ -4,17 +4,23 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import artifactJson from "@/artifacts/transient-preload/pva-geometry-domain-diagnostics-v2.json";
+import phaseWiseArtifactJson from "@/artifacts/transient-preload/phase-wise-emax-baseline-pva-research-v1.json";
 import { PvaResearchDiagnosticViewV1 } from "@/components/research/PvaResearchDiagnosticViewV1";
 import {
   filterPvaResearchRowsV1,
+  projectPvaPhaseWiseEmaxDisplayV1,
   projectPvaResearchDatasetV1,
   summarizePvaResearchRowsV1,
   type PvaGeometryDomainArtifactInputV2,
+  type PvaPhaseWiseEmaxArtifactInputV1,
 } from "@/components/research/PvaResearchDiagnosticsV1";
 import i18n from "@/i18n";
 
 const DATASET = projectPvaResearchDatasetV1(
   artifactJson as unknown as PvaGeometryDomainArtifactInputV2,
+);
+const EMAX_DATASET = projectPvaPhaseWiseEmaxDisplayV1(
+  phaseWiseArtifactJson as unknown as PvaPhaseWiseEmaxArtifactInputV1,
 );
 
 describe("PVA research diagnostic view V1", () => {
@@ -65,6 +71,33 @@ describe("PVA research diagnostic view V1", () => {
     });
   });
 
+  it("projects phase-wise candidates and baseline EW + PE without promotion", () => {
+    expect(EMAX_DATASET.rows).toHaveLength(2);
+    expect(EMAX_DATASET.operationalEmaxEstablished).toBe(false);
+    expect(EMAX_DATASET.genericPvaEstablished).toBe(false);
+    expect(
+      EMAX_DATASET.rows.map((row) => ({
+        ventricleId: row.ventricleId,
+        phaseIndex: row.selectedPhaseIndex,
+        pvaJ: row.pressureVolumeAreaJ,
+        extrapolationFraction: row.extrapolationFraction,
+      })),
+    ).toEqual([
+      {
+        ventricleId: "LV",
+        phaseIndex: 8,
+        pvaJ: 1.581500908199982,
+        extrapolationFraction: 0.4518868571139322,
+      },
+      {
+        ventricleId: "RV",
+        phaseIndex: 7,
+        pvaJ: 0.5884018254881368,
+        extrapolationFraction: 0.12489082104389465,
+      },
+    ]);
+  });
+
   it("refuses to present an artifact that claims product-qualified PVA", () => {
     const claimed = structuredClone(artifactJson);
     claimed.interpretation.existingAbsolutePvaReadyForProductDisplay = true;
@@ -110,6 +143,10 @@ describe("PVA research diagnostic view V1", () => {
     expect(markup).toContain('data-testid="pva-research-diagnostic-view-v1"');
     expect(markup).toContain("PVA geometry diagnostics");
     expect(markup).toContain("Not ready for a product PVA readout");
+    expect(markup).toContain("Phase-wise Emax candidate and periodic PVA");
+    expect(markup).toContain('data-testid="pva-emax-card-LV"');
+    expect(markup).toContain("1.582 J");
+    expect(markup).toContain("0.588 J");
     expect(markup).toContain("Domain-supported PVA");
     expect(markup).toContain("0 / 42");
     expect(markup).toContain(
