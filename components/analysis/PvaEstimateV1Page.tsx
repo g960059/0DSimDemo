@@ -10,6 +10,10 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
 import {
+  loadMainWireIntegratedModelNormalAdultLvMvo2ReferenceV1,
+  type MainWireIntegratedModelLvMvo2ReferenceV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
+import {
   loadMainWireIntegratedModelNormalAdultPvaReferenceV1,
   MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1,
   type MainWireIntegratedModelPvaLimitationV1,
@@ -20,12 +24,17 @@ import { homeHref } from "@/homeLinks";
 import { localeFromPathname, type Locale } from "@/localeRouting";
 
 const RESEARCH_ARCHIVE_URL_V1 = `https://github.com/g960059/0DSimDemo/tree/${MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1.sourceResearchTag}`;
+const MVO2_CALIBRATION_SOURCE_URL_V1 =
+  "https://pubmed.ncbi.nlm.nih.gov/3790043/";
+const MVO2_HUMAN_CONTEXT_SOURCE_URL_V1 =
+  "https://pubmed.ncbi.nlm.nih.gov/1478216/";
 
 type ReferenceStateV1 =
   | Readonly<{ status: "idle" }>
   | Readonly<{
       status: "completed";
       reference: MainWireIntegratedModelPvaReferenceV1;
+      mvo2Reference: MainWireIntegratedModelLvMvo2ReferenceV1;
     }>;
 
 export function PvaReferenceV1Page() {
@@ -40,6 +49,7 @@ export function PvaReferenceV1Page() {
     setState({
       status: "completed",
       reference: loadMainWireIntegratedModelNormalAdultPvaReferenceV1(),
+      mvo2Reference: loadMainWireIntegratedModelNormalAdultLvMvo2ReferenceV1(),
     });
   }, []);
 
@@ -99,7 +109,13 @@ export function PvaReferenceV1Page() {
           </div>
         )}
         {state.status === "completed" && (
-          <PvaReferenceResultV1 reference={state.reference} locale={locale} />
+          <>
+            <PvaReferenceResultV1 reference={state.reference} locale={locale} />
+            <LvMvo2ReferenceCardV1
+              reference={state.mvo2Reference}
+              locale={locale}
+            />
+          </>
         )}
 
         <section className="mt-7 flex gap-3 rounded-2xl border border-wb-warning/35 bg-wb-warning-soft px-4 py-4 sm:px-5">
@@ -134,6 +150,130 @@ export function PvaReferenceV1Page() {
         </section>
       </main>
     </div>
+  );
+}
+
+export function LvMvo2ReferenceCardV1({
+  reference,
+  locale,
+}: Readonly<{
+  reference: MainWireIntegratedModelLvMvo2ReferenceV1;
+  locale: Locale;
+}>) {
+  const { t } = useTranslation();
+  if (reference.status === "unavailable") {
+    return (
+      <section
+        className="mt-7 rounded-2xl border border-wb-line bg-wb-panel p-5"
+        data-testid="mvo2-reference-v1-result"
+      >
+        <h2 className="text-lg font-semibold">{t("pvaEstimate.mvo2.title")}</h2>
+        <p className="mt-3 text-sm text-wb-muted">
+          {t("pvaEstimate.status.unavailable")}: {reference.reason}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className="mt-7 overflow-hidden rounded-2xl border border-wb-line bg-wb-panel shadow-sm"
+      data-testid="mvo2-reference-v1-result"
+    >
+      <header className="flex flex-col gap-3 border-b border-wb-line px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-wb-accent">
+            {t("pvaEstimate.mvo2.eyebrow")}
+          </p>
+          <h2 className="mt-1 text-lg font-semibold">
+            {t("pvaEstimate.mvo2.title")}
+          </h2>
+          <p className="mt-1 max-w-3xl text-xs leading-5 text-wb-muted">
+            {t("pvaEstimate.mvo2.description")}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-wb-warning-soft px-2.5 py-1 text-[11px] font-semibold text-wb-warning">
+          {t("pvaEstimate.mvo2.literatureReference")}
+        </span>
+      </header>
+
+      <div className="p-5">
+        <div>
+          <p className="text-xs font-medium text-wb-subtle">
+            {t("pvaEstimate.mvo2.totalPerBeatPer100G")}
+          </p>
+          <p className="mt-1 text-3xl font-semibold tracking-[-0.035em] tabular-nums">
+            {formatNumberV1(
+              reference.oxygenDemand.totalMlO2PerBeatPer100G,
+              locale,
+              3,
+            )}
+            <span className="ml-1.5 text-sm font-medium text-wb-muted">
+              mL O₂/beat/100 g
+            </span>
+          </p>
+        </div>
+
+        <dl className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <MetricV1
+            label={t("pvaEstimate.mvo2.pvaDependent")}
+            value={`${formatNumberV1(reference.oxygenDemand.pvaDependentMlO2PerBeatPer100G, locale, 3)} mL O₂`}
+            detail={t("pvaEstimate.mvo2.perBeatPer100G")}
+          />
+          <MetricV1
+            label={t("pvaEstimate.mvo2.unloaded")}
+            value={`${formatNumberV1(reference.oxygenDemand.unloadedMlO2PerBeatPer100G, locale, 3)} mL O₂`}
+            detail={t("pvaEstimate.mvo2.perBeatPer100G")}
+          />
+          <MetricV1
+            label={t("pvaEstimate.mvo2.perMinute")}
+            value={`${formatNumberV1(reference.oxygenDemand.totalMlO2PerMinPer100G, locale, 2)} mL O₂`}
+            detail={t("pvaEstimate.mvo2.perMinutePer100G", {
+              heartRate: reference.referenceHeartRateBpm,
+            })}
+          />
+          <MetricV1
+            label={t("pvaEstimate.mvo2.lvMass")}
+            value={`${formatNumberV1(reference.massReference.myocardialMassG, locale, 1)} g`}
+            detail={t("pvaEstimate.mvo2.lvMassDetail")}
+          />
+        </dl>
+
+        <div className="mt-5 rounded-xl bg-wb-soft/55 px-4 py-3 text-xs leading-6 text-wb-muted">
+          <p>
+            {t("pvaEstimate.mvo2.calibration", {
+              slope:
+                reference.calibration.pvaSlopeMlO2PerMmHgMl.toExponential(1),
+              intercept:
+                reference.calibration.unloadedInterceptMlO2PerBeatPer100G.toFixed(
+                  2,
+                ),
+            })}
+          </p>
+          <p className="mt-1">{t("pvaEstimate.mvo2.boundary")}</p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <a
+              href={MVO2_CALIBRATION_SOURCE_URL_V1}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            >
+              {t("pvaEstimate.mvo2.calibrationSource")}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+            <a
+              href={MVO2_HUMAN_CONTEXT_SOURCE_URL_V1}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-wb-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+            >
+              {t("pvaEstimate.mvo2.humanContextSource")}
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -16,7 +16,7 @@
     "home": "Home",
     "workbench": "Simulations",
     "articles": "Articles",
-    "pvaEstimate": "Normal-adult PVA reference"
+    "pvaEstimate": "PVA / MVO₂ reference"
   },
   "siteHeader": {
     "home": "CircleHeart home",
@@ -92,11 +92,11 @@
   "pvaEstimate": {
     "back": "Back to home",
     "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "Normal-adult PVA reference",
-    "description": "A precomputed, method-specific PVA reference for the canonical normal-adult condition. It is not derived from the current simulation scenario.",
+    "title": "Normal-adult PVA / MVO₂ reference",
+    "description": "A precomputed, method-specific PVA reference and a literature-calibrated LV MVO₂ teaching reference for the canonical normal-adult condition. Neither is derived from the current simulation scenario.",
     "referenceTitle": "Canonical normal-adult reference",
     "referenceDescription": "Displays external work previously obtained from accepted periodic PV paths and a PE equivalent defined by phase-wise venous occlusion. Production does not rerun that protocol or integrate a live PV path.",
-    "show": "Show PVA reference",
+    "show": "Show PVA / MVO₂ reference",
     "showAgain": "Show reference again",
     "idle": "The compact reference remains hidden until you request it.",
     "resultsTitle": "Canonical normal-adult reference",
@@ -127,8 +127,26 @@
       "phase-resolution-sensitivity": "The estimate changes by {{value}}% at finer phase resolution.",
       "fixed-contralateral-passive-reference": "The intrinsic passive reference fixes the contralateral ventricular volume."
     },
+    "mvo2": {
+      "eyebrow": "LV OXYGEN-DEMAND MAPPING",
+      "title": "LV MVO₂ literature reference",
+      "description": "The retained LV PVA is mapped through the classic linear PVA–MVO₂ relation using a fixed normal-adult LV mass and heart rate.",
+      "literatureReference": "Literature reference",
+      "totalPerBeatPer100G": "Estimated total LV MVO₂",
+      "pvaDependent": "PVA-dependent component",
+      "unloaded": "Unloaded component",
+      "perBeatPer100G": "per beat per 100 g",
+      "perMinute": "Reference minute rate",
+      "perMinutePer100G": "per minute per 100 g at {{heartRate}} bpm",
+      "lvMass": "LV mass convention",
+      "lvMassDetail": "LV free wall + septum",
+      "calibration": "Calibration: slope {{slope}} mL O₂/(mmHg·mL) and unloaded intercept {{intercept}} mL O₂/beat/100 g.",
+      "boundary": "These canine coefficients are shown as a literature-calibrated educational reference. The contractility-dependent intercept has not been recalibrated for this model or a patient.",
+      "calibrationSource": "Calibration source (PMID 3790043)",
+      "humanContextSource": "Human linearity context (PMID 1478216)"
+    },
     "boundaryTitle": "What this value means",
-    "boundaryDescription": "This is a versioned, precomputed method-specific reference. The retained EW values came from accepted PV-path work in the archived research study; production does not recompute them. It is not the current scenario, generic or clinical PVA, a live single-beat output, MVO₂, or oxygen consumption.",
+    "boundaryDescription": "This is a versioned, precomputed method-specific PVA reference with a separate literature-calibrated LV MVO₂ teaching projection. Production does not rerun the archived protocol. Neither value is current-scenario, measured, patient-specific, whole-heart, clinical, or a model-validated oxygen-consumption prediction.",
     "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
     "researchArchive": "View the immutable PR #558–#573 research source on GitHub"
   },
@@ -290,6 +308,7 @@
     },
     "editor": {
       "experimentTitle": "Untitled simulation",
+      "pvaMvo2Reference": "PVA / MVO₂ reference",
       "save": "Save",
       "saved": "Saved",
       "saving": "Saving…",

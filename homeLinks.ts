@@ -50,7 +50,7 @@ export const devDashboardHref = (locale?: Locale) => prefixPath("/dev", locale);
 export const modelLabHref = (locale?: Locale) =>
   prefixPath("/dev/model-lab", locale);
 
-/** Method-specific, canonical normal-adult PVA reference analysis. */
+/** Method-specific PVA and literature-calibrated LV MVO2 reference. */
 export const pvaEstimateHref = (locale?: Locale) =>
   prefixPath("/analysis/pva", locale);
 

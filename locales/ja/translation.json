@@ -16,7 +16,7 @@
     "home": "ホーム",
     "workbench": "シミュレーション",
     "articles": "記事",
-    "pvaEstimate": "正常成人PVAリファレンス"
+    "pvaEstimate": "PVA / MVO₂リファレンス"
   },
   "siteHeader": {
     "home": "CircleHeart ホーム",
@@ -92,11 +92,11 @@
   "pvaEstimate": {
     "back": "ホームへ戻る",
     "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "正常成人PVAリファレンス",
-    "description": "正常成人の標準条件について事前計算された、方法を固定したPVAリファレンスです。現在のsimulation scenarioから導出する値ではありません。",
+    "title": "正常成人PVA / MVO₂リファレンス",
+    "description": "正常成人の標準条件について事前計算したmethod-specific PVAと、文献係数による左室MVO₂教育リファレンスです。どちらも現在のsimulation scenarioから導出する値ではありません。",
     "referenceTitle": "正常成人の標準リファレンス",
     "referenceDescription": "accepted periodic PV pathから研究laneで得た外的仕事と、phase-wise venous occlusionで定めたPE equivalentを表示します。productionではprotocolの再実行やlive PV pathの積分を行いません。",
-    "show": "PVAリファレンスを表示",
+    "show": "PVA / MVO₂リファレンスを表示",
     "showAgain": "リファレンスをもう一度表示",
     "idle": "ボタンを押すまでcompact referenceは表示されません。",
     "resultsTitle": "正常成人リファレンス",
@@ -127,8 +127,26 @@
       "phase-resolution-sensitivity": "phase解像度を上げると推定値が{{value}}%変化します。",
       "fixed-contralateral-passive-reference": "反対側心室volumeを固定したintrinsic passive referenceです。"
     },
+    "mvo2": {
+      "eyebrow": "LV OXYGEN-DEMAND MAPPING",
+      "title": "左室MVO₂文献リファレンス",
+      "description": "保存された左室PVAを、固定した正常成人の左室心筋重量と心拍数のもとで、古典的な線形PVA–MVO₂関係に対応付けます。",
+      "literatureReference": "文献リファレンス",
+      "totalPerBeatPer100G": "左室総MVO₂推定値",
+      "pvaDependent": "PVA依存成分",
+      "unloaded": "unloaded成分",
+      "perBeatPer100G": "1心拍・100 gあたり",
+      "perMinute": "参照時の分時値",
+      "perMinutePer100G": "{{heartRate}} bpmで1分・100 gあたり",
+      "lvMass": "左室心筋重量の定義",
+      "lvMassDetail": "LV free wall + septum",
+      "calibration": "係数: slope {{slope}} mL O₂/(mmHg·mL)、unloaded intercept {{intercept}} mL O₂/beat/100 g。",
+      "boundary": "犬左室由来の係数を、文献に基づく教育リファレンスとして表示します。収縮性に依存するinterceptは、このmodelや患者に対して再調整していません。",
+      "calibrationSource": "係数の出典 (PMID 3790043)",
+      "humanContextSource": "ヒトでの線形性の文献 (PMID 1478216)"
+    },
     "boundaryTitle": "この値が意味する範囲",
-    "boundaryDescription": "これは事前計算済みのversioned method-specific referenceです。EWは保存された研究結果であり、productionでは再計算しません。現在のscenario、genericまたは臨床PVA、単一心拍のlive output、MVO₂や酸素消費量を表しません。",
+    "boundaryDescription": "これは事前計算済みのversioned method-specific PVAと、別ownerの文献係数による左室MVO₂教育リファレンスです。productionでは保存されたprotocolを再実行しません。現在のscenario、実測値、患者固有値、whole-heart値、臨床判断、またはmodelで検証済みの酸素消費予測値ではありません。",
     "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
     "researchArchive": "固定された研究source（PR #558–#573）をGitHubで見る"
   },
@@ -290,6 +308,7 @@
     },
     "editor": {
       "experimentTitle": "名称未設定のシミュレーション",
+      "pvaMvo2Reference": "PVA / MVO₂リファレンス",
       "save": "保存",
       "saved": "保存済み",
       "saving": "保存中…",

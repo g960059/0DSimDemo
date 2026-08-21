@@ -103,6 +103,7 @@ import {
   loginHref,
   myExperimentsHref,
   newExperimentHref,
+  pvaEstimateHref,
 } from "@/homeLinks";
 import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
 import { isLocale } from "@/localeRouting";
@@ -2853,6 +2854,20 @@ const WorkbenchV3Session = ({
         </div>
         <RuntimeStatusV3 status={status} />
         <div className="flex shrink-0 items-center gap-0.5">
+          {!modelLab && (
+            <Link
+              to={pvaEstimateHref(resolvedLocale)}
+              className="workbench-header-action inline-flex min-h-9 items-center gap-1.5 px-2.5"
+              aria-label={t("workbench.editor.pvaMvo2Reference")}
+              title={t("workbench.editor.pvaMvo2Reference")}
+              data-testid="workbench-pva-mvo2-reference-link"
+            >
+              <Activity className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden lg:inline">
+                {t("workbench.editor.pvaMvo2Reference")}
+              </span>
+            </Link>
+          )}
           {modelLab && (
             <span
               className="hidden rounded-full bg-wb-accent/10 px-2 py-1 text-[11px] font-semibold text-wb-accent sm:inline"
