@@ -33,6 +33,9 @@ The calculation uses three existing research owners:
 Raw accepted-step arrays and waveform traces are not written to the result.
 The artifact retains only the 256 fitted phase relations, two candidates,
 leave-one-beat-out summaries, and two baseline PVA decompositions.
+The transient trajectory, periodic ledger, and intrinsic passive slice are
+separate research inputs; this study does not claim that their source identity
+has been authenticated as one shared artifact lineage.
 
 ## Phase-wise systolic relation
 
@@ -90,6 +93,12 @@ for both ventricles. The potential-energy term nevertheless starts at the
 extrapolated systolic volume-axis intercept because no systolic-passive
 intersection exists in the common supported interval.
 
+A future supported result must also retain the systolic line above the
+piecewise-linear passive reference from the lower intersection through the
+endpoint. The implementation checks the intersection, endpoint, and every
+intervening passive knot, so a second crossing cannot be hidden by a positive
+net area.
+
 | ventricle | endpoint volume | fitted V0 | line area outside fitted volume range | observed-domain strip |
 | --------- | --------------: | --------: | ------------------------------------: | --------------------: |
 | LV        |        64.78 mL |  15.19 mL |                                45.19% |              0.1217 J |
@@ -132,3 +141,10 @@ If a domain-supported lower intersection is required, the next numerical study
 should widen the preload family rather than add another area formula. The LV
 occlusion-release difference should also remain visible when deciding whether
 one relation can represent both directions.
+
+Before an older V2 geometry row is promoted, its merged diagnostic should be
+corrected separately: nonpositive relations must be distinguished from missing
+methods, bitwise endpoint closure must not stand in for numerical periodicity,
+and the predecessor result families need semantic row-level binding. Those
+corrections do not require another 21-beat model run and are not silently folded
+into the phase-wise result above.

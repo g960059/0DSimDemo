@@ -8825,6 +8825,7 @@
     "baselineResearchPvaComputed": true,
     "transientBeatPvaComputed": false,
     "syntheticStraightClosureUsedAsExternalWork": false,
+    "crossArtifactSourceIdentityEstablished": false,
     "productionOutputEstablished": false,
     "oxygenConsumptionEstablished": false
   }

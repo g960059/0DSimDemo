@@ -84,12 +84,16 @@
     },
     "rows": "手法別row",
     "boundaryTitle": "製品表示できるPVAはまだありません",
-    "boundaryDescription": "168 rowのうち、domain-supported PVAを確立したものは0件です。以下はaccepted open-path work、synthetic closureへの感度、収縮期直線の外挿、観測domain内のarea stripを示す研究診断です。",
+    "boundaryDescription": "{{attempted}}件のmethod rowのうち、いずれかのpassive referenceでdomain-supported PVAを確立したものは{{supported}}件です。以下はaccepted open-path work、synthetic closureへの感度、収縮期直線の外挿、観測domain内のarea stripを示す研究診断です。",
     "emax": {
       "eyebrow": "BASELINE SYNTHESIS",
       "title": "Phase-wise Emax候補とperiodic PVA",
       "description": "Transient familyから最大elastance phaseを選び、periodic mechanical ledgerのEWと組み合わせます。PEと総面積は外挿依存であることを明示します。",
-      "extrapolationDependent": "外挿依存",
+      "status": {
+        "domain-supported-baseline-pva": "Domain内で支持",
+        "extrapolation-dependent-baseline-pva": "外挿依存",
+        "unavailable": "利用不可"
+      },
       "phase": "選択phase {{phase}} · sample {{index}} / 64",
       "baselinePva": "Baseline research PVA",
       "phaseScan": "保持phaseごとのelastance",
@@ -102,7 +106,8 @@
       "observedStrip": "観測domain内strip",
       "loo": "Leave-one-beat-out phase",
       "releasePeak": "Release peak sample",
-      "noSupportedIntersection": "Supported systolic–passive intersectionなし"
+      "noSupportedIntersection": "Supported systolic–passive intersectionなし",
+      "supportedIntersection": "Supported systolic–passive intersectionを保持"
     },
     "referencesTitle": "Passive referenceの比較",
     "referencesDescription": "同じ168件のtransient method rowを、2種類のreferenceで判定します。",
@@ -120,20 +125,22 @@
       "domain-supported-pva": "Domain-supported PVA",
       "transient-pva-like-area": "Transient PVA-like area",
       "out-of-domain": "Domain外",
+      "relation-inadmissible": "Relationが不適格",
       "method-unavailable": "手法を利用不可"
     },
     "classificationShort": {
       "domain-supported-pva": "Supported",
       "transient-pva-like-area": "PVA-like",
       "out-of-domain": "Domain外",
+      "relation-inadmissible": "不適格",
       "method-unavailable": "利用不可"
     },
     "areaStrips": "観測domain内area strip",
     "intersections": "Supported intersection",
     "diagnosticsTitle": "共通する幾何診断",
     "metrics": {
-      "closedBeats": "Endpointがexactに閉じたbeat",
-      "closedBeatsDetail": "保持したtransient beatはすべて、endpoint間のsynthetic closureを必要とします。",
+      "closedBeats": "PV endpointがbitwiseに閉じたbeat",
+      "closedBeatsDetail": "これはraw endpoint診断であり、数値的な周期orbitのqualificationではありません。保持したtransient beatはすべてendpoint間のsynthetic closureを必要とします。",
       "closureMedian": "Closure / open pathの中央値",
       "closureMedianDetail": "42 beat中{{count}}件でsynthetic closureの比率が5%を超えます。",
       "extrapolationMedian": "収縮期外挿率の中央値",
@@ -173,6 +180,15 @@
       "areaStrip": "観測domain内strip"
     },
     "notAvailable": "利用不可",
+    "reason": {
+      "dynamic-fit-grid-boundary": "Dynamic reference fitが宣言済みsearch gridの境界に接しています。",
+      "no-supported-intersection": "共通のsupported domain内にsystolic–passive intersectionがありません。",
+      "transient-path-needs-synthetic-closure": "保持したtransient pathにはendpoint間のsynthetic straight closureが必要です。",
+      "endpoint-below-supported-domain": "Systolic endpointがpassive referenceのsupported domainより下にあります。",
+      "systolic-line-outside-landmark-range": "Systolic line areaがlandmark volume rangeの外へ延長されています。",
+      "systolic-relation-nonpositive-slope": "Relation自体は存在しますが、傾きが正でないためenergetic upper boundaryとして不適格です。",
+      "systolic-relation-unavailable": "Systolic relationを構築できません。"
+    },
     "why": "このrowを制限する理由",
     "showMore": "さらに{{count}}件表示",
     "footer": "チェックイン済みV2 resultだけを読む内部研究画面です。モデル実行、production PVA手法の選択、public outputの追加は行いません。"

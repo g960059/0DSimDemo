@@ -158,6 +158,7 @@ export type MainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1 =
       baselineResearchPvaComputed: boolean;
       transientBeatPvaComputed: false;
       syntheticStraightClosureUsedAsExternalWork: false;
+      crossArtifactSourceIdentityEstablished: false;
       productionOutputEstablished: false;
       oxygenConsumptionEstablished: false;
     }>;
@@ -255,6 +256,7 @@ export function analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1
       ),
       transientBeatPvaComputed: false as const,
       syntheticStraightClosureUsedAsExternalWork: false as const,
+      crossArtifactSourceIdentityEstablished: false as const,
       productionOutputEstablished: false as const,
       oxygenConsumptionEstablished: false as const,
     }),
@@ -503,6 +505,18 @@ function availableSlicesV1(
   MainWireIntegratedModelPvaVentricleV1,
   MainWireIntrinsicPassiveCenterSliceV1
 > {
+  if (
+    comparison.studyId !==
+      "main-wire-integrated-model-pva-diastolic-reference-comparison-v1" ||
+    comparison.status !== "completed" ||
+    comparison.scope !==
+      "research-only-diastolic-reference-method-comparison" ||
+    comparison.pressureBasis !== "ventricular-transmural"
+  ) {
+    throw new Error(
+      "baseline PVA requires the completed intrinsic reference study",
+    );
+  }
   const entries = comparison.intrinsicSlices.flatMap((slice) =>
     slice.status === "available" ? ([[slice.ventricleId, slice]] as const) : [],
   );
@@ -517,11 +531,35 @@ function periodicExternalWorkV1(
   MainWireIntegratedModelPvaVentricleV1,
   readonly Readonly<{ nominalDtSec: number; externalWorkJ: number }>[]
 > {
+  if (
+    report.payload.sourceOutcome.status !== "source-p1-established" ||
+    !report.payload.assessment.sourceP1Established ||
+    !report.payload.assessment.allThreeArmsFulfilled ||
+    !report.payload.assessment
+      .threeGridMechanicalPortLedgerCharacterizationCompleted
+  ) {
+    throw new Error(
+      "baseline PVA requires the completed periodic ledger study",
+    );
+  }
   const fulfilled = report.payload.armOutcomes.filter(
     (outcome) => outcome.status === "fulfilled",
   );
   if (fulfilled.length !== 3)
     throw new Error("baseline PVA requires all three periodic ledger arms");
+  const retainedDt = [...fulfilled]
+    .map(({ nominalDtSec }) => nominalDtSec)
+    .sort((left, right) => right - left);
+  if (
+    retainedDt.length !== 3 ||
+    retainedDt[0] !== 0.001 ||
+    retainedDt[1] !== 0.0005 ||
+    retainedDt[2] !== 0.00025
+  ) {
+    throw new Error(
+      "baseline PVA requires the declared 1/0.5/0.25 ms ledger arms",
+    );
+  }
   return new Map(
     VENTRICLES_V1.map((ventricleId) => [
       ventricleId,
@@ -575,6 +613,14 @@ function baselinePvaV1(
           endpointVolumeMl,
           (volumeMl) => intrinsicPressureV1(slice, volumeMl),
         );
+  const systolicUpperBoundaryMaintained =
+    supportedIntersectionVolumeMl !== null &&
+    systolicLineDominatesIntrinsicReferenceV1(
+      relation,
+      slice,
+      supportedIntersectionVolumeMl,
+      endpointVolumeMl,
+    );
   const endpointInsideMeasuredRelation = insideRangeV1(
     endpointVolumeMl,
     relation.measuredVolumeRangeMl,
@@ -585,6 +631,7 @@ function baselinePvaV1(
   );
   const supportedPotentialEnergyJ =
     supportedIntersectionVolumeMl !== null &&
+    systolicUpperBoundaryMaintained &&
     endpointInsideMeasuredRelation &&
     endpointInsidePassive
       ? potentialEnergyBetweenV1(
@@ -628,6 +675,10 @@ function baselinePvaV1(
     reasons.push(
       "no systolic-passive intersection exists inside the common supported domain",
     );
+  else if (!systolicUpperBoundaryMaintained)
+    reasons.push(
+      "systolic line does not remain above the passive reference after intersection",
+    );
   if (area.outsideMeasuredAreaFraction > 0)
     reasons.push("potential energy includes systolic-line extrapolation");
 
@@ -663,6 +714,35 @@ function baselinePvaV1(
     systolicLineAreaOutsideMeasuredRangeFraction:
       area.outsideMeasuredAreaFraction,
     reasons: Object.freeze(reasons),
+  });
+}
+
+/**
+ * Both operands are linear between retained passive knots. Checking the
+ * intersection, endpoint, and every intervening knot therefore excludes a
+ * second crossing without relying on a dense numerical scan.
+ */
+function systolicLineDominatesIntrinsicReferenceV1(
+  relation: MainWireIntegratedModelPvaLinearRelationV1,
+  slice: MainWireIntrinsicPassiveCenterSliceV1,
+  lowerVolumeMl: number,
+  upperVolumeMl: number,
+): boolean {
+  if (!(upperVolumeMl >= lowerVolumeMl)) return false;
+  const volumes = [
+    lowerVolumeMl,
+    ...slice.points.flatMap(({ volumeMl }) =>
+      volumeMl > lowerVolumeMl && volumeMl < upperVolumeMl ? [volumeMl] : [],
+    ),
+    upperVolumeMl,
+  ];
+  return volumes.every((volumeMl) => {
+    const passivePressure = intrinsicPressureV1(slice, volumeMl);
+    const difference =
+      relation.slopeMmHgPerMl * volumeMl +
+      relation.interceptMmHg -
+      (passivePressure ?? Number.NaN);
+    return Number.isFinite(difference) && difference >= -1e-9;
   });
 }
 

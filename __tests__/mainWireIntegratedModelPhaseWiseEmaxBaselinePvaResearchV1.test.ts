@@ -104,6 +104,7 @@ describe("phase-wise Emax and baseline PVA research V1", () => {
       baselineResearchPvaComputed: true,
       transientBeatPvaComputed: false,
       syntheticStraightClosureUsedAsExternalWork: false,
+      crossArtifactSourceIdentityEstablished: false,
       productionOutputEstablished: false,
       oxygenConsumptionEstablished: false,
     });
@@ -168,6 +169,25 @@ describe("phase-wise Emax and baseline PVA research V1", () => {
         extrapolationFraction: 0.12489082104389465,
       },
     ]);
+  });
+
+  it("rejects a second passive crossing as an energetic upper boundary", () => {
+    const result =
+      analyzeMainWireIntegratedModelPhaseWiseEmaxBaselinePvaResearchV1(
+        manufacturedBeatsV1(),
+        manufacturedLedgerV1(),
+        manufacturedPassiveComparisonWithSecondCrossingV1(),
+      );
+    const LV = result.baselinePva.find(
+      ({ ventricleId }) => ventricleId === "LV",
+    )!;
+
+    expect(LV.supportedIntersectionVolumeMl).not.toBeNull();
+    expect(LV.supportedPotentialEnergyJ).toBeNull();
+    expect(LV.status).not.toBe("domain-supported-baseline-pva");
+    expect(LV.reasons).toContain(
+      "systolic line does not remain above the passive reference after intersection",
+    );
   });
 });
 
@@ -238,6 +258,12 @@ function manufacturedLedgerV1(): MainWireIntegratedModelPeriodicMechanicalPortLe
   ]);
   return {
     payload: {
+      sourceOutcome: { status: "source-p1-established" },
+      assessment: {
+        sourceP1Established: true,
+        allThreeArmsFulfilled: true,
+        threeGridMechanicalPortLedgerCharacterizationCompleted: true,
+      },
       armOutcomes: [...workByDt].map(([nominalDtSec, work]) => ({
         status: "fulfilled",
         nominalDtSec,
@@ -285,6 +311,46 @@ function manufacturedPassiveComparisonV1(): MainWireIntegratedModelPvaDiastolicR
     ),
   });
   return {
+    studyId: "main-wire-integrated-model-pva-diastolic-reference-comparison-v1",
+    status: "completed",
+    scope: "research-only-diastolic-reference-method-comparison",
+    pressureBasis: "ventricular-transmural",
     intrinsicSlices: [slice("LV"), slice("RV")],
   } as unknown as MainWireIntegratedModelPvaDiastolicReferenceComparisonV1;
+}
+
+function manufacturedPassiveComparisonWithSecondCrossingV1(): MainWireIntegratedModelPvaDiastolicReferenceComparisonV1 {
+  const comparison = structuredClone(manufacturedPassiveComparisonV1());
+  const LV = comparison.intrinsicSlices.find(
+    (slice) => slice.ventricleId === "LV",
+  );
+  if (LV?.status !== "available")
+    throw new Error("manufactured LV slice missing");
+  Object.assign(LV, {
+    modelMinimumVolumeMl: 90,
+    maximumSampledVolumeMl: 130,
+    zeroPressureVolumeMl: 80,
+    points: [
+      pointV1(90, 1000),
+      pointV1(100, 600),
+      pointV1(102, 530),
+      pointV1(110, 600),
+      pointV1(115, 800),
+      pointV1(130, 1000),
+    ],
+  });
+  return comparison;
+}
+
+function pointV1(volumeMl: number, intrinsicPressureMmHg: number) {
+  return {
+    volumeMl,
+    intrinsicPressureMmHg,
+    source: "extended-continuation" as const,
+    scaledForceInfinityNorm: 0,
+    minimumScaledInternalHessianEigenvalue: 1,
+    candidateEvaluations: 1,
+    acceptedUpdates: 1,
+    rejectedTrials: 0,
+  };
 }

@@ -29,6 +29,7 @@ describe("PVA research diagnostic view V1", () => {
     expect(DATASET.sourceAvailableRowCount).toBe(105);
     expect(DATASET.uniqueBeatWorkCount).toBe(42);
     expect(DATASET.exactlyClosedBeatWorkCount).toBe(0);
+    expect(DATASET.domainSupportedRowCount).toBe(0);
     expect(DATASET.productDisplayReady).toBe(false);
     expect(DATASET.genericPvaEstablished).toBe(false);
 
@@ -61,13 +62,15 @@ describe("PVA research diagnostic view V1", () => {
       "domain-supported-pva": 0,
       "transient-pva-like-area": 21,
       "out-of-domain": 84,
-      "method-unavailable": 63,
+      "relation-inadmissible": 21,
+      "method-unavailable": 42,
     });
     expect(summarizePvaResearchRowsV1(intrinsicRows)).toEqual({
       "domain-supported-pva": 0,
       "transient-pva-like-area": 61,
       "out-of-domain": 44,
-      "method-unavailable": 63,
+      "relation-inadmissible": 21,
+      "method-unavailable": 42,
     });
   });
 
@@ -109,6 +112,38 @@ describe("PVA research diagnostic view V1", () => {
     ).toThrow(/cannot project a product-qualified claim/);
   });
 
+  it("validates phase lineage and V2 row uniqueness before presentation", () => {
+    const phaseTamper = structuredClone(phaseWiseArtifactJson);
+    phaseTamper.phaseFits[0]!.phase01 = 0.25;
+    expect(() =>
+      projectPvaPhaseWiseEmaxDisplayV1(
+        phaseTamper as unknown as PvaPhaseWiseEmaxArtifactInputV1,
+      ),
+    ).toThrow(/invalid retained phase/);
+
+    const rowTamper = structuredClone(artifactJson);
+    rowTamper.rows[1] = structuredClone(rowTamper.rows[0]!);
+    expect(() =>
+      projectPvaResearchDatasetV1(
+        rowTamper as unknown as PvaGeometryDomainArtifactInputV2,
+      ),
+    ).toThrow(/duplicate PVA geometry row/);
+  });
+
+  it("preserves an undefined closure fraction instead of coercing it to zero", () => {
+    const zeroWork = structuredClone(artifactJson);
+    Object.assign(zeroWork.beatWorkDiagnostics[0]!, {
+      acceptedOpenPathJ: 0,
+      syntheticStraightClosureJ: 0,
+      syntheticClosureAbsoluteFractionOfAcceptedOpenPath: null,
+    });
+    const dataset = projectPvaResearchDatasetV1(
+      zeroWork as unknown as PvaGeometryDomainArtifactInputV2,
+    );
+
+    expect(dataset.rows[0]!.syntheticClosureFraction).toBeNull();
+  });
+
   it("filters by ventricle, method, and classification without losing beat work", () => {
     const rows = filterPvaResearchRowsV1(DATASET, {
       referenceId: "intrinsic-passive-center-slice",
@@ -125,6 +160,20 @@ describe("PVA research diagnostic view V1", () => {
     expect(rows.every((row) => Number.isFinite(row.acceptedOpenPathJ))).toBe(
       true,
     );
+
+    const inadmissible = filterPvaResearchRowsV1(DATASET, {
+      referenceId: "intrinsic-passive-center-slice",
+      ventricleId: "RV",
+      systolicMethodId: "minimum-volume",
+      classification: "relation-inadmissible",
+    });
+    expect(inadmissible).toHaveLength(21);
+    expect(
+      inadmissible.every(
+        (row) =>
+          row.reference.reasons[0] === "systolic-relation-nonpositive-slope",
+      ),
+    ).toBe(true);
   });
 
   it("renders an explicit research boundary and no unqualified headline value", async () => {
@@ -149,10 +198,32 @@ describe("PVA research diagnostic view V1", () => {
     expect(markup).toContain("0.588 J");
     expect(markup).toContain("Domain-supported PVA");
     expect(markup).toContain("0 / 42");
+    expect(markup).toContain("Relation inadmissible");
     expect(markup).toContain(
       "Internal research view backed only by the checked-in V2 result",
     );
     expect(markup).not.toContain("Generic PVA:");
     expect(markup).not.toContain("Product PVA:");
+  });
+
+  it("renders finite scientific reasons in Japanese rather than artifact prose", async () => {
+    await i18n.changeLanguage("ja");
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/ja/dev/research/pva"]}>
+        <Routes>
+          <Route
+            path="/:locale/dev/research/pva"
+            element={<PvaResearchDiagnosticViewV1 />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain(
+      "Dynamic reference fitが宣言済みsearch gridの境界に接しています。",
+    );
+    expect(markup).not.toContain(
+      "dynamic reference fit touches a declared search-grid boundary",
+    );
   });
 });

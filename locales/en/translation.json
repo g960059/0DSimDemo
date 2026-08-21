@@ -84,12 +84,16 @@
     },
     "rows": "Method rows",
     "boundaryTitle": "Not ready for a product PVA readout",
-    "boundaryDescription": "None of the 168 rows establishes a domain-supported PVA. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
+    "boundaryDescription": "{{supported}} of {{attempted}} method rows establishes a domain-supported PVA under either passive reference. The values below are research diagnostics: accepted open-path work, synthetic closure sensitivity, systolic extrapolation, and observed-domain area strips.",
     "emax": {
       "eyebrow": "BASELINE SYNTHESIS",
       "title": "Phase-wise Emax candidate and periodic PVA",
       "description": "The transient family identifies one maximum-elastance phase; periodic ledger work supplies EW. PE and total area remain explicitly extrapolation-dependent.",
-      "extrapolationDependent": "Extrapolation-dependent",
+      "status": {
+        "domain-supported-baseline-pva": "Domain-supported",
+        "extrapolation-dependent-baseline-pva": "Extrapolation-dependent",
+        "unavailable": "Unavailable"
+      },
       "phase": "Selected phase {{phase}} · sample {{index}} / 64",
       "baselinePva": "Baseline research PVA",
       "phaseScan": "Elastance across retained phase",
@@ -102,7 +106,8 @@
       "observedStrip": "Observed-domain strip",
       "loo": "Leave-one-beat-out phase",
       "releasePeak": "Release peak sample",
-      "noSupportedIntersection": "No supported systolic–passive intersection"
+      "noSupportedIntersection": "No supported systolic–passive intersection",
+      "supportedIntersection": "Supported systolic–passive intersection retained"
     },
     "referencesTitle": "Passive reference comparison",
     "referencesDescription": "Choose one reference to classify the same 168 transient method rows.",
@@ -120,20 +125,22 @@
       "domain-supported-pva": "Domain-supported PVA",
       "transient-pva-like-area": "Transient PVA-like area",
       "out-of-domain": "Out of domain",
+      "relation-inadmissible": "Relation inadmissible",
       "method-unavailable": "Method unavailable"
     },
     "classificationShort": {
       "domain-supported-pva": "Supported",
       "transient-pva-like-area": "PVA-like",
       "out-of-domain": "Out of domain",
+      "relation-inadmissible": "Inadmissible",
       "method-unavailable": "Unavailable"
     },
     "areaStrips": "Observed-domain area strips",
     "intersections": "Supported intersections",
     "diagnosticsTitle": "Shared geometry signals",
     "metrics": {
-      "closedBeats": "Exactly closed beats",
-      "closedBeatsDetail": "Every retained transient beat needs a synthetic endpoint closure.",
+      "closedBeats": "Bitwise-closed PV endpoints",
+      "closedBeatsDetail": "This raw endpoint diagnostic is not a numerical periodic-orbit qualification; every retained transient beat needs a synthetic endpoint closure.",
       "closureMedian": "Median closure / open path",
       "closureMedianDetail": "{{count}} of 42 beats exceed a 5% synthetic-closure fraction.",
       "extrapolationMedian": "Median systolic extrapolation",
@@ -173,6 +180,15 @@
       "areaStrip": "Observed-domain strip"
     },
     "notAvailable": "Not available",
+    "reason": {
+      "dynamic-fit-grid-boundary": "The dynamic reference fit touches a declared search-grid boundary.",
+      "no-supported-intersection": "No systolic–passive intersection exists in the common supported domain.",
+      "transient-path-needs-synthetic-closure": "The retained transient path needs a synthetic straight endpoint closure.",
+      "endpoint-below-supported-domain": "The systolic endpoint lies below the supported passive domain.",
+      "systolic-line-outside-landmark-range": "The systolic line area extends outside its landmark volume range.",
+      "systolic-relation-nonpositive-slope": "The retained relation exists, but its nonpositive slope is inadmissible as an energetic upper boundary.",
+      "systolic-relation-unavailable": "The systolic relation is unavailable."
+    },
     "why": "Why this row is limited",
     "showMore": "Show {{count}} more",
     "footer": "Internal research view backed only by the checked-in V2 result. It does not run the model, select a production PVA method, or expose a public output."

@@ -144,7 +144,10 @@ export function PvaResearchDiagnosticViewV1() {
               {t("pvaResearch.boundaryTitle")}
             </h2>
             <p className="mt-1 max-w-4xl text-xs leading-6 text-wb-muted">
-              {t("pvaResearch.boundaryDescription")}
+              {t("pvaResearch.boundaryDescription", {
+                attempted: PVA_RESEARCH_DATASET_V1.attemptedRowCount,
+                supported: PVA_RESEARCH_DATASET_V1.domainSupportedRowCount,
+              })}
             </p>
           </div>
         </section>
@@ -414,7 +417,7 @@ function PhaseWiseBaselinePvaCardV1({
           <div className="flex items-center gap-2">
             <span className="text-base font-semibold">{row.ventricleId}</span>
             <span className="rounded-full bg-wb-warning-soft px-2 py-1 text-[10px] font-semibold text-wb-warning">
-              {t("pvaResearch.emax.extrapolationDependent")}
+              {t(`pvaResearch.emax.status.${row.status}`)}
             </span>
           </div>
           <p className="mt-2 text-[11px] text-wb-subtle">
@@ -532,7 +535,11 @@ function PhaseWiseBaselinePvaCardV1({
         <span>
           {t("pvaResearch.emax.releasePeak")}: {row.releasePeakPhaseIndex}
         </span>
-        <span>{t("pvaResearch.emax.noSupportedIntersection")}</span>
+        <span>
+          {row.supportedIntersectionEstablished
+            ? t("pvaResearch.emax.supportedIntersection")
+            : t("pvaResearch.emax.noSupportedIntersection")}
+        </span>
       </footer>
     </article>
   );
@@ -844,7 +851,11 @@ function ResearchRowV1({
             />
             <RowMetricV1
               label={t("pvaResearch.rowMetrics.syntheticClosure")}
-              value={formatPercentV1(row.syntheticClosureFraction, locale)}
+              value={
+                row.syntheticClosureFraction === null
+                  ? t("pvaResearch.notAvailable")
+                  : formatPercentV1(row.syntheticClosureFraction, locale)
+              }
             />
             <RowMetricV1
               label={t("pvaResearch.rowMetrics.extrapolation")}
@@ -877,8 +888,8 @@ function ResearchRowV1({
               {t("pvaResearch.why")}
             </summary>
             <ul className="mt-2 grid gap-1 border-l-2 border-wb-line pl-3 text-[11px] leading-5 text-wb-subtle">
-              {row.reference.reasons.map((reason) => (
-                <li key={reason}>{reason}</li>
+              {row.reference.reasons.map((reasonId) => (
+                <li key={reasonId}>{t(`pvaResearch.reason.${reasonId}`)}</li>
               ))}
             </ul>
           </details>
@@ -937,6 +948,8 @@ function classificationDotClassV1(
       return "bg-wb-accent";
     case "out-of-domain":
       return "bg-wb-warning";
+    case "relation-inadmissible":
+      return "bg-wb-danger";
     case "method-unavailable":
       return "bg-wb-subtle";
   }
@@ -952,6 +965,8 @@ function classificationBadgeClassV1(
       return "bg-wb-accent/10 text-wb-accent";
     case "out-of-domain":
       return "bg-wb-warning-soft text-wb-warning";
+    case "relation-inadmissible":
+      return "bg-wb-danger/10 text-wb-danger";
     case "method-unavailable":
       return "bg-wb-hover text-wb-subtle";
   }

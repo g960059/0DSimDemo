@@ -19,8 +19,37 @@ export const PVA_RESEARCH_CLASSIFICATIONS_V1 = Object.freeze([
   "domain-supported-pva",
   "transient-pva-like-area",
   "out-of-domain",
+  "relation-inadmissible",
   "method-unavailable",
 ] as const);
+
+export const PVA_RESEARCH_REASON_IDS_V1 = Object.freeze([
+  "dynamic-fit-grid-boundary",
+  "no-supported-intersection",
+  "transient-path-needs-synthetic-closure",
+  "endpoint-below-supported-domain",
+  "systolic-line-outside-landmark-range",
+  "systolic-relation-nonpositive-slope",
+  "systolic-relation-unavailable",
+] as const);
+
+const PVA_REASON_ID_BY_MESSAGE_V1: Readonly<
+  Record<string, PvaResearchReasonIdV1>
+> = Object.freeze({
+  "dynamic reference fit touches a declared search-grid boundary":
+    "dynamic-fit-grid-boundary",
+  "no systolic-passive intersection exists in the common supported domain":
+    "no-supported-intersection",
+  "retained transient path requires a synthetic straight closure segment":
+    "transient-path-needs-synthetic-closure",
+  "systolic endpoint is below-supported-domain":
+    "endpoint-below-supported-domain",
+  "systolic line area extends outside its landmark volume range":
+    "systolic-line-outside-landmark-range",
+  "systolic relation does not have positive slope":
+    "systolic-relation-nonpositive-slope",
+  "systolic relation is unavailable": "systolic-relation-unavailable",
+});
 
 export type PvaResearchReferenceIdV1 =
   (typeof PVA_RESEARCH_REFERENCE_IDS_V1)[number];
@@ -29,12 +58,17 @@ export type PvaResearchVentricleIdV1 =
 export type PvaResearchMethodIdV1 = (typeof PVA_RESEARCH_METHOD_IDS_V1)[number];
 export type PvaResearchClassificationV1 =
   (typeof PVA_RESEARCH_CLASSIFICATIONS_V1)[number];
+export type PvaResearchReasonIdV1 = (typeof PVA_RESEARCH_REASON_IDS_V1)[number];
 
 type PvaResearchDirectionIdV1 = "occlusion" | "release";
 
 type PvaGeometryReferenceDiagnosticInputV2 = Readonly<{
-  classification: Exclude<PvaResearchClassificationV1, "method-unavailable">;
+  classification: Exclude<
+    PvaResearchClassificationV1,
+    "method-unavailable" | "relation-inadmissible"
+  >;
   endpointDomainStatus: string;
+  supportedIntersectionVolumeMl: number | null;
   observedDomainAreaStrip: Readonly<{
     lowerVolumeMl: number;
     upperVolumeMl: number;
@@ -76,7 +110,7 @@ export type PvaGeometryDomainArtifactInputV2 = Readonly<{
     beatOrdinal: number;
     acceptedOpenPathJ: number;
     syntheticStraightClosureJ: number;
-    syntheticClosureAbsoluteFractionOfAcceptedOpenPath: number;
+    syntheticClosureAbsoluteFractionOfAcceptedOpenPath: number | null;
     exactlyClosedByRetainedEndpoints: boolean;
   }>[];
   rows: readonly (
@@ -123,10 +157,11 @@ export type PvaGeometryDomainArtifactInputV2 = Readonly<{
 export type PvaResearchReferenceResultV1 = Readonly<{
   classification: PvaResearchClassificationV1;
   endpointDomainStatus: string | null;
+  supportedIntersectionEstablished: boolean;
   observedDomainAreaJ: number | null;
   observedDomainVolumeRangeMl: readonly [number, number] | null;
   supportedVolumeRangeMl: readonly [number, number] | null;
-  reasons: readonly string[];
+  reasons: readonly PvaResearchReasonIdV1[];
 }>;
 
 export type PvaResearchRowV1 = Readonly<{
@@ -137,7 +172,7 @@ export type PvaResearchRowV1 = Readonly<{
   systolicMethodId: PvaResearchMethodIdV1;
   acceptedOpenPathJ: number;
   syntheticStraightClosureJ: number;
-  syntheticClosureFraction: number;
+  syntheticClosureFraction: number | null;
   exactlyClosedByRetainedEndpoints: boolean;
   systolicLineOutsideMeasuredRangeFraction: number | null;
   references: Readonly<
@@ -160,6 +195,7 @@ export type PvaResearchDatasetV1 = Readonly<{
   sourceUnavailableRowCount: number;
   uniqueBeatWorkCount: number;
   exactlyClosedBeatWorkCount: number;
+  domainSupportedRowCount: number;
   closureFraction: PvaGeometryDomainArtifactInputV2["summary"]["syntheticClosureFraction"];
   systolicExtrapolationFraction: PvaGeometryDomainArtifactInputV2["summary"]["systolicLineOutsideMeasuredRangeFraction"];
   referenceSummaries: readonly PvaResearchReferenceSummaryV1[];
@@ -183,6 +219,8 @@ export type PvaResearchDisplayRowV1 = PvaResearchRowV1 &
 
 export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
   studyId: string;
+  status: string;
+  scope: string;
   pressureBasis: string;
   phaseFits: readonly Readonly<{
     ventricleId: PvaResearchVentricleIdV1;
@@ -191,6 +229,7 @@ export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
     phase01: number;
     relation: Readonly<{
       slopeMmHgPerMl: number;
+      volumeAxisInterceptMl: number;
       rSquared: number | null;
     }>;
   }>[];
@@ -229,10 +268,18 @@ export type PvaPhaseWiseEmaxArtifactInputV1 = Readonly<{
     supportedIntersectionVolumeMl: number | null;
     reasons: readonly string[];
   }>[];
+  summary: Readonly<{
+    phaseFitCount: number;
+    candidateCount: number;
+    domainSupportedBaselinePvaCount: number;
+    extrapolationDependentBaselinePvaCount: number;
+    unavailableBaselinePvaCount: number;
+  }>;
   interpretation: Readonly<{
     operationalEmaxEstablished: false;
     genericPvaEstablished: false;
     baselineResearchPvaComputed: boolean;
+    crossArtifactSourceIdentityEstablished: false;
     productionOutputEstablished: false;
   }>;
 }>;
@@ -272,6 +319,7 @@ export type PvaPhaseWiseEmaxDisplayV1 = Readonly<{
 export function projectPvaPhaseWiseEmaxDisplayV1(
   artifact: PvaPhaseWiseEmaxArtifactInputV1,
 ): PvaPhaseWiseEmaxDisplayV1 {
+  assertPhaseWiseArtifactForViewV1(artifact);
   if (
     artifact.interpretation.operationalEmaxEstablished ||
     artifact.interpretation.genericPvaEstablished ||
@@ -349,6 +397,7 @@ export function projectPvaPhaseWiseEmaxDisplayV1(
 export function projectPvaResearchDatasetV1(
   artifact: PvaGeometryDomainArtifactInputV2,
 ): PvaResearchDatasetV1 {
+  assertGeometryArtifactForViewV1(artifact);
   if (
     artifact.interpretation.existingAbsolutePvaReadyForProductDisplay ||
     artifact.interpretation.genericPvaEstablished
@@ -409,34 +458,65 @@ export function projectPvaResearchDatasetV1(
       });
     })
     .sort(compareResearchRowsV1);
-  const referenceSummaries = artifact.summary.byReference.map((summary) =>
-    Object.freeze({
-      referenceId: summary.referenceId,
-      counts: Object.freeze({
-        "domain-supported-pva": summary.domainSupportedPvaRowCount,
-        "transient-pva-like-area": summary.transientPvaLikeAreaRowCount,
-        "out-of-domain": summary.outOfDomainRowCount,
-        "method-unavailable": summary.methodUnavailableRowCount,
-      }),
-      observedDomainAreaStripRowCount: summary.observedDomainAreaStripRowCount,
-      supportedIntersectionRowCount: summary.supportedIntersectionRowCount,
-    }),
+  const referenceSummaries = PVA_RESEARCH_REFERENCE_IDS_V1.map(
+    (referenceId) => {
+      const displayed = rows.map((row) =>
+        Object.freeze({
+          ...row,
+          referenceId,
+          reference: row.references[referenceId],
+        }),
+      );
+      return Object.freeze({
+        referenceId,
+        counts: summarizePvaResearchRowsV1(displayed),
+        observedDomainAreaStripRowCount: displayed.filter(
+          ({ reference }) => reference.observedDomainAreaJ !== null,
+        ).length,
+        supportedIntersectionRowCount: displayed.filter(
+          ({ reference }) => reference.supportedIntersectionEstablished,
+        ).length,
+      });
+    },
+  );
+  const closureFractions = artifact.beatWorkDiagnostics.flatMap(
+    ({ syntheticClosureAbsoluteFractionOfAcceptedOpenPath }) =>
+      syntheticClosureAbsoluteFractionOfAcceptedOpenPath === null
+        ? []
+        : [syntheticClosureAbsoluteFractionOfAcceptedOpenPath],
+  );
+  const extrapolationFractions = rows.flatMap(
+    ({ systolicLineOutsideMeasuredRangeFraction }) =>
+      systolicLineOutsideMeasuredRangeFraction === null
+        ? []
+        : [systolicLineOutsideMeasuredRangeFraction],
   );
 
   return Object.freeze({
     studyId: artifact.studyId,
     pressureBasis: artifact.pressureBasis,
-    attemptedRowCount: artifact.summary.attemptedRowCount,
-    sourceAvailableRowCount: artifact.summary.sourceAvailableRowCount,
-    sourceUnavailableRowCount: artifact.summary.sourceUnavailableRowCount,
-    uniqueBeatWorkCount: artifact.summary.uniqueBeatWorkCount,
-    exactlyClosedBeatWorkCount: artifact.summary.exactlyClosedBeatWorkCount,
-    closureFraction: Object.freeze({
-      ...artifact.summary.syntheticClosureFraction,
-    }),
-    systolicExtrapolationFraction: Object.freeze({
-      ...artifact.summary.systolicLineOutsideMeasuredRangeFraction,
-    }),
+    attemptedRowCount: rows.length,
+    sourceAvailableRowCount: artifact.rows.filter(
+      ({ status }) => status === "diagnosed",
+    ).length,
+    sourceUnavailableRowCount: artifact.rows.filter(
+      ({ status }) => status === "method-unavailable",
+    ).length,
+    uniqueBeatWorkCount: workByBeat.size,
+    exactlyClosedBeatWorkCount: artifact.beatWorkDiagnostics.filter(
+      ({ exactlyClosedByRetainedEndpoints }) =>
+        exactlyClosedByRetainedEndpoints,
+    ).length,
+    domainSupportedRowCount: rows.filter((row) =>
+      PVA_RESEARCH_REFERENCE_IDS_V1.some(
+        (referenceId) =>
+          row.references[referenceId].classification === "domain-supported-pva",
+      ),
+    ).length,
+    closureFraction: summarizeClosureFractionsV1(closureFractions),
+    systolicExtrapolationFraction: summarizeExtrapolationFractionsV1(
+      extrapolationFractions,
+    ),
     referenceSummaries: Object.freeze(referenceSummaries),
     rows: Object.freeze(rows),
     productDisplayReady: false,
@@ -484,6 +564,7 @@ export function summarizePvaResearchRowsV1(
     "domain-supported-pva": 0,
     "transient-pva-like-area": 0,
     "out-of-domain": 0,
+    "relation-inadmissible": 0,
     "method-unavailable": 0,
   };
   for (const row of rows) counts[row.reference.classification] += 1;
@@ -496,6 +577,8 @@ function referenceResultV1(
   return Object.freeze({
     classification: input.classification,
     endpointDomainStatus: input.endpointDomainStatus,
+    supportedIntersectionEstablished:
+      input.supportedIntersectionVolumeMl !== null,
     observedDomainAreaJ:
       input.observedDomainAreaStrip?.signedSystolicMinusPassiveAreaJ ?? null,
     observedDomainVolumeRangeMl:
@@ -509,19 +592,253 @@ function referenceResultV1(
       input.supportedVolumeRangeMl[0],
       input.supportedVolumeRangeMl[1],
     ] as const),
-    reasons: Object.freeze([...input.reasons]),
+    reasons: Object.freeze(input.reasons.map(reasonIdV1)),
   });
 }
 
 function unavailableReferenceV1(reason: string): PvaResearchReferenceResultV1 {
+  const reasonId = reasonIdV1(reason);
   return Object.freeze({
-    classification: "method-unavailable",
+    classification:
+      reasonId === "systolic-relation-nonpositive-slope"
+        ? "relation-inadmissible"
+        : "method-unavailable",
     endpointDomainStatus: null,
+    supportedIntersectionEstablished: false,
     observedDomainAreaJ: null,
     observedDomainVolumeRangeMl: null,
     supportedVolumeRangeMl: null,
-    reasons: Object.freeze([reason]),
+    reasons: Object.freeze([reasonId]),
   });
+}
+
+function reasonIdV1(reason: string): PvaResearchReasonIdV1 {
+  const reasonId = PVA_REASON_ID_BY_MESSAGE_V1[reason];
+  if (reasonId === undefined)
+    throw new Error(`PVA research view does not recognize reason: ${reason}`);
+  return reasonId;
+}
+
+function summarizeClosureFractionsV1(values: readonly number[]) {
+  const summary = numericSummaryV1(values, "synthetic closure fraction");
+  return Object.freeze({
+    ...summary,
+    aboveOnePercentCount: values.filter((value) => value > 0.01).length,
+    aboveFivePercentCount: values.filter((value) => value > 0.05).length,
+  });
+}
+
+function summarizeExtrapolationFractionsV1(values: readonly number[]) {
+  const summary = numericSummaryV1(values, "systolic extrapolation fraction");
+  return Object.freeze({
+    ...summary,
+    aboveHalfCount: values.filter((value) => value > 0.5).length,
+    aboveThreeQuartersCount: values.filter((value) => value > 0.75).length,
+  });
+}
+
+function numericSummaryV1(values: readonly number[], label: string) {
+  if (values.length === 0) throw new Error(`${label} is empty`);
+  for (const value of values)
+    if (!Number.isFinite(value)) throw new Error(`${label} must be finite`);
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  const median =
+    sorted.length % 2 === 1
+      ? sorted[middle]!
+      : 0.5 * (sorted[middle - 1]! + sorted[middle]!);
+  return Object.freeze({
+    minimum: sorted[0]!,
+    median,
+    maximum: sorted[sorted.length - 1]!,
+  });
+}
+
+function assertGeometryArtifactForViewV1(
+  artifact: PvaGeometryDomainArtifactInputV2,
+): void {
+  if (
+    artifact.studyId !==
+      "main-wire-integrated-model-pva-geometry-domain-diagnostics-v2" ||
+    artifact.status !== "completed" ||
+    artifact.scope !== "research-only-pva-geometry-and-domain-diagnostics" ||
+    artifact.pressureBasis !== "ventricular-transmural"
+  ) {
+    throw new Error(
+      "PVA research view requires the completed V2 geometry result",
+    );
+  }
+  if (
+    artifact.beatWorkDiagnostics.length !== 42 ||
+    artifact.rows.length !== 168
+  ) {
+    throw new Error(
+      "PVA research view received an incomplete V2 geometry result",
+    );
+  }
+  assertFiniteNumericLeavesForViewV1(artifact, "PVA geometry artifact");
+  const workKeys = new Set<string>();
+  for (const work of artifact.beatWorkDiagnostics) {
+    if (
+      !PVA_RESEARCH_VENTRICLE_IDS_V1.includes(work.ventricleId) ||
+      !Number.isSafeInteger(work.beatOrdinal) ||
+      work.beatOrdinal < 1 ||
+      work.beatOrdinal > 21
+    )
+      throw new Error("retained beat work has an invalid identity");
+    const key = beatKeyV1(work.ventricleId, work.beatOrdinal);
+    if (workKeys.has(key))
+      throw new Error(`duplicate retained beat work ${key}`);
+    workKeys.add(key);
+  }
+  const rowKeys = new Set<string>();
+  for (const row of artifact.rows) {
+    if (
+      !PVA_RESEARCH_VENTRICLE_IDS_V1.includes(row.ventricleId) ||
+      !PVA_RESEARCH_METHOD_IDS_V1.includes(row.systolicMethodId) ||
+      (row.directionId !== "occlusion" && row.directionId !== "release")
+    )
+      throw new Error("PVA geometry row has an invalid identity");
+    const key = [
+      row.ventricleId,
+      row.beatOrdinal,
+      row.directionId,
+      row.systolicMethodId,
+    ].join(":");
+    if (rowKeys.has(key)) throw new Error(`duplicate PVA geometry row ${key}`);
+    if (!workKeys.has(beatKeyV1(row.ventricleId, row.beatOrdinal)))
+      throw new Error("PVA geometry row is missing its retained beat work");
+    rowKeys.add(key);
+    if (row.status === "method-unavailable") {
+      reasonIdV1(row.reason);
+      continue;
+    }
+    for (const reference of [
+      row.dynamicMaximumVolume,
+      row.intrinsicPassiveCenterSlice,
+    ]) {
+      for (const reason of reference.reasons) reasonIdV1(reason);
+      if (
+        !(
+          reference.supportedVolumeRangeMl[1] >
+          reference.supportedVolumeRangeMl[0]
+        )
+      )
+        throw new Error("supported volume range is invalid");
+    }
+  }
+}
+
+function assertPhaseWiseArtifactForViewV1(
+  artifact: PvaPhaseWiseEmaxArtifactInputV1,
+): void {
+  if (
+    artifact.studyId !==
+      "main-wire-integrated-model-phase-wise-emax-baseline-pva-research-v1" ||
+    artifact.status !== "completed" ||
+    artifact.scope !== "research-only-phase-wise-emax-and-baseline-pva" ||
+    artifact.pressureBasis !== "ventricular-transmural" ||
+    artifact.interpretation.crossArtifactSourceIdentityEstablished !== false
+  ) {
+    throw new Error(
+      "phase-wise PVA view requires the completed research artifact",
+    );
+  }
+  if (
+    artifact.phaseFits.length !== 256 ||
+    artifact.candidates.length !== 2 ||
+    artifact.baselinePva.length !== 2 ||
+    artifact.summary.phaseFitCount !== 256 ||
+    artifact.summary.candidateCount !== 2
+  ) {
+    throw new Error("phase-wise PVA artifact has an incomplete result shape");
+  }
+  assertFiniteNumericLeavesForViewV1(artifact, "phase-wise PVA artifact");
+  const fitKeys = new Set<string>();
+  for (const fit of artifact.phaseFits) {
+    if (!PVA_RESEARCH_VENTRICLE_IDS_V1.includes(fit.ventricleId))
+      throw new Error("phase-wise fit has an unknown ventricle");
+    if (fit.directionId !== "occlusion" && fit.directionId !== "release")
+      throw new Error("phase-wise fit has an unknown direction");
+    if (
+      !Number.isSafeInteger(fit.phaseIndex) ||
+      fit.phaseIndex < 0 ||
+      fit.phaseIndex >= 64 ||
+      fit.phase01 !== fit.phaseIndex / 64
+    ) {
+      throw new Error("phase-wise fit has an invalid retained phase");
+    }
+    const key = `${fit.ventricleId}:${fit.directionId}:${fit.phaseIndex}`;
+    if (fitKeys.has(key)) throw new Error(`duplicate phase-wise fit ${key}`);
+    fitKeys.add(key);
+  }
+  for (const ventricleId of PVA_RESEARCH_VENTRICLE_IDS_V1) {
+    const candidates = artifact.candidates.filter(
+      (candidate) => candidate.ventricleId === ventricleId,
+    );
+    const pvaRows = artifact.baselinePva.filter(
+      (pva) => pva.ventricleId === ventricleId,
+    );
+    if (candidates.length !== 1 || pvaRows.length !== 1)
+      throw new Error(`phase-wise artifact has duplicate ${ventricleId} rows`);
+    const candidate = candidates[0]!;
+    const selectedFit = artifact.phaseFits.find(
+      (fit) =>
+        fit.ventricleId === ventricleId &&
+        fit.directionId === "occlusion" &&
+        fit.phaseIndex === candidate.selectedPhaseIndex,
+    );
+    if (
+      selectedFit === undefined ||
+      candidate.selectedPhase01 !== candidate.selectedPhaseIndex / 64 ||
+      candidate.selectedRelation.slopeMmHgPerMl !==
+        selectedFit.relation.slopeMmHgPerMl ||
+      candidate.selectedRelation.volumeAxisInterceptMl !==
+        selectedFit.relation.volumeAxisInterceptMl
+    ) {
+      throw new Error("phase-wise candidate does not bind its selected fit");
+    }
+    const pva = pvaRows[0]!;
+    if (
+      pva.status !== "domain-supported-baseline-pva" &&
+      pva.status !== "extrapolation-dependent-baseline-pva" &&
+      pva.status !== "unavailable"
+    ) {
+      throw new Error("phase-wise PVA row has an unknown status");
+    }
+  }
+  const supported = artifact.baselinePva.filter(
+    ({ status }) => status === "domain-supported-baseline-pva",
+  ).length;
+  const extrapolated = artifact.baselinePva.filter(
+    ({ status }) => status === "extrapolation-dependent-baseline-pva",
+  ).length;
+  const unavailable = artifact.baselinePva.length - supported - extrapolated;
+  if (
+    artifact.summary.domainSupportedBaselinePvaCount !== supported ||
+    artifact.summary.extrapolationDependentBaselinePvaCount !== extrapolated ||
+    artifact.summary.unavailableBaselinePvaCount !== unavailable
+  ) {
+    throw new Error("phase-wise PVA summary does not match retained rows");
+  }
+}
+
+function assertFiniteNumericLeavesForViewV1(
+  value: unknown,
+  label: string,
+): void {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${label} must be finite`);
+    return;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) assertFiniteNumericLeavesForViewV1(item, label);
+    return;
+  }
+  if (value !== null && typeof value === "object") {
+    for (const item of Object.values(value))
+      assertFiniteNumericLeavesForViewV1(item, label);
+  }
 }
 
 function beatKeyV1(
