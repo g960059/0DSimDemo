@@ -49190,7 +49190,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_TBV_SCALES_V3 =
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = Object.freeze([1.08, 1.16, 1.24, 1.32, 1.4]);
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3 = 0.5;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID = "main-wire-integrated-model-formal-periodic-fixed-tbv-pv-family-v1";
-const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 = Object.freeze([0.96, 0.9, 0.82, 0.74]);
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 = Object.freeze([0.96, 0.9, 0.82, 0.75]);
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3 = Object.freeze([1.06, 1.12, 1.18, 1.24]);
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
@@ -49299,7 +49299,7 @@ function runMainWireIntegratedModelResponsiveStarlingProtocolV3(sourceSession, o
       center.status === "rejected" ? `responsive Starling settled center rejected: ${center.reason}` : "responsive Starling center did not establish local period-1 closure"
     );
   }
-  anchorObservation = center.branch.observe();
+  anchorObservation = center.observation;
   append(center.pair);
   if (!center.pair.left.curveEligible || !center.pair.right.curveEligible) {
     return result(true);
@@ -49346,7 +49346,7 @@ async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSe
       center.status === "rejected" ? `formal pressure-volume center rejected: ${center.reason}` : "formal pressure-volume center did not establish periodic closure"
     );
   }
-  anchorObservation = center.branch.observe();
+  anchorObservation = center.observation;
   append(center.pair);
   if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3) {
     await runFormalPressureVolumeChainV3(
@@ -49377,8 +49377,16 @@ async function runFormalPressureVolumeChainV3(centerBranch, sourceGlobalTbvMl, h
       hemodynamicResearchInputs,
       "continuation"
     );
-    if (measured.status === "rejected" || !formalPairQualifiedV3(measured.pair))
-      break;
+    if (measured.status === "rejected") {
+      throw new Error(
+        `formal pressure-volume load ${scale} rejected: ${measured.reason}`
+      );
+    }
+    if (!formalPairQualifiedV3(measured.pair)) {
+      throw new Error(
+        `formal pressure-volume load ${scale} did not retain a qualified periodic pair`
+      );
+    }
     append(measured.pair);
     reliableBranch = measured.branch;
   }
@@ -49523,7 +49531,13 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
         qualification.message ?? `formal fixed-TBV branch was not qualified: ${qualification.reason}`
       );
     }
-    let branch = await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+    const qualifiedBranch = await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
+      qualification.terminalCheckpoint,
+      targetInputs,
+      1,
+      sourceSession.observe().mechanismResearchInputs
+    );
+    let measurementBranch = await MainWireIntegratedModelSessionV3.restoreOperationalCheckpoint(
       qualification.terminalCheckpoint,
       targetInputs,
       1,
@@ -49534,8 +49548,8 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
     const pressureVolumeLoopCollector = new FixedTbvPressureVolumeLoopCollectorV3();
     let lastCompletedBeatId = null;
     for (let ordinal = 1; ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3 && beats.length < FORMAL_POST_QUALIFICATION_COMPLETE_BEAT_COUNT_V3; ordinal += 1) {
-      const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
-      const advance = branch.advanceToPresentationTime(
+      const acceptedTimeSec = measurementBranch.currentAcceptedState().acceptedTimeSec;
+      const advance = measurementBranch.advanceToPresentationTime(
         acceptedTimeSec + PROTOCOL_SAMPLE_DT_SEC_V3
       );
       if (advance.status !== "advanced") {
@@ -49585,11 +49599,12 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       finiteAndFixedTbvPassed: true,
       evidence: "qualified-periodic",
       measurementWindowStatus: "canonical-period1-qualified",
-      acceptedMeasurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec
+      acceptedMeasurementDurationSec: measurementBranch.currentAcceptedState().acceptedTimeSec - originTimeSec
     });
     return Object.freeze({
       status: "accepted",
-      branch,
+      branch: qualifiedBranch,
+      observation: measurementBranch.observe(),
       pair: Object.freeze({
         right: Object.freeze({
           ...common,
@@ -49704,6 +49719,7 @@ function measureBranchV3(sourceSession, targetGlobalTbvMl, options) {
   return Object.freeze({
     status: "accepted",
     branch,
+    observation: branch.observe(),
     pair: Object.freeze({
       right: Object.freeze({
         ...common,
