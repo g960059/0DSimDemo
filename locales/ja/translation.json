@@ -15,7 +15,8 @@
   "nav": {
     "home": "ホーム",
     "workbench": "シミュレーション",
-    "articles": "記事"
+    "articles": "記事",
+    "pvaEstimate": "正常成人PVAリファレンス"
   },
   "siteHeader": {
     "home": "CircleHeart ホーム",
@@ -87,6 +88,49 @@
     "startFirstSimulation": "最初のシミュレーションを始める",
     "simulationMeta": "{{count}}シナリオ · {{date}}更新",
     "articleFallback": "循環動態を学ぶ記事"
+  },
+  "pvaEstimate": {
+    "back": "ホームへ戻る",
+    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
+    "title": "正常成人PVAリファレンス",
+    "description": "正常成人の標準条件について事前計算された、方法を固定したPVAリファレンスです。現在のsimulation scenarioから導出する値ではありません。",
+    "referenceTitle": "正常成人の標準リファレンス",
+    "referenceDescription": "accepted periodic PV pathから研究laneで得た外的仕事と、phase-wise venous occlusionで定めたPE equivalentを表示します。productionではprotocolの再実行やlive PV pathの積分を行いません。",
+    "show": "PVAリファレンスを表示",
+    "showAgain": "リファレンスをもう一度表示",
+    "idle": "ボタンを押すまでcompact referenceは表示されません。",
+    "resultsTitle": "正常成人リファレンス",
+    "method": "Method: {{methodId}}",
+    "ventricle": "{{ventricle}} PVA estimate",
+    "status": {
+      "limited": "限定推定",
+      "unavailable": "利用不可"
+    },
+    "metrics": {
+      "externalWork": "周期外的仕事 (EW)",
+      "peEquivalent": "PE equivalent",
+      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
+      "emax": "Emax候補",
+      "v0": "V0"
+    },
+    "geometryChartLabel": "{{ventricle}}のESPVR候補とPE-equivalent geometry",
+    "chart": {
+      "geometryNotice": "ESPVR候補とPE-equivalentの幾何です。PV loop上のPVA表示ではありません。",
+      "measured": "測定volume範囲",
+      "extrapolated": "外挿区間",
+      "outside": "収縮末期面積の外挿 {{value}}"
+    },
+    "limitations": "制限事項",
+    "limitation": {
+      "systolic-relation-extrapolation": "収縮末期面積の{{value}}%が測定volume範囲外です。",
+      "protocol-direction-sensitivity": "occlusionとreleaseで傾きが約{{value}}%異なります。",
+      "phase-resolution-sensitivity": "phase解像度を上げると推定値が{{value}}%変化します。",
+      "fixed-contralateral-passive-reference": "反対側心室volumeを固定したintrinsic passive referenceです。"
+    },
+    "boundaryTitle": "この値が意味する範囲",
+    "boundaryDescription": "これは事前計算済みのversioned method-specific referenceです。EWは保存された研究結果であり、productionでは再計算しません。現在のscenario、genericまたは臨床PVA、単一心拍のlive output、MVO₂や酸素消費量を表しません。",
+    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
+    "researchArchive": "固定された研究source（PR #558–#573）をGitHubで見る"
   },
   "publicExperiments": {
     "title": "公開シミュレーション",

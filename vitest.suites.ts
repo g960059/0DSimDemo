@@ -5,8 +5,8 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 96;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
+export const FAST_SUITE_FILE_BUDGET = 97;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 46;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
@@ -42,6 +42,7 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
+  "__tests__/mainWireIntegratedModelPvaEstimateV1.test.tsx",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelRapidPressureVolumeRelationV3.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
@@ -120,6 +121,7 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelRapidPressureVolumeRelationV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
+  "__tests__/mainWireIntegratedModelPvaEstimateV1.test.tsx",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
   "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",

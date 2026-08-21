@@ -15,7 +15,8 @@
   "nav": {
     "home": "Home",
     "workbench": "Simulations",
-    "articles": "Articles"
+    "articles": "Articles",
+    "pvaEstimate": "Normal-adult PVA reference"
   },
   "siteHeader": {
     "home": "CircleHeart home",
@@ -87,6 +88,49 @@
     "startFirstSimulation": "Start your first simulation",
     "simulationMeta": "{{count}} scenarios · Updated {{date}}",
     "articleFallback": "An article about circulatory physiology"
+  },
+  "pvaEstimate": {
+    "back": "Back to home",
+    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
+    "title": "Normal-adult PVA reference",
+    "description": "A precomputed, method-specific PVA reference for the canonical normal-adult condition. It is not derived from the current simulation scenario.",
+    "referenceTitle": "Canonical normal-adult reference",
+    "referenceDescription": "Displays external work previously obtained from accepted periodic PV paths and a PE equivalent defined by phase-wise venous occlusion. Production does not rerun that protocol or integrate a live PV path.",
+    "show": "Show PVA reference",
+    "showAgain": "Show reference again",
+    "idle": "The compact reference remains hidden until you request it.",
+    "resultsTitle": "Canonical normal-adult reference",
+    "method": "Method: {{methodId}}",
+    "ventricle": "{{ventricle}} PVA estimate",
+    "status": {
+      "limited": "Limited estimate",
+      "unavailable": "Unavailable"
+    },
+    "metrics": {
+      "externalWork": "Periodic external work (EW)",
+      "peEquivalent": "PE equivalent",
+      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
+      "emax": "Emax candidate",
+      "v0": "V0"
+    },
+    "geometryChartLabel": "{{ventricle}} ESPVR candidate and PE-equivalent geometry",
+    "chart": {
+      "geometryNotice": "ESPVR candidate and PE-equivalent geometry; this is not a PV-loop PVA rendering.",
+      "measured": "Measured volume range",
+      "extrapolated": "Extrapolated segment",
+      "outside": "Extrapolated systolic area {{value}}"
+    },
+    "limitations": "Limitations",
+    "limitation": {
+      "systolic-relation-extrapolation": "{{value}}% of the systolic area lies outside the measured volume range.",
+      "protocol-direction-sensitivity": "Occlusion and release slopes differ by about {{value}}%.",
+      "phase-resolution-sensitivity": "The estimate changes by {{value}}% at finer phase resolution.",
+      "fixed-contralateral-passive-reference": "The intrinsic passive reference fixes the contralateral ventricular volume."
+    },
+    "boundaryTitle": "What this value means",
+    "boundaryDescription": "This is a versioned, precomputed method-specific reference. The retained EW values came from accepted PV-path work in the archived research study; production does not recompute them. It is not the current scenario, generic or clinical PVA, a live single-beat output, MVO₂, or oxygen consumption.",
+    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
+    "researchArchive": "View the immutable PR #558–#573 research source on GitHub"
   },
   "publicExperiments": {
     "title": "Public simulations",
