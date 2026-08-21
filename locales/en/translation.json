@@ -16,7 +16,7 @@
     "home": "Home",
     "workbench": "Simulations",
     "articles": "Articles",
-    "pvaEstimate": "PVA estimate"
+    "pvaEstimate": "Normal-adult PVA reference"
   },
   "siteHeader": {
     "home": "CircleHeart home",
@@ -77,7 +77,6 @@
     "headline": "Learn circulation by moving it.",
     "lead": "Learn how the circulation works through articles and interactive simulations. Move a parameter and watch pressures and cardiac output respond on the spot.",
     "startExperiment": "Start a simulation",
-    "openPvaEstimate": "View PVA estimate",
     "readArticles": "Learn from articles",
     "sectionArticles": "Articles",
     "sectionSimulations": "Simulations",
@@ -92,16 +91,14 @@
   },
   "pvaEstimate": {
     "back": "Back to home",
-    "eyebrow": "METHOD-SPECIFIC ANALYSIS",
-    "title": "PVA estimate",
-    "description": "A method-specific PVA estimate for the canonical normal-adult reference. It is not an automatically derived value from the live simulation.",
-    "runTitle": "Calculate the normal-adult reference",
-    "runDescription": "Combines periodic PV-path external work with a PE equivalent defined by phase-wise venous occlusion. The heavy research recomputation and certification machinery are not part of production.",
-    "run": "Show PVA estimate",
-    "runAgain": "Show again",
-    "running": "Calculating…",
-    "idle": "The PVA estimate is not calculated or shown until you request it.",
-    "failed": "The PVA estimate could not be shown: {{message}}",
+    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
+    "title": "Normal-adult PVA reference",
+    "description": "A precomputed, method-specific PVA reference for the canonical normal-adult condition. It is not derived from the current simulation scenario.",
+    "referenceTitle": "Canonical normal-adult reference",
+    "referenceDescription": "Displays external work previously obtained from accepted periodic PV paths and a PE equivalent defined by phase-wise venous occlusion. Production does not rerun that protocol or integrate a live PV path.",
+    "show": "Show PVA reference",
+    "showAgain": "Show reference again",
+    "idle": "The compact reference remains hidden until you request it.",
     "resultsTitle": "Canonical normal-adult reference",
     "method": "Method: {{methodId}}",
     "ventricle": "{{ventricle}} PVA estimate",
@@ -112,11 +109,13 @@
     "metrics": {
       "externalWork": "Periodic external work (EW)",
       "peEquivalent": "PE equivalent",
+      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
       "emax": "Emax candidate",
       "v0": "V0"
     },
-    "chartLabel": "{{ventricle}} phase-wise end-systolic relation and extrapolated range",
+    "geometryChartLabel": "{{ventricle}} ESPVR candidate and PE-equivalent geometry",
     "chart": {
+      "geometryNotice": "ESPVR candidate and PE-equivalent geometry; this is not a PV-loop PVA rendering.",
       "measured": "Measured volume range",
       "extrapolated": "Extrapolated segment",
       "outside": "Extrapolated systolic area {{value}}"
@@ -129,8 +128,9 @@
       "fixed-contralateral-passive-reference": "The intrinsic passive reference fixes the contralateral ventricular volume."
     },
     "boundaryTitle": "What this value means",
-    "boundaryDescription": "This is a versioned method-specific estimate limited to the canonical normal-adult reference. It is not the current Scenario, an unqualified generic or clinical PVA, a live single-beat output, MVO₂, or oxygen consumption.",
-    "researchArchive": "View the PR #558–#573 research lane on GitHub"
+    "boundaryDescription": "This is a versioned, precomputed method-specific reference. The retained EW values came from accepted PV-path work in the archived research study; production does not recompute them. It is not the current scenario, generic or clinical PVA, a live single-beat output, MVO₂, or oxygen consumption.",
+    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
+    "researchArchive": "View the immutable PR #558–#573 research source on GitHub"
   },
   "publicExperiments": {
     "title": "Public simulations",

@@ -77,9 +77,9 @@ const AuthoringCliDocsV3Page = React.lazy(
     default: module.AuthoringCliDocsV3Page,
   })),
 );
-const PvaEstimateV1Page = React.lazy(
+const PvaReferenceV1Page = React.lazy(
   () => import('./components/analysis/PvaEstimateV1Page').then((module) => ({
-    default: module.PvaEstimateV1Page,
+    default: module.PvaReferenceV1Page,
   })),
 );
 
@@ -215,8 +215,8 @@ const appRoutes = () => (
     <Route
       path="analysis/pva"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading PVA estimate…" />}>
-          <PvaEstimateV1Page />
+        <React.Suspense fallback={<ProductPageLoading label="Loading PVA reference…" />}>
+          <PvaReferenceV1Page />
         </React.Suspense>
       )}
     />

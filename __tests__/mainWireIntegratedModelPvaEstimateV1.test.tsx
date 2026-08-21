@@ -4,27 +4,31 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import {
-  PvaEstimateResultV1,
-  PvaEstimateV1Page,
+  PvaReferenceResultV1,
+  PvaReferenceV1Page,
 } from "@/components/analysis/PvaEstimateV1Page";
 import {
-  buildMainWireIntegratedModelNormalAdultPvaAnalysisV1,
+  buildMainWireIntegratedModelNormalAdultPvaReferenceV1,
   evaluateMainWireIntegratedModelPvaOutputV1,
+  loadMainWireIntegratedModelNormalAdultPvaReferenceV1,
   MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_INPUTS_V1,
-  runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1,
+  MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPvaEstimateV1";
 import i18n from "@/i18n";
 
-describe("method-specific PVA estimate V1", () => {
+describe("method-specific PVA reference V1", () => {
   it("reproduces the compact normal-adult LV and RV energy decomposition", () => {
-    const analysis = buildMainWireIntegratedModelNormalAdultPvaAnalysisV1();
+    const reference = buildMainWireIntegratedModelNormalAdultPvaReferenceV1();
 
-    expect(analysis.status).toBe("limited");
-    expect(analysis.scope).toBe("canonical-normal-adult-reference");
-    expect(analysis.pressureBasis).toBe("ventricular-transmural");
-    expect(analysis.outputs).toHaveLength(2);
+    expect(reference.status).toBe("limited");
+    expect(reference.scope).toBe("canonical-normal-adult-reference");
+    expect(reference.targetSurface).toBe(
+      "precomputed-completed-protocol-reference",
+    );
+    expect(reference.pressureBasis).toBe("ventricular-transmural");
+    expect(reference.outputs).toHaveLength(2);
     expect(
-      analysis.outputs.map((output) =>
+      reference.outputs.map((output) =>
         output.status === "limited"
           ? {
               ventricleId: output.ventricleId,
@@ -52,7 +56,7 @@ describe("method-specific PVA estimate V1", () => {
 
   it("keeps generic, clinical, live, and MVO2 claims false", () => {
     const interpretation =
-      buildMainWireIntegratedModelNormalAdultPvaAnalysisV1().interpretation;
+      buildMainWireIntegratedModelNormalAdultPvaReferenceV1().interpretation;
 
     expect(interpretation.methodSpecificEstimateAvailable).toBe(true);
     expect(interpretation.scenarioSpecificEstimate).toBe(false);
@@ -92,38 +96,73 @@ describe("method-specific PVA estimate V1", () => {
     });
   });
 
-  it("runs only on demand and reuses the compact cached result", async () => {
-    const first =
-      await runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1();
-    const second =
-      await runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1();
+  it("loads a precomputed reference and retains immutable research provenance", () => {
+    const first = loadMainWireIntegratedModelNormalAdultPvaReferenceV1();
+    const second = loadMainWireIntegratedModelNormalAdultPvaReferenceV1();
 
     expect(second).toBe(first);
+    expect(first.provenance).toBe(
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1,
+    );
+    expect(first.provenance).toMatchObject({
+      sourceResearchTag: "research-pva-mvo2-558-573-final",
+      sourceCommitSha: "7fa68a21607107db0e766c3449788d9d90d59e60",
+      sourceStudyId:
+        "main-wire-integrated-model-phase-wise-pva-qualification-v2",
+      pressureBasis: "ventricular-transmural",
+      externalWorkSource: "accepted-periodic-pv-path-work-research-reference",
+    });
   });
 
-  it("renders the limited values, method, extrapolation, and claim boundary", async () => {
+  it("renders the reference values, PE geometry, provenance, and claim boundary", async () => {
     await i18n.changeLanguage("en");
-    const analysis = buildMainWireIntegratedModelNormalAdultPvaAnalysisV1();
+    const reference = buildMainWireIntegratedModelNormalAdultPvaReferenceV1();
     const resultMarkup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/en/analysis/pva"]}>
-        <PvaEstimateResultV1 analysis={analysis} locale="en" />
+        <PvaReferenceResultV1 reference={reference} locale="en" />
       </MemoryRouter>,
     );
     const pageMarkup = renderToStaticMarkup(
       <MemoryRouter initialEntries={["/en/analysis/pva"]}>
-        <PvaEstimateV1Page />
+        <PvaReferenceV1Page />
       </MemoryRouter>,
     );
 
-    expect(resultMarkup).toContain('data-testid="pva-estimate-v1-result"');
+    expect(resultMarkup).toContain('data-testid="pva-reference-v1-result"');
     expect(resultMarkup).toContain("1.582");
     expect(resultMarkup).toContain("0.588");
     expect(resultMarkup).toContain("Limited estimate");
     expect(resultMarkup).toContain("Measured volume range");
+    expect(resultMarkup).toContain("not a PV-loop PVA rendering");
+    expect(resultMarkup).toContain("Passive-reference subtraction: 0.000 J");
     expect(resultMarkup).toContain("45% of the systolic area");
     expect(resultMarkup).toContain("4.1% at finer phase resolution");
-    expect(pageMarkup).toContain('data-testid="pva-estimate-v1-page"');
-    expect(pageMarkup).toContain("Show PVA estimate");
+    expect(pageMarkup).toContain('data-testid="pva-reference-v1-page"');
+    expect(pageMarkup).toContain("Show PVA reference");
+    expect(pageMarkup).toContain("research-pva-mvo2-558-573-final");
     expect(pageMarkup).toContain("MVO₂");
+  });
+
+  it("reflects an unavailable aggregate in the top-level status badge", async () => {
+    await i18n.changeLanguage("en");
+    const limited = buildMainWireIntegratedModelNormalAdultPvaReferenceV1();
+    const unavailableOutput = evaluateMainWireIntegratedModelPvaOutputV1({
+      ...MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_INPUTS_V1[0],
+      externalWorkJ: Number.NaN,
+    });
+    const unavailable = {
+      ...limited,
+      status: "unavailable" as const,
+      outputs: Object.freeze([unavailableOutput]),
+    };
+
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/en/analysis/pva"]}>
+        <PvaReferenceResultV1 reference={unavailable} locale="en" />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain("Unavailable");
+    expect(markup).not.toContain("Limited estimate");
   });
 });

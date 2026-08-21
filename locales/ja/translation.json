@@ -16,7 +16,7 @@
     "home": "ホーム",
     "workbench": "シミュレーション",
     "articles": "記事",
-    "pvaEstimate": "PVA推定"
+    "pvaEstimate": "正常成人PVAリファレンス"
   },
   "siteHeader": {
     "home": "CircleHeart ホーム",
@@ -77,7 +77,6 @@
     "headline": "循環動態を、動かして学ぶ。",
     "lead": "循環動態のメカニズムを、記事とインタラクティブなシミュレーションで学べます。パラメータを動かすと、血圧や心拍出量の変化をその場で確かめられます。",
     "startExperiment": "シミュレーションを始める",
-    "openPvaEstimate": "PVA推定を見る",
     "readArticles": "記事から学ぶ",
     "sectionArticles": "記事",
     "sectionSimulations": "シミュレーション",
@@ -92,16 +91,14 @@
   },
   "pvaEstimate": {
     "back": "ホームへ戻る",
-    "eyebrow": "METHOD-SPECIFIC ANALYSIS",
-    "title": "PVA推定",
-    "description": "正常成人の標準条件で得られた、方法を固定したPVA推定です。通常のlive simulationから自動計算する値ではありません。",
-    "runTitle": "正常成人リファレンスを計算",
-    "runDescription": "周期PV pathの外的仕事と、phase-wise venous occlusionで定めたPE equivalentを組み合わせます。研究laneの重い再計算や監査処理はproductionへ持ち込みません。",
-    "run": "PVA推定を表示",
-    "runAgain": "もう一度表示",
-    "running": "計算しています…",
-    "idle": "ボタンを押すまでPVA推定は計算・表示されません。",
-    "failed": "PVA推定を表示できませんでした: {{message}}",
+    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
+    "title": "正常成人PVAリファレンス",
+    "description": "正常成人の標準条件について事前計算された、方法を固定したPVAリファレンスです。現在のsimulation scenarioから導出する値ではありません。",
+    "referenceTitle": "正常成人の標準リファレンス",
+    "referenceDescription": "accepted periodic PV pathから研究laneで得た外的仕事と、phase-wise venous occlusionで定めたPE equivalentを表示します。productionではprotocolの再実行やlive PV pathの積分を行いません。",
+    "show": "PVAリファレンスを表示",
+    "showAgain": "リファレンスをもう一度表示",
+    "idle": "ボタンを押すまでcompact referenceは表示されません。",
     "resultsTitle": "正常成人リファレンス",
     "method": "Method: {{methodId}}",
     "ventricle": "{{ventricle}} PVA estimate",
@@ -112,11 +109,13 @@
     "metrics": {
       "externalWork": "周期外的仕事 (EW)",
       "peEquivalent": "PE equivalent",
+      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
       "emax": "Emax候補",
       "v0": "V0"
     },
-    "chartLabel": "{{ventricle}}のphase-wise収縮末期関係と外挿範囲",
+    "geometryChartLabel": "{{ventricle}}のESPVR候補とPE-equivalent geometry",
     "chart": {
+      "geometryNotice": "ESPVR候補とPE-equivalentの幾何です。PV loop上のPVA表示ではありません。",
       "measured": "測定volume範囲",
       "extrapolated": "外挿区間",
       "outside": "収縮末期面積の外挿 {{value}}"
@@ -129,8 +128,9 @@
       "fixed-contralateral-passive-reference": "反対側心室volumeを固定したintrinsic passive referenceです。"
     },
     "boundaryTitle": "この値が意味する範囲",
-    "boundaryDescription": "これはcanonical normal-adultに限定したversioned method-specific estimateです。現在のScenario、無修飾のgeneric PVA、臨床PVA、単一心拍のlive output、MVO₂や酸素消費量を表しません。",
-    "researchArchive": "研究lane（PR #558–#573）をGitHubで見る"
+    "boundaryDescription": "これは事前計算済みのversioned method-specific referenceです。EWは保存された研究結果であり、productionでは再計算しません。現在のscenario、genericまたは臨床PVA、単一心拍のlive output、MVO₂や酸素消費量を表しません。",
+    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
+    "researchArchive": "固定された研究source（PR #558–#573）をGitHubで見る"
   },
   "publicExperiments": {
     "title": "公開シミュレーション",

@@ -1,8 +1,21 @@
-export const MAIN_WIRE_INTEGRATED_MODEL_PVA_ESTIMATE_V1_ID =
-  "main-wire-integrated-model-canonical-normal-adult-pva-estimate-v1" as const;
+export const MAIN_WIRE_INTEGRATED_MODEL_PVA_REFERENCE_V1_ID =
+  "main-wire-integrated-model-canonical-normal-adult-pva-reference-v1" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PVA_METHOD_V1_ID =
   "suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1 =
+  Object.freeze({
+    sourceResearchTag: "research-pva-mvo2-558-573-final" as const,
+    sourceCommitSha: "7fa68a21607107db0e766c3449788d9d90d59e60" as const,
+    sourceStudyId:
+      "main-wire-integrated-model-phase-wise-pva-qualification-v2" as const,
+    referenceRevision: "normal-adult-pva-reference-v1" as const,
+    pressureBasis: "ventricular-transmural" as const,
+    externalWorkSource:
+      "accepted-periodic-pv-path-work-research-reference" as const,
+    methodId: MAIN_WIRE_INTEGRATED_MODEL_PVA_METHOD_V1_ID,
+  });
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PVA_OUTPUT_IDS_V1 = Object.freeze([
   "protocol-analysis.pva-estimate.phase-wise-venous-occlusion-v1.LV",
@@ -79,13 +92,14 @@ export type MainWireIntegratedModelPvaOutputV1 =
       reason: string;
     }>;
 
-export type MainWireIntegratedModelPvaAnalysisV1 = Readonly<{
-  analysisId: typeof MAIN_WIRE_INTEGRATED_MODEL_PVA_ESTIMATE_V1_ID;
+export type MainWireIntegratedModelPvaReferenceV1 = Readonly<{
+  referenceId: typeof MAIN_WIRE_INTEGRATED_MODEL_PVA_REFERENCE_V1_ID;
   methodId: typeof MAIN_WIRE_INTEGRATED_MODEL_PVA_METHOD_V1_ID;
   status: "limited" | "unavailable";
   scope: "canonical-normal-adult-reference";
-  targetSurface: "on-demand-completed-protocol-analysis";
+  targetSurface: "precomputed-completed-protocol-reference";
   pressureBasis: "ventricular-transmural";
+  provenance: typeof MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1;
   outputs: readonly MainWireIntegratedModelPvaOutputV1[];
   interpretation: Readonly<{
     methodSpecificEstimateAvailable: boolean;
@@ -190,7 +204,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_INPUTS_V1 =
     }),
   ] satisfies readonly MainWireIntegratedModelPvaReferenceInputV1[]);
 
-let cachedNormalAdultAnalysisV1: MainWireIntegratedModelPvaAnalysisV1 | null =
+let cachedNormalAdultReferenceV1: MainWireIntegratedModelPvaReferenceV1 | null =
   null;
 
 export function evaluateMainWireIntegratedModelPvaOutputV1(
@@ -264,7 +278,7 @@ export function evaluateMainWireIntegratedModelPvaOutputV1(
   });
 }
 
-export function buildMainWireIntegratedModelNormalAdultPvaAnalysisV1(): MainWireIntegratedModelPvaAnalysisV1 {
+export function buildMainWireIntegratedModelNormalAdultPvaReferenceV1(): MainWireIntegratedModelPvaReferenceV1 {
   const outputs = Object.freeze(
     MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_INPUTS_V1.map(
       evaluateMainWireIntegratedModelPvaOutputV1,
@@ -272,12 +286,14 @@ export function buildMainWireIntegratedModelNormalAdultPvaAnalysisV1(): MainWire
   );
   const available = outputs.every(({ status }) => status === "limited");
   return Object.freeze({
-    analysisId: MAIN_WIRE_INTEGRATED_MODEL_PVA_ESTIMATE_V1_ID,
+    referenceId: MAIN_WIRE_INTEGRATED_MODEL_PVA_REFERENCE_V1_ID,
     methodId: MAIN_WIRE_INTEGRATED_MODEL_PVA_METHOD_V1_ID,
     status: available ? ("limited" as const) : ("unavailable" as const),
     scope: "canonical-normal-adult-reference" as const,
-    targetSurface: "on-demand-completed-protocol-analysis" as const,
+    targetSurface: "precomputed-completed-protocol-reference" as const,
     pressureBasis: "ventricular-transmural" as const,
+    provenance:
+      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1,
     outputs,
     interpretation: Object.freeze({
       methodSpecificEstimateAvailable: available,
@@ -290,14 +306,13 @@ export function buildMainWireIntegratedModelNormalAdultPvaAnalysisV1(): MainWire
   });
 }
 
-/** Explicit, cached analysis entry point. It is never called by rendering. */
-export async function runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1(): Promise<MainWireIntegratedModelPvaAnalysisV1> {
-  if (cachedNormalAdultAnalysisV1 === null) {
-    await Promise.resolve();
-    cachedNormalAdultAnalysisV1 =
-      buildMainWireIntegratedModelNormalAdultPvaAnalysisV1();
+/** Loads the compact precomputed reference; it does not run a model protocol. */
+export function loadMainWireIntegratedModelNormalAdultPvaReferenceV1(): MainWireIntegratedModelPvaReferenceV1 {
+  if (cachedNormalAdultReferenceV1 === null) {
+    cachedNormalAdultReferenceV1 =
+      buildMainWireIntegratedModelNormalAdultPvaReferenceV1();
   }
-  return cachedNormalAdultAnalysisV1;
+  return cachedNormalAdultReferenceV1;
 }
 
 function orderedRangeV1(range: readonly [number, number]): boolean {

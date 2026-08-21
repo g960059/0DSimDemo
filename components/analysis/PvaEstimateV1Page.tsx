@@ -2,7 +2,7 @@ import React from "react";
 import {
   Activity,
   ArrowLeft,
-  Calculator,
+  BookOpenText,
   CircleAlert,
   ExternalLink,
 } from "lucide-react";
@@ -10,48 +10,43 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
 import {
-  runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1,
-  type MainWireIntegratedModelPvaAnalysisV1,
+  loadMainWireIntegratedModelNormalAdultPvaReferenceV1,
+  MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1,
   type MainWireIntegratedModelPvaLimitationV1,
   type MainWireIntegratedModelPvaOutputV1,
+  type MainWireIntegratedModelPvaReferenceV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPvaEstimateV1";
 import { homeHref } from "@/homeLinks";
 import { localeFromPathname, type Locale } from "@/localeRouting";
 
-const RESEARCH_ARCHIVE_URL_V1 =
-  "https://github.com/g960059/0DSimDemo/tree/research/pva-mvo2-558-573";
+const RESEARCH_ARCHIVE_URL_V1 = `https://github.com/g960059/0DSimDemo/tree/${MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1.sourceResearchTag}`;
 
-type AnalysisStateV1 =
+type ReferenceStateV1 =
   | Readonly<{ status: "idle" }>
-  | Readonly<{ status: "running" }>
   | Readonly<{
       status: "completed";
-      analysis: MainWireIntegratedModelPvaAnalysisV1;
-    }>
-  | Readonly<{ status: "failed"; message: string }>;
+      reference: MainWireIntegratedModelPvaReferenceV1;
+    }>;
 
-export function PvaEstimateV1Page() {
+export function PvaReferenceV1Page() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const [state, setState] = React.useState<AnalysisStateV1>({ status: "idle" });
+  const [state, setState] = React.useState<ReferenceStateV1>({
+    status: "idle",
+  });
 
-  const runAnalysis = React.useCallback(() => {
-    setState({ status: "running" });
-    void runMainWireIntegratedModelNormalAdultPvaAnalysisOnDemandV1()
-      .then((analysis) => setState({ status: "completed", analysis }))
-      .catch((error: unknown) =>
-        setState({
-          status: "failed",
-          message: error instanceof Error ? error.message : String(error),
-        }),
-      );
+  const showReference = React.useCallback(() => {
+    setState({
+      status: "completed",
+      reference: loadMainWireIntegratedModelNormalAdultPvaReferenceV1(),
+    });
   }, []);
 
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
-      data-testid="pva-estimate-v1-page"
+      data-testid="pva-reference-v1-page"
     >
       <main className="mx-auto w-full max-w-6xl px-4 py-7 sm:px-7 sm:py-10">
         <Link
@@ -79,24 +74,21 @@ export function PvaEstimateV1Page() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="max-w-2xl">
               <h2 className="text-base font-semibold">
-                {t("pvaEstimate.runTitle")}
+                {t("pvaEstimate.referenceTitle")}
               </h2>
               <p className="mt-1 text-xs leading-6 text-wb-muted">
-                {t("pvaEstimate.runDescription")}
+                {t("pvaEstimate.referenceDescription")}
               </p>
             </div>
             <button
               type="button"
-              onClick={runAnalysis}
-              disabled={state.status === "running"}
+              onClick={showReference}
               className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-wb-primary px-5 text-sm font-semibold text-white transition-[background-color,transform] hover:bg-wb-primary-hover active:scale-[0.98] disabled:cursor-wait disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
             >
-              <Calculator className="h-4 w-4" aria-hidden="true" />
-              {state.status === "running"
-                ? t("pvaEstimate.running")
-                : state.status === "completed"
-                  ? t("pvaEstimate.runAgain")
-                  : t("pvaEstimate.run")}
+              <BookOpenText className="h-4 w-4" aria-hidden="true" />
+              {state.status === "completed"
+                ? t("pvaEstimate.showAgain")
+                : t("pvaEstimate.show")}
             </button>
           </div>
         </section>
@@ -106,24 +98,8 @@ export function PvaEstimateV1Page() {
             {t("pvaEstimate.idle")}
           </div>
         )}
-        {state.status === "running" && (
-          <div
-            className="mt-5 rounded-2xl border border-wb-line bg-wb-panel px-5 py-10 text-center text-sm text-wb-muted"
-            role="status"
-          >
-            {t("pvaEstimate.running")}
-          </div>
-        )}
-        {state.status === "failed" && (
-          <div
-            className="mt-5 rounded-2xl border border-wb-danger/40 bg-wb-danger-soft px-5 py-5 text-sm text-wb-danger"
-            role="alert"
-          >
-            {t("pvaEstimate.failed", { message: state.message })}
-          </div>
-        )}
         {state.status === "completed" && (
-          <PvaEstimateResultV1 analysis={state.analysis} locale={locale} />
+          <PvaReferenceResultV1 reference={state.reference} locale={locale} />
         )}
 
         <section className="mt-7 flex gap-3 rounded-2xl border border-wb-warning/35 bg-wb-warning-soft px-4 py-4 sm:px-5">
@@ -137,6 +113,13 @@ export function PvaEstimateV1Page() {
             </h2>
             <p className="mt-1 max-w-4xl text-xs leading-6 text-wb-muted">
               {t("pvaEstimate.boundaryDescription")}
+            </p>
+            <p className="mt-1 max-w-4xl text-[11px] leading-5 text-wb-subtle">
+              {t("pvaEstimate.provenance", {
+                studyId:
+                  MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1.sourceStudyId,
+                tag: MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_PVA_REFERENCE_PROVENANCE_V1.sourceResearchTag,
+              })}
             </p>
             <a
               href={RESEARCH_ARCHIVE_URL_V1}
@@ -154,32 +137,38 @@ export function PvaEstimateV1Page() {
   );
 }
 
-export function PvaEstimateResultV1({
-  analysis,
+export function PvaReferenceResultV1({
+  reference,
   locale,
 }: Readonly<{
-  analysis: MainWireIntegratedModelPvaAnalysisV1;
+  reference: MainWireIntegratedModelPvaReferenceV1;
   locale: Locale;
 }>) {
   const { t } = useTranslation();
   return (
-    <section className="mt-7" data-testid="pva-estimate-v1-result">
+    <section className="mt-7" data-testid="pva-reference-v1-result">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">
             {t("pvaEstimate.resultsTitle")}
           </h2>
           <p className="mt-1 text-xs leading-5 text-wb-subtle">
-            {t("pvaEstimate.method", { methodId: analysis.methodId })}
+            {t("pvaEstimate.method", { methodId: reference.methodId })}
           </p>
         </div>
-        <span className="rounded-full bg-wb-warning-soft px-3 py-1.5 text-xs font-semibold text-wb-warning ring-1 ring-wb-warning/30">
-          {t("pvaEstimate.status.limited")}
+        <span
+          className={
+            reference.status === "limited"
+              ? "rounded-full bg-wb-warning-soft px-3 py-1.5 text-xs font-semibold text-wb-warning ring-1 ring-wb-warning/30"
+              : "rounded-full bg-wb-danger-soft px-3 py-1.5 text-xs font-semibold text-wb-danger ring-1 ring-wb-danger/30"
+          }
+        >
+          {t(`pvaEstimate.status.${reference.status}`)}
         </span>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
-        {analysis.outputs.map((output) => (
+        {reference.outputs.map((output) => (
           <PvaVentricleCardV1
             key={output.ventricleId}
             output={output}
@@ -213,7 +202,7 @@ function PvaVentricleCardV1({
   return (
     <article
       className="overflow-hidden rounded-2xl border border-wb-line bg-wb-panel shadow-sm"
-      data-testid={`pva-estimate-v1-${output.ventricleId}`}
+      data-testid={`pva-reference-v1-${output.ventricleId}`}
     >
       <header className="flex items-start justify-between gap-4 border-b border-wb-line px-5 py-4">
         <div>
@@ -241,6 +230,14 @@ function PvaVentricleCardV1({
           <MetricV1
             label={t("pvaEstimate.metrics.peEquivalent")}
             value={`${formatNumberV1(output.potentialEnergyEquivalentJ, locale, 3)} J`}
+            detail={t("pvaEstimate.metrics.passiveSubtraction", {
+              value: formatNumberV1(
+                output.passiveReference
+                  .positivePressureAreaBelowSystolicEndpointJ,
+                locale,
+                3,
+              ),
+            })}
           />
           <MetricV1
             label={t("pvaEstimate.metrics.emax")}
@@ -323,7 +320,7 @@ function PvaRelationChartV1({
         viewBox="0 0 420 180"
         className="h-auto w-full rounded-xl bg-wb-soft/45"
         role="img"
-        aria-label={t("pvaEstimate.chartLabel", {
+        aria-label={t("pvaEstimate.geometryChartLabel", {
           ventricle: output.ventricleId,
         })}
       >
@@ -399,22 +396,27 @@ function PvaRelationChartV1({
           Ves
         </text>
       </svg>
-      <figcaption className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-wb-subtle">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0.5 w-5 bg-wb-accent" />
-          {t("pvaEstimate.chart.measured")}
+      <figcaption className="mt-2 text-[10px] leading-5 text-wb-subtle">
+        <span className="block font-medium text-wb-muted">
+          {t("pvaEstimate.chart.geometryNotice")}
         </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-0 w-5 border-t-2 border-dashed border-wb-warning" />
-          {t("pvaEstimate.chart.extrapolated")}
-        </span>
-        <span>
-          {t("pvaEstimate.chart.outside", {
-            value: formatPercentV1(
-              output.sensitivity.systolicAreaOutsideMeasuredRangeFraction,
-              locale,
-            ),
-          })}
+        <span className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0.5 w-5 bg-wb-accent" />
+            {t("pvaEstimate.chart.measured")}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-0 w-5 border-t-2 border-dashed border-wb-warning" />
+            {t("pvaEstimate.chart.extrapolated")}
+          </span>
+          <span>
+            {t("pvaEstimate.chart.outside", {
+              value: formatPercentV1(
+                output.sensitivity.systolicAreaOutsideMeasuredRangeFraction,
+                locale,
+              ),
+            })}
+          </span>
         </span>
       </figcaption>
     </figure>
