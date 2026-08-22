@@ -3,7 +3,12 @@ import React from "react";
 import type {
   PressureVolumePressureBasisV2,
 } from "@/studio/contracts/v2/model";
-import type { MainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import type {
+  MainWireIntegratedModelPeriodicPvaCurvePointV1,
+  MainWireIntegratedModelPeriodicPvaEdpvrV1,
+  MainWireIntegratedModelPeriodicPvaEspvrV1,
+  MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 
 import {
   finiteWorkbenchScalarValueV3,
@@ -577,13 +582,15 @@ export function PressureVolumeLoopCanvasV3(
     );
     const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
       volumeDomainStateRef.current.domain,
-      visibleRenderedTraces.flatMap(({ periodicPva }) =>
-          periodicPva?.status === "available"
-            ? [
-                periodicPva.espvr.volumeAxisInterceptMl,
-                periodicPva.edpvr.zeroPressureVolumeMl,
-              ]
-            : []),
+      visibleRenderedTraces.flatMap(({ periodicPva }) => {
+        const drawing = periodicPvaDrawingV1(periodicPva);
+        return drawing === null
+          ? []
+          : [
+              drawing.espvr.volumeAxisInterceptMl,
+              drawing.edpvr.zeroPressureVolumeMl,
+            ];
+      }),
     );
     const pressureDomain = pressureDomainStateRef.current.domain;
     drawPvAxesV3(
@@ -642,14 +649,17 @@ export function PressureVolumeLoopCanvasV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
-      if (periodicPva?.status === "available") {
+      const pvaDrawing = periodicPvaDrawingV1(periodicPva);
+      if (pvaDrawing !== null) {
         drawPeriodicPvaV1(
           context,
-          periodicPva,
+          pvaDrawing,
           x,
           y,
           trace.chamberColor,
           0.92 * traceAlpha,
+          volumeDomain,
+          pressureDomain,
         );
       }
       drawPvCurveV3(context, backBufferRemainder, x, y, {
@@ -711,8 +721,12 @@ export function PressureVolumeLoopCanvasV3(
       ? [Object.freeze({ periodicPva, trace })]
       : [],
   );
-  const relationStatus = availablePva.length > 0
-    ? "Settled-source preload reduction · accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA · not clinical validation"
+  const drawablePva = visibleRenderedTraces.flatMap(({ periodicPva, trace }) =>
+    periodicPvaDrawingV1(periodicPva) === null
+      ? []
+      : [Object.freeze({ periodicPva: periodicPva!, trace })]);
+  const relationStatus = drawablePva.length > 0
+    ? "Settled-source preload reduction · progressive isochronal Emax ESPVR / exponential EDPVR · not clinical validation"
     : "Settled-source preload-reduction analysis selected · relation not yet available";
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
@@ -720,10 +734,14 @@ export function PressureVolumeLoopCanvasV3(
   const pvaAnalysisPending = traces.some(
     ({ periodicPvaAnalysisPending }) => periodicPvaAnalysisPending === true,
   );
-  const pvaProgress = visibleRenderedTraces
+  const collectingPvaCandidate = visibleRenderedTraces
     .map(({ periodicPva }) => periodicPva)
-    .find((periodicPva) =>
-      periodicPva !== null && periodicPva.status === "collecting")?.progress;
+    .find((periodicPva) => periodicPva?.status === "collecting");
+  const collectingPva =
+    collectingPvaCandidate?.status === "collecting"
+      ? collectingPvaCandidate
+      : undefined;
+  const pvaProgress = collectingPva?.progress;
   const familyProgress = availablePva[0]?.periodicPva.source.familyProgress;
   const pvaAnalysisError = visibleRenderedTraces
     .map(({ trace }) => trace.periodicPvaAnalysisError)
@@ -777,60 +795,13 @@ export function PressureVolumeLoopCanvasV3(
             />
             {familyProgress !== undefined
               ? `PVA ready · Starling extension ${familyProgress.completedPointCount} settled points`
-              : pvaProgress === undefined
-                ? "Settling source…"
-                : `PVA analysis ${pvaProgress.completedPointCount}/${pvaProgress.totalPointCount} points`}
-          </div>
-        )}
-        {availablePva.length > 0 && (
-          <div
-            className="pointer-events-none absolute bottom-2 left-2 grid max-w-[calc(100%-1rem)] gap-1 rounded-lg border border-wb-line/70 bg-wb-app/90 px-2.5 py-2 text-[10px] leading-4 text-wb-muted shadow-sm backdrop-blur"
-            data-testid="workbench-pva-results"
-          >
-            {availablePva.slice(0, 4).map(({ periodicPva, trace }) => (
-              <div
-                key={`${trace.scenarioId}:${trace.chamberId}`}
-                className="flex flex-wrap items-baseline gap-x-2"
-              >
-                <span className="font-semibold text-wb-text">
-                  {trace.scenarioLabel} · {trace.chamberLabel}
-                </span>
-                <span>SW {periodicPva.strokeWork.joule.toFixed(3)} J</span>
-                <span>PE {periodicPva.potentialEnergy.joule.toFixed(3)} J</span>
-                <span>PVA {periodicPva.pva.joule.toFixed(3)} J</span>
-                <span>
-                  Emax {periodicPva.espvr.elastanceMmHgPerMl.toFixed(3)}{" "}
-                  mmHg/mL · phase{" "}
-                  {periodicPva.espvr.maximumElastancePhase01.toFixed(3)} · R²{" "}
-                  {periodicPva.espvr.rSquared.toFixed(3)}
-                </span>
-                {periodicPva.espvr.nonlinearComparator !== null && (
-                  <span>
-                    quadratic comparator R²{" "}
-                    {periodicPva.espvr.nonlinearComparator.rSquared.toFixed(3)}
-                  </span>
-                )}
-                {periodicPva.espvr.semilunarClosureComparator !== null && (
-                  <span>
-                    semilunar closure R²{" "}
-                    {periodicPva.espvr.semilunarClosureComparator.rSquared.toFixed(3)}
-                  </span>
-                )}
-                <span>exponential EDPVR R² {periodicPva.edpvr.rSquared.toFixed(3)}</span>
-                {periodicPva.estimatedMvo2?.status === "available" && (
-                  <span>
-                    estimated MVO₂ @{periodicPva.estimatedMvo2.heartRateBpm.toFixed(1)} bpm{" "}
-                    {periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G.toFixed(2)}{" "}
-                    mL/min/100 g
-                  </span>
-                )}
-              </div>
-            ))}
-            <span className="text-[9px] text-wb-subtle">
-              Persistent hot-start chain · coronary tone held at source ·
-              isochronal Emax ESPVR · exponential EDPVR · MVO₂ is a Suga
-              literature estimate
-            </span>
+              : collectingPva?.preview?.stage === "pva"
+                ? `PVA preview · ${collectingPva.preview.pointCount} settled points · refining to ≥${collectingPva.progress.totalPointCount}`
+                : collectingPva?.preview?.stage === "relations"
+                  ? `ESPVR / EDPVR preview · ${collectingPva.preview.pointCount} settled points`
+                  : pvaProgress === undefined
+                    ? "Settling source…"
+                    : `PVA analysis ${pvaProgress.completedPointCount} settled points · minimum ${pvaProgress.totalPointCount}`}
           </div>
         )}
         {pvaAnalysisError !== undefined && (
@@ -977,34 +948,182 @@ function pvLegendSelectionKeyV3(
   return `trace:${selection.traceKey}`;
 }
 
+type PeriodicPvaDrawingV1 = Readonly<{
+  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1;
+  edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1;
+  preview: boolean;
+}>;
+
+function periodicPvaDrawingV1(
+  pva: MainWireIntegratedModelPeriodicPvaV1 | null | undefined,
+): PeriodicPvaDrawingV1 | null {
+  if (pva?.status === "available") {
+    return Object.freeze({
+      espvr: pva.espvr,
+      edpvr: pva.edpvr,
+      preview: false,
+    });
+  }
+  if (
+    pva?.status !== "collecting"
+    || pva.preview?.espvr === null
+    || pva.preview?.espvr === undefined
+    || pva.preview.edpvr === null
+  ) return null;
+  return Object.freeze({
+    espvr: pva.preview.espvr,
+    edpvr: pva.preview.edpvr,
+    preview: true,
+  });
+}
+
 function drawPeriodicPvaV1(
   context: CanvasRenderingContext2D,
-  pva: Extract<MainWireIntegratedModelPeriodicPvaV1, { status: "available" }>,
+  pva: PeriodicPvaDrawingV1,
   x: (volumeMl: number) => number,
   y: (pressureMmHg: number) => number,
   color: string,
   alpha: number,
+  volumeDomain: WorkbenchNumericDomainV3,
+  pressureDomain: WorkbenchNumericDomainV3,
 ): void {
-  drawPvCurveV3(context, pva.espvr.curve, x, y, {
+  const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
+  const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
+  const espvrEndVolumeMl = Math.min(
+    volumeDomain[1],
+    pva.espvr.volumeAxisInterceptMl
+      + maximumVisiblePressureMmHg / pva.espvr.elastanceMmHgPerMl,
+  );
+  const espvrFullCurve = sampleDisplayedPvaCurveV1(
+    Math.max(volumeDomain[0], pva.espvr.volumeAxisInterceptMl),
+    espvrEndVolumeMl,
+    (volumeMl) => Math.max(
+      0,
+      pva.espvr.elastanceMmHgPerMl
+        * (volumeMl - pva.espvr.volumeAxisInterceptMl),
+    ),
+  );
+  drawPvCurveV3(context, espvrFullCurve, x, y, {
     color,
-    width: 1.65,
-    dash: Object.freeze([]),
-    alpha,
+    width: 1.1,
+    dash: Object.freeze([2, 3]),
+    alpha: relationAlpha * 0.38,
   });
-  drawPvCurveV3(context, pva.edpvr.curve, x, y, {
-    color,
-    width: 1.35,
-    dash: Object.freeze([4, 3]),
-    alpha: alpha * 0.72,
-  });
+  drawPvCurveV3(
+    context,
+    sampleDisplayedPvaCurveV1(
+      pva.espvr.measuredVolumeRangeMl[0],
+      pva.espvr.measuredVolumeRangeMl[1],
+      (volumeMl) => Math.max(
+        0,
+        pva.espvr.elastanceMmHgPerMl
+          * (volumeMl - pva.espvr.volumeAxisInterceptMl),
+      ),
+    ),
+    x,
+    y,
+    {
+      color,
+      width: 1.65,
+      dash: pva.preview ? Object.freeze([5, 3]) : Object.freeze([]),
+      alpha: relationAlpha,
+    },
+  );
+  const edpvrEndVolumeMl = Math.min(
+    volumeDomain[1],
+    pva.edpvr.zeroPressureVolumeMl
+      + Math.log1p(maximumVisiblePressureMmHg / pva.edpvr.scaleMmHg)
+        / pva.edpvr.exponentPerMl,
+  );
+  const edpvrPressure = (volumeMl: number) =>
+    volumeMl <= pva.edpvr.zeroPressureVolumeMl
+      ? 0
+      : pva.edpvr.scaleMmHg
+        * Math.expm1(
+          pva.edpvr.exponentPerMl
+            * (volumeMl - pva.edpvr.zeroPressureVolumeMl),
+        );
+  drawPvCurveV3(
+    context,
+    sampleDisplayedPvaCurveV1(
+      Math.max(volumeDomain[0], pva.edpvr.zeroPressureVolumeMl),
+      edpvrEndVolumeMl,
+      edpvrPressure,
+    ),
+    x,
+    y,
+    {
+      color,
+      width: 1,
+      dash: Object.freeze([2, 4]),
+      alpha: relationAlpha * 0.3,
+    },
+  );
+  drawPvCurveV3(
+    context,
+    sampleDisplayedPvaCurveV1(
+      pva.edpvr.measuredVolumeRangeMl[0],
+      pva.edpvr.measuredVolumeRangeMl[1],
+      edpvrPressure,
+    ),
+    x,
+    y,
+    {
+      color,
+      width: 1.35,
+      dash: Object.freeze([4, 3]),
+      alpha: relationAlpha * 0.72,
+    },
+  );
+  for (const point of pva.espvr.fitPoints) {
+    drawPvRelationMarkerV3(
+      context,
+      x(point.volumeMl),
+      y(point.pressureMmHg),
+      color,
+      1.7,
+      relationAlpha * 0.5,
+      true,
+    );
+  }
+  for (const point of pva.edpvr.fitPoints) {
+    drawPvRelationMarkerV3(
+      context,
+      x(point.volumeMl),
+      y(point.pressureMmHg),
+      color,
+      1.6,
+      relationAlpha * 0.42,
+      false,
+    );
+  }
   drawPvRelationMarkerV3(
     context,
     x(pva.espvr.volumeAxisInterceptMl),
     y(0),
     color,
     2.4,
-    alpha,
+    relationAlpha,
     false,
+  );
+}
+
+function sampleDisplayedPvaCurveV1(
+  startVolumeMl: number,
+  endVolumeMl: number,
+  pressure: (volumeMl: number) => number,
+): readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[] {
+  if (
+    !Number.isFinite(startVolumeMl)
+    || !Number.isFinite(endVolumeMl)
+    || !(endVolumeMl > startVolumeMl)
+  ) return Object.freeze([]);
+  return Object.freeze(
+    Array.from({ length: 65 }, (_, index) => {
+      const volumeMl =
+        startVolumeMl + (index / 64) * (endVolumeMl - startVolumeMl);
+      return Object.freeze({ volumeMl, pressureMmHg: pressure(volumeMl) });
+    }),
   );
 }
 

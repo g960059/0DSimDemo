@@ -178,6 +178,7 @@ export const regressionTests = [
   "__tests__/exactEventPrescribedCalciumV1.test.ts",
   "__tests__/mainWireIntegratedModelOutputRegistryV3.test.ts",
   "__tests__/mainWireIntegratedModelSessionV3.test.ts",
+  "__tests__/mainWireIntegratedStudioFormalPvaAdaptiveV3.test.ts",
   "__tests__/nonCoronaryDynamicMechanicalSupportIntegrationV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",

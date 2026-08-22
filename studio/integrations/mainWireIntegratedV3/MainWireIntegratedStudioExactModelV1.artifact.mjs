@@ -46625,10 +46625,11 @@ const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_TBV_SCALES_V3 =
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = Object.freeze([1.08, 1.16, 1.24, 1.32, 1.4]);
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3 = 0.5;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID = "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1";
-const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 = Object.freeze([0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6]);
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 9;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.6;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3 = Object.freeze([0.54, 0.48, 0.42, 0.36, 0.31, 0.27, 0.23]);
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3;
-const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 = 1 + MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.length;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3 = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 + MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3.length + MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3.length;
 function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(sourceGlobalTbvMl, scale) {
   if (!Number.isFinite(sourceGlobalTbvMl) || !(sourceGlobalTbvMl > 0) || !Number.isFinite(scale) || !(scale > 0) || scale > 1) {
@@ -46651,6 +46652,9 @@ const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
 const MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
+const FORMAL_PVA_INITIAL_SCALE_STEP_V3 = 0.04;
+const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 5e-3;
+const FORMAL_PVA_MAXIMUM_SCALE_STEP_V3 = 0.075;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
 const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
 const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
@@ -46827,7 +46831,7 @@ async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSe
   }
   const paired = [];
   let anchorObservation = null;
-  const expectedPointCount = formalExpectedPointCountV3(partition);
+  const expectedPointCount = formalExpectedPointCountV3();
   const result = (protocolComplete = false) => Object.freeze({
     protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
     anchorObservation: requiredAnchorObservationV3(anchorObservation),
@@ -46886,7 +46890,7 @@ async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSe
       append
     );
   }
-  if (partition === void 0) {
+  if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3) {
     await runFormalLowStarlingExtensionV3(
       lowBoundary.branch,
       sourceGlobalTbvMl,
@@ -46896,13 +46900,7 @@ async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSe
   }
   return result(true);
 }
-function formalExpectedPointCountV3(partition) {
-  if (partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3) {
-    return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3;
-  }
-  if (partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3) {
-    return 1 + MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3.length;
-  }
+function formalExpectedPointCountV3(_partition) {
   return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3;
 }
 function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
@@ -46954,37 +46952,81 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
 async function runFormalPressureVolumeChainV3(centerBranch, sourceGlobalTbvMl, append) {
   let reliableBranch = centerBranch;
   let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
-  for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3) {
-    const targetGlobalTbvMl = mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
-      sourceGlobalTbvMl,
-      scale
+  let reliableScale = 1;
+  let retainedPointCount = 1;
+  let desiredScaleStep = FORMAL_PVA_INITIAL_SCALE_STEP_V3;
+  while (reliableScale > MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 + 1e-12) {
+    const remainingScale = reliableScale - MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
+    const remainingRequiredPoints = Math.max(
+      1,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 - retainedPointCount
     );
-    if (targetGlobalTbvMl >= reliableTargetGlobalTbvMl - FIXED_TBV_TOLERANCE_ML_V3) {
-      continue;
+    const pointCountBoundedStep = remainingScale / remainingRequiredPoints;
+    let attemptedScaleStep = Math.min(
+      remainingScale,
+      desiredScaleStep,
+      pointCountBoundedStep
+    );
+    let accepted = false;
+    let lastRejectedReason = "adaptive PVA load was not attempted";
+    for (let attempt = 0; attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3; attempt += 1) {
+      const targetScale = Math.max(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+        reliableScale - attemptedScaleStep
+      );
+      const targetGlobalTbvMl = mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
+        sourceGlobalTbvMl,
+        targetScale
+      );
+      const measured = await measureFormalPressureVolumeBranchV3(
+        reliableBranch,
+        targetGlobalTbvMl,
+        "continuation"
+      );
+      if (measured.status === "accepted" && formalPairQualifiedV3(measured.pair)) {
+        append(measured.pair);
+        reliableBranch = measured.branch;
+        reliableTargetGlobalTbvMl = targetGlobalTbvMl;
+        reliableScale = targetScale;
+        retainedPointCount += 1;
+        desiredScaleStep = adaptiveFormalPvaScaleStepV3(
+          attemptedScaleStep,
+          measured.pair
+        );
+        accepted = true;
+        break;
+      }
+      lastRejectedReason = measured.status === "rejected" ? measured.reason : "adaptive PVA load did not retain a settled fixed-tone pair";
+      attemptedScaleStep *= 0.5;
+      if (attemptedScaleStep < FORMAL_PVA_MINIMUM_SCALE_STEP_V3 || sourceGlobalTbvMl * attemptedScaleStep < MINIMUM_FORMAL_TBV_BRACKET_ML_V3) {
+        break;
+      }
     }
-    const measured = await measureFormalPressureVolumeTargetV3(
-      reliableBranch,
-      reliableTargetGlobalTbvMl,
-      targetGlobalTbvMl
-    );
-    if (measured.status === "rejected") {
+    if (!accepted) {
       throw new Error(
-        `formal pressure-volume load ${scale} (${targetGlobalTbvMl} mL) rejected: ${measured.reason}`
+        `formal adaptive pressure-volume load below scale ${reliableScale} rejected: ${lastRejectedReason}`
       );
     }
-    if (!formalPairQualifiedV3(measured.pair)) {
-      throw new Error(
-        `PVA load ${scale} did not retain a settled fixed-tone pair`
-      );
-    }
-    append(measured.pair);
-    reliableBranch = measured.branch;
-    reliableTargetGlobalTbvMl = targetGlobalTbvMl;
   }
   return Object.freeze({
     branch: reliableBranch,
     targetGlobalTbvMl: reliableTargetGlobalTbvMl
   });
+}
+function adaptiveFormalPvaScaleStepV3(acceptedScaleStep, pair) {
+  const completedBeatCount = Math.max(
+    pair.left.completedBeatCount,
+    pair.right.completedBeatCount
+  );
+  const closureScore = Math.max(
+    pair.left.maximumNormalizedBeatDelta,
+    pair.right.maximumNormalizedBeatDelta
+  );
+  const multiplier = completedBeatCount <= 5 && closureScore <= 0.6 ? 1.25 : completedBeatCount >= 10 || closureScore > 0.9 ? 0.7 : 1;
+  return Math.min(
+    FORMAL_PVA_MAXIMUM_SCALE_STEP_V3,
+    Math.max(FORMAL_PVA_MINIMUM_SCALE_STEP_V3, acceptedScaleStep * multiplier)
+  );
 }
 async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
   let reliableBranch = centerBranch;

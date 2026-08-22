@@ -13,20 +13,22 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 describe("Main Wire Integrated V3 analysis execution", () => {
-  it("keeps the retired preview partitioned while the shared formal family runs once", () => {
-    const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+  it("runs legacy and formal Starling directions concurrently with PVA first on one slot", () => {
+    const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
+    const formalPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    );
 
-    expect(plan?.partitions).toEqual([
+    expect(legacyPlan?.partitions).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
-    expect(
-      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-      ),
-    ).toBeNull();
+    expect(formalPlan?.partitions).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    ]);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
         "analysis/not-registered",

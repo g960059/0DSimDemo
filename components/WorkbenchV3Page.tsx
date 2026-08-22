@@ -190,9 +190,7 @@ import {
   type WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
 import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
   buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
@@ -4971,28 +4969,36 @@ export function workbenchPeriodicPvaOutputValueV3(
   periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
   outputId: string,
 ): StudioSimulationOutputValueV2 | undefined {
-  if (periodicPva?.status !== "available") return undefined;
+  const projection =
+    periodicPva?.status === "available"
+      ? periodicPva
+      : periodicPva?.status === "collecting"
+        ? periodicPva.preview
+        : null;
+  if (projection === null || projection === undefined) return undefined;
   let value: number | null;
   switch (outputId) {
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule:
-      value = periodicPva.strokeWork.joule * 1e3;
+      value = projection.strokeWork.joule * 1e3;
       break;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
-      value = periodicPva.potentialEnergy.joule * 1e3;
+      if (projection.potentialEnergy === null) return undefined;
+      value = projection.potentialEnergy.joule * 1e3;
       break;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
-      value = periodicPva.pva.joule * 1e3;
+      if (projection.pva === null) return undefined;
+      value = projection.pva.joule * 1e3;
       break;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
       value =
-        periodicPva.estimatedMvo2?.status === "available"
-          ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
+        projection.estimatedMvo2?.status === "available"
+          ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
           : null;
       break;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
       value =
-        periodicPva.estimatedMvo2?.status === "available"
-          ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
+        projection.estimatedMvo2?.status === "available"
+          ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
           : null;
       break;
     default:
@@ -5016,7 +5022,13 @@ function periodicPvaOutputNoticeV3(
   if (periodicPva === undefined) return "PVA analysis is waiting to start";
   if (periodicPva.status === "available") return undefined;
   if (periodicPva.status === "collecting") {
-    return `PVA analysis ${periodicPva.progress.completedPointCount}/${periodicPva.progress.totalPointCount} points`;
+    if (periodicPva.preview?.stage === "pva") {
+      return `Provisional PVA from ${periodicPva.preview.pointCount} settled points; refining to at least ${periodicPva.progress.totalPointCount}`;
+    }
+    if (periodicPva.preview?.stage === "relations") {
+      return `Provisional ESPVR / EDPVR from ${periodicPva.preview.pointCount} settled points`;
+    }
+    return `PVA analysis ${periodicPva.progress.completedPointCount} settled points; minimum ${periodicPva.progress.totalPointCount}`;
   }
   return `PVA analysis unavailable: ${periodicPva.reason}`;
 }

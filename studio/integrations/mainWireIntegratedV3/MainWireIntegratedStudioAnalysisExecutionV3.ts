@@ -1,4 +1,5 @@
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
@@ -26,11 +27,27 @@ StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
 });
 
+const MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3:
+StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
+  partitions: Object.freeze([
+    // PVA is owned by the low-volume branch. Put it first so a one-slot device
+    // reaches progressive PVA previews before starting the high-volume limb;
+    // devices with two or more analysis leases run both persistent chains at
+    // the same time.
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+  ]),
+  merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
+});
+
 export const resolveMainWireIntegratedStudioAnalysisExecutionPlanV3:
 StudioSimulationAnalysisExecutionPlanResolverV2 = (analysisId) =>
   analysisId === MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
     ? MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3
-    : null;
+    : analysisId ===
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+      ? MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3
+      : null;
 
 /**
  * Combines independently progressing preload directions without inventing

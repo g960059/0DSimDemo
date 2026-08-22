@@ -10,12 +10,11 @@ import type {
 import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
   mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
 import { materializeWorkbenchOutputPresentationItemsV3 } from "@/components/WorkbenchV3Page";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -34,8 +33,7 @@ describe("settled hot-start PVA V1", () => {
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
       pointCount: 9,
-      slowControllerPolicy:
-        "active-source-period1-then-coronary-tone-frozen",
+      slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen",
       endDiastolicLandmark: "maximum-volume-proxy",
       endSystolicLandmark: "common-isochronal-maximum-elastance",
     });
@@ -52,9 +50,7 @@ describe("settled hot-start PVA V1", () => {
     );
     expect(result.edpvr.scaleMmHg).toBeGreaterThan(0);
     expect(result.edpvr.exponentPerMl).toBeCloseTo(0.02, 2);
-    expect(
-      Math.abs(result.edpvr.zeroPressureVolumeMl - 60),
-    ).toBeLessThan(1);
+    expect(Math.abs(result.edpvr.zeroPressureVolumeMl - 60)).toBeLessThan(1);
     expect(result.strokeWork).toMatchObject({
       method: "accepted-step-transmural-path-work",
       mmHgMl: 8_500,
@@ -71,23 +67,24 @@ describe("settled hot-start PVA V1", () => {
       result.anchor.endSystolicVolumeMl,
     );
     for (let intervalOrdinal = 1; intervalOrdinal <= 64; intervalOrdinal += 1) {
-      const volumeMl = result.potentialEnergy.leftIntersectionVolumeMl +
-        (result.anchor.endSystolicVolumeMl -
-            result.potentialEnergy.leftIntersectionVolumeMl) *
-          intervalOrdinal / 64;
+      const volumeMl =
+        result.potentialEnergy.leftIntersectionVolumeMl +
+        ((result.anchor.endSystolicVolumeMl -
+          result.potentialEnergy.leftIntersectionVolumeMl) *
+          intervalOrdinal) /
+          64;
       const endSystolicPressureMmHg =
         result.espvr.elastanceMmHgPerMl *
         (volumeMl - result.espvr.volumeAxisInterceptMl);
       const endDiastolicPressureMmHg = Math.max(
         0,
-        result.edpvr.scaleMmHg * Math.expm1(
-          result.edpvr.exponentPerMl *
-            (volumeMl - result.edpvr.zeroPressureVolumeMl),
-        ),
+        result.edpvr.scaleMmHg *
+          Math.expm1(
+            result.edpvr.exponentPerMl *
+              (volumeMl - result.edpvr.zeroPressureVolumeMl),
+          ),
       );
-      expect(endSystolicPressureMmHg).toBeGreaterThan(
-        endDiastolicPressureMmHg,
-      );
+      expect(endSystolicPressureMmHg).toBeGreaterThan(endDiastolicPressureMmHg);
     }
     expect(result.potentialEnergy.joule).toBeGreaterThanOrEqual(0);
     expect(result.pva.joule).toBeCloseTo(
@@ -154,7 +151,48 @@ describe("settled hot-start PVA V1", () => {
     ).toMatchObject({
       status: "collecting",
       progress: { completedPointCount: 4, totalPointCount: 9 },
+      preview: {
+        stage: "relations",
+        pointCount: 4,
+      },
     });
+  });
+
+  it("progresses from three-point relation preview to five-point PVA preview", () => {
+    const relations = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1().slice(0, 3), 21),
+      "LV",
+    );
+    const provisionalPva = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1().slice(0, 5), 21),
+      "LV",
+    );
+
+    expect(relations).toMatchObject({
+      status: "collecting",
+      preview: {
+        stage: "relations",
+        pointCount: 3,
+        pva: null,
+      },
+    });
+    if (relations.status === "collecting") {
+      expect(relations.preview?.espvr?.fitPoints).toHaveLength(3);
+      expect(relations.preview?.edpvr?.fitPoints).toHaveLength(3);
+    }
+    expect(provisionalPva).toMatchObject({
+      status: "collecting",
+      preview: {
+        stage: "pva",
+        pointCount: 5,
+      },
+    });
+    if (provisionalPva.status === "collecting") {
+      expect(provisionalPva.preview?.pva?.joule).toBeGreaterThan(0);
+      expect(provisionalPva.preview?.estimatedMvo2).toMatchObject({
+        status: "available",
+      });
+    }
   });
 
   it("publishes PVA after its core while the wider Starling family continues", () => {
@@ -203,7 +241,10 @@ describe("settled hot-start PVA V1", () => {
 
     expect(coreResult.status).toBe("available");
     expect(extendedResult.status).toBe("available");
-    if (coreResult.status !== "available" || extendedResult.status !== "available") {
+    if (
+      coreResult.status !== "available" ||
+      extendedResult.status !== "available"
+    ) {
       throw new Error("synthetic PVA core was unavailable");
     }
     expect(extendedResult.espvr).toEqual(coreResult.espvr);
@@ -213,22 +254,30 @@ describe("settled hot-start PVA V1", () => {
     expect(extendedResult.pva).toEqual(coreResult.pva);
   });
 
-  it("runs only the low-volume chain down to 60% of source TBV", () => {
+  it("admits an adaptive low-volume point family down to 60% of source TBV", () => {
     const sourceTbvMl =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.totalBloodVolumeMl;
-    const targets = [
-      1,
-      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
-    ].map((scale) =>
-      mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(sourceTbvMl, scale),
+    const adaptiveRatios = [1, 0.96, 0.91, 0.855, 0.8, 0.75, 0.7, 0.65, 0.6];
+    const adaptive = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1(adaptiveRatios)),
+      "LV",
     );
 
-    expect(targets).toHaveLength(9);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3).toBe(
+      9,
+    );
     expect(
-      targets.slice(1).every((target, index) => target < targets[index]!),
-    ).toBe(true);
-    expect(Math.min(...targets)).toBe(sourceTbvMl * 0.6);
-    expect(Math.max(...targets)).toBe(sourceTbvMl);
+      mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
+        sourceTbvMl,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+      ),
+    ).toBe(sourceTbvMl * 0.6);
+    expect(adaptive.status).toBe("available");
+    if (adaptive.status === "available") {
+      expect(adaptive.source.pointCount).toBe(adaptiveRatios.length);
+      expect(adaptive.espvr.fitPoints).toHaveLength(adaptiveRatios.length);
+      expect(adaptive.edpvr.fitPoints).toHaveLength(adaptiveRatios.length);
+    }
   });
 
   it("keeps semilunar closure as a diagnostic rather than the Emax owner", () => {
@@ -303,7 +352,7 @@ describe("settled hot-start PVA V1", () => {
     if (result.status === "available") expect(result.estimatedMvo2).toBeNull();
   });
 
-  it("renders the scenario result inside the Workbench PV pane", () => {
+  it("keeps the PV pane focused on curves instead of a numerical result card", () => {
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1()),
       "LV",
@@ -329,12 +378,8 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    expect(html).toContain('data-testid="workbench-pva-results"');
-    expect(html).toContain("PVA ");
-    expect(html).toContain("estimated MVO₂");
-    expect(html).toContain("exponential EDPVR");
-    expect(html).toContain("Emax 2.000 mmHg/mL");
-    expect(html).toContain("quadratic comparator R²");
+    expect(html).toContain('data-pva-result-count="1"');
+    expect(html).not.toContain('data-testid="workbench-pva-results"');
   });
 
   it("renders settled-point progress in the PV pane", () => {
@@ -363,7 +408,7 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    expect(html).toContain("PVA analysis 5/9 points");
+    expect(html).toContain("PVA preview · 5 settled points · refining to ≥9");
   });
 
   it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
@@ -452,6 +497,14 @@ describe("settled hot-start PVA V1", () => {
       formalLocusV1(settledPointsV1().slice(0, 5), 21),
       "LV",
     );
+    expect(collecting.status).toBe("collecting");
+    if (
+      collecting.status !== "collecting" ||
+      collecting.preview?.pva === null
+    ) {
+      throw new Error("five-point provisional PVA was unavailable");
+    }
+    const provisionalPvaMilliJoule = collecting.preview.pva.joule * 1e3;
     const progressItems = materializeWorkbenchOutputPresentationItemsV3({
       contract,
       frame: null,
@@ -471,8 +524,10 @@ describe("settled hot-start PVA V1", () => {
       periodicPva: collecting,
     });
     expect(progressItems[0]).toMatchObject({
-      availability: "unavailable",
-      qualityNotice: "PVA analysis 5/9 points",
+      availability: "available",
+      value: provisionalPvaMilliJoule,
+      qualityNotice:
+        "Provisional PVA from 5 settled points; refining to at least 9",
     });
   });
 
@@ -555,9 +610,11 @@ function formalLocusV1(
   });
 }
 
-function settledPointsV1(): readonly MainWireIntegratedModelStarlingPointV3[] {
+function settledPointsV1(
+  ratios: readonly number[] = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6],
+): readonly MainWireIntegratedModelStarlingPointV3[] {
   return Object.freeze(
-    [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6].map((ratio) => {
+    ratios.map((ratio) => {
       const reductionOrdinal = Math.round((1 - ratio) / 0.05);
       const endSystolicVolumeMl = 56 - reductionOrdinal * 2;
       const endDiastolicVolumeMl = 121 - reductionOrdinal * 4;

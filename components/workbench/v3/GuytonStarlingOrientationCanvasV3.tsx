@@ -628,7 +628,7 @@ function starlingStatusTextV3(
 ): string {
   const locus = orientation.starlingLocus;
   if (locus.status === "measured-fixed-tbv-protocol") {
-    return `Shared settled fixed-tone TBV family, ${locus.completedPointCount}/${locus.totalPointCount} points; its fixed nine-point low-volume core owns PVA`;
+    return `Shared settled fixed-tone TBV family, ${locus.completedPointCount}/${locus.totalPointCount} points; its adaptive low-volume core owns PVA`;
   }
   if (locus.status === "responsive-fixed-tbv-preview") {
     return `Responsive fixed-TBV Starling preview, ${locus.completedPointCount}/${locus.totalPointCount} points; the center is locally period-1 settled and off-centre points remain preview data`;

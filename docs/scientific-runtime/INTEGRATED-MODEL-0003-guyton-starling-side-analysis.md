@@ -11,9 +11,10 @@ The Workbench exposes two deliberately different side-analysis objects:
    estimated MVO₂.
 
 The family is a bounded numerical analysis, not independent physiological
-validation or a clinical measurement. Its nine-point operating-anchor-to-60%
-low-volume core owns PVA. Wider high- and deep-low-volume points extend only
-the Starling presentation and cannot change an already available PVA result.
+validation or a clinical measurement. Its adaptive operating-anchor-to-60%
+low-volume core retains at least nine settled points and owns PVA. Wider high-
+and deep-low-volume points extend only the Starling presentation and cannot
+change an already available PVA result.
 
 `MainWireIntegratedModelGuytonStarlingOrientationV3` is read-only. It freezes
 the accepted step's vascular volume ledger, vascular pressure–volume laws,
@@ -170,11 +171,13 @@ bounded calculation contract:
 
 1. Input retains the `modelId`, source fixture/checkpoint identity, request
    identity, and cancellation boundary.
-2. One persistent Worker first settles an isolated active-controller copy at
-   the Scenario TBV. It then freezes coronary tone at that endpoint. The
-   operating point and eight lower-volume points (`0.95` through `0.60` of
-   source TBV) form the PVA core and are emitted first. PVA can render as soon
-   as those nine points close; the live Scenario is untouched.
+2. Two persistent directional Workers start from the same exact Scenario
+   capture. Each first settles an isolated active-controller copy at Scenario
+   TBV and freezes coronary tone at that endpoint. The low-volume Worker follows
+   a monotone adaptive chain to `0.60×` source TBV, shrinking or growing its next
+   step from settlement effort while reserving room for at least nine retained
+   points. The high-volume Worker proceeds concurrently when the device pool has
+   capacity; a one-slot device prioritizes the low-volume PVA branch.
 3. Each load uses the shared SV/VC transmural-pressure TBV transform and starts
    from the preceding retained endpoint. Coronary tone is held at its source
    value so a short preload reduction does not spend minutes re-equilibrating
@@ -183,23 +186,28 @@ bounded calculation contract:
    flow/pressure/volume comparisons within the declared P1 closure limits.
    Period-2 or nonconverged branches fail the PVA calculation rather than being
    silently fitted.
-5. The final complete beat retains its phase-aligned transmural PV loop,
+5. SW is available from the retained anchor. Three settled low-volume points
+   admit provisional ESPVR/EDPVR drawing; five admit provisional PE/PVA and the
+   literature MVO₂ estimate. These previews remain visually and structurally
+   distinct from the final result. Final PVA requires at least nine points and
+   arrival at the declared `0.60×` boundary.
+6. The final complete beat retains its phase-aligned transmural PV loop,
    maximum-volume ED proxy, common-isochronal Emax sample, duration, and exact
    accepted-step transmural path work. The latter owns displayed SW.
-6. Linear isochronal Emax is the primary ESPVR; a quadratic fit is diagnostic.
+7. Linear isochronal Emax is the primary ESPVR; a quadratic fit is diagnostic.
    EDPVR is an exponential fit to the maximum-volume points. PE is admitted
    only after locating the left ESPVR–EDPVR intersection and verifying
    `P_es > P_ed` over every sampled interval through anchor ESV.
-7. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
+8. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
    model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
    an estimate, not measured oxygen consumption or clinical validation.
-8. After the PVA core, the same settled center explores the high-volume arm
-   until the bounded schedule ends or both circulations confirm a descending
-   limb. The same low hot-start endpoint then follows nominal targets toward
-   `0.23×` source TBV, inserting settled midpoints when a requested jump is too
-   large and stopping at the declared low-flow or numerical boundary. These
-   adaptive extensions populate the bidirectional Starling graph progressively.
-   A stopped extension does not invalidate the already completed PVA core.
+9. The high-volume Worker continues until the bounded schedule ends or both
+   circulations confirm a descending limb. After final PVA, the low Worker
+   follows nominal targets toward `0.23×` source TBV, inserting settled
+   midpoints when a requested jump is too large and stopping at the declared
+   low-flow or numerical boundary. These extensions populate the bidirectional
+   Starling graph progressively. A stopped extension does not invalidate final
+   PVA.
 
 The internal analysis-mode key remains `formal-periodic` for persisted
 Workbench compatibility; that key does not claim full-state certification.
