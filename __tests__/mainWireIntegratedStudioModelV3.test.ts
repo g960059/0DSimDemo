@@ -982,8 +982,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
     expect(plan?.partitions).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
