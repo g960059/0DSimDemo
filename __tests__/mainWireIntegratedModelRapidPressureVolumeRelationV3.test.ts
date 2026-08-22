@@ -232,14 +232,13 @@ function formalLocusV3(
     status: "measured-fixed-tbv-protocol" as const,
     protocolId: "protocol/formal-test",
     requirement:
-      "independent-fixed-tbv-fixture-forks-with-per-point-settlement-and-numerical-qualification" as const,
+      "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement" as const,
     minimumBeatCount: 3,
-    maximumBeatCount: 250,
+    maximumBeatCount: 20,
     completedPointCount: points.length,
     totalPointCount: points.length,
-    slowControllerPolicy: "fully-active" as const,
-    convergencePolicy:
-      "canonical-full-accepted-state-period1-closure" as const,
+    slowControllerPolicy: "coronary-tone-frozen-at-branch-source" as const,
+    convergencePolicy: "complete-beat-output-period1-closure" as const,
     points: Object.freeze(points),
   });
 }
@@ -253,8 +252,8 @@ function formalStarlingPointV3(
     curveEligible: true as const,
     completedBeatCount: 8,
     settled: true as const,
-    evidence: "qualified-periodic" as const,
-    measurementWindowStatus: "canonical-period1-qualified" as const,
+    evidence: "fixed-tone-periodic" as const,
+    measurementWindowStatus: "fixed-tone-period1-settled" as const,
   });
 }
 

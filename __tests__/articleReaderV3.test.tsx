@@ -293,7 +293,7 @@ function structuralAnalysisV3(scenarioId: string): StudioSimulationAnalysisV2 {
         starlingLocus: Object.freeze({
           status: "requires-protocol",
           requirement:
-            "independent-fixed-tbv-fixture-forks-with-per-point-settlement-and-numerical-qualification",
+            "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement",
           points: Object.freeze([]),
         }),
         limitations: Object.freeze([]),

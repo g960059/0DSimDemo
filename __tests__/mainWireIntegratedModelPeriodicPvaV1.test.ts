@@ -15,7 +15,6 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
 import { materializeWorkbenchOutputPresentationItemsV3 } from "@/components/WorkbenchV3Page";
@@ -35,6 +34,8 @@ describe("settled hot-start PVA V1", () => {
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
       pointCount: 6,
+      slowControllerPolicy:
+        "coronary-tone-frozen-during-preload-reduction",
       endDiastolicLandmark: "maximum-volume-proxy",
       endSystolicLandmark: "common-isochronal-maximum-elastance",
     });
@@ -57,6 +58,35 @@ describe("settled hot-start PVA V1", () => {
       mmHgMl: 8_500,
     });
     expect(result.anchor.measuredHeartRateBpm).toBeCloseTo(75, 12);
+    expect(result.potentialEnergy).toMatchObject({
+      method:
+        "area-between-espvr-and-nonnegative-edpvr-from-left-intersection-to-anchor-esv",
+    });
+    expect(
+      result.potentialEnergy.leftIntersectionVolumeMl,
+    ).toBeGreaterThanOrEqual(result.espvr.volumeAxisInterceptMl);
+    expect(result.potentialEnergy.leftIntersectionVolumeMl).toBeLessThan(
+      result.anchor.endSystolicVolumeMl,
+    );
+    for (let intervalOrdinal = 1; intervalOrdinal <= 64; intervalOrdinal += 1) {
+      const volumeMl = result.potentialEnergy.leftIntersectionVolumeMl +
+        (result.anchor.endSystolicVolumeMl -
+            result.potentialEnergy.leftIntersectionVolumeMl) *
+          intervalOrdinal / 64;
+      const endSystolicPressureMmHg =
+        result.espvr.elastanceMmHgPerMl *
+        (volumeMl - result.espvr.volumeAxisInterceptMl);
+      const endDiastolicPressureMmHg = Math.max(
+        0,
+        result.edpvr.scaleMmHg * Math.expm1(
+          result.edpvr.exponentPerMl *
+            (volumeMl - result.edpvr.zeroPressureVolumeMl),
+        ),
+      );
+      expect(endSystolicPressureMmHg).toBeGreaterThan(
+        endDiastolicPressureMmHg,
+      );
+    }
     expect(result.potentialEnergy.joule).toBeGreaterThanOrEqual(0);
     expect(result.pva.joule).toBeCloseTo(
       result.strokeWork.joule + result.potentialEnergy.joule,
@@ -125,11 +155,9 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("runs only the low-volume chain down to the existing Starling TBV bound", () => {
+  it("runs only the low-volume chain down to 60% of source TBV", () => {
     const sourceTbvMl =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.totalBloodVolumeMl;
-    const range =
-      MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.totalBloodVolumeMl;
     const targets = [
       1,
       ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
@@ -137,13 +165,12 @@ describe("settled hot-start PVA V1", () => {
       mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(sourceTbvMl, scale),
     );
 
-    expect(targets).toHaveLength(6);
+    expect(targets).toHaveLength(9);
     expect(
       targets.slice(1).every((target, index) => target < targets[index]!),
     ).toBe(true);
-    expect(Math.min(...targets)).toBeGreaterThanOrEqual(range.minimum);
-    expect(Math.max(...targets)).toBeLessThanOrEqual(range.maximum);
-    expect(Math.min(...targets)).toBe(range.minimum);
+    expect(Math.min(...targets)).toBe(sourceTbvMl * 0.6);
+    expect(Math.max(...targets)).toBe(sourceTbvMl);
   });
 
   it("keeps semilunar closure as a diagnostic rather than the Emax owner", () => {
@@ -450,13 +477,13 @@ function formalLocusV1(
     status: "measured-fixed-tbv-protocol" as const,
     protocolId: "formal-pv/test",
     requirement:
-      "independent-fixed-tbv-fixture-forks-with-per-point-settlement-and-numerical-qualification" as const,
+      "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement" as const,
     minimumBeatCount: 3,
-    maximumBeatCount: 250,
+    maximumBeatCount: 20,
     completedPointCount: points.length,
     totalPointCount,
-    slowControllerPolicy: "fully-active" as const,
-    convergencePolicy: "canonical-full-accepted-state-period1-closure" as const,
+    slowControllerPolicy: "coronary-tone-frozen-at-branch-source" as const,
+    convergencePolicy: "complete-beat-output-period1-closure" as const,
     points: Object.freeze(
       points.map((point) =>
         Object.freeze({
@@ -464,8 +491,8 @@ function formalLocusV1(
           quality: "locally-converged" as const,
           curveEligible: true as const,
           settled: true as const,
-          evidence: "qualified-periodic" as const,
-          measurementWindowStatus: "canonical-period1-qualified" as const,
+          evidence: "fixed-tone-periodic" as const,
+          measurementWindowStatus: "fixed-tone-period1-settled" as const,
         }),
       ),
     ),

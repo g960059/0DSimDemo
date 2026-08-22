@@ -8,9 +8,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID =
   "main-wire-integrated-v3-guyton-starling-structural-orientation-v1" as const;
 
 /**
- * Opt-in, periodic fixed-TBV pressure-volume family. This identity is kept
- * separate from the responsive structural preview so caches can never satisfy
- * a formal request with adaptive-preview points.
+ * Opt-in, fixed-tone settled preload-reduction pressure-volume family. This
+ * identity is kept separate from the responsive structural preview so caches
+ * can never satisfy a PVA request with adaptive-preview points.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID =
   "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1" as const;

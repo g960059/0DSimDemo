@@ -53,7 +53,7 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
         protocolId: string;
         pointCount: number;
         primaryLineage: "persistent-worker-settled-hot-start-chain";
-        slowControllerPolicy: "fully-active";
+        slowControllerPolicy: "coronary-tone-frozen-during-preload-reduction";
         endDiastolicLandmark: "maximum-volume-proxy";
         endSystolicLandmark: "common-isochronal-maximum-elastance";
       }>;
@@ -103,7 +103,9 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
         curve: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
       }>;
       potentialEnergy: Readonly<{
-        method: "area-between-espvr-and-nonnegative-edpvr-to-anchor-esv";
+        method:
+          "area-between-espvr-and-nonnegative-edpvr-from-left-intersection-to-anchor-esv";
+        leftIntersectionVolumeMl: number;
         mmHgMl: number;
         joule: number;
       }>;
@@ -117,7 +119,7 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
         "settled-preload-reduction-family-not-transient-venous-occlusion",
         "maximum-volume-used-as-end-diastolic-proxy",
         "linear-isochronal-emax-is-primary-with-quadratic-diagnostic-only",
-        "fully-active-slow-controllers-vary-across-loads",
+        "coronary-tone-held-at-source-during-preload-reduction",
         "not-clinical-validation",
       ];
     }>;
@@ -168,7 +170,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   if (locus.status !== "measured-fixed-tbv-protocol") {
     return incomplete(
       "unavailable",
-      "PVA requires the settled fixed-TBV formal analysis",
+      "PVA requires the settled fixed-tone preload-reduction analysis",
     );
   }
   if (locus.completedPointCount !== locus.totalPointCount) {
@@ -236,31 +238,33 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       "The anchor beat does not retain accepted-step SW, duration, and Emax phase",
     );
   }
-  if (
-    !espvrStrictlyAboveEdpvrV1(
-      espvr,
-      edpvr,
-      espvrV0,
-      anchorEndSystolic.volumeMl,
-    )
-  ) {
-    return incomplete(
-      "unavailable",
-      "PE requires ESPVR to remain strictly above EDPVR after their shared zero-pressure boundary",
-    );
-  }
-  const passiveAreaMmHgMl = nonnegativeExponentialAreaV1(
+  const peLeftIntersectionVolumeMl = espvrEdpvrLeftIntersectionV1(
+    espvr,
     edpvr,
     espvrV0,
     anchorEndSystolic.volumeMl,
   );
-  const systolicAreaMmHgMl =
-    0.5 * espvr.slope * (anchorEndSystolic.volumeMl - espvrV0) ** 2;
+  if (peLeftIntersectionVolumeMl === null) {
+    return incomplete(
+      "unavailable",
+      "PE requires one left ESPVR–EDPVR intersection followed by P_es > P_ed through anchor ESV",
+    );
+  }
+  const passiveAreaMmHgMl = nonnegativeExponentialAreaV1(
+    edpvr,
+    peLeftIntersectionVolumeMl,
+    anchorEndSystolic.volumeMl,
+  );
+  const systolicAreaMmHgMl = 0.5 * espvr.slope * (
+    (anchorEndSystolic.volumeMl - espvrV0) ** 2 -
+    (peLeftIntersectionVolumeMl - espvrV0) ** 2
+  );
   const potentialEnergyMmHgMl = systolicAreaMmHgMl - passiveAreaMmHgMl;
   const pvaMmHgMl = strokeWorkMmHgMl + potentialEnergyMmHgMl;
   if (
     ![
       espvrV0,
+      peLeftIntersectionVolumeMl,
       strokeWorkMmHgMl,
       passiveAreaMmHgMl,
       systolicAreaMmHgMl,
@@ -268,6 +272,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       pvaMmHgMl,
     ].every(Number.isFinite) ||
     !(anchorEndSystolic.volumeMl > espvrV0) ||
+    !(anchorEndSystolic.volumeMl > peLeftIntersectionVolumeMl) ||
     !(strokeWorkMmHgMl > 0) ||
     !(potentialEnergyMmHgMl >= 0) ||
     !(pvaMmHgMl > 0)
@@ -309,7 +314,8 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       protocolId: locus.protocolId,
       pointCount: locus.points.length,
       primaryLineage: "persistent-worker-settled-hot-start-chain" as const,
-      slowControllerPolicy: "fully-active" as const,
+      slowControllerPolicy:
+        "coronary-tone-frozen-during-preload-reduction" as const,
       endDiastolicLandmark: "maximum-volume-proxy" as const,
       endSystolicLandmark: "common-isochronal-maximum-elastance" as const,
     }),
@@ -362,7 +368,9 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       ),
     }),
     potentialEnergy: Object.freeze({
-      method: "area-between-espvr-and-nonnegative-edpvr-to-anchor-esv" as const,
+      method:
+        "area-between-espvr-and-nonnegative-edpvr-from-left-intersection-to-anchor-esv" as const,
+      leftIntersectionVolumeMl: peLeftIntersectionVolumeMl,
       mmHgMl: potentialEnergyMmHgMl,
       joule: potentialEnergyMmHgMl * MMHG_ML_TO_JOULE_V1,
     }),
@@ -376,7 +384,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       "settled-preload-reduction-family-not-transient-venous-occlusion",
       "maximum-volume-used-as-end-diastolic-proxy",
       "linear-isochronal-emax-is-primary-with-quadratic-diagnostic-only",
-      "fully-active-slow-controllers-vary-across-loads",
+      "coronary-tone-held-at-source-during-preload-reduction",
       "not-clinical-validation",
     ] as const),
   });
@@ -468,39 +476,55 @@ function interpolateLoopAtPhaseV1(
   });
 }
 
-function espvrStrictlyAboveEdpvrV1(
+function espvrEdpvrLeftIntersectionV1(
   espvr: LinearFitV1,
   edpvr: ExponentialFitV1,
-  startVolumeMl: number,
+  espvrVolumeAxisInterceptMl: number,
   endVolumeMl: number,
-): boolean {
+): number | null {
   if (
-    ![startVolumeMl, endVolumeMl].every(Number.isFinite) ||
-    !(endVolumeMl > startVolumeMl)
+    ![espvrVolumeAxisInterceptMl, endVolumeMl].every(Number.isFinite) ||
+    !(endVolumeMl > espvrVolumeAxisInterceptMl)
   ) {
-    return false;
+    return null;
   }
-  // Linear ESPVR minus the nonnegative exponential EDPVR is concave. Its
-  // minimum over each side of the EDPVR zero-pressure join is therefore at an
-  // endpoint. Equality is allowed only at the common V0 left boundary.
-  if (nonnegativeExponentialPressureV1(edpvr, startVolumeMl) !== 0)
-    return false;
-  const candidates = [endVolumeMl];
-  if (edpvr.volumeOffset > startVolumeMl && edpvr.volumeOffset < endVolumeMl) {
-    candidates.push(edpvr.volumeOffset);
+  const pressureDifferenceMmHg = (volumeMl: number) =>
+    espvr.slope * (volumeMl - espvrVolumeAxisInterceptMl) -
+    nonnegativeExponentialPressureV1(edpvr, volumeMl);
+  let lowerVolumeMl = espvrVolumeAxisInterceptMl;
+  let upperVolumeMl = endVolumeMl;
+  const lowerDifferenceMmHg = pressureDifferenceMmHg(lowerVolumeMl);
+  const upperDifferenceMmHg = pressureDifferenceMmHg(upperVolumeMl);
+  if (
+    !Number.isFinite(lowerDifferenceMmHg) ||
+    !Number.isFinite(upperDifferenceMmHg) ||
+    lowerDifferenceMmHg > 0 ||
+    !(upperDifferenceMmHg > 0)
+  ) {
+    return null;
   }
-  return candidates.every((volumeMl) => {
-    const systolicPressureMmHg = espvr.slope * (volumeMl - startVolumeMl);
-    const diastolicPressureMmHg = nonnegativeExponentialPressureV1(
-      edpvr,
-      volumeMl,
-    );
-    return (
-      Number.isFinite(systolicPressureMmHg) &&
-      Number.isFinite(diastolicPressureMmHg) &&
-      systolicPressureMmHg > diastolicPressureMmHg
-    );
-  });
+  if (lowerDifferenceMmHg < 0) {
+    for (let iteration = 0; iteration < 96; iteration += 1) {
+      const midpointVolumeMl = 0.5 * (lowerVolumeMl + upperVolumeMl);
+      const midpointDifferenceMmHg = pressureDifferenceMmHg(midpointVolumeMl);
+      if (!Number.isFinite(midpointDifferenceMmHg)) return null;
+      if (midpointDifferenceMmHg > 0) upperVolumeMl = midpointVolumeMl;
+      else lowerVolumeMl = midpointVolumeMl;
+    }
+  }
+  const intersectionVolumeMl = lowerDifferenceMmHg === 0
+    ? lowerVolumeMl
+    : 0.5 * (lowerVolumeMl + upperVolumeMl);
+  // The explicit interval gate is retained even though linear-minus-convex is
+  // concave: it keeps the numerical PE contract readable and catches any
+  // future change to either pressure law.
+  for (let index = 1; index <= CURVE_SAMPLE_COUNT_V1; index += 1) {
+    const volumeMl = intersectionVolumeMl +
+      (index / CURVE_SAMPLE_COUNT_V1) *
+        (endVolumeMl - intersectionVolumeMl);
+    if (!(pressureDifferenceMmHg(volumeMl) > 0)) return null;
+  }
+  return intersectionVolumeMl;
 }
 
 function linearFitV1(

@@ -9,15 +9,16 @@ The Workbench exposes three deliberately different side-analysis objects:
 2. a fast **responsive fixed-TBV Starling preview** measured from independent
    V3 branches inside two disposable directional analysis Workers seeded from
    the Scenario's same exact accepted checkpoint; and
-3. an opt-in **formal periodic fixed-TBV pressure-volume analysis** whose load
-   points must pass the canonical full-accepted-state period-1 qualifier.
+3. an opt-in **settled fixed-tone preload-reduction analysis** used for
+   Workbench ESPVR, EDPVR, SW, PE, PVA, and estimated MVO₂.
 
 The responsive object has one locally period-1-settled operating anchor in its
 frozen-tone regime, but its
 off-centre points and resulting curve remain an adaptive preview rather than a
 settled or independently validated physiological relation. The third object is
-numerical periodic evidence, but is still neither independent physiological
-validation nor a clinical measurement. The UI keeps these claims separate.
+a bounded settled preload-reduction calculation, but is still neither
+independent physiological validation nor a clinical measurement. The UI keeps
+these claims separate.
 
 `MainWireIntegratedModelGuytonStarlingOrientationV3` is read-only. It freezes
 the accepted step's vascular volume ledger, vascular pressure–volume laws,
@@ -46,9 +47,10 @@ at source TBV. The coordinator requires those duplicate centers and their
 structural return payloads to be canonical-JSON identical, then collapses them
 to one displayed point. That center must pass two consecutive complete-beat
 closure comparisons within a bounded 20-beat window in the frozen-tone
-responsive regime before any continuation begins. This is intentionally faster
-and weaker than the formal full-state Snapshot qualifier. The two preload
-directions then warm-start independently from that exact locally settled
+responsive regime before any continuation begins. The PVA chain uses this same
+local closure gate at every retained load; the responsive preview permits a
+weaker adaptive rule away from its center. The two preload directions then
+warm-start independently from that exact locally settled
 center. Every next point starts from the
 previous accepted point in the same direction, preserving
 cardiac phase, mechanics, circulation, valve memory, rhythm, MCS state, and
@@ -215,7 +217,7 @@ It remains
 ephemeral presentation data and cannot qualify an Experiment Snapshot. No
 PVA or myocardial oxygen-consumption number is derived from this preview.
 
-## Opt-in formal periodic pressure-volume analysis
+## Opt-in settled preload-reduction PVA analysis
 
 Every pressure-volume pane durably owns one analysis mode. The product default
 is `responsive-preview`; Pane Settings can opt that pane into
@@ -223,49 +225,36 @@ is `responsive-preview`; Pane Settings can opt that pane into
 `analysisId` values and therefore cannot satisfy one another's Worker request,
 cache entry, or presentation history.
 
-The formal path retains the same live-session isolation boundary and applies
-this qualification contract:
+The PVA path retains the same live-session isolation boundary and applies this
+bounded calculation contract:
 
-1. Input pins the immutable `modelId`, source fixture/checkpoint identity,
-   requested TBV deltas, numerical policy, and cancellation/request identity.
-2. Every TBV point creates an independent integrated V3 branch using the
-   shared-SV/VC-transmural-pressure transform, or a separately specified and
-   validated conservative transform. It must never modify the live Scenario or
-   reuse another branch's mutable numerical state.
-3. The operating point and four bounded loads in each direction (`0.96`,
-   `0.90`, `0.82`, `0.74`; `1.06`, `1.12`, `1.18`, `1.24`) are warm-started
-   from the preceding qualified exact state. The corresponding fixture TBV is
-   changed with the state, so checkpoint identity and numerical ownership do
-   not diverge.
-4. Each branch runs the canonical full-accepted-state period-1 Snapshot
-   qualifier with slow controllers fully active. Alternating, non-finite,
-   event-invalid, conservation-failing, or checkpoint-round-trip-failing
-   branches remain rejected points rather than display values.
-5. The accepted terminal checkpoint is restored and three subsequent complete
-   beats provide time-weighted RAP/LAP, forward cardiac output, maximum-volume
-   landmarks, and the last complete transmural pressure-volume loop. Raw
-   instantaneous flow is not a cardiac-output substitute.
-6. A displayed relation requires enough qualified points on both sides
-   of baseline and declares its interpolation, measured domain, rejected
-   points, and absence of extrapolation. No local surrogate is substituted
-   when the gate fails.
-7. The Worker returns a presentation DTO only. Settlement reports and traces
-   remain ephemeral unless a later explicit scientific-artifact workflow asks
-   to retain them. Only after all gates pass may points use
-   `evidence = "qualified-periodic"` and
-   `starlingLocus.status = "measured-fixed-tbv-protocol"`.
+1. Input retains the `modelId`, source fixture/checkpoint identity, request
+   identity, and cancellation boundary.
+2. One persistent Worker begins at the Scenario's settled state. The operating
+   point and eight lower-volume points (`0.95` through `0.60` of source TBV)
+   form one ordered hot-start continuation; the live Scenario is untouched.
+3. Each load uses the shared SV/VC transmural-pressure TBV transform and starts
+   from the preceding retained endpoint. Coronary tone is held at its source
+   value so a short preload reduction does not spend minutes re-equilibrating
+   the 25-second autoregulation controller.
+4. A point is retained only after three complete beats provide two consecutive
+   flow/pressure/volume comparisons within the declared P1 closure limits.
+   Period-2 or nonconverged branches fail the PVA calculation rather than being
+   silently fitted.
+5. The final complete beat retains its phase-aligned transmural PV loop,
+   maximum-volume ED proxy, common-isochronal Emax sample, duration, and exact
+   accepted-step transmural path work. The latter owns displayed SW.
+6. Linear isochronal Emax is the primary ESPVR; a quadratic fit is diagnostic.
+   EDPVR is an exponential fit to the maximum-volume points. PE is admitted
+   only after locating the left ESPVR–EDPVR intersection and verifying
+   `P_es > P_ed` over every sampled interval through anchor ESV.
+7. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
+   model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
+   an estimate, not measured oxygen consumption or clinical validation.
 
-For both preview and formal analysis, the systolic relation is the common
-upper-left support envelope of admitted complete PV loops. Formal mode changes
-the branch qualification, not this geometry: only canonical period-1-qualified
-loops may contribute. The positive-pressure maximum-volume points define the
-offset-power passive trend. Each relation reports its measured range, fit
-diagnostics, maximum between-loop support gap, and maximum sampled-loop
-penetration. Their two zero-pressure intercepts remain independent and are not
-forced to share one `V0`.
-
-The formal label means that the numerical protocol and qualification contract
-were executed. It does not establish experimental validation, clinical
-validity, uncertainty calibration, PVA, or myocardial oxygen consumption. A
-No single-beat radial/tangent or Klotz-informed curve is substituted when the
-multi-load relation is unavailable.
+The responsive preview continues to use its support-envelope geometry and does
+not produce PVA. The opt-in PVA path instead uses the definitions above. Its
+internal analysis-mode key remains `formal-periodic` for persisted Workbench
+compatibility; that key does not claim full-state certification. No
+single-beat radial/tangent or Klotz-informed curve is substituted when the
+settled multi-load relation is unavailable.

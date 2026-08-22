@@ -170,7 +170,7 @@ function buildUncachedRapidPressureVolumeRelationV3(
   const points = locus.points.filter((point) =>
     rapidRelationPointEligibleV3(point, anchor.totalBloodVolumeMl) &&
     (!formal || (
-      point.settled === true && point.evidence === "qualified-periodic"
+      point.settled === true && point.evidence === "fixed-tone-periodic"
     )));
   const bilateralLoadCoverage = hasBilateralLoadCoverageV3(
     points,

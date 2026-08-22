@@ -795,11 +795,11 @@ export function PressureVolumeLoopCanvasV3(
       : [],
   );
   const relationStatus = availablePva.length > 0
-    ? "Settled preload-reduction accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA analysis · not clinical validation"
+    ? "Settled fixed-tone preload reduction · accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA · not clinical validation"
     : anyFormalRelation
-    ? "Formal periodic fixed-TBV multi-load PVA analysis · not clinical validation"
+    ? "Settled fixed-tone preload-reduction PVA analysis · not clinical validation"
     : formalAnalysisSelected
-    ? "Formal periodic fixed-TBV ESPVR / EDPVR analysis selected · qualified multi-load relation not yet available"
+    ? "Settled fixed-tone preload-reduction analysis selected · multi-load relation not yet available"
     : anyRapidRelation
     ? "Responsive multi-load fixed-TBV PV-loop support-envelope preview · center locally settled · not a formal ESPVR/EDPVR protocol"
     : null;
@@ -930,8 +930,9 @@ export function PressureVolumeLoopCanvasV3(
               </div>
             ))}
             <span className="text-[9px] text-wb-subtle">
-              Settled preload-reduction chain · isochronal Emax ESPVR ·
-              exponential EDPVR · MVO₂ is a Suga literature estimate
+              Persistent hot-start chain · coronary tone held at source ·
+              isochronal Emax ESPVR · exponential EDPVR · MVO₂ is a Suga
+              literature estimate
             </span>
           </div>
         )}

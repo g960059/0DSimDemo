@@ -17,9 +17,10 @@ The production workflow is deliberately direct:
 1. the user enables **Settled PVA / MVO2 analysis** in a PV pane;
 2. the existing background analysis Workers capture the current Scenario;
 3. a low-volume preload-reduction chain starts at the settled operating point;
-4. every next fixed-TBV load is warm-started from its preceding qualified
-   point, down to the existing Starling/TBV lower bound;
-5. each load must pass full accepted-state period-1 closure;
+4. every next fixed-TBV load is warm-started from its preceding settled point,
+   down to `60%` of source TBV;
+5. source coronary tone is held fixed and each load must pass two consecutive
+   complete-beat flow/pressure/volume closure comparisons;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
    and, for the LV, a literature MVO2 estimate; and
 7. progress, cancellation after Scenario edits, cache reuse, and bounded
@@ -45,8 +46,8 @@ It consumes every accepted numerical endpoint, including event-clipped
 substeps, and is checkpoint-continuable. It remains a path integral until a
 declared closed periodic beat exists; it is not renamed PVA or MVO2.
 
-For every formal load point, the on-demand analysis retains the exact
-capture-to-capture accepted-step path work from its qualified completed beat.
+For every retained load point, the on-demand analysis retains the exact
+capture-to-capture accepted-step path work from its settled completed beat.
 The operating-point value, rather than a re-integration of the display loop,
 owns SW.
 
@@ -63,7 +64,7 @@ The pressure basis is ventricular transmural pressure.
 
 ### SW
 
-For the settled operating-point qualified beat,
+For the settled operating-point beat,
 
 ```text
 SW = acceptedTransmuralPathWorkMmHgMl
@@ -105,18 +106,19 @@ calls them an end-diastolic proxy rather than claiming inlet-valve closure.
 
 ### PE and PVA
 
-At the operating-point end-systolic volume,
+Let `V_x` be the left ESPVR–EDPVR intersection preceding the
+operating-point end-systolic volume. Then,
 
 ```text
-PE = integral from V0_es to V_es of
+PE = integral from V_x to V_es of
        [P_ESPVR(V) - max(0, P_EDPVR(V))] dV
 
 PVA = SW + PE
 ```
 
-The result is unavailable unless `P_ESPVR(V) > P_EDPVR(V)` throughout the open
-integration interval `(V0_es, V_es]`; equality is allowed only at the zero-area
-left boundary. One `mmHg*mL` is `1.33322e-4 J`.
+The result is unavailable unless the left intersection exists and
+`P_ESPVR(V) > P_EDPVR(V)` at every sampled interval through `V_es`. Equality is
+allowed only at the zero-area left boundary. One `mmHg*mL` is `1.33322e-4 J`.
 
 ## Estimated LV MVO2
 
@@ -147,10 +149,12 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 ## Current limitations
 
 - The load family is a one-sided, low-volume fixed-total-blood-volume sweep; it
-  is not a transient venous-occlusion protocol. It uses the existing Starling
-  sweep range and does not widen the Workbench TBV control.
-- Slow controllers remain fully active while each load settles, so the family
-  is not a pure instantaneous preload change at frozen inotropy.
+  is not a transient venous-occlusion protocol. Its analysis fork extends to
+  `60%` of source TBV without changing the Workbench TBV control.
+- Coronary autoregulation tone is held at its source value during the bounded
+  preload reduction. This avoids mixing a short mechanical response with
+  repeated 25-second controller re-equilibration, but it is not a fully
+  regulated steady-state family.
 - End diastole uses the model's maximum-volume landmark in V1.
 - A common-phase linear isochronal Emax relation is the primary Suga
   convention; quadratic curvature and semilunar closure are diagnostic only.
@@ -158,5 +162,5 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 
 These limitations remain beside the result rather than being hidden in a
 research certification layer. A future V2 can use inlet-valve-closure ED points
-or a frozen-slow-controller chain if those changes materially improve the
+or a transient occlusion family if those changes materially improve the
 teaching result.

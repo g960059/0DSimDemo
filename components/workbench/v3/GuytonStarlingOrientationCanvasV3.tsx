@@ -625,7 +625,7 @@ function starlingStatusTextV3(
 ): string {
   const locus = orientation.starlingLocus;
   if (locus.status === "measured-fixed-tbv-protocol") {
-    return "Formal periodic fixed-TBV locus";
+    return "Settled fixed-tone preload-reduction locus";
   }
   if (locus.status === "responsive-fixed-tbv-preview") {
     return `Responsive fixed-TBV Starling preview, ${locus.completedPointCount}/${locus.totalPointCount} points; the center is locally period-1 settled and off-centre points remain preview data`;
@@ -1015,9 +1015,9 @@ function validStarlingLocusV3(value: unknown): boolean {
         (value.completedPointCount as number) ||
       !Number.isSafeInteger(value.minimumBeatCount) ||
       !Number.isSafeInteger(value.maximumBeatCount) ||
-      value.slowControllerPolicy !== "fully-active" ||
+      value.slowControllerPolicy !== "coronary-tone-frozen-at-branch-source" ||
       value.convergencePolicy !==
-        "canonical-full-accepted-state-period1-closure"
+        "complete-beat-output-period1-closure"
     ) return false;
   } else return false;
   const minimumPointCount =
@@ -1033,7 +1033,8 @@ function validStarlingLocusV3(value: unknown): boolean {
         point.finiteAndFixedTbvPassed === true &&
         (point.evidence === "responsive-preview" ||
           point.evidence === "responsive-settled-anchor" ||
-          point.evidence === "qualified-periodic") &&
+          point.evidence === "qualified-periodic" ||
+          point.evidence === "fixed-tone-periodic") &&
         (point.role === "operating-anchor" ||
           point.role === "continuation") &&
         (point.quality === "locally-converged" ||
@@ -1049,7 +1050,8 @@ function validStarlingLocusV3(value: unknown): boolean {
           point.measurementWindowStatus === "complete-beat-cap" ||
           point.measurementWindowStatus === "period-2-detected" ||
           point.measurementWindowStatus === "responsive-period1-settled" ||
-          point.measurementWindowStatus === "canonical-period1-qualified") &&
+          point.measurementWindowStatus === "canonical-period1-qualified" ||
+          point.measurementWindowStatus === "fixed-tone-period1-settled") &&
         finiteNumberV3(point.acceptedMeasurementDurationSec) &&
         (point.acceptedMeasurementDurationSec as number) > 0 &&
         validPressureVolumeLoopV3(point.ventricularPressureVolumeLoop) &&
@@ -1064,8 +1066,8 @@ function validStarlingLocusV3(value: unknown): boolean {
       return point.quality === "locally-converged" &&
         point.curveEligible === true &&
         point.settled === true &&
-        point.evidence === "qualified-periodic" &&
-        point.measurementWindowStatus === "canonical-period1-qualified";
+        point.evidence === "fixed-tone-periodic" &&
+        point.measurementWindowStatus === "fixed-tone-period1-settled";
     },
   );
 }

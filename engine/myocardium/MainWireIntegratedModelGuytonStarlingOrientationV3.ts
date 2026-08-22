@@ -30,7 +30,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3 =
   "frozen-accepted-step-volume-constrained-structural-orientation-not-simulated-response" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3 =
-  "independent-fixed-tbv-fixture-forks-with-per-point-settlement-and-numerical-qualification" as const;
+  "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement" as const;
 
 export type MainWireIntegratedModelGuytonSideV3 = "right" | "left";
 
@@ -65,14 +65,16 @@ export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
   evidence:
     | "responsive-preview"
     | "responsive-settled-anchor"
-    | "qualified-periodic";
+    | "qualified-periodic"
+    | "fixed-tone-periodic";
   measurementWindowStatus:
     | "complete-beat-converged"
     | "complete-beat-preview"
     | "complete-beat-cap"
     | "period-2-detected"
     | "responsive-period1-settled"
-    | "canonical-period1-qualified";
+    | "canonical-period1-qualified"
+    | "fixed-tone-period1-settled";
   acceptedMeasurementDurationSec: number;
   /** Exact accepted-step path work from the retained completed beat. */
   acceptedTransmuralPathWorkMmHgMl?: number;
@@ -124,15 +126,15 @@ export type MainWireIntegratedModelStarlingLocusV3 =
       maximumBeatCount: number;
       completedPointCount: number;
       totalPointCount: number;
-      slowControllerPolicy: "fully-active";
+      slowControllerPolicy: "coronary-tone-frozen-at-branch-source";
       convergencePolicy:
-        "canonical-full-accepted-state-period1-closure";
+        "complete-beat-output-period1-closure";
       points: readonly (MainWireIntegratedModelStarlingPointV3 & Readonly<{
         quality: "locally-converged";
         curveEligible: true;
         settled: true;
-        evidence: "qualified-periodic";
-        measurementWindowStatus: "canonical-period1-qualified";
+        evidence: "fixed-tone-periodic";
+        measurementWindowStatus: "fixed-tone-period1-settled";
       }>)[];
     }>;
 
