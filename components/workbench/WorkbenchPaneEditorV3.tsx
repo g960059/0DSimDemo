@@ -1106,7 +1106,7 @@ function GraphPaneEditorV3({
           </div>
         )}
         {graph?.renderer === "pressure-volume" && (
-          <label className="flex cursor-pointer items-start justify-between gap-5 rounded-xl bg-wb-soft/55 px-3 py-3">
+          <div className="rounded-xl bg-wb-soft/55 px-3 py-3">
             <span className="min-w-0">
               <span className="block text-xs font-medium text-wb-text">
                 {strings.formalPressureVolumeAnalysis}
@@ -1115,24 +1115,7 @@ function GraphPaneEditorV3({
                 {strings.formalPressureVolumeAnalysisHint}
               </span>
             </span>
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--wb-accent)]"
-              checked={
-                (pane.pressureVolumeAnalysisMode ??
-                  WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3) ===
-                "formal-periodic"
-              }
-              onChange={(event) =>
-                onChange({
-                  ...pane,
-                  pressureVolumeAnalysisMode: event.currentTarget.checked
-                    ? "formal-periodic"
-                    : "responsive-preview",
-                })
-              }
-            />
-          </label>
+          </div>
         )}
       </section>
 

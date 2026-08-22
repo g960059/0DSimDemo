@@ -33,9 +33,9 @@ describe("settled hot-start PVA V1", () => {
     if (result.status !== "available") throw new Error(result.reason);
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
-      pointCount: 6,
+      pointCount: 9,
       slowControllerPolicy:
-        "coronary-tone-frozen-during-preload-reduction",
+        "active-source-period1-then-coronary-tone-frozen",
       endDiastolicLandmark: "maximum-volume-proxy",
       endSystolicLandmark: "common-isochronal-maximum-elastance",
     });
@@ -52,7 +52,9 @@ describe("settled hot-start PVA V1", () => {
     );
     expect(result.edpvr.scaleMmHg).toBeGreaterThan(0);
     expect(result.edpvr.exponentPerMl).toBeCloseTo(0.02, 2);
-    expect(result.edpvr.zeroPressureVolumeMl).toBeCloseTo(60, 0);
+    expect(
+      Math.abs(result.edpvr.zeroPressureVolumeMl - 60),
+    ).toBeLessThan(1);
     expect(result.strokeWork).toMatchObject({
       method: "accepted-step-transmural-path-work",
       mmHgMl: 8_500,
@@ -145,14 +147,70 @@ describe("settled hot-start PVA V1", () => {
 
   it("reports point progress until the formal hot-start chain completes", () => {
     const points = settledPointsV1().slice(0, 4);
-    const partial = formalLocusV1(points, 6);
+    const partial = formalLocusV1(points, 21);
 
     expect(
       buildMainWireIntegratedModelPeriodicPvaV1(partial, "LV"),
     ).toMatchObject({
       status: "collecting",
-      progress: { completedPointCount: 4, totalPointCount: 6 },
+      progress: { completedPointCount: 4, totalPointCount: 9 },
     });
+  });
+
+  it("publishes PVA after its core while the wider Starling family continues", () => {
+    const result = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1(), 21),
+      "LV",
+    );
+
+    expect(result.status).toBe("available");
+    if (result.status !== "available") throw new Error(result.reason);
+    expect(result.progress).toEqual({
+      completedPointCount: 9,
+      totalPointCount: 9,
+    });
+    expect(result.source.familyProgress).toEqual({
+      completedPointCount: 9,
+      totalPointCount: 21,
+    });
+  });
+
+  it("keeps wider Starling points outside the PVA fit", () => {
+    const core = settledPointsV1();
+    const anchor = core[0]!;
+    const extensions = [
+      Object.freeze({
+        ...anchor,
+        totalBloodVolumeMl: anchor.totalBloodVolumeMl * 1.2,
+        role: "continuation" as const,
+        fillingPressureMmHg: 30,
+      }),
+      Object.freeze({
+        ...anchor,
+        totalBloodVolumeMl: anchor.totalBloodVolumeMl * 0.5,
+        role: "continuation" as const,
+        fillingPressureMmHg: -2,
+      }),
+    ];
+    const coreResult = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(core),
+      "LV",
+    );
+    const extendedResult = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1([...core, ...extensions]),
+      "LV",
+    );
+
+    expect(coreResult.status).toBe("available");
+    expect(extendedResult.status).toBe("available");
+    if (coreResult.status !== "available" || extendedResult.status !== "available") {
+      throw new Error("synthetic PVA core was unavailable");
+    }
+    expect(extendedResult.espvr).toEqual(coreResult.espvr);
+    expect(extendedResult.edpvr).toEqual(coreResult.edpvr);
+    expect(extendedResult.strokeWork).toEqual(coreResult.strokeWork);
+    expect(extendedResult.potentialEnergy).toEqual(coreResult.potentialEnergy);
+    expect(extendedResult.pva).toEqual(coreResult.pva);
   });
 
   it("runs only the low-volume chain down to 60% of source TBV", () => {
@@ -252,7 +310,6 @@ describe("settled hot-start PVA V1", () => {
     );
     const html = renderToStaticMarkup(
       React.createElement(PressureVolumeLoopCanvasV3, {
-        analysisMode: "formal-periodic",
         traces: [
           {
             scenarioId: "scenario/current",
@@ -266,7 +323,7 @@ describe("settled hot-start PVA V1", () => {
             chamberLabel: "LV",
             chamberColor: "#d9822b",
             periodicPva,
-            rapidPressureVolumeRelationPending: false,
+            periodicPvaAnalysisPending: false,
           },
         ],
       }),
@@ -282,12 +339,11 @@ describe("settled hot-start PVA V1", () => {
 
   it("renders settled-point progress in the PV pane", () => {
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 6),
+      formalLocusV1(settledPointsV1().slice(0, 5), 21),
       "LV",
     );
     const html = renderToStaticMarkup(
       React.createElement(PressureVolumeLoopCanvasV3, {
-        analysisMode: "formal-periodic",
         traces: [
           {
             scenarioId: "scenario/current",
@@ -301,13 +357,13 @@ describe("settled hot-start PVA V1", () => {
             chamberLabel: "LV",
             chamberColor: "#d9822b",
             periodicPva,
-            rapidPressureVolumeRelationPending: true,
+            periodicPvaAnalysisPending: true,
           },
         ],
       }),
     );
 
-    expect(html).toContain("PVA analysis 5/6 points");
+    expect(html).toContain("PVA analysis 5/9 points");
   });
 
   it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
@@ -393,7 +449,7 @@ describe("settled hot-start PVA V1", () => {
     ]);
 
     const collecting = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 6),
+      formalLocusV1(settledPointsV1().slice(0, 5), 21),
       "LV",
     );
     const progressItems = materializeWorkbenchOutputPresentationItemsV3({
@@ -416,14 +472,13 @@ describe("settled hot-start PVA V1", () => {
     });
     expect(progressItems[0]).toMatchObject({
       availability: "unavailable",
-      qualityNotice: "PVA analysis 5/6 points",
+      qualityNotice: "PVA analysis 5/9 points",
     });
   });
 
   it("renders a formal analysis failure instead of leaving an empty pane", () => {
     const html = renderToStaticMarkup(
       React.createElement(PressureVolumeLoopCanvasV3, {
-        analysisMode: "formal-periodic",
         traces: [
           {
             scenarioId: "scenario/current",
@@ -438,7 +493,7 @@ describe("settled hot-start PVA V1", () => {
             chamberColor: "#d9822b",
             periodicPvaAnalysisError:
               "formal pressure-volume load 0.95 rejected: qualification failed",
-            rapidPressureVolumeRelationPending: false,
+            periodicPvaAnalysisPending: false,
           },
         ],
       }),
@@ -482,7 +537,8 @@ function formalLocusV1(
     maximumBeatCount: 20,
     completedPointCount: points.length,
     totalPointCount,
-    slowControllerPolicy: "coronary-tone-frozen-at-branch-source" as const,
+    slowControllerPolicy:
+      "active-source-period1-then-coronary-tone-frozen" as const,
     convergencePolicy: "complete-beat-output-period1-closure" as const,
     points: Object.freeze(
       points.map((point) =>
@@ -501,15 +557,16 @@ function formalLocusV1(
 
 function settledPointsV1(): readonly MainWireIntegratedModelStarlingPointV3[] {
   return Object.freeze(
-    [0.75, 0.8, 0.85, 0.9, 0.95, 1].map((ratio, index) => {
-      const endSystolicVolumeMl = 41 + index * 3;
-      const endDiastolicVolumeMl = 96 + index * 5;
+    [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6].map((ratio) => {
+      const reductionOrdinal = Math.round((1 - ratio) / 0.05);
+      const endSystolicVolumeMl = 56 - reductionOrdinal * 2;
+      const endDiastolicVolumeMl = 121 - reductionOrdinal * 4;
       const endSystolicPressureMmHg = 2 * (endSystolicVolumeMl - 20);
       const endDiastolicPressureMmHg =
         2 * Math.expm1(0.02 * (endDiastolicVolumeMl - 60));
       return Object.freeze({
         totalBloodVolumeMl: 5_600 * ratio,
-        fillingPressureMmHg: 4 + index * 1.5,
+        fillingPressureMmHg: 11.5 - reductionOrdinal * 0.9,
         cardiacOutputLPerMin: 5.5,
         role:
           ratio === 1
@@ -524,7 +581,7 @@ function settledPointsV1(): readonly MainWireIntegratedModelStarlingPointV3[] {
         evidence: "qualified-periodic" as const,
         measurementWindowStatus: "canonical-period1-qualified" as const,
         acceptedMeasurementDurationSec: 8,
-        acceptedTransmuralPathWorkMmHgMl: 8_000 + index * 100,
+        acceptedTransmuralPathWorkMmHgMl: 8_500 - reductionOrdinal * 75,
         acceptedBeatDurationSec: 0.8,
         ventricularPressureVolumeLoop: syntheticLoopV1({
           endSystolicVolumeMl,

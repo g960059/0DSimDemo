@@ -2,23 +2,18 @@
 
 ## Current product boundary
 
-The Workbench exposes three deliberately different side-analysis objects:
+The Workbench exposes two deliberately different side-analysis objects:
 
 1. a **structural vascular-return orientation** from one exact accepted V3
    step; and
-2. a fast **responsive fixed-TBV Starling preview** measured from independent
-   V3 branches inside two disposable directional analysis Workers seeded from
-   the Scenario's same exact accepted checkpoint; and
-3. an opt-in **settled fixed-tone preload-reduction analysis** used for
-   Workbench ESPVR, EDPVR, SW, PE, PVA, and estimated MVO₂.
+2. one **settled fixed-tone TBV family** used jointly by the bidirectional
+   Starling presentation and by Workbench ESPVR, EDPVR, SW, PE, PVA, and
+   estimated MVO₂.
 
-The responsive object has one locally period-1-settled operating anchor in its
-frozen-tone regime, but its
-off-centre points and resulting curve remain an adaptive preview rather than a
-settled or independently validated physiological relation. The third object is
-a bounded settled preload-reduction calculation, but is still neither
-independent physiological validation nor a clinical measurement. The UI keeps
-these claims separate.
+The family is a bounded numerical analysis, not independent physiological
+validation or a clinical measurement. Its nine-point operating-anchor-to-60%
+low-volume core owns PVA. Wider high- and deep-low-volume points extend only
+the Starling presentation and cannot change an already available PVA result.
 
 `MainWireIntegratedModelGuytonStarlingOrientationV3` is read-only. It freezes
 the accepted step's vascular volume ledger, vascular pressure–volume laws,
@@ -33,7 +28,11 @@ The vascular-return calculation neither advances nor forks the live session.
 It is a local network orientation, not an intervention result, a clinical
 measurement, or an independently validated physiological relation.
 
-## Responsive Starling preview
+## Historical responsive Starling preview
+
+The following protocol remains documented for reproducibility but is no longer
+requested by Workbench or Reader. The current product uses the shared settled
+family described below, eliminating the second low-volume sweep.
 
 `MainWireIntegratedModelResponsiveStarlingProtocolV3` begins by capturing the
 requested accepted fixture/checkpoint pair once. The Workbench initializes a
@@ -151,88 +150,31 @@ the fixed-TBV ledger are checked, but the result remains a disposable display
 analysis. It is not Snapshot qualification, V&V evidence, or a durable
 scientific artifact.
 
-## Fixed-TBV multi-load PV-loop support-envelope preview
+## Retired PV-loop support-envelope preview
 
-The same responsive fixed-TBV branches retain the last complete ventricular
-pressure-volume orbit from their analysis-only 20 ms sampling stream. This
-does not enlarge the live Worker DTO or make the orbit durable. LV and RV use
-transmural pressure. The complete-beat maximum-volume landmark remains the
-input to the passive positive-pressure offset-power trend. The interpolated
-positive-to-closed semilunar-flow landmark is retained only as a slope seed;
-it is not treated as the fitted ESPVR contact, and a minimum-volume fallback is
-never substituted.
+The earlier responsive multi-load support-envelope was an exploratory display
+geometry, not ESPVR or EDPVR. It has been removed from the current product and
+is no longer requested, fitted, cached, or drawn by Workbench or Reader. The
+Git history retains the retired implementation and its tests when that
+experiment needs to be inspected.
 
-`MainWireIntegratedModelRapidPressureVolumeRelationV3` deliberately uses only
-the local `0.72–1.24×` source-TBV region. Deeper hypovolemic points remain
-important to the Starling rising limb but are not allowed to dominate this
-local preview. A preview fails closed until at least one eligible complete loop
-exists on each side of the operating anchor.
+## Settled preload-reduction PVA analysis
 
-For each positive candidate elastance `E`, every loop supplies its discrete
-upper-left support intercept
-
-```text
-b_i(E) = max_t(P_i(t) - E V_i(t)).
-```
-
-The selected `E` minimizes the spread of these per-load support intercepts.
-The common displayed intercept is `max_i b_i(E)`, so no retained sample from
-any admitted load can lie above, or be cut by, the relation. When the model's
-multi-load systolic boundary is approximately linear, several loops contact
-the same line; residual between-loop support gap is exposed explicitly rather
-than hidden by forcing the line through a single settled ES point. The locally
-settled operating branch is therefore one member of the fitted loop family,
-not a privileged one-point constraint. Contact points are presentation-internal
-and are not promoted to independently observed end-systolic events.
-
-The two zero-pressure intercepts remain distinct. The semilunar-closure trend
-reports a linear extrapolated `V0,ES`-like intercept; the maximum-volume trend
-reports its own passive zero-pressure offset. Equality is neither imposed nor
-implied. Both extrapolations are sampled to their zero-pressure intercept for
-presentation, but neither becomes a physical chamber volume or qualified
-energetics result merely by being drawn. A parameter-bound hit on the passive
-grid fit is exposed in the DTO because a high `R²` does not establish an
-identifiable passive intercept.
-
-While either directional Worker is progressing the status is
-`collecting-preview`; after the merged bidirectional sweep finishes it becomes
-`complete-preview`. Completion describes execution only and is not scientific
-qualification.
-
-Workbench and Reader request this analysis automatically for visible LV/RV PV
-panes. A completed prior preview remains faded while a replacement is running.
-Until bilateral eligible multi-load points exist, the Canvas draws the loop and
-an analysis-progress indication only. It does not substitute a single-beat
-radial, tangent, or Klotz-informed fallback. Once a fixed-TBV multi-load
-relation exists, the Canvas draws it directly. The loop continues to own both
-upper axis bounds. Only finite extrapolated intercepts may extend the lower
-volume bound so their zero-pressure geometry remains visible. The displayed
-linear systolic relation begins at its zero-pressure intercept and extends
-until it first reaches the visible right or top axis boundary.
-
-In the default mode the UI calls this object a **fixed-TBV multi-load PV-loop
-support-envelope preview**, not ESPVR/EDPVR. Its portable semantics are
-`responsive-fixed-tbv-multi-load-pv-loop-support-envelope-preview-not-validated-espvr-edpvr`.
-It remains
-ephemeral presentation data and cannot qualify an Experiment Snapshot. No
-PVA or myocardial oxygen-consumption number is derived from this preview.
-
-## Opt-in settled preload-reduction PVA analysis
-
-Every pressure-volume pane durably owns one analysis mode. The product default
-is `responsive-preview`; Pane Settings can opt that pane into
-`formal-periodic`. There is no global mode switch. The two paths use different
-`analysisId` values and therefore cannot satisfy one another's Worker request,
-cache entry, or presentation history.
+Every pressure-volume and Guyton–Starling pane now uses the same
+`formal-periodic` analysis result. Legacy authored `responsive-preview`
+settings remain readable for content compatibility, but they no longer select
+a second computation or displayed relation.
 
 The PVA path retains the same live-session isolation boundary and applies this
 bounded calculation contract:
 
 1. Input retains the `modelId`, source fixture/checkpoint identity, request
    identity, and cancellation boundary.
-2. One persistent Worker begins at the Scenario's settled state. The operating
-   point and eight lower-volume points (`0.95` through `0.60` of source TBV)
-   form one ordered hot-start continuation; the live Scenario is untouched.
+2. One persistent Worker first settles an isolated active-controller copy at
+   the Scenario TBV. It then freezes coronary tone at that endpoint. The
+   operating point and eight lower-volume points (`0.95` through `0.60` of
+   source TBV) form the PVA core and are emitted first. PVA can render as soon
+   as those nine points close; the live Scenario is untouched.
 3. Each load uses the shared SV/VC transmural-pressure TBV transform and starts
    from the preceding retained endpoint. Coronary tone is held at its source
    value so a short preload reduction does not spend minutes re-equilibrating
@@ -251,10 +193,15 @@ bounded calculation contract:
 7. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
    model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
    an estimate, not measured oxygen consumption or clinical validation.
+8. After the PVA core, the same settled center explores the high-volume arm
+   until the bounded schedule ends or both circulations confirm a descending
+   limb. The same low hot-start endpoint then follows nominal targets toward
+   `0.23×` source TBV, inserting settled midpoints when a requested jump is too
+   large and stopping at the declared low-flow or numerical boundary. These
+   adaptive extensions populate the bidirectional Starling graph progressively.
+   A stopped extension does not invalidate the already completed PVA core.
 
-The responsive preview continues to use its support-envelope geometry and does
-not produce PVA. The opt-in PVA path instead uses the definitions above. Its
-internal analysis-mode key remains `formal-periodic` for persisted Workbench
-compatibility; that key does not claim full-state certification. No
-single-beat radial/tangent or Klotz-informed curve is substituted when the
+The internal analysis-mode key remains `formal-periodic` for persisted
+Workbench compatibility; that key does not claim full-state certification.
+No single-beat radial/tangent or Klotz-informed curve is substituted when the
 settled multi-load relation is unavailable.

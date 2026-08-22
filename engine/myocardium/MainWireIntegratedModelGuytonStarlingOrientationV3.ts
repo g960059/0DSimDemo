@@ -126,7 +126,8 @@ export type MainWireIntegratedModelStarlingLocusV3 =
       maximumBeatCount: number;
       completedPointCount: number;
       totalPointCount: number;
-      slowControllerPolicy: "coronary-tone-frozen-at-branch-source";
+      slowControllerPolicy:
+        "active-source-period1-then-coronary-tone-frozen";
       convergencePolicy:
         "complete-beat-output-period1-closure";
       points: readonly (MainWireIntegratedModelStarlingPointV3 & Readonly<{
@@ -399,7 +400,7 @@ function buildSideOrientationV3(
       starlingLocus?.status === "responsive-fixed-tbv-preview"
         ? "The operating anchor is locally period-1-settled in the frozen-tone responsive regime; off-centre Starling points remain adaptive preview data rather than canonical settled periodic evidence."
         : starlingLocus?.status === "measured-fixed-tbv-protocol"
-          ? "The formal locus uses independent fixed-TBV branches with active controllers and repeated complete-beat closure at every included point; it is numerical analysis, not physiological or clinical validation."
+          ? "The shared formal locus settles one active-controller source, freezes its coronary tone, and uses repeated complete-beat closure along hot-started TBV branches; it is numerical analysis, not physiological or clinical validation."
           : "A qualified Starling locus requires independent fixed-TBV V3 fixture forks, settlement, and numerical qualification at every point.",
     ]),
   });

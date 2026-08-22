@@ -41,12 +41,11 @@ import {
 } from "@/components/workbench/v3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  buildMainWireIntegratedModelRapidPressureVolumeRelationV3,
-  type MainWireIntegratedModelRapidPressureVolumeRelationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
+  buildMainWireIntegratedModelPeriodicPvaV1,
+  type MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -1022,11 +1021,8 @@ function ArticleReaderLiveGraphV3({
       >
         <ArticleReaderPressureVolumeCanvasV3
           analysisId={
-            pane.pressureVolumeAnalysisMode === "formal-periodic"
-              ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-              : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
           }
-          historyDepth={resolved.historyDepth}
           runtime={runtime}
           traces={traces}
         />
@@ -1124,12 +1120,10 @@ function ArticleReaderLiveGraphV3({
 
 function ArticleReaderPressureVolumeCanvasV3({
   analysisId,
-  historyDepth,
   runtime,
   traces,
 }: Readonly<{
   analysisId: string;
-  historyDepth: number;
   runtime: ArticleReaderRuntimeHookV3;
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
@@ -1174,53 +1168,33 @@ function ArticleReaderPressureVolumeCanvasV3({
           const side = pressureVolumeRelationSideV3(trace.chamberId);
           if (side === null) return trace;
           const key = articleReaderAnalysisKeyV3(trace.scenarioId, analysisId);
-          const relation = rapidPressureVolumeRelationFromPayloadV3(
+          const periodicPva = periodicPvaFromPayloadV3(
             runtime.state.analysisByKey[key]?.payload,
             side,
           );
-          const relationHistory = Object.freeze(
-            articleReaderBoundedHistoryV3(
-              runtime.state.analysisHistoryByKey[key] ?? [],
-              historyDepth,
-            ).flatMap((analysis) => {
-              const historical = rapidPressureVolumeRelationFromPayloadV3(
-                analysis.payload,
-                side,
-              );
-              return historical === undefined ? [] : [historical];
-            }),
-          );
           return Object.freeze({
             ...trace,
-            ...(relation === undefined
+            ...(periodicPva === undefined ? {} : { periodicPva }),
+            ...(runtime.state.analysisErrorByKey[key] === undefined
               ? {}
-              : { rapidPressureVolumeRelation: relation }),
-            rapidPressureVolumeRelationHistory: relationHistory,
-            rapidPressureVolumeRelationPending:
+              : {
+                  periodicPvaAnalysisError:
+                    runtime.state.analysisErrorByKey[key],
+                }),
+            periodicPvaAnalysisPending:
               runtime.state.pendingAnalysisKeys.includes(key),
           });
         }),
       ),
     [
-      historyDepth,
       analysisId,
       runtime.state.analysisByKey,
-      runtime.state.analysisHistoryByKey,
+      runtime.state.analysisErrorByKey,
       runtime.state.pendingAnalysisKeys,
       traces,
     ],
   );
-  return (
-    <PressureVolumeLoopCanvasV3
-      analysisMode={
-        analysisId ===
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-          ? "formal-periodic"
-          : "responsive-preview"
-      }
-      traces={enrichedTraces}
-    />
-  );
+  return <PressureVolumeLoopCanvasV3 traces={enrichedTraces} />;
 }
 
 function pressureVolumeRelationSideV3(
@@ -1231,15 +1205,16 @@ function pressureVolumeRelationSideV3(
   return null;
 }
 
-function rapidPressureVolumeRelationFromPayloadV3(
+function periodicPvaFromPayloadV3(
   payload: unknown,
   side: "left" | "right",
-): MainWireIntegratedModelRapidPressureVolumeRelationV3 | undefined {
+): MainWireIntegratedModelPeriodicPvaV1 | undefined {
   const orientation = structuralReturnOrientationFromPayloadV3(payload, side);
   if (orientation === null) return undefined;
   try {
-    return buildMainWireIntegratedModelRapidPressureVolumeRelationV3(
+    return buildMainWireIntegratedModelPeriodicPvaV1(
       orientation.starlingLocus,
+      side === "left" ? "LV" : "RV",
     );
   } catch {
     return undefined;
@@ -1282,9 +1257,11 @@ export function ArticleReaderStructuralReturnGraphV3({
 }>) {
   const { t } = useTranslation();
   const { appTheme } = useAppTheme();
+  const analysisId =
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
   const scenarioIds = visibleScenarios.map(({ scenarioId }) => scenarioId);
   const analysisKeys = scenarioIds.map((scenarioId) =>
-    articleReaderAnalysisKeyV3(scenarioId, graph.analysisId),
+    articleReaderAnalysisKeyV3(scenarioId, analysisId),
   );
   const missingScenarioIds = scenarioIds.filter((scenarioId, index) => {
     const key = analysisKeys[index]!;
@@ -1302,7 +1279,7 @@ export function ArticleReaderStructuralReturnGraphV3({
     if (!canRequest || missingScenarioIds.length === 0) return;
     void runtime
       .requestAnalysis({
-        analysisId: graph.analysisId,
+        analysisId,
         scenarioIds: missingScenarioIds,
       })
       .catch(() => {
@@ -1310,7 +1287,7 @@ export function ArticleReaderStructuralReturnGraphV3({
       });
   }, [
     canRequest,
-    graph.analysisId,
+    analysisId,
     missingScenarioKey,
     runtime.requestAnalysis,
   ]);
@@ -1321,7 +1298,7 @@ export function ArticleReaderStructuralReturnGraphV3({
   const traces = visibleScenarios.map((scenario) => {
     const key = articleReaderAnalysisKeyV3(
       scenario.scenarioId,
-      graph.analysisId,
+      analysisId,
     );
     const scenarioIndex = authoredScenarios.findIndex(
       ({ scenarioId }) => scenarioId === scenario.scenarioId,
@@ -1956,11 +1933,9 @@ export function readerStructuralAnalysisRequestsV3(
     const { historyDepth } = resolved;
     const analysisId =
       graph?.renderer === "structural-return"
-        ? graph.analysisId
+        ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
         : graph?.renderer === "pressure-volume"
-          ? pane.pressureVolumeAnalysisMode === "formal-periodic"
-            ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-            : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
+          ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
           : null;
     if (analysisId === null) continue;
     historyDepthByAnalysisId.set(

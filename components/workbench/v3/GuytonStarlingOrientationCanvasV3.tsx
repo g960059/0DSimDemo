@@ -591,7 +591,10 @@ function starlingProgressV3(
   hypervolemic: number;
 }> {
   const locus = orientation.starlingLocus;
-  if (locus.status !== "responsive-fixed-tbv-preview") {
+  if (
+    locus.status !== "responsive-fixed-tbv-preview" &&
+    locus.status !== "measured-fixed-tbv-protocol"
+  ) {
     return Object.freeze({
       status: locus.status,
       boundary: 0,
@@ -625,7 +628,7 @@ function starlingStatusTextV3(
 ): string {
   const locus = orientation.starlingLocus;
   if (locus.status === "measured-fixed-tbv-protocol") {
-    return "Settled fixed-tone preload-reduction locus";
+    return `Shared settled fixed-tone TBV family, ${locus.completedPointCount}/${locus.totalPointCount} points; its fixed nine-point low-volume core owns PVA`;
   }
   if (locus.status === "responsive-fixed-tbv-preview") {
     return `Responsive fixed-TBV Starling preview, ${locus.completedPointCount}/${locus.totalPointCount} points; the center is locally period-1 settled and off-centre points remain preview data`;
@@ -1015,7 +1018,8 @@ function validStarlingLocusV3(value: unknown): boolean {
         (value.completedPointCount as number) ||
       !Number.isSafeInteger(value.minimumBeatCount) ||
       !Number.isSafeInteger(value.maximumBeatCount) ||
-      value.slowControllerPolicy !== "coronary-tone-frozen-at-branch-source" ||
+      value.slowControllerPolicy !==
+        "active-source-period1-then-coronary-tone-frozen" ||
       value.convergencePolicy !==
         "complete-beat-output-period1-closure"
     ) return false;

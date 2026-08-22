@@ -7,6 +7,11 @@ import {
   evaluateMainWireIntegratedModelLvMvo2EstimateV1,
   type MainWireIntegratedModelLvMvo2EstimateV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+  mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
+} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
@@ -52,8 +57,10 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
       source: Readonly<{
         protocolId: string;
         pointCount: number;
+        familyProgress: PeriodicPvaProgressV1;
         primaryLineage: "persistent-worker-settled-hot-start-chain";
-        slowControllerPolicy: "coronary-tone-frozen-during-preload-reduction";
+        slowControllerPolicy:
+          "active-source-period1-then-coronary-tone-frozen";
         endDiastolicLandmark: "maximum-volume-proxy";
         endSystolicLandmark: "common-isochronal-maximum-elastance";
       }>;
@@ -148,11 +155,12 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
 ): MainWireIntegratedModelPeriodicPvaV1 {
-  const progress = Object.freeze({
+  const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
     completedPointCount:
       "completedPointCount" in locus ? locus.completedPointCount : 0,
     totalPointCount: "totalPointCount" in locus ? locus.totalPointCount : 0,
   });
+  let progress = familyProgress;
   const incomplete = (
     status: "collecting" | "unavailable",
     reason: string,
@@ -173,18 +181,6 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       "PVA requires the settled fixed-tone preload-reduction analysis",
     );
   }
-  if (locus.completedPointCount !== locus.totalPointCount) {
-    return incomplete(
-      "collecting",
-      `${locus.completedPointCount}/${locus.totalPointCount} settled load points`,
-    );
-  }
-  if (locus.points.length < MINIMUM_FIT_POINT_COUNT_V1) {
-    return incomplete(
-      "unavailable",
-      "At least five settled load points are required",
-    );
-  }
   const anchor = locus.points.find(({ role }) => role === "operating-anchor");
   if (anchor === undefined) {
     return incomplete(
@@ -192,17 +188,56 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       "The operating load anchor is unavailable",
     );
   }
-  const semilunarClosure = locus.points.flatMap((point) => {
+  const coreTargets = Object.freeze([
+    anchor.totalBloodVolumeMl,
+    ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.map(
+      (scale) =>
+        mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
+          anchor.totalBloodVolumeMl,
+          scale,
+        ),
+    ),
+  ]);
+  const corePoints = coreTargets.flatMap((targetGlobalTbvMl) => {
+    const match = locus.points.find(
+      ({ totalBloodVolumeMl }) =>
+        Math.abs(totalBloodVolumeMl - targetGlobalTbvMl) <=
+        Math.max(1e-6, Math.abs(targetGlobalTbvMl) * 1e-12),
+    );
+    return match === undefined ? [] : [match];
+  });
+  progress = Object.freeze({
+    completedPointCount: corePoints.length,
+    totalPointCount: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3,
+  });
+  if (
+    corePoints.length !==
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3
+  ) {
+    const familyComplete =
+      locus.completedPointCount === locus.totalPointCount;
+    return incomplete(
+      familyComplete ? "unavailable" : "collecting",
+      `${corePoints.length}/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3} settled PVA core points`,
+    );
+  }
+  if (corePoints.length < MINIMUM_FIT_POINT_COUNT_V1) {
+    return incomplete(
+      "unavailable",
+      "At least five settled PVA core points are required",
+    );
+  }
+  const semilunarClosure = corePoints.flatMap((point) => {
     const landmark = point.ventricularPressureVolumeLandmarks.endSystolic;
     return landmark.event === "semilunar-valve-closure" ? [landmark] : [];
   });
-  const diastolic = locus.points
+  const diastolic = corePoints
     .map(
       ({ ventricularPressureVolumeLandmarks }) =>
         ventricularPressureVolumeLandmarks.endDiastolic,
     )
     .filter(({ pressureMmHg }) => pressureMmHg > 0.05);
-  const maximumElastance = isochronalMaximumElastanceFitV1(locus.points);
+  const maximumElastance = isochronalMaximumElastanceFitV1(corePoints);
   const edpvr = exponentialFitV1(diastolic);
   if (
     maximumElastance === null ||
@@ -312,10 +347,11 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     progress,
     source: Object.freeze({
       protocolId: locus.protocolId,
-      pointCount: locus.points.length,
+      pointCount: corePoints.length,
+      familyProgress,
       primaryLineage: "persistent-worker-settled-hot-start-chain" as const,
       slowControllerPolicy:
-        "coronary-tone-frozen-during-preload-reduction" as const,
+        "active-source-period1-then-coronary-tone-frozen" as const,
       endDiastolicLandmark: "maximum-volume-proxy" as const,
       endSystolicLandmark: "common-isochronal-maximum-elastance" as const,
     }),

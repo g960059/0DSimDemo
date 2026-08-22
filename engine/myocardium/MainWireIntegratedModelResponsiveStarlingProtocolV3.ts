@@ -13,9 +13,7 @@ import {
   type MainWireIntegratedModelObservationV3,
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
-import type {
-  MainWireIntegratedModelHemodynamicResearchInputsV3,
-} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
@@ -63,6 +61,28 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 =
   Object.freeze([0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6] as const);
 
+/**
+ * Nominal low-volume targets used only to extend the shared Starling family.
+ * The PVA/ESPVR/EDPVR fit remains prospectively limited to the nine-point
+ * operating-anchor-to-60% core above, so this adaptive tail cannot change PVA.
+ * Rejected jumps insert settled midpoints and the limb stops at low flow or a
+ * bounded numerical boundary.
+ */
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3 =
+  Object.freeze([0.54, 0.48, 0.42, 0.36, 0.31, 0.27, 0.23] as const);
+
+/** High-volume arm retained for the bidirectional Starling presentation. */
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 =
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 =
+  1 + MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.length;
+
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3 =
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 +
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3.length +
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3.length;
+
 export function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
   sourceGlobalTbvMl: number,
   scale: number,
@@ -82,6 +102,7 @@ export function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
 const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
 const RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
@@ -90,7 +111,9 @@ const FIXED_TBV_TOLERANCE_ML_V3 = 1e-6;
 const MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3 = 1_000;
 const MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3 = 4_000;
 const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
+const MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
+const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
 const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
 const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
@@ -376,13 +399,16 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
 }
 
 /**
- * Opt-in multi-load pressure-volume protocol.
+ * Shared settled pressure-volume / Starling protocol.
  *
- * The live Scenario is never advanced. A persistent analysis Worker freezes
- * the source coronary tone (the slow 25-second controller is not allowed to
- * redefine every preload), then admits each load after three consecutive
- * complete beats satisfy the declared flow/pressure/volume closure gates.
- * Each next load hot-starts from the preceding settled branch.
+ * The live Scenario is never advanced. A persistent analysis Worker first
+ * settles an isolated copy at the Scenario TBV with the active coronary
+ * controller. It then freezes the controller state at that settled endpoint
+ * and admits each load after three consecutive complete beats satisfy the
+ * declared flow/pressure/volume closure gates. The nine-point low-volume core
+ * is emitted first so PVA becomes available without waiting for the wider
+ * Starling presentation. High- and deep-low-volume extensions then reuse the
+ * same settled center instead of launching a second analysis.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   sourceSession: MainWireIntegratedModelSessionV3,
@@ -392,25 +418,17 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   ) => void,
   partition?: MainWireIntegratedModelResponsiveStarlingPartitionV3,
 ): Promise<MainWireIntegratedModelFormalPressureVolumeResultV3> {
-  if (
-    partition ===
-    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
-  ) {
-    throw new Error(
-      "formal PVA accepts only the preload-reduction analysis partition",
-    );
-  }
   const sourceGlobalTbvMl =
     sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   if (
-    Math.abs(
-      sourceGlobalTbvMl - hemodynamicResearchInputs.totalBloodVolumeMl,
-    ) > FIXED_TBV_TOLERANCE_ML_V3
+    Math.abs(sourceGlobalTbvMl - hemodynamicResearchInputs.totalBloodVolumeMl) >
+    FIXED_TBV_TOLERANCE_ML_V3
   ) {
     throw new Error("formal PVA source and Scenario TBV differ");
   }
   const paired: StarlingPairV3[] = [];
   let anchorObservation: MainWireIntegratedModelObservationV3 | null = null;
+  const expectedPointCount = formalExpectedPointCountV3(partition);
   const result = (
     protocolComplete = false,
   ): MainWireIntegratedModelFormalPressureVolumeResultV3 =>
@@ -421,18 +439,29 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
       right: formalPressureVolumeLocusV3(
         paired.map(({ right }) => right),
         protocolComplete,
+        expectedPointCount,
       ),
       left: formalPressureVolumeLocusV3(
         paired.map(({ left }) => left),
         protocolComplete,
+        expectedPointCount,
       ),
     });
   const append = (pair: StarlingPairV3) => {
     paired.push(pair);
     onProgress?.(result());
   };
-  const center = await measureFormalPressureVolumeBranchV3(
+  const settledSource = settleFormalPressureVolumeSourceV3(
     sourceSession,
+    sourceGlobalTbvMl,
+  );
+  if (settledSource.status === "rejected") {
+    throw new Error(
+      `formal pressure-volume source rejected: ${settledSource.reason}`,
+    );
+  }
+  const center = await measureFormalPressureVolumeBranchV3(
+    settledSource.branch,
     sourceGlobalTbvMl,
     "operating-anchor",
   );
@@ -446,25 +475,154 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   anchorObservation = center.observation;
   append(center.pair);
 
+  let lowBoundary = Object.freeze({
+    branch: center.branch,
+    targetGlobalTbvMl: sourceGlobalTbvMl,
+  });
   if (
     partition === undefined ||
     partition ===
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
   ) {
-    await runFormalPressureVolumeChainV3(
+    lowBoundary = await runFormalPressureVolumeChainV3(
       center.branch,
       sourceGlobalTbvMl,
+      append,
+    );
+  }
+  if (
+    partition === undefined ||
+    partition ===
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
+  ) {
+    await runFormalHypervolemicStarlingChainV3(
+      center.branch,
+      center.pair,
+      sourceGlobalTbvMl,
+      append,
+    );
+  }
+  if (partition === undefined) {
+    await runFormalLowStarlingExtensionV3(
+      lowBoundary.branch,
+      sourceGlobalTbvMl,
+      lowBoundary.targetGlobalTbvMl,
       append,
     );
   }
   return result(true);
 }
 
+function formalExpectedPointCountV3(
+  partition: MainWireIntegratedModelResponsiveStarlingPartitionV3 | undefined,
+): number {
+  if (
+    partition ===
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
+  ) {
+    return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3;
+  }
+  if (
+    partition ===
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
+  ) {
+    return (
+      1 +
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3.length
+    );
+  }
+  return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3;
+}
+
+/**
+ * Establishes the analysis source before any slow state is frozen.
+ *
+ * Workbench may request an analysis soon after the first accepted frame. The
+ * request clock is therefore provenance, not evidence that the Scenario is
+ * already periodic. This isolated active-controller branch closes that gap;
+ * the subsequent fixed-tone family always starts from its period-1 endpoint.
+ */
+function settleFormalPressureVolumeSourceV3(
+  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceGlobalTbvMl: number,
+):
+  | Readonly<{
+      status: "settled";
+      branch: MainWireIntegratedModelSessionV3;
+    }>
+  | RejectedBranchV3 {
+  let branch: MainWireIntegratedModelSessionV3;
+  try {
+    branch = sourceSession.forkAtFixedGlobalTotalBloodVolume(sourceGlobalTbvMl);
+  } catch (error) {
+    return rejectedV3(error);
+  }
+  const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+  const beats: MainWireIntegratedModelCompletedBeatMetricsV3[] = [];
+  let lastCompletedBeatId: string | null =
+    branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
+  for (
+    let ordinal = 1;
+    ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3;
+    ordinal += 1
+  ) {
+    const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      break;
+    const advance = branch.advanceToPresentationTime(
+      acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
+    );
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed"
+          ? advance.message
+          : `unexpected formal source-settlement status ${advance.status}`,
+      );
+    }
+    const acceptedTbvMl =
+      advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+    if (
+      Math.abs(acceptedTbvMl - sourceGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3
+    ) {
+      return rejectedV3(
+        "global TBV changed during active-controller source settlement",
+      );
+    }
+    const completed = advance.observation.completedBeatMetrics;
+    if (
+      completed === null ||
+      completed.endAtrialCaptureId === lastCompletedBeatId
+    ) {
+      continue;
+    }
+    lastCompletedBeatId = completed.endAtrialCaptureId;
+    beats.push(completed);
+    if (
+      beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 &&
+      period1ConvergedV3(beats)
+    ) {
+      return Object.freeze({ status: "settled" as const, branch });
+    }
+    if (beats.length >= 5 && period2DetectedV3(beats)) {
+      return rejectedV3("active-controller source reached a period-2 boundary");
+    }
+    if (beats.length >= FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3) break;
+  }
+  return rejectedV3(
+    "active-controller source did not establish complete-beat period-1 closure",
+  );
+}
+
 async function runFormalPressureVolumeChainV3(
   centerBranch: MainWireIntegratedModelSessionV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
-): Promise<void> {
+): Promise<
+  Readonly<{
+    branch: MainWireIntegratedModelSessionV3;
+    targetGlobalTbvMl: number;
+  }>
+> {
   let reliableBranch = centerBranch;
   let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
   for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3) {
@@ -479,10 +637,10 @@ async function runFormalPressureVolumeChainV3(
     ) {
       continue;
     }
-    const measured = await measureFormalPressureVolumeBranchV3(
+    const measured = await measureFormalPressureVolumeTargetV3(
       reliableBranch,
+      reliableTargetGlobalTbvMl,
       targetGlobalTbvMl,
-      "continuation",
     );
     if (measured.status === "rejected") {
       throw new Error(
@@ -498,6 +656,138 @@ async function runFormalPressureVolumeChainV3(
     reliableBranch = measured.branch;
     reliableTargetGlobalTbvMl = targetGlobalTbvMl;
   }
+  return Object.freeze({
+    branch: reliableBranch,
+    targetGlobalTbvMl: reliableTargetGlobalTbvMl,
+  });
+}
+
+async function runFormalHypervolemicStarlingChainV3(
+  centerBranch: MainWireIntegratedModelSessionV3,
+  centerPair: StarlingPairV3,
+  sourceGlobalTbvMl: number,
+  append: (pair: StarlingPairV3) => void,
+): Promise<void> {
+  let reliableBranch = centerBranch;
+  let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
+  const reliablePairs: StarlingPairV3[] = [centerPair];
+  for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3) {
+    const targetGlobalTbvMl = sourceGlobalTbvMl * scale;
+    const measured = await measureFormalPressureVolumeTargetV3(
+      reliableBranch,
+      reliableTargetGlobalTbvMl,
+      targetGlobalTbvMl,
+    );
+    if (measured.status === "rejected" || !formalPairQualifiedV3(measured.pair)) {
+      break;
+    }
+    append(measured.pair);
+    reliableBranch = measured.branch;
+    reliableTargetGlobalTbvMl = targetGlobalTbvMl;
+    reliablePairs.push(measured.pair);
+    if (
+      reliablePairs.length >= 4 &&
+      mainWireIntegratedModelStarlingDescendingLimbV3(
+        reliablePairs.map(({ right }) => right),
+      ) !== null &&
+      mainWireIntegratedModelStarlingDescendingLimbV3(
+        reliablePairs.map(({ left }) => left),
+      ) !== null
+    ) {
+      break;
+    }
+  }
+}
+
+async function runFormalLowStarlingExtensionV3(
+  coreBoundaryBranch: MainWireIntegratedModelSessionV3,
+  sourceGlobalTbvMl: number,
+  coreBoundaryGlobalTbvMl: number,
+  append: (pair: StarlingPairV3) => void,
+): Promise<void> {
+  let reliableBranch = coreBoundaryBranch;
+  let reliableScale = coreBoundaryGlobalTbvMl / sourceGlobalTbvMl;
+  for (const requestedScale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3) {
+    let targetScale: number = requestedScale;
+    let reachedRequestedScale = false;
+    for (
+      let attempt = 0;
+      attempt < MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3;
+      attempt += 1
+    ) {
+      const measured = await measureFormalPressureVolumeBranchV3(
+        reliableBranch,
+        sourceGlobalTbvMl * targetScale,
+        "continuation",
+      );
+      if (measured.status === "accepted" && formalPairQualifiedV3(measured.pair)) {
+        append(measured.pair);
+        reliableBranch = measured.branch;
+        reliableScale = targetScale;
+        if (starlingPairReachedLowFlowTargetV3(measured.pair)) return;
+        if (Math.abs(targetScale - requestedScale) < 1e-12) {
+          reachedRequestedScale = true;
+          break;
+        }
+        targetScale = requestedScale;
+        continue;
+      }
+      if (reliableScale - targetScale <= MINIMUM_LOW_SCALE_BRACKET_V3) break;
+      targetScale = midpointV3(reliableScale, targetScale);
+    }
+    if (!reachedRequestedScale) break;
+  }
+}
+
+/**
+ * Keeps the published nine-point schedule exact while permitting internal
+ * homotopy points when a direct load jump is numerically too large. Internal
+ * points are settlement aids only: they are neither returned nor fitted.
+ */
+async function measureFormalPressureVolumeTargetV3(
+  reliableBranch: MainWireIntegratedModelSessionV3,
+  reliableTargetGlobalTbvMl: number,
+  requestedTargetGlobalTbvMl: number,
+): Promise<MeasuredBranchV3> {
+  let sourceBranch = reliableBranch;
+  let sourceTargetGlobalTbvMl = reliableTargetGlobalTbvMl;
+  let trialTargetGlobalTbvMl = requestedTargetGlobalTbvMl;
+  let lastRejected: RejectedBranchV3 = rejectedV3(
+    "formal pressure-volume target was not attempted",
+  );
+  for (
+    let attempt = 0;
+    attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3;
+    attempt += 1
+  ) {
+    const measured = await measureFormalPressureVolumeBranchV3(
+      sourceBranch,
+      trialTargetGlobalTbvMl,
+      "continuation",
+    );
+    if (measured.status === "accepted") {
+      if (
+        Math.abs(trialTargetGlobalTbvMl - requestedTargetGlobalTbvMl) <=
+        FIXED_TBV_TOLERANCE_ML_V3
+      ) {
+        return measured;
+      }
+      sourceBranch = measured.branch;
+      sourceTargetGlobalTbvMl = trialTargetGlobalTbvMl;
+      trialTargetGlobalTbvMl = requestedTargetGlobalTbvMl;
+      continue;
+    }
+    lastRejected = measured;
+    if (
+      Math.abs(sourceTargetGlobalTbvMl - trialTargetGlobalTbvMl) <=
+      MINIMUM_FORMAL_TBV_BRACKET_ML_V3
+    ) {
+      return lastRejected;
+    }
+    trialTargetGlobalTbvMl =
+      0.5 * (sourceTargetGlobalTbvMl + trialTargetGlobalTbvMl);
+  }
+  return lastRejected;
 }
 
 function formalPairQualifiedV3(pair: StarlingPairV3): boolean {
@@ -711,17 +1001,17 @@ async function measureFormalPressureVolumeBranchV3(
     // sequence of 25-second coronary-controller re-equilibrations. Preserve
     // the source tone, reset its accepted averaging window beyond this bounded
     // branch, and hot-start the next load from the preceding settled endpoint.
-    branch = sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
-      targetGlobalTbvMl,
-    );
+    branch =
+      sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+        targetGlobalTbvMl,
+      );
     const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     const beats: MainWireIntegratedModelCompletedBeatMetricsV3[] = [];
     const pressureVolumeBeats: CompletedPressureVolumeBeatPairV3[] = [];
     const pressureVolumeLoopCollector =
       new FormalFixedTbvPressureVolumeLoopCollectorV3();
     let lastCompletedBeatId: string | null =
-      branch.observe().completedBeatMetrics?.endAtrialCaptureId ??
-      null;
+      branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
     let locallyConverged = false;
     for (
       let ordinal = 1;
@@ -730,8 +1020,10 @@ async function measureFormalPressureVolumeBranchV3(
     ) {
       const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
       if (
-        acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3
-      ) break;
+        acceptedTimeSec - originTimeSec >=
+        MAXIMUM_MEASUREMENT_DURATION_SEC_V3
+      )
+        break;
       const advance = branch.advanceToPresentationTime(
         acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
       );
@@ -771,12 +1063,15 @@ async function measureFormalPressureVolumeBranchV3(
           break;
         }
         if (beats.length >= 5 && period2DetectedV3(beats)) {
-          return rejectedV3("fixed-tone PVA branch reached a period-2 boundary");
+          return rejectedV3(
+            "fixed-tone PVA branch reached a period-2 boundary",
+          );
         }
       }
-      const maximumBeatCount = role === "operating-anchor"
-        ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
-        : DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
+      const maximumBeatCount =
+        role === "operating-anchor"
+          ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
+          : DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
       if (beats.length >= maximumBeatCount) break;
     }
     if (!locallyConverged) {
@@ -1177,6 +1472,7 @@ function responsiveLocusV3(
 function formalPressureVolumeLocusV3(
   points: readonly MainWireIntegratedModelStarlingPointV3[],
   protocolComplete: boolean,
+  expectedPointCount: number,
 ): MainWireIntegratedModelStarlingLocusV3 {
   const settled = points.filter(
     (
@@ -1205,12 +1501,9 @@ function formalPressureVolumeLocusV3(
     completedPointCount: settled.length,
     totalPointCount: protocolComplete
       ? settled.length
-      : Math.max(
-          settled.length,
-          1 +
-            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.length,
-        ),
-    slowControllerPolicy: "coronary-tone-frozen-at-branch-source" as const,
+      : Math.max(settled.length, expectedPointCount),
+    slowControllerPolicy:
+      "active-source-period1-then-coronary-tone-frozen" as const,
     convergencePolicy: "complete-beat-output-period1-closure" as const,
     points: Object.freeze(
       [...settled].sort(

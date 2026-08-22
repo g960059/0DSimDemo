@@ -14,7 +14,6 @@ import {
   createWorkbenchCanvasFrameSchedulerV3,
   extractLivePvTrajectoryV3,
   extractLastCompletePvBeatV3,
-  extendPvSystolicRelationToPlotBoundaryV3,
   extendPvVolumeDomainToExtrapolatedInterceptsV3,
   firstSampleAtOrAfterV3,
   guytonZeroFlowPresentationMaximumV3,
@@ -470,36 +469,6 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(
       extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [60]),
     ).toEqual([40, 190]);
-  });
-
-  it("extends ESPVR from V0 to whichever visible upper boundary is reached first", () => {
-    const relation = {
-      status: "complete-preview",
-      systolicEnvelope: {
-        elastanceMmHgPerMl: 2,
-        extrapolatedVolumeAxisInterceptMl: 20,
-      },
-    } as any;
-    expect(
-      extendPvSystolicRelationToPlotBoundaryV3(
-        relation,
-        [0, 200],
-        [0, 150],
-      ),
-    ).toEqual([
-      { volumeMl: 20, pressureMmHg: 0 },
-      { volumeMl: 95, pressureMmHg: 150 },
-    ]);
-    expect(
-      extendPvSystolicRelationToPlotBoundaryV3(
-        relation,
-        [0, 60],
-        [0, 150],
-      ),
-    ).toEqual([
-      { volumeMl: 20, pressureMmHg: 0 },
-      { volumeMl: 60, pressureMmHg: 80 },
-    ]);
   });
 
   it("keeps monotonic Worker samples on the allocation-free fast path", () => {

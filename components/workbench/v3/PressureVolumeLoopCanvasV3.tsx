@@ -3,10 +3,6 @@ import React from "react";
 import type {
   PressureVolumePressureBasisV2,
 } from "@/studio/contracts/v2/model";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_RAPID_PRESSURE_VOLUME_RELATION_SEMANTICS_V3,
-  type MainWireIntegratedModelRapidPressureVolumeRelationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
 import type { MainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 
 import {
@@ -54,12 +50,9 @@ export type WorkbenchPressureVolumeTraceV3 =
     chamberLabel: string;
     /** Final resolved trace color from the automatic comparison strategy. */
     chamberColor: string;
-    rapidPressureVolumeRelation?:
-      MainWireIntegratedModelRapidPressureVolumeRelationV3;
     periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
     periodicPvaAnalysisError?: string;
-    rapidPressureVolumeRelationHistory?: readonly MainWireIntegratedModelRapidPressureVolumeRelationV3[];
-    rapidPressureVolumeRelationPending?: boolean;
+    periodicPvaAnalysisPending?: boolean;
   }>;
 
 export type WorkbenchPvPointV3 = Readonly<{
@@ -393,7 +386,6 @@ function extractPvPointsV3(
 
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
-  analysisMode?: "responsive-preview" | "formal-periodic";
 }>;
 
 export type PressureVolumeLoopCanvasPropsV3 =
@@ -485,13 +477,6 @@ export function PressureVolumeLoopCanvasV3(
       trace.pressureOutputId,
       trace.cyclePhaseOutputId,
     );
-    const rapidRelation =
-      trace.rapidPressureVolumeRelation?.status === "complete-preview"
-      || trace.rapidPressureVolumeRelation?.status === "collecting-preview"
-      || trace.rapidPressureVolumeRelation?.status === "complete-formal"
-      || trace.rapidPressureVolumeRelation?.status === "collecting-formal"
-        ? trace.rapidPressureVolumeRelation
-        : null;
     const history = Object.freeze((trace.historySampleSets ?? []).map(
       (samples, historyIndex, all) => {
         const projection = projectHistoricalPvEpochV3(
@@ -513,22 +498,7 @@ export function PressureVolumeLoopCanvasV3(
         trajectory.completedBeat,
         trajectory.liveSegment,
       ),
-      rapidRelation,
       periodicPva: trace.periodicPva ?? null,
-      rapidRelationHistory: Object.freeze(
-        (trace.rapidPressureVolumeRelationHistory ?? []).flatMap(
-          (relation, historyIndex, all) =>
-            relation.status === "complete-preview"
-              || relation.status === "collecting-preview"
-              || relation.status === "complete-formal"
-              || relation.status === "collecting-formal"
-              ? [Object.freeze({
-                  relation,
-                  alpha: workbenchHistoryAlphaV3(historyIndex, all.length),
-                })]
-              : [],
-        ),
-      ),
       history,
     });
   }), [traces]);
@@ -607,24 +577,13 @@ export function PressureVolumeLoopCanvasV3(
     );
     const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
       volumeDomainStateRef.current.domain,
-      [
-        ...visibleRenderedTraces.flatMap(({ rapidRelation }) =>
-          rapidRelation === null
-            ? []
-            : [
-                rapidRelation.systolicEnvelope
-                  .extrapolatedVolumeAxisInterceptMl,
-                rapidRelation.maximumVolume
-                  .extrapolatedZeroPressureVolumeMl,
-              ]),
-        ...visibleRenderedTraces.flatMap(({ periodicPva }) =>
+      visibleRenderedTraces.flatMap(({ periodicPva }) =>
           periodicPva?.status === "available"
             ? [
                 periodicPva.espvr.volumeAxisInterceptMl,
                 periodicPva.edpvr.zeroPressureVolumeMl,
               ]
             : []),
-      ],
     );
     const pressureDomain = pressureDomainStateRef.current.domain;
     drawPvAxesV3(
@@ -659,24 +618,11 @@ export function PressureVolumeLoopCanvasV3(
       plot.bottom - plot.top,
     );
     context.clip();
-    for (const { history, rapidRelationHistory, trace } of visibleRenderedTraces) {
+    for (const { history, trace } of visibleRenderedTraces) {
       const traceAlpha = workbenchLegendTraceAlphaV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
-      for (const historical of rapidRelationHistory) {
-        drawRapidPvRelationV3(
-          context,
-          historical.relation,
-          volumeDomain,
-          pressureDomain,
-          x,
-          y,
-          trace.chamberColor,
-          historical.alpha * traceAlpha,
-          false,
-        );
-      }
       for (const historical of history) {
         drawPvCurveV3(context, historical.completedBeat, x, y, {
           color: trace.chamberColor,
@@ -689,7 +635,6 @@ export function PressureVolumeLoopCanvasV3(
     for (const {
       backBufferRemainder,
       periodicPva,
-      rapidRelation,
       liveSegment,
       trace,
     } of visibleRenderedTraces) {
@@ -705,18 +650,6 @@ export function PressureVolumeLoopCanvasV3(
           y,
           trace.chamberColor,
           0.92 * traceAlpha,
-        );
-      } else if (rapidRelation !== null) {
-        drawRapidPvRelationV3(
-          context,
-          rapidRelation,
-          volumeDomain,
-          pressureDomain,
-          x,
-          y,
-          trace.chamberColor,
-          0.82 * traceAlpha,
-          true,
         );
       }
       drawPvCurveV3(context, backBufferRemainder, x, y, {
@@ -773,75 +706,39 @@ export function PressureVolumeLoopCanvasV3(
     "pressure-volume-loop",
   );
 
-  const anyRapidRelation = renderedTraces.some(({ rapidRelation }) =>
-    rapidRelation !== null);
-  const anyFormalRelation = renderedTraces.some(({ rapidRelation }) =>
-    rapidRelation?.analysisMode === "formal-periodic");
-  const formalAnalysisSelected =
-    props.analysisMode === "formal-periodic" || anyFormalRelation;
-  const currentRapidRelationTraceCount = renderedTraces.filter(
-    ({ rapidRelation }) => rapidRelation !== null,
-  ).length;
-  // A prior relation remains intentionally visible while a changed Scenario
-  // is recomputed. Count what the reader can actually see, rather than making
-  // tests and assistive diagnostics treat that stable history as absent.
-  const visibleRapidRelationTraceCount = renderedTraces.filter(
-    ({ rapidRelation, rapidRelationHistory }) =>
-      rapidRelation !== null || rapidRelationHistory.length > 0,
-  ).length;
   const availablePva = visibleRenderedTraces.flatMap(
     ({ periodicPva, trace }) => periodicPva?.status === "available"
       ? [Object.freeze({ periodicPva, trace })]
       : [],
   );
   const relationStatus = availablePva.length > 0
-    ? "Settled fixed-tone preload reduction · accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA · not clinical validation"
-    : anyFormalRelation
-    ? "Settled fixed-tone preload-reduction PVA analysis · not clinical validation"
-    : formalAnalysisSelected
-    ? "Settled fixed-tone preload-reduction analysis selected · multi-load relation not yet available"
-    : anyRapidRelation
-    ? "Responsive multi-load fixed-TBV PV-loop support-envelope preview · center locally settled · not a formal ESPVR/EDPVR protocol"
-    : null;
+    ? "Settled-source preload reduction · accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA · not clinical validation"
+    : "Settled-source preload-reduction analysis selected · relation not yet available";
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
     : legendModel.items.map(({ label }) => label).join(", ");
-  const rapidRelationPending = traces.some(
-    ({ rapidPressureVolumeRelationPending }) =>
-      rapidPressureVolumeRelationPending === true,
+  const pvaAnalysisPending = traces.some(
+    ({ periodicPvaAnalysisPending }) => periodicPvaAnalysisPending === true,
   );
   const pvaProgress = visibleRenderedTraces
     .map(({ periodicPva }) => periodicPva)
     .find((periodicPva) =>
       periodicPva !== null && periodicPva.status === "collecting")?.progress;
-  const pvaAnalysisError = formalAnalysisSelected
-    ? visibleRenderedTraces
-        .map(({ trace }) => trace.periodicPvaAnalysisError)
-        .find((message): message is string =>
-          typeof message === "string" && message.length > 0)
-    : undefined;
+  const familyProgress = availablePva[0]?.periodicPva.source.familyProgress;
+  const pvaAnalysisError = visibleRenderedTraces
+    .map(({ trace }) => trace.periodicPvaAnalysisError)
+    .find((message): message is string =>
+      typeof message === "string" && message.length > 0);
 
   return (
     <div
       className={`flex min-h-52 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
       data-chart-kind="pressure-volume-loop-v3"
-      data-pv-analysis-mode={
-        formalAnalysisSelected ? "formal-periodic" : "responsive-preview"
-      }
+      data-pv-analysis-mode="formal-periodic"
       data-cycle-source="model-emitted-cycle-phase"
-      data-pv-relation-semantics={
-        anyRapidRelation
-          ? renderedTraces.find(({ rapidRelation }) => rapidRelation !== null)
-              ?.rapidRelation?.semantics ??
-            MAIN_WIRE_INTEGRATED_MODEL_RAPID_PRESSURE_VOLUME_RELATION_SEMANTICS_V3
-          : "unavailable"
-      }
-      data-pv-current-relation-trace-count={currentRapidRelationTraceCount}
-      data-pv-relation-trace-count={visibleRapidRelationTraceCount}
+      data-pv-relation-semantics="isochronal-emax-espvr-exponential-edpvr"
       data-pv-loop-trace-count={visibleRenderedTraces.length}
-      data-rapid-pv-relation-pending={
-        rapidRelationPending ? "true" : "false"
-      }
+      data-pva-analysis-pending={pvaAnalysisPending ? "true" : "false"}
       data-pva-result-count={availablePva.length}
     >
       <WorkbenchChartLegendV3
@@ -869,7 +766,7 @@ export function PressureVolumeLoopCanvasV3(
             relationStatus === null ? "" : `. ${relationStatus}`
           }`}
         />
-        {rapidRelationPending && (
+        {pvaAnalysisPending && (
           <div
             className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 text-[10px] text-wb-subtle"
             role="status"
@@ -878,11 +775,11 @@ export function PressureVolumeLoopCanvasV3(
               aria-hidden="true"
               className="h-2.5 w-2.5 rounded-full border border-wb-subtle/35 border-t-wb-accent motion-safe:animate-spin"
             />
-            {formalAnalysisSelected
-              ? `PVA analysis${pvaProgress === undefined
-                ? ""
-                : ` ${pvaProgress.completedPointCount}/${pvaProgress.totalPointCount} points`}`
-              : "PV preview"}
+            {familyProgress !== undefined
+              ? `PVA ready · Starling extension ${familyProgress.completedPointCount} settled points`
+              : pvaProgress === undefined
+                ? "Settling source…"
+                : `PVA analysis ${pvaProgress.completedPointCount}/${pvaProgress.totalPointCount} points`}
           </div>
         )}
         {availablePva.length > 0 && (
@@ -993,16 +890,10 @@ function sameWorkbenchPressureVolumeTraceV3(
     && left.chamberId === right.chamberId
     && left.chamberLabel === right.chamberLabel
     && left.chamberColor === right.chamberColor
-    && left.rapidPressureVolumeRelation
-      === right.rapidPressureVolumeRelation
     && left.periodicPva === right.periodicPva
     && left.periodicPvaAnalysisError === right.periodicPvaAnalysisError
-    && shallowIdentityArrayEqualV3(
-      left.rapidPressureVolumeRelationHistory ?? [],
-      right.rapidPressureVolumeRelationHistory ?? [],
-    )
-    && left.rapidPressureVolumeRelationPending
-      === right.rapidPressureVolumeRelationPending;
+    && left.periodicPvaAnalysisPending
+      === right.periodicPvaAnalysisPending;
 }
 
 function shallowIdentityArrayEqualV3<T>(
@@ -1086,74 +977,6 @@ function pvLegendSelectionKeyV3(
   return `trace:${selection.traceKey}`;
 }
 
-function drawRapidPvRelationV3(
-  context: CanvasRenderingContext2D,
-  relation: Exclude<
-    MainWireIntegratedModelRapidPressureVolumeRelationV3,
-    Readonly<{ status: "insufficient-data" }>
-  >,
-  volumeDomain: WorkbenchNumericDomainV3,
-  pressureDomain: WorkbenchNumericDomainV3,
-  x: (volumeMl: number) => number,
-  y: (pressureMmHg: number) => number,
-  color: string,
-  alpha: number,
-  showLandmarks: boolean,
-): void {
-  drawPvCurveV3(
-    context,
-    extendPvSystolicRelationToPlotBoundaryV3(
-      relation,
-      volumeDomain,
-      pressureDomain,
-    ),
-    x,
-    y,
-    {
-      color,
-      width: relation.analysisMode === "formal-periodic" ? 1.45 : 1.15,
-      dash: Object.freeze([]),
-      alpha: alpha *
-        (relation.analysisMode === "formal-periodic" ? 0.86 : 0.62),
-    },
-  );
-  drawPvCurveV3(context, relation.maximumVolumeTrendCurve, x, y, {
-    color,
-    width: 1.2,
-    dash: Object.freeze([]),
-    alpha: alpha * 0.5,
-  });
-  if (!showLandmarks) return;
-  // The fixed-TBV sweep landmarks remain part of the numerical fit, but are
-  // intentionally presentation-internal. Showing every sampled ES/ED point
-  // reads as a second dataset and obscures the loop/relation geometry. Keep
-  // only the semantically useful V0 and current-loop contact markers below.
-  const systolicIntercept = relation.systolicEnvelopeTrendCurve[0];
-  const passiveIntercept = relation.maximumVolumeTrendCurve[0];
-  if (systolicIntercept !== undefined) {
-    drawPvRelationMarkerV3(
-      context,
-      x(systolicIntercept.volumeMl),
-      y(systolicIntercept.pressureMmHg),
-      color,
-      2.25,
-      alpha * 0.72,
-      false,
-    );
-  }
-  if (passiveIntercept !== undefined) {
-    drawPvRelationMarkerV3(
-      context,
-      x(passiveIntercept.volumeMl),
-      y(passiveIntercept.pressureMmHg),
-      color,
-      1.8,
-      alpha * 0.48,
-      false,
-    );
-  }
-}
-
 function drawPeriodicPvaV1(
   context: CanvasRenderingContext2D,
   pva: Extract<MainWireIntegratedModelPeriodicPvaV1, { status: "available" }>,
@@ -1183,46 +1006,6 @@ function drawPeriodicPvaV1(
     alpha,
     false,
   );
-}
-
-/**
- * Draws the fitted ESPVR convention from V0 until it first meets the visible
- * right or top plot boundary. The numerical fit remains owned by the complete
- * multi-load PV-loop support envelope; this helper changes only its
- * presentation extent.
- */
-export function extendPvSystolicRelationToPlotBoundaryV3(
-  relation: Exclude<
-    MainWireIntegratedModelRapidPressureVolumeRelationV3,
-    Readonly<{ status: "insufficient-data" }>
-  >,
-  volumeDomain: WorkbenchNumericDomainV3,
-  pressureDomain: WorkbenchNumericDomainV3,
-): readonly WorkbenchPvRelationPointV3[] {
-  const volumeIntercept = relation.systolicEnvelope
-    .extrapolatedVolumeAxisInterceptMl;
-  const slope = relation.systolicEnvelope.elastanceMmHgPerMl;
-  const maximumVolume = volumeDomain[1];
-  const maximumPressure = pressureDomain[1];
-  if (
-    !Number.isFinite(volumeIntercept) ||
-    !Number.isFinite(slope) ||
-    !Number.isFinite(maximumVolume) ||
-    !Number.isFinite(maximumPressure) ||
-    !(slope > 0) ||
-    !(maximumVolume > volumeIntercept) ||
-    !(maximumPressure > 0)
-  ) return Object.freeze([]);
-  const topBoundaryVolume = volumeIntercept + maximumPressure / slope;
-  const endVolume = Math.min(maximumVolume, topBoundaryVolume);
-  if (!(endVolume > volumeIntercept)) return Object.freeze([]);
-  return Object.freeze([
-    Object.freeze({ volumeMl: volumeIntercept, pressureMmHg: 0 }),
-    Object.freeze({
-      volumeMl: endVolume,
-      pressureMmHg: slope * (endVolume - volumeIntercept),
-    }),
-  ]);
 }
 
 function drawPvRelationMarkerV3(

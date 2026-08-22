@@ -262,9 +262,12 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   );
   await expect(
     page.locator(
-      '[data-pv-relation-semantics="responsive-fixed-tbv-multi-load-pv-loop-support-envelope-preview-not-validated-espvr-edpvr"]',
+      '[data-pv-relation-semantics="isochronal-emax-espvr-exponential-edpvr"]',
     ),
-  ).toBeVisible({ timeout: 60_000 });
+  ).toBeVisible();
+  await expect(
+    page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
+  ).toHaveAttribute("data-pva-result-count", "1", { timeout: 60_000 });
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   const graphGroups = graphArea.locator(".dv-groupview");
@@ -645,7 +648,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   // live-throughput budgets.
   await expect(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
-  ).toHaveAttribute("data-pv-current-relation-trace-count", "2", {
+  ).toHaveAttribute("data-pva-result-count", "2", {
     timeout: 60_000,
   });
 

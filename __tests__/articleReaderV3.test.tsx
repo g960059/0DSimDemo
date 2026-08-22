@@ -44,6 +44,7 @@ import {
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,
   STANDARD_TEST_SURFACE_SERIES_ID_V1,
 } from "@/__tests__/helpers/standardReleaseTicketV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 
 const NOOP = () => {};
 
@@ -253,7 +254,8 @@ function structuralAnalysisV3(scenarioId: string): StudioSimulationAnalysisV2 {
     inputEpoch: 0,
     sourceAcceptedRevision: 4,
     sourceAcceptedTimeSec: 0.008,
-    analysisId: "analysis/return",
+    analysisId:
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     payload: Object.freeze({
       status: "available",
       right: Object.freeze({
@@ -633,7 +635,10 @@ describe("Article Reader V3 experiment anchor", () => {
     const scenarios = snapshot.content.scenarios.slice(0, 2);
     const analysisByKey = Object.fromEntries(
       scenarios.map((scenario) => [
-        articleReaderAnalysisKeyV3(scenario.scenarioId, "analysis/return"),
+        articleReaderAnalysisKeyV3(
+          scenario.scenarioId,
+          MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        ),
         structuralAnalysisV3(scenario.scenarioId),
       ]),
     );
@@ -686,7 +691,10 @@ describe("Article Reader V3 experiment anchor", () => {
     }
     const runtime = readerRuntimeStubV3({
       analysisByKey: {
-        [articleReaderAnalysisKeyV3(scenario.scenarioId, graph.analysisId)]:
+        [articleReaderAnalysisKeyV3(
+          scenario.scenarioId,
+          MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        )]:
           structuralAnalysisV3(scenario.scenarioId),
       },
     });
@@ -716,7 +724,7 @@ describe("Article Reader V3 experiment anchor", () => {
     }
     const key = articleReaderAnalysisKeyV3(
       scenario.scenarioId,
-      graph.analysisId,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     );
     const runtime = readerRuntimeStubV3({
       pendingAnalysisKeys: [key],

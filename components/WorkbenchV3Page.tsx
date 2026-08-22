@@ -192,12 +192,7 @@ import {
 import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
-import {
-  buildMainWireIntegratedModelRapidPressureVolumeRelationV3,
-  type MainWireIntegratedModelRapidPressureVolumeRelationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
 import {
   buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
@@ -2795,7 +2790,10 @@ const WorkbenchV3Session = ({
             (graph) =>
               graph.renderer === "structural-return" &&
               pendingAnalysisKeys.includes(
-                workbenchAnalysisHistoryKeyV3(scenarioId, graph.analysisId),
+                workbenchAnalysisHistoryKeyV3(
+                  scenarioId,
+                  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+                ),
               ),
           )
             ? [scenarioId]
@@ -4055,6 +4053,8 @@ function GraphPaneBodyV3({
     visibleScenarioIds,
   );
   if (graph.renderer === "structural-return") {
+    const structuralAnalysisId =
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
     const pending = new Set(pendingAnalysisKeys);
     const traces = Object.freeze(
       scenarios.flatMap((scenario, scenarioIndex) => {
@@ -4065,7 +4065,7 @@ function GraphPaneBodyV3({
           return [];
         const key = workbenchAnalysisHistoryKeyV3(
           scenario.scenarioId,
-          graph.analysisId,
+          structuralAnalysisId,
         );
         const traceStyle = resolveWorkbenchGraphTraceStyleV3({
           pane,
@@ -4100,6 +4100,7 @@ function GraphPaneBodyV3({
     return (
       <StructuralReturnGraphPaneV3
         acceptedStepAvailable={(frame?.acceptedRevision ?? 0) > 0}
+        analysisId={structuralAnalysisId}
         graph={graph}
         structuralSide={
           pane.structuralSide ?? (graph.side === "left" ? "left" : "right")
@@ -4202,11 +4203,12 @@ function SampledGraphPaneBodyV3({
   const authoredScenarioCount = scenarios.length;
   const cyclePhaseOutputId = workbenchModelCyclePhaseOutputIdV3(contract);
   const pendingAnalysisSet = new Set(pendingAnalysisKeys);
+  // Workbench exposes one physiological PV relation owner. Legacy authored
+  // `responsive-preview` values remain readable in portable content, but no
+  // longer select the retired multi-load support envelope.
   const pressureVolumeAnalysisId =
-    pane.pressureVolumeAnalysisMode === "formal-periodic"
-      ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-      : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID;
-  const rapidRelationScenarioIds =
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
+  const pvaAnalysisScenarioIds =
     graph.renderer === "pressure-volume" &&
     displayedSeries.some(
       ({ seriesId }) => seriesId === "LV" || seriesId === "RV",
@@ -4215,7 +4217,7 @@ function SampledGraphPaneBodyV3({
           .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
           .map(({ scenarioId }) => scenarioId)
       : [];
-  const missingRapidRelationScenarioIds = rapidRelationScenarioIds.filter(
+  const missingPvaAnalysisScenarioIds = pvaAnalysisScenarioIds.filter(
     (scenarioId) => {
       const key = workbenchAnalysisHistoryKeyV3(
         scenarioId,
@@ -4228,39 +4230,36 @@ function SampledGraphPaneBodyV3({
       );
     },
   );
-  const rapidRelationRequestKey = JSON.stringify([
+  const pvaAnalysisRequestKey = JSON.stringify([
     pressureVolumeAnalysisId,
-    ...missingRapidRelationScenarioIds,
+    ...missingPvaAnalysisScenarioIds,
   ]);
-  const lastRapidRelationRequestKeyRef = React.useRef<string | null>(null);
+  const lastPvaAnalysisRequestKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (missingRapidRelationScenarioIds.length === 0) {
-      lastRapidRelationRequestKeyRef.current = null;
+    if (missingPvaAnalysisScenarioIds.length === 0) {
+      lastPvaAnalysisRequestKeyRef.current = null;
       return;
     }
     if (
       graph.renderer !== "pressure-volume" ||
       (frame?.acceptedRevision ?? 0) <= 0 ||
       operationPending ||
-      lastRapidRelationRequestKeyRef.current === rapidRelationRequestKey
+      lastPvaAnalysisRequestKeyRef.current === pvaAnalysisRequestKey
     )
       return;
     if (
-      onRequestAnalysis(
-        pressureVolumeAnalysisId,
-        missingRapidRelationScenarioIds,
-      )
+      onRequestAnalysis(pressureVolumeAnalysisId, missingPvaAnalysisScenarioIds)
     ) {
-      lastRapidRelationRequestKeyRef.current = rapidRelationRequestKey;
+      lastPvaAnalysisRequestKeyRef.current = pvaAnalysisRequestKey;
     }
   }, [
     frame?.acceptedRevision,
     graph.renderer,
-    missingRapidRelationScenarioIds,
+    missingPvaAnalysisScenarioIds,
     onRequestAnalysis,
     operationPending,
     pressureVolumeAnalysisId,
-    rapidRelationRequestKey,
+    pvaAnalysisRequestKey,
   ]);
   if (graph.renderer === "pressure-volume") {
     const bindings = displayedSeries.flatMap((series) => {
@@ -4289,34 +4288,12 @@ function SampledGraphPaneBodyV3({
             pressureVolumeAnalysisId,
           );
           const relationSide = pressureVolumeRelationSideV3(binding.seriesId);
-          const rapidPressureVolumeRelation =
-            relationSide === null
-              ? undefined
-              : rapidPressureVolumeRelationFromAnalysisV3(
-                  analysisByKey[analysisKey],
-                  relationSide,
-                );
           const periodicPva =
             relationSide === null
               ? undefined
               : periodicPvaFromAnalysisV3(
                   analysisByKey[analysisKey],
                   relationSide,
-                );
-          const rapidPressureVolumeRelationHistory =
-            relationSide === null
-              ? Object.freeze([])
-              : Object.freeze(
-                  workbenchBoundedGraphHistoryV3(
-                    analysisHistoryByKey[analysisKey] ?? [],
-                    pane.historyDepth ?? 1,
-                  ).flatMap((analysis) => {
-                    const relation = rapidPressureVolumeRelationFromAnalysisV3(
-                      analysis,
-                      relationSide,
-                    );
-                    return relation === undefined ? [] : [relation];
-                  }),
                 );
           const style = resolveWorkbenchGraphTraceStyleV3({
             pane,
@@ -4349,18 +4326,13 @@ function SampledGraphPaneBodyV3({
               chamberId: binding.seriesId,
               chamberLabel: series.label,
               chamberColor: style.color,
-              ...(rapidPressureVolumeRelation === undefined
-                ? {}
-                : { rapidPressureVolumeRelation }),
               ...(periodicPva === undefined ? {} : { periodicPva }),
               ...(analysisErrorByKey[analysisKey] === undefined
                 ? {}
                 : {
                     periodicPvaAnalysisError: analysisErrorByKey[analysisKey],
                   }),
-              rapidPressureVolumeRelationHistory,
-              rapidPressureVolumeRelationPending:
-                pendingAnalysisSet.has(analysisKey),
+              periodicPvaAnalysisPending: pendingAnalysisSet.has(analysisKey),
             },
           ];
         });
@@ -4371,10 +4343,7 @@ function SampledGraphPaneBodyV3({
         variant="pane"
         canvasClassName="h-full min-h-0"
       >
-        <PressureVolumeLoopCanvasV3
-          analysisMode={pane.pressureVolumeAnalysisMode ?? "responsive-preview"}
-          traces={traces}
-        />
+        <PressureVolumeLoopCanvasV3 traces={traces} />
       </ExperimentGraphPresentationV3>
     );
   }
@@ -4473,44 +4442,6 @@ function pressureVolumeRelationSideV3(
   return null;
 }
 
-const RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3 = new WeakMap<
-  StudioSimulationAnalysisV2,
-  Map<
-    "left" | "right",
-    MainWireIntegratedModelRapidPressureVolumeRelationV3 | null
-  >
->();
-
-function rapidPressureVolumeRelationFromAnalysisV3(
-  analysis: StudioSimulationAnalysisV2 | undefined,
-  side: "left" | "right",
-): MainWireIntegratedModelRapidPressureVolumeRelationV3 | undefined {
-  if (analysis === undefined) return undefined;
-  const cached =
-    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis)?.get(side);
-  if (cached !== undefined) return cached ?? undefined;
-  const orientation = structuralReturnOrientationFromPayloadV3(
-    analysis.payload,
-    side,
-  );
-  let relation: MainWireIntegratedModelRapidPressureVolumeRelationV3 | null =
-    null;
-  try {
-    if (orientation !== null) {
-      relation = buildMainWireIntegratedModelRapidPressureVolumeRelationV3(
-        orientation.starlingLocus,
-      );
-    }
-  } catch {
-    relation = null;
-  }
-  const analysisCache =
-    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis) ?? new Map();
-  analysisCache.set(side, relation);
-  RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.set(analysis, analysisCache);
-  return relation ?? undefined;
-}
-
 const PERIODIC_PVA_CACHE_V3 = new WeakMap<
   StudioSimulationAnalysisV2,
   Map<"left" | "right", MainWireIntegratedModelPeriodicPvaV1 | null>
@@ -4556,6 +4487,7 @@ type StructuralReturnScenarioTraceV3 = Readonly<{
 
 function StructuralReturnGraphPaneV3({
   acceptedStepAvailable,
+  analysisId,
   graph,
   onRequestAnalysis,
   operationPending,
@@ -4563,6 +4495,7 @@ function StructuralReturnGraphPaneV3({
   traces,
 }: Readonly<{
   acceptedStepAvailable: boolean;
+  analysisId: string;
   graph: StructuralReturnGraphDefinitionV2;
   onRequestAnalysis: (
     analysisId: string,
@@ -4587,7 +4520,7 @@ function StructuralReturnGraphPaneV3({
     [traces],
   );
   const currentRequestKey = structuralReturnComparisonRequestKeyV3(
-    graph.analysisId,
+    analysisId,
     missingScenarioIds,
   );
   React.useEffect(() => {
@@ -4602,14 +4535,14 @@ function StructuralReturnGraphPaneV3({
         operationPending,
       })
     ) {
-      if (onRequestAnalysis(graph.analysisId, missingScenarioIds)) {
+      if (onRequestAnalysis(analysisId, missingScenarioIds)) {
         lastAutoRequestedKeyRef.current = currentRequestKey;
       }
     }
   }, [
     acceptedStepAvailable,
     currentRequestKey,
-    graph.analysisId,
+    analysisId,
     missingScenarioIds,
     onRequestAnalysis,
     operationPending,
@@ -4828,9 +4761,9 @@ export function workbenchStructuralAnalysisCompleteV3(
     if (orientation === null) return false;
     const locus = orientation.starlingLocus;
     return (
-      locus.status === "measured-fixed-tbv-protocol" ||
-      (locus.status === "responsive-fixed-tbv-preview" &&
-        locus.completedPointCount === locus.totalPointCount)
+      (locus.status === "measured-fixed-tbv-protocol" ||
+        locus.status === "responsive-fixed-tbv-preview") &&
+      locus.completedPointCount === locus.totalPointCount
     );
   });
 }
@@ -4856,12 +4789,12 @@ export function workbenchStructuralHistoryAnalysisIdsV3(
       ({ graphId }) => graphId === pane.graphId,
     );
     if (graph?.renderer === "structural-return") {
-      analysisIds.add(graph.analysisId);
+      analysisIds.add(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      );
     } else if (graph?.renderer === "pressure-volume") {
       analysisIds.add(
-        pane.pressureVolumeAnalysisMode === "formal-periodic"
-          ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-          : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
       );
     }
   }

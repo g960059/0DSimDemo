@@ -22,7 +22,10 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
-import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
+import type {
+  StudioSimulationAnalysisV2,
+  StudioSimulationFrameV2,
+} from "@/studio/contracts/v2/simulation";
 import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertExactModelKernelManifestV3,
@@ -988,10 +991,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-      )?.partitions,
-    ).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-    ]);
+      ),
+    ).toBeNull();
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-pv-analysis";
     const scenarioId = "scenario/baseline";
@@ -1033,6 +1034,60 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         (point) => point.ventricularPressureVolumeLoop.length >= 12,
       ),
     ).toBe(true);
+    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("settles a cold formal PVA source before the fixed-tone nine-point chain", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-formal-pva-analysis";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [
+      {
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      },
+    ]);
+    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const progress: StudioSimulationAnalysisV2[] = [];
+    const analysis = await host.requestAnalysis(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      source.inputEpoch,
+      source.acceptedRevision,
+      source.acceptedTimeSec,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      (partial) => progress.push(partial),
+    );
+    const payload = analysis.payload as unknown as Readonly<{
+      left: Readonly<{
+        starlingLocus: Readonly<{
+          status: string;
+          completedPointCount: number;
+          totalPointCount: number;
+          slowControllerPolicy: string;
+          points: readonly unknown[];
+        }>;
+      }>;
+    }>;
+    const progressCounts = progress.map((partial) => {
+      const partialPayload = partial.payload as unknown as Readonly<{
+        left: Readonly<{
+          starlingLocus: Readonly<{ completedPointCount: number }>;
+        }>;
+      }>;
+      return partialPayload.left.starlingLocus.completedPointCount;
+    });
+
+    expect(payload.left.starlingLocus).toMatchObject({
+      status: "measured-fixed-tbv-protocol",
+      completedPointCount: 9,
+      totalPointCount: 9,
+      slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen",
+    });
+    expect(payload.left.starlingLocus.points).toHaveLength(9);
+    expect(progressCounts).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
     host.closeSession(runtimeSessionId);
   }, 120_000);

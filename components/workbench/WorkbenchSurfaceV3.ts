@@ -34,7 +34,7 @@ export const WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3 =
 export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2;
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
-  "responsive-preview" as const;
+  "formal-periodic" as const;
 
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each

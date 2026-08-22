@@ -67,6 +67,9 @@ import {
   suggestWorkbenchScenarioIdV3,
   suggestWorkbenchScenarioLabelV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -915,7 +918,9 @@ describe("V3 Dockview Workbench", () => {
     const targetPaneId = configuredResult.selectedPane!.paneId;
     expect(
       workbenchStructuralHistoryAnalysisIdsV3(configured, composition.contract),
-    ).toEqual([structural.analysisId]);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ]);
     expect(
       workbenchStructuralHistoryAnalysisIdsV3(
         {
@@ -926,7 +931,9 @@ describe("V3 Dockview Workbench", () => {
         },
         composition.contract,
       ),
-    ).toEqual([structural.analysisId]);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ]);
   });
 
   it("preserves the live authority after transient Draft persistence failure and permits retry", () => {
@@ -1047,9 +1054,7 @@ describe("V3 Dockview Workbench", () => {
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
     expect(graphPanes).toHaveLength(3);
-    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe(
-      "responsive-preview",
-    );
+    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("formal-periodic");
     expect(graphPanes[1]?.structuralSide).toBe("right");
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);
