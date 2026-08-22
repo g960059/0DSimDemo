@@ -353,9 +353,17 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.valve-volume.net.PV":
     "Effective RV forward stroke volume (PV net)",
   "myocardium.work.external.LV-transmural-pressure-volume-path":
-    "LV transmural PV path work",
+    "LV stroke work (SW)",
   "myocardium.work.external.RV-transmural-pressure-volume-path":
-    "RV transmural PV path work",
+    "RV stroke work (SW)",
+  "myocardium.work.stroke.LV": "LV stroke work (SW)",
+  "myocardium.energy.potential.LV-pressure-volume-area":
+    "LV potential energy (PE)",
+  "myocardium.energy.pressure-volume-area.LV": "LV pressure–volume area (PVA)",
+  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g":
+    "Estimated LV MVO₂ per beat",
+  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g":
+    "Estimated LV MVO₂ per minute",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV":
     "LV dP/dt max (accepted-step)",
   "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV":
@@ -457,7 +465,7 @@ export function createDefaultExperimentSurfaceV3(
     "hemodynamics.ejection-fraction.LV-event-defined",
     "hemodynamics.valve-volume.net.AoV",
     "hemodynamics.output.effective-native-left",
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
+    "myocardium.work.stroke.LV",
     "oxygen.delivery.systemic",
   ]);
   const defaultOutputs = defaultOutputIds.flatMap((outputId) => {

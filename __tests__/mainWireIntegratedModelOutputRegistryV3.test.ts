@@ -7,6 +7,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STATUS_FIELDS_V3,
   MainWireIntegratedModelOutputProjectionErrorV3,
   projectMainWireIntegratedModelAdvancedFrameV3,
@@ -163,8 +164,12 @@ const EXACT_OUTPUT_IDS = [
   "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
   "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
   "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
-  "myocardium.work.external.LV-transmural-pressure-volume-path",
   "myocardium.work.external.RV-transmural-pressure-volume-path",
+  "myocardium.work.stroke.LV",
+  "myocardium.energy.potential.LV-pressure-volume-area",
+  "myocardium.energy.pressure-volume-area.LV",
+  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
   "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
@@ -200,18 +205,18 @@ const EXACT_OUTPUT_IDS = [
 describe("Main Wire Integrated Model V3 output registry", () => {
   it("locks the exact expanded output catalog and excludes status from frames", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID).toBe(
-      "main-wire-integrated-model-output-registry-v9",
+      "main-wire-integrated-model-output-registry-v10",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID).toBe(
-      "main-wire-integrated-model-output-frame-v9",
+      "main-wire-integrated-model-output-frame-v10",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3).toEqual(EXACT_OUTPUT_IDS);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(173);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(177);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.filter(
         ({ kind }) => kind === "metric",
       ),
-    ).toHaveLength(96);
+    ).toHaveLength(100);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.every(
         ({ modelingStatus, sourcePath, significantDigits }) =>
@@ -221,27 +226,12 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       ),
     ).toBe(true);
     expect(
-      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.some(
         ({ outputId }) =>
-          outputId ===
+          String(outputId) ===
           "myocardium.work.external.LV-transmural-pressure-volume-path",
       ),
-    ).toEqual({
-      outputId: "myocardium.work.external.LV-transmural-pressure-volume-path",
-      kind: "metric",
-      quantityKind: "work",
-      unit: "mmHg*mL",
-      modelingStatus: "modeled",
-      sourceKind: "completed-beat",
-      sourcePath:
-        "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
-      significantDigits: 3,
-      scope: "beat",
-      dependencies: [
-        "hemodynamics.volume.LV",
-        "hemodynamics.pressure.transmural.LV",
-      ],
-    });
+    ).toBe(false);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
     ).toMatchObject({
@@ -250,6 +240,26 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
     ).not.toHaveProperty("statusFieldsExcluded");
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+        ({ outputId }) => outputId === "myocardium.work.stroke.LV",
+      ),
+    ).toMatchObject({
+      quantityKind: "work",
+      unit: "mJ",
+      sourceKind: "completed-beat",
+      scope: "beat",
+    });
+    for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
+      expect(
+        MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
+          (definition) => definition.outputId === outputId,
+        ),
+      ).toMatchObject({
+        sourceKind: "analysis-result",
+        scope: "window",
+      });
+    }
     expect(MAIN_WIRE_INTEGRATED_MODEL_STATUS_FIELDS_V3).toEqual([
       "model-time",
       "accepted-revision",
@@ -429,10 +439,21 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     const boundaryFrame =
       projectMainWireIntegratedModelAdvancedFrameV3(boundaryAdvance);
     expect(
-      Object.values(boundaryFrame.values).every(
-        ({ availability }) => availability === "available",
+      Object.entries(boundaryFrame.values).every(
+        ([outputId, { availability }]) =>
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.includes(
+            outputId as (typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1)[number],
+          ) || availability === "available",
       ),
     ).toBe(true);
+    for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
+      expect(boundaryFrame.values[outputId]).toEqual({
+        outputId,
+        value: null,
+        availability: "not-evaluated-at-accepted-state",
+        quality: "not-assessed",
+      });
+    }
     expect(
       boundaryFrame.values["hemodynamics.pressure.systolic.Ao"].value,
     ).toBeGreaterThan(
@@ -451,12 +472,14 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     expect(
       boundaryFrame.values["hemodynamics.ejection-fraction.LV-extrema"].value,
     ).toBeGreaterThan(0);
-    expect(
-      boundaryFrame.values[
-        "myocardium.work.external.LV-transmural-pressure-volume-path"
-      ],
-    ).toMatchObject({
-      value: expect.any(Number),
+    const completedBeatMetrics =
+      boundaryAdvance.observation.completedBeatMetrics;
+    expect(completedBeatMetrics).not.toBeNull();
+    expect(boundaryFrame.values["myocardium.work.stroke.LV"]).toEqual({
+      outputId: "myocardium.work.stroke.LV",
+      value:
+        completedBeatMetrics!
+          .leftVentricularTransmuralPressureVolumePathWorkMmHgMl * 0.133322,
       availability: "available",
       quality: "accepted-derived",
     });

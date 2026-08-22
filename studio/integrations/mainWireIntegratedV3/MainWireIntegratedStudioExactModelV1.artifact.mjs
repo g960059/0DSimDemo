@@ -40234,6 +40234,20 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
+const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
+const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 = Object.freeze({
+  strokeWorkMilliJoule: "myocardium.work.stroke.LV",
+  potentialEnergyMilliJoule: "myocardium.energy.potential.LV-pressure-volume-area",
+  pressureVolumeAreaMilliJoule: "myocardium.energy.pressure-volume-area.LV",
+  estimatedMvo2PerBeatPer100G: "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+  estimatedMvo2PerMinPer100G: "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g"
+});
+Object.freeze([
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G
+]);
 const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
   ...["LA", "LV", "RA", "RV"].map(
     (chamber) => definition(
@@ -40778,18 +40792,54 @@ const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     )
   ]),
   metricDefinition(
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
-    "work",
-    "mmHg*mL",
-    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
-    "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl"
-  ),
-  metricDefinition(
     "myocardium.work.external.RV-transmural-pressure-volume-path",
     "work",
     "mmHg*mL",
     ["hemodynamics.volume.RV", "hemodynamics.pressure.transmural.RV"],
     "completedBeatMetrics.rightVentricularTransmuralPressureVolumePathWorkMmHgMl"
+  ),
+  metricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+    "work",
+    "mJ",
+    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
+    "derive.completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl*0.133322"
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
+    "energy",
+    "mJ",
+    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
+    "analysis.periodicPva.LV.potentialEnergy.joule*1e3"
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+    "energy",
+    "mJ",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule
+    ],
+    "analysis.periodicPva.LV.pva.joule*1e3"
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+    "derived",
+    "mL O2/beat/100g",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule
+    ],
+    "analysis.periodicPva.LV.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G"
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G,
+    "oxygen-rate",
+    "mL O2/min/100g",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+      "rhythm.heart-rate.instantaneous"
+    ],
+    "analysis.periodicPva.LV.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G"
   ),
   ...["LV", "RV"].flatMap((ventricle) => [
     metricDefinition(
@@ -41472,16 +41522,21 @@ function projectMainWireIntegratedModelOutputValueV3(accepted, runtimeSignals, c
         outputId,
         completedBeatMetrics?.rightVentricularValveEventMetrics.eventDefinedEjectionFraction01
       );
-    case "myocardium.work.external.LV-transmural-pressure-volume-path":
-      return beatMetricValue(
-        outputId,
-        completedBeatMetrics?.leftVentricularTransmuralPressureVolumePathWorkMmHgMl
-      );
     case "myocardium.work.external.RV-transmural-pressure-volume-path":
       return beatMetricValue(
         outputId,
         completedBeatMetrics?.rightVentricularTransmuralPressureVolumePathWorkMmHgMl
       );
+    case "myocardium.work.stroke.LV":
+      return beatMetricValue(
+        outputId,
+        completedBeatMetrics === null ? null : completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl * MMHG_ML_TO_MILLIJOULE_V1
+      );
+    case "myocardium.energy.potential.LV-pressure-volume-area":
+    case "myocardium.energy.pressure-volume-area.LV":
+    case "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g":
+    case "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g":
+      return beatMetricValue(outputId, null);
     case "hemodynamics.output.native-left":
       return beatMetricValue(
         outputId,
@@ -41649,6 +41704,20 @@ function metricDefinition(outputId, quantityKind, unit, dependencies, sourcePath
     sourcePath,
     significantDigits: 3,
     scope: "beat",
+    dependencies: Object.freeze([...dependencies])
+  });
+}
+function analysisMetricDefinition(outputId, quantityKind, unit, dependencies, sourcePath) {
+  return Object.freeze({
+    outputId,
+    kind: "metric",
+    quantityKind,
+    unit,
+    modelingStatus: "modeled",
+    sourceKind: "analysis-result",
+    sourcePath,
+    significantDigits: 3,
+    scope: "window",
     dependencies: Object.freeze([...dependencies])
   });
 }
@@ -50989,7 +51058,7 @@ function deepFreeze(value) {
 function propertyPath(parent, key) {
   return `${parent}[${JSON.stringify(key)}]`;
 }
-const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-63";
+const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-64";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
@@ -51284,7 +51353,7 @@ const STANDARD_MODEL_METRIC_DEFINITIONS_V1 = Object.freeze(
       unit: definition2.unit,
       significantDigits: definition2.significantDigits,
       shape: "scalar",
-      scope: "beat",
+      scope: definition2.scope ?? "beat",
       dependencies: Object.freeze([...definition2.dependencies ?? []])
     })
   )

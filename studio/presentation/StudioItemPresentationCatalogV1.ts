@@ -379,12 +379,74 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "myocardium.work.external.LV-transmural-pressure-volume-path": {
     category: "myocardium",
-    label: textV1("LV pressure–volume path work", "LV圧容積経路仕事"),
+    label: textV1("LV stroke work (SW)", "左室一回仕事量 (SW)"),
     description: textV1(
-      "Negative signed line integral of LV transmural pressure with respect to volume along the capture-to-capture path",
-      "capture-to-captureのLV経壁圧–容積経路に沿う負の符号付き線積分 −∫Ptm dV",
+      "Accepted-beat LV stroke work from the negative signed transmural pressure–volume line integral",
+      "解析対象となる1心拍のLV経壁圧–容積線積分 −∫Ptm dVから求めた一回仕事量",
     ),
-    aliases: ["PV path work", "LV path work", "PV line integral", "圧容積経路仕事"],
+    aliases: [
+      "SW",
+      "stroke work",
+      "PV loop area",
+      "PV path work",
+      "LV path work",
+      "一回仕事量",
+      "圧容積経路仕事",
+    ],
+  },
+  "myocardium.work.stroke.LV": {
+    category: "myocardium",
+    label: textV1("LV stroke work (SW)", "左室一回仕事量 (SW)"),
+    description: textV1(
+      "Accepted-beat LV stroke work reported in millijoules",
+      "解析対象となる1心拍の左室一回仕事量をミリジュールで表示",
+    ),
+    aliases: ["SW", "stroke work", "PV loop area", "一回仕事量"],
+  },
+  "myocardium.energy.potential.LV-pressure-volume-area": {
+    category: "myocardium",
+    label: textV1(
+      "LV potential energy (PE)",
+      "左室ポテンシャルエネルギー (PE)",
+    ),
+    description: textV1(
+      "Potential-energy component of the settled preload-reduction LV pressure–volume area estimate",
+      "settled preload-reduction解析から求めた左室PVAのポテンシャルエネルギー成分",
+    ),
+    aliases: ["PE", "potential energy", "PVA PE", "ポテンシャルエネルギー"],
+  },
+  "myocardium.energy.pressure-volume-area.LV": {
+    category: "myocardium",
+    label: textV1("LV pressure–volume area (PVA)", "左室圧容積面積 (PVA)"),
+    description: textV1(
+      "LV pressure–volume area defined as accepted-beat stroke work plus potential energy",
+      "解析対象となる1心拍のSWとPEの和として求めた左室圧容積面積",
+    ),
+    aliases: ["PVA", "pressure volume area", "圧容積面積"],
+  },
+  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g": {
+    category: "oxygen",
+    label: textV1(
+      "Estimated LV MVO₂ per beat",
+      "推定左室MVO₂（1心拍・100 gあたり）",
+    ),
+    description: textV1(
+      "Literature-reference LV myocardial oxygen-consumption estimate from the current PVA per beat and model-derived LV mass",
+      "現在のPVAとモデル由来LV質量から求めた文献参照式による左室心筋酸素消費量推定値",
+    ),
+    aliases: ["MVO2", "MVO₂", "oxygen consumption", "心筋酸素消費量"],
+  },
+  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g": {
+    category: "oxygen",
+    label: textV1(
+      "Estimated LV MVO₂ per minute",
+      "推定左室MVO₂（1分・100 gあたり）",
+    ),
+    description: textV1(
+      "Estimated LV myocardial oxygen consumption per minute using the measured accepted-beat heart rate",
+      "解析対象となる心拍の実測心拍数を用いた1分あたり左室心筋酸素消費量推定値",
+    ),
+    aliases: ["MVO2", "MVO₂", "oxygen consumption", "心筋酸素消費量"],
   },
   "oxygen.delivery.systemic": {
     category: "oxygen",

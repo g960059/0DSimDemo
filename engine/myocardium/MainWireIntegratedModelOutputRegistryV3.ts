@@ -15,11 +15,34 @@ import {
 } from "@/engine/physiology/oxygenTransportV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID =
-  "main-wire-integrated-model-output-registry-v9" as const;
+  "main-wire-integrated-model-output-registry-v10" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_SCHEMA_VERSION =
-  7 as const;
+  8 as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID =
-  "main-wire-integrated-model-output-frame-v9" as const;
+  "main-wire-integrated-model-output-frame-v10" as const;
+
+const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 =
+  Object.freeze({
+    strokeWorkMilliJoule: "myocardium.work.stroke.LV" as const,
+    potentialEnergyMilliJoule:
+      "myocardium.energy.potential.LV-pressure-volume-area" as const,
+    pressureVolumeAreaMilliJoule:
+      "myocardium.energy.pressure-volume-area.LV" as const,
+    estimatedMvo2PerBeatPer100G:
+      "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g" as const,
+    estimatedMvo2PerMinPer100G:
+      "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g" as const,
+  });
+
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1 =
+  Object.freeze([
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G,
+  ] as const);
 
 export type MainWireIntegratedModelOutputUnitV3 =
   | "1"
@@ -27,7 +50,9 @@ export type MainWireIntegratedModelOutputUnitV3 =
   | "L/min"
   | "mL"
   | "mL O2/dL"
+  | "mL O2/beat/100g"
   | "mL O2/min"
+  | "mL O2/min/100g"
   | "mL/mmHg"
   | "mmHg*min/L"
   | "mmHg*mL"
@@ -54,7 +79,10 @@ export type MainWireIntegratedModelOutputQuantityKindV3 =
   | "derived";
 
 export type MainWireIntegratedModelOutputSourceKindV3 =
-  "accepted-state" | "accepted-step-readback" | "completed-beat";
+  | "accepted-state"
+  | "accepted-step-readback"
+  | "completed-beat"
+  | "analysis-result";
 
 export type MainWireIntegratedModelOutputDefinitionV3<
   TId extends string = string,
@@ -67,7 +95,7 @@ export type MainWireIntegratedModelOutputDefinitionV3<
   sourceKind: MainWireIntegratedModelOutputSourceKindV3;
   sourcePath: string;
   significantDigits: number;
-  scope?: "beat";
+  scope?: "beat" | "window";
   dependencies?: readonly string[];
 }>;
 
@@ -617,18 +645,54 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     ),
   ]),
   metricDefinition(
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
-    "work",
-    "mmHg*mL",
-    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
-    "completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
-  ),
-  metricDefinition(
     "myocardium.work.external.RV-transmural-pressure-volume-path",
     "work",
     "mmHg*mL",
     ["hemodynamics.volume.RV", "hemodynamics.pressure.transmural.RV"],
     "completedBeatMetrics.rightVentricularTransmuralPressureVolumePathWorkMmHgMl",
+  ),
+  metricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+    "work",
+    "mJ",
+    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
+    "derive.completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl*0.133322",
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
+    "energy",
+    "mJ",
+    ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
+    "analysis.periodicPva.LV.potentialEnergy.joule*1e3",
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+    "energy",
+    "mJ",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
+    ],
+    "analysis.periodicPva.LV.pva.joule*1e3",
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+    "derived",
+    "mL O2/beat/100g",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+    ],
+    "analysis.periodicPva.LV.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G",
+  ),
+  analysisMetricDefinition(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G,
+    "oxygen-rate",
+    "mL O2/min/100g",
+    [
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G,
+      "rhythm.heart-rate.instantaneous",
+    ],
+    "analysis.periodicPva.LV.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G",
   ),
   ...(["LV", "RV"] as const).flatMap((ventricle) => [
     metricDefinition(
@@ -1619,16 +1683,24 @@ function projectMainWireIntegratedModelOutputValueV3(
         completedBeatMetrics?.rightVentricularValveEventMetrics
           .eventDefinedEjectionFraction01,
       );
-    case "myocardium.work.external.LV-transmural-pressure-volume-path":
-      return beatMetricValue(
-        outputId,
-        completedBeatMetrics?.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
-      );
     case "myocardium.work.external.RV-transmural-pressure-volume-path":
       return beatMetricValue(
         outputId,
         completedBeatMetrics?.rightVentricularTransmuralPressureVolumePathWorkMmHgMl,
       );
+    case "myocardium.work.stroke.LV":
+      return beatMetricValue(
+        outputId,
+        completedBeatMetrics === null
+          ? null
+          : completedBeatMetrics.leftVentricularTransmuralPressureVolumePathWorkMmHgMl *
+              MMHG_ML_TO_MILLIJOULE_V1,
+      );
+    case "myocardium.energy.potential.LV-pressure-volume-area":
+    case "myocardium.energy.pressure-volume-area.LV":
+    case "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g":
+    case "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g":
+      return beatMetricValue(outputId, null);
     case "hemodynamics.output.native-left":
       return beatMetricValue(
         outputId,
@@ -1845,6 +1917,27 @@ function metricDefinition<TId extends string>(
     sourcePath,
     significantDigits: 3,
     scope: "beat" as const,
+    dependencies: Object.freeze([...dependencies]),
+  });
+}
+
+function analysisMetricDefinition<TId extends string>(
+  outputId: TId,
+  quantityKind: MainWireIntegratedModelOutputQuantityKindV3,
+  unit: MainWireIntegratedModelOutputUnitV3,
+  dependencies: readonly string[],
+  sourcePath: string,
+): MainWireIntegratedModelOutputDefinitionV3<TId> {
+  return Object.freeze({
+    outputId,
+    kind: "metric" as const,
+    quantityKind,
+    unit,
+    modelingStatus: "modeled" as const,
+    sourceKind: "analysis-result" as const,
+    sourcePath,
+    significantDigits: 3,
+    scope: "window" as const,
     dependencies: Object.freeze([...dependencies]),
   });
 }

@@ -141,6 +141,7 @@ import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
+  StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
   StudioSimulationWorkerScenarioCapturesV2,
@@ -201,6 +202,10 @@ import {
   buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
@@ -2447,6 +2452,78 @@ const WorkbenchV3Session = ({
     scenarioOperation !== null ||
     saveState === "saving" ||
     snapshotState === "creating";
+  const periodicPvaOutputScenarioIds = React.useMemo(() => {
+    const analysisOutputIds = new Set<string>(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+    );
+    return Object.freeze([
+      ...new Set(
+        outputPanes.flatMap((pane) => {
+          if (
+            !pane.items.some(({ outputId }) => analysisOutputIds.has(outputId))
+          )
+            return [];
+          const scenarioId = resolveWorkbenchOutputPaneScenarioIdV3(
+            pane,
+            activeScenarioId,
+            scenarios,
+          );
+          return scenarioId === null ? [] : [scenarioId];
+        }),
+      ),
+    ]);
+  }, [activeScenarioId, outputPanes, scenarios]);
+  const missingPeriodicPvaOutputScenarioIds =
+    periodicPvaOutputScenarioIds.filter((scenarioId) => {
+      const key = workbenchAnalysisHistoryKeyV3(
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      );
+      return (
+        analysisByKey[key] === undefined &&
+        analysisErrorByKey[key] === undefined &&
+        !pendingAnalysisKeys.includes(key)
+      );
+    });
+  const periodicPvaOutputRequestKey = structuralReturnComparisonRequestKeyV3(
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    missingPeriodicPvaOutputScenarioIds,
+  );
+  const lastPeriodicPvaOutputRequestKeyRef = React.useRef<string | null>(null);
+  const [periodicPvaOutputRetryNonce, setPeriodicPvaOutputRetryNonce] =
+    React.useState(0);
+  React.useEffect(() => {
+    if (periodicPvaOutputRequestKey === null) {
+      lastPeriodicPvaOutputRequestKeyRef.current = null;
+      return;
+    }
+    if (
+      (latestFrame?.acceptedRevision ?? 0) <= 0 ||
+      runtimeOperationPending ||
+      lastPeriodicPvaOutputRequestKeyRef.current === periodicPvaOutputRequestKey
+    )
+      return;
+    if (
+      requestAnalysis(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        missingPeriodicPvaOutputScenarioIds,
+      )
+    ) {
+      lastPeriodicPvaOutputRequestKeyRef.current = periodicPvaOutputRequestKey;
+      return;
+    }
+    const retryTimer = window.setTimeout(() => {
+      setPeriodicPvaOutputRetryNonce((nonce) => nonce + 1);
+    }, 250);
+    return () => window.clearTimeout(retryTimer);
+  }, [
+    latestFrame?.acceptedRevision,
+    missingPeriodicPvaOutputScenarioIds,
+    periodicPvaOutputRequestKey,
+    periodicPvaOutputRetryNonce,
+    requestAnalysis,
+    runtimeOperationPending,
+  ]);
   const pendingAnalysisScenarioIds = new Set(
     pendingAnalysisKeys.flatMap((key) => {
       const scenarioId = workbenchScenarioIdFromAnalysisKeyV3(key);
@@ -2644,6 +2721,20 @@ const WorkbenchV3Session = ({
         ? null
         : (runtimeRef.current?.maybeLatestFrame(scenarioId) ??
           (latestFrame?.scenarioId === scenarioId ? latestFrame : null));
+    const periodicPvaAnalysisKey =
+      scenarioId === null
+        ? null
+        : workbenchAnalysisHistoryKeyV3(
+            scenarioId,
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+          );
+    const periodicPva =
+      periodicPvaAnalysisKey === null
+        ? undefined
+        : periodicPvaFromAnalysisV3(
+            analysisByKey[periodicPvaAnalysisKey],
+            "left",
+          );
     return (
       <OutputPaneBodyV3
         contract={contract}
@@ -2652,6 +2743,12 @@ const WorkbenchV3Session = ({
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
         pane={pane}
+        periodicPva={periodicPva}
+        periodicPvaAnalysisError={
+          periodicPvaAnalysisKey === null
+            ? undefined
+            : analysisErrorByKey[periodicPvaAnalysisKey]
+        }
         scrollMode={scrollMode}
         showBinding={scenarios.length > 1}
         scenarioLabel={
@@ -4933,6 +5030,64 @@ function resolveWorkbenchPaneItemLabelV3(
   });
 }
 
+const WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+);
+
+export function workbenchPeriodicPvaOutputValueV3(
+  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  outputId: string,
+): StudioSimulationOutputValueV2 | undefined {
+  if (periodicPva?.status !== "available") return undefined;
+  let value: number | null;
+  switch (outputId) {
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule:
+      value = periodicPva.strokeWork.joule * 1e3;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+      value = periodicPva.potentialEnergy.joule * 1e3;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+      value = periodicPva.pva.joule * 1e3;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+      value =
+        periodicPva.estimatedMvo2?.status === "available"
+          ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
+          : null;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+      value =
+        periodicPva.estimatedMvo2?.status === "available"
+          ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
+          : null;
+      break;
+    default:
+      return undefined;
+  }
+  return Object.freeze({
+    outputId,
+    value,
+    availability:
+      value === null ? "not-evaluated-at-accepted-state" : "available",
+    quality: value === null ? "not-assessed" : "accepted-derived",
+  });
+}
+
+function periodicPvaOutputNoticeV3(
+  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  analysisError: string | undefined,
+): string | undefined {
+  if (analysisError !== undefined)
+    return `PVA analysis unavailable: ${analysisError}`;
+  if (periodicPva === undefined) return "PVA analysis is waiting to start";
+  if (periodicPva.status === "available") return undefined;
+  if (periodicPva.status === "collecting") {
+    return `PVA analysis ${periodicPva.progress.completedPointCount}/${periodicPva.progress.totalPointCount} points`;
+  }
+  return `PVA analysis unavailable: ${periodicPva.reason}`;
+}
+
 export function materializeWorkbenchOutputPresentationItemsV3(
   input: Readonly<{
     contract: ModelContractV2;
@@ -4940,6 +5095,8 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     locale: "en" | "ja";
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
+    periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+    periodicPvaAnalysisError?: string;
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
   const outputById = new Map(
@@ -4961,9 +5118,10 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       const definition = outputById.get(outputId);
       return definition === undefined ? [] : [definition];
     });
-    const hasCompleteSummarySelection = summary?.memberOutputIds.every(
-      (outputId) => selectedById.has(outputId),
-    ) ?? false;
+    const hasCompleteSummarySelection =
+      summary?.memberOutputIds.every((outputId) =>
+        selectedById.has(outputId),
+      ) ?? false;
     if (
       summary !== undefined &&
       summaryDefinitions?.length === summary.memberOutputIds.length &&
@@ -5032,7 +5190,17 @@ export function materializeWorkbenchOutputPresentationItemsV3(
 
     const definition = outputById.get(item.outputId);
     if (definition === undefined) continue;
-    const outputValue = input.frame?.outputs[item.outputId];
+    const outputValue =
+      workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId) ??
+      input.frame?.outputs[item.outputId];
+    const pvaNotice = WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1.has(
+      item.outputId,
+    )
+      ? periodicPvaOutputNoticeV3(
+          input.periodicPva,
+          input.periodicPvaAnalysisError,
+        )
+      : undefined;
     result.push({
       itemId: item.outputId,
       label: resolveWorkbenchPaneItemLabelV3({
@@ -5046,9 +5214,11 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       significantDigits: definition.significantDigits,
       availability: outputValue?.availability ?? "unavailable",
       quality: outputValue?.quality ?? "not-assessed",
-      ...(outputValue?.quality === "not-assessed"
-        ? { qualityNotice: input.notAssessedNotice }
-        : {}),
+      ...(pvaNotice !== undefined
+        ? { qualityNotice: pvaNotice }
+        : outputValue?.quality === "not-assessed"
+          ? { qualityNotice: input.notAssessedNotice }
+          : {}),
     });
   }
   return result;
@@ -5061,6 +5231,8 @@ function OutputPaneBodyV3({
   onAddItem,
   onOpenBindingSettings,
   pane,
+  periodicPva,
+  periodicPvaAnalysisError,
   scrollMode = "contained",
   showBinding,
   scenarioLabel,
@@ -5071,6 +5243,8 @@ function OutputPaneBodyV3({
   onAddItem: () => void;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
+  periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+  periodicPvaAnalysisError?: string;
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
   scenarioLabel: string;
@@ -5090,6 +5264,8 @@ function OutputPaneBodyV3({
     locale,
     notAssessedNotice: t("workbench.live.outputNotAssessed"),
     pane,
+    periodicPva,
+    periodicPvaAnalysisError,
   });
   return (
     <div

@@ -18,6 +18,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
+import { materializeWorkbenchOutputPresentationItemsV3 } from "@/components/WorkbenchV3Page";
+import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
+import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 
 describe("settled hot-start PVA V1", () => {
   it("calculates accepted-step SW, isochronal Emax ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
@@ -277,6 +281,116 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain("PVA analysis 5/6 points");
+  });
+
+  it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
+    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1()),
+      "LV",
+    );
+    expect(periodicPva.status).toBe("available");
+    if (periodicPva.status !== "available") throw new Error(periodicPva.reason);
+    const defaultPane = createDefaultExperimentSurfaceV3(
+      contract,
+      "scenario/current",
+    ).outputPanes[0]!;
+    const outputIds = Object.values(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+    );
+    const outputLabels = [
+      "LV stroke work (SW)",
+      "LV potential energy (PE)",
+      "LV pressure–volume area (PVA)",
+      "Estimated LV MVO₂ per beat",
+      "Estimated LV MVO₂ per minute",
+    ] as const;
+    const pane = {
+      ...defaultPane,
+      items: outputIds.map((outputId, order) => ({
+        outputId,
+        label: outputLabels[order]!,
+        order,
+      })),
+    };
+
+    const items = materializeWorkbenchOutputPresentationItemsV3({
+      contract,
+      frame: null,
+      locale: "en",
+      notAssessedNotice: "Not assessed",
+      pane,
+      periodicPva,
+    });
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        itemId: "myocardium.work.stroke.LV",
+        label: "LV stroke work (SW)",
+        value: periodicPva.strokeWork.joule * 1e3,
+        unit: "mJ",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        itemId: "myocardium.energy.potential.LV-pressure-volume-area",
+        label: "LV potential energy (PE)",
+        value: periodicPva.potentialEnergy.joule * 1e3,
+        unit: "mJ",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        itemId: "myocardium.energy.pressure-volume-area.LV",
+        label: "LV pressure–volume area (PVA)",
+        value: periodicPva.pva.joule * 1e3,
+        unit: "mJ",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        itemId: "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+        value:
+          periodicPva.estimatedMvo2?.status === "available"
+            ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
+            : null,
+        unit: "mL O2/beat/100g",
+        availability: "available",
+      }),
+      expect.objectContaining({
+        itemId: "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
+        value:
+          periodicPva.estimatedMvo2?.status === "available"
+            ? periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
+            : null,
+        unit: "mL O2/min/100g",
+        availability: "available",
+      }),
+    ]);
+
+    const collecting = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1().slice(0, 5), 6),
+      "LV",
+    );
+    const progressItems = materializeWorkbenchOutputPresentationItemsV3({
+      contract,
+      frame: null,
+      locale: "en",
+      notAssessedNotice: "Not assessed",
+      pane: {
+        ...defaultPane,
+        items: [
+          {
+            outputId:
+              MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+            label: "PVA",
+            order: 0,
+          },
+        ],
+      },
+      periodicPva: collecting,
+    });
+    expect(progressItems[0]).toMatchObject({
+      availability: "unavailable",
+      qualityNotice: "PVA analysis 5/6 points",
+    });
   });
 
   it("renders a formal analysis failure instead of leaving an empty pane", () => {

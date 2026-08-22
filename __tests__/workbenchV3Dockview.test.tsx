@@ -155,7 +155,7 @@ describe("V3 Dockview Workbench", () => {
     );
   });
 
-  it("classifies valve gradients with valve outputs and describes open PV path work exactly", () => {
+  it("classifies valve gradients with valve outputs and presents accepted PV work as SW", () => {
     expect(
       studioItemPresentationCategoryV1(
         "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
@@ -165,13 +165,12 @@ describe("V3 Dockview Workbench", () => {
     const work = resolveStudioItemPresentationV1({
       kind: "output",
       itemId: "myocardium.work.external.LV-transmural-pressure-volume-path",
-      fallbackEnglishLabel: "LV pressure-volume path work",
+      fallbackEnglishLabel: "LV stroke work (SW)",
       locale: "en",
     });
     expect(work.description).toContain("line integral");
-    expect(work.description).toContain("capture-to-capture");
-    expect(work.description).not.toContain("enclosed");
-    expect(work.aliases).not.toContain("stroke work");
+    expect(work.description).toContain("stroke work");
+    expect(work.aliases).toContain("stroke work");
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
@@ -1032,7 +1031,7 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.ejection-fraction.LV-event-defined",
       "hemodynamics.valve-volume.net.AoV",
       "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
+      "myocardium.work.stroke.LV",
       "oxygen.delivery.systemic",
     ]);
     expect(outputPane.binding).toEqual({ mode: "active-slot" });
@@ -1650,7 +1649,9 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.pressure.waveform",
       "hemodynamics.flow.waveform",
     ]) {
-      const option = options.find((candidate) => candidate.optionId === optionId);
+      const option = options.find(
+        (candidate) => candidate.optionId === optionId,
+      );
       expect(option).toBeDefined();
       const added = addWorkbenchSurfacePaneV3(
         initial,

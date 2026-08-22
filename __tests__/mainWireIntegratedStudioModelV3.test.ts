@@ -356,6 +356,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     try {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
+      expect(
+        composition
+          .localStandardArtifactRevisionUrlV1(
+            new URL("http://127.0.0.1:4176/standard-exact-model.artifact.mjs"),
+          )
+          .searchParams.get("revision"),
+      ).toBe(mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId);
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
@@ -794,7 +801,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       "hemodynamics.ejection-fraction.LV-event-defined",
       "hemodynamics.valve-volume.net.AoV",
       "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
+      "myocardium.work.stroke.LV",
       "oxygen.delivery.systemic",
     ]);
 

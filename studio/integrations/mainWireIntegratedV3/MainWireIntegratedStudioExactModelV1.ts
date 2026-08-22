@@ -534,7 +534,7 @@ const STANDARD_MODEL_METRIC_DEFINITIONS_V1 = Object.freeze(
       unit: definition.unit,
       significantDigits: definition.significantDigits,
       shape: "scalar",
-      scope: "beat",
+      scope: definition.scope ?? "beat",
       dependencies: Object.freeze([...(definition.dependencies ?? [])]),
     }),
   ),
