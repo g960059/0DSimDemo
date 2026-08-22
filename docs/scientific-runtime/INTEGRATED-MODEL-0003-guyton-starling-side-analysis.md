@@ -174,18 +174,23 @@ bounded calculation contract:
 2. Two persistent directional Workers start from the same exact Scenario
    capture. Each first settles an isolated active-controller copy at Scenario
    TBV and freezes coronary tone at that endpoint. The low-volume Worker follows
-   a monotone adaptive chain to `0.60×` source TBV, shrinking or growing its next
-   step from settlement effort while reserving room for at least nine retained
-   points. The high-volume Worker proceeds concurrently when the device pool has
-   capacity; a one-slot device prioritizes the low-volume PVA branch.
+   a monotone adaptive chain to `0.60×` source TBV. Its first decrement is
+   intentionally close to the high-volume arm's `0.08×` spacing, then the
+   ceiling narrows progressively toward low volume while reserving room for at
+   least nine retained points. The high-volume Worker proceeds concurrently
+   when the device pool has capacity; a one-slot device prioritizes the
+   low-volume PVA branch.
 3. Each load uses the shared SV/VC transmural-pressure TBV transform and starts
    from the preceding retained endpoint. Coronary tone is held at its source
    value so a short preload reduction does not spend minutes re-equilibrating
    the 25-second autoregulation controller.
-4. A point is retained only after three complete beats provide two consecutive
-   flow/pressure/volume comparisons within the declared P1 closure limits.
-   Period-2 or nonconverged branches fail the PVA calculation rather than being
-   silently fitted.
+4. A point is retained only after the declared complete-beat minimum provides
+   two consecutive flow/pressure/volume comparisons within the P1 closure
+   limits. The minimum is three beats near the anchor, four in the intermediate
+   preload range, and five in the lowest core and Starling-extension range.
+   More beats remain available when closure needs them. Period-2 or
+   nonconverged branches fail the PVA calculation rather than being silently
+   fitted.
 5. SW is available from the retained anchor. Three settled low-volume points
    admit provisional ESPVR/EDPVR drawing; five admit provisional PE/PVA and the
    literature MVO₂ estimate. These previews remain visually and structurally

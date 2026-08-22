@@ -40,7 +40,10 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
           completedPointCount: number;
           totalPointCount: number;
           slowControllerPolicy: string;
-          points: readonly Readonly<{ totalBloodVolumeMl: number }>[];
+          points: readonly Readonly<{
+            totalBloodVolumeMl: number;
+            completedBeatCount: number;
+          }>[];
         }>;
       }>;
     }>;
@@ -84,6 +87,21 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         ),
       ),
     ).toBeLessThanOrEqual(sourceTbvMl * 0.6);
+    const corePoints = payload.left.starlingLocus.points
+      .filter(({ totalBloodVolumeMl }) =>
+        totalBloodVolumeMl >= sourceTbvMl * 0.6 - 1e-6)
+      .sort((left, right) =>
+        right.totalBloodVolumeMl - left.totalBloodVolumeMl);
+    const firstLowScale =
+      corePoints[1]!.totalBloodVolumeMl / sourceTbvMl;
+    expect(1 - firstLowScale).toBeGreaterThanOrEqual(0.06);
+    expect(1 - firstLowScale).toBeLessThanOrEqual(0.08);
+    for (const point of corePoints.slice(1)) {
+      const scale = point.totalBloodVolumeMl / sourceTbvMl;
+      expect(point.completedBeatCount).toBeGreaterThanOrEqual(
+        scale >= 0.82 ? 3 : scale >= 0.7 ? 4 : 5,
+      );
+    }
     expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
     host.closeSession(runtimeSessionId);
   }, 120_000);

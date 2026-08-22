@@ -116,9 +116,9 @@ const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
 const MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
-const FORMAL_PVA_INITIAL_SCALE_STEP_V3 = 0.04;
+const FORMAL_PVA_INITIAL_SCALE_STEP_V3 = 0.07;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 0.005;
-const FORMAL_PVA_MAXIMUM_SCALE_STEP_V3 = 0.075;
+const FORMAL_PVA_MAXIMUM_SCALE_STEP_V3 = 0.07;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
 const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
 const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
@@ -633,13 +633,23 @@ async function runFormalPressureVolumeChainV3(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 -
         retainedPointCount,
     );
-    // Never consume so much of the remaining range that fewer than nine
-    // retained settled points could span anchor-to-boundary.
-    const pointCountBoundedStep = remainingScale / remainingRequiredPoints;
+    // Begin almost as coarsely as the +8% high-volume arm, then reserve enough
+    // low-volume range for the remaining required points at the minimum step.
+    // A scale-dependent ceiling progressively densifies the difficult tail.
+    const futureRequiredPointCount = Math.max(
+      0,
+      remainingRequiredPoints - 1,
+    );
+    const pointCountBoundedStep = Math.max(
+      FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
+      remainingScale -
+        futureRequiredPointCount * FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
+    );
     let attemptedScaleStep = Math.min(
       remainingScale,
       desiredScaleStep,
       pointCountBoundedStep,
+      formalPvaScaleStepCeilingV3(reliableScale),
     );
     let accepted = false;
     let lastRejectedReason = "adaptive PVA load was not attempted";
@@ -661,6 +671,7 @@ async function runFormalPressureVolumeChainV3(
         reliableBranch,
         targetGlobalTbvMl,
         "continuation",
+        formalPvaMinimumCompleteBeatCountV3(targetScale),
       );
       if (
         measured.status === "accepted" &&
@@ -701,6 +712,20 @@ async function runFormalPressureVolumeChainV3(
     branch: reliableBranch,
     targetGlobalTbvMl: reliableTargetGlobalTbvMl,
   });
+}
+
+function formalPvaScaleStepCeilingV3(reliableScale: number): number {
+  if (reliableScale >= 0.9) return 0.07;
+  if (reliableScale >= 0.8) return 0.065;
+  if (reliableScale >= 0.72) return 0.055;
+  if (reliableScale >= 0.66) return 0.045;
+  return 0.03;
+}
+
+function formalPvaMinimumCompleteBeatCountV3(targetScale: number): number {
+  if (targetScale >= 0.82) return 3;
+  if (targetScale >= 0.7) return 4;
+  return 5;
 }
 
 function adaptiveFormalPvaScaleStepV3(
@@ -787,6 +812,7 @@ async function runFormalLowStarlingExtensionV3(
         reliableBranch,
         sourceGlobalTbvMl * targetScale,
         "continuation",
+        5,
       );
       if (
         measured.status === "accepted" &&
@@ -1065,6 +1091,7 @@ async function measureFormalPressureVolumeBranchV3(
   sourceSession: MainWireIntegratedModelSessionV3,
   targetGlobalTbvMl: number,
   role: MainWireIntegratedModelStarlingPointV3["role"],
+  minimumCompleteBeatCount: number = MINIMUM_COMPLETE_BEAT_COUNT_V3,
 ): Promise<MeasuredBranchV3> {
   let branch: MainWireIntegratedModelSessionV3;
   try {
@@ -1128,7 +1155,7 @@ async function measureFormalPressureVolumeBranchV3(
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+      if (beats.length >= minimumCompleteBeatCount) {
         if (period1ConvergedV3(beats)) {
           locallyConverged = true;
           break;

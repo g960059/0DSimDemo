@@ -890,13 +890,18 @@ export function extendPvVolumeDomainToExtrapolatedInterceptsV3(
   loopOwnedDomain: WorkbenchNumericDomainV3,
   interceptVolumesMl: readonly number[],
 ): WorkbenchNumericDomainV3 {
+  const nonnegativeLoopDomain = Object.freeze([
+    Math.max(0, loopOwnedDomain[0]),
+    loopOwnedDomain[1],
+  ]) as WorkbenchNumericDomainV3;
   const finite = interceptVolumesMl.filter(Number.isFinite);
-  if (finite.length === 0) return loopOwnedDomain;
-  const minimumInterceptMl = Math.min(...finite);
-  if (minimumInterceptMl >= loopOwnedDomain[0]) return loopOwnedDomain;
+  if (finite.length === 0) return nonnegativeLoopDomain;
+  const minimumInterceptMl = Math.max(0, Math.min(...finite));
+  if (minimumInterceptMl >= nonnegativeLoopDomain[0])
+    return nonnegativeLoopDomain;
   const loopSpanMl = loopOwnedDomain[1] - loopOwnedDomain[0];
   return Object.freeze([
-    minimumInterceptMl - Math.max(2, loopSpanMl * 0.03),
+    Math.max(0, minimumInterceptMl - Math.max(2, loopSpanMl * 0.03)),
     loopOwnedDomain[1],
   ]);
 }
@@ -1005,30 +1010,10 @@ function drawPeriodicPvaV1(
   );
   drawPvCurveV3(context, espvrFullCurve, x, y, {
     color,
-    width: 1.1,
-    dash: Object.freeze([2, 3]),
-    alpha: relationAlpha * 0.38,
+    width: 1.25,
+    dash: Object.freeze([]),
+    alpha: relationAlpha * 0.62,
   });
-  drawPvCurveV3(
-    context,
-    sampleDisplayedPvaCurveV1(
-      pva.espvr.measuredVolumeRangeMl[0],
-      pva.espvr.measuredVolumeRangeMl[1],
-      (volumeMl) => Math.max(
-        0,
-        pva.espvr.elastanceMmHgPerMl
-          * (volumeMl - pva.espvr.volumeAxisInterceptMl),
-      ),
-    ),
-    x,
-    y,
-    {
-      color,
-      width: 1.65,
-      dash: pva.preview ? Object.freeze([5, 3]) : Object.freeze([]),
-      alpha: relationAlpha,
-    },
-  );
   const edpvrEndVolumeMl = Math.min(
     volumeDomain[1],
     pva.edpvr.zeroPressureVolumeMl

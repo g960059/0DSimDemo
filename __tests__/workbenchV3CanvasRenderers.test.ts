@@ -462,13 +462,16 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("extends only the PV volume lower bound to finite extrapolated intercepts", () => {
+  it("extends the PV volume lower bound without displaying negative volume", () => {
     expect(
       extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [-20, 5]),
-    ).toEqual([-24.5, 190]);
+    ).toEqual([0, 190]);
     expect(
       extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [60]),
     ).toEqual([40, 190]);
+    expect(
+      extendPvVolumeDomainToExtrapolatedInterceptsV3([-5, 190], []),
+    ).toEqual([0, 190]);
   });
 
   it("keeps monotonic Worker samples on the allocation-free fast path", () => {
