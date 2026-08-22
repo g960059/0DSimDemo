@@ -43,6 +43,8 @@ export type MainWireIntegratedModelGuytonPointV3 = Readonly<{
 export type MainWireIntegratedModelPressureVolumeLoopPointV3 = Readonly<{
   volumeMl: number;
   pressureMmHg: number;
+  /** Normalized atrial-capture phase; legacy responsive preview points may omit it. */
+  phase01?: number;
 }>;
 
 export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
@@ -72,6 +74,10 @@ export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
     | "responsive-period1-settled"
     | "canonical-period1-qualified";
   acceptedMeasurementDurationSec: number;
+  /** Exact accepted-step path work from the retained completed beat. */
+  acceptedTransmuralPathWorkMmHgMl?: number;
+  /** Exact duration of the retained completed beat. */
+  acceptedBeatDurationSec?: number;
   /** Last complete analysis beat sampled from the fixed-TBV branch. */
   ventricularPressureVolumeLoop:
     readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];

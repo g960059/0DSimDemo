@@ -1,3 +1,5 @@
+import { NORMAL_ADULT_FIVE_WALL_PRIOR_V1 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
+
 export const MAIN_WIRE_INTEGRATED_MODEL_MVO2_REFERENCE_V1_ID =
   "main-wire-integrated-model-lv-pva-mvo2-literature-estimate-v1" as const;
 
@@ -34,42 +36,39 @@ export const MAIN_WIRE_INTEGRATED_MODEL_MVO2_COEFFICIENT_MAPPING_V1 =
 
 const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1 =
   Object.freeze({
-    LVFW: 67.07543664065403,
-    SEP: 35.77356620834881,
+    LVFW:
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg.wallGeometryParameters.LVFW
+        .wallMaterialVolumeM3 * 1e6,
+    SEP:
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg.wallGeometryParameters.SEP
+        .wallMaterialVolumeM3 * 1e6,
   });
-const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1 = 1.053;
-const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1 = 1;
-const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_G_V1 = Number(
-  (
-    (MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.LVFW +
-      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.SEP) *
-    MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1
-  ).toFixed(MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1),
-);
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1 =
+  NORMAL_ADULT_FIVE_WALL_PRIOR_V1.myocardialDensityKgPerM3 / 1_000;
+const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_G_V1 =
+  (MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.LVFW +
+    MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1.SEP) *
+  MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1;
 
 /** Fixed LVFW+SEP mass convention used only to normalize the estimate. */
 export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_REFERENCE_V1 =
   Object.freeze({
-    sourcePriorId: "normal-adult-five-wall-fixed-prior-v1" as const,
+    sourcePriorId: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.priorId,
+    sourceParameterIdentityHash:
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.parameterIdentityHash,
     allocation: "LVFW-plus-SEP" as const,
     myocardialDensityGPerMl:
       MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MYOCARDIAL_DENSITY_G_PER_ML_V1,
     wallMaterialVolumeMl:
       MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_WALL_VOLUME_ML_V1,
-    myocardialMassRoundingDigits:
-      MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_ROUNDING_DIGITS_V1,
     myocardialMassG: MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_G_V1,
   });
-
-export const MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_MVO2_REFERENCE_HEART_RATE_BPM_V1 =
-  60 as const;
 
 export type MainWireIntegratedModelLvMvo2EstimateInputV1 = Readonly<{
   pvaOutputId: string;
   pvaMethodId: string;
   pvaEstimateJ: number;
   heartRateBpm: number;
-  lvMyocardialMassG?: number;
 }>;
 
 export type MainWireIntegratedModelLvMvo2EstimateV1 =
@@ -97,7 +96,7 @@ export type MainWireIntegratedModelLvMvo2EstimateV1 =
       }>;
       limitations: readonly [
         "canine-coefficients-used-as-literature-estimate",
-        "fixed-lvfw-plus-septum-mass-allocation",
+        "model-defined-lvfw-plus-septum-mass-allocation",
         "contractility-dependent-intercept-not-recalibrated",
         "does-not-model-crossbridge-calcium-or-basal-metabolism",
       ];
@@ -132,7 +131,6 @@ export function evaluateMainWireIntegratedModelLvMvo2EstimateV1(
       reason,
     });
   const massG =
-    input.lvMyocardialMassG ??
     MAIN_WIRE_INTEGRATED_MODEL_NORMAL_ADULT_LV_MASS_REFERENCE_V1.myocardialMassG;
   if (
     input.pvaOutputId.length === 0 ||
@@ -200,7 +198,7 @@ export function evaluateMainWireIntegratedModelLvMvo2EstimateV1(
     }),
     limitations: Object.freeze([
       "canine-coefficients-used-as-literature-estimate",
-      "fixed-lvfw-plus-septum-mass-allocation",
+      "model-defined-lvfw-plus-septum-mass-allocation",
       "contractility-dependent-intercept-not-recalibrated",
       "does-not-model-crossbridge-calcium-or-basal-metabolism",
     ] as const),

@@ -795,7 +795,7 @@ export function PressureVolumeLoopCanvasV3(
       : [],
   );
   const relationStatus = availablePva.length > 0
-    ? "Settled hot-start SW / ESPVR / exponential EDPVR / PE / PVA analysis · not clinical validation"
+    ? "Settled preload-reduction accepted-step SW / isochronal Emax ESPVR / exponential EDPVR / PE / PVA analysis · not clinical validation"
     : anyFormalRelation
     ? "Formal periodic fixed-TBV multi-load PVA analysis · not clinical validation"
     : formalAnalysisSelected
@@ -901,17 +901,28 @@ export function PressureVolumeLoopCanvasV3(
                 <span>SW {periodicPva.strokeWork.joule.toFixed(3)} J</span>
                 <span>PE {periodicPva.potentialEnergy.joule.toFixed(3)} J</span>
                 <span>PVA {periodicPva.pva.joule.toFixed(3)} J</span>
-                <span>linear ESPVR R² {periodicPva.espvr.rSquared.toFixed(3)}</span>
+                <span>
+                  Emax {periodicPva.espvr.elastanceMmHgPerMl.toFixed(3)}{" "}
+                  mmHg/mL · phase{" "}
+                  {periodicPva.espvr.maximumElastancePhase01.toFixed(3)} · R²{" "}
+                  {periodicPva.espvr.rSquared.toFixed(3)}
+                </span>
                 {periodicPva.espvr.nonlinearComparator !== null && (
                   <span>
                     quadratic comparator R²{" "}
                     {periodicPva.espvr.nonlinearComparator.rSquared.toFixed(3)}
                   </span>
                 )}
+                {periodicPva.espvr.semilunarClosureComparator !== null && (
+                  <span>
+                    semilunar closure R²{" "}
+                    {periodicPva.espvr.semilunarClosureComparator.rSquared.toFixed(3)}
+                  </span>
+                )}
                 <span>exponential EDPVR R² {periodicPva.edpvr.rSquared.toFixed(3)}</span>
                 {periodicPva.estimatedMvo2?.status === "available" && (
                   <span>
-                    estimated MVO₂ @{periodicPva.estimatedMvo2.heartRateBpm} bpm{" "}
+                    estimated MVO₂ @{periodicPva.estimatedMvo2.heartRateBpm.toFixed(1)} bpm{" "}
                     {periodicPva.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G.toFixed(2)}{" "}
                     mL/min/100 g
                   </span>
@@ -919,8 +930,8 @@ export function PressureVolumeLoopCanvasV3(
               </div>
             ))}
             <span className="text-[9px] text-wb-subtle">
-              Settled hot-start load chain · linear ESPVR · exponential EDPVR ·
-              MVO₂ is a Suga literature estimate
+              Settled preload-reduction chain · isochronal Emax ESPVR ·
+              exponential EDPVR · MVO₂ is a Suga literature estimate
             </span>
           </div>
         )}

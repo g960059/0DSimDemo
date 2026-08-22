@@ -13,7 +13,10 @@ import {
   type MainWireIntegratedModelObservationV3,
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
-import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import { qualifyMainWireIntegratedModelSnapshotV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3";
 import {
@@ -56,14 +59,23 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-formal-periodic-fixed-tbv-pv-family-v1" as const;
 
 /**
- * The formal relation stays local enough to avoid extreme-volume model
- * regimes while providing four independent loads on either side of the
- * operating point. Each direction runs in its own persistent analysis Worker.
+ * The formal relation follows one preload-reduction chain from the settled
+ * Scenario anchor down to the existing Starling/TBV lower bound while
+ * retaining canonical qualification at every point.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3 =
-  Object.freeze([0.96, 0.9, 0.82, 0.75] as const);
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3 =
-  Object.freeze([1.06, 1.12, 1.18, 1.24] as const);
+  Object.freeze([0.95, 0.9, 0.85, 0.8, 0.75] as const);
+
+export function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
+  sourceGlobalTbvMl: number,
+  scale: number,
+): number {
+  return Math.max(
+    MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.totalBloodVolumeMl
+      .minimum,
+    sourceGlobalTbvMl * scale,
+  );
+}
 
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
@@ -71,7 +83,8 @@ const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
 const FORMAL_POST_QUALIFICATION_COMPLETE_BEAT_COUNT_V3 = 3;
-const PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
+const RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
+const FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.01;
 const FIXED_TBV_TOLERANCE_ML_V3 = 1e-6;
 const MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3 = 1_000;
 const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
@@ -96,6 +109,11 @@ type StarlingPairV3 = Readonly<{
 type PressureVolumeLoopPairV3 = Readonly<{
   left: readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];
   right: readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];
+}>;
+
+type CompletedPressureVolumeBeatPairV3 = Readonly<{
+  loops: PressureVolumeLoopPairV3;
+  completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3;
 }>;
 
 class FixedTbvPressureVolumeLoopCollectorV3 {
@@ -136,6 +154,49 @@ class FixedTbvPressureVolumeLoopCollectorV3 {
   }
 }
 
+class FormalFixedTbvPressureVolumeLoopCollectorV3 {
+  private previousPhase01: number | null = null;
+  private fullCycleStarted = false;
+  private left: MainWireIntegratedModelPressureVolumeLoopPointV3[] = [];
+  private right: MainWireIntegratedModelPressureVolumeLoopPointV3[] = [];
+
+  accept(
+    observation: MainWireIntegratedModelObservationV3,
+  ): CompletedPressureVolumeBeatPairV3 | null {
+    const sample = formalPressureVolumeSamplePairV3(observation);
+    if (sample === null) return null;
+    if (this.previousPhase01 === null) {
+      this.previousPhase01 = sample.left.phase01!;
+      this.left = [sample.left];
+      this.right = [sample.right];
+      return null;
+    }
+    if (sample.left.phase01! >= this.previousPhase01) {
+      this.left.push(sample.left);
+      this.right.push(sample.right);
+      this.previousPhase01 = sample.left.phase01!;
+      return null;
+    }
+    const completed =
+      this.fullCycleStarted &&
+      this.left.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 &&
+      this.right.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3
+        ? Object.freeze({
+            loops: Object.freeze({
+              left: Object.freeze([...this.left]),
+              right: Object.freeze([...this.right]),
+            }),
+            completedBeatMetrics: observation.completedBeatMetrics!,
+          })
+        : null;
+    this.fullCycleStarted = true;
+    this.previousPhase01 = sample.left.phase01!;
+    this.left = [sample.left];
+    this.right = [sample.right];
+    return completed;
+  }
+}
+
 function pressureVolumeSamplePairV3(
   observation: MainWireIntegratedModelObservationV3,
 ): Readonly<{
@@ -167,6 +228,36 @@ function pressureVolumeSamplePairV3(
   )
     throw new Error("fixed-TBV pressure-volume loop sample is not finite");
   return pair;
+}
+
+function formalPressureVolumeSamplePairV3(
+  observation: MainWireIntegratedModelObservationV3,
+): Readonly<{
+  left: MainWireIntegratedModelPressureVolumeLoopPointV3 &
+    Readonly<{ phase01: number }>;
+  right: MainWireIntegratedModelPressureVolumeLoopPointV3 &
+    Readonly<{ phase01: number }>;
+}> | null {
+  const pair = pressureVolumeSamplePairV3(observation);
+  const completedBeat = observation.completedBeatMetrics;
+  if (pair === null || completedBeat === null) return null;
+  const elapsedSinceLastCaptureSec =
+    observation.acceptedState.acceptedTimeSec - completedBeat.endTimeSec;
+  const phase01 = elapsedSinceLastCaptureSec / completedBeat.durationSec;
+  if (!Number.isFinite(phase01) || phase01 < -1e-12 || phase01 >= 1 + 1e-12) {
+    throw new Error("fixed-TBV pressure-volume loop phase is outside one beat");
+  }
+  const ownedPhase01 = Math.max(0, Math.min(1 - Number.EPSILON, phase01));
+  return Object.freeze({
+    left: Object.freeze({
+      ...pair.left,
+      phase01: ownedPhase01,
+    }),
+    right: Object.freeze({
+      ...pair.right,
+      phase01: ownedPhase01,
+    }),
+  });
 }
 
 type AcceptedBranchV3 = Readonly<{
@@ -287,9 +378,9 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  *
  * Unlike the responsive Starling preview, this path keeps the complete model
  * controllers active and admits a load only after the canonical full accepted
- * state P1 qualifier passes. The live Scenario is never advanced; both preload
- * directions warm-start from the qualified center and then from the preceding
- * qualified branch in their own analysis Workers.
+ * state P1 qualifier passes. The live Scenario is never advanced; the preload
+ * reduction chain warm-starts from the qualified center and then from the
+ * preceding qualified branch in one persistent analysis Worker.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   sourceSession: MainWireIntegratedModelSessionV3,
@@ -299,6 +390,14 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   ) => void,
   partition?: MainWireIntegratedModelResponsiveStarlingPartitionV3,
 ): Promise<MainWireIntegratedModelFormalPressureVolumeResultV3> {
+  if (
+    partition ===
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
+  ) {
+    throw new Error(
+      "formal PVA accepts only the preload-reduction analysis partition",
+    );
+  }
   const sourceGlobalTbvMl =
     sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   const paired: StarlingPairV3[] = [];
@@ -348,20 +447,6 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
       center.branch,
       sourceGlobalTbvMl,
       hemodynamicResearchInputs,
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
-      append,
-    );
-  }
-  if (
-    partition === undefined ||
-    partition ===
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
-  ) {
-    await runFormalPressureVolumeChainV3(
-      center.branch,
-      sourceGlobalTbvMl,
-      hemodynamicResearchInputs,
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3,
       append,
     );
   }
@@ -372,20 +457,31 @@ async function runFormalPressureVolumeChainV3(
   centerBranch: MainWireIntegratedModelSessionV3,
   sourceGlobalTbvMl: number,
   hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
-  scales: readonly number[],
   append: (pair: StarlingPairV3) => void,
 ): Promise<void> {
   let reliableBranch = centerBranch;
-  for (const scale of scales) {
+  let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
+  for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3) {
+    const targetGlobalTbvMl =
+      mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
+        sourceGlobalTbvMl,
+        scale,
+      );
+    if (
+      targetGlobalTbvMl >=
+      reliableTargetGlobalTbvMl - FIXED_TBV_TOLERANCE_ML_V3
+    ) {
+      continue;
+    }
     const measured = await measureFormalPressureVolumeBranchV3(
       reliableBranch,
-      sourceGlobalTbvMl * scale,
+      targetGlobalTbvMl,
       hemodynamicResearchInputs,
       "continuation",
     );
     if (measured.status === "rejected") {
       throw new Error(
-        `formal pressure-volume load ${scale} rejected: ${measured.reason}`,
+        `formal pressure-volume load ${scale} (${targetGlobalTbvMl} mL) rejected: ${measured.reason}`,
       );
     }
     if (!formalPairQualifiedV3(measured.pair)) {
@@ -395,6 +491,7 @@ async function runFormalPressureVolumeChainV3(
     }
     append(measured.pair);
     reliableBranch = measured.branch;
+    reliableTargetGlobalTbvMl = targetGlobalTbvMl;
   }
 }
 
@@ -659,10 +756,12 @@ async function measureFormalPressureVolumeBranchV3(
         sourceSession.observe().mechanismResearchInputs,
       );
     const beats: MainWireIntegratedModelCompletedBeatMetricsV3[] = [];
-    const pressureVolumeLoops: PressureVolumeLoopPairV3[] = [];
+    const pressureVolumeBeats: CompletedPressureVolumeBeatPairV3[] = [];
     const pressureVolumeLoopCollector =
-      new FixedTbvPressureVolumeLoopCollectorV3();
-    let lastCompletedBeatId: string | null = null;
+      new FormalFixedTbvPressureVolumeLoopCollectorV3();
+    let lastCompletedBeatId: string | null =
+      measurementBranch.observe().completedBeatMetrics?.endAtrialCaptureId ??
+      null;
     for (
       let ordinal = 1;
       ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3 &&
@@ -672,7 +771,7 @@ async function measureFormalPressureVolumeBranchV3(
       const acceptedTimeSec =
         measurementBranch.currentAcceptedState().acceptedTimeSec;
       const advance = measurementBranch.advanceToPresentationTime(
-        acceptedTimeSec + PROTOCOL_SAMPLE_DT_SEC_V3,
+        acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
       );
       if (advance.status !== "advanced") {
         return rejectedV3(
@@ -695,7 +794,7 @@ async function measureFormalPressureVolumeBranchV3(
         advance.observation,
       );
       if (completedPressureVolumeLoop !== null) {
-        pressureVolumeLoops.push(completedPressureVolumeLoop);
+        pressureVolumeBeats.push(completedPressureVolumeLoop);
       }
       const completed = advance.observation.completedBeatMetrics;
       if (
@@ -712,14 +811,15 @@ async function measureFormalPressureVolumeBranchV3(
         "formal fixed-TBV branch could not collect its post-qualification beats",
       );
     }
-    const pressureVolumeLoop = pressureVolumeLoops.at(-1);
-    if (pressureVolumeLoop === undefined) {
+    const pressureVolumeBeat = pressureVolumeBeats.at(-1);
+    if (pressureVolumeBeat === undefined) {
       return rejectedV3(
         "formal fixed-TBV branch did not retain a complete pressure-volume loop",
       );
     }
 
     const averaged = averageBeatMetricsV3(beats);
+    const selectedBeat = pressureVolumeBeat.completedBeatMetrics;
     const common = Object.freeze({
       totalBloodVolumeMl: targetGlobalTbvMl,
       role,
@@ -735,6 +835,7 @@ async function measureFormalPressureVolumeBranchV3(
       acceptedMeasurementDurationSec:
         measurementBranch.currentAcceptedState().acceptedTimeSec -
         originTimeSec,
+      acceptedBeatDurationSec: selectedBeat.durationSec,
     });
     return Object.freeze({
       status: "accepted" as const,
@@ -745,17 +846,21 @@ async function measureFormalPressureVolumeBranchV3(
           ...common,
           fillingPressureMmHg: averaged.meanRightAtrialPressureMmHg,
           cardiacOutputLPerMin: averaged.nativeRightCardiacOutputLPerMin,
-          ventricularPressureVolumeLoop: pressureVolumeLoop.right,
+          acceptedTransmuralPathWorkMmHgMl:
+            selectedBeat.rightVentricularTransmuralPressureVolumePathWorkMmHgMl,
+          ventricularPressureVolumeLoop: pressureVolumeBeat.loops.right,
           ventricularPressureVolumeLandmarks:
-            averaged.rightVentricularPressureVolumeLandmarks,
+            selectedBeat.rightVentricularPressureVolumeLandmarks,
         }),
         left: Object.freeze({
           ...common,
           fillingPressureMmHg: averaged.meanLeftAtrialPressureMmHg,
           cardiacOutputLPerMin: averaged.nativeLeftCardiacOutputLPerMin,
-          ventricularPressureVolumeLoop: pressureVolumeLoop.left,
+          acceptedTransmuralPathWorkMmHgMl:
+            selectedBeat.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
+          ventricularPressureVolumeLoop: pressureVolumeBeat.loops.left,
           ventricularPressureVolumeLandmarks:
-            averaged.leftVentricularPressureVolumeLandmarks,
+            selectedBeat.leftVentricularPressureVolumeLandmarks,
         }),
       }),
     });
@@ -800,7 +905,7 @@ function measureBranchV3(
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
     const advance = branch.advanceToPresentationTime(
-      acceptedTimeSec + PROTOCOL_SAMPLE_DT_SEC_V3,
+      acceptedTimeSec + RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
     if (advance.status !== "advanced") {
       return rejectedV3(
@@ -1132,8 +1237,7 @@ function formalPressureVolumeLocusV3(
       : Math.max(
           qualified.length,
           1 +
-            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.length +
-            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3.length,
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3.length,
         ),
     slowControllerPolicy: "fully-active" as const,
     convergencePolicy: "canonical-full-accepted-state-period1-closure" as const,

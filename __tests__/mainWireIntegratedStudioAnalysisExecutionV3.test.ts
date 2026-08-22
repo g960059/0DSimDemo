@@ -13,7 +13,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 describe("Main Wire Integrated V3 analysis execution", () => {
-  it("registers two independent preload directions for the side analysis", () => {
+  it("keeps Starling bidirectional and runs formal PVA as preload reduction only", () => {
     const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
@@ -26,7 +26,9 @@ describe("Main Wire Integrated V3 analysis execution", () => {
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
       )?.partitions,
-    ).toEqual(plan?.partitions);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    ]);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
         "analysis/not-registered",

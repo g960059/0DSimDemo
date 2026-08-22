@@ -16,9 +16,9 @@ The production workflow is deliberately direct:
 
 1. the user enables **Settled PVA / MVO2 analysis** in a PV pane;
 2. the existing background analysis Workers capture the current Scenario;
-3. the hypovolemic and hypervolemic partitions run in parallel;
-4. each partition starts at the settled operating point and warm-starts every
-   next fixed-TBV load from its preceding qualified point;
+3. a low-volume preload-reduction chain starts at the settled operating point;
+4. every next fixed-TBV load is warm-started from its preceding qualified
+   point, down to the existing Starling/TBV lower bound;
 5. each load must pass full accepted-state period-1 closure;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
    and, for the LV, a literature MVO2 estimate; and
@@ -45,9 +45,10 @@ It consumes every accepted numerical endpoint, including event-clipped
 substeps, and is checkpoint-continuable. It remains a path integral until a
 declared closed periodic beat exists; it is not renamed PVA or MVO2.
 
-The on-demand PVA projector instead integrates the complete retained anchor PV
-loop with the same trapezoidal sign convention. The anchor belongs to the
-settled load family, so the resulting positive value is reported as SW.
+For every formal load point, the on-demand analysis retains the exact
+capture-to-capture accepted-step path work from its qualified completed beat.
+The operating-point value, rather than a re-integration of the display loop,
+owns SW.
 
 ## PVA V1 operational definition
 
@@ -55,37 +56,39 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-linear-espvr-exponential-edpvr-settled-fixed-tbv-v1
+suga-pva-isochronal-emax-exponential-edpvr-settled-preload-reduction-v1
 ```
 
 The pressure basis is ventricular transmural pressure.
 
 ### SW
 
-For the settled operating-point loop,
+For the settled operating-point qualified beat,
 
 ```text
-SW = - closed_trapezoidal_integral(P_tm dV)
+SW = acceptedTransmuralPathWorkMmHgMl
 ```
 
-The formal protocol's complete retained `20 ms` loop sample, not the separately
-decimated visible polyline, owns this calculation. This V1 SW estimate is not
-the accepted-substep path-work observer above; a later payload extension can
-carry that exact beat value without changing the PVA geometry.
+This is the accepted-substep path-work observer above, evaluated over the same
+completed beat that supplies the point's compact phase loop and landmarks.
+The `10 ms` phase loop is retained for relation fitting and display, not as a
+second SW owner.
 
 ### ESPVR
 
-The primary V1 relation is the classic linear regression through settled
-semilunar-valve-closure landmarks:
+The primary V1 relation uses a common isochronal phase across the settled
+preload-reduction loops. For each fixed candidate phase, it linearly regresses
+transmural pressure on volume; the earliest phase with the largest positive
+slope is selected as Emax:
 
 ```text
 P_es = E_es (V_es - V0_es)
 ```
 
-A quadratic regression through the same points is retained as a nonlinear
-diagnostic. It reports curvature, fit quality, and whether its derivative is
-positive throughout the measured volume range. It does not silently replace
-the primary linear Suga convention.
+A quadratic regression through the points at that same Emax phase is retained
+as a nonlinear diagnostic. It reports curvature, fit quality, and whether its
+derivative is positive throughout the measured volume range. Semilunar-valve
+closure is also retained as a comparator, but it does not own the Suga ESPVR.
 
 ### EDPVR
 
@@ -111,8 +114,9 @@ PE = integral from V0_es to V_es of
 PVA = SW + PE
 ```
 
-The result is unavailable when the relations do not define a positive finite
-decomposition. One `mmHg*mL` is `1.33322e-4 J`.
+The result is unavailable unless `P_ESPVR(V) > P_EDPVR(V)` throughout the open
+integration interval `(V0_es, V_es]`; equality is allowed only at the zero-area
+left boundary. One `mmHg*mL` is `1.33322e-4 J`.
 
 ## Estimated LV MVO2
 
@@ -123,9 +127,10 @@ literature relation:
 MVO2_per_beat_per_100g = 1.8e-5 * PVA_per_100g + 0.02
 ```
 
-LV mass uses the fixed normal-adult `LVFW + SEP` material-volume convention
-(`108.3 g`), and the V1 teaching projection uses `60 beats/min`. The slope and
-intercept are from the canine LV context reported by
+LV mass is derived from the active model definition's `LVFW + SEP` material
+volumes and myocardial density. Per-beat MVO2 uses the current PVA; per-minute
+MVO2 uses the measured duration of the same accepted beat rather than a fixed
+heart rate. The slope and intercept are from the canine LV context reported by
 [Suga et al. (PMID 3790043)](https://pubmed.ncbi.nlm.nih.gov/3790043/).
 [PMID 1478216](https://pubmed.ncbi.nlm.nih.gov/1478216/) supplies supporting
 human linearity context, not the coefficient calibration.
@@ -141,13 +146,14 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 
 ## Current limitations
 
-- The load family varies fixed total blood volume; it is not a transient
-  venous-occlusion protocol.
+- The load family is a one-sided, low-volume fixed-total-blood-volume sweep; it
+  is not a transient venous-occlusion protocol. It uses the existing Starling
+  sweep range and does not widen the Workbench TBV control.
 - Slow controllers remain fully active while each load settles, so the family
   is not a pure instantaneous preload change at frozen inotropy.
 - End diastole uses the model's maximum-volume landmark in V1.
-- Linear ESPVR is the primary Suga convention; quadratic curvature is
-  diagnostic only.
+- A common-phase linear isochronal Emax relation is the primary Suga
+  convention; quadratic curvature and semilunar closure are diagnostic only.
 - Fits are local to the sampled settled loads and are not clinical validation.
 
 These limitations remain beside the result rather than being hidden in a

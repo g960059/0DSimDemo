@@ -10,8 +10,8 @@ import type {
 import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+  mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
@@ -20,7 +20,7 @@ import {
 import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
 
 describe("settled hot-start PVA V1", () => {
-  it("calculates SW, linear ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
+  it("calculates accepted-step SW, isochronal Emax ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
     const result = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1()),
       "LV",
@@ -30,9 +30,13 @@ describe("settled hot-start PVA V1", () => {
     if (result.status !== "available") throw new Error(result.reason);
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
-      pointCount: 7,
+      pointCount: 6,
       endDiastolicLandmark: "maximum-volume-proxy",
+      endSystolicLandmark: "common-isochronal-maximum-elastance",
     });
+    expect(result.espvr.primaryMethod).toBe(
+      "linear-isochronal-maximum-elastance-fit",
+    );
     expect(result.espvr.elastanceMmHgPerMl).toBeCloseTo(2, 10);
     expect(result.espvr.volumeAxisInterceptMl).toBeCloseTo(20, 10);
     expect(result.espvr.rSquared).toBeCloseTo(1, 10);
@@ -44,7 +48,11 @@ describe("settled hot-start PVA V1", () => {
     expect(result.edpvr.scaleMmHg).toBeGreaterThan(0);
     expect(result.edpvr.exponentPerMl).toBeCloseTo(0.02, 2);
     expect(result.edpvr.zeroPressureVolumeMl).toBeCloseTo(60, 0);
-    expect(result.strokeWork.joule).toBeGreaterThan(0);
+    expect(result.strokeWork).toMatchObject({
+      method: "accepted-step-transmural-path-work",
+      mmHgMl: 8_500,
+    });
+    expect(result.anchor.measuredHeartRateBpm).toBeCloseTo(75, 12);
     expect(result.potentialEnergy.joule).toBeGreaterThanOrEqual(0);
     expect(result.pva.joule).toBeCloseTo(
       result.strokeWork.joule + result.potentialEnergy.joule,
@@ -53,6 +61,10 @@ describe("settled hot-start PVA V1", () => {
     expect(result.estimatedMvo2).toMatchObject({
       status: "available",
       ventricleId: "LV",
+      heartRateBpm: 75,
+      massReference: {
+        allocation: "LVFW-plus-SEP",
+      },
       interpretation: {
         modelSpecificCalibrationEstablished: false,
         measuredOxygenConsumption: false,
@@ -60,17 +72,22 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("retains a quadratic ESPVR comparator without silently replacing the primary fit", () => {
-    const curved = settledPointsV1().map((point, index) => {
-      const es = point.ventricularPressureVolumeLandmarks.endSystolic;
-      const pressureMmHg =
-        1.6 * (es.volumeMl - 18) + 0.012 * (es.volumeMl - 50) ** 2;
+  it("retains a quadratic Emax comparator without silently replacing the primary fit", () => {
+    const curved = settledPointsV1().map((point) => {
       return Object.freeze({
         ...point,
-        ventricularPressureVolumeLandmarks: Object.freeze({
-          ...point.ventricularPressureVolumeLandmarks,
-          endSystolic: Object.freeze({ ...es, pressureMmHg }),
-        }),
+        ventricularPressureVolumeLoop: Object.freeze(
+          point.ventricularPressureVolumeLoop.map((sample) =>
+            sample.phase01 === 0.25
+              ? Object.freeze({
+                  ...sample,
+                  pressureMmHg:
+                    2.6 * (sample.volumeMl - 18) +
+                    0.012 * (sample.volumeMl - 50) ** 2,
+                })
+              : sample,
+          ),
+        ),
       });
     });
     const result = buildMainWireIntegratedModelPeriodicPvaV1(
@@ -80,9 +97,11 @@ describe("settled hot-start PVA V1", () => {
 
     expect(result.status).toBe("available");
     if (result.status !== "available") throw new Error(result.reason);
-    expect(result.espvr.primaryMethod).toBe("linear-semilunar-closure-fit");
+    expect(result.espvr.primaryMethod).toBe(
+      "linear-isochronal-maximum-elastance-fit",
+    );
     expect(result.espvr.nonlinearComparator).toMatchObject({
-      method: "quadratic-semilunar-closure-fit",
+      method: "quadratic-isochronal-maximum-elastance-fit",
       monotonicallyIncreasingAcrossMeasuredRange: true,
     });
     expect(result.espvr.nonlinearComparator!.rSquared).toBeGreaterThan(
@@ -92,34 +111,38 @@ describe("settled hot-start PVA V1", () => {
 
   it("reports point progress until the formal hot-start chain completes", () => {
     const points = settledPointsV1().slice(0, 4);
-    const partial = formalLocusV1(points, 9);
+    const partial = formalLocusV1(points, 6);
 
     expect(
       buildMainWireIntegratedModelPeriodicPvaV1(partial, "LV"),
     ).toMatchObject({
       status: "collecting",
-      progress: { completedPointCount: 4, totalPointCount: 9 },
+      progress: { completedPointCount: 4, totalPointCount: 6 },
     });
   });
 
-  it("keeps every formal load inside the declared TBV input range", () => {
+  it("runs only the low-volume chain down to the existing Starling TBV bound", () => {
     const sourceTbvMl =
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3
-        .totalBloodVolumeMl;
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.totalBloodVolumeMl;
     const range =
-      MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3
-        .totalBloodVolumeMl;
+      MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.totalBloodVolumeMl;
     const targets = [
-      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
       1,
-      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPERVOLEMIC_TBV_SCALES_V3,
-    ].map((scale) => sourceTbvMl * scale);
+      ...MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PV_HYPOVOLEMIC_TBV_SCALES_V3,
+    ].map((scale) =>
+      mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(sourceTbvMl, scale),
+    );
 
-    expect(Math.min(...targets)).toBe(range.minimum);
+    expect(targets).toHaveLength(6);
+    expect(
+      targets.slice(1).every((target, index) => target < targets[index]!),
+    ).toBe(true);
+    expect(Math.min(...targets)).toBeGreaterThanOrEqual(range.minimum);
     expect(Math.max(...targets)).toBeLessThanOrEqual(range.maximum);
+    expect(Math.min(...targets)).toBe(range.minimum);
   });
 
-  it("fails closed when semilunar closure landmarks are unavailable", () => {
+  it("keeps semilunar closure as a diagnostic rather than the Emax owner", () => {
     const points = settledPointsV1().map((point) =>
       Object.freeze({
         ...point,
@@ -133,9 +156,53 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
+    const result = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(points),
+      "LV",
+    );
+    expect(result.status).toBe("available");
+    if (result.status === "available") {
+      expect(result.espvr.semilunarClosureComparator).toBeNull();
+    }
+  });
+
+  it("fails closed when phased loops cannot define a common isochronal Emax", () => {
+    const points = settledPointsV1().map((point) =>
+      Object.freeze({
+        ...point,
+        ventricularPressureVolumeLoop: Object.freeze(
+          point.ventricularPressureVolumeLoop.map(
+            ({ phase01: _phase01, ...sample }) => Object.freeze(sample),
+          ),
+        ),
+      }),
+    );
+
     expect(
       buildMainWireIntegratedModelPeriodicPvaV1(formalLocusV1(points), "LV"),
     ).toMatchObject({ status: "unavailable" });
+  });
+
+  it("rejects PE geometry when EDPVR reaches or crosses Emax ESPVR", () => {
+    const points = settledPointsV1().map((point, index) =>
+      Object.freeze({
+        ...point,
+        ventricularPressureVolumeLandmarks: Object.freeze({
+          ...point.ventricularPressureVolumeLandmarks,
+          endDiastolic: Object.freeze({
+            ...point.ventricularPressureVolumeLandmarks.endDiastolic,
+            pressureMmHg: 180 + index * 20,
+          }),
+        }),
+      }),
+    );
+
+    expect(
+      buildMainWireIntegratedModelPeriodicPvaV1(formalLocusV1(points), "LV"),
+    ).toMatchObject({
+      status: "unavailable",
+      reason: expect.stringContaining("ESPVR"),
+    });
   });
 
   it("does not expose an RV oxygen estimate", () => {
@@ -178,13 +245,13 @@ describe("settled hot-start PVA V1", () => {
     expect(html).toContain("PVA ");
     expect(html).toContain("estimated MVO₂");
     expect(html).toContain("exponential EDPVR");
-    expect(html).toContain("linear ESPVR R²");
+    expect(html).toContain("Emax 2.000 mmHg/mL");
     expect(html).toContain("quadratic comparator R²");
   });
 
   it("renders settled-point progress in the PV pane", () => {
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 9),
+      formalLocusV1(settledPointsV1().slice(0, 5), 6),
       "LV",
     );
     const html = renderToStaticMarkup(
@@ -209,7 +276,7 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    expect(html).toContain("PVA analysis 5/9 points");
+    expect(html).toContain("PVA analysis 5/6 points");
   });
 
   it("renders a formal analysis failure instead of leaving an empty pane", () => {
@@ -229,7 +296,7 @@ describe("settled hot-start PVA V1", () => {
             chamberLabel: "LV",
             chamberColor: "#d9822b",
             periodicPvaAnalysisError:
-              "formal pressure-volume load 0.96 rejected: qualification failed",
+              "formal pressure-volume load 0.95 rejected: qualification failed",
             rapidPressureVolumeRelationPending: false,
           },
         ],
@@ -238,7 +305,7 @@ describe("settled hot-start PVA V1", () => {
 
     expect(html).toContain('data-testid="workbench-pva-analysis-error"');
     expect(html).toContain("PVA analysis unavailable");
-    expect(html).toContain("formal pressure-volume load 0.96 rejected");
+    expect(html).toContain("formal pressure-volume load 0.95 rejected");
   });
 
   it("rejects non-finite and overflowing literature projections", () => {
@@ -293,14 +360,14 @@ function formalLocusV1(
 
 function settledPointsV1(): readonly MainWireIntegratedModelStarlingPointV3[] {
   return Object.freeze(
-    [0.82, 0.9, 0.96, 1, 1.06, 1.12, 1.2].map((ratio, index) => {
+    [0.75, 0.8, 0.85, 0.9, 0.95, 1].map((ratio, index) => {
       const endSystolicVolumeMl = 41 + index * 3;
       const endDiastolicVolumeMl = 96 + index * 5;
       const endSystolicPressureMmHg = 2 * (endSystolicVolumeMl - 20);
       const endDiastolicPressureMmHg =
         2 * Math.expm1(0.02 * (endDiastolicVolumeMl - 60));
       return Object.freeze({
-        totalBloodVolumeMl: 4_000 * ratio,
+        totalBloodVolumeMl: 5_600 * ratio,
         fillingPressureMmHg: 4 + index * 1.5,
         cardiacOutputLPerMin: 5.5,
         role:
@@ -316,6 +383,8 @@ function settledPointsV1(): readonly MainWireIntegratedModelStarlingPointV3[] {
         evidence: "qualified-periodic" as const,
         measurementWindowStatus: "canonical-period1-qualified" as const,
         acceptedMeasurementDurationSec: 8,
+        acceptedTransmuralPathWorkMmHgMl: 8_000 + index * 100,
+        acceptedBeatDurationSec: 0.8,
         ventricularPressureVolumeLoop: syntheticLoopV1({
           endSystolicVolumeMl,
           endSystolicPressureMmHg,
@@ -348,48 +417,35 @@ function syntheticLoopV1(
     endDiastolicPressureMmHg: number;
   }>,
 ): readonly MainWireIntegratedModelPressureVolumeLoopPointV3[] {
-  const points: MainWireIntegratedModelPressureVolumeLoopPointV3[] = [];
-  for (let index = 0; index <= 6; index += 1) {
-    points.push(
-      Object.freeze({
-        volumeMl: input.endDiastolicVolumeMl,
-        pressureMmHg:
-          input.endDiastolicPressureMmHg +
-          (index / 6) *
-            (input.endSystolicPressureMmHg - input.endDiastolicPressureMmHg),
-      }),
-    );
-  }
-  for (let index = 1; index <= 16; index += 1) {
-    const fraction = index / 16;
-    points.push(
-      Object.freeze({
-        volumeMl:
-          input.endDiastolicVolumeMl -
-          fraction * (input.endDiastolicVolumeMl - input.endSystolicVolumeMl),
-        pressureMmHg:
-          input.endSystolicPressureMmHg + 18 * Math.sin(Math.PI * fraction),
-      }),
-    );
-  }
-  for (let index = 1; index <= 6; index += 1) {
-    points.push(
-      Object.freeze({
-        volumeMl: input.endSystolicVolumeMl,
-        pressureMmHg: input.endSystolicPressureMmHg * (1 - index / 6),
-      }),
-    );
-  }
-  for (let index = 1; index <= 16; index += 1) {
-    const fraction = index / 16;
-    points.push(
-      Object.freeze({
-        volumeMl:
-          input.endSystolicVolumeMl +
-          fraction * (input.endDiastolicVolumeMl - input.endSystolicVolumeMl),
-        pressureMmHg: input.endDiastolicPressureMmHg * fraction ** 2,
-      }),
-    );
-  }
-  return Object.freeze(points);
+  return Object.freeze(
+    Array.from({ length: 64 }, (_, index) => {
+      const phase01 = index / 64;
+      const ejectionFraction =
+        phase01 <= 0.1 ? 0 : phase01 <= 0.55 ? (phase01 - 0.1) / 0.45 : 1;
+      const fillingFraction = phase01 <= 0.65 ? 0 : (phase01 - 0.65) / 0.35;
+      const volumeMl =
+        phase01 <= 0.55
+          ? input.endDiastolicVolumeMl -
+            ejectionFraction *
+              (input.endDiastolicVolumeMl - input.endSystolicVolumeMl)
+          : input.endSystolicVolumeMl +
+            fillingFraction *
+              (input.endDiastolicVolumeMl - input.endSystolicVolumeMl);
+      const normalizedActivation = Math.max(
+        0,
+        1 - Math.abs(phase01 - 0.25) / 0.25,
+      );
+      const elastanceMmHgPerMl = 0.05 + 1.95 * normalizedActivation;
+      const passivePressureMmHg =
+        input.endDiastolicPressureMmHg * fillingFraction ** 2;
+      return Object.freeze({
+        phase01,
+        volumeMl,
+        pressureMmHg: Math.max(
+          passivePressureMmHg,
+          elastanceMmHgPerMl * (volumeMl - 20),
+        ),
+      });
+    }),
+  );
 }

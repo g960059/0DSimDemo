@@ -16,6 +16,7 @@ import {
   prepareBoundExecutionPlanSolveGroupV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
@@ -976,6 +977,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(plan?.partitions).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    ]);
+    expect(
+      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      )?.partitions,
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-pv-analysis";
