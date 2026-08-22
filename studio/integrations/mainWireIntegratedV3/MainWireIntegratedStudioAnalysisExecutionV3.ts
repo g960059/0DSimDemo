@@ -17,8 +17,12 @@ import {
 const MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   partitions: Object.freeze([
-    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    // A one-worker device must finish the short high-volume branch before the
+    // long low-volume sweep so the first low-volume point can already form a
+    // bilateral PV/Starling preview. The final merged locus remains sorted and
+    // therefore independent of this time-to-first-result scheduling order.
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
   ]),
   merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
 });

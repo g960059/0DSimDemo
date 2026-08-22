@@ -19,8 +19,8 @@ describe("Main Wire Integrated V3 analysis execution", () => {
     );
 
     expect(plan?.partitions).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
