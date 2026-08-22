@@ -46640,7 +46640,8 @@ const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
 const RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
 const FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.01;
 const FIXED_TBV_TOLERANCE_ML_V3 = 1e-6;
-const MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3 = 4e3;
+const MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3 = 1e3;
+const MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3 = 4e3;
 const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
@@ -47019,7 +47020,7 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
     const pressureVolumeLoopCollector = new FormalFixedTbvPressureVolumeLoopCollectorV3();
     let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
     let locallyConverged = false;
-    for (let ordinal = 1; ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+    for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
       const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
       if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3) break;
       const advance = branch.advanceToPresentationTime(
@@ -47127,7 +47128,7 @@ function measureBranchV3(sourceSession, targetGlobalTbvMl, options) {
   const pressureVolumeLoopCollector = new FixedTbvPressureVolumeLoopCollectorV3();
   let lastCompletedBeatId = null;
   let quality = "convergence-cap";
-  for (let ordinal = 1; ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+  for (let ordinal = 1; ordinal <= MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;

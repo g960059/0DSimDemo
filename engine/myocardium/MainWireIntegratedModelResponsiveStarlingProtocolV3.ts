@@ -87,7 +87,8 @@ const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
 const RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
 const FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.01;
 const FIXED_TBV_TOLERANCE_ML_V3 = 1e-6;
-const MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3 = 4_000;
+const MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3 = 1_000;
+const MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3 = 4_000;
 const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
@@ -724,7 +725,7 @@ async function measureFormalPressureVolumeBranchV3(
     let locallyConverged = false;
     for (
       let ordinal = 1;
-      ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3;
+      ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3;
       ordinal += 1
     ) {
       const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
@@ -870,7 +871,7 @@ function measureBranchV3(
 
   for (
     let ordinal = 1;
-    ordinal <= MAXIMUM_PRESENTATION_ADVANCES_PER_POINT_V3;
+    ordinal <= MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3;
     ordinal += 1
   ) {
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
