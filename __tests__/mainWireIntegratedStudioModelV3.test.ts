@@ -676,6 +676,49 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
+  it("preflights a 4400-to-4200 mL TBV transition and keeps the live Scenario advancing", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-control-tbv-preflight";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [
+      {
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      },
+    ]);
+    let before = host.currentFrame(runtimeSessionId, scenarioId);
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    await host.applyControl(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+      4_400,
+      0,
+    );
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    const low = await host.applyControl(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+      4_200,
+      1,
+    );
+    expect(low).toMatchObject({
+      inputEpoch: 2,
+      acceptedRevision: before.acceptedRevision,
+      acceptedTimeSec: before.acceptedTimeSec,
+    });
+    for (let ordinal = 0; ordinal < 1_500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    expect(before).toMatchObject({ inputEpoch: 2 });
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
   it("batch-projects selected outputs without changing exact samples", async () => {
     const singleHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const batchHost = new MainWireIntegratedStudioStandardRuntimeHostV1();

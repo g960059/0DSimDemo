@@ -1212,6 +1212,52 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     ) {
       throw new Error("Standard fixture warm start changed the accepted clock");
     }
+    if (
+      fixture.hemodynamicResearchInputs.totalBloodVolumeMl !==
+      original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl
+    ) {
+      const preflightExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        scenarioId,
+        bindMainWireIntegratedStudioExecutionPlanV1(),
+      );
+      const preflight =
+        await MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
+          await candidate.checkpointCanonicalBinary(),
+          fixture.hemodynamicResearchInputs,
+          1,
+          fixture.mechanismResearchInputs,
+          preflightExecutionPlan.initialization,
+        );
+      const originBaseTick = executionPlanBaseTickAtTimeV1(
+        preflightExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      );
+      const endTimeSec =
+        accepted.acceptedTimeSec +
+        60 / fixture.hemodynamicResearchInputs.heartRateBpm;
+      for (let ordinal = 1; ; ordinal += 1) {
+        const targetBaseTick = executionPlanPresentationBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          originBaseTick,
+          ordinal,
+        );
+        const targetTimeSec = executionPlanTimeAtBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          targetBaseTick,
+        );
+        if (targetTimeSec > endTimeSec + 1e-12) break;
+        const preflightAdvance =
+          preflight.advanceToPresentationTime(targetTimeSec);
+        if (preflightAdvance.status !== "advanced") {
+          throw new Error(
+            `Standard TBV warm start rejected before commit: ${advanceFailureMessageV1(
+              preflightAdvance,
+            )}`,
+          );
+        }
+      }
+    }
     const current = this.#requiredScenario(runtimeSessionId, scenarioId);
     if (current !== original || current.inputEpoch !== expectedInputEpoch) {
       throw new Error("Standard fixture warm start became stale before swap");

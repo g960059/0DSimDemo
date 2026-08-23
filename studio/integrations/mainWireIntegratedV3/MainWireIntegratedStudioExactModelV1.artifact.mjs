@@ -45456,7 +45456,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       authorityFactory
     );
   }
-  static async restoreCanonicalBinary(checkpointBytes, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+  static async restoreCanonicalBinary(checkpointBytes, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3, executionPlanInitialization) {
     const checkpoint = validateReferenceCheckpointV2(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes)
     );
@@ -45477,7 +45477,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       restored.acceptedState,
       "standard-exact-checkpoint-restore",
       typedAuthorityFactory(runtime.cold.acceptedState),
-      restored
+      restored,
+      executionPlanInitialization
     );
     restoreMainWireFiveWallCoupledPredictorV1(
       checkpoint.coupledPredictor,
@@ -46627,6 +46628,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID = "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 9;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.6;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl * MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3 = Object.freeze([0.54, 0.48, 0.42, 0.36, 0.31, 0.27, 0.23]);
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
@@ -46636,6 +46638,18 @@ function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(sourceGlobalTbvMl, 
     throw new Error("formal PVA TBV scale must lie in (0, 1]");
   }
   return sourceGlobalTbvMl * scale;
+}
+function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl) {
+  if (!Number.isFinite(sourceGlobalTbvMl) || !(sourceGlobalTbvMl > 0)) {
+    throw new Error("formal PVA source TBV must be positive and finite");
+  }
+  return Math.min(
+    sourceGlobalTbvMl,
+    Math.max(
+      sourceGlobalTbvMl * MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3
+    )
+  );
 }
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
@@ -46955,8 +46969,10 @@ async function runFormalPressureVolumeChainV3(centerBranch, sourceGlobalTbvMl, a
   let reliableScale = 1;
   let retainedPointCount = 1;
   let desiredScaleStep = FORMAL_PVA_INITIAL_SCALE_STEP_V3;
-  while (reliableScale > MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 + 1e-12) {
-    const remainingScale = reliableScale - MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
+  const minimumGlobalTbvMl = mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl);
+  const minimumScale = minimumGlobalTbvMl / sourceGlobalTbvMl;
+  while (reliableScale > minimumScale + 1e-12) {
+    const remainingScale = reliableScale - minimumScale;
     const remainingRequiredPoints = Math.max(
       1,
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 - retainedPointCount
@@ -46979,7 +46995,7 @@ async function runFormalPressureVolumeChainV3(centerBranch, sourceGlobalTbvMl, a
     let lastRejectedReason = "adaptive PVA load was not attempted";
     for (let attempt = 0; attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3; attempt += 1) {
       const targetScale = Math.max(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+        minimumScale,
         reliableScale - attemptedScaleStep
       );
       const targetGlobalTbvMl = mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
@@ -49418,6 +49434,45 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
     const sourceAccepted = original.modelSession.currentAcceptedState();
     if (accepted.revision !== sourceAccepted.revision || accepted.acceptedTimeSec !== sourceAccepted.acceptedTimeSec) {
       throw new Error("Standard fixture warm start changed the accepted clock");
+    }
+    if (fixture.hemodynamicResearchInputs.totalBloodVolumeMl !== original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl) {
+      const preflightExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        scenarioId,
+        bindMainWireIntegratedStudioExecutionPlanV1()
+      );
+      const preflight = await MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
+        await candidate.checkpointCanonicalBinary(),
+        fixture.hemodynamicResearchInputs,
+        1,
+        fixture.mechanismResearchInputs,
+        preflightExecutionPlan.initialization
+      );
+      const originBaseTick = executionPlanBaseTickAtTimeV1(
+        preflightExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec
+      );
+      const endTimeSec = accepted.acceptedTimeSec + 60 / fixture.hemodynamicResearchInputs.heartRateBpm;
+      for (let ordinal = 1; ; ordinal += 1) {
+        const targetBaseTick = executionPlanPresentationBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          originBaseTick,
+          ordinal
+        );
+        const targetTimeSec = executionPlanTimeAtBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          targetBaseTick
+        );
+        if (targetTimeSec > endTimeSec + 1e-12) break;
+        const preflightAdvance = preflight.advanceToPresentationTime(targetTimeSec);
+        if (preflightAdvance.status !== "advanced") {
+          throw new Error(
+            `Standard TBV warm start rejected before commit: ${advanceFailureMessageV1(
+              preflightAdvance
+            )}`
+          );
+        }
+      }
     }
     const current = this.#requiredScenario(runtimeSessionId, scenarioId);
     if (current !== original || current.inputEpoch !== expectedInputEpoch) {

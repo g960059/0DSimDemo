@@ -585,6 +585,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
     ventricularContractilityScale = 1,
     mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
     const checkpoint = validateReferenceCheckpointV2(
       await decodeCanonicalFlatCheckpointV1(checkpointBytes),
@@ -607,6 +608,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       "standard-exact-checkpoint-restore",
       typedAuthorityFactory(runtime.cold.acceptedState),
       restored,
+      executionPlanInitialization,
     );
     restoreMainWireFiveWallCoupledPredictorV1(
       checkpoint.coupledPredictor,

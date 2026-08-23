@@ -167,4 +167,52 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     lowHost.closeSession(runtimeSessionId);
     highHost.closeSession(runtimeSessionId);
   }, 120_000);
+
+  it("keeps an already-hypovolemic source above the normal-adult absolute core floor", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-formal-pva-low-source";
+    const scenarioId = "scenario/low-source";
+    await host.createSession(runtimeSessionId, [
+      {
+        scenarioId,
+        fixture: {
+          ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          hemodynamicResearchInputs: {
+            ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1.hemodynamicResearchInputs,
+            totalBloodVolumeMl: 4_400,
+          },
+        },
+      },
+    ]);
+    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const progress: StudioSimulationAnalysisV2[] = [];
+    await expect(
+      host.requestAnalysis(
+        runtimeSessionId,
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        source.inputEpoch,
+        source.acceptedRevision,
+        source.acceptedTimeSec,
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+        (partial) => progress.push(partial),
+      ),
+    ).resolves.toBeDefined();
+    expect(progress.length).toBeGreaterThanOrEqual(9);
+    const ninthPayload = progress[8]!.payload as unknown as Readonly<{
+      left: Readonly<{
+        starlingLocus: Readonly<{
+          points: readonly Readonly<{ totalBloodVolumeMl: number }>[];
+        }>;
+      }>;
+    }>;
+    expect(
+      Math.min(
+        ...ninthPayload.left.starlingLocus.points.map(
+          ({ totalBloodVolumeMl }) => totalBloodVolumeMl,
+        ),
+      ),
+    ).toBeCloseTo(3_360, 8);
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
 });

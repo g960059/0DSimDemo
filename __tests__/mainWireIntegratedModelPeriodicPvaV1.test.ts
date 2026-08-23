@@ -10,8 +10,10 @@ import type {
 import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+  mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3,
   mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
@@ -368,7 +370,7 @@ describe("settled hot-start PVA V1", () => {
     expect(extendedResult.strokeWork).toEqual(coreResult.strokeWork);
   });
 
-  it("admits an adaptive low-volume point family down to 60% of source TBV", () => {
+  it("uses a relative baseline span without pushing low-TBV Scenarios below the absolute floor", () => {
     const sourceTbvMl =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.totalBloodVolumeMl;
     const adaptiveRatios = [
@@ -388,6 +390,21 @@ describe("settled hot-start PVA V1", () => {
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
       ),
     ).toBe(sourceTbvMl * 0.6);
+    expect(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
+    ).toBe(3_360);
+    expect(
+      mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceTbvMl),
+    ).toBe(3_360);
+    expect(mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(4_400)).toBe(
+      3_360,
+    );
+    expect(mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(4_200)).toBe(
+      3_360,
+    );
+    expect(mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(7_000)).toBe(
+      4_200,
+    );
     expect(adaptive.status).toBe("available");
     if (adaptive.status === "available") {
       expect(adaptive.source.pointCount).toBe(adaptiveRatios.length);
@@ -696,7 +713,7 @@ describe("settled hot-start PVA V1", () => {
 
     expect(html).toContain('data-testid="workbench-pva-analysis-error"');
     expect(html).toContain("PVA analysis unavailable");
-    expect(html).toContain("formal pressure-volume load 0.95 rejected");
+    expect(html).not.toContain("formal pressure-volume load 0.95 rejected");
   });
 
   it("rejects non-finite and overflowing literature projections", () => {

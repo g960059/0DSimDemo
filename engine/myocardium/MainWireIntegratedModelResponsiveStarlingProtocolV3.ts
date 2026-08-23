@@ -14,6 +14,7 @@ import {
   MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import { MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
@@ -55,13 +56,19 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
 
 /**
  * The PVA relation follows one monotone adaptive preload-reduction chain from
- * the settled Scenario anchor to at least 60% of source TBV. Coronary tone is
- * held at the source value and every retained point passes complete-beat P1
- * closure. Step size responds to the preceding point's settlement effort; the
- * chain still retains at least nine points across the declared volume span.
+ * the settled Scenario anchor. Its lower boundary is the greater of 60% of
+ * source TBV and 60% of the normal-adult 5600 mL reference. The absolute floor
+ * prevents an already-hypovolemic Scenario from being reduced by another 40%
+ * merely to preserve a relative display span. Coronary tone is held at the
+ * source value and every retained point passes complete-beat P1 closure. Step
+ * size responds to the preceding point's settlement effort; the chain still
+ * retains at least nine points across the declared volume span.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 9;
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.6;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 =
+  MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl *
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
 
 /**
  * Nominal low-volume targets used only to extend the shared Starling family.
@@ -99,6 +106,22 @@ export function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
     throw new Error("formal PVA TBV scale must lie in (0, 1]");
   }
   return sourceGlobalTbvMl * scale;
+}
+
+export function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(
+  sourceGlobalTbvMl: number,
+): number {
+  if (!Number.isFinite(sourceGlobalTbvMl) || !(sourceGlobalTbvMl > 0)) {
+    throw new Error("formal PVA source TBV must be positive and finite");
+  }
+  return Math.min(
+    sourceGlobalTbvMl,
+    Math.max(
+      sourceGlobalTbvMl *
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
+    ),
+  );
 }
 
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
@@ -621,13 +644,11 @@ async function runFormalPressureVolumeChainV3(
   let reliableScale = 1;
   let retainedPointCount = 1;
   let desiredScaleStep = FORMAL_PVA_INITIAL_SCALE_STEP_V3;
-  while (
-    reliableScale >
-    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 + 1e-12
-  ) {
-    const remainingScale =
-      reliableScale -
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
+  const minimumGlobalTbvMl =
+    mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl);
+  const minimumScale = minimumGlobalTbvMl / sourceGlobalTbvMl;
+  while (reliableScale > minimumScale + 1e-12) {
+    const remainingScale = reliableScale - minimumScale;
     const remainingRequiredPoints = Math.max(
       1,
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 -
@@ -659,7 +680,7 @@ async function runFormalPressureVolumeChainV3(
       attempt += 1
     ) {
       const targetScale = Math.max(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+        minimumScale,
         reliableScale - attemptedScaleStep,
       );
       const targetGlobalTbvMl =
