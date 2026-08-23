@@ -1053,7 +1053,9 @@ describe("V3 Dockview Workbench", () => {
     expect(controlPane.items.length).toBeGreaterThan(0);
     expect(graphPanes).toHaveLength(3);
     expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("formal-periodic");
-    expect(graphPanes[0]?.pressureVolumeRelationModel).toBe("classical-linear");
+    expect(graphPanes[0]?.pressureVolumeRelationModel).toBe(
+      "shape-preserving-locus",
+    );
     expect(graphPanes[1]?.structuralSide).toBe("right");
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);

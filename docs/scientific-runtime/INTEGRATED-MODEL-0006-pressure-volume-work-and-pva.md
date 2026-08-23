@@ -60,7 +60,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-area-max-common-isochrone-measured-domain-secant-espvr-exponential-edpvr-settled-preload-family-v3
+suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v4
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -81,27 +81,33 @@ second SW owner.
 ### ESPVR
 
 The primary relation uses one atrial-capture-relative absolute time across the
-settled bidirectional preload family. At each candidate time it fits a
-volume-quadrature-weighted linear scoring law and evaluates
+settled bidirectional preload family. Phase selection is owned by a stable core:
+the operating point and the nearest two lower- and two higher-preload points.
+At each candidate time those five contemporaneous pressure-volume points form
+a shape-preserving nonlinear isochrone, and the analysis evaluates
 
 ```text
-J(t) = integral over the fixed end-systolic-landmark volume domain of
+J(t) = integral over that five-point isochrone's measured volume domain of
          [P_iso(V,t) - P_ED(V)] dV
 ```
 
-For phase selection, each measured isochrone is projected to a
-volume-density-weighted linear scoring law so every time is compared over the
-same fixed domain. The time with the largest positive admissible `J(t)` owns the
-common isochrone. The default teaching curve and the curve used by PE/PVA/MVO2
-are then the classical linear secant across that selected isochrone's full
-measured volume range. This avoids turning a local tangent on the saturating
-high-volume limb into a large, unobserved negative-volume extrapolation.
+The time with the largest positive admissible `J(t)` owns the common
+isochrone. Using only the declared five-point core prevents later extension of
+the Starling/Guyton sweep from silently changing the selected phase. Once the
+phase is selected, every available qualified point on both preload limbs forms
+the primary systolic locus. Three or four points use C0 piecewise-linear
+interpolation; five or more use a monotone shape-preserving C1 cubic Hermite
+curve. This measured nonlinear locus owns PE, PVA, and the PVA input to the
+literature MVO2 mapper. It is never drawn beyond its measured range.
 
-Pane Settings can instead display a research locus through every qualified
-common-isochrone point. Three or four points use a C0 piecewise-linear curve;
-five or more use a shape-preserving C1 cubic-Hermite curve. This locus is never
-drawn beyond its measured volume range and does not silently replace the
-classical relation used by the MVO2 literature mapper.
+For teaching, Pane Settings can instead show the tangent to this locus at the
+operating-point end-systolic volume. It reports a local elastance and a visual
+volume-axis intercept, but it is explicitly display-only: it neither owns PVA
+nor imposes a positive `V0`. This avoids presenting an endpoint secant or a
+global straight-line fit as if it were a model-native ESPVR.
+Negative apparent intercepts are not silently clamped: curvature and the fitted
+load range are known to move linear ESPVR intercepts substantially
+([Kass et al., PMID 2910541](https://pubmed.ncbi.nlm.nih.gov/2910541/)).
 
 Separately, the analysis retains `max_t P_iso(V,t)`, its winning time at every
 sampled volume, and the resulting time range. This pressure envelope diagnoses
@@ -126,7 +132,11 @@ end-diastolic proxy rather than claiming inlet-valve closure.
 ### PE and PVA
 
 Let `V_x` be the left ESPVR–EDPVR intersection preceding the
-operating-point end-systolic volume. Then,
+operating-point end-systolic volume. Inside the measured systolic range,
+`P_ESPVR` is the selected shape-preserving common isochrone. If the left
+intersection lies below the lowest measured point, only that unresolved tail
+uses the lowest point's local tangent; the result records whether that
+extension was used and its span. Then,
 
 ```text
 PE = integral from V_x to V_es of
@@ -156,6 +166,14 @@ heart rate. The slope and intercept are from the canine LV context reported by
 [PMID 1478216](https://pubmed.ncbi.nlm.nih.gov/1478216/) supplies supporting
 human linearity context, not the coefficient calibration.
 
+The nonlinear common-isochrone PVA used here does not reproduce the canine
+coefficient study's loading protocol. The output therefore retains that
+mismatch as a machine-readable limitation. Curved ESPVR experiments have
+reported preserved linearity of the oxygen-consumption/PVA relation
+([Nozawa et al., PMID 9689149](https://pubmed.ncbi.nlm.nih.gov/9689149/)), but
+that supports using PVA as an explanatory variable; it does not calibrate this
+model-specific nonlinear boundary or its intercept.
+
 This is visibly labelled **estimated MVO2**. It does not model or measure:
 
 - crossbridge ATP use;
@@ -167,9 +185,10 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 
 ## Current limitations
 
-- The load family is a one-sided, low-volume fixed-total-blood-volume sweep; it
-  is not a transient venous-occlusion protocol. Its analysis fork extends to
-  `60%` of source TBV without changing the Workbench TBV control.
+- The load family is a bidirectional fixed-total-blood-volume sweep, not a
+  transient venous-occlusion protocol. Its low analysis limb extends to at
+  least `60%` of source TBV and may continue toward the Starling low-flow
+  boundary without changing the Workbench TBV control.
 - Coronary autoregulation tone is held at its source value during the bounded
   preload reduction. This avoids mixing a short mechanical response with
   repeated 25-second controller re-equilibration, but it is not a fully
@@ -177,12 +196,13 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 - End diastole uses the model's maximum-volume landmark in V1.
 - The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
   relative time maximizes the integrated positive pressure area above EDPVR
-  over the fixed sampled volume domain. Volume-specific maximum-pressure
-  phases are retained only as an envelope diagnostic, and semilunar closure
-  remains a comparator.
-- ESPVR and EDPVR fits use volume-quadrature weights so adaptive point density
-  does not silently change the represented volume interval. The systolic law
-  uses linear endpoint tangents outside its measured isochrone range.
+  over the contemporaneous measured domain of the declared five-point phase
+  core. Volume-specific maximum-pressure phases are retained only as an
+  envelope diagnostic, and semilunar closure remains a comparator.
+- EDPVR fitting uses volume-quadrature weights so adaptive point density does
+  not silently change the represented volume interval. The primary systolic
+  curve is not extrapolated for display; only the unresolved low-volume PE tail
+  uses its measured endpoint tangent.
 - Fits are local to the sampled settled loads and are not clinical validation.
 
 These limitations remain beside the result rather than being hidden in a

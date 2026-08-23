@@ -96,6 +96,7 @@ export type MainWireIntegratedModelLvMvo2EstimateV1 =
       }>;
       limitations: readonly [
         "canine-coefficients-used-as-literature-estimate",
+        "input-pva-method-does-not-reproduce-coefficient-source-protocol",
         "model-defined-lvfw-plus-septum-mass-allocation",
         "contractility-dependent-intercept-not-recalibrated",
         "does-not-model-crossbridge-calcium-or-basal-metabolism",
@@ -103,6 +104,7 @@ export type MainWireIntegratedModelLvMvo2EstimateV1 =
       interpretation: Readonly<{
         literatureEstimateAvailable: true;
         pvaInputIsScenarioSpecific: true;
+        pvaDefinitionReproducesCoefficientSourceProtocol: false;
         modelSpecificCalibrationEstablished: false;
         measuredOxygenConsumption: false;
         clinicalDecisionSupport: false;
@@ -198,6 +200,7 @@ export function evaluateMainWireIntegratedModelLvMvo2EstimateV1(
     }),
     limitations: Object.freeze([
       "canine-coefficients-used-as-literature-estimate",
+      "input-pva-method-does-not-reproduce-coefficient-source-protocol",
       "model-defined-lvfw-plus-septum-mass-allocation",
       "contractility-dependent-intercept-not-recalibrated",
       "does-not-model-crossbridge-calcium-or-basal-metabolism",
@@ -205,6 +208,7 @@ export function evaluateMainWireIntegratedModelLvMvo2EstimateV1(
     interpretation: Object.freeze({
       literatureEstimateAvailable: true as const,
       pvaInputIsScenarioSpecific: true as const,
+      pvaDefinitionReproducesCoefficientSourceProtocol: false as const,
       modelSpecificCalibrationEstablished: false as const,
       measuredOxygenConsumption: false as const,
       clinicalDecisionSupport: false as const,

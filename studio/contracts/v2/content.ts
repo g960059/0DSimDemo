@@ -154,9 +154,10 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   /** Required only for `pressure-volume`; every other renderer must omit it. */
   pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
   /**
-   * `classical-linear` is the teaching/default PVA relation. The research
-   * locus connects only measured common-isochrone points and never
-   * extrapolates beyond their volume range.
+   * The shape-preserving locus is the default nonlinear PVA boundary and is
+   * displayed only over measured common-isochrone volumes. The retained
+   * `classical-linear` option is an anchor-local teaching approximation and
+   * never owns PE, PVA, or estimated MVO2.
    */
   pressureVolumeRelationModel?: ExperimentSurfacePressureVolumeRelationModelV2;
   /**

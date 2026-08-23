@@ -216,12 +216,12 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     formalPressureVolumeAnalysisHint:
       "Reuses one bidirectional settled hot-start family for Starling/Guyton, ESPVR/EDPVR, accepted-step SW, PE, PVA, and the LV literature MVO₂ estimate.",
     pressureVolumeRelationModel: "ESPVR display",
-    classicalLinearRelation: "Classical linear",
+    classicalLinearRelation: "Local linear approximation",
     classicalLinearRelationHint:
-      "Default teaching view and the relation used by PVA/MVO₂. Uses the secant across the selected common isochrone's measured volume range.",
-    shapePreservingLocusRelation: "Measured research locus",
+      "Display-only tangent at the current end-systolic point. It does not own PE, PVA, or estimated MVO₂.",
+    shapePreservingLocusRelation: "Nonlinear end-systolic locus",
     shapePreservingLocusRelationHint:
-      "Connects the measured common-isochrone points with a shape-preserving curve and does not extrapolate it.",
+      "Default PVA boundary. Connects measured common-isochrone points without display extrapolation.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",

@@ -199,12 +199,16 @@ bounded calculation contract:
 6. The final complete beat retains its atrial-capture-relative transmural PV
    loop, maximum-volume ED proxy, duration, and exact accepted-step transmural
    path work. The latter owns displayed SW.
-7. The primary ESPVR is a density-weighted monotone nonlinear fit at one common
-   time selected by maximum integrated positive pressure area above EDPVR.
-   The volume-specific maximum-pressure envelope is diagnostic only. EDPVR is
-   a density-weighted exponential fit to maximum-volume points. PE is admitted
-   only after locating the left ESPVR–EDPVR intersection and verifying
-   `P_es > P_ed` over every sampled interval through anchor ESV.
+7. The primary ESPVR is a monotone shape-preserving nonlinear locus at one
+   common time. That time maximizes integrated positive pressure area above
+   EDPVR on the stable five-point core (anchor plus the nearest two loads in
+   each direction); the full settled family then supplies the displayed and
+   integrated locus. The volume-specific maximum-pressure envelope is
+   diagnostic only. EDPVR is a volume-weighted exponential fit to
+   maximum-volume points. PE is admitted only after locating the left
+   ESPVR–EDPVR intersection and verifying `P_es > P_ed` over every sampled
+   interval through anchor ESV. A local line remains available only as an
+   educational display approximation.
 8. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
    model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
    an estimate, not measured oxygen consumption or clinical validation.

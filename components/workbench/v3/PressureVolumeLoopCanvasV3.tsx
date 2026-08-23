@@ -427,7 +427,7 @@ export function PressureVolumeLoopCanvasV3(
   props: PressureVolumeLoopCanvasPropsV3,
 ) {
   const { className } = props;
-  const relationModel = props.relationModel ?? "classical-linear";
+  const relationModel = props.relationModel ?? "shape-preserving-locus";
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const volumeDomainStateRef = React.useRef<
@@ -593,7 +593,13 @@ export function PressureVolumeLoopCanvasV3(
           return drawing === null
             ? []
             : [
-              drawing.espvr.zeroPressureVolumeMl,
+              ...(relationModel === "classical-linear" &&
+              drawing.espvr.educationalLinearApproximation !== null
+                ? [
+                    drawing.espvr.educationalLinearApproximation
+                      .volumeAxisInterceptMl,
+                  ]
+                : []),
               drawing.edpvr.zeroPressureVolumeMl,
             ];
       }),
@@ -735,8 +741,8 @@ export function PressureVolumeLoopCanvasV3(
       : [Object.freeze({ periodicPva: periodicPva!, trace })]);
   const relationStatus = drawablePva.length > 0
     ? relationModel === "classical-linear"
-      ? "Settled-source bidirectional preload family · classical linear common-isochrone ESPVR / exponential EDPVR · not clinical validation"
-      : "Settled-source bidirectional preload family · measured common-isochrone research locus without extrapolation / exponential EDPVR · PVA outputs remain classical linear"
+      ? "Settled-source bidirectional preload family · anchor-local linear display approximation / exponential EDPVR · PVA remains nonlinear-locus based"
+      : "Settled-source bidirectional preload family · measured nonlinear common-isochrone ESPVR / exponential EDPVR · nonlinear PVA boundary"
     : "Settled-source preload-reduction analysis selected · relation not yet available";
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
@@ -1048,15 +1054,26 @@ function drawPeriodicPvaV1(
 ): void {
   const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
   const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
-  const researchLocus = pva.espvr.researchLocus;
+  const educationalLinear = pva.espvr.educationalLinearApproximation;
   const espvrFullCurve = relationModel === "shape-preserving-locus"
-    ? researchLocus.curve
-    : sampleDisplayedPvaCurveV1(
-        Math.max(volumeDomain[0], pva.espvr.zeroPressureVolumeMl),
-        volumeDomain[1],
-        (volumeMl) =>
-          Math.max(0, periodicPvaEspvrPressureV1(pva.espvr, volumeMl)),
-      );
+    ? pva.espvr.curve
+    : educationalLinear === null
+      ? pva.espvr.curve
+      : sampleDisplayedPvaCurveV1(
+          Math.max(
+            volumeDomain[0],
+            educationalLinear.volumeAxisInterceptMl,
+          ),
+          volumeDomain[1],
+          (volumeMl) =>
+            Math.max(
+              0,
+              periodicPvaEducationalLinearPressureV1(
+                educationalLinear,
+                volumeMl,
+              ),
+            ),
+        );
   drawPvCurveV3(context, espvrFullCurve, x, y, {
     color,
     width: 1.25,
@@ -1109,10 +1126,7 @@ function drawPeriodicPvaV1(
       alpha: relationAlpha * 0.72,
     },
   );
-  const displayedSystolicPoints = relationModel === "shape-preserving-locus"
-    ? researchLocus.fitPoints
-    : pva.espvr.fitPoints;
-  for (const point of displayedSystolicPoints) {
+  for (const point of pva.espvr.fitPoints) {
     drawPvRelationMarkerV3(
       context,
       x(point.volumeMl),
@@ -1134,10 +1148,10 @@ function drawPeriodicPvaV1(
       false,
     );
   }
-  if (relationModel === "classical-linear") {
+  if (relationModel === "classical-linear" && educationalLinear !== null) {
     drawPvRelationMarkerV3(
       context,
-      x(pva.espvr.zeroPressureVolumeMl),
+      x(educationalLinear.volumeAxisInterceptMl),
       y(0),
       color,
       2.4,
@@ -1147,12 +1161,15 @@ function drawPeriodicPvaV1(
   }
 }
 
-function periodicPvaEspvrPressureV1(
-  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1,
+function periodicPvaEducationalLinearPressureV1(
+  approximation: NonNullable<
+    MainWireIntegratedModelPeriodicPvaEspvrV1["educationalLinearApproximation"]
+  >,
   volumeMl: number,
 ): number {
   return (
-    espvr.elastanceMmHgPerMl * (volumeMl - espvr.volumeAxisInterceptMl)
+    approximation.elastanceMmHgPerMl *
+    (volumeMl - approximation.volumeAxisInterceptMl)
   );
 }
 

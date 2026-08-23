@@ -45,19 +45,30 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(0.2, 12);
     expect(result.espvr.selectedPhase01AtAnchor).toBeCloseTo(0.25, 12);
     expect(result.espvr.activePressureAreaMmHgMl).toBeGreaterThan(0);
-    expect(result.espvr.activePressureAreaVolumeRangeMl).toEqual([40, 62.4]);
-    expect(result.espvr.elastanceMmHgPerMl).toBeCloseTo(2, 10);
-    expect(result.espvr.volumeAxisInterceptMl).toBeCloseTo(20, 10);
+    expect(result.espvr.activePressureAreaVolumeRangeMl).toEqual([
+      88.66666666666667, 110,
+    ]);
+    expect(result.espvr.phaseSelectionPolicy).toBe(
+      "anchor-plus-nearest-two-bidirectional-loads",
+    );
+    expect(result.espvr.phaseSelectionPointCount).toBe(5);
     expect(result.espvr.localElastanceAtAnchorMmHgPerMl).toBeCloseTo(2, 10);
-    expect(result.espvr.rSquared).toBeCloseTo(1, 10);
-    expect(result.espvr.primaryCurveLaw).toBe("measured-domain-secant-linear");
+    expect(result.espvr.primaryCurveLaw).toBe(
+      "measured-domain-shape-preserving-locus",
+    );
     expect(result.espvr.fitPoints).toHaveLength(9);
-    expect(result.espvr.researchLocus).toMatchObject({
-      method: "shape-preserving-cubic-hermite",
+    expect(result.espvr).toMatchObject({
+      interpolation: "shape-preserving-cubic-hermite",
       continuity: "C1",
-      extrapolation: "none",
+      displayExtrapolation: "none",
+      educationalLinearApproximation: {
+        method: "anchor-local-tangent",
+        use: "display-only-not-pva-owner",
+        elastanceMmHgPerMl: expect.closeTo(2, 10),
+        volumeAxisInterceptMl: expect.closeTo(20, 10),
+      },
     });
-    expect(result.espvr.researchLocus.fitPoints).toHaveLength(9);
+    expect(result.espvr.curve).toHaveLength(65);
     expect(result.espvr.pressureEnvelopeDiagnostic).toMatchObject({
       method: "phase-wise-maximum-pressure-envelope",
       excessAreaMmHgMl: 0,
@@ -73,10 +84,15 @@ describe("settled hot-start PVA V1", () => {
     expect(result.anchor.measuredHeartRateBpm).toBeCloseTo(75, 12);
     expect(result.potentialEnergy).toMatchObject({
       method:
-        "area-between-espvr-and-nonnegative-edpvr-from-left-intersection-to-anchor-esv",
+        "area-between-nonlinear-espvr-and-nonnegative-edpvr-from-left-intersection-to-anchor-esv",
+      measuredEspvrStartVolumeMl: result.espvr.measuredVolumeRangeMl[0],
+      lowVolumeTangentExtensionUsed: true,
     });
+    const educationalLine = result.espvr.educationalLinearApproximation;
+    expect(educationalLine).not.toBeNull();
+    if (educationalLine === null) throw new Error("missing local tangent");
     expect(result.potentialEnergy.leftIntersectionVolumeMl).toBeCloseTo(
-      result.espvr.volumeAxisInterceptMl,
+      educationalLine.volumeAxisInterceptMl,
       10,
     );
     expect(result.potentialEnergy.leftIntersectionVolumeMl).toBeLessThan(
@@ -90,8 +106,8 @@ describe("settled hot-start PVA V1", () => {
           intervalOrdinal) /
           64;
       const endSystolicPressureMmHg =
-        result.espvr.elastanceMmHgPerMl *
-        (volumeMl - result.espvr.volumeAxisInterceptMl);
+        educationalLine.elastanceMmHgPerMl *
+        (volumeMl - educationalLine.volumeAxisInterceptMl);
       const endDiastolicPressureMmHg = Math.max(
         0,
         result.edpvr.scaleMmHg *
@@ -115,13 +131,14 @@ describe("settled hot-start PVA V1", () => {
         allocation: "LVFW-plus-SEP",
       },
       interpretation: {
+        pvaDefinitionReproducesCoefficientSourceProtocol: false,
         modelSpecificCalibrationEstablished: false,
         measuredOxygenConsumption: false,
       },
     });
   });
 
-  it("keeps a curved measured common isochrone as a non-extrapolated C1 research locus", () => {
+  it("uses a curved measured common isochrone as the non-extrapolated C1 PVA boundary", () => {
     const curved = settledPointsV1().map((point) => {
       return Object.freeze({
         ...point,
@@ -149,19 +166,28 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.primaryMethod).toBe(
       "active-pressure-area-max-common-isochrone",
     );
-    expect(result.espvr.primaryCurveLaw).toBe("measured-domain-secant-linear");
-    expect(result.espvr.researchLocus).toMatchObject({
-      method: "shape-preserving-cubic-hermite",
+    expect(result.espvr.primaryCurveLaw).toBe(
+      "measured-domain-shape-preserving-locus",
+    );
+    expect(result.espvr).toMatchObject({
+      interpolation: "shape-preserving-cubic-hermite",
       continuity: "C1",
-      extrapolation: "none",
+      displayExtrapolation: "none",
     });
-    expect(result.espvr.researchLocus.fitPoints).toHaveLength(curved.length);
-    expect(result.espvr.researchLocus.curve[0]!.volumeMl).toBe(
-      result.espvr.researchLocus.measuredVolumeRangeMl[0],
+    expect(result.espvr.fitPoints).toHaveLength(curved.length);
+    expect(result.espvr.curve[0]!.volumeMl).toBe(
+      result.espvr.measuredVolumeRangeMl[0],
     );
-    expect(result.espvr.researchLocus.curve.at(-1)!.volumeMl).toBe(
-      result.espvr.researchLocus.measuredVolumeRangeMl[1],
+    expect(result.espvr.curve.at(-1)!.volumeMl).toBe(
+      result.espvr.measuredVolumeRangeMl[1],
     );
+    expect(result.potentialEnergy.method).toContain("nonlinear-espvr");
+    expect(result.potentialEnergy.lowVolumeTangentExtensionUsed).toBe(true);
+    const endpointSecantPeMmHgMl = endpointSecantPotentialEnergyV1(result);
+    expect(
+      Math.abs(result.potentialEnergy.mmHgMl - endpointSecantPeMmHgMl) /
+        result.potentialEnergy.mmHgMl,
+    ).toBeGreaterThan(1e-3);
   });
 
   it("keeps the common-phase ESPVR separate from a volume-dependent pressure envelope", () => {
@@ -242,12 +268,16 @@ describe("settled hot-start PVA V1", () => {
       uniform.espvr.selectedTimeSinceAtrialCaptureSec,
       12,
     );
-    expect(adaptive.espvr.elastanceMmHgPerMl).toBeCloseTo(
-      uniform.espvr.elastanceMmHgPerMl,
+    expect(
+      adaptive.espvr.educationalLinearApproximation?.elastanceMmHgPerMl,
+    ).toBeCloseTo(
+      uniform.espvr.educationalLinearApproximation!.elastanceMmHgPerMl,
       10,
     );
-    expect(adaptive.espvr.volumeAxisInterceptMl).toBeCloseTo(
-      uniform.espvr.volumeAxisInterceptMl,
+    expect(
+      adaptive.espvr.educationalLinearApproximation?.volumeAxisInterceptMl,
+    ).toBeCloseTo(
+      uniform.espvr.educationalLinearApproximation!.volumeAxisInterceptMl,
       10,
     );
     expect(
@@ -296,10 +326,10 @@ describe("settled hot-start PVA V1", () => {
     });
     if (relations.status === "collecting") {
       expect(relations.preview?.espvr?.fitPoints).toHaveLength(3);
-      expect(relations.preview?.espvr?.researchLocus).toMatchObject({
-        method: "piecewise-linear",
+      expect(relations.preview?.espvr).toMatchObject({
+        interpolation: "piecewise-linear",
         continuity: "C0",
-        extrapolation: "none",
+        displayExtrapolation: "none",
       });
       expect(relations.preview?.edpvr?.fitPoints).toHaveLength(3);
     }
@@ -333,7 +363,7 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("keeps a linear common isochrone exact while wider points extend EDPVR and the research locus", () => {
+  it("keeps five-point phase selection stable while wider points extend both measured relations", () => {
     const core = settledPointsV1();
     const extensions = settledPointsV1([1.24, 0.5]);
     const coreResult = buildMainWireIntegratedModelPeriodicPvaV1(
@@ -353,16 +383,13 @@ describe("settled hot-start PVA V1", () => {
     ) {
       throw new Error("synthetic PVA core was unavailable");
     }
-    expect(extendedResult.espvr.elastanceMmHgPerMl).toBeCloseTo(
-      coreResult.espvr.elastanceMmHgPerMl,
+    expect(extendedResult.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(
+      coreResult.espvr.selectedTimeSinceAtrialCaptureSec,
       12,
     );
-    expect(extendedResult.espvr.volumeAxisInterceptMl).toBeCloseTo(
-      coreResult.espvr.volumeAxisInterceptMl,
-      12,
-    );
-    expect(extendedResult.espvr.researchLocus.fitPoints.length).toBeGreaterThan(
-      coreResult.espvr.researchLocus.fitPoints.length,
+    expect(extendedResult.espvr.phaseSelectionPointCount).toBe(5);
+    expect(extendedResult.espvr.fitPoints.length).toBeGreaterThan(
+      coreResult.espvr.fitPoints.length,
     );
     expect(extendedResult.edpvr.fitPoints.length).toBeGreaterThan(
       coreResult.edpvr.fitPoints.length,
@@ -409,9 +436,7 @@ describe("settled hot-start PVA V1", () => {
     if (adaptive.status === "available") {
       expect(adaptive.source.pointCount).toBe(adaptiveRatios.length);
       expect(adaptive.espvr.fitPoints.length).toBeGreaterThanOrEqual(5);
-      expect(adaptive.espvr.researchLocus.fitPoints).toHaveLength(
-        adaptiveRatios.length,
-      );
+      expect(adaptive.espvr.fitPoints).toHaveLength(adaptiveRatios.length);
       expect(adaptive.edpvr.fitPoints).toHaveLength(adaptiveRatios.length);
     }
   });
@@ -515,12 +540,12 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain('data-pva-result-count="1"');
-    expect(html).toContain('data-pv-relation-model="classical-linear"');
+    expect(html).toContain('data-pv-relation-model="shape-preserving-locus"');
     expect(html).not.toContain('data-testid="workbench-pva-results"');
 
-    const researchHtml = renderToStaticMarkup(
+    const educationalHtml = renderToStaticMarkup(
       React.createElement(PressureVolumeLoopCanvasV3, {
-        relationModel: "shape-preserving-locus",
+        relationModel: "classical-linear",
         traces: [
           {
             scenarioId: "scenario/current",
@@ -539,8 +564,8 @@ describe("settled hot-start PVA V1", () => {
         ],
       }),
     );
-    expect(researchHtml).toContain(
-      'data-pv-relation-model="shape-preserving-locus"',
+    expect(educationalHtml).toContain(
+      'data-pv-relation-model="classical-linear"',
     );
   });
 
@@ -765,6 +790,67 @@ function formalLocusV1(
       ),
     ),
   });
+}
+
+function endpointSecantPotentialEnergyV1(
+  result: Extract<
+    ReturnType<typeof buildMainWireIntegratedModelPeriodicPvaV1>,
+    Readonly<{ status: "available" }>
+  >,
+): number {
+  const first = result.espvr.fitPoints[0]!;
+  const last = result.espvr.fitPoints.at(-1)!;
+  const slope =
+    (last.pressureMmHg - first.pressureMmHg) / (last.volumeMl - first.volumeMl);
+  const intercept = first.pressureMmHg - slope * first.volumeMl;
+  const pressureDifference = (volumeMl: number) =>
+    slope * volumeMl +
+    intercept -
+    Math.max(
+      0,
+      result.edpvr.scaleMmHg *
+        Math.expm1(
+          result.edpvr.exponentPerMl *
+            (volumeMl - result.edpvr.zeroPressureVolumeMl),
+        ),
+    );
+  let leftVolumeMl = 0;
+  let leftDifferenceMmHg = pressureDifference(leftVolumeMl);
+  let rightVolumeMl = Number.NaN;
+  for (let index = 1; index <= 512; index += 1) {
+    const volumeMl = (index / 512) * result.anchor.endSystolicVolumeMl;
+    const differenceMmHg = pressureDifference(volumeMl);
+    if (leftDifferenceMmHg <= 0 && differenceMmHg > 0) {
+      rightVolumeMl = volumeMl;
+      break;
+    }
+    leftVolumeMl = volumeMl;
+    leftDifferenceMmHg = differenceMmHg;
+  }
+  if (!Number.isFinite(rightVolumeMl)) {
+    throw new Error("endpoint secant did not cross the fitted EDPVR");
+  }
+  for (let iteration = 0; iteration < 80; iteration += 1) {
+    const midpointVolumeMl = 0.5 * (leftVolumeMl + rightVolumeMl);
+    if (pressureDifference(midpointVolumeMl) > 0) {
+      rightVolumeMl = midpointVolumeMl;
+    } else {
+      leftVolumeMl = midpointVolumeMl;
+    }
+  }
+  const intersectionVolumeMl = 0.5 * (leftVolumeMl + rightVolumeMl);
+  const intervalCount = 4_096;
+  const widthMl =
+    (result.anchor.endSystolicVolumeMl - intersectionVolumeMl) / intervalCount;
+  let areaMmHgMl = 0;
+  let previousDifferenceMmHg = pressureDifference(intersectionVolumeMl);
+  for (let index = 1; index <= intervalCount; index += 1) {
+    const volumeMl = intersectionVolumeMl + index * widthMl;
+    const differenceMmHg = pressureDifference(volumeMl);
+    areaMmHgMl += 0.5 * (previousDifferenceMmHg + differenceMmHg) * widthMl;
+    previousDifferenceMmHg = differenceMmHg;
+  }
+  return areaMmHgMl;
 }
 
 function settledPointsV1(
