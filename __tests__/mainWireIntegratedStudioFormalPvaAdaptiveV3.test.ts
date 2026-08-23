@@ -4,6 +4,8 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import type { MainWireIntegratedModelStarlingLocusV3 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -88,12 +90,14 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       ),
     ).toBeLessThanOrEqual(sourceTbvMl * 0.6);
     const corePoints = payload.left.starlingLocus.points
-      .filter(({ totalBloodVolumeMl }) =>
-        totalBloodVolumeMl >= sourceTbvMl * 0.6 - 1e-6)
-      .sort((left, right) =>
-        right.totalBloodVolumeMl - left.totalBloodVolumeMl);
-    const firstLowScale =
-      corePoints[1]!.totalBloodVolumeMl / sourceTbvMl;
+      .filter(
+        ({ totalBloodVolumeMl }) =>
+          totalBloodVolumeMl >= sourceTbvMl * 0.6 - 1e-6,
+      )
+      .sort(
+        (left, right) => right.totalBloodVolumeMl - left.totalBloodVolumeMl,
+      );
+    const firstLowScale = corePoints[1]!.totalBloodVolumeMl / sourceTbvMl;
     expect(1 - firstLowScale).toBeGreaterThanOrEqual(0.06);
     expect(1 - firstLowScale).toBeLessThanOrEqual(0.08);
     for (const point of corePoints.slice(1)) {
@@ -103,6 +107,32 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       );
     }
     expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
+    const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
+      payload.left.starlingLocus as MainWireIntegratedModelStarlingLocusV3,
+      "LV",
+    );
+    if (periodicPva.status !== "available") {
+      throw new Error(periodicPva.reason);
+    }
+    expect(periodicPva.espvr).toMatchObject({
+      primaryMethod: "active-pressure-area-max-common-isochrone",
+      primaryCurveLaw: "density-weighted-monotone-quadratic",
+    });
+    expect(
+      periodicPva.espvr.pressureEnvelopeDiagnostic.excessAreaFraction,
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      periodicPva.espvr.pressureEnvelopeDiagnostic
+        .timeSinceAtrialCaptureRangeSec[0],
+    ).toBeLessThanOrEqual(
+      periodicPva.espvr.pressureEnvelopeDiagnostic
+        .timeSinceAtrialCaptureRangeSec[1],
+    );
+    expect(periodicPva.pva.mmHgMl).toBeCloseTo(
+      periodicPva.strokeWork.mmHgMl + periodicPva.potentialEnergy.mmHgMl,
+      10,
+    );
+    expect(periodicPva.estimatedMvo2).not.toBeNull();
     host.closeSession(runtimeSessionId);
   }, 120_000);
 });
