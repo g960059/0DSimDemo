@@ -60,7 +60,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v4
+suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v5
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -81,24 +81,27 @@ second SW owner.
 ### ESPVR
 
 The primary relation uses one atrial-capture-relative absolute time across the
-settled bidirectional preload family. Phase selection is owned by a stable core:
-the operating point and the nearest two lower- and two higher-preload points.
-At each candidate time those five contemporaneous pressure-volume points form
-a shape-preserving nonlinear isochrone, and the analysis evaluates
+settled bidirectional preload family. Every currently available qualified
+settled point participates in phase selection. At each candidate time those
+contemporaneous pressure-volume points form a shape-preserving nonlinear
+isochrone, and the analysis evaluates
 
 ```text
-J(t) = integral over that five-point isochrone's measured volume domain of
+J(t) = integral over the current isochrone's measured volume domain of
          [P_iso(V,t) - P_ED(V)] dV
 ```
 
 The time with the largest positive admissible `J(t)` owns the common
-isochrone. Using only the declared five-point core prevents later extension of
-the Starling/Guyton sweep from silently changing the selected phase. Once the
-phase is selected, every available qualified point on both preload limbs forms
-the primary systolic locus. Three or four points use C0 piecewise-linear
+isochrone. The analysis recomputes this selection whenever another settled
+load arrives, so both the selected time and the measured curve may evolve as
+the bidirectional sweep expands. Three or four points use C0 piecewise-linear
 interpolation; five or more use a monotone shape-preserving C1 cubic Hermite
-curve. This measured nonlinear locus owns PE, PVA, and the PVA input to the
-literature MVO2 mapper. It is never drawn beyond its measured range.
+curve. During an in-flight update the Workbench keeps drawing the last valid
+relation until a newly admissible relation replaces it; that visual retention
+does not retain stale PVA, PE, or MVO2 output values. The final family owns the
+final selected phase and curve. This measured nonlinear locus owns PE, PVA,
+and the PVA input to the literature MVO2 mapper. It is never drawn beyond its
+measured range.
 
 For teaching, Pane Settings can instead show the tangent to this locus at the
 operating-point end-systolic volume. It reports a local elastance and a visual
@@ -196,9 +199,10 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 - End diastole uses the model's maximum-volume landmark in V1.
 - The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
   relative time maximizes the integrated positive pressure area above EDPVR
-  over the contemporaneous measured domain of the declared five-point phase
-  core. Volume-specific maximum-pressure phases are retained only as an
-  envelope diagnostic, and semilunar closure remains a comparator.
+  over the contemporaneous measured domain of every currently available
+  settled point. The selection is intentionally updated as the family grows.
+  Volume-specific maximum-pressure phases are retained only as an envelope
+  diagnostic, and semilunar closure remains a comparator.
 - EDPVR fitting uses volume-quadrature weights so adaptive point density does
   not silently change the represented volume interval. The primary systolic
   curve is not extrapolated for display; only the unresolved low-volume PE tail

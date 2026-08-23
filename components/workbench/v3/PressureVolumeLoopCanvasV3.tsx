@@ -481,6 +481,7 @@ export function PressureVolumeLoopCanvasV3(
     }))),
     [traces],
   );
+  const periodicPvaDrawings = useRetainedPeriodicPvaDrawingsV1(traces);
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
     const trajectory = extractLivePvTrajectoryV3(
       trace.samples,
@@ -510,9 +511,12 @@ export function PressureVolumeLoopCanvasV3(
         trajectory.liveSegment,
       ),
       periodicPva: trace.periodicPva ?? null,
+      periodicPvaDrawing: periodicPvaDrawings.get(
+        periodicPvaDrawingTraceKeyV1(trace),
+      ) ?? null,
       history,
     });
-  }), [traces]);
+  }), [periodicPvaDrawings, traces]);
   const visibleRenderedTraces = React.useMemo(
     () => renderedTraces.filter(({ trace }) =>
       !workbenchLegendTraceHiddenV3(
@@ -588,21 +592,19 @@ export function PressureVolumeLoopCanvasV3(
     );
     const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
       volumeDomainStateRef.current.domain,
-      visibleRenderedTraces.flatMap(({ periodicPva }) => {
-        const drawing = periodicPvaDrawingV1(periodicPva);
-          return drawing === null
-            ? []
-            : [
+      visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
+        periodicPvaDrawing === null
+          ? []
+          : [
               ...(relationModel === "classical-linear" &&
-              drawing.espvr.educationalLinearApproximation !== null
+              periodicPvaDrawing.espvr.educationalLinearApproximation !== null
                 ? [
-                    drawing.espvr.educationalLinearApproximation
+                    periodicPvaDrawing.espvr.educationalLinearApproximation
                       .volumeAxisInterceptMl,
                   ]
                 : []),
-              drawing.edpvr.zeroPressureVolumeMl,
-            ];
-      }),
+              periodicPvaDrawing.edpvr.zeroPressureVolumeMl,
+            ]),
     );
     const pressureDomain = pressureDomainStateRef.current.domain;
     drawPvAxesV3(
@@ -653,7 +655,7 @@ export function PressureVolumeLoopCanvasV3(
     }
     for (const {
       backBufferRemainder,
-      periodicPva,
+      periodicPvaDrawing,
       liveSegment,
       trace,
     } of visibleRenderedTraces) {
@@ -661,11 +663,10 @@ export function PressureVolumeLoopCanvasV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
-      const pvaDrawing = periodicPvaDrawingV1(periodicPva);
-      if (pvaDrawing !== null) {
+      if (periodicPvaDrawing !== null) {
         drawPeriodicPvaV1(
           context,
-          pvaDrawing,
+          periodicPvaDrawing,
           x,
           y,
           trace.chamberColor,
@@ -735,15 +736,25 @@ export function PressureVolumeLoopCanvasV3(
       ? [Object.freeze({ periodicPva, trace })]
       : [],
   );
-  const drawablePva = visibleRenderedTraces.flatMap(({ periodicPva, trace }) =>
-    periodicPvaDrawingV1(periodicPva) === null
+  const drawablePva = visibleRenderedTraces.flatMap(({
+    periodicPvaDrawing,
+    trace,
+  }) =>
+    periodicPvaDrawing === null
       ? []
-      : [Object.freeze({ periodicPva: periodicPva!, trace })]);
-  const relationStatus = drawablePva.length > 0
+      : [Object.freeze({ periodicPvaDrawing, trace })]);
+  const retainedPvaDrawingCount = drawablePva.filter(
+    ({ periodicPvaDrawing }) =>
+      periodicPvaDrawing.retainedFromPriorUpdate,
+  ).length;
+  const relationStatusBase = drawablePva.length > 0
     ? relationModel === "classical-linear"
       ? "Settled-source bidirectional preload family · anchor-local linear display approximation / exponential EDPVR · PVA remains nonlinear-locus based"
       : "Settled-source bidirectional preload family · measured nonlinear common-isochrone ESPVR / exponential EDPVR · nonlinear PVA boundary"
     : "Settled-source preload-reduction analysis selected · relation not yet available";
+  const relationStatus = retainedPvaDrawingCount > 0
+    ? `${relationStatusBase} · previous valid relation retained while the update settles`
+    : relationStatusBase;
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
     : legendModel.items.map(({ label }) => label).join(", ");
@@ -775,6 +786,8 @@ export function PressureVolumeLoopCanvasV3(
       data-pv-loop-trace-count={visibleRenderedTraces.length}
       data-pva-analysis-pending={pvaAnalysisPending ? "true" : "false"}
       data-pva-result-count={availablePva.length}
+      data-pva-drawing-count={drawablePva.length}
+      data-pva-retained-drawing-count={retainedPvaDrawingCount}
     >
       <WorkbenchChartLegendV3
         hiddenSelections={hiddenLegendSelections}
@@ -1016,7 +1029,91 @@ type PeriodicPvaDrawingV1 = Readonly<{
   espvr: MainWireIntegratedModelPeriodicPvaEspvrV1;
   edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1;
   preview: boolean;
+  retainedFromPriorUpdate: boolean;
 }>;
+
+export function retainWorkbenchPvRelationDrawingV3<TDrawing>(
+  current: TDrawing | null,
+  previous: TDrawing | null,
+  pending: boolean,
+): Readonly<{
+  drawing: TDrawing | null;
+  retainedFromPriorUpdate: boolean;
+}> {
+  if (current !== null) {
+    return Object.freeze({
+      drawing: current,
+      retainedFromPriorUpdate: false,
+    });
+  }
+  if (pending && previous !== null) {
+    return Object.freeze({
+      drawing: previous,
+      retainedFromPriorUpdate: true,
+    });
+  }
+  return Object.freeze({
+    drawing: null,
+    retainedFromPriorUpdate: false,
+  });
+}
+
+function periodicPvaDrawingTraceKeyV1(
+  trace: WorkbenchPressureVolumeTraceV3,
+): string {
+  return [
+    trace.scenarioId,
+    trace.chamberId,
+    trace.volumeOutputId,
+    trace.pressureOutputId,
+    trace.pressureBasis,
+  ].join("\u001f");
+}
+
+/**
+ * A newly arrived settled point may briefly leave an intermediate family
+ * without an admissible common isochrone. Keep the last valid drawing during
+ * that in-flight update, but never expose it as the current numerical result
+ * and never retain it after the analysis has stopped or failed.
+ */
+function useRetainedPeriodicPvaDrawingsV1(
+  traces: readonly WorkbenchPressureVolumeTraceV3[],
+): ReadonlyMap<string, PeriodicPvaDrawingV1> {
+  const cacheRef = React.useRef<Map<string, PeriodicPvaDrawingV1>>(new Map());
+  const drawings = new Map<string, PeriodicPvaDrawingV1>();
+  const activeKeys = new Set<string>();
+  for (const trace of traces) {
+    const key = periodicPvaDrawingTraceKeyV1(trace);
+    activeKeys.add(key);
+    const current = periodicPvaDrawingV1(trace.periodicPva);
+    if (current !== null) {
+      cacheRef.current.set(key, current);
+    }
+    const resolved = retainWorkbenchPvRelationDrawingV3(
+      current,
+      current === null ? (cacheRef.current.get(key) ?? null) : null,
+      trace.periodicPvaAnalysisPending === true &&
+        trace.periodicPvaAnalysisError === undefined,
+    );
+    if (resolved.drawing !== null) {
+      drawings.set(
+        key,
+        resolved.retainedFromPriorUpdate
+          ? Object.freeze({
+              ...resolved.drawing,
+              retainedFromPriorUpdate: true,
+            })
+          : resolved.drawing,
+      );
+      continue;
+    }
+    cacheRef.current.delete(key);
+  }
+  for (const key of cacheRef.current.keys()) {
+    if (!activeKeys.has(key)) cacheRef.current.delete(key);
+  }
+  return drawings;
+}
 
 function periodicPvaDrawingV1(
   pva: MainWireIntegratedModelPeriodicPvaV1 | null | undefined,
@@ -1026,6 +1123,7 @@ function periodicPvaDrawingV1(
       espvr: pva.espvr,
       edpvr: pva.edpvr,
       preview: false,
+      retainedFromPriorUpdate: false,
     });
   }
   if (
@@ -1038,6 +1136,7 @@ function periodicPvaDrawingV1(
     espvr: pva.preview.espvr,
     edpvr: pva.preview.edpvr,
     preview: true,
+    retainedFromPriorUpdate: false,
   });
 }
 

@@ -201,14 +201,16 @@ bounded calculation contract:
    path work. The latter owns displayed SW.
 7. The primary ESPVR is a monotone shape-preserving nonlinear locus at one
    common time. That time maximizes integrated positive pressure area above
-   EDPVR on the stable five-point core (anchor plus the nearest two loads in
-   each direction); the full settled family then supplies the displayed and
-   integrated locus. The volume-specific maximum-pressure envelope is
-   diagnostic only. EDPVR is a volume-weighted exponential fit to
-   maximum-volume points. PE is admitted only after locating the left
-   ESPVR–EDPVR intersection and verifying `P_es > P_ed` over every sampled
-   interval through anchor ESV. A local line remains available only as an
-   educational display approximation.
+   EDPVR across every currently available settled load. Phase selection is
+   recomputed whenever either Worker adds a qualified point, so the displayed
+   locus progressively converges with the sweep instead of freezing at five
+   points. The last valid relation remains drawn during an in-flight update,
+   but stale numerical outputs are not retained. The volume-specific
+   maximum-pressure envelope is diagnostic only. EDPVR is a volume-weighted
+   exponential fit to maximum-volume points. PE is admitted only after
+   locating the left ESPVR–EDPVR intersection and verifying `P_es > P_ed` over
+   every sampled interval through anchor ESV. A local line remains available
+   only as an educational display approximation.
 8. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
    model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
    an estimate, not measured oxygen consumption or clinical validation.

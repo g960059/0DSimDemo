@@ -10,7 +10,7 @@ import {
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID =
-  "suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v4" as const;
+  "suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v5" as const;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -37,7 +37,7 @@ export type MainWireIntegratedModelPeriodicPvaEspvrV1 = Readonly<{
   primaryCurveLaw: "measured-domain-shape-preserving-locus";
   selectedTimeSinceAtrialCaptureSec: number;
   selectedPhase01AtAnchor: number;
-  phaseSelectionPolicy: "anchor-plus-nearest-two-bidirectional-loads";
+  phaseSelectionPolicy: "all-available-settled-loads";
   phaseSelectionPointCount: number;
   activePressureAreaMmHgMl: number;
   activePressureAreaVolumeRangeMl: readonly [number, number];
@@ -197,7 +197,6 @@ type IsochronalPressureCandidateV1 = Readonly<{
   phase01AtAnchor: number;
   activePressureAreaMmHgMl: number;
   activePressureAreaVolumeRangeMl: readonly [number, number];
-  scoringLaw: SystolicPressureLawV1;
   law: SystolicPressureLawV1;
   points: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
 }>;
@@ -273,11 +272,6 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   ).length;
   const bilateralPreviewReady = lowerPointCount >= 1 && higherPointCount >= 1;
   const bilateralPvaReady = lowerPointCount >= 2 && higherPointCount >= 2;
-  const phaseSelectionPoints = phaseSelectionCorePointsV1(
-    relationPoints,
-    anchor,
-    tbvToleranceMl,
-  );
   progress = Object.freeze({
     completedPointCount: Math.min(
       MINIMUM_PVA_PREVIEW_POINT_COUNT_V1,
@@ -337,12 +331,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   const areaMaxIsochrone =
     edpvr === null
       ? null
-      : areaMaxCommonIsochroneV1(
-          phaseSelectionPoints,
-          relationPoints,
-          edpvr,
-          anchor,
-        );
+      : areaMaxCommonIsochroneV1(relationPoints, edpvr, anchor);
   if (
     areaMaxIsochrone === null ||
     diastolic.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 ||
@@ -407,9 +396,8 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       selectedTimeSinceAtrialCaptureSec:
         areaMaxIsochrone.selected.timeSinceAtrialCaptureSec,
       selectedPhase01AtAnchor: areaMaxIsochrone.selected.phase01AtAnchor,
-      phaseSelectionPolicy:
-        "anchor-plus-nearest-two-bidirectional-loads" as const,
-      phaseSelectionPointCount: phaseSelectionPoints.length,
+      phaseSelectionPolicy: "all-available-settled-loads" as const,
+      phaseSelectionPointCount: relationPoints.length,
       activePressureAreaMmHgMl:
         areaMaxIsochrone.selected.activePressureAreaMmHgMl,
       activePressureAreaVolumeRangeMl:
@@ -602,42 +590,12 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   });
 }
 
-function phaseSelectionCorePointsV1(
-  points: readonly MainWireIntegratedModelStarlingPointV3[],
-  anchor: MainWireIntegratedModelStarlingPointV3,
-  tbvToleranceMl: number,
-): readonly MainWireIntegratedModelStarlingPointV3[] {
-  const lower = points
-    .filter(
-      ({ totalBloodVolumeMl }) =>
-        totalBloodVolumeMl < anchor.totalBloodVolumeMl - tbvToleranceMl,
-    )
-    .sort((left, right) => right.totalBloodVolumeMl - left.totalBloodVolumeMl)
-    .slice(0, 2);
-  const higher = points
-    .filter(
-      ({ totalBloodVolumeMl }) =>
-        totalBloodVolumeMl > anchor.totalBloodVolumeMl + tbvToleranceMl,
-    )
-    .sort((left, right) => left.totalBloodVolumeMl - right.totalBloodVolumeMl)
-    .slice(0, 2);
-  return Object.freeze(
-    [...higher, anchor, ...lower].sort(
-      (left, right) => right.totalBloodVolumeMl - left.totalBloodVolumeMl,
-    ),
-  );
-}
-
 function areaMaxCommonIsochroneV1(
-  phaseSelectionPoints: readonly MainWireIntegratedModelStarlingPointV3[],
   allPoints: readonly MainWireIntegratedModelStarlingPointV3[],
   edpvr: ExponentialFitV1,
   anchor: MainWireIntegratedModelStarlingPointV3,
 ): AreaMaxCommonIsochroneV1 | null {
-  if (
-    phaseSelectionPoints.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 ||
-    allPoints.length < phaseSelectionPoints.length
-  ) {
+  if (allPoints.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1) {
     return null;
   }
   const beatDurationsSec = allPoints.map(
@@ -665,13 +623,6 @@ function areaMaxCommonIsochroneV1(
   ) {
     const timeSinceAtrialCaptureSec =
       (timeOrdinal / SYSTOLIC_TIME_SAMPLE_COUNT_V1) * minimumBeatDurationSec;
-    const sampledForPhaseSelection = phaseSelectionPoints.map((point) =>
-      interpolateLoopAtTimeV1(
-        point.ventricularPressureVolumeLoop,
-        point.acceptedBeatDurationSec,
-        timeSinceAtrialCaptureSec,
-      ),
-    );
     const sampledForFullLocus = allPoints.map((point) =>
       interpolateLoopAtTimeV1(
         point.ventricularPressureVolumeLoop,
@@ -679,31 +630,20 @@ function areaMaxCommonIsochroneV1(
         timeSinceAtrialCaptureSec,
       ),
     );
-    if (
-      sampledForPhaseSelection.some((point) => point === null) ||
-      sampledForFullLocus.some((point) => point === null)
-    ) {
+    if (sampledForFullLocus.some((point) => point === null)) {
       continue;
     }
-    const scoringPoints =
-      sampledForPhaseSelection as MainWireIntegratedModelPeriodicPvaCurvePointV1[];
     const owned =
       sampledForFullLocus as MainWireIntegratedModelPeriodicPvaCurvePointV1[];
-    const scoringLaw = fitSystolicPressureLawV1(scoringPoints);
     const law = fitSystolicPressureLawV1(owned);
-    if (
-      scoringLaw === null ||
-      law === null ||
-      !systolicLawStrictlyIncreasingV1(scoringLaw) ||
-      !systolicLawStrictlyIncreasingV1(law)
-    ) {
+    if (law === null || !systolicLawStrictlyIncreasingV1(law)) {
       continue;
     }
     const activePressureAreaMmHgMl = positivePressureDifferenceAreaV1(
-      (volumeMl) => systolicPressureV1(scoringLaw, volumeMl),
+      (volumeMl) => systolicPressureV1(law, volumeMl),
       (volumeMl) => nonnegativeExponentialPressureV1(edpvr, volumeMl),
-      scoringLaw.measuredVolumeRangeMl[0],
-      scoringLaw.measuredVolumeRangeMl[1],
+      law.measuredVolumeRangeMl[0],
+      law.measuredVolumeRangeMl[1],
     );
     if (activePressureAreaMmHgMl === null) continue;
     candidates.push(
@@ -712,8 +652,7 @@ function areaMaxCommonIsochroneV1(
         phase01AtAnchor:
           timeSinceAtrialCaptureSec / anchor.acceptedBeatDurationSec,
         activePressureAreaMmHgMl,
-        activePressureAreaVolumeRangeMl: scoringLaw.measuredVolumeRangeMl,
-        scoringLaw,
+        activePressureAreaVolumeRangeMl: law.measuredVolumeRangeMl,
         law,
         points: Object.freeze(
           owned.map((point) => Object.freeze({ ...point })),

@@ -17,7 +17,10 @@ import {
   mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import { PressureVolumeLoopCanvasV3 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
+import {
+  PressureVolumeLoopCanvasV3,
+  retainWorkbenchPvRelationDrawingV3,
+} from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
 import { materializeWorkbenchOutputPresentationItemsV3 } from "@/components/WorkbenchV3Page";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -46,12 +49,12 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.selectedPhase01AtAnchor).toBeCloseTo(0.25, 12);
     expect(result.espvr.activePressureAreaMmHgMl).toBeGreaterThan(0);
     expect(result.espvr.activePressureAreaVolumeRangeMl).toEqual([
-      88.66666666666667, 110,
+      72.66666666666667, 110,
     ]);
     expect(result.espvr.phaseSelectionPolicy).toBe(
-      "anchor-plus-nearest-two-bidirectional-loads",
+      "all-available-settled-loads",
     );
-    expect(result.espvr.phaseSelectionPointCount).toBe(5);
+    expect(result.espvr.phaseSelectionPointCount).toBe(9);
     expect(result.espvr.localElastanceAtAnchorMmHgPerMl).toBeCloseTo(2, 10);
     expect(result.espvr.primaryCurveLaw).toBe(
       "measured-domain-shape-preserving-locus",
@@ -363,15 +366,37 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("keeps five-point phase selection stable while wider points extend both measured relations", () => {
-    const core = settledPointsV1();
-    const extensions = settledPointsV1([1.24, 0.5]);
+  it("reselects the area-max phase as newly settled loads extend the measured domain", () => {
+    const phaseAdaptiveFamily = settledPointsV1([
+      1.16, 1.08, 1, 0.92, 0.84, 1.24, 1.4, 1.6, 1.8,
+    ]).map((point, pointIndex) => {
+      const peakPhase01 = pointIndex < 5 ? 0.25 : 0.375;
+      const volumeMl =
+        point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl;
+      return Object.freeze({
+        ...point,
+        ventricularPressureVolumeLoop: Object.freeze(
+          point.ventricularPressureVolumeLoop.map((sample) => {
+            const normalizedActivation = Math.max(
+              0,
+              1 - Math.abs(sample.phase01! - peakPhase01) / 0.2,
+            );
+            return Object.freeze({
+              ...sample,
+              volumeMl,
+              pressureMmHg: (4 + 0.2 * normalizedActivation) * (volumeMl - 10),
+            });
+          }),
+        ),
+      });
+    });
+    const core = phaseAdaptiveFamily.slice(0, 5);
     const coreResult = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(core),
       "LV",
     );
     const extendedResult = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1([...core, ...extensions]),
+      formalLocusV1(phaseAdaptiveFamily),
       "LV",
     );
 
@@ -383,11 +408,11 @@ describe("settled hot-start PVA V1", () => {
     ) {
       throw new Error("synthetic PVA core was unavailable");
     }
-    expect(extendedResult.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(
-      coreResult.espvr.selectedTimeSinceAtrialCaptureSec,
-      12,
-    );
-    expect(extendedResult.espvr.phaseSelectionPointCount).toBe(5);
+    expect(
+      extendedResult.espvr.selectedTimeSinceAtrialCaptureSec,
+    ).toBeGreaterThan(coreResult.espvr.selectedTimeSinceAtrialCaptureSec);
+    expect(coreResult.espvr.phaseSelectionPointCount).toBe(5);
+    expect(extendedResult.espvr.phaseSelectionPointCount).toBe(9);
     expect(extendedResult.espvr.fitPoints.length).toBeGreaterThan(
       coreResult.espvr.fitPoints.length,
     );
@@ -540,6 +565,8 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain('data-pva-result-count="1"');
+    expect(html).toContain('data-pva-drawing-count="1"');
+    expect(html).toContain('data-pva-retained-drawing-count="0"');
     expect(html).toContain('data-pv-relation-model="shape-preserving-locus"');
     expect(html).not.toContain('data-testid="workbench-pva-results"');
 
@@ -596,6 +623,31 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain("PVA ready · Starling extension 5 settled points");
+  });
+
+  it("retains the last valid relation drawing only while an update is pending", () => {
+    const previous: Readonly<{ relationId: string }> = Object.freeze({
+      relationId: "settled/five-points",
+    });
+
+    expect(retainWorkbenchPvRelationDrawingV3(null, previous, true)).toEqual({
+      drawing: previous,
+      retainedFromPriorUpdate: true,
+    });
+    expect(
+      retainWorkbenchPvRelationDrawingV3(
+        Object.freeze({ relationId: "settled/six-points" }),
+        previous,
+        true,
+      ),
+    ).toMatchObject({
+      drawing: { relationId: "settled/six-points" },
+      retainedFromPriorUpdate: false,
+    });
+    expect(retainWorkbenchPvRelationDrawingV3(null, previous, false)).toEqual({
+      drawing: null,
+      retainedFromPriorUpdate: false,
+    });
   });
 
   it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
