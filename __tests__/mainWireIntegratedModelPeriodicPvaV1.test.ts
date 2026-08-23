@@ -43,13 +43,19 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(0.2, 12);
     expect(result.espvr.selectedPhase01AtAnchor).toBeCloseTo(0.25, 12);
     expect(result.espvr.activePressureAreaMmHgMl).toBeGreaterThan(0);
-    expect(result.espvr.activePressureAreaVolumeRangeMl).toEqual([40, 56]);
+    expect(result.espvr.activePressureAreaVolumeRangeMl).toEqual([40, 62.4]);
     expect(result.espvr.elastanceMmHgPerMl).toBeCloseTo(2, 10);
     expect(result.espvr.volumeAxisInterceptMl).toBeCloseTo(20, 10);
     expect(result.espvr.localElastanceAtAnchorMmHgPerMl).toBeCloseTo(2, 10);
     expect(result.espvr.rSquared).toBeCloseTo(1, 10);
-    expect(result.espvr.nonlinearCurve).not.toBeNull();
-    expect(result.espvr.nonlinearCurve?.quadraticMmHgPerMl2).toBeCloseTo(0, 10);
+    expect(result.espvr.primaryCurveLaw).toBe("measured-domain-secant-linear");
+    expect(result.espvr.fitPoints).toHaveLength(9);
+    expect(result.espvr.researchLocus).toMatchObject({
+      method: "shape-preserving-cubic-hermite",
+      continuity: "C1",
+      extrapolation: "none",
+    });
+    expect(result.espvr.researchLocus.fitPoints).toHaveLength(9);
     expect(result.espvr.pressureEnvelopeDiagnostic).toMatchObject({
       method: "phase-wise-maximum-pressure-envelope",
       excessAreaMmHgMl: 0,
@@ -113,7 +119,7 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("uses a monotone density-weighted nonlinear law for a curved common isochrone", () => {
+  it("keeps a curved measured common isochrone as a non-extrapolated C1 research locus", () => {
     const curved = settledPointsV1().map((point) => {
       return Object.freeze({
         ...point,
@@ -141,15 +147,18 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.primaryMethod).toBe(
       "active-pressure-area-max-common-isochrone",
     );
-    expect(result.espvr.primaryCurveLaw).toBe(
-      "density-weighted-monotone-quadratic",
-    );
-    expect(result.espvr.nonlinearCurve).toMatchObject({
-      method: "density-weighted-quadratic-common-isochrone-fit",
-      monotonicallyIncreasingAcrossMeasuredRange: true,
+    expect(result.espvr.primaryCurveLaw).toBe("measured-domain-secant-linear");
+    expect(result.espvr.researchLocus).toMatchObject({
+      method: "shape-preserving-cubic-hermite",
+      continuity: "C1",
+      extrapolation: "none",
     });
-    expect(result.espvr.nonlinearCurve!.rSquared).toBeGreaterThan(
-      result.espvr.rSquared,
+    expect(result.espvr.researchLocus.fitPoints).toHaveLength(curved.length);
+    expect(result.espvr.researchLocus.curve[0]!.volumeMl).toBe(
+      result.espvr.researchLocus.measuredVolumeRangeMl[0],
+    );
+    expect(result.espvr.researchLocus.curve.at(-1)!.volumeMl).toBe(
+      result.espvr.researchLocus.measuredVolumeRangeMl[1],
     );
   });
 
@@ -215,7 +224,9 @@ describe("settled hot-start PVA V1", () => {
     );
     const adaptive = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(
-        settledPointsV1([1, 0.99, 0.965, 0.925, 0.86, 0.78, 0.7, 0.64, 0.6]),
+        settledPointsV1([
+          1.16, 1.08, 1, 0.99, 0.965, 0.925, 0.86, 0.78, 0.7, 0.64, 0.6,
+        ]),
       ),
       "LV",
     );
@@ -248,14 +259,14 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("reports point progress until the formal hot-start chain completes", () => {
-    const points = settledPointsV1().slice(0, 4);
+    const points = settledPointsV1([1.16, 1.08, 1, 0.92]);
     const partial = formalLocusV1(points, 21);
 
     expect(
       buildMainWireIntegratedModelPeriodicPvaV1(partial, "LV"),
     ).toMatchObject({
       status: "collecting",
-      progress: { completedPointCount: 4, totalPointCount: 9 },
+      progress: { completedPointCount: 4, totalPointCount: 5 },
       preview: {
         stage: "relations",
         pointCount: 4,
@@ -265,11 +276,11 @@ describe("settled hot-start PVA V1", () => {
 
   it("progresses from three-point relation preview to five-point PVA preview", () => {
     const relations = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 3), 21),
+      formalLocusV1(settledPointsV1([1.08, 1, 0.92]), 21),
       "LV",
     );
     const provisionalPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 21),
+      formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
     );
 
@@ -283,58 +294,46 @@ describe("settled hot-start PVA V1", () => {
     });
     if (relations.status === "collecting") {
       expect(relations.preview?.espvr?.fitPoints).toHaveLength(3);
+      expect(relations.preview?.espvr?.researchLocus).toMatchObject({
+        method: "piecewise-linear",
+        continuity: "C0",
+        extrapolation: "none",
+      });
       expect(relations.preview?.edpvr?.fitPoints).toHaveLength(3);
     }
     expect(provisionalPva).toMatchObject({
-      status: "collecting",
-      preview: {
-        stage: "pva",
-        pointCount: 5,
-      },
+      status: "available",
+      progress: { completedPointCount: 5, totalPointCount: 5 },
     });
-    if (provisionalPva.status === "collecting") {
-      expect(provisionalPva.preview?.pva?.joule).toBeGreaterThan(0);
-      expect(provisionalPva.preview?.estimatedMvo2).toMatchObject({
+    if (provisionalPva.status === "available") {
+      expect(provisionalPva.pva.joule).toBeGreaterThan(0);
+      expect(provisionalPva.estimatedMvo2).toMatchObject({
         status: "available",
       });
     }
   });
 
-  it("publishes PVA after its core while the wider Starling family continues", () => {
+  it("publishes PVA after five bidirectional points while the wider family continues", () => {
     const result = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1(), 21),
+      formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
     );
 
     expect(result.status).toBe("available");
     if (result.status !== "available") throw new Error(result.reason);
     expect(result.progress).toEqual({
-      completedPointCount: 9,
-      totalPointCount: 9,
+      completedPointCount: 5,
+      totalPointCount: 5,
     });
     expect(result.source.familyProgress).toEqual({
-      completedPointCount: 9,
+      completedPointCount: 5,
       totalPointCount: 21,
     });
   });
 
-  it("keeps wider Starling points outside the PVA fit", () => {
+  it("keeps a linear common isochrone exact while wider points extend EDPVR and the research locus", () => {
     const core = settledPointsV1();
-    const anchor = core[0]!;
-    const extensions = [
-      Object.freeze({
-        ...anchor,
-        totalBloodVolumeMl: anchor.totalBloodVolumeMl * 1.2,
-        role: "continuation" as const,
-        fillingPressureMmHg: 30,
-      }),
-      Object.freeze({
-        ...anchor,
-        totalBloodVolumeMl: anchor.totalBloodVolumeMl * 0.5,
-        role: "continuation" as const,
-        fillingPressureMmHg: -2,
-      }),
-    ];
+    const extensions = settledPointsV1([1.24, 0.5]);
     const coreResult = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(core),
       "LV",
@@ -352,17 +351,29 @@ describe("settled hot-start PVA V1", () => {
     ) {
       throw new Error("synthetic PVA core was unavailable");
     }
-    expect(extendedResult.espvr).toEqual(coreResult.espvr);
-    expect(extendedResult.edpvr).toEqual(coreResult.edpvr);
+    expect(extendedResult.espvr.elastanceMmHgPerMl).toBeCloseTo(
+      coreResult.espvr.elastanceMmHgPerMl,
+      12,
+    );
+    expect(extendedResult.espvr.volumeAxisInterceptMl).toBeCloseTo(
+      coreResult.espvr.volumeAxisInterceptMl,
+      12,
+    );
+    expect(extendedResult.espvr.researchLocus.fitPoints.length).toBeGreaterThan(
+      coreResult.espvr.researchLocus.fitPoints.length,
+    );
+    expect(extendedResult.edpvr.fitPoints.length).toBeGreaterThan(
+      coreResult.edpvr.fitPoints.length,
+    );
     expect(extendedResult.strokeWork).toEqual(coreResult.strokeWork);
-    expect(extendedResult.potentialEnergy).toEqual(coreResult.potentialEnergy);
-    expect(extendedResult.pva).toEqual(coreResult.pva);
   });
 
   it("admits an adaptive low-volume point family down to 60% of source TBV", () => {
     const sourceTbvMl =
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3.totalBloodVolumeMl;
-    const adaptiveRatios = [1, 0.96, 0.91, 0.855, 0.8, 0.75, 0.7, 0.65, 0.6];
+    const adaptiveRatios = [
+      1.16, 1.08, 1, 0.96, 0.91, 0.855, 0.8, 0.75, 0.7, 0.65, 0.6,
+    ];
     const adaptive = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1(adaptiveRatios)),
       "LV",
@@ -380,7 +391,10 @@ describe("settled hot-start PVA V1", () => {
     expect(adaptive.status).toBe("available");
     if (adaptive.status === "available") {
       expect(adaptive.source.pointCount).toBe(adaptiveRatios.length);
-      expect(adaptive.espvr.fitPoints).toHaveLength(adaptiveRatios.length);
+      expect(adaptive.espvr.fitPoints.length).toBeGreaterThanOrEqual(5);
+      expect(adaptive.espvr.researchLocus.fitPoints).toHaveLength(
+        adaptiveRatios.length,
+      );
       expect(adaptive.edpvr.fitPoints).toHaveLength(adaptiveRatios.length);
     }
   });
@@ -444,7 +458,7 @@ describe("settled hot-start PVA V1", () => {
       buildMainWireIntegratedModelPeriodicPvaV1(formalLocusV1(points), "LV"),
     ).toMatchObject({
       status: "unavailable",
-      reason: expect.stringContaining("ESPVR"),
+      reason: expect.stringContaining("common isochrone"),
     });
   });
 
@@ -484,12 +498,38 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(html).toContain('data-pva-result-count="1"');
+    expect(html).toContain('data-pv-relation-model="classical-linear"');
     expect(html).not.toContain('data-testid="workbench-pva-results"');
+
+    const researchHtml = renderToStaticMarkup(
+      React.createElement(PressureVolumeLoopCanvasV3, {
+        relationModel: "shape-preserving-locus",
+        traces: [
+          {
+            scenarioId: "scenario/current",
+            scenarioLabel: "Current",
+            samples: Object.freeze([]),
+            volumeOutputId: "LV.volume",
+            pressureOutputId: "LV.pressure",
+            pressureBasis: "transmural" as const,
+            cyclePhaseOutputId: "clock.phase",
+            chamberId: "LV",
+            chamberLabel: "LV",
+            chamberColor: "#d9822b",
+            periodicPva,
+            periodicPvaAnalysisPending: false,
+          },
+        ],
+      }),
+    );
+    expect(researchHtml).toContain(
+      'data-pv-relation-model="shape-preserving-locus"',
+    );
   });
 
   it("renders settled-point progress in the PV pane", () => {
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 21),
+      formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
     );
     const html = renderToStaticMarkup(
@@ -513,7 +553,7 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    expect(html).toContain("PVA preview · 5 settled points · refining to ≥9");
+    expect(html).toContain("PVA ready · Starling extension 5 settled points");
   });
 
   it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
@@ -598,18 +638,15 @@ describe("settled hot-start PVA V1", () => {
       }),
     ]);
 
-    const collecting = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1().slice(0, 5), 21),
+    const early = buildMainWireIntegratedModelPeriodicPvaV1(
+      formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
     );
-    expect(collecting.status).toBe("collecting");
-    if (
-      collecting.status !== "collecting" ||
-      collecting.preview?.pva === null
-    ) {
-      throw new Error("five-point provisional PVA was unavailable");
+    expect(early.status).toBe("available");
+    if (early.status !== "available") {
+      throw new Error("five-point bidirectional PVA was unavailable");
     }
-    const provisionalPvaMilliJoule = collecting.preview.pva.joule * 1e3;
+    const earlyPvaMilliJoule = early.pva.joule * 1e3;
     const progressItems = materializeWorkbenchOutputPresentationItemsV3({
       contract,
       frame: null,
@@ -626,13 +663,11 @@ describe("settled hot-start PVA V1", () => {
           },
         ],
       },
-      periodicPva: collecting,
+      periodicPva: early,
     });
     expect(progressItems[0]).toMatchObject({
       availability: "available",
-      value: provisionalPvaMilliJoule,
-      qualityNotice:
-        "Provisional PVA from 5 settled points; refining to at least 9",
+      value: earlyPvaMilliJoule,
     });
   });
 
@@ -716,7 +751,9 @@ function formalLocusV1(
 }
 
 function settledPointsV1(
-  ratios: readonly number[] = [1, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.6],
+  ratios: readonly number[] = [
+    1.16, 1.08, 1, 0.92, 0.84, 0.76, 0.68, 0.64, 0.6,
+  ],
 ): readonly MainWireIntegratedModelStarlingPointV3[] {
   return Object.freeze(
     ratios.map((ratio) => {

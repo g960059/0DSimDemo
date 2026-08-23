@@ -13,7 +13,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 describe("Main Wire Integrated V3 analysis execution", () => {
-  it("runs legacy and formal Starling directions concurrently with PVA first on one slot", () => {
+  it("runs both relations bidirectionally with the short high limb first on one slot", () => {
     const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
@@ -26,8 +26,8 @@ describe("Main Wire Integrated V3 analysis execution", () => {
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
     expect(formalPlan?.partitions).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     ]);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(

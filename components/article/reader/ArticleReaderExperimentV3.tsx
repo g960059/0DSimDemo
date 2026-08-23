@@ -39,13 +39,15 @@ import {
   useWorkbenchScenarioPresentationSamplesV3,
   type WorkbenchPressureVolumeTraceV3,
 } from "@/components/workbench/v3";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
   buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -92,6 +94,9 @@ export type ArticleReaderExperimentV3Props = Readonly<{
 }>;
 
 type ArticleReaderPresentationV3 = "inflow" | "peek" | "fullscreen";
+const ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3 = new Set<string>(
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+);
 export type ArticleReaderExpandedPresentationV3 = Exclude<
   ArticleReaderPresentationV3,
   "inflow"
@@ -770,7 +775,7 @@ function ArticleReaderLiveDetailV3({
               briefing={briefing}
               compact={inline}
               contract={contract}
-              sampleStore={runtime.sampleStore}
+              runtime={runtime}
             />
           )}
         </>
@@ -1025,6 +1030,7 @@ function ArticleReaderLiveGraphV3({
           }
           runtime={runtime}
           traces={traces}
+          relationModel={pane.pressureVolumeRelationModel}
         />
       </ExperimentGraphPresentationV3>
     );
@@ -1120,10 +1126,12 @@ function ArticleReaderLiveGraphV3({
 
 function ArticleReaderPressureVolumeCanvasV3({
   analysisId,
+  relationModel,
   runtime,
   traces,
 }: Readonly<{
   analysisId: string;
+  relationModel: ExperimentSurfaceGraphPaneV2["pressureVolumeRelationModel"];
   runtime: ArticleReaderRuntimeHookV3;
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
@@ -1194,7 +1202,12 @@ function ArticleReaderPressureVolumeCanvasV3({
       traces,
     ],
   );
-  return <PressureVolumeLoopCanvasV3 traces={enrichedTraces} />;
+  return (
+    <PressureVolumeLoopCanvasV3
+      traces={enrichedTraces}
+      relationModel={relationModel}
+    />
+  );
 }
 
 function pressureVolumeRelationSideV3(
@@ -1285,21 +1298,13 @@ export function ArticleReaderStructuralReturnGraphV3({
       .catch(() => {
         // The runtime publishes a per-Scenario recoverable error for the graph.
       });
-  }, [
-    canRequest,
-    analysisId,
-    missingScenarioKey,
-    runtime.requestAnalysis,
-  ]);
+  }, [canRequest, analysisId, missingScenarioKey, runtime.requestAnalysis]);
 
   const pending = analysisKeys.some((key) =>
     runtime.state.pendingAnalysisKeys.includes(key),
   );
   const traces = visibleScenarios.map((scenario) => {
-    const key = articleReaderAnalysisKeyV3(
-      scenario.scenarioId,
-      analysisId,
-    );
+    const key = articleReaderAnalysisKeyV3(scenario.scenarioId, analysisId);
     const scenarioIndex = authoredScenarios.findIndex(
       ({ scenarioId }) => scenarioId === scenario.scenarioId,
     );
@@ -1413,15 +1418,72 @@ export function ArticleReaderOutputsV3({
   briefing,
   compact = false,
   contract,
+  runtime,
   sampleStore,
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
   compact?: boolean;
   contract: ModelContractV2;
-  sampleStore: ArticleReaderRuntimeHookV3["sampleStore"];
+  runtime?: ArticleReaderRuntimeHookV3;
+  /** @deprecated Direct rendering tests may provide a store without a runtime. */
+  sampleStore?: ArticleReaderRuntimeHookV3["sampleStore"];
 }>) {
   const { t } = useTranslation();
-  const samples = useWorkbenchScenarioPresentationSamplesV3(sampleStore);
+  const ownedSampleStore = runtime?.sampleStore ?? sampleStore;
+  if (ownedSampleStore === undefined) {
+    throw new Error("Article Reader outputs require a sample store");
+  }
+  const samples = useWorkbenchScenarioPresentationSamplesV3(ownedSampleStore);
+  const analysisScenarioIds = React.useMemo(
+    () =>
+      Object.freeze([
+        ...new Set(
+          briefing.outputs.flatMap(({ outputId, scenarioId }) =>
+            ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(outputId)
+              ? [scenarioId]
+              : [],
+          ),
+        ),
+      ]),
+    [briefing.outputs],
+  );
+  const analysisId =
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
+  const missingAnalysisScenarioIds = analysisScenarioIds.filter(
+    (scenarioId) => {
+      if (runtime === undefined) return false;
+      const key = articleReaderAnalysisKeyV3(scenarioId, analysisId);
+      return (
+        runtime.state.analysisByKey[key] === undefined &&
+        runtime.state.analysisErrorByKey[key] === undefined &&
+        !runtime.state.pendingAnalysisKeys.includes(key)
+      );
+    },
+  );
+  const missingAnalysisKey = JSON.stringify(missingAnalysisScenarioIds);
+  const canRequestAnalysis =
+    runtime?.state.status === "playing" || runtime?.state.status === "paused";
+  React.useEffect(() => {
+    if (
+      runtime === undefined ||
+      !canRequestAnalysis ||
+      missingAnalysisScenarioIds.length === 0
+    )
+      return;
+    void runtime
+      .requestAnalysis({
+        analysisId,
+        scenarioIds: missingAnalysisScenarioIds,
+      })
+      .catch(() => {
+        // Per-Scenario errors are rendered as unavailable outputs below.
+      });
+  }, [
+    analysisId,
+    canRequestAnalysis,
+    missingAnalysisKey,
+    runtime?.requestAnalysis,
+  ]);
   return (
     <section
       className={`${compact ? "mt-5" : "mt-8"} rounded-xl bg-wb-inspector p-3`}
@@ -1434,7 +1496,23 @@ export function ArticleReaderOutputsV3({
             ({ outputId }) => outputId === output.outputId,
           );
           const latest = samples[output.scenarioId]?.at(-1);
-          const value = latest?.values[output.outputId];
+          const analysisKey = articleReaderAnalysisKeyV3(
+            output.scenarioId,
+            analysisId,
+          );
+          const periodicPva =
+            runtime !== undefined &&
+            ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(output.outputId)
+              ? periodicPvaFromPayloadV3(
+                  runtime.state.analysisByKey[analysisKey]?.payload,
+                  "left",
+                )
+              : undefined;
+          const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
+            output.outputId,
+          )
+            ? articleReaderPeriodicPvaScalarV3(periodicPva, output.outputId)
+            : latest?.values[output.outputId];
           const scalar =
             typeof value === "number" && Number.isFinite(value) ? value : null;
           return {
@@ -1450,6 +1528,41 @@ export function ArticleReaderOutputsV3({
       />
     </section>
   );
+}
+
+function articleReaderPeriodicPvaScalarV3(
+  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  outputId: string,
+): number | null {
+  const projection =
+    periodicPva?.status === "available"
+      ? periodicPva
+      : periodicPva?.status === "collecting"
+        ? periodicPva.preview
+        : null;
+  if (projection === null) return null;
+  switch (outputId) {
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule:
+      return projection.strokeWork.joule * 1e3;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+      return projection.potentialEnergy?.joule === undefined
+        ? null
+        : projection.potentialEnergy.joule * 1e3;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+      return projection.pva?.joule === undefined
+        ? null
+        : projection.pva.joule * 1e3;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+      return projection.estimatedMvo2?.status === "available"
+        ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
+        : null;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+      return projection.estimatedMvo2?.status === "available"
+        ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
+        : null;
+    default:
+      return null;
+  }
 }
 
 function ArticleReaderControlsV3({
@@ -1941,6 +2054,18 @@ export function readerStructuralAnalysisRequestsV3(
     historyDepthByAnalysisId.set(
       analysisId,
       Math.max(historyDepthByAnalysisId.get(analysisId) ?? 0, historyDepth),
+    );
+  }
+  if (
+    briefing.outputs.some(({ outputId }) =>
+      ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(outputId),
+    )
+  ) {
+    historyDepthByAnalysisId.set(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      historyDepthByAnalysisId.get(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      ) ?? 0,
     );
   }
   return Object.freeze(

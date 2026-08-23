@@ -4,6 +4,9 @@ import type {
   PressureVolumePressureBasisV2,
 } from "@/studio/contracts/v2/model";
 import type {
+  ExperimentSurfacePressureVolumeRelationModelV2,
+} from "@/studio/contracts/v2/content";
+import type {
   MainWireIntegratedModelPeriodicPvaCurvePointV1,
   MainWireIntegratedModelPeriodicPvaEdpvrV1,
   MainWireIntegratedModelPeriodicPvaEspvrV1,
@@ -391,6 +394,7 @@ function extractPvPointsV3(
 
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
+  relationModel?: ExperimentSurfacePressureVolumeRelationModelV2;
 }>;
 
 export type PressureVolumeLoopCanvasPropsV3 =
@@ -422,6 +426,7 @@ export function PressureVolumeLoopCanvasV3(
   props: PressureVolumeLoopCanvasPropsV3,
 ) {
   const { className } = props;
+  const relationModel = props.relationModel ?? "classical-linear";
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const volumeDomainStateRef = React.useRef<
@@ -584,10 +589,10 @@ export function PressureVolumeLoopCanvasV3(
       volumeDomainStateRef.current.domain,
       visibleRenderedTraces.flatMap(({ periodicPva }) => {
         const drawing = periodicPvaDrawingV1(periodicPva);
-        return drawing === null
-          ? []
-          : [
-              drawing.espvr.volumeAxisInterceptMl,
+          return drawing === null
+            ? []
+            : [
+              drawing.espvr.zeroPressureVolumeMl,
               drawing.edpvr.zeroPressureVolumeMl,
             ];
       }),
@@ -660,6 +665,7 @@ export function PressureVolumeLoopCanvasV3(
           0.92 * traceAlpha,
           volumeDomain,
           pressureDomain,
+          relationModel,
         );
       }
       drawPvCurveV3(context, backBufferRemainder, x, y, {
@@ -706,6 +712,7 @@ export function PressureVolumeLoopCanvasV3(
     domainCommitKey,
     legendSelection,
     pressureAxisTitle,
+    relationModel,
     visibleRenderedTraces,
   ]);
 
@@ -726,7 +733,9 @@ export function PressureVolumeLoopCanvasV3(
       ? []
       : [Object.freeze({ periodicPva: periodicPva!, trace })]);
   const relationStatus = drawablePva.length > 0
-    ? "Settled-source preload reduction · progressive area-max common-isochrone ESPVR / exponential EDPVR · not clinical validation"
+    ? relationModel === "classical-linear"
+      ? "Settled-source bidirectional preload family · classical linear common-isochrone ESPVR / exponential EDPVR · not clinical validation"
+      : "Settled-source bidirectional preload family · measured common-isochrone research locus without extrapolation / exponential EDPVR · PVA outputs remain classical linear"
     : "Settled-source preload-reduction analysis selected · relation not yet available";
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
@@ -754,7 +763,8 @@ export function PressureVolumeLoopCanvasV3(
       data-chart-kind="pressure-volume-loop-v3"
       data-pv-analysis-mode="formal-periodic"
       data-cycle-source="model-emitted-cycle-phase"
-      data-pv-relation-semantics="isochronal-emax-espvr-exponential-edpvr"
+      data-pv-relation-model={relationModel}
+      data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"
       data-pv-loop-trace-count={visibleRenderedTraces.length}
       data-pva-analysis-pending={pvaAnalysisPending ? "true" : "false"}
       data-pva-result-count={availablePva.length}
@@ -991,16 +1001,19 @@ function drawPeriodicPvaV1(
   alpha: number,
   volumeDomain: WorkbenchNumericDomainV3,
   pressureDomain: WorkbenchNumericDomainV3,
+  relationModel: ExperimentSurfacePressureVolumeRelationModelV2,
 ): void {
   const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
   const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
-  const espvrEndVolumeMl = volumeDomain[1];
-  const espvrFullCurve = sampleDisplayedPvaCurveV1(
-    Math.max(volumeDomain[0], pva.espvr.zeroPressureVolumeMl),
-    espvrEndVolumeMl,
-    (volumeMl) =>
-      Math.max(0, periodicPvaEspvrPressureV1(pva.espvr, volumeMl)),
-  );
+  const researchLocus = pva.espvr.researchLocus;
+  const espvrFullCurve = relationModel === "shape-preserving-locus"
+    ? researchLocus.curve
+    : sampleDisplayedPvaCurveV1(
+        Math.max(volumeDomain[0], pva.espvr.zeroPressureVolumeMl),
+        volumeDomain[1],
+        (volumeMl) =>
+          Math.max(0, periodicPvaEspvrPressureV1(pva.espvr, volumeMl)),
+      );
   drawPvCurveV3(context, espvrFullCurve, x, y, {
     color,
     width: 1.25,
@@ -1053,7 +1066,10 @@ function drawPeriodicPvaV1(
       alpha: relationAlpha * 0.72,
     },
   );
-  for (const point of pva.espvr.fitPoints) {
+  const displayedSystolicPoints = relationModel === "shape-preserving-locus"
+    ? researchLocus.fitPoints
+    : pva.espvr.fitPoints;
+  for (const point of displayedSystolicPoints) {
     drawPvRelationMarkerV3(
       context,
       x(point.volumeMl),
@@ -1075,45 +1091,26 @@ function drawPeriodicPvaV1(
       false,
     );
   }
-  drawPvRelationMarkerV3(
-    context,
-    x(pva.espvr.zeroPressureVolumeMl),
-    y(0),
-    color,
-    2.4,
-    relationAlpha,
-    false,
-  );
+  if (relationModel === "classical-linear") {
+    drawPvRelationMarkerV3(
+      context,
+      x(pva.espvr.zeroPressureVolumeMl),
+      y(0),
+      color,
+      2.4,
+      relationAlpha,
+      false,
+    );
+  }
 }
 
 function periodicPvaEspvrPressureV1(
   espvr: MainWireIntegratedModelPeriodicPvaEspvrV1,
   volumeMl: number,
 ): number {
-  const nonlinear = espvr.nonlinearCurve;
-  if (nonlinear === null) {
-    return (
-      espvr.elastanceMmHgPerMl
-      * (volumeMl - espvr.volumeAxisInterceptMl)
-    );
-  }
-  const polynomial = (ownedVolumeMl: number) =>
-    nonlinear.quadraticMmHgPerMl2 * ownedVolumeMl ** 2
-    + nonlinear.linearMmHgPerMl * ownedVolumeMl
-    + nonlinear.interceptMmHg;
-  const slope = (ownedVolumeMl: number) =>
-    2 * nonlinear.quadraticMmHgPerMl2 * ownedVolumeMl
-    + nonlinear.linearMmHgPerMl;
-  const [minimumVolumeMl, maximumVolumeMl] = espvr.measuredVolumeRangeMl;
-  if (volumeMl < minimumVolumeMl) {
-    return polynomial(minimumVolumeMl)
-      + slope(minimumVolumeMl) * (volumeMl - minimumVolumeMl);
-  }
-  if (volumeMl > maximumVolumeMl) {
-    return polynomial(maximumVolumeMl)
-      + slope(maximumVolumeMl) * (volumeMl - maximumVolumeMl);
-  }
-  return polynomial(volumeMl);
+  return (
+    espvr.elastanceMmHgPerMl * (volumeMl - espvr.volumeAxisInterceptMl)
+  );
 }
 
 function sampleDisplayedPvaCurveV1(

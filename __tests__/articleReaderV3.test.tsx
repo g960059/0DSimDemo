@@ -13,6 +13,7 @@ import {
   articleReaderBoundedHistoryV3,
   commonGraphUnitV3,
   resolveArticleReaderGraphPresentationV3,
+  readerStructuralAnalysisRequestsV3,
   selectedSweepOutputIdsV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
@@ -30,14 +31,11 @@ import type {
   ControlDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
-import type { StudioClientCompositionV2 } from
-  "@/studio/composition/StudioDefaultCompositionV2";
+import type { StudioClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
 import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
-import {
-  articleReaderPresentationOutputSelectionV3,
-} from "@/components/article/reader/ArticleReaderPresentationOutputSelectionV3";
+import { articleReaderPresentationOutputSelectionV3 } from "@/components/article/reader/ArticleReaderPresentationOutputSelectionV3";
 import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
@@ -45,6 +43,7 @@ import {
   STANDARD_TEST_SURFACE_SERIES_ID_V1,
 } from "@/__tests__/helpers/standardReleaseTicketV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 
 const NOOP = () => {};
 
@@ -143,7 +142,8 @@ function contractV3(): ModelContractV2 {
     fixtureSchemaId:
       STANDARD_TEST_RELEASE_TICKET_V1.manifest.fixtureSchema.fixtureSchemaId,
     checkpointCodecId:
-      STANDARD_TEST_RELEASE_TICKET_V1.manifest.checkpointCodec.checkpointCodecId,
+      STANDARD_TEST_RELEASE_TICKET_V1.manifest.checkpointCodec
+        .checkpointCodecId,
     snapshotGateId: "gate/reader-v3",
     controlCatalog: [],
     outputCatalog: [],
@@ -350,22 +350,26 @@ describe("Article Reader V3 experiment anchor", () => {
         ...snapshot.content,
         surface: {
           ...snapshot.content.surface,
-          graphPanes: [{
-            paneId: "pane/sweep",
-            role: "graph",
-            label: "Pressure",
-            order: 0,
-            priority: 10,
-            graphId: "graph/sweep",
-            scenarioScope: { mode: "visible-scenarios" },
-            excludedTraces: [],
-            windowSec: 2,
-            series: [{
-              seriesId: "series/pressure",
+          graphPanes: [
+            {
+              paneId: "pane/sweep",
+              role: "graph",
               label: "Pressure",
               order: 0,
-            }],
-          }],
+              priority: 10,
+              graphId: "graph/sweep",
+              scenarioScope: { mode: "visible-scenarios" },
+              excludedTraces: [],
+              windowSec: 2,
+              series: [
+                {
+                  seriesId: "series/pressure",
+                  label: "Pressure",
+                  order: 0,
+                },
+              ],
+            },
+          ],
           outputPanes: [],
           controlPanes: [],
           note: { text: "" },
@@ -374,63 +378,76 @@ describe("Article Reader V3 experiment anchor", () => {
     };
     const contract: ModelContractV2 = {
       ...contractV3(),
-      outputCatalog: [{
-        outputId: "output/pressure",
-        kind: "signal",
-        unit: "mmHg",
-        shape: "scalar",
-        sampling: "accepted-step",
-      }, {
-        outputId: "output/co",
-        kind: "metric",
-        unit: "L/min",
-        shape: "scalar",
-        scope: "instant",
-        dependencies: [],
-      }, {
-        outputId: "output/vector",
-        kind: "metric",
-        unit: "1",
-        shape: "vector",
-        scope: "instant",
-        dependencies: [],
-      }],
-      graphCatalog: [{
-        graphId: "graph/sweep",
-        renderer: "sweep",
-        defaultSeriesIds: ["series/pressure"],
-        seriesCatalog: [{
-          kind: "scalar",
-          seriesId: "series/pressure",
+      outputCatalog: [
+        {
           outputId: "output/pressure",
-        }],
-      }],
+          kind: "signal",
+          unit: "mmHg",
+          shape: "scalar",
+          sampling: "accepted-step",
+        },
+        {
+          outputId: "output/co",
+          kind: "metric",
+          unit: "L/min",
+          shape: "scalar",
+          scope: "instant",
+          dependencies: [],
+        },
+        {
+          outputId: "output/vector",
+          kind: "metric",
+          unit: "1",
+          shape: "vector",
+          scope: "instant",
+          dependencies: [],
+        },
+      ],
+      graphCatalog: [
+        {
+          graphId: "graph/sweep",
+          renderer: "sweep",
+          defaultSeriesIds: ["series/pressure"],
+          seriesCatalog: [
+            {
+              kind: "scalar",
+              seriesId: "series/pressure",
+              outputId: "output/pressure",
+            },
+          ],
+        },
+      ],
     };
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
       graphs: [{ paneId: "pane/sweep", order: 0, emphasis: "primary" }],
-      outputs: [{
-        sourcePaneId: "pane/outputs",
-        outputId: "output/co",
-        scenarioId: "scenario/comparison",
-        label: "CO",
-        order: 0,
-      }, {
-        sourcePaneId: "pane/outputs",
-        outputId: "output/vector",
-        scenarioId: "scenario/comparison",
-        label: "Vector",
-        order: 1,
-      }],
+      outputs: [
+        {
+          sourcePaneId: "pane/outputs",
+          outputId: "output/co",
+          scenarioId: "scenario/comparison",
+          label: "CO",
+          order: 0,
+        },
+        {
+          sourcePaneId: "pane/outputs",
+          outputId: "output/vector",
+          scenarioId: "scenario/comparison",
+          label: "Vector",
+          order: 1,
+        },
+      ],
     };
 
-    expect([
-      ...articleReaderPresentationOutputSelectionV3(
-        contract,
-        selectedSnapshot,
-        briefing,
-      ),
-    ].sort()).toEqual(["output/co", "output/pressure"]);
+    expect(
+      [
+        ...articleReaderPresentationOutputSelectionV3(
+          contract,
+          selectedSnapshot,
+          briefing,
+        ),
+      ].sort(),
+    ).toEqual(["output/co", "output/pressure"]);
   });
 
   it("separates in-place Peek maximization from Experiment Session navigation", () => {
@@ -622,9 +639,7 @@ describe("Article Reader V3 experiment anchor", () => {
     });
 
     expect(html).toContain('data-reader-placement-live="true"');
-    expect(html).toContain(
-      '<figure class="min-w-0 rounded-xl bg-wb-canvas',
-    );
+    expect(html).toContain('<figure class="min-w-0 rounded-xl bg-wb-canvas');
     expect(html).toContain('data-experiment-graph-presentation="article"');
     expect(html).not.toContain("article-reader-experiment-drawer-v3");
     expect(html).not.toContain("min-w-0 px-4 pb-10");
@@ -694,8 +709,7 @@ describe("Article Reader V3 experiment anchor", () => {
         [articleReaderAnalysisKeyV3(
           scenario.scenarioId,
           MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-        )]:
-          structuralAnalysisV3(scenario.scenarioId),
+        )]: structuralAnalysisV3(scenario.scenarioId),
       },
     });
     const html = renderToStaticMarkup(
@@ -757,13 +771,15 @@ describe("Article Reader V3 experiment anchor", () => {
     const store = new WorkbenchScenarioPresentationSampleStoreV3();
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
-      outputs: [{
-        sourcePaneId: "pane/outputs",
-        outputId: "output/co",
-        scenarioId: "scenario/comparison",
-        label: "CO",
-        order: 0,
-      }],
+      outputs: [
+        {
+          sourcePaneId: "pane/outputs",
+          outputId: "output/co",
+          scenarioId: "scenario/comparison",
+          label: "CO",
+          order: 0,
+        },
+      ],
     };
     const contract: ModelContractV2 = {
       ...contractV3(),
@@ -790,6 +806,33 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-experiment-output-presentation="article"');
     expect(html).toContain("workbench-output-item");
     expect(html).toContain("gap-x-2 gap-y-2");
+  });
+
+  it("requests the shared settled relation analysis for output-only PVA briefings", () => {
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      graphs: [],
+      outputs: [
+        {
+          sourcePaneId: "pane/outputs",
+          outputId:
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+          scenarioId: "scenario/comparison",
+          label: "PVA",
+          order: 0,
+        },
+      ],
+    };
+
+    expect(
+      readerStructuralAnalysisRequestsV3(briefing, snapshotV3(), contractV3()),
+    ).toEqual([
+      {
+        analysisId:
+          MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        historyDepth: 0,
+      },
+    ]);
   });
 
   it("disables authored control buttons outside the registered step lattice", () => {
@@ -916,11 +959,13 @@ describe("Article Reader V3 experiment anchor", () => {
           ...block.placement,
           briefing: {
             ...block.placement.briefing,
-            graphs: [{
-              paneId: "pane/missing",
-              order: 0,
-              emphasis: "primary",
-            }],
+            graphs: [
+              {
+                paneId: "pane/missing",
+                order: 0,
+                emphasis: "primary",
+              },
+            ],
           },
         },
       },

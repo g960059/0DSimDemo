@@ -48,6 +48,7 @@ import {
   WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3,
   WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3,
   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+  WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3,
@@ -128,6 +129,11 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   historyDepthHint: string;
   formalPressureVolumeAnalysis: string;
   formalPressureVolumeAnalysisHint: string;
+  pressureVolumeRelationModel: string;
+  classicalLinearRelation: string;
+  classicalLinearRelationHint: string;
+  shapePreservingLocusRelation: string;
+  shapePreservingLocusRelationHint: string;
   label: string;
   itemsSection: string;
   moveDown: string;
@@ -208,7 +214,14 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     historyDepthHint: "0–3 completed parameter states",
     formalPressureVolumeAnalysis: "Settled PVA / MVO₂ analysis",
     formalPressureVolumeAnalysisHint:
-      "Runs a settled low-volume hot-start chain, then calculates accepted-step SW, an area-max common-isochrone nonlinear ESPVR, exponential EDPVR, PE, PVA, and an LV literature MVO₂ estimate.",
+      "Reuses one bidirectional settled hot-start family for Starling/Guyton, ESPVR/EDPVR, accepted-step SW, PE, PVA, and the LV literature MVO₂ estimate.",
+    pressureVolumeRelationModel: "ESPVR display",
+    classicalLinearRelation: "Classical linear",
+    classicalLinearRelationHint:
+      "Default teaching view and the relation used by PVA/MVO₂. Uses the secant across the selected common isochrone's measured volume range.",
+    shapePreservingLocusRelation: "Measured research locus",
+    shapePreservingLocusRelationHint:
+      "Connects the measured common-isochrone points with a shape-preserving curve and does not extrapolate it.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -340,6 +353,8 @@ export function addWorkbenchSurfacePaneV3(
               ? {
                   pressureVolumeAnalysisMode:
                     WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                  pressureVolumeRelationModel:
+                    WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3,
                 }
               : {}),
             ...(graph.renderer === "structural-return"
@@ -1106,7 +1121,7 @@ function GraphPaneEditorV3({
           </div>
         )}
         {graph?.renderer === "pressure-volume" && (
-          <div className="rounded-xl bg-wb-soft/55 px-3 py-3">
+          <div className="space-y-3 rounded-xl bg-wb-soft/55 px-3 py-3">
             <span className="min-w-0">
               <span className="block text-xs font-medium text-wb-text">
                 {strings.formalPressureVolumeAnalysis}
@@ -1115,6 +1130,55 @@ function GraphPaneEditorV3({
                 {strings.formalPressureVolumeAnalysisHint}
               </span>
             </span>
+            <fieldset className="space-y-2">
+              <legend className="text-[10px] font-medium text-wb-muted">
+                {strings.pressureVolumeRelationModel}
+              </legend>
+              {(
+                [
+                  {
+                    value: "classical-linear" as const,
+                    label: strings.classicalLinearRelation,
+                    hint: strings.classicalLinearRelationHint,
+                  },
+                  {
+                    value: "shape-preserving-locus" as const,
+                    label: strings.shapePreservingLocusRelation,
+                    hint: strings.shapePreservingLocusRelationHint,
+                  },
+                ] as const
+              ).map((option) => {
+                const selected =
+                  (pane.pressureVolumeRelationModel ??
+                    WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3) ===
+                  option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={selected}
+                    className={`block w-full rounded-lg px-2.5 py-2 text-left transition-colors ${
+                      selected
+                        ? "bg-wb-selected text-wb-text"
+                        : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+                    }`}
+                    onClick={() =>
+                      onChange({
+                        ...pane,
+                        pressureVolumeRelationModel: option.value,
+                      })
+                    }
+                  >
+                    <span className="block text-[11px] font-medium">
+                      {option.label}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
+                      {option.hint}
+                    </span>
+                  </button>
+                );
+              })}
+            </fieldset>
           </div>
         )}
       </section>
@@ -1816,30 +1880,30 @@ function outputPaneItemManagerEntriesV3(
         isPartialSelection
       )
         return [];
-    return [
-      {
-        ...resolvePaneItemManagerPresentationV3({
-          kind: "output",
-          id: summary.presentationId,
-          storedLabel: resolveStudioOutputPressureSummaryStoredLabelV1({
-            summary,
-            items: selectedItems,
+      return [
+        {
+          ...resolvePaneItemManagerPresentationV3({
+            kind: "output",
+            id: summary.presentationId,
+            storedLabel: resolveStudioOutputPressureSummaryStoredLabelV1({
+              summary,
+              items: selectedItems,
+              locale: input.locale,
+              fallbackEnglishLabel: outputLabelV3,
+            }),
             locale: input.locale,
-            fallbackEnglishLabel: outputLabelV3,
+            catalogFacts: {
+              outputKind: "metric",
+            },
           }),
-          locale: input.locale,
-          catalogFacts: {
-            outputKind: "metric",
-          },
-        }),
-        selected: selectedItems.length === summary.memberOutputIds.length,
-        disableDeselect: false,
-        order:
-          selectedItems.length === 0
-            ? undefined
-            : Math.min(...selectedItems.map(({ order }) => order)),
-      },
-    ];
+          selected: selectedItems.length === summary.memberOutputIds.length,
+          disableDeselect: false,
+          order:
+            selectedItems.length === 0
+              ? undefined
+              : Math.min(...selectedItems.map(({ order }) => order)),
+        },
+      ];
     },
   );
   const scalars = input.contract.outputCatalog

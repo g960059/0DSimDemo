@@ -473,6 +473,12 @@ function assertExperimentModelAndSurfaceMatchV2(
           "structural-return graphs must not configure pressure-volume analysis",
         );
       }
+      if (pane.pressureVolumeRelationModel !== undefined) {
+        throw validationErrorV2(
+          `${panePath}.pressureVolumeRelationModel`,
+          "structural-return graphs must not configure a pressure-volume relation model",
+        );
+      }
       if (pane.historyDepth === undefined) {
         throw validationErrorV2(
           `${panePath}.historyDepth`,
@@ -543,6 +549,15 @@ function assertExperimentModelAndSurfaceMatchV2(
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
         `${graph.renderer} graphs must not configure pressure-volume analysis`,
+      );
+    }
+    if (
+      graph.renderer !== "pressure-volume" &&
+      pane.pressureVolumeRelationModel !== undefined
+    ) {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeRelationModel`,
+        `${graph.renderer} graphs must not configure a pressure-volume relation model`,
       );
     }
     if (graph.renderer === "sweep" && pane.windowSec === undefined) {
@@ -1206,6 +1221,7 @@ function assertExperimentSurfaceV2(
         "windowSec",
         "historyDepth",
         "pressureVolumeAnalysisMode",
+        "pressureVolumeRelationModel",
         "structuralSide",
         "traceColors",
       ],
@@ -1260,6 +1276,16 @@ function assertExperimentSurfaceV2(
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
         "must be responsive-preview or formal-periodic",
+      );
+    }
+    if (
+      pane.pressureVolumeRelationModel !== undefined &&
+      pane.pressureVolumeRelationModel !== "classical-linear" &&
+      pane.pressureVolumeRelationModel !== "shape-preserving-locus"
+    ) {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeRelationModel`,
+        "must be classical-linear or shape-preserving-locus",
       );
     }
     if (

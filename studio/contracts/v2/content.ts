@@ -122,8 +122,11 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
  * every load and can take substantially longer to complete.
  */
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
-  | "responsive-preview"
-  | "formal-periodic";
+  "responsive-preview" | "formal-periodic";
+
+/** Visual pressure-volume relation owned by one PV pane. */
+export type ExperimentSurfacePressureVolumeRelationModelV2 =
+  "classical-linear" | "shape-preserving-locus";
 
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
@@ -149,8 +152,13 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    */
   historyDepth?: number;
   /** Required only for `pressure-volume`; every other renderer must omit it. */
-  pressureVolumeAnalysisMode?:
-    ExperimentSurfacePressureVolumeAnalysisModeV2;
+  pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
+  /**
+   * `classical-linear` is the teaching/default PVA relation. The research
+   * locus connects only measured common-isochrone points and never
+   * extrapolates beyond their volume range.
+   */
+  pressureVolumeRelationModel?: ExperimentSurfacePressureVolumeRelationModelV2;
   /**
    * Author-selected circulation side for a structural Guyton/Starling pane.
    * Required for `structural-return`; every other renderer must omit it.

@@ -3397,6 +3397,21 @@ const WorkbenchV3Session = ({
             formalPressureVolumeAnalysisHint: t(
               "workbench.editor.formalPressureVolumeAnalysisHint",
             ),
+            pressureVolumeRelationModel: t(
+              "workbench.editor.pressureVolumeRelationModel",
+            ),
+            classicalLinearRelation: t(
+              "workbench.editor.classicalLinearRelation",
+            ),
+            classicalLinearRelationHint: t(
+              "workbench.editor.classicalLinearRelationHint",
+            ),
+            shapePreservingLocusRelation: t(
+              "workbench.editor.shapePreservingLocusRelation",
+            ),
+            shapePreservingLocusRelationHint: t(
+              "workbench.editor.shapePreservingLocusRelationHint",
+            ),
             fixedBinding: t("workbench.editor.fixedBinding"),
             fixedBindingHint: t("workbench.editor.fixedBindingHint"),
             outputFixedBindingHint: t(
@@ -4341,7 +4356,10 @@ function SampledGraphPaneBodyV3({
         variant="pane"
         canvasClassName="h-full min-h-0"
       >
-        <PressureVolumeLoopCanvasV3 traces={traces} />
+        <PressureVolumeLoopCanvasV3
+          traces={traces}
+          relationModel={pane.pressureVolumeRelationModel}
+        />
       </ExperimentGraphPresentationV3>
     );
   }
@@ -5020,7 +5038,11 @@ function periodicPvaOutputNoticeV3(
   if (analysisError !== undefined)
     return `PVA analysis unavailable: ${analysisError}`;
   if (periodicPva === undefined) return "PVA analysis is waiting to start";
-  if (periodicPva.status === "available") return undefined;
+  if (periodicPva.status === "available") {
+    return periodicPva.edpvr.parameterBoundaryHit
+      ? "EDPVR zero-pressure intercept reached its search boundary; PE/PVA extrapolation is limited"
+      : undefined;
+  }
   if (periodicPva.status === "collecting") {
     if (periodicPva.preview?.stage === "pva") {
       return `Provisional PVA from ${periodicPva.preview.pointCount} settled points; refining to at least ${periodicPva.progress.totalPointCount}`;

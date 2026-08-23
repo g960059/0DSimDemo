@@ -14,13 +14,16 @@ immutable tag
 
 The production workflow is deliberately direct:
 
-1. the user enables **Settled PVA / MVO2 analysis** in a PV pane;
+1. a PV pane, a structural Starling/Guyton pane, or a PVA-family output needs
+   the shared settled relation family;
 2. the existing background analysis Workers capture the current Scenario;
-3. a low-volume preload-reduction chain starts at the settled operating point;
-4. every next fixed-TBV load is warm-started from its preceding settled point,
-   down to `60%` of source TBV;
-5. source coronary tone is held fixed and each load must pass two consecutive
-   complete-beat flow/pressure/volume closure comparisons;
+3. independent low- and high-volume persistent chains start at the same settled
+   operating point (concurrently when two analysis Worker leases are present);
+4. every fixed-TBV load is warm-started from the preceding settled point on
+   that limb; the adaptive low limb reaches at least `60%` and then may extend
+   toward the existing Starling low-flow boundary;
+5. source coronary tone is held fixed and each load must pass the protocol's
+   declared consecutive complete-beat flow/pressure/volume closure checks;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
    and, for the LV, a literature MVO2 estimate; and
 7. progress, cancellation after Scenario edits, cache reuse, and bounded
@@ -57,7 +60,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-area-max-common-isochrone-exponential-edpvr-settled-preload-reduction-v2
+suga-pva-area-max-common-isochrone-measured-domain-secant-espvr-exponential-edpvr-settled-preload-family-v3
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -78,18 +81,27 @@ second SW owner.
 ### ESPVR
 
 The primary relation uses one atrial-capture-relative absolute time across the
-settled preload-reduction loops. At each candidate time it fits a
-volume-quadrature-weighted, monotone nonlinear pressure law and evaluates
+settled bidirectional preload family. At each candidate time it fits a
+volume-quadrature-weighted linear scoring law and evaluates
 
 ```text
 J(t) = integral over the fixed end-systolic-landmark volume domain of
          [P_iso(V,t) - P_ED(V)] dV
 ```
 
-The time with the largest positive admissible `J(t)` owns ESPVR. A monotone
-quadratic is used when supported by at least five points; otherwise the same
-density-weighted fit falls back to a line. Linear Ees and V0 remain summary
-statistics rather than owning the displayed curve or PE geometry.
+For phase selection, each measured isochrone is projected to a
+volume-density-weighted linear scoring law so every time is compared over the
+same fixed domain. The time with the largest positive admissible `J(t)` owns the
+common isochrone. The default teaching curve and the curve used by PE/PVA/MVO2
+are then the classical linear secant across that selected isochrone's full
+measured volume range. This avoids turning a local tangent on the saturating
+high-volume limb into a large, unobserved negative-volume extrapolation.
+
+Pane Settings can instead display a research locus through every qualified
+common-isochrone point. Three or four points use a C0 piecewise-linear curve;
+five or more use a shape-preserving C1 cubic-Hermite curve. This locus is never
+drawn beyond its measured volume range and does not silently replace the
+classical relation used by the MVO2 literature mapper.
 
 Separately, the analysis retains `max_t P_iso(V,t)`, its winning time at every
 sampled volume, and the resulting time range. This pressure envelope diagnoses
@@ -107,7 +119,7 @@ P_ed = A [exp(B (V_ed - V0_ed)) - 1]
 
 `A`, `B`, and `V0_ed` are selected by a fixed bounded,
 volume-quadrature-weighted grid fit to positive-pressure maximum-volume
-landmarks from the settled load family. The current beat-metric owner labels
+landmarks from both qualified preload directions. The current beat-metric owner labels
 these points `maximum-volume`; therefore production calls them an
 end-diastolic proxy rather than claiming inlet-valve closure.
 

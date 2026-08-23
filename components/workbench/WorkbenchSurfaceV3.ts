@@ -35,6 +35,8 @@ export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2;
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
   "formal-periodic" as const;
+export const WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3 =
+  "classical-linear" as const;
 
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each
@@ -577,6 +579,8 @@ function createDefaultGraphPaneV3(
             ? {
                 pressureVolumeAnalysisMode:
                   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                pressureVolumeRelationModel:
+                  WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3,
               }
             : {}),
           ...(graph.renderer === "structural-return" ? { structuralSide } : {}),
