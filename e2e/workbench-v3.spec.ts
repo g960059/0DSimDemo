@@ -573,7 +573,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
   const structuralComparisons = graphArea.locator(
     '[data-chart-kind="guyton-starling-structural-orientation-v3"]',
   );
-  await expect(structuralComparisons).toHaveCount(1, { timeout: 20_000 });
+  // The nonlinear PVA/Starling family now retains five settled relation
+  // points before publishing the first complete comparison. Keep the smoke
+  // test on the same bounded analysis wait used for its scenario fan-out;
+  // constrained shared CI can still be at two points after twenty seconds.
+  await expect(structuralComparisons).toHaveCount(1, { timeout: 45_000 });
   await expect(structuralComparisons.first()).toHaveAttribute(
     "data-scenario-count",
     "2",
