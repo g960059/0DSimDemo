@@ -262,7 +262,7 @@ test("@desktop playback, charts, analysis, controls, and settings stay live", as
   );
   await expect(
     page.locator(
-      '[data-pv-relation-semantics="isochronal-emax-espvr-exponential-edpvr"]',
+      '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
     ),
   ).toBeVisible();
   await expect(

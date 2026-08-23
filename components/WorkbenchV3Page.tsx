@@ -168,6 +168,7 @@ import {
   SweepingWaveformCanvasV3,
   WorkbenchScenarioPresentationSampleStoreV3,
   WorkbenchBackgroundWorkerPoolV3,
+  WorkbenchBackgroundJobCancelledErrorV3,
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   resolveWorkbenchGraphTraceStyleV3,
@@ -517,6 +518,7 @@ const WorkbenchV3Session = ({
   >([]);
   const [analysisCapturePending, setAnalysisCapturePending] =
     React.useState(false);
+  const deferredSaveAfterAnalysisCaptureRef = React.useRef(false);
   const [analysisErrorByKey, setAnalysisErrorByKey] = React.useState<
     Readonly<Record<string, string>>
   >({});
@@ -1507,10 +1509,24 @@ const WorkbenchV3Session = ({
       const availableScenarioIds = new Set(
         scenarioDescriptorsRef.current.map(({ scenarioId }) => scenarioId),
       );
-      const scenarioIds = Object.freeze(
+      const requestedAvailableScenarioIds = Object.freeze(
         [...new Set(requestedScenarioIds)].filter((scenarioId) =>
           availableScenarioIds.has(scenarioId),
         ),
+      );
+      const scenarioIds = Object.freeze(
+        [
+          ...new Set(
+            requestedAvailableScenarioIds.map(
+              (scenarioId) =>
+                equivalentAnalysisSourceByScenarioRef.current.get(scenarioId) ??
+                scenarioId,
+            ),
+          ),
+        ].filter((scenarioId) => {
+          const key = workbenchAnalysisHistoryKeyV3(scenarioId, analysisId);
+          return !pendingAnalysisKeys.includes(key);
+        }),
       );
       if (
         runtime === null ||
@@ -1599,6 +1615,33 @@ const WorkbenchV3Session = ({
                 });
                 commitAnalysisV3(analysis);
               } catch (error) {
+                if (error instanceof WorkbenchBackgroundJobCancelledErrorV3) {
+                  const cancelledScenarioIds = Object.freeze([
+                    acceptedFrame.scenarioId,
+                    ...[...equivalentAnalysisSourceByScenarioRef.current]
+                      .filter(
+                        ([, sourceScenarioId]) =>
+                          sourceScenarioId === acceptedFrame.scenarioId,
+                      )
+                      .map(([targetScenarioId]) => targetScenarioId),
+                  ]);
+                  const cancelledKeys = cancelledScenarioIds.map((scenarioId) =>
+                    workbenchAnalysisHistoryKeyV3(scenarioId, analysisId),
+                  );
+                  cancelledKeys.forEach((cancelledKey) =>
+                    queuedAnalysisProgressByKeyRef.current.delete(cancelledKey),
+                  );
+                  replaceAnalysisByKeyV3(
+                    withoutRecordKeysV3(
+                      analysisByKeyRef.current,
+                      cancelledKeys,
+                    ),
+                  );
+                  setAnalysisErrorByKey((current) =>
+                    withoutRecordKeysV3(current, cancelledKeys),
+                  );
+                  return;
+                }
                 let currentFrame: StudioSimulationFrameV2 | null = null;
                 try {
                   currentFrame = runtime.latestFrame(acceptedFrame.scenarioId);
@@ -1653,7 +1696,12 @@ const WorkbenchV3Session = ({
       })();
       return true;
     },
-    [commitAnalysisV3, queueAnalysisProgressV3],
+    [
+      commitAnalysisV3,
+      pendingAnalysisKeys,
+      queueAnalysisProgressV3,
+      replaceAnalysisByKeyV3,
+    ],
   );
 
   const adoptScenarioStateV3 = React.useCallback(
@@ -1915,10 +1963,15 @@ const WorkbenchV3Session = ({
       frame === null ||
       surface === null ||
       (remoteContentRepository === null && contentStore === null) ||
-      backgroundWorkerPool === null ||
-      exclusiveOperationRef.current !== null
+      backgroundWorkerPool === null
     )
       return;
+    if (exclusiveOperationRef.current === "analysis") {
+      deferredSaveAfterAnalysisCaptureRef.current = true;
+      setSaveState("saving");
+      return;
+    }
+    if (exclusiveOperationRef.current !== null) return;
     const currentSurface = surfaceRef.current;
     if (currentSurface === null) return;
     const submittedSurface = reconcileWorkbenchSurfaceScenariosV3(
@@ -1932,6 +1985,10 @@ const WorkbenchV3Session = ({
     setSaveState("saving");
     setSaveError(null);
     try {
+      // Persistence is an explicit foreground action. Detached relation
+      // refinement is restartable and must never make Save wait for the long
+      // adaptive sweep to exhaust its Worker partitions.
+      runtime.cancelAnalysisJobs();
       await runtime.pauseAll();
       let captures: StudioSimulationWorkerScenarioCapturesV2;
       try {
@@ -2108,6 +2165,13 @@ const WorkbenchV3Session = ({
     surface,
     t,
   ]);
+
+  React.useEffect(() => {
+    if (analysisCapturePending || !deferredSaveAfterAnalysisCaptureRef.current)
+      return;
+    deferredSaveAfterAnalysisCaptureRef.current = false;
+    void saveExperimentV3();
+  }, [analysisCapturePending, saveExperimentV3]);
 
   const createSnapshotV3 = React.useCallback(
     async (
@@ -5522,10 +5586,10 @@ function scalarAvailableOutputV3(
     : null;
 }
 
-function withoutRecordKeysV3(
-  record: Readonly<Record<string, string>>,
+function withoutRecordKeysV3<T>(
+  record: Readonly<Record<string, T>>,
   keys: readonly string[],
-): Readonly<Record<string, string>> {
+): Readonly<Record<string, T>> {
   const removed = new Set(keys);
   if (!keys.some((key) => key in record)) return record;
   return Object.freeze(
