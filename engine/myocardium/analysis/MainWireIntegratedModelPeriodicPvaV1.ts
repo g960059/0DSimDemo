@@ -15,13 +15,14 @@ import {
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID =
-  "suga-pva-isochronal-emax-exponential-edpvr-settled-preload-reduction-v1" as const;
+  "suga-pva-area-max-common-isochrone-exponential-edpvr-settled-preload-reduction-v2" as const;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
 const MINIMUM_PVA_PREVIEW_POINT_COUNT_V1 = 5;
 const CURVE_SAMPLE_COUNT_V1 = 64;
-const EMAX_PHASE_SAMPLE_COUNT_V1 = 128;
+const SYSTOLIC_TIME_SAMPLE_COUNT_V1 = 128;
+const PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1 = 128;
 const EDPVR_V0_GRID_COUNT_V1 = 120;
 const EDPVR_EXPONENT_GRID_COUNT_V1 = 180;
 
@@ -37,22 +38,42 @@ type PeriodicPvaProgressV1 = Readonly<{
 }>;
 
 export type MainWireIntegratedModelPeriodicPvaEspvrV1 = Readonly<{
-  primaryMethod: "linear-isochronal-maximum-elastance-fit";
-  maximumElastancePhase01: number;
+  primaryMethod: "active-pressure-area-max-common-isochrone";
+  primaryCurveLaw:
+    "density-weighted-monotone-quadratic" | "density-weighted-linear-fallback";
+  selectedTimeSinceAtrialCaptureSec: number;
+  selectedPhase01AtAnchor: number;
+  activePressureAreaMmHgMl: number;
+  activePressureAreaVolumeRangeMl: readonly [number, number];
+  zeroPressureVolumeMl: number;
   elastanceMmHgPerMl: number;
   volumeAxisInterceptMl: number;
+  localElastanceAtAnchorMmHgPerMl: number;
   rSquared: number;
   measuredVolumeRangeMl: readonly [number, number];
   fitPoints: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
   curve: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
-  nonlinearComparator: Readonly<{
-    method: "quadratic-isochronal-maximum-elastance-fit";
+  nonlinearCurve: Readonly<{
+    method: "density-weighted-quadratic-common-isochrone-fit";
     quadraticMmHgPerMl2: number;
     linearMmHgPerMl: number;
     interceptMmHg: number;
     rSquared: number;
     monotonicallyIncreasingAcrossMeasuredRange: boolean;
   }> | null;
+  pressureEnvelopeDiagnostic: Readonly<{
+    method: "phase-wise-maximum-pressure-envelope";
+    curve: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
+    timeSinceAtrialCaptureRangeSec: readonly [number, number];
+    phase01AtAnchorRange: readonly [number, number];
+    winningTimeByVolume: readonly Readonly<{
+      volumeMl: number;
+      timeSinceAtrialCaptureSec: number;
+      phase01AtAnchor: number;
+    }>[];
+    excessAreaMmHgMl: number;
+    excessAreaFraction: number;
+  }>;
   semilunarClosureComparator: Readonly<{
     method: "linear-semilunar-closure-fit";
     elastanceMmHgPerMl: number;
@@ -62,7 +83,7 @@ export type MainWireIntegratedModelPeriodicPvaEspvrV1 = Readonly<{
 }>;
 
 export type MainWireIntegratedModelPeriodicPvaEdpvrV1 = Readonly<{
-  method: "exponential-maximum-volume-fit";
+  method: "density-weighted-exponential-maximum-volume-fit";
   scaleMmHg: number;
   exponentPerMl: number;
   zeroPressureVolumeMl: number;
@@ -138,7 +159,7 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
         primaryLineage: "persistent-worker-settled-hot-start-chain";
         slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen";
         endDiastolicLandmark: "maximum-volume-proxy";
-        endSystolicLandmark: "common-isochronal-maximum-elastance";
+        endSystolicLandmark: "active-pressure-area-max-common-isochrone";
       }>;
       anchor: PeriodicPvaAnchorV1;
       strokeWork: PeriodicPvaStrokeWorkV1;
@@ -150,7 +171,9 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
       limitations: readonly [
         "settled-preload-reduction-family-not-transient-venous-occlusion",
         "maximum-volume-used-as-end-diastolic-proxy",
-        "linear-isochronal-emax-is-primary-with-quadratic-diagnostic-only",
+        "common-isochrone-is-a-protocol-clock-not-a-common-land-state",
+        "pressure-envelope-retained-as-single-phase-approximation-diagnostic",
+        "systolic-curve-uses-linear-endpoint-tangents-outside-measured-range",
         "coronary-tone-held-at-source-during-preload-reduction",
         "not-clinical-validation",
       ];
@@ -162,10 +185,35 @@ type LinearFitV1 = Readonly<{
   rSquared: number;
 }>;
 
-type IsochronalMaximumElastanceFitV1 = Readonly<{
-  phase01: number;
-  fit: LinearFitV1;
+type WeightedQuadraticFitV1 = Readonly<{
+  quadratic: number;
+  linear: number;
+  intercept: number;
+  rSquared: number;
+}>;
+
+type SystolicPressureLawV1 = Readonly<{
+  kind:
+    "density-weighted-monotone-quadratic" | "density-weighted-linear-fallback";
+  quadratic: number;
+  linear: number;
+  intercept: number;
+  rSquared: number;
+  measuredVolumeRangeMl: readonly [number, number];
+}>;
+
+type IsochronalPressureCandidateV1 = Readonly<{
+  timeSinceAtrialCaptureSec: number;
+  phase01AtAnchor: number;
+  activePressureAreaMmHgMl: number;
+  law: SystolicPressureLawV1;
   points: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[];
+}>;
+
+type AreaMaxCommonIsochroneV1 = Readonly<{
+  selected: IsochronalPressureCandidateV1;
+  linearSummary: LinearFitV1;
+  pressureEnvelope: MainWireIntegratedModelPeriodicPvaEspvrV1["pressureEnvelopeDiagnostic"];
 }>;
 
 type ExponentialFitV1 = Readonly<{
@@ -290,25 +338,41 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
         ventricularPressureVolumeLandmarks.endDiastolic,
     )
     .filter(({ pressureMmHg }) => pressureMmHg > 0.05);
-  const maximumElastance = isochronalMaximumElastanceFitV1(corePoints);
   const edpvr = exponentialFitV1(diastolic);
+  const endSystolicVolumeRange = finiteRangeV1(
+    corePoints.map(
+      ({ ventricularPressureVolumeLandmarks }) =>
+        ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
+    ),
+  );
+  const areaMaxIsochrone =
+    edpvr === null || endSystolicVolumeRange === null
+      ? null
+      : areaMaxCommonIsochroneV1(
+          corePoints,
+          endSystolicVolumeRange,
+          edpvr,
+          anchor,
+        );
   if (
-    maximumElastance === null ||
+    areaMaxIsochrone === null ||
     diastolic.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 ||
     edpvr === null
   ) {
     return incomplete(
       coreSamplingComplete ? "unavailable" : "collecting",
-      "Settled phased loops and positive-pressure filling landmarks do not define Emax ESPVR and EDPVR",
+      "Settled phased loops and positive-pressure filling landmarks do not define an area-max common isochrone and EDPVR",
       anchorPreview,
     );
   }
-  const systolic = maximumElastance.points;
-  const espvr = maximumElastance.fit;
+  const systolic = areaMaxIsochrone.selected.points;
+  const systolicLaw = areaMaxIsochrone.selected.law;
+  const espvr = areaMaxIsochrone.linearSummary;
   const espvrV0 = -espvr.intercept / espvr.slope;
-  const anchorEndSystolic = interpolateLoopAtPhaseV1(
+  const anchorEndSystolic = interpolateLoopAtTimeV1(
     anchor.ventricularPressureVolumeLoop,
-    maximumElastance.phase01,
+    anchor.acceptedBeatDurationSec,
+    areaMaxIsochrone.selected.timeSinceAtrialCaptureSec,
   );
   const anchorEndDiastolic =
     anchor.ventricularPressureVolumeLandmarks.endDiastolic;
@@ -321,7 +385,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   ) {
     return incomplete(
       "unavailable",
-      "The anchor beat does not retain accepted-step SW, duration, and Emax phase",
+      "The anchor beat does not retain accepted-step SW, duration, and the selected common isochrone time",
       anchorPreview,
     );
   }
@@ -331,23 +395,56 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
   const diastolicRange = finiteRangeV1(
     diastolic.map(({ volumeMl }) => volumeMl),
   )!;
-  const nonlinearComparator = quadraticFitV1(systolic);
   const semilunarClosureFit = linearFitV1(semilunarClosure);
+  const systolicZeroPressureVolumeMl =
+    systolicZeroPressureVolumeV1(systolicLaw);
+  if (systolicZeroPressureVolumeMl === null) {
+    return incomplete(
+      coreSamplingComplete ? "unavailable" : "collecting",
+      "The selected common isochrone does not define a finite left zero-pressure extension",
+      anchorPreview,
+    );
+  }
   const espvrProjection: MainWireIntegratedModelPeriodicPvaEspvrV1 =
     Object.freeze({
-      primaryMethod: "linear-isochronal-maximum-elastance-fit" as const,
-      maximumElastancePhase01: maximumElastance.phase01,
+      primaryMethod: "active-pressure-area-max-common-isochrone" as const,
+      primaryCurveLaw: systolicLaw.kind,
+      selectedTimeSinceAtrialCaptureSec:
+        areaMaxIsochrone.selected.timeSinceAtrialCaptureSec,
+      selectedPhase01AtAnchor: areaMaxIsochrone.selected.phase01AtAnchor,
+      activePressureAreaMmHgMl:
+        areaMaxIsochrone.selected.activePressureAreaMmHgMl,
+      activePressureAreaVolumeRangeMl: endSystolicVolumeRange,
+      zeroPressureVolumeMl: systolicZeroPressureVolumeMl,
       elastanceMmHgPerMl: espvr.slope,
       volumeAxisInterceptMl: espvrV0,
+      localElastanceAtAnchorMmHgPerMl: systolicPressureSlopeV1(
+        systolicLaw,
+        anchorEndSystolic.volumeMl,
+      ),
       rSquared: espvr.rSquared,
       measuredVolumeRangeMl: systolicRange,
       fitPoints: Object.freeze(
         systolic.map((point) => Object.freeze({ ...point })),
       ),
-      curve: sampleCurveV1(espvrV0, systolicRange[1], (volumeMl) =>
-        Math.max(0, espvr.slope * volumeMl + espvr.intercept),
+      curve: sampleCurveV1(
+        systolicZeroPressureVolumeMl,
+        systolicRange[1],
+        (volumeMl) => Math.max(0, systolicPressureV1(systolicLaw, volumeMl)),
       ),
-      nonlinearComparator,
+      nonlinearCurve:
+        systolicLaw.kind === "density-weighted-monotone-quadratic"
+          ? Object.freeze({
+              method:
+                "density-weighted-quadratic-common-isochrone-fit" as const,
+              quadraticMmHgPerMl2: systolicLaw.quadratic,
+              linearMmHgPerMl: systolicLaw.linear,
+              interceptMmHg: systolicLaw.intercept,
+              rSquared: systolicLaw.rSquared,
+              monotonicallyIncreasingAcrossMeasuredRange: true,
+            })
+          : null,
+      pressureEnvelopeDiagnostic: areaMaxIsochrone.pressureEnvelope,
       semilunarClosureComparator:
         semilunarClosureFit === null
           ? null
@@ -361,7 +458,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     });
   const edpvrProjection: MainWireIntegratedModelPeriodicPvaEdpvrV1 =
     Object.freeze({
-      method: "exponential-maximum-volume-fit" as const,
+      method: "density-weighted-exponential-maximum-volume-fit" as const,
       scaleMmHg: edpvr.scale,
       exponentPerMl: edpvr.exponent,
       zeroPressureVolumeMl: edpvr.volumeOffset,
@@ -402,9 +499,9 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     );
   }
   const peLeftIntersectionVolumeMl = espvrEdpvrLeftIntersectionV1(
-    espvr,
+    systolicLaw,
     edpvr,
-    espvrV0,
+    systolicZeroPressureVolumeMl,
     anchorEndSystolic.volumeMl,
   );
   if (peLeftIntersectionVolumeMl === null) {
@@ -414,29 +511,22 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       relationsPreview,
     );
   }
-  const passiveAreaMmHgMl = nonnegativeExponentialAreaV1(
-    edpvr,
+  const potentialEnergyMmHgMl = pressureDifferenceAreaV1(
+    (volumeMl) => systolicPressureV1(systolicLaw, volumeMl),
+    (volumeMl) => nonnegativeExponentialPressureV1(edpvr, volumeMl),
     peLeftIntersectionVolumeMl,
     anchorEndSystolic.volumeMl,
   );
-  const systolicAreaMmHgMl =
-    0.5 *
-    espvr.slope *
-    ((anchorEndSystolic.volumeMl - espvrV0) ** 2 -
-      (peLeftIntersectionVolumeMl - espvrV0) ** 2);
-  const potentialEnergyMmHgMl = systolicAreaMmHgMl - passiveAreaMmHgMl;
   const pvaMmHgMl = strokeWorkMmHgMl + potentialEnergyMmHgMl;
   if (
     ![
       espvrV0,
       peLeftIntersectionVolumeMl,
       strokeWorkMmHgMl,
-      passiveAreaMmHgMl,
-      systolicAreaMmHgMl,
       potentialEnergyMmHgMl,
       pvaMmHgMl,
     ].every(Number.isFinite) ||
-    !(anchorEndSystolic.volumeMl > espvrV0) ||
+    !(anchorEndSystolic.volumeMl > systolicZeroPressureVolumeMl) ||
     !(anchorEndSystolic.volumeMl > peLeftIntersectionVolumeMl) ||
     !(strokeWorkMmHgMl > 0) ||
     !(potentialEnergyMmHgMl >= 0) ||
@@ -507,7 +597,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
       slowControllerPolicy:
         "active-source-period1-then-coronary-tone-frozen" as const,
       endDiastolicLandmark: "maximum-volume-proxy" as const,
-      endSystolicLandmark: "common-isochronal-maximum-elastance" as const,
+      endSystolicLandmark: "active-pressure-area-max-common-isochrone" as const,
     }),
     anchor: anchorProjection,
     strokeWork,
@@ -519,44 +609,198 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     limitations: Object.freeze([
       "settled-preload-reduction-family-not-transient-venous-occlusion",
       "maximum-volume-used-as-end-diastolic-proxy",
-      "linear-isochronal-emax-is-primary-with-quadratic-diagnostic-only",
+      "common-isochrone-is-a-protocol-clock-not-a-common-land-state",
+      "pressure-envelope-retained-as-single-phase-approximation-diagnostic",
+      "systolic-curve-uses-linear-endpoint-tangents-outside-measured-range",
       "coronary-tone-held-at-source-during-preload-reduction",
       "not-clinical-validation",
     ] as const),
   });
 }
 
-function isochronalMaximumElastanceFitV1(
+function areaMaxCommonIsochroneV1(
   points: readonly MainWireIntegratedModelStarlingPointV3[],
-): IsochronalMaximumElastanceFitV1 | null {
+  integrationVolumeRangeMl: readonly [number, number],
+  edpvr: ExponentialFitV1,
+  anchor: MainWireIntegratedModelStarlingPointV3,
+): AreaMaxCommonIsochroneV1 | null {
   if (points.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1) return null;
-  let best: IsochronalMaximumElastanceFitV1 | null = null;
-  for (
-    let phaseOrdinal = 0;
-    phaseOrdinal < EMAX_PHASE_SAMPLE_COUNT_V1;
-    phaseOrdinal += 1
+  const beatDurationsSec = points.map(
+    ({ acceptedBeatDurationSec }) => acceptedBeatDurationSec,
+  );
+  if (
+    beatDurationsSec.some(
+      (durationSec) =>
+        durationSec === undefined ||
+        !Number.isFinite(durationSec) ||
+        !(durationSec > 0),
+    ) ||
+    anchor.acceptedBeatDurationSec === undefined ||
+    !Number.isFinite(anchor.acceptedBeatDurationSec) ||
+    !(anchor.acceptedBeatDurationSec > 0)
   ) {
-    const phase01 = phaseOrdinal / EMAX_PHASE_SAMPLE_COUNT_V1;
-    const sampled = points.map((point) =>
-      interpolateLoopAtPhaseV1(point.ventricularPressureVolumeLoop, phase01),
-    );
-    if (sampled.some((point) => point === null)) return null;
-    const owned = sampled as MainWireIntegratedModelPeriodicPvaCurvePointV1[];
-    const fit = linearFitV1(owned);
-    if (
-      fit === null ||
-      !Number.isFinite(fit.rSquared) ||
-      (best !== null && fit.slope <= best.fit.slope)
-    ) {
-      continue;
-    }
-    best = Object.freeze({
-      phase01,
-      fit,
-      points: Object.freeze(owned.map((point) => Object.freeze({ ...point }))),
-    });
+    return null;
   }
-  return best;
+  const minimumBeatDurationSec = Math.min(...(beatDurationsSec as number[]));
+  const candidates: IsochronalPressureCandidateV1[] = [];
+  for (
+    let timeOrdinal = 0;
+    timeOrdinal < SYSTOLIC_TIME_SAMPLE_COUNT_V1;
+    timeOrdinal += 1
+  ) {
+    const timeSinceAtrialCaptureSec =
+      (timeOrdinal / SYSTOLIC_TIME_SAMPLE_COUNT_V1) * minimumBeatDurationSec;
+    const sampled = points.map((point) =>
+      interpolateLoopAtTimeV1(
+        point.ventricularPressureVolumeLoop,
+        point.acceptedBeatDurationSec,
+        timeSinceAtrialCaptureSec,
+      ),
+    );
+    if (sampled.some((point) => point === null)) continue;
+    const owned = sampled as MainWireIntegratedModelPeriodicPvaCurvePointV1[];
+    const law = fitSystolicPressureLawV1(owned);
+    if (law === null) continue;
+    const activePressureAreaMmHgMl = pressureDifferenceAreaV1(
+      (volumeMl) => systolicPressureV1(law, volumeMl),
+      (volumeMl) => nonnegativeExponentialPressureV1(edpvr, volumeMl),
+      integrationVolumeRangeMl[0],
+      integrationVolumeRangeMl[1],
+    );
+    if (!Number.isFinite(activePressureAreaMmHgMl)) continue;
+    candidates.push(
+      Object.freeze({
+        timeSinceAtrialCaptureSec,
+        phase01AtAnchor:
+          timeSinceAtrialCaptureSec / anchor.acceptedBeatDurationSec,
+        activePressureAreaMmHgMl,
+        law,
+        points: Object.freeze(
+          owned.map((point) => Object.freeze({ ...point })),
+        ),
+      }),
+    );
+  }
+  const selected = candidates.reduce<IsochronalPressureCandidateV1 | null>(
+    (best, candidate) =>
+      best === null ||
+      candidate.activePressureAreaMmHgMl > best.activePressureAreaMmHgMl
+        ? candidate
+        : best,
+    null,
+  );
+  if (selected === null) return null;
+  const selectedAdmissibleAreaMmHgMl = positivePressureDifferenceAreaV1(
+    (volumeMl) => systolicPressureV1(selected.law, volumeMl),
+    (volumeMl) => nonnegativeExponentialPressureV1(edpvr, volumeMl),
+    integrationVolumeRangeMl[0],
+    integrationVolumeRangeMl[1],
+  );
+  if (selectedAdmissibleAreaMmHgMl === null) return null;
+  const linearSummary = densityWeightedLinearFitV1(selected.points);
+  if (linearSummary === null) return null;
+  const pressureEnvelope = pressureEnvelopeDiagnosticV1(
+    candidates,
+    selected,
+    integrationVolumeRangeMl,
+    anchor.acceptedBeatDurationSec,
+  );
+  if (pressureEnvelope === null) return null;
+  return Object.freeze({ selected, linearSummary, pressureEnvelope });
+}
+
+function pressureEnvelopeDiagnosticV1(
+  candidates: readonly IsochronalPressureCandidateV1[],
+  selected: IsochronalPressureCandidateV1,
+  volumeRangeMl: readonly [number, number],
+  anchorBeatDurationSec: number,
+):
+  | MainWireIntegratedModelPeriodicPvaEspvrV1["pressureEnvelopeDiagnostic"]
+  | null {
+  if (candidates.length === 0 || !(volumeRangeMl[1] > volumeRangeMl[0])) {
+    return null;
+  }
+  const winningTimesSec: number[] = [];
+  const curve = sampleCurveV1(
+    volumeRangeMl[0],
+    volumeRangeMl[1],
+    (volumeMl) => {
+      let winner = candidates[0]!;
+      let maximumPressureMmHg = systolicPressureV1(winner.law, volumeMl);
+      for (const candidate of candidates.slice(1)) {
+        const pressureMmHg = systolicPressureV1(candidate.law, volumeMl);
+        if (pressureMmHg > maximumPressureMmHg) {
+          winner = candidate;
+          maximumPressureMmHg = pressureMmHg;
+        }
+      }
+      winningTimesSec.push(winner.timeSinceAtrialCaptureSec);
+      return maximumPressureMmHg;
+    },
+  );
+  const timeRange = finiteRangeAllowEqualV1(winningTimesSec);
+  if (curve.length === 0 || timeRange === null) return null;
+  const winningTimeByVolume = Object.freeze(
+    curve.map((point, index) =>
+      Object.freeze({
+        volumeMl: point.volumeMl,
+        timeSinceAtrialCaptureSec: winningTimesSec[index]!,
+        phase01AtAnchor: winningTimesSec[index]! / anchorBeatDurationSec,
+      }),
+    ),
+  );
+  const excessAreaMmHgMl = pressureDifferenceAreaV1(
+    (volumeMl) => {
+      let maximumPressureMmHg = Number.NEGATIVE_INFINITY;
+      for (const candidate of candidates) {
+        maximumPressureMmHg = Math.max(
+          maximumPressureMmHg,
+          systolicPressureV1(candidate.law, volumeMl),
+        );
+      }
+      return maximumPressureMmHg;
+    },
+    (volumeMl) => systolicPressureV1(selected.law, volumeMl),
+    volumeRangeMl[0],
+    volumeRangeMl[1],
+  );
+  if (!Number.isFinite(excessAreaMmHgMl) || excessAreaMmHgMl < 0) return null;
+  return Object.freeze({
+    method: "phase-wise-maximum-pressure-envelope" as const,
+    curve,
+    timeSinceAtrialCaptureRangeSec: timeRange,
+    phase01AtAnchorRange: Object.freeze([
+      timeRange[0] / anchorBeatDurationSec,
+      timeRange[1] / anchorBeatDurationSec,
+    ] as const),
+    winningTimeByVolume,
+    excessAreaMmHgMl,
+    excessAreaFraction:
+      selected.activePressureAreaMmHgMl > 0
+        ? excessAreaMmHgMl / selected.activePressureAreaMmHgMl
+        : Number.POSITIVE_INFINITY,
+  });
+}
+
+function interpolateLoopAtTimeV1(
+  loop: readonly MainWireIntegratedModelPressureVolumeLoopPointV3[],
+  acceptedBeatDurationSec: number | undefined,
+  timeSinceAtrialCaptureSec: number,
+): MainWireIntegratedModelPeriodicPvaCurvePointV1 | null {
+  if (
+    acceptedBeatDurationSec === undefined ||
+    !Number.isFinite(acceptedBeatDurationSec) ||
+    !(acceptedBeatDurationSec > 0) ||
+    !Number.isFinite(timeSinceAtrialCaptureSec) ||
+    timeSinceAtrialCaptureSec < 0 ||
+    !(timeSinceAtrialCaptureSec < acceptedBeatDurationSec)
+  ) {
+    return null;
+  }
+  return interpolateLoopAtPhaseV1(
+    loop,
+    timeSinceAtrialCaptureSec / acceptedBeatDurationSec,
+  );
 }
 
 function interpolateLoopAtPhaseV1(
@@ -612,22 +856,333 @@ function interpolateLoopAtPhaseV1(
   });
 }
 
+function fitSystolicPressureLawV1(
+  points: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[],
+): SystolicPressureLawV1 | null {
+  const measuredVolumeRangeMl = finiteRangeV1(
+    points.map(({ volumeMl }) => volumeMl),
+  );
+  const linear = densityWeightedLinearFitV1(points);
+  if (measuredVolumeRangeMl === null || linear === null) return null;
+  const quadratic =
+    points.length >= MINIMUM_PVA_PREVIEW_POINT_COUNT_V1
+      ? densityWeightedQuadraticFitV1(points)
+      : null;
+  if (
+    quadratic !== null &&
+    quadratic.rSquared >= linear.rSquared - 1e-12 &&
+    2 * quadratic.quadratic * measuredVolumeRangeMl[0] + quadratic.linear > 0 &&
+    2 * quadratic.quadratic * measuredVolumeRangeMl[1] + quadratic.linear > 0
+  ) {
+    return Object.freeze({
+      kind: "density-weighted-monotone-quadratic" as const,
+      quadratic: quadratic.quadratic,
+      linear: quadratic.linear,
+      intercept: quadratic.intercept,
+      rSquared: quadratic.rSquared,
+      measuredVolumeRangeMl,
+    });
+  }
+  return Object.freeze({
+    kind: "density-weighted-linear-fallback" as const,
+    quadratic: 0,
+    linear: linear.slope,
+    intercept: linear.intercept,
+    rSquared: linear.rSquared,
+    measuredVolumeRangeMl,
+  });
+}
+
+function systolicPressureV1(
+  law: SystolicPressureLawV1,
+  volumeMl: number,
+): number {
+  const [minimumVolumeMl, maximumVolumeMl] = law.measuredVolumeRangeMl;
+  if (volumeMl < minimumVolumeMl) {
+    return (
+      polynomialPressureV1(law, minimumVolumeMl) +
+      systolicPressureSlopeV1(law, minimumVolumeMl) *
+        (volumeMl - minimumVolumeMl)
+    );
+  }
+  if (volumeMl > maximumVolumeMl) {
+    return (
+      polynomialPressureV1(law, maximumVolumeMl) +
+      systolicPressureSlopeV1(law, maximumVolumeMl) *
+        (volumeMl - maximumVolumeMl)
+    );
+  }
+  return polynomialPressureV1(law, volumeMl);
+}
+
+function polynomialPressureV1(
+  law: SystolicPressureLawV1,
+  volumeMl: number,
+): number {
+  return law.quadratic * volumeMl ** 2 + law.linear * volumeMl + law.intercept;
+}
+
+function systolicPressureSlopeV1(
+  law: SystolicPressureLawV1,
+  volumeMl: number,
+): number {
+  const boundedVolumeMl = Math.max(
+    law.measuredVolumeRangeMl[0],
+    Math.min(law.measuredVolumeRangeMl[1], volumeMl),
+  );
+  return 2 * law.quadratic * boundedVolumeMl + law.linear;
+}
+
+function systolicZeroPressureVolumeV1(
+  law: SystolicPressureLawV1,
+): number | null {
+  const minimumVolumeMl = law.measuredVolumeRangeMl[0];
+  const pressureMmHg = polynomialPressureV1(law, minimumVolumeMl);
+  const slopeMmHgPerMl = systolicPressureSlopeV1(law, minimumVolumeMl);
+  if (
+    ![pressureMmHg, slopeMmHgPerMl].every(Number.isFinite) ||
+    !(slopeMmHgPerMl > 0)
+  ) {
+    return null;
+  }
+  const zeroPressureVolumeMl = minimumVolumeMl - pressureMmHg / slopeMmHgPerMl;
+  return Number.isFinite(zeroPressureVolumeMl) ? zeroPressureVolumeMl : null;
+}
+
+function positivePressureDifferenceAreaV1(
+  upperPressure: (volumeMl: number) => number,
+  lowerPressure: (volumeMl: number) => number,
+  startVolumeMl: number,
+  endVolumeMl: number,
+): number | null {
+  if (!(endVolumeMl > startVolumeMl)) return null;
+  for (
+    let index = 0;
+    index <= PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1;
+    index += 1
+  ) {
+    const volumeMl =
+      startVolumeMl +
+      (index / PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1) *
+        (endVolumeMl - startVolumeMl);
+    const differenceMmHg = upperPressure(volumeMl) - lowerPressure(volumeMl);
+    if (!Number.isFinite(differenceMmHg) || !(differenceMmHg > 0)) return null;
+  }
+  const areaMmHgMl = pressureDifferenceAreaV1(
+    upperPressure,
+    lowerPressure,
+    startVolumeMl,
+    endVolumeMl,
+  );
+  return Number.isFinite(areaMmHgMl) && areaMmHgMl > 0 ? areaMmHgMl : null;
+}
+
+function pressureDifferenceAreaV1(
+  upperPressure: (volumeMl: number) => number,
+  lowerPressure: (volumeMl: number) => number,
+  startVolumeMl: number,
+  endVolumeMl: number,
+): number {
+  if (
+    ![startVolumeMl, endVolumeMl].every(Number.isFinite) ||
+    !(endVolumeMl > startVolumeMl)
+  ) {
+    return Number.NaN;
+  }
+  const intervalWidthMl =
+    (endVolumeMl - startVolumeMl) / PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1;
+  let areaMmHgMl = 0;
+  for (
+    let index = 0;
+    index <= PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1;
+    index += 1
+  ) {
+    const volumeMl = startVolumeMl + index * intervalWidthMl;
+    const differenceMmHg = upperPressure(volumeMl) - lowerPressure(volumeMl);
+    if (!Number.isFinite(differenceMmHg)) return Number.NaN;
+    areaMmHgMl +=
+      (index === 0 || index === PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1
+        ? 0.5
+        : 1) * differenceMmHg;
+  }
+  return areaMmHgMl * intervalWidthMl;
+}
+
+function densityWeightedLinearFitV1(
+  points: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[],
+): LinearFitV1 | null {
+  const weighted = volumeQuadratureWeightsV1(points);
+  if (weighted === null) return null;
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const meanX =
+    weighted.reduce((sum, item) => sum + item.weight * item.point.volumeMl, 0) /
+    totalWeight;
+  const meanY =
+    weighted.reduce(
+      (sum, item) => sum + item.weight * item.point.pressureMmHg,
+      0,
+    ) / totalWeight;
+  const variance = weighted.reduce(
+    (sum, item) => sum + item.weight * (item.point.volumeMl - meanX) ** 2,
+    0,
+  );
+  const covariance = weighted.reduce(
+    (sum, item) =>
+      sum +
+      item.weight *
+        (item.point.volumeMl - meanX) *
+        (item.point.pressureMmHg - meanY),
+    0,
+  );
+  if (!(variance > 1e-12)) return null;
+  const slope = covariance / variance;
+  const intercept = meanY - slope * meanX;
+  if (!(slope > 0) || !Number.isFinite(intercept)) return null;
+  return Object.freeze({
+    slope,
+    intercept,
+    rSquared: weightedRSquaredV1(
+      weighted,
+      ({ volumeMl }) => slope * volumeMl + intercept,
+    ),
+  });
+}
+
+function densityWeightedQuadraticFitV1(
+  points: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[],
+): WeightedQuadraticFitV1 | null {
+  const weighted = volumeQuadratureWeightsV1(points);
+  if (weighted === null || weighted.length < 3) return null;
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const center =
+    weighted.reduce((sum, item) => sum + item.weight * item.point.volumeMl, 0) /
+    totalWeight;
+  const sums = weighted.reduce(
+    (accumulator, item) => {
+      const x = item.point.volumeMl - center;
+      const y = item.point.pressureMmHg;
+      const w = item.weight;
+      accumulator.s0 += w;
+      accumulator.s1 += w * x;
+      accumulator.s2 += w * x ** 2;
+      accumulator.s3 += w * x ** 3;
+      accumulator.s4 += w * x ** 4;
+      accumulator.sy += w * y;
+      accumulator.sxy += w * x * y;
+      accumulator.sx2y += w * x ** 2 * y;
+      return accumulator;
+    },
+    { s0: 0, s1: 0, s2: 0, s3: 0, s4: 0, sy: 0, sxy: 0, sx2y: 0 },
+  );
+  const centered = solveThreeByThreeV1(
+    [
+      [sums.s4, sums.s3, sums.s2],
+      [sums.s3, sums.s2, sums.s1],
+      [sums.s2, sums.s1, sums.s0],
+    ],
+    [sums.sx2y, sums.sxy, sums.sy],
+  );
+  if (centered === null) return null;
+  const [quadratic, centeredLinear, centeredIntercept] = centered;
+  const linear = centeredLinear - 2 * quadratic * center;
+  const intercept =
+    quadratic * center ** 2 - centeredLinear * center + centeredIntercept;
+  if (![quadratic, linear, intercept].every(Number.isFinite)) return null;
+  return Object.freeze({
+    quadratic,
+    linear,
+    intercept,
+    rSquared: weightedRSquaredV1(
+      weighted,
+      ({ volumeMl }) =>
+        quadratic * volumeMl ** 2 + linear * volumeMl + intercept,
+    ),
+  });
+}
+
+type WeightedPressurePointV1 = Readonly<{
+  point: Readonly<{ volumeMl: number; pressureMmHg: number }>;
+  weight: number;
+}>;
+
+function volumeQuadratureWeightsV1(
+  points: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[],
+): readonly WeightedPressurePointV1[] | null {
+  if (
+    points.length < 2 ||
+    points.some(
+      ({ volumeMl, pressureMmHg }) =>
+        !Number.isFinite(volumeMl) || !Number.isFinite(pressureMmHg),
+    )
+  ) {
+    return null;
+  }
+  const ordered = [...points].sort(
+    (left, right) => left.volumeMl - right.volumeMl,
+  );
+  if (
+    ordered
+      .slice(1)
+      .some(
+        (point, index) => !(point.volumeMl - ordered[index]!.volumeMl > 1e-10),
+      )
+  ) {
+    return null;
+  }
+  return Object.freeze(
+    ordered.map((point, index) => {
+      const left = ordered[index - 1];
+      const right = ordered[index + 1];
+      const weight =
+        left === undefined
+          ? 0.5 * (right!.volumeMl - point.volumeMl)
+          : right === undefined
+            ? 0.5 * (point.volumeMl - left.volumeMl)
+            : 0.5 * (right.volumeMl - left.volumeMl);
+      return Object.freeze({ point, weight });
+    }),
+  );
+}
+
+function weightedRSquaredV1(
+  weighted: readonly WeightedPressurePointV1[],
+  predict: (
+    point: Readonly<{ volumeMl: number; pressureMmHg: number }>,
+  ) => number,
+): number {
+  const totalWeight = weighted.reduce((sum, item) => sum + item.weight, 0);
+  const mean =
+    weighted.reduce(
+      (sum, item) => sum + item.weight * item.point.pressureMmHg,
+      0,
+    ) / totalWeight;
+  const total = weighted.reduce(
+    (sum, item) => sum + item.weight * (item.point.pressureMmHg - mean) ** 2,
+    0,
+  );
+  const residual = weighted.reduce((sum, item) => {
+    const predicted = predict(item.point);
+    return sum + item.weight * (item.point.pressureMmHg - predicted) ** 2;
+  }, 0);
+  return total > 0 ? 1 - residual / total : residual === 0 ? 1 : 0;
+}
+
 function espvrEdpvrLeftIntersectionV1(
-  espvr: LinearFitV1,
+  systolicLaw: SystolicPressureLawV1,
   edpvr: ExponentialFitV1,
-  espvrVolumeAxisInterceptMl: number,
+  systolicZeroPressureVolumeMl: number,
   endVolumeMl: number,
 ): number | null {
   if (
-    ![espvrVolumeAxisInterceptMl, endVolumeMl].every(Number.isFinite) ||
-    !(endVolumeMl > espvrVolumeAxisInterceptMl)
+    ![systolicZeroPressureVolumeMl, endVolumeMl].every(Number.isFinite) ||
+    !(endVolumeMl > systolicZeroPressureVolumeMl)
   ) {
     return null;
   }
   const pressureDifferenceMmHg = (volumeMl: number) =>
-    espvr.slope * (volumeMl - espvrVolumeAxisInterceptMl) -
+    systolicPressureV1(systolicLaw, volumeMl) -
     nonnegativeExponentialPressureV1(edpvr, volumeMl);
-  let lowerVolumeMl = espvrVolumeAxisInterceptMl;
+  let lowerVolumeMl = systolicZeroPressureVolumeMl;
   let upperVolumeMl = endVolumeMl;
   const lowerDifferenceMmHg = pressureDifferenceMmHg(lowerVolumeMl);
   const upperDifferenceMmHg = pressureDifferenceMmHg(upperVolumeMl);
@@ -695,62 +1250,12 @@ function linearFitV1(
   });
 }
 
-function quadraticFitV1(
-  points: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[],
-): Exclude<
-  Extract<
-    MainWireIntegratedModelPeriodicPvaV1,
-    { status: "available" }
-  >["espvr"]["nonlinearComparator"],
-  null
-> | null {
-  if (points.length < 3) return null;
-  const x0 =
-    points.reduce((sum, point) => sum + point.volumeMl, 0) / points.length;
-  const x = points.map((point) => point.volumeMl - x0);
-  const y = points.map(({ pressureMmHg }) => pressureMmHg);
-  const n = points.length;
-  const s1 = x.reduce((sum, value) => sum + value, 0);
-  const s2 = x.reduce((sum, value) => sum + value ** 2, 0);
-  const s3 = x.reduce((sum, value) => sum + value ** 3, 0);
-  const s4 = x.reduce((sum, value) => sum + value ** 4, 0);
-  const sy = y.reduce((sum, value) => sum + value, 0);
-  const sxy = x.reduce((sum, value, index) => sum + value * y[index]!, 0);
-  const sx2y = x.reduce((sum, value, index) => sum + value ** 2 * y[index]!, 0);
-  const centered = solveThreeByThreeV1(
-    [
-      [s4, s3, s2],
-      [s3, s2, s1],
-      [s2, s1, n],
-    ],
-    [sx2y, sxy, sy],
-  );
-  if (centered === null) return null;
-  const [a, centeredB, centeredC] = centered;
-  const b = centeredB - 2 * a * x0;
-  const c = a * x0 ** 2 - centeredB * x0 + centeredC;
-  if (![a, b, c].every(Number.isFinite)) return null;
-  const range = finiteRangeV1(points.map(({ volumeMl }) => volumeMl));
-  if (range === null) return null;
-  const predicted = points.map(
-    ({ volumeMl }) => a * volumeMl ** 2 + b * volumeMl + c,
-  );
-  return Object.freeze({
-    method: "quadratic-isochronal-maximum-elastance-fit" as const,
-    quadraticMmHgPerMl2: a,
-    linearMmHgPerMl: b,
-    interceptMmHg: c,
-    rSquared: rSquaredV1(y, predicted),
-    monotonicallyIncreasingAcrossMeasuredRange:
-      2 * a * range[0] + b > 0 && 2 * a * range[1] + b > 0,
-  });
-}
-
 function exponentialFitV1(
   points: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[],
 ): ExponentialFitV1 | null {
   const range = finiteRangeV1(points.map(({ volumeMl }) => volumeMl));
-  if (range === null || points.length < 3) return null;
+  const weighted = volumeQuadratureWeightsV1(points);
+  if (range === null || weighted === null || weighted.length < 3) return null;
   const span = range[1] - range[0];
   const minimumV0 = range[0] - Math.max(20, 1.5 * span);
   const maximumV0 = range[0] - Math.max(0.05, span * 0.002);
@@ -774,20 +1279,26 @@ function exponentialFitV1(
         Math.log(minimumExponent) +
           fraction * (Math.log(maximumExponent) - Math.log(minimumExponent)),
       );
-      const basis = points.map(({ volumeMl }) =>
-        Math.expm1(exponent * (volumeMl - volumeOffset)),
+      const basis = weighted.map(({ point }) =>
+        Math.expm1(exponent * (point.volumeMl - volumeOffset)),
       );
-      const denominator = basis.reduce((sum, value) => sum + value ** 2, 0);
+      const denominator = basis.reduce(
+        (sum, value, index) => sum + weighted[index]!.weight * value ** 2,
+        0,
+      );
       if (!(denominator > 0) || !Number.isFinite(denominator)) continue;
       const scale =
-        points.reduce(
-          (sum, point, index) => sum + point.pressureMmHg * basis[index]!,
+        weighted.reduce(
+          (sum, item, index) =>
+            sum + item.weight * item.point.pressureMmHg * basis[index]!,
           0,
         ) / denominator;
       if (!(scale > 0) || !Number.isFinite(scale)) continue;
       const predicted = basis.map((value) => scale * value);
-      const score = predicted.reduce(
-        (sum, value, index) => sum + (points[index]!.pressureMmHg - value) ** 2,
+      const score = weighted.reduce(
+        (sum, item, index) =>
+          sum +
+          item.weight * (item.point.pressureMmHg - predicted[index]!) ** 2,
         0,
       );
       if (!Number.isFinite(score) || (best !== null && score >= best.score))
@@ -797,9 +1308,10 @@ function exponentialFitV1(
         exponent,
         volumeOffset,
         score,
-        rSquared: rSquaredV1(
-          points.map(({ pressureMmHg }) => pressureMmHg),
-          predicted,
+        rSquared: weightedRSquaredV1(
+          weighted,
+          ({ volumeMl }) =>
+            scale * Math.expm1(exponent * (volumeMl - volumeOffset)),
         ),
         parameterBoundaryHit:
           vOrdinal === 0 ||
@@ -820,24 +1332,6 @@ function nonnegativeExponentialPressureV1(
 ): number {
   if (volumeMl <= fit.volumeOffset) return 0;
   return fit.scale * Math.expm1(fit.exponent * (volumeMl - fit.volumeOffset));
-}
-
-function nonnegativeExponentialAreaV1(
-  fit: ExponentialFitV1,
-  startVolumeMl: number,
-  endVolumeMl: number,
-): number {
-  const start = Math.max(startVolumeMl, fit.volumeOffset);
-  if (!(endVolumeMl > start)) return 0;
-  const shiftedStart = start - fit.volumeOffset;
-  const shiftedEnd = endVolumeMl - fit.volumeOffset;
-  return (
-    fit.scale *
-    ((Math.exp(fit.exponent * shiftedEnd) -
-      Math.exp(fit.exponent * shiftedStart)) /
-      fit.exponent -
-      (shiftedEnd - shiftedStart))
-  );
 }
 
 function sampleCurveV1(
@@ -864,6 +1358,15 @@ function finiteRangeV1(
   const minimum = Math.min(...values);
   const maximum = Math.max(...values);
   return maximum > minimum ? Object.freeze([minimum, maximum] as const) : null;
+}
+
+function finiteRangeAllowEqualV1(
+  values: readonly number[],
+): readonly [number, number] | null {
+  if (values.length === 0 || values.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+  return Object.freeze([Math.min(...values), Math.max(...values)] as const);
 }
 
 function rSquaredV1(

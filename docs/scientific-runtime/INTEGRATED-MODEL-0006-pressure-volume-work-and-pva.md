@@ -57,7 +57,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-isochronal-emax-exponential-edpvr-settled-preload-reduction-v1
+suga-pva-area-max-common-isochrone-exponential-edpvr-settled-preload-reduction-v2
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -77,19 +77,25 @@ second SW owner.
 
 ### ESPVR
 
-The primary V1 relation uses a common isochronal phase across the settled
-preload-reduction loops. For each fixed candidate phase, it linearly regresses
-transmural pressure on volume; the earliest phase with the largest positive
-slope is selected as Emax:
+The primary relation uses one atrial-capture-relative absolute time across the
+settled preload-reduction loops. At each candidate time it fits a
+volume-quadrature-weighted, monotone nonlinear pressure law and evaluates
 
 ```text
-P_es = E_es (V_es - V0_es)
+J(t) = integral over the fixed end-systolic-landmark volume domain of
+         [P_iso(V,t) - P_ED(V)] dV
 ```
 
-A quadratic regression through the points at that same Emax phase is retained
-as a nonlinear diagnostic. It reports curvature, fit quality, and whether its
-derivative is positive throughout the measured volume range. Semilunar-valve
-closure is also retained as a comparator, but it does not own the Suga ESPVR.
+The time with the largest positive admissible `J(t)` owns ESPVR. A monotone
+quadratic is used when supported by at least five points; otherwise the same
+density-weighted fit falls back to a line. Linear Ees and V0 remain summary
+statistics rather than owning the displayed curve or PE geometry.
+
+Separately, the analysis retains `max_t P_iso(V,t)`, its winning time at every
+sampled volume, and the resulting time range. This pressure envelope diagnoses
+how strongly the single-common-time assumption fails; it does not own PE or
+the estimated MVO2. Semilunar-valve closure is likewise retained only as a
+comparator.
 
 ### EDPVR
 
@@ -99,10 +105,11 @@ V1 explicitly tests an exponential passive relation:
 P_ed = A [exp(B (V_ed - V0_ed)) - 1]
 ```
 
-`A`, `B`, and `V0_ed` are selected by a fixed bounded grid fit to positive-
-pressure maximum-volume landmarks from the settled load family. The current
-beat-metric owner labels these points `maximum-volume`; therefore production
-calls them an end-diastolic proxy rather than claiming inlet-valve closure.
+`A`, `B`, and `V0_ed` are selected by a fixed bounded,
+volume-quadrature-weighted grid fit to positive-pressure maximum-volume
+landmarks from the settled load family. The current beat-metric owner labels
+these points `maximum-volume`; therefore production calls them an
+end-diastolic proxy rather than claiming inlet-valve closure.
 
 ### PE and PVA
 
@@ -156,8 +163,14 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
   repeated 25-second controller re-equilibration, but it is not a fully
   regulated steady-state family.
 - End diastole uses the model's maximum-volume landmark in V1.
-- A common-phase linear isochronal Emax relation is the primary Suga
-  convention; quadratic curvature and semilunar closure are diagnostic only.
+- The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
+  relative time maximizes the integrated positive pressure area above EDPVR
+  over the fixed sampled volume domain. Volume-specific maximum-pressure
+  phases are retained only as an envelope diagnostic, and semilunar closure
+  remains a comparator.
+- ESPVR and EDPVR fits use volume-quadrature weights so adaptive point density
+  does not silently change the represented volume interval. The systolic law
+  uses linear endpoint tangents outside its measured isochrone range.
 - Fits are local to the sampled settled loads and are not clinical validation.
 
 These limitations remain beside the result rather than being hidden in a

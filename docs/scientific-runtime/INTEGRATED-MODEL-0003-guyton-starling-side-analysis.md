@@ -196,11 +196,13 @@ bounded calculation contract:
    literature MVO₂ estimate. These previews remain visually and structurally
    distinct from the final result. Final PVA requires at least nine points and
    arrival at the declared `0.60×` boundary.
-6. The final complete beat retains its phase-aligned transmural PV loop,
-   maximum-volume ED proxy, common-isochronal Emax sample, duration, and exact
-   accepted-step transmural path work. The latter owns displayed SW.
-7. Linear isochronal Emax is the primary ESPVR; a quadratic fit is diagnostic.
-   EDPVR is an exponential fit to the maximum-volume points. PE is admitted
+6. The final complete beat retains its atrial-capture-relative transmural PV
+   loop, maximum-volume ED proxy, duration, and exact accepted-step transmural
+   path work. The latter owns displayed SW.
+7. The primary ESPVR is a density-weighted monotone nonlinear fit at one common
+   time selected by maximum integrated positive pressure area above EDPVR.
+   The volume-specific maximum-pressure envelope is diagnostic only. EDPVR is
+   a density-weighted exponential fit to maximum-volume points. PE is admitted
    only after locating the left ESPVR–EDPVR intersection and verifying
    `P_es > P_ed` over every sampled interval through anchor ESV.
 8. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,

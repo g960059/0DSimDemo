@@ -726,7 +726,7 @@ export function PressureVolumeLoopCanvasV3(
       ? []
       : [Object.freeze({ periodicPva: periodicPva!, trace })]);
   const relationStatus = drawablePva.length > 0
-    ? "Settled-source preload reduction · progressive isochronal Emax ESPVR / exponential EDPVR · not clinical validation"
+    ? "Settled-source preload reduction · progressive area-max common-isochrone ESPVR / exponential EDPVR · not clinical validation"
     : "Settled-source preload-reduction analysis selected · relation not yet available";
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
@@ -994,19 +994,12 @@ function drawPeriodicPvaV1(
 ): void {
   const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
   const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
-  const espvrEndVolumeMl = Math.min(
-    volumeDomain[1],
-    pva.espvr.volumeAxisInterceptMl
-      + maximumVisiblePressureMmHg / pva.espvr.elastanceMmHgPerMl,
-  );
+  const espvrEndVolumeMl = volumeDomain[1];
   const espvrFullCurve = sampleDisplayedPvaCurveV1(
-    Math.max(volumeDomain[0], pva.espvr.volumeAxisInterceptMl),
+    Math.max(volumeDomain[0], pva.espvr.zeroPressureVolumeMl),
     espvrEndVolumeMl,
-    (volumeMl) => Math.max(
-      0,
-      pva.espvr.elastanceMmHgPerMl
-        * (volumeMl - pva.espvr.volumeAxisInterceptMl),
-    ),
+    (volumeMl) =>
+      Math.max(0, periodicPvaEspvrPressureV1(pva.espvr, volumeMl)),
   );
   drawPvCurveV3(context, espvrFullCurve, x, y, {
     color,
@@ -1084,13 +1077,43 @@ function drawPeriodicPvaV1(
   }
   drawPvRelationMarkerV3(
     context,
-    x(pva.espvr.volumeAxisInterceptMl),
+    x(pva.espvr.zeroPressureVolumeMl),
     y(0),
     color,
     2.4,
     relationAlpha,
     false,
   );
+}
+
+function periodicPvaEspvrPressureV1(
+  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1,
+  volumeMl: number,
+): number {
+  const nonlinear = espvr.nonlinearCurve;
+  if (nonlinear === null) {
+    return (
+      espvr.elastanceMmHgPerMl
+      * (volumeMl - espvr.volumeAxisInterceptMl)
+    );
+  }
+  const polynomial = (ownedVolumeMl: number) =>
+    nonlinear.quadraticMmHgPerMl2 * ownedVolumeMl ** 2
+    + nonlinear.linearMmHgPerMl * ownedVolumeMl
+    + nonlinear.interceptMmHg;
+  const slope = (ownedVolumeMl: number) =>
+    2 * nonlinear.quadraticMmHgPerMl2 * ownedVolumeMl
+    + nonlinear.linearMmHgPerMl;
+  const [minimumVolumeMl, maximumVolumeMl] = espvr.measuredVolumeRangeMl;
+  if (volumeMl < minimumVolumeMl) {
+    return polynomial(minimumVolumeMl)
+      + slope(minimumVolumeMl) * (volumeMl - minimumVolumeMl);
+  }
+  if (volumeMl > maximumVolumeMl) {
+    return polynomial(maximumVolumeMl)
+      + slope(maximumVolumeMl) * (volumeMl - maximumVolumeMl);
+  }
+  return polynomial(volumeMl);
 }
 
 function sampleDisplayedPvaCurveV1(
