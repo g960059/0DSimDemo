@@ -73,8 +73,10 @@ active pointer and never silently substitutes another exact release.
 ## Lifecycle and compatibility
 
 Registry lifecycle is `dev | stable | retired`. Publishing immutable rows does
-not activate them. Historical exact releases and artifacts remain loadable for
-durable pins until deliberately retired under the content policy.
+not activate them. `retired` removes a release from ordinary activation and new
+publication eligibility but does not itself break historical pins. Historical
+loading follows the independent registry availability flag; only an explicit
+emergency/unavailability transition makes the artifact unloadable.
 
 Artifact-only optimization under one `modelId` is allowed only when the exact
 manifest is unchanged and the repository's equivalence gate permits the new

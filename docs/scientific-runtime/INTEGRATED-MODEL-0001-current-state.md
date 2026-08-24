@@ -76,6 +76,12 @@ at Git tag `research-pva-mvo2-558-573-final`.
 - Valve event, beat-volume, pressure, work, oxygen-boundary, and coronary
   outputs retain their code-defined measurement bases; similar clinical names
   do not make them interchangeable.
+- Valve-disease controls are isolated acute effective-area brackets, not
+  diagnoses, clinical grades, patient fits, or chronic-remodeling phenotypes.
+  Pulmonic stenosis/regurgitation areas require post-solve interpretation from
+  peak velocity/gradient and regurgitant fraction. Detailed jet geometry,
+  pressure recovery, valve-port inertance, and dynamic annular/leaflet
+  pathology are not represented.
 - The beat-mean oxygen observer does not feed back into mechanics or
   circulation.
 - Structural return curves and settled preload families are protocol-defined

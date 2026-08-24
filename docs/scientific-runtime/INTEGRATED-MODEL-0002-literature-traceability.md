@@ -2,10 +2,10 @@
 
 Status: durable evidence map, not an active-release or implementation catalog
 
-Exact bibliographic metadata and equation locations are machine-owned in
-[the source registry](../../data/myocardium/sources.json). This document keeps
-only source roles, leakage boundaries, and non-claims that are costly to infer
-from code.
+The machine-readable cardiac-mechanics source registry lives in
+[data/myocardium/sources.json](../../data/myocardium/sources.json). Coronary,
+mechanical-support, and rhythm citations remain inline here because this
+document owns their evidence roles, leakage boundaries, and non-claims.
 
 ## Evidence roles
 
@@ -160,6 +160,6 @@ metrics and tolerances are frozen before inspecting the result.
 Evidence and claims follow the risk-informed separation described by the
 [FDA computational modeling guidance](https://www.fda.gov/regulatory-information/search-fda-guidance-documents/assessing-credibility-computational-modeling-and-simulation-medical-device-submissions)
 and
-[ASME V&V 40](https://www.asme.org/codes-standards/find-codes-standards/assessing-credibility-computational-modeling-through-verification-and-validation-application-to-medical-devices).
+[ASME V&V 40](https://www.asme.org/codes-standards/find-codes-standards/assessing-credibility-of-computational-modeling-through-verification-and-validation-application-to-medical-devices).
 No numerical, component, or coupled gate by itself establishes clinical
 validity, diagnosis, treatment efficacy, or certification.

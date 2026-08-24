@@ -15,7 +15,6 @@ Open only the area needed for the task:
   source roles, held-out evidence, and non-claims.
 - [AI-assisted authoring](../tools/authoring/README.md): machine discovery and
   authoring trust boundaries.
-- [Testing](testing/test-suite-strategy.md): suite ownership and execution.
 - [Supabase boundary](../supabase/README.md): backend trust, registry, and
   durable-content lifecycle.
 

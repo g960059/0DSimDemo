@@ -11,8 +11,9 @@ tables, RPC names, quotas, schedules, and operational commands.
 Supabase owns:
 
 - authentication and identity linking;
-- immutable exact-model, artifact-revision, analysis-profile, and Model-Surface
-  registry records;
+- immutable exact-model and Model-Surface registry records, certified
+  artifact-revision bindings, and the immutable analysis-profile ID attached
+  to each model-release row;
 - private Experiment and Article ownership;
 - immutable Snapshot and Article-content storage;
 - public pointers and anonymous read authorization;
@@ -70,6 +71,9 @@ metadata on the current model-release row, not fields in the scientific
 identity digest. The current registration API rejects rebinding them under the
 same `modelId`.
 
+Analysis method/profile definitions and catalogs are source-owned; the
+database stores only the profile ID selected by a model-release row.
+
 Display/default changes ultimately belong in a separately versioned metadata
 layer. A changed analysis implementation requires a new immutable profile ID;
 because durable content does not yet pin that profile independently, the
@@ -94,5 +98,8 @@ does not apply to a project containing Auth identities or authored/published
 content.
 
 Registry publication and active-bundle activation are separate trusted
-operations. Registering a release never changes the launch target; activation
-must be explicit and compare-and-swap protected.
+operations. Registering a new model/Surface identity never changes the active
+bundle. A certified artifact-revision rebind may update the implementation
+resolved beneath the same active `modelId`, but only through its separate
+equivalence and compare-and-swap authority. Changing the active model/Surface
+pair remains an explicit compare-and-swap operation.
