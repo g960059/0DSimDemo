@@ -625,15 +625,18 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
 function modelsV1(): StudioAuthoringModelPortV1 {
   return {
     resolveModel: vi.fn().mockResolvedValue({
-      modelId: "model/example",
-      modelFamilyId: "model-family/example",
-      displayName: "Example",
-      fixtureSchemaId: "fixture/example-v1",
-      checkpointCodecId: "checkpoint/example-v1",
-      snapshotGateId: "snapshot/example-v1",
-      controlCatalog: [],
-      outputCatalog: [],
-      graphCatalog: [],
+      contract: {
+        modelId: "model/example",
+        modelFamilyId: "model-family/example",
+        displayName: "Example",
+        fixtureSchemaId: "fixture/example-v1",
+        checkpointCodecId: "checkpoint/example-v1",
+        snapshotGateId: "snapshot/example-v1",
+        controlCatalog: [],
+        outputCatalog: [],
+        graphCatalog: [],
+      },
+      analysisOutputCatalog: [],
     }),
     resolveActiveNumericalModel: vi.fn(),
     resolveLatestNumericalModel: vi.fn(),

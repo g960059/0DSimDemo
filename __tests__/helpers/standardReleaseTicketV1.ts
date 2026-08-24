@@ -8,6 +8,9 @@ import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import standardRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 
 export const STANDARD_TEST_SURFACE_SERIES_ID_V1 =
   standardSurfaceReleaseV1.surfaceSeriesId;
@@ -18,6 +21,7 @@ export const STANDARD_TEST_RELEASE_TICKET_V1 =
   validateStudioModelWorkerReleaseTicketV2({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: standardClientDescriptorV1.manifest.modelId,
+    analysisProfileId: MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
     artifactRevisionId: standardRegistryAdmissionLockV1.artifactRevisionId,
     manifest: standardClientDescriptorV1.manifest,
     surfaceRelease: standardSurfaceReleaseV1,

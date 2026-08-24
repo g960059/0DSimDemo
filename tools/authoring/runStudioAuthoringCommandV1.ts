@@ -209,14 +209,18 @@ function createAuthoringModelPortV1(
   });
   return Object.freeze({
     async resolveModel(input) {
-      return (await exactModels.resolveExactModel(
+      const release = await exactModels.resolveExactModel(
         input.modelId,
         {
           kind: "release" as const,
           surfaceSeriesId: input.surfaceSeriesId,
           surfaceReleaseId: input.surfaceReleaseId,
         },
-      )).contract;
+      );
+      return Object.freeze({
+        contract: release.contract,
+        analysisOutputCatalog: release.analysisOutputCatalog,
+      });
     },
     async resolveActiveNumericalModel() {
       return ownNumerical(await exactModels.resolveActiveBundle());

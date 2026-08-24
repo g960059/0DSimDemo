@@ -1,4 +1,5 @@
 import type {
+  MetricOutputDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
 import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
@@ -26,8 +27,10 @@ import type {
   StudioModelSurfacePinV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+  MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
+  admitStudioAnalysisOutputCatalogForModelV1,
+  resolveStudioAnalysisProfileV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -48,6 +51,7 @@ export type StudioClientCompositionV2 = Readonly<{
   releaseStage: StudioReleaseStageV1;
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
+  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
   workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
@@ -59,7 +63,9 @@ export type StudioClientCompositionV2 = Readonly<{
 export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
 
 export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
+  resolveStudioAnalysisProfileV1(
+    MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
+  ).resolveExecutionPlan;
 
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
@@ -124,9 +130,10 @@ async function createRegistryClientCompositionV2(
     releaseStage: release.stage,
     defaultFixture: release.defaultFixture,
     contract: release.contract,
-    analysisExecutionPlan: analysisExecutionPlanForProfileV2(
+    analysisOutputCatalog: release.analysisOutputCatalog,
+    analysisExecutionPlan: resolveStudioAnalysisProfileV1(
       release.analysisProfileId,
-    ),
+    ).resolveExecutionPlan,
     workerReleaseTicket: release.ticket,
     surfaceReleaseId: release.surfaceReleaseId,
     surfaceSeriesId: release.surfaceSeriesId,
@@ -164,6 +171,8 @@ Promise<StudioClientCompositionV2> {
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: composed.contract.modelId,
+      analysisProfileId:
+        MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
       artifactRevisionId:
         standardRegistryAdmissionLockV1.artifactRevisionId,
       manifest: standardClientDescriptorV1.manifest,
@@ -176,8 +185,12 @@ Promise<StudioClientCompositionV2> {
       releaseStage: "dev" as const,
       defaultFixture: standardClientDescriptorV1.defaultFixture,
       contract: composed.contract,
+      analysisOutputCatalog: admitStudioAnalysisOutputCatalogForModelV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
+        composed.contract.outputCatalog,
+      ),
       analysisExecutionPlan:
-        resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+        DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2,
       workerReleaseTicket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
@@ -300,16 +313,4 @@ export function loadStudioSnapshotClientCompositionV2(
     }
   });
   return pending;
-}
-
-function analysisExecutionPlanForProfileV2(
-  profileId: string,
-): StudioSimulationAnalysisExecutionPlanResolverV2 {
-  if (profileId === "standard-no-model-analysis-v1") {
-    return () => null;
-  }
-  if (profileId === "main-wire-integrated-standard-v1") {
-    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
-  }
-  throw new Error(`Unsupported Studio analysis profile ${profileId}`);
 }

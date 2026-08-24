@@ -28,6 +28,9 @@ import {
   admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
+  admitStudioAnalysisOutputCatalogForModelV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 
@@ -186,6 +189,10 @@ export class DynamicExactModelRuntimeLoaderV2 {
     const runtime = admitExactModelExecutableRuntimeV2(
       release.executables,
       composed.contract,
+      admitStudioAnalysisOutputCatalogForModelV1(
+        ticket.analysisProfileId,
+        composed.contract.outputCatalog,
+      ),
     );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
     this.#coldTimingByTicket.set(canonicalTicket, Object.freeze({

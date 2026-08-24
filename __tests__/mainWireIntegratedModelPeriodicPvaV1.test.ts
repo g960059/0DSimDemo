@@ -27,7 +27,8 @@ import {
 } from "@/components/WorkbenchV3Page";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
-import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from
+  "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 
 describe("settled hot-start PVA V1", () => {
   it("calculates accepted-step SW, an area-max common-isochrone ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
@@ -679,7 +680,20 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {
-    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const { contract, analysisOutputCatalog } =
+      await loadStudioDefaultClientCompositionV2();
+    const analysisOutputIds = Object.values(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+    );
+    expect(
+      contract.outputCatalog.some(({ outputId }) =>
+        analysisOutputIds.includes(
+          outputId as (typeof analysisOutputIds)[number],
+        )),
+    ).toBe(false);
+    expect(analysisOutputCatalog.map(({ outputId }) => outputId)).toEqual(
+      analysisOutputIds,
+    );
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1()),
       "LV",
@@ -690,9 +704,7 @@ describe("settled hot-start PVA V1", () => {
       contract,
       "scenario/current",
     ).outputPanes[0]!;
-    const outputIds = Object.values(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-    );
+    const outputIds = analysisOutputIds;
     const outputLabels = [
       "LV potential energy (PE)",
       "LV pressure–volume area (PVA)",
@@ -709,6 +721,7 @@ describe("settled hot-start PVA V1", () => {
     };
 
     const items = materializeWorkbenchOutputPresentationItemsV3({
+      analysisOutputCatalog,
       contract,
       frame: null,
       locale: "en",
@@ -768,6 +781,7 @@ describe("settled hot-start PVA V1", () => {
     }
     const earlyPvaMilliJoule = early.pva.joule * 1e3;
     const progressItems = materializeWorkbenchOutputPresentationItemsV3({
+      analysisOutputCatalog,
       contract,
       frame: null,
       locale: "en",

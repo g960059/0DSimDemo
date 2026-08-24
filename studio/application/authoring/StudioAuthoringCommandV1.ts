@@ -37,7 +37,10 @@ import type {
   ExperimentSurfaceV2,
   ExperimentV2,
 } from "@/studio/contracts/v2/content";
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import type {
+  MetricOutputDefinitionV2,
+  ModelContractV2,
+} from "@/studio/contracts/v2/model";
 import {
   assertPortableStudioJsonObjectV2,
 } from "@/studio/contracts/v2/model";
@@ -281,7 +284,10 @@ export interface StudioAuthoringRepositoryPortV1 {
 
 export interface StudioAuthoringModelPortV1
   extends StudioAuthoringNumericalModelPortV1 {
-  resolveModel(input: StudioAuthoringExactModelPinV1): Promise<ModelContractV2>;
+  resolveModel(input: StudioAuthoringExactModelPinV1): Promise<Readonly<{
+    contract: ModelContractV2;
+    analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
+  }>>;
 }
 
 export interface StudioAuthoringPolicyPortV1 {
@@ -1407,12 +1413,16 @@ export async function executeStudioAuthoringCommandV1(
         ...current.experiment.content,
         surface: command.input.surface,
       });
-      const model = await models.resolveModel({
+      const resolvedModel = await models.resolveModel({
         modelId: content.modelId,
         surfaceSeriesId: content.surfaceSeriesId,
         surfaceReleaseId: command.input.surfaceReleaseId,
       });
-      assertExperimentContentMatchesModelV2(content, model);
+      assertExperimentContentMatchesModelV2(
+        content,
+        resolvedModel.contract,
+        resolvedModel.analysisOutputCatalog,
+      );
       return summarizeExperimentMutationV1(await repository.saveExperiment({
         experimentId: command.input.experimentId,
         expectedVersion: command.input.expectedVersion,
@@ -1589,13 +1599,20 @@ async function assertArticleMatchesAuthorityV1(
       block.placement,
       snapshot,
     );
-    const model = await models.resolveModel({
+    const resolvedModel = await models.resolveModel({
       modelId: snapshot.content.modelId,
       surfaceSeriesId: snapshot.content.surfaceSeriesId,
       surfaceReleaseId: snapshot.surfaceReleaseId,
     });
-    assertExperimentContentMatchesModelV2(snapshot.content, model);
-    assertExperimentBriefingMatchesModelV2(placement.briefing, model);
+    assertExperimentContentMatchesModelV2(
+      snapshot.content,
+      resolvedModel.contract,
+      resolvedModel.analysisOutputCatalog,
+    );
+    assertExperimentBriefingMatchesModelV2(
+      placement.briefing,
+      resolvedModel.contract,
+    );
   }));
 }
 

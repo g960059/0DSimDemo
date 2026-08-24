@@ -7,13 +7,15 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_SNAPSHOT_V3,
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STATUS_FIELDS_V3,
   MainWireIntegratedModelOutputProjectionErrorV3,
   projectMainWireIntegratedModelAdvancedFrameV3,
   projectMainWireIntegratedModelObservationV3,
   projectMainWireIntegratedModelSelectedValuesV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3,
   MainWireIntegratedModelSessionV3,
@@ -166,10 +168,6 @@ const EXACT_OUTPUT_IDS = [
   "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
   "myocardium.work.external.RV-transmural-pressure-volume-path",
   "myocardium.work.stroke.LV",
-  "myocardium.energy.potential.LV-pressure-volume-area",
-  "myocardium.energy.pressure-volume-area.LV",
-  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
-  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
   "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
@@ -205,18 +203,18 @@ const EXACT_OUTPUT_IDS = [
 describe("Main Wire Integrated Model V3 output registry", () => {
   it("locks the exact expanded output catalog and excludes status from frames", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_REGISTRY_V3_ID).toBe(
-      "main-wire-integrated-model-output-registry-v10",
+      "main-wire-integrated-model-output-registry-v11",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID).toBe(
-      "main-wire-integrated-model-output-frame-v10",
+      "main-wire-integrated-model-output-frame-v11",
     );
     expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3).toEqual(EXACT_OUTPUT_IDS);
-    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(177);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3).toHaveLength(173);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.filter(
         ({ kind }) => kind === "metric",
       ),
-    ).toHaveLength(100);
+    ).toHaveLength(96);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.every(
         ({ modelingStatus, sourcePath, significantDigits }) =>
@@ -253,12 +251,9 @@ describe("Main Wire Integrated Model V3 output registry", () => {
     for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
       expect(
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
-          (definition) => definition.outputId === outputId,
+          (definition) => String(definition.outputId) === outputId,
         ),
-      ).toMatchObject({
-        sourceKind: "analysis-result",
-        scope: "window",
-      });
+      ).toBeUndefined();
     }
     expect(MAIN_WIRE_INTEGRATED_MODEL_STATUS_FIELDS_V3).toEqual([
       "model-time",
@@ -440,19 +435,11 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       projectMainWireIntegratedModelAdvancedFrameV3(boundaryAdvance);
     expect(
       Object.entries(boundaryFrame.values).every(
-        ([outputId, { availability }]) =>
-          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.includes(
-            outputId as (typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1)[number],
-          ) || availability === "available",
+        ([, { availability }]) => availability === "available",
       ),
     ).toBe(true);
     for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
-      expect(boundaryFrame.values[outputId]).toEqual({
-        outputId,
-        value: null,
-        availability: "not-evaluated-at-accepted-state",
-        quality: "not-assessed",
-      });
+      expect(Object.hasOwn(boundaryFrame.values, outputId)).toBe(false);
     }
     expect(
       boundaryFrame.values["hemodynamics.pressure.systolic.Ao"].value,

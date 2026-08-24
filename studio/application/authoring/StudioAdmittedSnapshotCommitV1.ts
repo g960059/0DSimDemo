@@ -41,6 +41,7 @@ export async function admitAndSealStudioSnapshotCommitV1(input: Readonly<{
   assertExperimentContentMatchesModelV2(
     snapshot.content,
     input.runtime.contract,
+    input.runtime.analysisOutputCatalog,
   );
   await assertExperimentCapturesMatchModelV2(
     snapshot.content,

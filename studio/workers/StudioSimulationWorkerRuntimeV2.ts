@@ -1057,7 +1057,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         fixture: this.#requiredScenarioFixture(scenarioId),
       })),
       surface,
-    }, runtime.contract);
+    }, runtime.contract, runtime.analysisOutputCatalog);
     const correlation = validateExperimentCaptureCorrelationV2({
       runtimeSessionId: physicalRuntimeSessionId,
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
@@ -1209,7 +1209,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         fixture: this.#requiredScenarioFixture(scenarioId),
       })),
       surface: request.surface,
-    }, context.runtime.contract);
+    }, context.runtime.contract, context.runtime.analysisOutputCatalog);
     if (request.surfaceSeriesId !== this.#requiredSurfaceSeriesId()) {
       throw new Error("simulation worker Save Surface series pin changed");
     }
@@ -1978,7 +1978,7 @@ async function captureFirstExperimentContentV2(input: Readonly<{
   const content = validateExperimentContentForModelV2({
     ...capturedContent,
     surfaceSeriesId: input.desiredContent.surfaceSeriesId,
-  }, input.runtime.contract);
+  }, input.runtime.contract, input.runtime.analysisOutputCatalog);
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,
     content,

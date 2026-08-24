@@ -1,8 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  MetricOutputDefinitionV2,
   ModelContractV2,
 } from "@/studio/contracts/v2/model";
+import {
+  admitStudioAnalysisOutputCatalogForModelV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   assertPortableStudioJsonObjectV2,
 } from "@/studio/contracts/v2/model";
@@ -39,6 +43,7 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
   analysisProfileId: string;
+  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
@@ -285,6 +290,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
+      analysisProfileId,
       artifactRevisionId,
       manifest: kernel,
       surfaceRelease: surface.manifest,
@@ -295,6 +301,10 @@ export class StudioSupabaseModelReleaseResolverV1 {
       contract: composed.contract,
       defaultFixture,
       analysisProfileId,
+      analysisOutputCatalog: admitStudioAnalysisOutputCatalogForModelV1(
+        analysisProfileId,
+        composed.contract.outputCatalog,
+      ),
       stage: row.stage,
       ticket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,

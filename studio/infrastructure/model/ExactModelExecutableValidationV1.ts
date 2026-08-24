@@ -1,4 +1,7 @@
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import type {
+  MetricOutputDefinitionV2,
+  ModelContractV2,
+} from "@/studio/contracts/v2/model";
 import { assertCaptureAdapterMatchesModelV2 } from "@/studio/contracts/v2/model";
 import type {
   RegisteredModelExecutableBundleV2,
@@ -160,6 +163,7 @@ function validateAndOwnExecutableBundleV2(
 export function admitExactModelExecutableRuntimeV2(
   bundle: RegisteredModelExecutableBundleV2,
   contract: ModelContractV2,
+  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): ResolvedExactModelRuntimeV2 {
   const executionPlanDescriptor = validateAndOwnExecutableBundleV2(
     bundle,
@@ -167,6 +171,7 @@ export function admitExactModelExecutableRuntimeV2(
   );
   return Object.freeze({
     contract,
+    analysisOutputCatalog: Object.freeze([...analysisOutputCatalog]),
     captureAdapter: Object.freeze({
       modelId: bundle.captureAdapter.modelId,
       fixtureSchemaId: bundle.captureAdapter.fixtureSchemaId,

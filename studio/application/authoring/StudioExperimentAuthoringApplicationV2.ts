@@ -124,10 +124,15 @@ export class StudioExperimentAuthoringApplicationV2 {
       version: 0,
       content: command.content,
     });
-    const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
+    const runtime = this.#requiredModelRuntimeV2(
       experiment.content.modelId,
     );
-    assertExperimentContentMatchesModelV2(experiment.content, model);
+    const { contract: model, captureAdapter: adapter } = runtime;
+    assertExperimentContentMatchesModelV2(
+      experiment.content,
+      model,
+      runtime.analysisOutputCatalog,
+    );
     await assertExperimentCapturesMatchModelV2(
       experiment.content,
       model,
@@ -169,10 +174,15 @@ export class StudioExperimentAuthoringApplicationV2 {
     const experiment = this.#repository.readExperiment(experimentId);
     if (experiment === null) return null;
     const validated = validateExperimentV2(experiment);
-    const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
+    const runtime = this.#requiredModelRuntimeV2(
       validated.content.modelId,
     );
-    assertExperimentContentMatchesModelV2(validated.content, model);
+    const { contract: model, captureAdapter: adapter } = runtime;
+    assertExperimentContentMatchesModelV2(
+      validated.content,
+      model,
+      runtime.analysisOutputCatalog,
+    );
     await assertExperimentCapturesMatchModelV2(
       validated.content,
       model,
@@ -217,6 +227,7 @@ export class StudioExperimentAuthoringApplicationV2 {
     const desiredContent = validateExperimentDesiredContentForModelV2(
       command.desiredContent,
       model,
+      runtime.analysisOutputCatalog,
     );
     assertExperimentDesiredFixturesMatchModelV2(
       desiredContent,
@@ -246,7 +257,11 @@ export class StudioExperimentAuthoringApplicationV2 {
       replacement.content,
       (message) => new StudioExperimentCaptureMutationErrorV2(message),
     );
-    assertExperimentContentMatchesModelV2(replacement.content, model);
+    assertExperimentContentMatchesModelV2(
+      replacement.content,
+      model,
+      runtime.analysisOutputCatalog,
+    );
     await assertExperimentCapturesMatchModelV2(
       replacement.content,
       model,
@@ -306,6 +321,7 @@ export class StudioExperimentAuthoringApplicationV2 {
     assertExperimentContentMatchesModelV2(
       candidateContent,
       model,
+      runtime.analysisOutputCatalog,
     );
     await assertExperimentCapturesMatchModelV2(
       candidateContent,
@@ -353,10 +369,15 @@ export class StudioExperimentAuthoringApplicationV2 {
     snapshotValue: ExperimentSnapshotV2,
   ): Promise<ExperimentSnapshotV2> {
     const snapshot = validateExperimentSnapshotV2(snapshotValue);
-    const { contract: model, captureAdapter: adapter } = this.#requiredModelRuntimeV2(
+    const runtime = this.#requiredModelRuntimeV2(
       snapshot.content.modelId,
     );
-    assertExperimentContentMatchesModelV2(snapshot.content, model);
+    const { contract: model, captureAdapter: adapter } = runtime;
+    assertExperimentContentMatchesModelV2(
+      snapshot.content,
+      model,
+      runtime.analysisOutputCatalog,
+    );
     await assertExperimentCapturesMatchModelV2(
       snapshot.content,
       model,

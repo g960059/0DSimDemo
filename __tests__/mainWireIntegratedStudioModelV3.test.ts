@@ -51,6 +51,9 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import { resolveMainWireIntegratedStudioAnalysisExecutionPlanV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import mainWireIntegratedStudioHistoricalSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
@@ -411,6 +414,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+      analysisProfileId: MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
       artifactRevisionId:
         mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId,
       manifest: mainWireIntegratedStudioStandardClientV1.manifest,
@@ -470,6 +474,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const ticket = {
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+      analysisProfileId: MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
       artifactRevisionId:
         mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId,
       manifest: mainWireIntegratedStudioStandardClientV1.manifest,

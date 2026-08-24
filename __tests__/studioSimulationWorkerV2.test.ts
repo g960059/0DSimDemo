@@ -4539,6 +4539,7 @@ function exactRuntimeV2(
     ?? defaultExecutionPlanAdapterV1();
   return {
     contract,
+    analysisOutputCatalog: [],
     captureAdapter: {
       modelId: contract.modelId,
       fixtureSchemaId: contract.fixtureSchemaId,

@@ -134,6 +134,7 @@ import {
 import { validateExperimentPlacementBriefingV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
   ControlDefinitionV2,
+  MetricOutputDefinitionV2,
   ModelContractV2,
   StructuralReturnGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
@@ -191,21 +192,23 @@ import {
   type WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
 import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
-import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
-
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "live";
       contract: ModelContractV2;
+      analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
       frame: StudioSimulationFrameV2;
     }>
   | Readonly<{
@@ -574,6 +577,8 @@ const WorkbenchV3Session = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
+  const analysisOutputCatalog =
+    status.kind === "live" ? status.analysisOutputCatalog : Object.freeze([]);
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -1089,6 +1094,7 @@ const WorkbenchV3Session = ({
       setStatus({
         kind: "live",
         contract: composition.contract,
+        analysisOutputCatalog: composition.analysisOutputCatalog,
         frame: initial,
       });
       const playbackIntent = playingIntentRef.current;
@@ -2842,6 +2848,7 @@ const WorkbenchV3Session = ({
           );
     return (
       <OutputPaneBodyV3
+        analysisOutputCatalog={analysisOutputCatalog}
         contract={contract}
         frame={frame}
         locale={resolvedLocale}
@@ -3447,6 +3454,7 @@ const WorkbenchV3Session = ({
           locale={resolvedLocale}
           selectedPane={paneSettings}
           contract={contract}
+          analysisOutputCatalog={analysisOutputCatalog}
           surface={surface}
           scenarios={scenarios}
           onClose={() => setPaneSettings(null)}
@@ -5179,6 +5187,7 @@ function periodicPvaOutputNoticeV3(
 export function materializeWorkbenchOutputPresentationItemsV3(
   input: Readonly<{
     contract: ModelContractV2;
+    analysisOutputCatalog?: readonly MetricOutputDefinitionV2[];
     frame: StudioSimulationFrameV2 | null;
     locale: "en" | "ja";
     notAssessedNotice: string;
@@ -5188,7 +5197,10 @@ export function materializeWorkbenchOutputPresentationItemsV3(
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
   const outputById = new Map(
-    input.contract.outputCatalog.map((output) => [output.outputId, output]),
+    [
+      ...input.contract.outputCatalog,
+      ...(input.analysisOutputCatalog ?? []),
+    ].map((output) => [output.outputId, output]),
   );
   const sortedItems = [...input.pane.items].sort(
     (left, right) => left.order - right.order,
@@ -5313,6 +5325,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
 }
 
 function OutputPaneBodyV3({
+  analysisOutputCatalog,
   contract,
   frame,
   locale,
@@ -5325,6 +5338,7 @@ function OutputPaneBodyV3({
   showBinding,
   scenarioLabel,
 }: Readonly<{
+  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
   locale: "en" | "ja";
@@ -5347,6 +5361,7 @@ function OutputPaneBodyV3({
       ? t("workbench.live.paneBindingActive", { scenario: scenarioLabel })
       : t("workbench.live.paneBindingFixed", { scenarios: scenarioLabel });
   const selected = materializeWorkbenchOutputPresentationItemsV3({
+    analysisOutputCatalog,
     contract,
     frame,
     locale,

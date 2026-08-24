@@ -26,6 +26,7 @@ export type RegisteredModelModuleAbiV2 = "circleheart-exact-model-esm-v1";
 export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
   schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
   modelId: string;
+  analysisProfileId: string;
   artifactRevisionId: string;
   manifest: ExactModelKernelManifestV3;
   surfaceRelease: ModelSurfaceReleaseManifestV1;
@@ -53,6 +54,7 @@ export function validateStudioModelWorkerReleaseTicketV2(
     "$.moduleAbi",
   );
   const record = exactPlainRecordV2(value, [
+    "analysisProfileId",
     "artifactRevisionId",
     "artifactUrl",
     "manifest",
@@ -68,6 +70,10 @@ export function validateStudioModelWorkerReleaseTicketV2(
     );
   }
   assertPortableModelIdentifierV2(record.modelId, "$.modelId");
+  assertPortableModelIdentifierV2(
+    record.analysisProfileId,
+    "$.analysisProfileId",
+  );
   if (
     typeof record.artifactRevisionId !== "string"
     || !/^[0-9a-f]{64}$/.test(record.artifactRevisionId)
@@ -96,6 +102,7 @@ export function validateStudioModelWorkerReleaseTicketV2(
   return Object.freeze({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: record.modelId,
+    analysisProfileId: record.analysisProfileId,
     artifactRevisionId: record.artifactRevisionId,
     manifest: ownPortableValueV2(record.manifest),
     surfaceRelease: ownPortableValueV2(record.surfaceRelease),
