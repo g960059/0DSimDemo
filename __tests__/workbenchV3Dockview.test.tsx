@@ -52,7 +52,10 @@ import {
   updateWorkbenchGraphTraceCustomColorV3,
   updateWorkbenchSurfacePaneV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
-import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
+import {
+  WorkbenchPaneBindingButtonV3,
+  WorkbenchPaneBindingModeSelectorV3,
+} from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
   ExperimentOutputGridV3,
   formatExperimentOutputValueV3,
@@ -476,6 +479,26 @@ describe("V3 Dockview Workbench", () => {
     expect(visible).not.toContain(" w-full min-w-0");
     expect(visible).toContain("連動");
     expect(visible).toContain("Baseline");
+  });
+
+  it("uses one segmented linked-or-fixed selector across pane settings", () => {
+    const markup = renderToStaticMarkup(
+      <WorkbenchPaneBindingModeSelectorV3
+        activeLabel="選択シナリオと連動"
+        fixedLabel="Scenarioを固定"
+        groupLabel="Scenario"
+        mode="active-slot"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain('aria-label="Scenario"');
+    expect(markup).toContain("選択シナリオと連動");
+    expect(markup).toContain("Scenarioを固定");
+    expect(markup).toContain('aria-checked="true"');
+    expect(markup).toContain('data-active="true"');
+    expect(markup).toContain("workbench-control-segments");
   });
 
   it("preloads Placement Briefing independently from its neutral Snapshot", () => {

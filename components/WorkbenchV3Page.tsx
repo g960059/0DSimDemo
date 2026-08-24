@@ -3499,14 +3499,6 @@ const WorkbenchV3Session = ({
             emptyCatalog: t("workbench.editor.emptyCatalog"),
             editItem: t("workbench.editor.editItem"),
             generalSection: t("workbench.editor.settingsSections.general"),
-            historyDepth: t("workbench.editor.historyDepth"),
-            historyDepthHint: t("workbench.editor.historyDepthHint"),
-            formalPressureVolumeAnalysis: t(
-              "workbench.editor.formalPressureVolumeAnalysis",
-            ),
-            formalPressureVolumeAnalysisHint: t(
-              "workbench.editor.formalPressureVolumeAnalysisHint",
-            ),
             pressureEnvelopeOverlay: t(
               "workbench.editor.pressureEnvelopeOverlay",
             ),
@@ -3518,7 +3510,6 @@ const WorkbenchV3Session = ({
             outputFixedBindingHint: t(
               "workbench.editor.outputFixedBindingHint",
             ),
-            fixedScenarioBinding: t("workbench.editor.fixedScenarioBinding"),
             label: t("workbench.editor.label"),
             itemsSection: t("workbench.editor.items"),
             moveDown: t("workbench.editor.moveDown"),
@@ -3535,9 +3526,6 @@ const WorkbenchV3Session = ({
             seriesCatalog: t("workbench.editor.series"),
             scenarioColors: t("workbench.editor.scenarioColors"),
             scenarioColorsHint: t("workbench.editor.scenarioColorsHint"),
-            scenarioScope: t("workbench.editor.scenarioScope"),
-            visibleScenarioScope: t("workbench.editor.visibleScenarioScope"),
-            fixedScenarioScope: t("workbench.editor.fixedScenarioScope"),
             traceVisibility: t("workbench.editor.traceVisibility"),
             traceVisibilityHint: t("workbench.editor.traceVisibilityHint"),
             resetColor: t("workbench.editor.resetColor"),
@@ -4624,6 +4612,12 @@ function StructuralReturnGraphPaneV3({
 }>) {
   const { t } = useTranslation();
   const lastAutoRequestedKeyRef = React.useRef<string | null>(null);
+  const retainedOrientationByScenarioRef = React.useRef(
+    new Map<
+      string,
+      NonNullable<ReturnType<typeof structuralReturnOrientationFromPayloadV3>>
+    >(),
+  );
   const missingScenarioIds = React.useMemo(
     () =>
       Object.freeze(
@@ -4664,6 +4658,24 @@ function StructuralReturnGraphPaneV3({
     onRequestAnalysis,
     operationPending,
   ]);
+  React.useEffect(() => {
+    const retained = retainedOrientationByScenarioRef.current;
+    const activeKeys = new Set(
+      traces.map(({ scenarioId }) => `${structuralSide}:${scenarioId}`),
+    );
+    for (const key of retained.keys()) {
+      if (!activeKeys.has(key)) retained.delete(key);
+    }
+    for (const trace of traces) {
+      const orientation = structuralReturnOrientationFromPayloadV3(
+        trace.analysis?.payload,
+        structuralSide,
+      );
+      if (orientation !== null) {
+        retained.set(`${structuralSide}:${trace.scenarioId}`, orientation);
+      }
+    }
+  }, [structuralSide, traces]);
   const comparisonTraces = React.useMemo(
     () =>
       Object.freeze(
@@ -4681,11 +4693,22 @@ function StructuralReturnGraphPaneV3({
               return candidate === null ? [] : [candidate];
             }),
           );
-          const fallbackOrientation =
+          const retainedOrientation =
             trace.pending && currentOrientation === null
+              ? (retainedOrientationByScenarioRef.current.get(
+                  `${structuralSide}:${trace.scenarioId}`,
+                ) ?? null)
+              : null;
+          const historyFallbackOrientation =
+            trace.pending &&
+            currentOrientation === null &&
+            retainedOrientation === null
               ? (historyOrientations.at(-1) ?? null)
               : null;
-          const orientation = currentOrientation ?? fallbackOrientation;
+          const orientation =
+            currentOrientation ??
+            retainedOrientation ??
+            historyFallbackOrientation;
           if (orientation === null) return [];
           return [
             Object.freeze({
@@ -4693,10 +4716,10 @@ function StructuralReturnGraphPaneV3({
               scenarioLabel: trace.scenarioLabel,
               color: trace.color,
               orientation,
-              orientationAlpha: fallbackOrientation === null ? 1 : 0.34,
+              orientationAlpha: historyFallbackOrientation === null ? 1 : 0.34,
               pending: trace.pending,
               historyOrientations:
-                fallbackOrientation === null
+                historyFallbackOrientation === null
                   ? historyOrientations
                   : Object.freeze(historyOrientations.slice(0, -1)),
             }),

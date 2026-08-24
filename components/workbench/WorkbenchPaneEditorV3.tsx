@@ -45,8 +45,6 @@ import {
   outputLabelV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
   WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
-  WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3,
-  WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3,
   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
   WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
@@ -60,7 +58,10 @@ import {
   workbenchScenarioColorSeedV3,
 } from "./v3/WorkbenchGraphColorV3";
 import { ExperimentPaneAddItemButtonV3 } from "./ExperimentPanePresentationV3";
-import { WorkbenchPaneBindingEditorV3 } from "./WorkbenchPaneBindingV3";
+import {
+  WorkbenchPaneBindingEditorV3,
+  WorkbenchPaneBindingModeSelectorV3,
+} from "./WorkbenchPaneBindingV3";
 
 const FOCUSABLE_SELECTOR_V3 = [
   "a[href]",
@@ -106,7 +107,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   fixedBinding: string;
   fixedBindingHint: string;
   outputFixedBindingHint: string;
-  fixedScenarioBinding: string;
   controlPresentation: string;
   sliderPresentation: string;
   buttonsPresentation: string;
@@ -125,10 +125,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   emptyCatalog: string;
   editItem: string;
   generalSection: string;
-  historyDepth: string;
-  historyDepthHint: string;
-  formalPressureVolumeAnalysis: string;
-  formalPressureVolumeAnalysisHint: string;
   pressureEnvelopeOverlay: string;
   pressureEnvelopeOverlayHint: string;
   label: string;
@@ -143,9 +139,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   seriesCatalog: string;
   scenarioColors: string;
   scenarioColorsHint: string;
-  scenarioScope: string;
-  visibleScenarioScope: string;
-  fixedScenarioScope: string;
   traceVisibility: string;
   traceVisibilityHint: string;
   resetColor: string;
@@ -167,17 +160,16 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     cancel: "Cancel",
     close: "Close pane settings",
     chooseItem: "Choose an item to edit its presentation.",
-    bindingSection: "Scenario binding",
-    activeSlotBinding: "Follow Scenario Manager",
+    bindingSection: "Scenario",
+    activeSlotBinding: "Follow selected Scenario",
     activeSlotBindingHint:
       "This pane controls whichever Scenario is selected in Scenario Manager.",
     outputActiveSlotBindingHint:
       "This pane displays the Scenario selected in Scenario Manager.",
-    fixedBinding: "Fixed Scenarios",
+    fixedBinding: "Fix Scenario",
     fixedBindingHint:
       "Every parameter in this pane applies the same absolute value to the selected Scenarios.",
     outputFixedBindingHint: "This pane always displays one selected Scenario.",
-    fixedScenarioBinding: "Fixed Scenario",
     controlPresentation: "Control presentation",
     sliderPresentation: "Slider",
     buttonsPresentation: "Custom buttons",
@@ -207,14 +199,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     emptyCatalog: "No registered items are available.",
     editItem: "Edit item",
     generalSection: "General",
-    historyDepth: "Previous states",
-    historyDepthHint: "0–3 completed parameter states",
-    formalPressureVolumeAnalysis: "Settled PVA / MVO₂ analysis",
-    formalPressureVolumeAnalysisHint:
-      "Reuses one bidirectional settled hot-start family for Starling/Guyton, ESPVR/EDPVR, accepted-step SW, PE, PVA, and the LV literature MVO₂ estimate.",
-    pressureEnvelopeOverlay: "Upper pressure envelope",
+    pressureEnvelopeOverlay: "Envelope",
     pressureEnvelopeOverlayHint:
-      "Optionally overlays maxτ P(V, τ). It diagnoses variation in the winning phase and never owns PE, PVA, or estimated MVO₂.",
+      "A reference curve joining the maximum pressure found at each volume. It shows the ventricle's upper pressure capability and is not used to calculate PVA.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -233,9 +220,6 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     scenarioColors: "Scenario colors",
     scenarioColorsHint:
       "Each existing trace keeps its allocated color. Change only the exact Scenario/item you need.",
-    scenarioScope: "Scenario scope",
-    visibleScenarioScope: "Visible Scenarios",
-    fixedScenarioScope: "Fixed Scenarios",
     traceVisibility: "Trace visibility",
     traceVisibilityHint:
       "The pane uses a Scenario-level scope; exact Scenario/item omissions are optional advanced curation.",
@@ -1075,28 +1059,6 @@ function GraphPaneEditorV3({
         <EditorSectionHeadingV3>
           {strings.displaySection}
         </EditorSectionHeadingV3>
-        {graph !== undefined && graph.renderer !== "sweep" && (
-          <div className="grid gap-1.5">
-            <CommitNumberInputV3
-              label={strings.historyDepth}
-              value={
-                pane.historyDepth ?? WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3
-              }
-              minimum={WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3}
-              maximum={WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3}
-              step={1}
-              onCommit={(historyDepth) =>
-                onChange({
-                  ...pane,
-                  historyDepth,
-                })
-              }
-            />
-            <p className="text-[10px] text-wb-subtle">
-              {strings.historyDepthHint}
-            </p>
-          </div>
-        )}
         {graph?.renderer === "sweep" && (
           <div className="grid gap-1.5">
             <PaneRangeInputV3
@@ -1114,65 +1076,55 @@ function GraphPaneEditorV3({
           </div>
         )}
         {graph?.renderer === "pressure-volume" && (
-          <div className="space-y-3 rounded-xl bg-wb-soft/55 px-3 py-3">
-            <span className="min-w-0">
-              <span className="block text-xs font-medium text-wb-text">
-                {strings.formalPressureVolumeAnalysis}
+          <button
+            type="button"
+            aria-pressed={
+              pane.showPressureEnvelope ??
+              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+            }
+            className={`block w-full rounded-xl px-3 py-3 text-left transition-colors ${
+              (pane.showPressureEnvelope ??
+              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                ? "bg-wb-selected text-wb-text"
+                : "bg-wb-soft/55 text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+            }`}
+            onClick={() =>
+              onChange({
+                ...pane,
+                showPressureEnvelope: !(
+                  pane.showPressureEnvelope ??
+                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+                ),
+              })
+            }
+          >
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium">
+                {strings.pressureEnvelopeOverlay}
               </span>
-              <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
-                {strings.formalPressureVolumeAnalysisHint}
-              </span>
-            </span>
-            <button
-              type="button"
-              aria-pressed={
-                pane.showPressureEnvelope ??
-                WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
-              }
-              className={`block w-full rounded-lg px-2.5 py-2 text-left transition-colors ${
-                (pane.showPressureEnvelope ??
-                WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                  ? "bg-wb-selected text-wb-text"
-                  : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-              }`}
-              onClick={() =>
-                onChange({
-                  ...pane,
-                  showPressureEnvelope: !(
-                    pane.showPressureEnvelope ??
-                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
-                  ),
-                })
-              }
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span className="text-[11px] font-medium">
-                  {strings.pressureEnvelopeOverlay}
-                </span>
+              <span
+                aria-hidden="true"
+                className={`relative h-4 w-7 rounded-full transition-colors ${
+                  (pane.showPressureEnvelope ??
+                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                    ? "bg-wb-accent"
+                    : "bg-wb-border"
+                }`}
+              >
                 <span
-                  aria-hidden="true"
-                  className={`relative h-4 w-7 rounded-full transition-colors ${
+                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
                     (pane.showPressureEnvelope ??
                     WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                      ? "bg-wb-accent"
-                      : "bg-wb-border"
+                      ? "translate-x-3.5"
+                      : "translate-x-0.5"
                   }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
-                      (pane.showPressureEnvelope ??
-                      WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                        ? "translate-x-3.5"
-                        : "translate-x-0.5"
-                    }`}
-                  />
-                </span>
+                />
               </span>
-              <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
-                {strings.pressureEnvelopeOverlayHint}
-              </span>
-            </button>
-          </div>
+            </span>
+            <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
+              {strings.pressureEnvelopeOverlayHint}
+            </span>
+          </button>
         )}
       </section>
 
@@ -1347,44 +1299,31 @@ function GraphScenarioScopeEditorV3({
   return (
     <div className="grid gap-4 rounded-xl bg-wb-soft/55 px-3 py-3">
       <fieldset className="grid gap-2">
-        <legend className="text-xs font-semibold text-wb-text">
-          {strings.scenarioScope}
-        </legend>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-wb-muted">
-          <input
-            type="radio"
-            name={`graph-scope-${pane.paneId}`}
-            checked={pane.scenarioScope.mode === "visible-scenarios"}
-            onChange={() =>
+        <legend className="sr-only">{strings.bindingSection}</legend>
+        <WorkbenchPaneBindingModeSelectorV3
+          activeLabel={strings.activeSlotBinding}
+          fixedLabel={strings.fixedBinding}
+          groupLabel={strings.bindingSection}
+          mode={pane.scenarioScope.mode === "fixed" ? "fixed" : "active-slot"}
+          onChange={(mode) => {
+            if (mode === "active-slot") {
               onChange({
                 ...pane,
                 scenarioScope: { mode: "visible-scenarios" },
-              })
-            }
-            className="accent-[var(--wb-accent)]"
-          />
-          {strings.visibleScenarioScope}
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-wb-muted">
-          <input
-            type="radio"
-            name={`graph-scope-${pane.paneId}`}
-            checked={pane.scenarioScope.mode === "fixed"}
-            onChange={() =>
+              });
+            } else {
               onChange({
                 ...pane,
                 scenarioScope: {
                   mode: "fixed",
                   scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
                 },
-              })
+              });
             }
-            className="accent-[var(--wb-accent)]"
-          />
-          {strings.fixedScenarioScope}
-        </label>
+          }}
+        />
         {pane.scenarioScope.mode === "fixed" && (
-          <div className="ml-5 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {scenarios.map((scenario) => {
               const selected =
                 pane.scenarioScope.mode === "fixed" &&
@@ -1729,12 +1668,12 @@ function OutputPaneEditorV3({
           activeLabel={strings.activeSlotBinding}
           allowMultipleFixed={false}
           fixedDescription={strings.outputFixedBindingHint}
-          fixedLabel={strings.fixedScenarioBinding}
+          fixedLabel={strings.fixedBinding}
           fixedScenarioIds={
             pane.binding.mode === "fixed" ? [pane.binding.scenarioId] : []
           }
+          groupLabel={strings.bindingSection}
           mode={pane.binding.mode}
-          paneId={pane.paneId}
           scenarios={scenarios}
           onChange={(mode, scenarioIds) =>
             onChange({
@@ -1958,8 +1897,8 @@ function ControlPaneEditorV3({
           fixedScenarioIds={
             pane.binding.mode === "fixed" ? pane.binding.scenarioIds : []
           }
+          groupLabel={strings.bindingSection}
           mode={pane.binding.mode}
-          paneId={pane.paneId}
           scenarios={scenarios}
           onChange={(mode, scenarioIds) =>
             onChange({

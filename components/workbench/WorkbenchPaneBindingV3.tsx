@@ -8,6 +8,54 @@ export type WorkbenchPaneBindingScenarioV3 = Readonly<{
   label: string;
 }>;
 
+/** Shared two-state selector used by graph, output, and controller panes. */
+export function WorkbenchPaneBindingModeSelectorV3({
+  activeLabel,
+  fixedDisabled = false,
+  fixedLabel,
+  groupLabel,
+  mode,
+  onChange,
+}: Readonly<{
+  activeLabel: string;
+  fixedDisabled?: boolean;
+  fixedLabel: string;
+  groupLabel: string;
+  mode: WorkbenchPaneBindingModeV3;
+  onChange: (mode: WorkbenchPaneBindingModeV3) => void;
+}>) {
+  return (
+    <div
+      className="workbench-control-segments"
+      role="radiogroup"
+      aria-label={groupLabel}
+    >
+      {(
+        [
+          ["active-slot", activeLabel, false],
+          ["fixed", fixedLabel, fixedDisabled],
+        ] as const
+      ).map(([candidate, label, disabled]) => {
+        const active = candidate === mode;
+        return (
+          <button
+            key={candidate}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            data-active={active ? "true" : "false"}
+            disabled={disabled}
+            className="workbench-control-segment active:scale-[0.98]"
+            onClick={() => onChange(candidate)}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Shared, quiet binding affordance for Output and Controller panes.
  *
@@ -69,8 +117,8 @@ export function WorkbenchPaneBindingEditorV3({
   fixedDescription,
   fixedLabel,
   fixedScenarioIds,
+  groupLabel,
   mode,
-  paneId,
   scenarios,
   onChange,
 }: Readonly<{
@@ -80,8 +128,8 @@ export function WorkbenchPaneBindingEditorV3({
   fixedDescription: string;
   fixedLabel: string;
   fixedScenarioIds: readonly string[];
+  groupLabel: string;
   mode: WorkbenchPaneBindingModeV3;
-  paneId: string;
   scenarios: readonly WorkbenchPaneBindingScenarioV3[];
   onChange: (
     mode: WorkbenchPaneBindingModeV3,
@@ -89,57 +137,39 @@ export function WorkbenchPaneBindingEditorV3({
   ) => void;
 }>) {
   const firstScenarioId = scenarios[0]?.scenarioId;
-  const selectedScenarioId = fixedScenarioIds.find((scenarioId) =>
-    scenarios.some((scenario) => scenario.scenarioId === scenarioId))
-    ?? firstScenarioId
-    ?? "";
+  const selectedScenarioId =
+    fixedScenarioIds.find((scenarioId) =>
+      scenarios.some((scenario) => scenario.scenarioId === scenarioId),
+    ) ??
+    firstScenarioId ??
+    "";
 
   return (
     <fieldset className="grid gap-3">
-      <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-wb-soft/55 px-3 py-3">
-        <input
-          type="radio"
-          name={`pane-binding-${paneId}`}
-          checked={mode === "active-slot"}
-          onChange={() => onChange("active-slot", [])}
-          className="mt-0.5 accent-[var(--wb-accent)]"
-        />
-        <span>
-          <span className="block text-xs font-medium text-wb-text">
-            {activeLabel}
-          </span>
-          <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
-            {activeDescription}
-          </span>
-        </span>
-      </label>
-
-      <label className="flex cursor-pointer items-start gap-2 rounded-xl bg-wb-soft/55 px-3 py-3">
-        <input
-          type="radio"
-          name={`pane-binding-${paneId}`}
-          checked={mode === "fixed"}
-          disabled={firstScenarioId === undefined}
-          onChange={() => {
+      <legend className="sr-only">{groupLabel}</legend>
+      <WorkbenchPaneBindingModeSelectorV3
+        activeLabel={activeLabel}
+        fixedDisabled={firstScenarioId === undefined}
+        fixedLabel={fixedLabel}
+        groupLabel={groupLabel}
+        mode={mode}
+        onChange={(nextMode) => {
+          if (nextMode === "active-slot") {
+            onChange("active-slot", []);
+          } else {
             if (selectedScenarioId.length > 0) {
               onChange("fixed", [selectedScenarioId]);
             }
-          }}
-          className="mt-0.5 accent-[var(--wb-accent)]"
-        />
-        <span>
-          <span className="block text-xs font-medium text-wb-text">
-            {fixedLabel}
-          </span>
-          <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
-            {fixedDescription}
-          </span>
-        </span>
-      </label>
+          }
+        }}
+      />
+      <p className="text-[10px] leading-4 text-wb-subtle">
+        {mode === "active-slot" ? activeDescription : fixedDescription}
+      </p>
 
-      {mode === "fixed" && (
-        allowMultipleFixed ? (
-          <div className="ml-5 flex flex-wrap gap-2">
+      {mode === "fixed" &&
+        (allowMultipleFixed ? (
+          <div className="flex flex-wrap gap-2">
             {scenarios.map((scenario) => {
               const selected = fixedScenarioIds.includes(scenario.scenarioId);
               return (
@@ -154,9 +184,11 @@ export function WorkbenchPaneBindingEditorV3({
                     onChange={(event) => {
                       const scenarioIds = event.currentTarget.checked
                         ? [...fixedScenarioIds, scenario.scenarioId]
-                        : fixedScenarioIds.filter((scenarioId) =>
-                            scenarioId !== scenario.scenarioId);
-                      if (scenarioIds.length > 0) onChange("fixed", scenarioIds);
+                        : fixedScenarioIds.filter(
+                            (scenarioId) => scenarioId !== scenario.scenarioId,
+                          );
+                      if (scenarioIds.length > 0)
+                        onChange("fixed", scenarioIds);
                     }}
                     className="accent-[var(--wb-accent)]"
                   />
@@ -166,11 +198,14 @@ export function WorkbenchPaneBindingEditorV3({
             })}
           </div>
         ) : (
-          <label className="ml-5 grid max-w-sm gap-1.5 text-[10px] text-wb-muted">
-            <span>{fixedLabel}</span>
+          <label className="grid max-w-sm gap-1.5 text-[10px] text-wb-muted">
+            <span className="sr-only">{fixedLabel}</span>
             <select
+              aria-label={fixedLabel}
               value={selectedScenarioId}
-              onChange={(event) => onChange("fixed", [event.currentTarget.value])}
+              onChange={(event) =>
+                onChange("fixed", [event.currentTarget.value])
+              }
               className="h-9 rounded-lg bg-wb-input px-2.5 text-xs text-wb-text outline-none ring-1 ring-inset ring-wb-line focus:ring-2 focus:ring-wb-accent"
             >
               {scenarios.map((scenario) => (
@@ -180,8 +215,7 @@ export function WorkbenchPaneBindingEditorV3({
               ))}
             </select>
           </label>
-        )
-      )}
+        ))}
     </fieldset>
   );
 }
