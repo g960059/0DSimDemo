@@ -149,6 +149,8 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
       methodId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID;
       outputId: string;
       status: "available";
+      /** Displayable throughout refinement; this field only reports completion. */
+      completionStatus: "progressive" | "complete";
       ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1;
       pressureBasis: "transmural";
       progress: PeriodicPvaProgressV1;
@@ -567,6 +569,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     methodId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
     outputId,
     status: "available" as const,
+    completionStatus: espvrProjection.phaseSelectionStatus,
     ventricleId,
     pressureBasis: "transmural" as const,
     progress,

@@ -23,9 +23,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_FRAME_V3_ID =
 
 const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
 
+// PVA-owned derived outputs only. The familiar LVSW output remains owned by
+// completed-beat path work and must not be overridden by an analysis snapshot.
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 =
   Object.freeze({
-    strokeWorkMilliJoule: "myocardium.work.stroke.LV" as const,
     potentialEnergyMilliJoule:
       "myocardium.energy.potential.LV-pressure-volume-area" as const,
     pressureVolumeAreaMilliJoule:
@@ -652,7 +653,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "completedBeatMetrics.rightVentricularTransmuralPressureVolumePathWorkMmHgMl",
   ),
   metricDefinition(
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+    "myocardium.work.stroke.LV",
     "work",
     "mJ",
     ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
@@ -670,7 +671,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "energy",
     "mJ",
     [
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+      "myocardium.work.stroke.LV",
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule,
     ],
     "analysis.periodicPva.LV.pva.joule*1e3",

@@ -5120,9 +5120,6 @@ export function workbenchPeriodicPvaOutputValueV3(
   if (projection === null || projection === undefined) return undefined;
   let value: number | null;
   switch (outputId) {
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule:
-      value = projection.strokeWork.joule * 1e3;
-      break;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
       if (projection.potentialEnergy === null) return undefined;
       value = projection.potentialEnergy.joule * 1e3;

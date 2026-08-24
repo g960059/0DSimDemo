@@ -21,7 +21,10 @@ import {
   PressureVolumeLoopCanvasV3,
   retainWorkbenchPvRelationDrawingV3,
 } from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
-import { materializeWorkbenchOutputPresentationItemsV3 } from "@/components/WorkbenchV3Page";
+import {
+  materializeWorkbenchOutputPresentationItemsV3,
+  workbenchPeriodicPvaOutputValueV3,
+} from "@/components/WorkbenchV3Page";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
@@ -35,6 +38,7 @@ describe("settled hot-start PVA V1", () => {
 
     expect(result.status).toBe("available");
     if (result.status !== "available") throw new Error(result.reason);
+    expect(result.completionStatus).toBe("complete");
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
       pointCount: 9,
@@ -328,6 +332,7 @@ describe("settled hot-start PVA V1", () => {
     }
     expect(provisionalPva).toMatchObject({
       status: "available",
+      completionStatus: "progressive",
       progress: { completedPointCount: 5, totalPointCount: 5 },
     });
     if (provisionalPva.status === "available") {
@@ -348,6 +353,7 @@ describe("settled hot-start PVA V1", () => {
 
     expect(result.status).toBe("available");
     if (result.status !== "available") throw new Error(result.reason);
+    expect(result.completionStatus).toBe("progressive");
     expect(result.progress).toEqual({
       completedPointCount: 5,
       totalPointCount: 5,
@@ -672,7 +678,7 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("materializes SW, PE, PVA, and estimated MVO2 in Workbench Outputs", async () => {
+  it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {
     const { contract } = await loadStudioDefaultClientCompositionV2();
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1()),
@@ -688,7 +694,6 @@ describe("settled hot-start PVA V1", () => {
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
     );
     const outputLabels = [
-      "LV stroke work (SW)",
       "LV potential energy (PE)",
       "LV pressure–volume area (PVA)",
       "Estimated LV MVO₂ per beat",
@@ -713,13 +718,6 @@ describe("settled hot-start PVA V1", () => {
     });
 
     expect(items).toEqual([
-      expect.objectContaining({
-        itemId: "myocardium.work.stroke.LV",
-        label: "LV stroke work (SW)",
-        value: periodicPva.strokeWork.joule * 1e3,
-        unit: "mJ",
-        availability: "available",
-      }),
       expect.objectContaining({
         itemId: "myocardium.energy.potential.LV-pressure-volume-area",
         label: "LV potential energy (PE)",
@@ -753,6 +751,12 @@ describe("settled hot-start PVA V1", () => {
         availability: "available",
       }),
     ]);
+    expect(
+      workbenchPeriodicPvaOutputValueV3(
+        periodicPva,
+        "myocardium.work.stroke.LV",
+      ),
+    ).toBeUndefined();
 
     const early = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),

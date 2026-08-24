@@ -40236,7 +40236,6 @@ function assertObservationPairV3(observation2) {
 }
 const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
 const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 = Object.freeze({
-  strokeWorkMilliJoule: "myocardium.work.stroke.LV",
   potentialEnergyMilliJoule: "myocardium.energy.potential.LV-pressure-volume-area",
   pressureVolumeAreaMilliJoule: "myocardium.energy.pressure-volume-area.LV",
   estimatedMvo2PerBeatPer100G: "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
@@ -40799,7 +40798,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "completedBeatMetrics.rightVentricularTransmuralPressureVolumePathWorkMmHgMl"
   ),
   metricDefinition(
-    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+    "myocardium.work.stroke.LV",
     "work",
     "mJ",
     ["hemodynamics.volume.LV", "hemodynamics.pressure.transmural.LV"],
@@ -40817,7 +40816,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
     "energy",
     "mJ",
     [
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule,
+      "myocardium.work.stroke.LV",
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule
     ],
     "analysis.periodicPva.LV.pva.joule*1e3"

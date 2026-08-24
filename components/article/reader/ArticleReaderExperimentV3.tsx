@@ -1542,8 +1542,6 @@ function articleReaderPeriodicPvaScalarV3(
         : null;
   if (projection === null) return null;
   switch (outputId) {
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.strokeWorkMilliJoule:
-      return projection.strokeWork.joule * 1e3;
     case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
       return projection.potentialEnergy?.joule === undefined
         ? null
