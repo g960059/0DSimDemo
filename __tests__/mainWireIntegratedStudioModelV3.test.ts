@@ -23,6 +23,7 @@ import {
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
 import type {
+  StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -1046,7 +1047,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
       },
     ]);
-    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const source = host.advanceOnePresentationStep(
+      runtimeSessionId,
+      scenarioId,
+    );
+    const progress: StudioSimulationAnalysisV2[] = [];
     const analysis = await host.requestAnalysis(
       runtimeSessionId,
       scenarioId,
@@ -1055,6 +1060,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       source.acceptedRevision,
       source.acceptedTimeSec,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      (partial) => progress.push(partial),
     );
     const payload = analysis.payload as unknown as Readonly<{
       left: Readonly<{
@@ -1072,6 +1078,17 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(payload.left.starlingLocus.status).toBe(
       "responsive-fixed-tbv-preview",
     );
+    const initialPayload = progress[0]?.payload as unknown as Readonly<{
+      left: Readonly<{
+        curve: readonly unknown[];
+        starlingLocus: Readonly<{ status: string; points: readonly unknown[] }>;
+      }>;
+    }>;
+    expect(initialPayload.left.curve.length).toBeGreaterThan(1);
+    expect(initialPayload.left.starlingLocus).toMatchObject({
+      status: "requires-protocol",
+      points: [],
+    });
     expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
     expect(
       payload.left.starlingLocus.points.every(

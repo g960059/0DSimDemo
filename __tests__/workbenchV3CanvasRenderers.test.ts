@@ -27,6 +27,7 @@ import {
   numericTicksV3,
   orderedFiniteWorkbenchSamplesV3,
   projectHistoricalPvEpochV3,
+  revealPvTrajectoryAfterFirstCompleteCycleV3,
   readWorkbenchCanvasThemeVariablesV3,
   workbenchHistoryAlphaV3,
   deriveWorkbenchScenarioItemColorV3,
@@ -302,21 +303,20 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("renders a moving partial PV trajectory before the first complete beat", () => {
+  it("extracts but does not reveal a partial PV trajectory before the first complete beat", () => {
     const samples = [
       sampleV3(0.2, 0.2, { volume: 118, pressure: 20 }),
       sampleV3(0.4, 0.4, { volume: 88, pressure: 112 }),
       sampleV3(0.6, 0.6, { volume: 70, pressure: 65 }),
     ];
 
-    expect(
-      extractLivePvTrajectoryV3(
-        samples,
-        "volume",
-        "pressure",
-        TEST_CYCLE_PHASE_OUTPUT_ID_V3,
-      ),
-    ).toEqual({
+    const trajectory = extractLivePvTrajectoryV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
+    expect(trajectory).toEqual({
       completedBeat: [],
       liveSegment: [
         {
@@ -339,6 +339,32 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         },
       ],
     });
+    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toEqual({
+      completedBeat: [],
+      liveSegment: [],
+    });
+  });
+
+  it("reveals phase-aware live PV motion after the first complete beat", () => {
+    const trajectory = extractLivePvTrajectoryV3(
+      [
+        sampleV3(0, 0, { volume: 120, pressure: 10 }),
+        sampleV3(0.25, 0.25, { volume: 100, pressure: 80 }),
+        sampleV3(0.5, 0.5, { volume: 65, pressure: 120 }),
+        sampleV3(0.9, 0.9, { volume: 115, pressure: 12 }),
+        sampleV3(1, 0, { volume: 120, pressure: 10 }),
+        sampleV3(1.2, 0.2, { volume: 108, pressure: 52 }),
+      ],
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
+
+    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toBe(
+      trajectory,
+    );
+    expect(trajectory.completedBeat).toHaveLength(5);
+    expect(trajectory.liveSegment).toHaveLength(2);
   });
 
   it("replaces the completed PV back buffer by phase without an alpha seam", () => {

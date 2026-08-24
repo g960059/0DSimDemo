@@ -49422,10 +49422,10 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         `Standard analysis partition is not registered: ${analysisPartition}`
       );
     })();
-    const toAnalysis = (starling2) => {
+    const toAnalysis = (starling2, sourceObservation) => {
       const payload = validateAndOwnStudioSimulationPortableJsonV2(
         buildMainWireIntegratedModelGuytonStarlingOrientationV3(
-          starling2?.anchorObservation ?? observation2,
+          starling2?.anchorObservation ?? sourceObservation ?? observation2,
           scenario.fixture.hemodynamicResearchInputs,
           starling2 === null ? void 0 : Object.freeze({
             right: starling2.right,
@@ -49445,12 +49445,30 @@ class MainWireIntegratedStudioStandardRuntimeHostV1 {
         payload
       });
     };
-    const analysisSource = await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
-      await scenario.modelSession.checkpointStandardExact(),
+    const exactCheckpoint = await scenario.modelSession.checkpointStandardExact();
+    let analysisSource = await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+      exactCheckpoint,
       scenario.fixture.hemodynamicResearchInputs,
       1,
       scenario.fixture.mechanismResearchInputs
     );
+    if (observation2.lastAcceptedStep !== null) {
+      onProgress?.(toAnalysis(null));
+    } else {
+      const previewAcceptedTimeSec = analysisSource.currentAcceptedState().acceptedTimeSec;
+      const previewAdvance = analysisSource.advanceToPresentationTime(
+        previewAcceptedTimeSec + MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1
+      );
+      if (previewAdvance.status === "advanced") {
+        onProgress?.(toAnalysis(null, previewAdvance.observation));
+      }
+      analysisSource = await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+        exactCheckpoint,
+        scenario.fixture.hemodynamicResearchInputs,
+        1,
+        scenario.fixture.mechanismResearchInputs
+      );
+    }
     const starling = analysisId === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
       analysisSource,
       scenario.fixture.hemodynamicResearchInputs,

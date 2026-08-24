@@ -75,6 +75,22 @@ export type WorkbenchLivePvTrajectoryV3 = Readonly<{
   liveSegment: readonly WorkbenchPvPointV3[];
 }>;
 
+/**
+ * Keeps an incomplete first orbit out of both the plot and its auto-domain.
+ * Once one complete model-emitted cycle exists, the normal phase-aware live
+ * replacement resumes and retains that completed beat as its back buffer.
+ */
+export function revealPvTrajectoryAfterFirstCompleteCycleV3(
+  trajectory: WorkbenchLivePvTrajectoryV3,
+): WorkbenchLivePvTrajectoryV3 {
+  return trajectory.completedBeat.length === 0
+    ? Object.freeze({
+        completedBeat: Object.freeze([]),
+        liveSegment: Object.freeze([]),
+      })
+    : trajectory;
+}
+
 export type WorkbenchPvRelationPointV3 = Readonly<{
   volumeMl: number;
   pressureMmHg: number;
@@ -480,11 +496,13 @@ export function PressureVolumeLoopCanvasV3(
   );
   const periodicPvaDrawings = useRetainedPeriodicPvaDrawingsV1(traces);
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
-    const trajectory = extractLivePvTrajectoryV3(
-      trace.samples,
-      trace.volumeOutputId,
-      trace.pressureOutputId,
-      trace.cyclePhaseOutputId,
+    const trajectory = revealPvTrajectoryAfterFirstCompleteCycleV3(
+      extractLivePvTrajectoryV3(
+        trace.samples,
+        trace.volumeOutputId,
+        trace.pressureOutputId,
+        trace.cyclePhaseOutputId,
+      ),
     );
     const history = Object.freeze((trace.historySampleSets ?? []).map(
       (samples, historyIndex, all) => {
@@ -774,6 +792,9 @@ export function PressureVolumeLoopCanvasV3(
       }
       data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"
       data-pv-loop-trace-count={visibleRenderedTraces.length}
+      data-pv-ready-trace-count={visibleRenderedTraces.filter(
+        ({ completedBeat }) => completedBeat.length > 0,
+      ).length}
       data-pva-analysis-pending={pvaAnalysisPending ? "true" : "false"}
       data-pva-result-count={availablePva.length}
       data-pva-drawing-count={drawablePva.length}

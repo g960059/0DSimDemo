@@ -69,7 +69,11 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         }>;
       }>;
     }>;
-    const progressCounts = progress.map((partial) => {
+    const initialProgressPayload = progress[0]?.payload as unknown as Readonly<{
+      status: string;
+      left: null;
+    }>;
+    const progressCounts = progress.slice(1).map((partial) => {
       const partialPayload = partial.payload as unknown as Readonly<{
         left: Readonly<{
           starlingLocus: Readonly<{ completedPointCount: number }>;
@@ -94,6 +98,10 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     expect(payload.left.starlingLocus).toMatchObject({
       status: "measured-fixed-tbv-protocol",
       slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen",
+    });
+    expect(initialProgressPayload).toMatchObject({
+      status: "accepted-step-readback-required",
+      left: null,
     });
     expect(
       payload.left.starlingLocus.completedPointCount,
@@ -264,8 +272,15 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         (partial) => progress.push(partial),
       ),
     ).resolves.toBeDefined();
-    expect(progress.length).toBeGreaterThanOrEqual(4);
-    const bootstrapPayload = progress[3]!.payload as unknown as Readonly<{
+    const measuredProgress = progress.filter((partial) => {
+      const candidate = partial.payload as unknown as Readonly<{
+        left: null | Readonly<{ starlingLocus: Readonly<{ status: string }> }>;
+      }>;
+      return candidate.left?.starlingLocus.status ===
+        "measured-fixed-tbv-protocol";
+    });
+    expect(measuredProgress.length).toBeGreaterThanOrEqual(4);
+    const bootstrapPayload = measuredProgress[3]!.payload as unknown as Readonly<{
       left: Readonly<{
         starlingLocus: Readonly<{
           points: readonly Readonly<{ totalBloodVolumeMl: number }>[];

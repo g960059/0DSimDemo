@@ -72,7 +72,10 @@ import {
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
-import { MainWireIntegratedModelSessionV3 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MainWireIntegratedModelSessionV3,
+  type MainWireIntegratedModelObservationV3,
+} from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
   MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
   MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
@@ -998,10 +1001,11 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
             >
           >
         | null,
+      sourceObservation?: MainWireIntegratedModelObservationV3,
     ): StudioSimulationAnalysisV2 => {
       const payload = validateAndOwnStudioSimulationPortableJsonV2(
         buildMainWireIntegratedModelGuytonStarlingOrientationV3(
-          starling?.anchorObservation ?? observation,
+          starling?.anchorObservation ?? sourceObservation ?? observation,
           scenario.fixture.hemodynamicResearchInputs,
           starling === null
             ? undefined
@@ -1026,13 +1030,38 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     // Analysis is a cold boundary. Rehydrate an isolated object Session from
     // the exact accepted checkpoint instead of pulling the live typed
     // authority back onto the presentation hot path.
-    const analysisSource =
+    const exactCheckpoint =
+      await scenario.modelSession.checkpointStandardExact();
+    let analysisSource =
       await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
-        await scenario.modelSession.checkpointStandardExact(),
+        exactCheckpoint,
         scenario.fixture.hemodynamicResearchInputs,
         1,
         scenario.fixture.mechanismResearchInputs,
       );
+    // A restored checkpoint deliberately omits the previous accepted-step
+    // object. Reconstruct one readback on a disposable clone so the analytic
+    // Guyton orientation can appear before the slow settled Starling family,
+    // without advancing the actual analysis source.
+    if (observation.lastAcceptedStep !== null) {
+      onProgress?.(toAnalysis(null));
+    } else {
+      const previewAcceptedTimeSec =
+        analysisSource.currentAcceptedState().acceptedTimeSec;
+      const previewAdvance = analysisSource.advanceToPresentationTime(
+        previewAcceptedTimeSec + MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1,
+      );
+      if (previewAdvance.status === "advanced") {
+        onProgress?.(toAnalysis(null, previewAdvance.observation));
+      }
+      analysisSource =
+        await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+          exactCheckpoint,
+          scenario.fixture.hemodynamicResearchInputs,
+          1,
+          scenario.fixture.mechanismResearchInputs,
+        );
+    }
     const starling =
       analysisId ===
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
