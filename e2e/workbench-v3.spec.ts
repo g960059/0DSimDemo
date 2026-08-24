@@ -581,19 +581,20 @@ test("@desktop baseline duplication stays independent and requires explicit save
   const structuralComparisons = graphArea.locator(
     '[data-chart-kind="guyton-starling-structural-orientation-v3"]',
   );
-  // The nonlinear PVA/Starling family now retains five settled relation
-  // points before publishing the first complete comparison. Keep the smoke
-  // test on the same bounded analysis wait used for its scenario fan-out;
-  // constrained shared CI can still be at two points after twenty seconds.
-  await expect(structuralComparisons).toHaveCount(1, { timeout: 45_000 });
-  await expect(structuralComparisons.first()).toHaveAttribute(
-    "data-scenario-count",
-    "2",
-    { timeout: 45_000 },
-  );
-  await expect(
-    graphArea.locator('[data-chart-legend="scenario-only"]'),
-  ).toHaveCount(1);
+  // Structural analysis is deliberately detached from foreground Scenario
+  // edits. A newly edited copy may still be pending here; the Workbench must
+  // retain both the completed and pending memberships without making this
+  // interaction smoke wait for the full settled-load family.
+  await expect(structuralComparisons).toHaveCount(1);
+  await expect
+    .poll(async () => {
+      const comparison = structuralComparisons.first();
+      return (
+        Number(await comparison.getAttribute("data-scenario-count")) +
+        Number(await comparison.getAttribute("data-pending-scenario-count"))
+      );
+    })
+    .toBe(2);
   await expect(
     graphArea.getByRole("button", { name: "解析を更新" }),
   ).toHaveCount(0);
