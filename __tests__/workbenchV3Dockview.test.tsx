@@ -484,7 +484,7 @@ describe("V3 Dockview Workbench", () => {
   it("uses one segmented linked-or-fixed selector across pane settings", () => {
     const markup = renderToStaticMarkup(
       <WorkbenchPaneBindingModeSelectorV3
-        activeLabel="選択シナリオと連動"
+        activeLabel="選択scenarioと連動"
         fixedLabel="Scenarioを固定"
         groupLabel="Scenario"
         mode="active-slot"
@@ -494,7 +494,7 @@ describe("V3 Dockview Workbench", () => {
 
     expect(markup).toContain('role="radiogroup"');
     expect(markup).toContain('aria-label="Scenario"');
-    expect(markup).toContain("選択シナリオと連動");
+    expect(markup).toContain("選択scenarioと連動");
     expect(markup).toContain("Scenarioを固定");
     expect(markup).toContain('aria-checked="true"');
     expect(markup).toContain('data-active="true"');
@@ -603,7 +603,7 @@ describe("V3 Dockview Workbench", () => {
           ...graph,
           scenarioScope: {
             mode: "fixed" as const,
-            scenarioIds: ["scenario/a", "scenario/b"],
+            scenarioIds: ["scenario/a"],
           },
           excludedTraces: [{ scenarioId: "scenario/b", seriesId }],
         },
@@ -634,7 +634,7 @@ describe("V3 Dockview Workbench", () => {
         "scenario/b",
         "scenario/a",
       ]),
-    ).toEqual(["scenario/a", "scenario/b"]);
+    ).toEqual(["scenario/b", "scenario/a"]);
     expect(
       resolveWorkbenchGraphScenarioIdsV3(surface.graphPanes[0]!, [
         "scenario/a",
@@ -662,12 +662,26 @@ describe("V3 Dockview Workbench", () => {
       ),
     ).toBe("scenario/b");
 
+    const migratedGraphScope = reconcileWorkbenchSurfaceScenariosV3(
+      surface,
+      scenarios,
+    );
+    expect(migratedGraphScope.graphPanes[0]?.scenarioScope).toEqual({
+      mode: "visible-scenarios",
+    });
+    expect(
+      isWorkbenchGraphTraceExcludedV3(
+        migratedGraphScope.graphPanes[0]!,
+        "scenario/b",
+        seriesId,
+      ),
+    ).toBe(true);
+
     const afterDelete = reconcileWorkbenchSurfaceScenariosV3(surface, [
       { scenarioId: "scenario/a" },
     ]);
     expect(afterDelete.graphPanes[0]?.scenarioScope).toEqual({
-      mode: "fixed",
-      scenarioIds: ["scenario/a"],
+      mode: "visible-scenarios",
     });
     expect(afterDelete.graphPanes[0]?.excludedTraces).toEqual([]);
     expect(afterDelete.controlPanes[0]?.binding).toEqual({

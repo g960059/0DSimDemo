@@ -602,10 +602,11 @@ function createDefaultGraphPaneV3(
 /**
  * Reconciles pane-level Scenario policies after add/delete/restore.
  *
- * A fixed policy that loses every target falls back to the Workbench's
- * dynamic policy instead of retaining an invalid empty binding. Trace colors
- * are reconciled in the same transaction, while exclusions and fixed targets
- * are retained only when their referenced Scenario/series still exists.
+ * Graph panes now always follow the Workbench's visible Scenario set. A legacy
+ * fixed graph scope is migrated to per-trace exclusions when at least one of
+ * its targets survives, preserving its presentation without retaining a
+ * second Scenario-selection concept. Controller and Output bindings remain
+ * explicit because those panes act on or report one binding context.
  */
 export function reconcileWorkbenchSurfaceScenariosV3(
   surface: ExperimentSurfaceV2,
@@ -613,7 +614,7 @@ export function reconcileWorkbenchSurfaceScenariosV3(
 ): ExperimentSurfaceV2 {
   const scenarioIds = new Set(scenarios.map(({ scenarioId }) => scenarioId));
   const graphPanes = surface.graphPanes.map((pane) => {
-    const fixedScenarioIds =
+    const survivingLegacyFixedScenarioIds =
       pane.scenarioScope.mode === "fixed"
         ? pane.scenarioScope.scenarioIds.filter((scenarioId) =>
             scenarioIds.has(scenarioId),
@@ -622,22 +623,38 @@ export function reconcileWorkbenchSurfaceScenariosV3(
     const selectedSeriesIds = new Set(
       pane.series.map(({ seriesId }) => seriesId),
     );
+    const retainedExclusions = pane.excludedTraces.filter(
+      (trace) =>
+        scenarioIds.has(trace.scenarioId) &&
+        (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId)),
+    );
+    if (
+      pane.scenarioScope.mode === "fixed" &&
+      survivingLegacyFixedScenarioIds.length > 0
+    ) {
+      const legacyTargets = new Set(survivingLegacyFixedScenarioIds);
+      const seriesIds: readonly (string | null)[] =
+        pane.series.length === 0
+          ? Object.freeze([null])
+          : Object.freeze(pane.series.map(({ seriesId }) => seriesId));
+      for (const { scenarioId } of scenarios) {
+        if (legacyTargets.has(scenarioId)) continue;
+        for (const seriesId of seriesIds) {
+          if (
+            !retainedExclusions.some(
+              (trace) =>
+                trace.scenarioId === scenarioId && trace.seriesId === seriesId,
+            )
+          ) {
+            retainedExclusions.push({ scenarioId, seriesId });
+          }
+        }
+      }
+    }
     return Object.freeze({
       ...pane,
-      scenarioScope:
-        pane.scenarioScope.mode === "fixed" && fixedScenarioIds.length > 0
-          ? Object.freeze({
-              mode: "fixed" as const,
-              scenarioIds: Object.freeze(fixedScenarioIds),
-            })
-          : Object.freeze({ mode: "visible-scenarios" as const }),
-      excludedTraces: Object.freeze(
-        pane.excludedTraces.filter(
-          (trace) =>
-            scenarioIds.has(trace.scenarioId) &&
-            (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId)),
-        ),
-      ),
+      scenarioScope: Object.freeze({ mode: "visible-scenarios" as const }),
+      excludedTraces: Object.freeze(retainedExclusions),
     });
   });
   const controlPanes = surface.controlPanes.map((pane) => {
@@ -700,20 +717,12 @@ export function reconcileWorkbenchSurfaceScenariosV3(
   );
 }
 
-/** Resolve the durable graph-pane policy against the currently available UI scope. */
+/** Graph panes compare every Scenario currently visible in Scenario Manager. */
 export function resolveWorkbenchGraphScenarioIdsV3(
-  pane: ExperimentSurfaceGraphPaneV2,
+  _pane: ExperimentSurfaceGraphPaneV2,
   visibleScenarioIds: readonly string[],
 ): readonly string[] {
-  if (pane.scenarioScope.mode === "visible-scenarios") {
-    return visibleScenarioIds;
-  }
-  const visible = new Set(visibleScenarioIds);
-  return Object.freeze(
-    pane.scenarioScope.scenarioIds.filter((scenarioId) =>
-      visible.has(scenarioId),
-    ),
-  );
+  return visibleScenarioIds;
 }
 
 /** Exact trace exclusions are durable Pane Settings, not transient legend state. */

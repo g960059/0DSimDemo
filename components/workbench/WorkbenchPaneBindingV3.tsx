@@ -26,7 +26,7 @@ export function WorkbenchPaneBindingModeSelectorV3({
 }>) {
   return (
     <div
-      className="workbench-control-segments"
+      className="workbench-control-segments w-full md:max-w-sm"
       role="radiogroup"
       aria-label={groupLabel}
     >

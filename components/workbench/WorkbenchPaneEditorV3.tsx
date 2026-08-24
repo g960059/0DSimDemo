@@ -58,10 +58,7 @@ import {
   workbenchScenarioColorSeedV3,
 } from "./v3/WorkbenchGraphColorV3";
 import { ExperimentPaneAddItemButtonV3 } from "./ExperimentPanePresentationV3";
-import {
-  WorkbenchPaneBindingEditorV3,
-  WorkbenchPaneBindingModeSelectorV3,
-} from "./WorkbenchPaneBindingV3";
+import { WorkbenchPaneBindingEditorV3 } from "./WorkbenchPaneBindingV3";
 
 const FOCUSABLE_SELECTOR_V3 = [
   "a[href]",
@@ -161,7 +158,7 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     close: "Close pane settings",
     chooseItem: "Choose an item to edit its presentation.",
     bindingSection: "Scenario",
-    activeSlotBinding: "Follow selected Scenario",
+    activeSlotBinding: "Follow selected scenario",
     activeSlotBindingHint:
       "This pane controls whichever Scenario is selected in Scenario Manager.",
     outputActiveSlotBindingHint:
@@ -222,7 +219,7 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
       "Each existing trace keeps its allocated color. Change only the exact Scenario/item you need.",
     traceVisibility: "Trace visibility",
     traceVisibilityHint:
-      "The pane uses a Scenario-level scope; exact Scenario/item omissions are optional advanced curation.",
+      "All visible Scenarios are shown by default. Adjust individual Scenario/item traces only when needed.",
     resetColor: "Use automatic color",
     removeItem: "Remove from pane",
     preview: "Preview",
@@ -1134,7 +1131,7 @@ function GraphPaneEditorV3({
       >
         <EditorSectionHeadingV3>{dataSectionTitle}</EditorSectionHeadingV3>
         {graph !== undefined && scenarios.length > 0 && (
-          <GraphScenarioScopeEditorV3
+          <GraphTraceVisibilityEditorV3
             graph={graph}
             pane={pane}
             scenarios={scenarios}
@@ -1224,7 +1221,7 @@ function GraphPaneEditorV3({
   );
 }
 
-function GraphScenarioScopeEditorV3({
+function GraphTraceVisibilityEditorV3({
   graph,
   pane,
   scenarios,
@@ -1237,11 +1234,6 @@ function GraphScenarioScopeEditorV3({
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
 }>) {
-  const scopedScenarioIds =
-    pane.scenarioScope.mode === "fixed"
-      ? pane.scenarioScope.scenarioIds
-      : scenarios.map(({ scenarioId }) => scenarioId);
-  const scoped = new Set(scopedScenarioIds);
   const traceItems =
     graph.renderer === "structural-return"
       ? [{ seriesId: null, label: "Guyton / Starling" }]
@@ -1249,7 +1241,6 @@ function GraphScenarioScopeEditorV3({
           .sort((left, right) => left.order - right.order)
           .map(({ seriesId, label }) => ({ seriesId, label }));
   const visibleTraceCount = scenarios.reduce((count, scenario) => {
-    if (!scoped.has(scenario.scenarioId)) return count;
     return (
       count +
       traceItems.filter(
@@ -1262,23 +1253,6 @@ function GraphScenarioScopeEditorV3({
       ).length
     );
   }, 0);
-
-  const updateFixedScenario = (scenarioId: string, selected: boolean) => {
-    const current =
-      pane.scenarioScope.mode === "fixed"
-        ? pane.scenarioScope.scenarioIds
-        : scenarios.map((scenario) => scenario.scenarioId);
-    const next = selected
-      ? current.includes(scenarioId)
-        ? current
-        : [...current, scenarioId]
-      : current.filter((candidate) => candidate !== scenarioId);
-    if (next.length === 0) return;
-    onChange({
-      ...pane,
-      scenarioScope: { mode: "fixed", scenarioIds: next },
-    });
-  };
 
   const updateTrace = (
     scenarioId: string,
@@ -1298,78 +1272,19 @@ function GraphScenarioScopeEditorV3({
 
   return (
     <div className="grid gap-4 rounded-xl bg-wb-soft/55 px-3 py-3">
-      <fieldset className="grid gap-2">
-        <legend className="sr-only">{strings.bindingSection}</legend>
-        <WorkbenchPaneBindingModeSelectorV3
-          activeLabel={strings.activeSlotBinding}
-          fixedLabel={strings.fixedBinding}
-          groupLabel={strings.bindingSection}
-          mode={pane.scenarioScope.mode === "fixed" ? "fixed" : "active-slot"}
-          onChange={(mode) => {
-            if (mode === "active-slot") {
-              onChange({
-                ...pane,
-                scenarioScope: { mode: "visible-scenarios" },
-              });
-            } else {
-              onChange({
-                ...pane,
-                scenarioScope: {
-                  mode: "fixed",
-                  scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
-                },
-              });
-            }
-          }}
-        />
-        {pane.scenarioScope.mode === "fixed" && (
-          <div className="flex flex-wrap gap-2">
-            {scenarios.map((scenario) => {
-              const selected =
-                pane.scenarioScope.mode === "fixed" &&
-                pane.scenarioScope.scenarioIds.includes(scenario.scenarioId);
-              return (
-                <label
-                  key={scenario.scenarioId}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-wb-panel px-2 py-1.5 text-[10px] text-wb-muted"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    disabled={
-                      selected && pane.scenarioScope.scenarioIds.length === 1
-                    }
-                    onChange={(event) =>
-                      updateFixedScenario(
-                        scenario.scenarioId,
-                        event.currentTarget.checked,
-                      )
-                    }
-                    className="accent-[var(--wb-accent)]"
-                  />
-                  {scenario.label}
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </fieldset>
-
-      <details>
-        <summary className="cursor-pointer text-xs font-semibold text-wb-muted">
+      <div>
+        <p className="text-xs font-semibold text-wb-text">
           {strings.traceVisibility}
-        </summary>
-        <p className="mt-2 text-[10px] leading-4 text-wb-subtle">
+        </p>
+        <p className="mt-1 text-[10px] leading-4 text-wb-subtle">
           {strings.traceVisibilityHint}
         </p>
         <div className="mt-3 grid gap-3">
           {scenarios.map((scenario) => {
-            const scenarioInScope = scoped.has(scenario.scenarioId);
             return (
               <fieldset
                 key={scenario.scenarioId}
-                disabled={!scenarioInScope}
-                className="grid gap-2 rounded-lg bg-wb-panel/70 px-3 py-2.5 disabled:opacity-45"
+                className="grid gap-2 rounded-lg bg-wb-panel/70 px-3 py-2.5"
               >
                 <legend className="px-1 text-[10px] font-semibold text-wb-muted">
                   {scenario.label}
@@ -1381,7 +1296,7 @@ function GraphScenarioScopeEditorV3({
                         trace.scenarioId === scenario.scenarioId &&
                         trace.seriesId === item.seriesId,
                     );
-                    const visible = scenarioInScope && !excluded;
+                    const visible = !excluded;
                     return (
                       <label
                         key={item.seriesId ?? "structural"}
@@ -1390,10 +1305,7 @@ function GraphScenarioScopeEditorV3({
                         <input
                           type="checkbox"
                           checked={visible}
-                          disabled={
-                            !scenarioInScope ||
-                            (visible && visibleTraceCount === 1)
-                          }
+                          disabled={visible && visibleTraceCount === 1}
                           onChange={(event) =>
                             updateTrace(
                               scenario.scenarioId,
@@ -1412,7 +1324,7 @@ function GraphScenarioScopeEditorV3({
             );
           })}
         </div>
-      </details>
+      </div>
     </div>
   );
 }
