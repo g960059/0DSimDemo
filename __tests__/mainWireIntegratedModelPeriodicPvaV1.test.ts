@@ -45,36 +45,54 @@ describe("settled hot-start PVA V1", () => {
     expect(result.espvr.primaryMethod).toBe(
       "active-pressure-area-max-common-isochrone",
     );
-    expect(result.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(0.2, 12);
-    expect(result.espvr.selectedPhase01AtAnchor).toBeCloseTo(0.25, 12);
-    expect(result.espvr.activePressureAreaMmHgMl).toBeGreaterThan(0);
-    expect(result.espvr.activePressureAreaVolumeRangeMl[1]).toBeGreaterThan(
-      result.espvr.activePressureAreaVolumeRangeMl[0],
+    expect(result.espvr.selectedTimeSinceAtrialCaptureSec).toBeCloseTo(
+      0.4375,
+      12,
     );
+    expect(result.espvr.selectedPhase01AtAnchor).toBeCloseTo(0.546875, 12);
+    expect(result.espvr.phaseSelectionScoreMmHgMl).toBeGreaterThan(0);
     expect(
-      result.espvr.activePressureAreaVolumeRangeMl[0],
-    ).toBeGreaterThanOrEqual(result.espvr.measuredVolumeRangeMl[0]);
-    expect(result.espvr.activePressureAreaVolumeRangeMl[1]).toBeLessThanOrEqual(
-      result.espvr.measuredVolumeRangeMl[1],
+      result.espvr.phaseSelectionIntegrationVolumeRangeMl[1],
+    ).toBeGreaterThan(result.espvr.phaseSelectionIntegrationVolumeRangeMl[0]);
+    expect(result.espvr.phaseSelectionIntegrationVolumeRangeMl[0]).toBeCloseTo(
+      50.4,
+      12,
     );
+    expect(result.espvr.phaseSelectionIntegrationVolumeRangeMl[1]).toBeCloseTo(
+      61.6,
+      12,
+    );
+    expect(result.espvr.phaseSelectionCandidatePhaseRange01[0]).toBeCloseTo(
+      0.521875,
+      12,
+    );
+    expect(result.espvr.phaseSelectionCandidatePhaseRange01[1]).toBeCloseTo(
+      0.571875,
+      12,
+    );
+    expect(result.espvr.phaseSelectionCandidateTimeRangeSec[0]).toBeCloseTo(
+      0.4175,
+      12,
+    );
+    expect(result.espvr.phaseSelectionCandidateTimeRangeSec[1]).toBeCloseTo(
+      0.4575,
+      12,
+    );
+    expect(result.espvr.phaseSelectionAnchorLandmarks).toEqual({
+      maximumPressurePhase01: 0.546875,
+      endSystolicPhase01: 0.546875,
+    });
     expect(result.espvr.phaseSelectionPolicy).toBe(
-      "operating-anchor-plus-nearest-three-lower-and-one-higher-load",
+      "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window",
     );
-    expect(result.espvr.phaseSelectionStatus).toBe("locked");
-    expect(result.espvr.phaseSelectionPointCount).toBe(5);
+    expect(result.espvr.phaseSelectionStatus).toBe("complete");
+    expect(result.espvr.phaseSelectionPointCount).toBe(9);
     expect(result.espvr).toMatchObject({
       phaseSelectionObjective:
-        "positive-active-pressure-area-over-phase-specific-fixed-core-span",
-      phaseSelectionCoarseTimeSampleCount: 128,
+        "positive-active-pressure-area-over-fixed-anchor-esv-neighborhood",
+      phaseSelectionCoarseTimeSampleCount: 32,
       phaseSelectionLocalRefinementIntervalCount: 32,
     });
-    expect(result.espvr.phaseSelectionCore.map(({ role }) => role)).toEqual([
-      "higher-load",
-      "operating-anchor",
-      "lower-load",
-      "lower-load",
-      "lower-load",
-    ]);
     expect(result.espvr.primaryCurveLaw).toBe(
       "measured-domain-shape-preserving-locus",
     );
@@ -135,12 +153,11 @@ describe("settled hot-start PVA V1", () => {
         ...point,
         ventricularPressureVolumeLoop: Object.freeze(
           point.ventricularPressureVolumeLoop.map((sample) =>
-            sample.phase01 === 0.25
+            sample.phase01! >= 0.4 && sample.phase01! <= 0.6
               ? Object.freeze({
                   ...sample,
                   pressureMmHg:
-                    2.6 * (sample.volumeMl - 18) +
-                    0.012 * (sample.volumeMl - 50) ** 2,
+                    sample.pressureMmHg + 0.012 * (sample.volumeMl - 50) ** 2,
                 })
               : sample,
           ),
@@ -259,8 +276,8 @@ describe("settled hot-start PVA V1", () => {
       uniform.espvr.selectedTimeSinceAtrialCaptureSec,
       12,
     );
-    expect(adaptive.espvr.phaseSelectionPointCount).toBe(5);
-    expect(uniform.espvr.phaseSelectionPointCount).toBe(5);
+    expect(adaptive.espvr.phaseSelectionPointCount).toBe(11);
+    expect(uniform.espvr.phaseSelectionPointCount).toBe(9);
     expect(
       Math.abs(
         adaptive.potentialEnergy.mmHgMl - uniform.potentialEnergy.mmHgMl,
@@ -281,47 +298,41 @@ describe("settled hot-start PVA V1", () => {
       status: "collecting",
       progress: { completedPointCount: 4, totalPointCount: 5 },
       preview: {
-        stage: "relations",
+        stage: "anchor",
         pointCount: 4,
       },
     });
   });
 
-  it("progresses from three-point relation preview to five-point PVA preview", () => {
+  it("progresses from a narrow three-point preview to a bilateral five-point PVA", () => {
     const relations = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1([1.08, 1, 0.92]), 21),
       "LV",
     );
     const provisionalPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1([1.08, 1, 0.95, 0.9, 0.84]), 21),
+      formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
 
     expect(relations).toMatchObject({
       status: "collecting",
       preview: {
-        stage: "relations",
+        stage: "anchor",
         pointCount: 3,
         pva: null,
       },
     });
     if (relations.status === "collecting") {
-      expect(relations.preview?.espvr?.fitPoints).toHaveLength(3);
-      expect(relations.preview?.espvr).toMatchObject({
-        interpolation: "piecewise-linear",
-        continuity: "C0",
-        displayExtrapolation: "none",
-        phaseSelectionStatus: "provisional",
-        phaseSelectionPointCount: 3,
-      });
-      expect(relations.preview?.edpvr?.fitPoints).toHaveLength(3);
+      expect(relations.preview?.espvr).toBeNull();
+      expect(relations.preview?.edpvr).toBeNull();
     }
     expect(provisionalPva).toMatchObject({
       status: "available",
       progress: { completedPointCount: 5, totalPointCount: 5 },
     });
     if (provisionalPva.status === "available") {
-      expect(provisionalPva.espvr.phaseSelectionStatus).toBe("locked");
+      expect(provisionalPva.espvr.phaseSelectionStatus).toBe("progressive");
+      expect(provisionalPva.espvr.phaseSelectionPointCount).toBe(5);
       expect(provisionalPva.pva.joule).toBeGreaterThan(0);
       expect(provisionalPva.estimatedMvo2).toMatchObject({
         status: "available",
@@ -331,7 +342,7 @@ describe("settled hot-start PVA V1", () => {
 
   it("publishes PVA after five bidirectional points while the wider family continues", () => {
     const result = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1([1.08, 1, 0.95, 0.9, 0.84]), 21),
+      formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
 
@@ -347,7 +358,7 @@ describe("settled hot-start PVA V1", () => {
     });
   });
 
-  it("does not substitute a second high-load point for the declared third low-load core point", () => {
+  it("uses every settled load for preview but keeps the five-load PVA admission minimum", () => {
     const result = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
@@ -359,39 +370,32 @@ describe("settled hot-start PVA V1", () => {
       preview: {
         stage: "relations",
         espvr: {
-          phaseSelectionStatus: "provisional",
-          phaseSelectionPointCount: 4,
+          phaseSelectionStatus: "progressive",
+          phaseSelectionPointCount: 5,
         },
       },
     });
   });
 
-  it("locks the area-max phase on anchor plus low-three/high-one while later loads extend only the measured relations", () => {
-    const phaseAdaptiveRatios = [
-      1.08, 1, 0.95, 0.9, 0.84, 1.16, 1.24, 1.4, 1.6,
-    ];
+  it("allows additional settled loads to update the common time over the fixed anchor-ESV domain", () => {
+    const phaseAdaptiveRatios = [1.16, 1, 0.92, 0.84, 0.76, 1.08, 0.68, 0.6];
     const phaseAdaptiveFamily = settledPointsV1(phaseAdaptiveRatios).map(
       (point, pointIndex) => {
-        const peakPhase01 = pointIndex < 5 ? 0.25 : 0.375;
-        const volumeMl =
-          point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl;
+        const addedLoad = pointIndex >= 5;
+        const peakPhase01 = addedLoad ? 0.52 : 0.45;
         return Object.freeze({
           ...point,
           ventricularPressureVolumeLoop: Object.freeze(
             point.ventricularPressureVolumeLoop.map((sample) => {
               const normalizedActivation = Math.max(
                 0,
-                1 - Math.abs(sample.phase01! - peakPhase01) / 0.2,
+                1 - Math.abs(sample.phase01! - peakPhase01) / 0.18,
               );
-              const lateHighVolumeScale =
-                pointIndex === phaseAdaptiveRatios.length - 1 ? 0.72 : 1;
               return Object.freeze({
                 ...sample,
-                volumeMl,
                 pressureMmHg:
-                  lateHighVolumeScale *
-                  (4 + 0.2 * normalizedActivation) *
-                  (volumeMl - 10),
+                  (1.6 + 0.4 * normalizedActivation) *
+                  Math.max(1, sample.volumeMl - 20),
               });
             }),
           ),
@@ -400,7 +404,7 @@ describe("settled hot-start PVA V1", () => {
     );
     const core = phaseAdaptiveFamily.slice(0, 5);
     const coreResult = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(core),
+      formalLocusV1(core, phaseAdaptiveFamily.length),
       "LV",
     );
     const extendedResult = buildMainWireIntegratedModelPeriodicPvaV1(
@@ -416,42 +420,18 @@ describe("settled hot-start PVA V1", () => {
     ) {
       throw new Error("synthetic PVA core was unavailable");
     }
-    const expectedCoreVolumeRangeMl = [
-      Math.min(
-        ...core.map(
-          (point) =>
-            point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
-        ),
-      ),
-      Math.max(
-        ...core.map(
-          (point) =>
-            point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
-        ),
-      ),
-    ];
-    expect(coreResult.espvr.activePressureAreaVolumeRangeMl).toEqual(
-      expectedCoreVolumeRangeMl,
-    );
-    expect(extendedResult.espvr.selectedTimeSinceAtrialCaptureSec).toBe(
+    expect(extendedResult.espvr.selectedTimeSinceAtrialCaptureSec).not.toBe(
       coreResult.espvr.selectedTimeSinceAtrialCaptureSec,
     );
-    expect(extendedResult.espvr.activePressureAreaMmHgMl).toBe(
-      coreResult.espvr.activePressureAreaMmHgMl,
-    );
-    expect(extendedResult.espvr.activePressureAreaVolumeRangeMl).toEqual(
-      coreResult.espvr.activePressureAreaVolumeRangeMl,
+    expect(extendedResult.espvr.phaseSelectionIntegrationVolumeRangeMl).toEqual(
+      coreResult.espvr.phaseSelectionIntegrationVolumeRangeMl,
     );
     expect(coreResult.espvr.phaseSelectionPointCount).toBe(5);
-    expect(extendedResult.espvr.phaseSelectionPointCount).toBe(5);
-    expect(extendedResult.espvr.phaseSelectionCore).toEqual(
-      coreResult.espvr.phaseSelectionCore,
-    );
+    expect(extendedResult.espvr.phaseSelectionPointCount).toBe(8);
+    expect(coreResult.espvr.phaseSelectionStatus).toBe("progressive");
+    expect(extendedResult.espvr.phaseSelectionStatus).toBe("complete");
     expect(extendedResult.espvr.fitPoints.length).toBeGreaterThan(
       coreResult.espvr.fitPoints.length,
-    );
-    expect(extendedResult.espvr.fitPoints.at(-1)!.pressureMmHg).toBeLessThan(
-      extendedResult.espvr.fitPoints.at(-2)!.pressureMmHg,
     );
     expect(extendedResult.edpvr.fitPoints.length).toBeGreaterThan(
       coreResult.edpvr.fitPoints.length,
@@ -566,7 +546,7 @@ describe("settled hot-start PVA V1", () => {
       buildMainWireIntegratedModelPeriodicPvaV1(formalLocusV1(points), "LV"),
     ).toMatchObject({
       status: "unavailable",
-      reason: expect.stringContaining("common isochrone"),
+      reason: expect.stringContaining("fixed anchor-ESV neighborhood"),
     });
   });
 
@@ -609,7 +589,7 @@ describe("settled hot-start PVA V1", () => {
     expect(html).toContain('data-pva-drawing-count="1"');
     expect(html).toContain('data-pva-retained-drawing-count="0"');
     expect(html).toContain(
-      'data-pv-relation-model="fixed-core-shape-preserving-locus"',
+      'data-pv-relation-model="all-settled-shape-preserving-locus"',
     );
     expect(html).toContain('data-pv-pressure-envelope-visible="false"');
     expect(html).not.toContain('data-testid="workbench-pva-results"');
@@ -640,7 +620,7 @@ describe("settled hot-start PVA V1", () => {
 
   it("renders settled-point progress in the PV pane", () => {
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1([1.08, 1, 0.95, 0.9, 0.84]), 21),
+      formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
     const html = renderToStaticMarkup(
@@ -775,7 +755,7 @@ describe("settled hot-start PVA V1", () => {
     ]);
 
     const early = buildMainWireIntegratedModelPeriodicPvaV1(
-      formalLocusV1(settledPointsV1([1.08, 1, 0.95, 0.9, 0.84]), 21),
+      formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
     expect(early.status).toBe("available");
@@ -1027,7 +1007,7 @@ function syntheticLoopV1(
               (input.endDiastolicVolumeMl - input.endSystolicVolumeMl);
       const normalizedActivation = Math.max(
         0,
-        1 - Math.abs(phase01 - 0.25) / 0.25,
+        1 - Math.abs(phase01 - 0.55) / 0.25,
       );
       const elastanceMmHgPerMl = 0.05 + 1.95 * normalizedActivation;
       const passivePressureMmHg =

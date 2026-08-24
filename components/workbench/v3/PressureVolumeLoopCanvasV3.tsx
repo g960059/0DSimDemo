@@ -737,7 +737,7 @@ export function PressureVolumeLoopCanvasV3(
       periodicPvaDrawing.retainedFromPriorUpdate,
   ).length;
   const relationStatusBase = drawablePva.length > 0
-    ? `Settled-source bidirectional preload family · fixed-core common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
+    ? `Settled-source bidirectional preload family · anchor-local area-max common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
     : "Settled-source preload-reduction analysis selected · relation not yet available";
   const relationStatus = retainedPvaDrawingCount > 0
     ? `${relationStatusBase} · previous valid relation retained while the update settles`
@@ -768,7 +768,7 @@ export function PressureVolumeLoopCanvasV3(
       data-chart-kind="pressure-volume-loop-v3"
       data-pv-analysis-mode="formal-periodic"
       data-cycle-source="model-emitted-cycle-phase"
-      data-pv-relation-model="fixed-core-shape-preserving-locus"
+      data-pv-relation-model="all-settled-shape-preserving-locus"
       data-pv-pressure-envelope-visible={
         showPressureEnvelope ? "true" : "false"
       }

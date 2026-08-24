@@ -60,7 +60,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-fixed-core-refined-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v7
+suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -80,37 +80,39 @@ second SW owner.
 
 ### ESPVR
 
-The primary relation uses one atrial-capture-relative absolute time. Phase
-selection is owned by a fixed five-point core: the operating anchor, the three
-nearest settled lower-TBV points, and the nearest settled higher-TBV point.
-Before all five are available, the anchor plus the available bilateral subset
-may provide a provisional relation preview. At each candidate time the core's
-contemporaneous pressure-volume points form a shape-preserving nonlinear
-isochrone, and the analysis evaluates
+The primary relation uses one atrial-capture-relative absolute time. Every
+currently settled load contributes to the contemporaneous shape-preserving
+nonlinear isochrone. The scoring interval is fixed before the time search from
+the operating anchor's retained end-systolic volume:
 
 ```text
-V_core(t) = volume span contemporaneously measured by the same five loads
+D_anchor = [0.9 V_ES,anchor, 1.1 V_ES,anchor]
 
-J_core(t) = integral over V_core(t) of
-              [P_iso,core(V,t) - P_ED,core(V)] dV
+J(t) = integral over D_anchor of
+       [P_iso(V,t) - max(0, P_ED(V))] dV
 ```
 
-The analysis evaluates 128 deterministic coarse times and subdivides the two
-neighboring coarse intervals around the winner into 32 local intervals. The
-largest positive `J_core(t)` locks once all five core points have settled. The
-objective intentionally includes both pressure and the contemporaneous
-contraction width of the fixed load family. Monotonicity is not used to
-preselect a smaller set of times; the selected relation is checked separately over the actual
-low-volume-to-anchor PVA domain. Later low- or high-TBV points are sampled at
-that same time and extend or refine the measured nonlinear locus and EDPVR; they do
-not change the selected time, its core EDPVR, or its scoring domain. Three or
-four points use C0 piecewise-linear interpolation; five or more use a
+Every candidate must cover that complete physical volume interval without
+pressure extrapolation and must remain above the nonnegative EDPVR throughout
+it. Candidate time is restricted to the operating anchor's late-systolic
+window: from its maximum-pressure phase to its retained end-systolic phase,
+with `0.025` cycle of margin on each side. The analysis evaluates 32
+deterministic coarse times inside that window and subdivides the two neighboring
+coarse intervals around the winner into 32 local intervals. This compares all
+candidates on the same physical pressure-volume domain while avoiding an
+all-cycle search dominated by phases unrelated to end systole. It is only the
+phase-selection score; PE and PVA remain physical pressure-volume integrals.
+Monotonicity is not used to preselect a smaller set of times; the selected
+relation is checked separately over the actual low-volume-to-anchor PVA
+domain. As later low- or high-TBV points settle, the common time, nonlinear
+locus, and full-family EDPVR may all update; `D_anchor` and the anchor-derived
+time window do not. Three or four points use C0 piecewise-linear interpolation;
+five or more use a
 shape-preserving C1 cubic Hermite curve. The low-volume-to-anchor-ESV PVA
 domain must be strictly pressure-increasing. A later point above
 the operating anchor may reveal a turn in the fixed-phase surface section; it
-is retained as measured diagnostic geometry rather than being allowed to move
-the phase or invalidate an otherwise admissible PVA domain. During an in-flight
-update the Workbench keeps drawing the last valid relation until a newly admissible
+is retained as measured diagnostic geometry. During an in-flight update the
+Workbench keeps drawing the last valid relation until a newly admissible
 relation replaces it; that visual retention does not retain stale PVA, PE, or
 MVO2 output values. This measured nonlinear locus owns PE, PVA, and the PVA
 input to the literature MVO2 mapper. It is never drawn beyond its measured
@@ -202,11 +204,11 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
   regulated steady-state family.
 - End diastole uses the model's maximum-volume landmark in V1.
 - The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
-  relative time maximizes the integrated positive pressure area above EDPVR
-  over the fixed anchor + low-three + high-one selection core. The phase locks
-  when that core is complete; later settled points extend the measured curve
-  without redefining its phase. Volume-specific maximum-pressure phases are
-  retained only as an optional envelope diagnostic.
+  relative time maximizes positive active-pressure area over the fixed
+  `0.9–1.1 ×` anchor-ESV interval within the anchor late-systolic window. All
+  settled loads participate, so the phase may update as the sweep expands.
+  Volume-specific maximum-pressure phases are retained only as an optional
+  envelope diagnostic.
 - EDPVR fitting uses volume-quadrature weights so adaptive point density does
   not silently change the represented volume interval. The primary systolic
   curve is not extrapolated for display; only the unresolved low-volume PE tail

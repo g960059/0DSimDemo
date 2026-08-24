@@ -191,27 +191,27 @@ bounded calculation contract:
    More beats remain available when closure needs them. Period-2 or
    nonconverged branches fail the PVA calculation rather than being silently
    fitted.
-5. SW is available from the retained anchor. The anchor plus one lower- and one
-   higher-TBV point admit provisional ESPVR/EDPVR drawing. The anchor plus the
-   nearest three lower- and nearest one higher-TBV point lock the common phase
-   and admit PE/PVA and the literature MVO₂ estimate. The remaining sweep
-   extends the measured relations without changing that phase.
+5. SW is available from the retained anchor. Bilateral settled points begin the
+   relation preview; the anchor plus at least three lower- and one higher-TBV
+   point admit PE/PVA and the literature MVO₂ estimate when the required local
+   volume domain is covered. Every later settled point participates in the
+   common-time search and may refine the displayed relations.
 6. The final complete beat retains its atrial-capture-relative transmural PV
    loop, maximum-volume ED proxy, duration, and exact accepted-step transmural
    path work. The latter owns displayed SW.
 7. The primary ESPVR is a shape-preserving nonlinear locus at one common time.
-   That time maximizes integrated positive pressure area above the core-only
-   EDPVR over the contemporaneous volume span measured by those same five
-   loads, so pressure and contraction width both contribute. A 128-time coarse search is followed by
-   32-interval local refinement, without filtering the objective by
-   monotonicity. The selected low-volume-to-anchor PVA domain must remain
-   strictly pressure-increasing.
-   After the fifth core point the phase is locked; either Worker may add points
-   to the measured locus and full-family EDPVR without moving that phase. An
-   above-anchor turn is retained as a surface-section diagnostic rather than
-   invalidating the PVA domain. The last valid relation remains drawn during
-   an in-flight update, but stale
-   numerical outputs are not retained. The volume-specific maximum-pressure
+   That time maximizes positive pressure area above the current full-family
+   EDPVR over the fixed physical interval `0.9–1.1 ×` operating-anchor ESV.
+   Every candidate therefore uses the identical volume interval, without
+   pressure extrapolation or a changing-width advantage. Candidate time is
+   limited to the anchor's maximum-pressure-to-end-systolic window with
+   `0.025` cycle margins. A 32-time coarse search is followed by 32-interval
+   local refinement, without filtering the objective by monotonicity. The
+   selected low-volume-to-anchor PVA domain must remain strictly
+   pressure-increasing. Either Worker may add points to the measured locus,
+   full-family EDPVR, and phase-selection surface. The last valid relation
+   remains drawn during an in-flight update, but stale numerical outputs are
+   not retained. The volume-specific maximum-pressure
    envelope is an optional, default-off diagnostic overlay. EDPVR is a
    volume-weighted exponential fit to maximum-volume points. PE is admitted
    only after locating the left ESPVR–EDPVR intersection and verifying

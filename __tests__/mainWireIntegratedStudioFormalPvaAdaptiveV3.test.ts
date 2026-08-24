@@ -157,10 +157,37 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       expect(fullPva.espvr).toMatchObject({
         primaryCurveLaw: "measured-domain-shape-preserving-locus",
         phaseSelectionPolicy:
-          "operating-anchor-plus-nearest-three-lower-and-one-higher-load",
-        phaseSelectionStatus: "locked",
-        phaseSelectionPointCount: 5,
+          "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window",
+        phaseSelectionStatus: "complete",
+        phaseSelectionPointCount: fullPva.source.pointCount,
+        phaseSelectionObjective:
+          "positive-active-pressure-area-over-fixed-anchor-esv-neighborhood",
+        phaseSelectionCoarseTimeSampleCount: 32,
       });
+      expect(
+        fullPva.espvr.phaseSelectionIntegrationVolumeRangeMl[0],
+      ).toBeCloseTo(59.04704134645029, 12);
+      expect(
+        fullPva.espvr.phaseSelectionIntegrationVolumeRangeMl[1],
+      ).toBeCloseTo(72.16860609010591, 12);
+      expect(fullPva.espvr.phaseSelectionAnchorLandmarks).toEqual({
+        maximumPressurePhase01: 0.3850000000000158,
+        endSystolicPhase01: 0.49500000000003297,
+      });
+      expect(fullPva.espvr.phaseSelectionCandidatePhaseRange01[0]).toBeCloseTo(
+        0.3600000000000158,
+        12,
+      );
+      expect(fullPva.espvr.phaseSelectionCandidatePhaseRange01[1]).toBeCloseTo(
+        0.520000000000033,
+        12,
+      );
+      expect(fullPva.espvr.selectedTimeSinceAtrialCaptureSec).toBeGreaterThan(
+        fullPva.espvr.phaseSelectionCandidateTimeRangeSec[0],
+      );
+      expect(fullPva.espvr.selectedTimeSinceAtrialCaptureSec).toBeLessThan(
+        fullPva.espvr.phaseSelectionCandidateTimeRangeSec[1],
+      );
       expect(fullPva.espvr.fitPoints).toHaveLength(fullPva.source.pointCount);
       expect(fullPva.potentialEnergy.joule).toBeGreaterThan(0);
       expect(fullPva.pva.joule).toBeCloseTo(
