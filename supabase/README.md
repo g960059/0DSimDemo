@@ -1,297 +1,98 @@
-# CircleHeart Supabase release spine
+# CircleHeart Supabase boundary
 
-This directory is the reviewed backend foundation for CircleHeart. It is
-intentionally not linked to a remote project in source control.
+Supabase is the durable trust and publication spine. Interactive numerical
+execution remains in browser Workers.
 
-The first cut keeps interactive numerical execution in browser Web Workers and
-uses Supabase only for:
+Source migrations, generated types, configuration, and tests own current
+tables, RPC names, quotas, schedules, and operational commands.
 
-- Auth and identity linking;
-- exact-model release lookup;
+## Owned responsibilities
+
+Supabase owns:
+
+- authentication and identity linking;
+- immutable exact-model, artifact-revision, analysis-profile, and Model-Surface
+  registry records;
 - private Experiment and Article ownership;
-- immutable Snapshot/content storage;
-- public pointers and Reader access;
-- idempotent semantic writes; and
-- bounded garbage collection.
+- immutable Snapshot and Article-content storage;
+- public pointers and anonymous read authorization;
+- idempotent semantic mutations with optimistic concurrency; and
+- bounded collection of unreachable immutable content.
 
-## Production topology
+It does not own equations, solver execution, runtime settlement, or clinical
+validation.
 
-`circleheart.dev` is the production product domain. Squarespace remains the DNS
-manager and the application is served by Firebase Hosting. The current Hosting
-configuration redirects the apex domain to the canonical browser origin
-`https://www.circleheart.dev`. Firebase is only the static Vite/SPA delivery
-layer; Firestore, Firebase Auth, and Firebase Storage are not part of the new
-architecture.
+## Client trust boundary
 
-```text
-circleheart.dev / www.circleheart.dev (Squarespace-managed DNS)
-  -> Firebase Hosting (dist + SPA rewrite)
-  -> Browser Web Workers (interactive simulation)
-  -> Supabase (Auth + Postgres + model artifact Storage)
-```
+Browser and authoring clients use a publishable key and have no direct table
+write authority. Durable mutations pass through versioned semantic RPCs under
+RLS. Service-role credentials must never enter browser configuration, command
+payloads, logs, or repository files.
 
-The checked-in `firebase.json` deliberately contains Hosting only. Hashed Vite
-assets are cached immutably, while `index.html` is revalidated so a new release
-can move the application shell without stale route code.
+Each mutation identity binds one canonical request. Replaying that request may
+return its committed result; reusing the identity for another request fails
+closed. Mutable resources also require their expected version so a stale
+client cannot overwrite a newer authoring head.
 
-## Local setup
+Snapshot persistence accepts the output of first-party numerical admission but
+does not independently rerun or certify the numerical model. This protects the
+ordinary product path, not against a hostile authenticated client. A future
+server-verified scientific claim requires a separate trusted execution and
+signed-receipt boundary.
 
-Docker Desktop must be running.
+## Content and reference lifecycle
 
-```bash
-supabase start
-supabase db reset
-supabase db lint --local
-```
+Experiments are mutable private heads. Snapshots and Article content revisions
+are immutable. Article Placements reference neutral Snapshots; the database
+derives reference ownership from validated Article blocks rather than trusting
+a second caller-supplied reference list.
 
-The repository currently carries no remote project ref. Link only the intended
-CircleHeart project after reviewing the migration diff:
+A Snapshot is readable by its owner or through an authorized published
+Experiment/Article reference. Draft references do not make it public.
+Unpublish and soft delete release pointers; garbage collection may remove only
+unreachable content after its handoff and retention boundaries.
 
-```bash
-supabase link --project-ref <circleheart-project-ref>
-supabase db push --dry-run
-supabase db push
-```
+Anonymous visitors do not need an account merely to read or fork. Saving
+private work requires an authenticated identity. Publication requires a
+non-anonymous account and never follows automatically from Save, Snapshot
+admission, or Article placement.
 
-Never link or push these migrations to an unrelated existing project.
+## Release identity
 
-For a configured browser build, copy `.env.example` to an ignored
-`.env.local` and provide only the project URL and publishable key. Database
-passwords, secret keys, and CLI access tokens must never enter Vite variables.
+A changed exact scientific manifest requires a new immutable `modelId`.
+Changed artifact bytes may remain under one `modelId` only through the
+repository's predecessor-bound, byte-exact frame and checkpoint equivalence
+path. Presentation, Auth, storage, Article, and hosting releases do not by
+themselves change exact numerical identity.
 
-## Migrations
+Display name, launch fixture, and analysis-profile ID are immutable launch
+metadata on the current model-release row, not fields in the scientific
+identity digest. The current registration API rejects rebinding them under the
+same `modelId`.
 
-### `20260809000100_active_model_bundle.sql`
+Display/default changes ultimately belong in a separately versioned metadata
+layer. A changed analysis implementation requires a new immutable profile ID;
+because durable content does not yet pin that profile independently, the
+current publication path also requires another model release. Historical rows
+must not be mutated to emulate either transition. The fuller ownership model
+is in
+[DESIGN-STUDIO-006](../docs/studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
 
-Before the first user, the former development sequence was deliberately
-squashed into one Standard-only baseline. It creates:
+Active-bundle replacement affects only new Sessions. Existing Experiments and
+Snapshots retain their stored exact-model and Surface pins and must never
+follow a later launch target.
 
-- immutable exact-model and Surface registries with explicit lifecycle;
-- one atomic active exact-model + Surface bundle pointer;
-- required Surface-series pins on every mutable Experiment and required exact
-  Surface-release pins on every Snapshot;
-- owner/private and public content reads, semantic write RPCs, idempotency,
-  quotas, publication guards, retention, and bounded garbage collection;
-- the public, client-read-only `model-releases` Storage bucket; and
-- a 15-minute Supabase Cron schedule for bounded content GC.
+## Migration and rollout boundary
 
-Mutable content resolves a Surface by series lineage rather than timestamp.
-Stable/retired exact models see stable Surfaces only; dev exact models may
-reopen dev Surface successors without leaking those definitions into ordinary
-stable content.
+Checked-in migrations are the ordered database source of truth. Once a project
+contains user data, schema evolution is forward-only: never squash, rewrite,
+or repair applied history in place.
 
-Artifact digests and registry fingerprints stay registry/CI metadata. Portable
-domain objects use exact `modelId`, `surfaceSeriesId`, and
-`surfaceReleaseId`; they never expose storage paths, codecs, or hashes as
-product identity.
+A disposable pre-release project with no user content may be reset from the
+checked-in migration sequence after its emptiness is verified. This exception
+does not apply to a project containing Auth identities or authored/published
+content.
 
-### `20260816000100_model_artifact_revisions.sql`
-
-This migration separates scientific `modelId` identity from immutable
-executable artifact revisions. Each model has one compare-and-swap binding to
-its currently certified revision. A same-model successor requires stored
-byte-exact equivalence evidence. A trusted rollback may rebind only to a
-directly equivalent registered predecessor or successor, and the service role
-cannot bypass that rule with direct table writes.
-
-## Auth policy
-
-Supported product flows are:
-
-- anonymous visitor: no account is created merely by opening or forking;
-- first backend Save: sign in anonymously, then perform the semantic Save RPC;
-- retained private work: available to that anonymous account;
-- account upgrade: link magic-link email or Google identity to the same user;
-- Publish: rejected while the JWT is anonymous; and
-- passwords: not offered by the product.
-
-Local email sign-in is enabled. Google remains disabled in `config.toml`
-because production client credentials belong in Supabase secrets/Dashboard,
-not source control.
-
-The production Supabase Site URL is the final canonical origin
-`https://www.circleheart.dev`; both apex and `www` remain allow-listed.
-Localhost and loopback redirects remain explicitly allow-listed for
-development; the client always supplies its current origin as `redirectTo`.
-
-## Write boundary
-
-Clients have no direct table write grants. They call versioned RPCs:
-
-```text
-save_experiment_v1
-commit_admitted_experiment_snapshot_v1
-publish_experiment_v1
-unpublish_experiment_v1
-delete_experiment_v1
-save_article_v1
-publish_article_v1
-unpublish_article_v1
-delete_article_v1
-```
-
-Each mutation receives a caller-generated UUID `operation_id`. Repeating the
-same operation and canonical request returns its committed result. Reusing the
-ID with different input is rejected. Mutable resources additionally require an
-expected version.
-
-The browser retains an unacknowledged operation ID for the exact semantic
-request for 24 hours, including in same-tab session storage, so a response-loss
-retry cannot create a second immutable revision. Database receipts keep
-SHA-256 request fingerprints and compact identity results rather than copying
-Experiment/Article/Snapshot JSON. Experiment content is capped at 8 MiB,
-Article content at 2 MiB, and anonymous identities have bounded row and 64 MiB
-immutable-storage quotas in addition to mutation-rate limits.
-
-`commit_admitted_experiment_snapshot_v1` is a persistence boundary, not a
-numerical verifier. The browser must first receive the sealed result of the
-exact model's common Snapshot admission Worker. This protects ordinary product
-flows; it is not a cryptographic proof against a malicious modified client.
-
-For standalone publication, the commit includes saved Experiment identity and
-expected version. The database verifies that model, Surface, Scenario order,
-labels, and fixtures still match the clean saved head; only captured
-checkpoints may be newer. Session-origin Article capture omits that source.
-
-Article Save accepts `blocks` once. Experiment Placement references and
-Briefing are projected by the database from those blocks into
-`article_snapshot_refs`; callers cannot provide a second divergent list.
-
-## Read boundary
-
-Public reads use:
-
-```text
-get_active_model_bundle_v1
-get_model_release_v1
-get_model_surface_release_v1
-get_model_surface_series_latest_v1
-read_public_experiment_v1
-read_public_article_v1
-read_public_article_route_v1
-read_experiment_snapshot_v1
-list_my_experiment_summaries_v1
-read_my_experiment_v1
-list_my_snapshot_summaries_v1
-list_my_article_summaries_v1
-read_article_v1
-list_public_experiment_summaries_v1
-list_public_article_summaries_v1
-```
-
-A Snapshot is readable by its owner, through the current public Experiment
-pointer, or through a published Article content reference. Private draft
-Article references do not make a Snapshot public.
-
-Summary calls accept a bounded page size and stable `(timestamp, id)` cursor.
-They never return complete numerical state; detail RPCs remain reference- and
-ownership-authorized independently.
-
-## Retention and scheduled GC
-
-Newly committed Snapshots receive a 24-hour handoff grace period. Publication retains
-them explicitly; Article references retain them relationally. Unpublish and
-soft delete release those pointers; deleted roots and otherwise unreachable
-immutable content are eligible for physical collection after one hour. A
-scheduled service-role job calls:
-
-```sql
-select studio.gc_unreferenced_content_v1(500);
-```
-
-The function removes only bounded batches of expired soft-deleted roots,
-unreferenced Snapshots, unreachable immutable content, and expired idempotency
-receipts. The pre-release baseline migration registers the production
-Supabase Cron job at a 15-minute interval; job history is available in
-`cron.job_run_details`.
-
-## Release registration
-
-CI builds the deterministic **numerical execution** artifact and verifies its
-repository lock before calling `register_model_release_v2` with service-role
-authority. A changed scientific manifest requires a new exact `modelId`.
-Changed artifact bytes remain beneath the same `modelId` only when the
-predecessor-bound equivalence corpus proves byte-exact frames, clocks, and
-checkpoints; the registry then advances an independent artifact-revision CAS
-pointer. Studio admission policy, presentation catalogs, UI, Auth, database,
-Article, and hosting releases are versioned separately and must not churn
-`modelId`.
-
-The registry accepts only the Standard exact-model manifest. The display name,
-default fixture, and analysis-profile ID are immutable launch metadata on the
-model-release row, not fields in the scientific identity digest. Public reads
-return those values with the manifest and public Storage path, but continue to
-hide artifact SHA, revision evidence, and source commit. Exact artifacts export
-`createCircleHeartExactModelReleaseV1() -> { manifest, executables }`, and
-registry metadata is the sole authority for the default fixture.
-
-The current registration API rejects rebinding any of that launch metadata
-under the same `modelId`. A display-name or launch-default change ultimately
-belongs in a separately versioned metadata layer rather than scientific
-identity. A changed analysis implementation requires a new immutable profile
-ID; because durable content does not yet pin that profile independently, the
-current publication path also requires another model release. Historical
-release rows must not be mutated to emulate either transition.
-
-After the exact release and Surface files are committed, a maintainer with an
-authenticated Supabase CLI session publishes immutable registry rows without
-exposing a secret to the browser or shell output:
-
-```bash
-npm run publish:registry:main-wire-v3 -- \
-  --project-ref <project-ref> --stage <dev|stable>
-
-npm run publish:registry:model-surface -- \
-  --project-ref <project-ref> --manifest <surface.json> \
-  --stage <dev|stable>
-```
-
-Registration never changes the ordinary launch target. After both rows are
-stable and compatible, a trusted operator replaces the singleton active bundle
-with an explicit compare-and-swap:
-
-```bash
-npm run activate:registry:model-bundle -- \
-  --project-ref <project-ref> --model-id <modelId> \
-  --surface-release-id <surfaceReleaseId> \
-  --expected-version <none|integer>
-```
-
-New Experiment Sessions resolve that exact model/Surface pair atomically and
-then pin it. Existing content keeps its stored exact model and Surface pins;
-it never follows later active-bundle replacements.
-
-## Pre-release baseline rollout
-
-The repository intentionally contains one current-state Studio migration.
-Earlier pre-release migrations and legacy model-loader tables/RPCs were
-squashed before any user content existed. A Supabase project that previously
-applied those development migrations must therefore be treated as disposable:
-
-1. verify that Auth, Experiment, Snapshot, Article, and publication row counts
-   are zero;
-2. export any registry metadata that must be re-published;
-3. reset or recreate the development project from the checked-in baseline;
-4. publish the current Standard exact model and Surface; and
-5. activate that stable pair with the compare-and-swap command above.
-
-Do not repair migration history in place on a project containing user data.
-After the first real user is admitted, all schema changes are forward-only
-migrations and this pre-release reset exception ends.
-
-## Deferred work
-
-- configure production email delivery and Google OAuth credentials;
-- enable production CAPTCHA/Turnstile for anonymous sign-in;
-- exercise retained exact loading when the first Standard successor is
-  registered;
-- verify Worker Blob ESM import and Storage CORS in WebKit and real Safari/iOS
-  Safari before public deployment;
-- keep immutable artifacts write/delete restricted, forbid path reuse, audit
-  registry digests server-side, and retain an independently restorable mirror;
-- define retention for abandoned anonymous identities after account-linking UX
-  is complete; and
-- introduce Cloud Run Jobs only for patient fitting or expensive batch work.
-
-Realtime numerical frames, ordinary simulation stepping, CRDT editing, and
-patient data are outside this release spine.
+Registry publication and active-bundle activation are separate trusted
+operations. Registering a release never changes the launch target; activation
+must be explicit and compare-and-swap protected.

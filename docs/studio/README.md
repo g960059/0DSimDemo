@@ -9,14 +9,15 @@ Read only the contract relevant to the task:
 - [003](DESIGN-STUDIO-003-experiment-data-architecture.md): Experiment,
   Snapshot, capture, persistence, and publication authority.
 - [004](DESIGN-STUDIO-004-reader-briefing-experiment-ia.md): Article
-  placement, Briefing, Reader behavior, and routes.
+  placement and Briefing authority.
 - [005](DESIGN-STUDIO-005-live-graph-performance.md): Worker-to-Canvas
   presentation and performance boundaries.
 - [006](DESIGN-STUDIO-006-model-surface-release-and-model-lab.md): exact
   model, analysis profile, Model Surface, and active-bundle identity.
 - [007](DESIGN-STUDIO-007-flat-numerical-kernel.md): accepted numerical
   authority and checkpoint boundary.
-- [008](DESIGN-STUDIO-008-public-content-delivery.md): public delivery.
+- [008](DESIGN-STUDIO-008-public-content-delivery.md): public rendering and
+  delivery trust boundaries.
 - [009](DESIGN-STUDIO-009-model-definition-execution-plan.md): build-time
   model compilation and Worker-local plan binding.
 

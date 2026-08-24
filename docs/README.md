@@ -13,13 +13,11 @@ Open only the area needed for the task:
   model scope, runtime ownership, and scientific claim limits.
 - [Literature traceability](scientific-runtime/INTEGRATED-MODEL-0002-literature-traceability.md):
   source roles, held-out evidence, and non-claims.
-- [Numerical model evidence](myocardium/README.md): specifications and retained
-  verification material.
-- [AI-assisted authoring](../tools/authoring/README.md): machine discovery,
-  numerical authoring, retries, and trust boundaries.
+- [AI-assisted authoring](../tools/authoring/README.md): machine discovery and
+  authoring trust boundaries.
 - [Testing](testing/test-suite-strategy.md): suite ownership and execution.
-- [Supabase operations](../supabase/README.md): registry and durable-content
-  operations.
+- [Supabase boundary](../supabase/README.md): backend trust, registry, and
+  durable-content lifecycle.
 
 Completed research notes, release diaries, rejected approaches, and superseded
 architecture live in Git history. Do not restore them as an in-tree archive;

@@ -10,10 +10,14 @@ autoregulation state, event-driven rhythm and calcium drive, respiratory and
 pericardial pressure owners, and declared mechanical-support owners. The
 ordinary configuration is regular sinus rhythm with support devices off.
 
-The model supports bounded hemodynamic, chamber, valve, pericardial, coronary,
-oxygen-boundary, rhythm, and device research inputs. It does not represent a
-patient-specific heart, spatial electrophysiology, CFD, autonomic reflexes,
-remodeling, dynamically coupled tissue metabolism, or regional ischemia.
+The current exact release supports bounded hemodynamic, chamber-mechanics,
+valve, pericardial, coronary-disease, and oxygen-boundary research inputs. Its
+fixture fixes regular sinus rhythm and dynamic mechanical support off.
+Alternative rhythm and support paths exist only as separate engine-side
+research paths until admitted by a future exact release and compatible Model
+Surface. The model does not represent a patient-specific heart, spatial
+electrophysiology, CFD, autonomic reflexes, remodeling, dynamically coupled
+tissue metabolism, or regional ischemia.
 
 ## Runtime authority
 
