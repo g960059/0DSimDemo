@@ -451,20 +451,20 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3).toBe(
-      9,
+      5,
     );
     expect(
       mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
         sourceTbvMl,
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
       ),
-    ).toBe(sourceTbvMl * 0.6);
+    ).toBe(sourceTbvMl * 0.7);
     expect(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
     ).toBe(3_360);
     expect(
       mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceTbvMl),
-    ).toBe(3_360);
+    ).toBeCloseTo(3_920, 10);
     expect(mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(4_400)).toBe(
       3_360,
     );
@@ -472,7 +472,7 @@ describe("settled hot-start PVA V1", () => {
       3_360,
     );
     expect(mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(7_000)).toBe(
-      4_200,
+      4_900,
     );
     expect(adaptive.status).toBe("available");
     if (adaptive.status === "available") {

@@ -19,11 +19,12 @@ The production workflow is deliberately direct:
 2. the existing background analysis Workers capture the current Scenario;
 3. independent low- and high-volume persistent chains start at the same settled
    operating point (concurrently when two analysis Worker leases are present);
-4. every fixed-TBV load is warm-started from the preceding settled point on
-   that limb; the adaptive low limb reaches at least `60%` and then may extend
-   toward the existing Starling low-flow boundary, while the high limb attempts
-   the full measured `1.08–1.40×` schedule unless it encounters a numerical
-   boundary;
+4. every retained fixed-TBV load is warm-started from the preceding endpoint
+   on that limb; one anchor, three lower-preload points, and one higher-preload
+   point provide the first PVA, after which normalized curve-shape error and
+   settlement effort adapt the next TBV step; a high-preload endpoint that adds
+   less than `4 mL` of end-systolic-volume coverage widens the following
+   retained target instead of crowding the ESPVR with nearly coincident points;
 5. source coronary tone is held fixed and each load must pass the protocol's
    declared consecutive complete-beat flow/pressure/volume closure checks;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
@@ -197,9 +198,12 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 ## Current limitations
 
 - The load family is a bidirectional fixed-total-blood-volume sweep, not a
-  transient venous-occlusion protocol. Its low analysis limb extends to at
-  least `60%` of source TBV and may continue toward the Starling low-flow
-  boundary without changing the Workbench TBV control.
+  transient venous-occlusion protocol. Its first PVA uses three lower-preload
+  points down to the greater of `70%` of source TBV and `3360 mL`, plus one
+  higher-preload point. Coverage-first extensions may continue toward `0.18×`
+  and `1.60×` source TBV, stopping earlier at the low-flow or numerical
+  boundary without changing the Workbench TBV control. These extremes are
+  numerical exploration bounds, not asserted physiological states.
 - Coronary autoregulation tone is held at its source value during the bounded
   preload reduction. This avoids mixing a short mechanical response with
   repeated 25-second controller re-equilibration, but it is not a fully

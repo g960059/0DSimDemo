@@ -30,12 +30,13 @@ StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
 const MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   partitions: Object.freeze([
-    // The shared bidirectional relation needs settled points on both sides of
-    // the anchor. On a one-slot device, finish the short high-volume limb
-    // first, then let the progressive low limb publish 3-point and 5-point
-    // bilateral previews. Two or more leases still run both chains in parallel.
-    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    // The coverage-first low limb now reaches its low-flow boundary with fewer
+    // retained points than the broad high extension. On a one-slot device,
+    // finish low first; the next high point then admits the bilateral preview
+    // and PVA without waiting for the entire high frontier. Two or more leases
+    // still run both chains in parallel.
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   ]),
   merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
 });
@@ -152,7 +153,7 @@ function mergeStructuralSideV3(
   const totalPointCount = allPartitionsComplete
     ? points.length
     : Math.max(
-        points.length,
+        points.length + 1,
         ...loci.map((locus) => requiredSafeIntegerFieldV3(
           locus,
           "totalPointCount",

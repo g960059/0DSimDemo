@@ -79,7 +79,11 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       highAnalysis.payload as unknown as Readonly<{
         left: Readonly<{
           starlingLocus: Readonly<{
-            points: readonly Readonly<{ totalBloodVolumeMl: number }>[];
+            points: readonly Readonly<{
+              totalBloodVolumeMl: number;
+              completedBeatCount: number;
+              maximumNormalizedBeatDelta: number;
+            }>[];
           }>;
         }>;
       }>
@@ -91,7 +95,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     });
     expect(
       payload.left.starlingLocus.completedPointCount,
-    ).toBeGreaterThanOrEqual(9);
+    ).toBeGreaterThanOrEqual(4);
     expect(payload.left.starlingLocus.totalPointCount).toBe(
       payload.left.starlingLocus.completedPointCount,
     );
@@ -104,13 +108,18 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         (_, index) => index + 1,
       ),
     );
-    expect(highPoints).toHaveLength(6);
-    for (const [index, scale] of [1, 1.08, 1.16, 1.24, 1.32, 1.4].entries()) {
-      expect(highPoints[index]!.totalBloodVolumeMl / 5_600).toBeCloseTo(
-        scale,
-        12,
-      );
-    }
+    const highScales = highPoints
+      .map(({ totalBloodVolumeMl }) => totalBloodVolumeMl / 5_600)
+      .sort((left, right) => left - right);
+    expect(highScales[0]).toBeCloseTo(1, 12);
+    expect(highScales[1]).toBeCloseTo(1.12, 12);
+    expect(highScales.at(-1)).toBeGreaterThanOrEqual(1.5);
+    expect(highScales.length).toBeLessThanOrEqual(6);
+    expect(
+      highScales
+        .slice(1)
+        .some((scale, index) => scale - highScales[index]! >= 0.15),
+    ).toBe(true);
     const sourceTbvMl = Math.max(
       ...payload.left.starlingLocus.points.map(
         ({ totalBloodVolumeMl }) => totalBloodVolumeMl,
@@ -122,18 +131,18 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
           ({ totalBloodVolumeMl }) => totalBloodVolumeMl,
         ),
       ),
-    ).toBeLessThanOrEqual(sourceTbvMl * 0.6);
+    ).toBeLessThan(sourceTbvMl * 0.6);
+    expect(payload.left.starlingLocus.points.length).toBeLessThanOrEqual(7);
     const corePoints = payload.left.starlingLocus.points
       .filter(
         ({ totalBloodVolumeMl }) =>
-          totalBloodVolumeMl >= sourceTbvMl * 0.6 - 1e-6,
+          totalBloodVolumeMl >= sourceTbvMl * 0.7 - 1e-6,
       )
       .sort(
         (left, right) => right.totalBloodVolumeMl - left.totalBloodVolumeMl,
       );
     const firstLowScale = corePoints[1]!.totalBloodVolumeMl / sourceTbvMl;
-    expect(1 - firstLowScale).toBeGreaterThanOrEqual(0.06);
-    expect(1 - firstLowScale).toBeLessThanOrEqual(0.08);
+    expect(1 - firstLowScale).toBeCloseTo(0.1, 12);
     for (const point of corePoints.slice(1)) {
       const scale = point.totalBloodVolumeMl / sourceTbvMl;
       expect(point.completedBeatCount).toBeGreaterThanOrEqual(
@@ -245,8 +254,8 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         (partial) => progress.push(partial),
       ),
     ).resolves.toBeDefined();
-    expect(progress.length).toBeGreaterThanOrEqual(9);
-    const ninthPayload = progress[8]!.payload as unknown as Readonly<{
+    expect(progress.length).toBeGreaterThanOrEqual(4);
+    const bootstrapPayload = progress[3]!.payload as unknown as Readonly<{
       left: Readonly<{
         starlingLocus: Readonly<{
           points: readonly Readonly<{ totalBloodVolumeMl: number }>[];
@@ -255,7 +264,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     }>;
     expect(
       Math.min(
-        ...ninthPayload.left.starlingLocus.points.map(
+        ...bootstrapPayload.left.starlingLocus.points.map(
           ({ totalBloodVolumeMl }) => totalBloodVolumeMl,
         ),
       ),

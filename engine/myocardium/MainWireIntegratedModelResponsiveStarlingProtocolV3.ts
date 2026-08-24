@@ -55,47 +55,34 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1" as const;
 
 /**
- * The PVA relation follows one monotone adaptive preload-reduction chain from
- * the settled Scenario anchor. Its lower boundary is the greater of 60% of
- * source TBV and 60% of the normal-adult 5600 mL reference. The absolute floor
- * prevents an already-hypovolemic Scenario from being reduced by another 40%
- * merely to preserve a relative display span. Coronary tone is held at the
- * source value and every retained point passes complete-beat P1 closure. Step
- * size responds to the preceding point's settlement effort; the chain still
- * retains at least nine points across the declared volume span.
+ * PVA becomes available after one settled anchor, three lower-preload points,
+ * and one higher-preload point. The low bootstrap reaches the greater of 70%
+ * of source TBV and 60% of the normal-adult 5600 mL reference. The absolute
+ * floor prevents an already-hypovolemic Scenario from being reduced too far
+ * merely to preserve a relative display span. Both directional Workers then
+ * continue with a coverage-first frontier: smooth, inexpensive intervals grow
+ * wider, curved intervals shrink, and difficult settlement prevents further
+ * widening. Coronary tone is held at the source value and every retained point
+ * passes complete-beat P1 closure.
  */
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 9;
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.6;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 5;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.7;
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 =
   MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl *
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3;
+  0.6;
 
 /**
- * Nominal low-volume targets used only to extend the shared Starling family.
- * The PVA/ESPVR/EDPVR fit remains limited to the adaptive
- * operating-anchor-to-60% core above, so this tail cannot change PVA.
- * Rejected jumps insert settled midpoints and the limb stops at low flow or a
- * bounded numerical boundary.
+ * Coverage bounds for the shared Starling/PV family. They are exploration
+ * limits, not promises that an extreme state will settle. The low limb stops
+ * earlier at the declared low-flow or numerical boundary. The high limb stops
+ * at its numerical boundary. No pressure-volume point is extrapolated.
  */
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3 =
-  Object.freeze([0.54, 0.48, 0.42, 0.36, 0.31, 0.27, 0.23] as const);
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 =
+  0.18;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 =
+  1.6;
 
-/**
- * High-volume arm retained for the bidirectional Starling presentation and
- * for measured-domain ESPVR extension. Every declared target is attempted in
- * order; an actual numerical boundary still stops the chain without
- * extrapolating a pressure-volume point.
- */
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3;
-
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
-
-const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3 =
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 +
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3.length +
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3.length;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 = 4;
 
 export function mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
   sourceGlobalTbvMl: number,
@@ -144,9 +131,20 @@ const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
 const MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3 = 8;
 const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
-const FORMAL_PVA_INITIAL_SCALE_STEP_V3 = 0.07;
+const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
+const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 0.005;
-const FORMAL_PVA_MAXIMUM_SCALE_STEP_V3 = 0.07;
+const FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 = 0.16;
+const FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3 = 0.2;
+const FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3 = 0.06;
+const FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3 = 12;
+const FORMAL_SMOOTH_CHORD_ERROR_V3 = 0.12;
+const FORMAL_CURVED_CHORD_ERROR_V3 = 0.35;
+const FORMAL_CURVED_SCALE_STEP_MULTIPLIER_V3 = 0.8;
+const FORMAL_HIGH_ESV_SATURATION_GAIN_ML_V3 = 4;
+const FORMAL_HIGH_ESV_SATURATION_STEP_MULTIPLIER_V3 = 1.35;
+const FORMAL_MINIMUM_TERMINAL_COVERAGE_STEP_V3 = 0.02;
 const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
 const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
 const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
@@ -438,9 +436,11 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  * settles an isolated copy at the Scenario TBV with the active coronary
  * controller. It then freezes the controller state at that settled endpoint
  * and admits each load after three consecutive complete beats satisfy the
- * declared flow/pressure/volume closure gates. The adaptive low-volume core
- * publishes progressive PVA previews while a second persistent Worker may run
- * the high-volume Starling arm from the same captured Scenario source.
+ * declared flow/pressure/volume closure gates. The low-volume bootstrap
+ * publishes progressive PVA previews while a second persistent Worker runs
+ * the high-volume frontier from the same captured Scenario source. Both
+ * frontiers adapt their next TBV step from retained curve shape and settlement
+ * effort rather than spending a fixed point budget uniformly.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   sourceSession: MainWireIntegratedModelSessionV3,
@@ -507,21 +507,6 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   anchorObservation = center.observation;
   append(center.pair);
 
-  let lowBoundary = Object.freeze({
-    branch: center.branch,
-    targetGlobalTbvMl: sourceGlobalTbvMl,
-  });
-  if (
-    partition === undefined ||
-    partition ===
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
-  ) {
-    lowBoundary = await runFormalPressureVolumeChainV3(
-      center.branch,
-      sourceGlobalTbvMl,
-      append,
-    );
-  }
   if (
     partition === undefined ||
     partition ===
@@ -529,6 +514,7 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   ) {
     await runFormalHypervolemicStarlingChainV3(
       center.branch,
+      center.pair,
       sourceGlobalTbvMl,
       append,
     );
@@ -538,10 +524,10 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
     partition ===
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
   ) {
-    await runFormalLowStarlingExtensionV3(
-      lowBoundary.branch,
+    await runFormalHypovolemicCoverageChainV3(
+      center.branch,
+      center.pair,
       sourceGlobalTbvMl,
-      lowBoundary.targetGlobalTbvMl,
       append,
     );
   }
@@ -549,9 +535,21 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
 }
 
 function formalExpectedPointCountV3(
-  _partition: MainWireIntegratedModelResponsiveStarlingPartitionV3 | undefined,
+  partition: MainWireIntegratedModelResponsiveStarlingPartitionV3 | undefined,
 ): number {
-  return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_SETTLED_FAMILY_POINT_COUNT_V3;
+  if (
+    partition ===
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3
+  ) {
+    return 1 + FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+  }
+  if (
+    partition ===
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3
+  ) {
+    return 2;
+  }
+  return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
 }
 
 /**
@@ -633,118 +631,103 @@ function settleFormalPressureVolumeSourceV3(
   );
 }
 
-async function runFormalPressureVolumeChainV3(
+type FormalCoverageDirectionV3 = "hypovolemic" | "hypervolemic";
+
+type FormalCoverageSampleV3 = Readonly<{
+  scale: number;
+  pair: StarlingPairV3;
+}>;
+
+type FormalCoverageBoundaryV3 = Readonly<{
+  branch: MainWireIntegratedModelSessionV3;
+  scale: number;
+  pair: StarlingPairV3;
+}>;
+
+type FormalCoverageAdvanceV3 = Readonly<{
+  status: "reached" | "stopped" | "boundary";
+  boundary: FormalCoverageBoundaryV3;
+  reason: string | null;
+}>;
+
+async function runFormalHypovolemicCoverageChainV3(
   centerBranch: MainWireIntegratedModelSessionV3,
+  centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
-): Promise<
-  Readonly<{
-    branch: MainWireIntegratedModelSessionV3;
-    targetGlobalTbvMl: number;
-  }>
-> {
-  let reliableBranch = centerBranch;
-  let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
-  let reliableScale = 1;
-  let retainedPointCount = 1;
-  let desiredScaleStep = FORMAL_PVA_INITIAL_SCALE_STEP_V3;
-  const minimumGlobalTbvMl =
-    mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl);
-  const minimumScale = minimumGlobalTbvMl / sourceGlobalTbvMl;
-  while (reliableScale > minimumScale + 1e-12) {
-    const remainingScale = reliableScale - minimumScale;
-    const remainingRequiredPoints = Math.max(
-      1,
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 -
-        retainedPointCount,
+): Promise<void> {
+  const samples: FormalCoverageSampleV3[] = [
+    Object.freeze({ scale: 1, pair: centerPair }),
+  ];
+  let boundary: FormalCoverageBoundaryV3 = Object.freeze({
+    branch: centerBranch,
+    scale: 1,
+    pair: centerPair,
+  });
+  const accept = (nextBoundary: FormalCoverageBoundaryV3): void => {
+    samples.push(
+      Object.freeze({ scale: nextBoundary.scale, pair: nextBoundary.pair }),
     );
-    // Begin almost as coarsely as the +8% high-volume arm, then reserve enough
-    // low-volume range for the remaining required points at the minimum step.
-    // A scale-dependent ceiling progressively densifies the difficult tail.
-    const futureRequiredPointCount = Math.max(
-      0,
-      remainingRequiredPoints - 1,
+    append(nextBoundary.pair);
+  };
+
+  // Three evenly spaced lower-preload points establish the first admissible
+  // PVA family without waiting for a dense nine-point grid. Already-low
+  // Scenarios retain the normal-adult absolute floor.
+  const coreMinimumScale =
+    mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl) /
+    sourceGlobalTbvMl;
+  for (
+    let ordinal = 1;
+    ordinal <= FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+    ordinal += 1
+  ) {
+    const requestedScale =
+      1 -
+      ((1 - coreMinimumScale) * ordinal) /
+        FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept,
     );
-    const pointCountBoundedStep = Math.max(
-      FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
-      remainingScale -
-        futureRequiredPointCount * FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
-    );
-    let attemptedScaleStep = Math.min(
-      remainingScale,
-      desiredScaleStep,
-      pointCountBoundedStep,
-      formalPvaScaleStepCeilingV3(reliableScale),
-    );
-    let accepted = false;
-    let lastRejectedReason = "adaptive PVA load was not attempted";
-    for (
-      let attempt = 0;
-      attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3;
-      attempt += 1
-    ) {
-      const targetScale = Math.max(
-        minimumScale,
-        reliableScale - attemptedScaleStep,
-      );
-      const targetGlobalTbvMl =
-        mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3(
-          sourceGlobalTbvMl,
-          targetScale,
-        );
-      const measured = await measureFormalPressureVolumeBranchV3(
-        reliableBranch,
-        targetGlobalTbvMl,
-        "continuation",
-        formalPvaMinimumCompleteBeatCountV3(targetScale),
-      );
-      if (
-        measured.status === "accepted" &&
-        formalPairQualifiedV3(measured.pair)
-      ) {
-        append(measured.pair);
-        reliableBranch = measured.branch;
-        reliableTargetGlobalTbvMl = targetGlobalTbvMl;
-        reliableScale = targetScale;
-        retainedPointCount += 1;
-        desiredScaleStep = adaptiveFormalPvaScaleStepV3(
-          attemptedScaleStep,
-          measured.pair,
-        );
-        accepted = true;
-        break;
-      }
-      lastRejectedReason =
-        measured.status === "rejected"
-          ? measured.reason
-          : "adaptive PVA load did not retain a settled fixed-tone pair";
-      attemptedScaleStep *= 0.5;
-      if (
-        attemptedScaleStep < FORMAL_PVA_MINIMUM_SCALE_STEP_V3 ||
-        sourceGlobalTbvMl * attemptedScaleStep <
-          MINIMUM_FORMAL_TBV_BRACKET_ML_V3
-      ) {
-        break;
-      }
-    }
-    if (!accepted) {
+    boundary = advanced.boundary;
+    if (advanced.status !== "reached") {
       throw new Error(
-        `formal adaptive pressure-volume load below scale ${reliableScale} rejected: ${lastRejectedReason}`,
+        `formal PVA bootstrap below scale ${boundary.scale} rejected: ${advanced.reason ?? "numerical boundary"}`,
       );
     }
   }
-  return Object.freeze({
-    branch: reliableBranch,
-    targetGlobalTbvMl: reliableTargetGlobalTbvMl,
-  });
-}
 
-function formalPvaScaleStepCeilingV3(reliableScale: number): number {
-  if (reliableScale >= 0.9) return 0.07;
-  if (reliableScale >= 0.8) return 0.065;
-  if (reliableScale >= 0.72) return 0.055;
-  if (reliableScale >= 0.66) return 0.045;
-  return 0.03;
+  if (starlingPairReachedLowFlowTargetV3(boundary.pair)) return;
+  let desiredScaleStep = FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  while (
+    boundary.scale >
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 + 1e-12 &&
+    samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3
+  ) {
+    const priorScale = boundary.scale;
+    const requestedScale = Math.max(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3,
+      boundary.scale - desiredScaleStep,
+    );
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept,
+      (pair) => starlingPairReachedLowFlowTargetV3(pair),
+    );
+    boundary = advanced.boundary;
+    if (!(boundary.scale < priorScale - 1e-12)) return;
+    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
+      "hypovolemic",
+      recentAcceptedScaleStepV3(samples),
+      samples,
+    );
+    if (advanced.status !== "reached") return;
+  }
 }
 
 function formalPvaMinimumCompleteBeatCountV3(targetScale: number): number {
@@ -753,10 +736,12 @@ function formalPvaMinimumCompleteBeatCountV3(targetScale: number): number {
   return 5;
 }
 
-function adaptiveFormalPvaScaleStepV3(
+function adaptiveFormalCoverageScaleStepV3(
+  direction: FormalCoverageDirectionV3,
   acceptedScaleStep: number,
-  pair: StarlingPairV3,
+  samples: readonly FormalCoverageSampleV3[],
 ): number {
+  const pair = samples.at(-1)!.pair;
   const completedBeatCount = Math.max(
     pair.left.completedBeatCount,
     pair.right.completedBeatCount,
@@ -765,137 +750,338 @@ function adaptiveFormalPvaScaleStepV3(
     pair.left.maximumNormalizedBeatDelta,
     pair.right.maximumNormalizedBeatDelta,
   );
-  const multiplier =
-    completedBeatCount <= 5 && closureScore <= 0.6
-      ? 1.25
-      : completedBeatCount >= 10 || closureScore > 0.9
-        ? 0.7
-        : 1;
+  const easySettlement = completedBeatCount <= 5 && closureScore <= 0.6;
+  const difficultSettlement = completedBeatCount >= 10 || closureScore > 0.9;
+  const chordError = formalCoverageChordErrorV3(samples);
+  let multiplier =
+    chordError === null
+      ? easySettlement
+        ? 1.2
+        : 1
+      : chordError <= FORMAL_SMOOTH_CHORD_ERROR_V3
+        ? easySettlement
+          ? 1.35
+          : 1.15
+        : chordError >= FORMAL_CURVED_CHORD_ERROR_V3
+          ? FORMAL_CURVED_SCALE_STEP_MULTIPLIER_V3
+          : 1;
+  // Settlement cost controls how quickly the frontier may widen, but does not
+  // by itself spend more displayed points in a smooth region. Internal
+  // one-beat bridges handle a numerically large jump; actual curvature is what
+  // earns a smaller retained interval.
+  if (difficultSettlement) multiplier = Math.min(multiplier, 1);
+  const highEsvGainMl =
+    direction === "hypervolemic"
+      ? formalCoverageMinimumEndSystolicVolumeGainV3(samples)
+      : null;
+  if (
+    highEsvGainMl !== null &&
+    highEsvGainMl < FORMAL_HIGH_ESV_SATURATION_GAIN_ML_V3
+  ) {
+    // At high preload, TBV may keep moving while end-systolic volume has nearly
+    // saturated. Do not spend retained ESPVR points inside that compressed
+    // volume band. Widen the next requested endpoint; hidden one-beat bridges
+    // still preserve the numerical hot-start path.
+    multiplier = Math.max(
+      multiplier,
+      FORMAL_HIGH_ESV_SATURATION_STEP_MULTIPLIER_V3,
+    );
+  }
+  const maximumScaleStep =
+    direction === "hypovolemic"
+      ? FORMAL_LOW_MAXIMUM_SCALE_STEP_V3
+      : FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3;
   return Math.min(
-    FORMAL_PVA_MAXIMUM_SCALE_STEP_V3,
+    maximumScaleStep,
     Math.max(FORMAL_PVA_MINIMUM_SCALE_STEP_V3, acceptedScaleStep * multiplier),
   );
 }
 
 async function runFormalHypervolemicStarlingChainV3(
   centerBranch: MainWireIntegratedModelSessionV3,
+  centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
 ): Promise<void> {
-  let reliableBranch = centerBranch;
-  let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
-  for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3) {
-    const targetGlobalTbvMl = sourceGlobalTbvMl * scale;
-    const measured = await measureFormalPressureVolumeTargetV3(
-      reliableBranch,
-      reliableTargetGlobalTbvMl,
-      targetGlobalTbvMl,
+  const samples: FormalCoverageSampleV3[] = [
+    Object.freeze({ scale: 1, pair: centerPair }),
+  ];
+  let boundary: FormalCoverageBoundaryV3 = Object.freeze({
+    branch: centerBranch,
+    scale: 1,
+    pair: centerPair,
+  });
+  const accept = (nextBoundary: FormalCoverageBoundaryV3): void => {
+    samples.push(
+      Object.freeze({ scale: nextBoundary.scale, pair: nextBoundary.pair }),
     );
+    append(nextBoundary.pair);
+  };
+  let desiredScaleStep = FORMAL_HIGH_INITIAL_SCALE_STEP_V3;
+  while (
+    boundary.scale <
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 - 1e-12 &&
+    samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3
+  ) {
+    const priorScale = boundary.scale;
+    const remainingCoverageScale =
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 -
+      boundary.scale;
     if (
-      measured.status === "rejected" ||
-      !formalPairQualifiedV3(measured.pair)
+      remainingCoverageScale <
+      Math.max(FORMAL_MINIMUM_TERMINAL_COVERAGE_STEP_V3, 0.5 * desiredScaleStep)
     ) {
-      break;
+      return;
     }
-    append(measured.pair);
-    reliableBranch = measured.branch;
-    reliableTargetGlobalTbvMl = targetGlobalTbvMl;
-  }
-}
-
-async function runFormalLowStarlingExtensionV3(
-  coreBoundaryBranch: MainWireIntegratedModelSessionV3,
-  sourceGlobalTbvMl: number,
-  coreBoundaryGlobalTbvMl: number,
-  append: (pair: StarlingPairV3) => void,
-): Promise<void> {
-  let reliableBranch = coreBoundaryBranch;
-  let reliableScale = coreBoundaryGlobalTbvMl / sourceGlobalTbvMl;
-  for (const requestedScale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3) {
-    let targetScale: number = requestedScale;
-    let reachedRequestedScale = false;
-    for (
-      let attempt = 0;
-      attempt < MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3;
-      attempt += 1
-    ) {
-      const measured = await measureFormalPressureVolumeBranchV3(
-        reliableBranch,
-        sourceGlobalTbvMl * targetScale,
-        "continuation",
-        5,
-      );
-      if (
-        measured.status === "accepted" &&
-        formalPairQualifiedV3(measured.pair)
-      ) {
-        append(measured.pair);
-        reliableBranch = measured.branch;
-        reliableScale = targetScale;
-        if (starlingPairReachedLowFlowTargetV3(measured.pair)) return;
-        if (Math.abs(targetScale - requestedScale) < 1e-12) {
-          reachedRequestedScale = true;
-          break;
-        }
-        targetScale = requestedScale;
-        continue;
-      }
-      if (reliableScale - targetScale <= MINIMUM_LOW_SCALE_BRACKET_V3) break;
-      targetScale = midpointV3(reliableScale, targetScale);
-    }
-    if (!reachedRequestedScale) break;
+    const requestedScale = Math.min(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3,
+      boundary.scale + desiredScaleStep,
+    );
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept,
+    );
+    boundary = advanced.boundary;
+    if (!(boundary.scale > priorScale + 1e-12)) return;
+    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
+      "hypervolemic",
+      recentAcceptedScaleStepV3(samples),
+      samples,
+    );
+    if (advanced.status !== "reached") return;
   }
 }
 
 /**
- * Keeps a requested high-volume display target exact while permitting internal
- * homotopy points when a direct load jump is numerically too large. Internal
- * points are settlement aids only: they are neither returned nor fitted.
+ * Advances one persistent directional frontier. Large numerical jumps use
+ * short, unreported one-beat hot-start bridges, while only the requested
+ * complete-beat P1 endpoint is retained as curve evidence. This separates the
+ * numerical homotopy resolution from the scientific/display sampling density.
  */
-async function measureFormalPressureVolumeTargetV3(
-  reliableBranch: MainWireIntegratedModelSessionV3,
-  reliableTargetGlobalTbvMl: number,
-  requestedTargetGlobalTbvMl: number,
-): Promise<MeasuredBranchV3> {
-  let sourceBranch = reliableBranch;
-  let sourceTargetGlobalTbvMl = reliableTargetGlobalTbvMl;
-  let trialTargetGlobalTbvMl = requestedTargetGlobalTbvMl;
-  let lastRejected: RejectedBranchV3 = rejectedV3(
-    "formal pressure-volume target was not attempted",
-  );
+async function advanceFormalCoverageTowardScaleV3(
+  initialBoundary: FormalCoverageBoundaryV3,
+  requestedScale: number,
+  sourceGlobalTbvMl: number,
+  accept: (boundary: FormalCoverageBoundaryV3) => void,
+  stopAfterAccepted: (pair: StarlingPairV3) => boolean = () => false,
+): Promise<FormalCoverageAdvanceV3> {
+  const boundary = initialBoundary;
+  let continuationBranch = initialBoundary.branch;
+  let continuationScale = initialBoundary.scale;
+  let bridgeMaximumScaleStep = FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3;
+  let forceBridgeBeforeTarget = false;
+  let lastRejectedReason = "formal coverage target was not attempted";
   for (
     let attempt = 0;
     attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3;
     attempt += 1
   ) {
-    const measured = await measureFormalPressureVolumeBranchV3(
-      sourceBranch,
-      trialTargetGlobalTbvMl,
-      "continuation",
+    const remainingScale = requestedScale - continuationScale;
+    const minimumScaleStep = Math.max(
+      FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
+      MINIMUM_FORMAL_TBV_BRACKET_ML_V3 / sourceGlobalTbvMl,
     );
-    if (measured.status === "accepted") {
-      if (
-        Math.abs(trialTargetGlobalTbvMl - requestedTargetGlobalTbvMl) <=
-        FIXED_TBV_TOLERANCE_ML_V3
-      ) {
-        return measured;
+    if (Math.abs(remainingScale) <= 1e-12) break;
+    if (
+      forceBridgeBeforeTarget ||
+      Math.abs(remainingScale) > bridgeMaximumScaleStep + 1e-12
+    ) {
+      const bridgeScaleStep = forceBridgeBeforeTarget
+        ? 0.5 * Math.abs(remainingScale)
+        : Math.min(Math.abs(remainingScale), bridgeMaximumScaleStep);
+      const bridgeScale =
+        continuationScale + Math.sign(remainingScale) * bridgeScaleStep;
+      const bridged = await advanceFormalHotStartBridgeV3(
+        continuationBranch,
+        sourceGlobalTbvMl * bridgeScale,
+      );
+      if (bridged.status === "accepted") {
+        continuationBranch = bridged.branch;
+        continuationScale = bridgeScale;
+        forceBridgeBeforeTarget = false;
+        continue;
       }
-      sourceBranch = measured.branch;
-      sourceTargetGlobalTbvMl = trialTargetGlobalTbvMl;
-      trialTargetGlobalTbvMl = requestedTargetGlobalTbvMl;
+      lastRejectedReason = bridged.reason;
+      bridgeMaximumScaleStep *= 0.5;
+      forceBridgeBeforeTarget = false;
+      if (bridgeMaximumScaleStep < minimumScaleStep) break;
       continue;
     }
-    lastRejected = measured;
+
+    const measured = await measureFormalPressureVolumeBranchV3(
+      continuationBranch,
+      sourceGlobalTbvMl * requestedScale,
+      "continuation",
+      formalPvaMinimumCompleteBeatCountV3(requestedScale),
+    );
     if (
-      Math.abs(sourceTargetGlobalTbvMl - trialTargetGlobalTbvMl) <=
-      MINIMUM_FORMAL_TBV_BRACKET_ML_V3
+      measured.status === "accepted" &&
+      formalPairQualifiedV3(measured.pair)
     ) {
-      return lastRejected;
+      const acceptedBoundary: FormalCoverageBoundaryV3 = Object.freeze({
+        branch: measured.branch,
+        scale: requestedScale,
+        pair: measured.pair,
+      });
+      accept(acceptedBoundary);
+      if (stopAfterAccepted(measured.pair)) {
+        return Object.freeze({
+          status: "stopped" as const,
+          boundary: acceptedBoundary,
+          reason: null,
+        });
+      }
+      return Object.freeze({
+        status: "reached" as const,
+        boundary: acceptedBoundary,
+        reason: null,
+      });
     }
-    trialTargetGlobalTbvMl =
-      0.5 * (sourceTargetGlobalTbvMl + trialTargetGlobalTbvMl);
+    lastRejectedReason =
+      measured.status === "rejected"
+        ? measured.reason
+        : "formal coverage target did not retain a settled fixed-tone pair";
+    if (Math.abs(remainingScale) <= minimumScaleStep) break;
+    forceBridgeBeforeTarget = true;
   }
-  return lastRejected;
+  return Object.freeze({
+    status: "boundary" as const,
+    boundary,
+    reason: lastRejectedReason,
+  });
+}
+
+async function advanceFormalHotStartBridgeV3(
+  sourceSession: MainWireIntegratedModelSessionV3,
+  targetGlobalTbvMl: number,
+): Promise<
+  | Readonly<{
+      status: "accepted";
+      branch: MainWireIntegratedModelSessionV3;
+    }>
+  | RejectedBranchV3
+> {
+  let branch: MainWireIntegratedModelSessionV3;
+  try {
+    branch =
+      sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+        targetGlobalTbvMl,
+      );
+  } catch (error) {
+    return rejectedV3(error);
+  }
+  const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+  let lastCompletedBeatId =
+    branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
+  for (
+    let ordinal = 1;
+    ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3;
+    ordinal += 1
+  ) {
+    const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      break;
+    const advance = branch.advanceToPresentationTime(
+      acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
+    );
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed"
+          ? advance.message
+          : `unexpected formal bridge status ${advance.status}`,
+      );
+    }
+    const acceptedTbvMl =
+      advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+    if (
+      Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3
+    ) {
+      return rejectedV3("fixed global TBV changed during a hot-start bridge");
+    }
+    const completed = advance.observation.completedBeatMetrics;
+    if (
+      completed !== null &&
+      completed.endAtrialCaptureId !== lastCompletedBeatId
+    ) {
+      lastCompletedBeatId = completed.endAtrialCaptureId;
+      return Object.freeze({ status: "accepted" as const, branch });
+    }
+  }
+  return rejectedV3("hot-start bridge did not complete one beat");
+}
+
+function recentAcceptedScaleStepV3(
+  samples: readonly FormalCoverageSampleV3[],
+): number {
+  if (samples.length < 2) return FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  return Math.abs(samples.at(-1)!.scale - samples.at(-2)!.scale);
+}
+
+function formalCoverageMinimumEndSystolicVolumeGainV3(
+  samples: readonly FormalCoverageSampleV3[],
+): number | null {
+  if (samples.length < 2) return null;
+  const previous = samples.at(-2)!.pair;
+  const current = samples.at(-1)!.pair;
+  const gain = (
+    prior: MainWireIntegratedModelStarlingPointV3,
+    next: MainWireIntegratedModelStarlingPointV3,
+  ) =>
+    Math.abs(
+      next.ventricularPressureVolumeLandmarks.endSystolic.volumeMl -
+        prior.ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
+    );
+  return Math.min(
+    gain(previous.left, current.left),
+    gain(previous.right, current.right),
+  );
+}
+
+function formalCoverageChordErrorV3(
+  samples: readonly FormalCoverageSampleV3[],
+): number | null {
+  if (samples.length < 3) return null;
+  const [first, middle, last] = samples.slice(-3);
+  if (first === undefined || middle === undefined || last === undefined) {
+    return null;
+  }
+  const denominator = last.scale - first.scale;
+  if (!Number.isFinite(denominator) || Math.abs(denominator) < 1e-12) {
+    return null;
+  }
+  const fraction = (middle.scale - first.scale) / denominator;
+  const firstValues = formalCoverageShapeVectorV3(first.pair);
+  const middleValues = formalCoverageShapeVectorV3(middle.pair);
+  const lastValues = formalCoverageShapeVectorV3(last.pair);
+  const normalizationFloors = [
+    1, 0.25, 5, 5, 5, 1, 1, 0.25, 5, 5, 5, 1,
+  ] as const;
+  return Math.max(
+    ...middleValues.map((value, index) => {
+      const predicted =
+        firstValues[index]! +
+        fraction * (lastValues[index]! - firstValues[index]!);
+      const localSpan = Math.abs(lastValues[index]! - firstValues[index]!);
+      return (
+        Math.abs(value - predicted) /
+        Math.max(normalizationFloors[index]!, localSpan)
+      );
+    }),
+  );
+}
+
+function formalCoverageShapeVectorV3(pair: StarlingPairV3): readonly number[] {
+  const side = (point: MainWireIntegratedModelStarlingPointV3) => [
+    point.fillingPressureMmHg,
+    point.cardiacOutputLPerMin,
+    point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
+    point.ventricularPressureVolumeLandmarks.endSystolic.pressureMmHg,
+    point.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl,
+    point.ventricularPressureVolumeLandmarks.endDiastolic.pressureMmHg,
+  ];
+  return Object.freeze([...side(pair.left), ...side(pair.right)]);
 }
 
 function formalPairQualifiedV3(pair: StarlingPairV3): boolean {
@@ -1610,7 +1796,7 @@ function formalPressureVolumeLocusV3(
     completedPointCount: settled.length,
     totalPointCount: protocolComplete
       ? settled.length
-      : Math.max(settled.length, expectedPointCount),
+      : Math.max(settled.length + 1, expectedPointCount),
     slowControllerPolicy:
       "active-source-period1-then-coronary-tone-frozen" as const,
     convergencePolicy: "complete-beat-output-period1-closure" as const,
