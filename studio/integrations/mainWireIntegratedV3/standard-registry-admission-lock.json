@@ -3,6 +3,6 @@
   "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-64",
   "artifactRevisionId": "e88a0cae2c4dac926d60e11ad30adeeda12946c16959d3aec2eda2373fea39fa",
   "artifactSha256": "8b587d9493aa5e9f94114841fb87fdb872c2aec82082d0562c4383ceb4244fde",
-  "predecessorArtifactRevisionId": "875e14e998347f378dda8dd42932b8db6320386e9e7af139f49811cf4f45947d",
-  "equivalenceReportSha256": "808ebe029f9b9b3c66329d5a668a7ac07ef9d4f2098ed6857df1edfda426ccbb"
+  "predecessorArtifactRevisionId": null,
+  "equivalenceReportSha256": null
 }
