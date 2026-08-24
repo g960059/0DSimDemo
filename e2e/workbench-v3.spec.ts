@@ -545,6 +545,14 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
   ).toHaveCount(2);
+  const immediateCopyEpoch = await inputEpoch(page);
+  const totalBloodVolume = page.getByRole("slider", {
+    name: "総血液量 (TBV)",
+  });
+  await expect(totalBloodVolume).toBeEnabled({ timeout: 5_000 });
+  await totalBloodVolume.press("ArrowLeft");
+  await expect.poll(() => inputEpoch(page)).toBeGreaterThan(immediateCopyEpoch);
+  await expect(totalBloodVolume).toHaveValue("5550");
   await expect(
     page.getByRole("button", { name: "保存", exact: true }),
   ).toBeVisible();
@@ -668,10 +676,12 @@ test("@desktop baseline duplication stays independent and requires explicit save
   });
   await baselineScenario.click();
   await expect(systemicResistance).toHaveValue("1");
+  await expect(totalBloodVolume).toHaveValue("5600");
   const baselineCheckpointTime = await modelTime(root);
 
   await copyScenario.click();
   await expect(systemicResistance).toHaveValue("1.01");
+  await expect(totalBloodVolume).toHaveValue("5550");
   // Selection waits for global Pause to drain every lane, so this is the
   // exact copy time that the following explicit Save must capture.
   const copyCheckpointTime = await modelTime(root);

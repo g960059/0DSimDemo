@@ -322,7 +322,9 @@ export function ExperimentNumericControlV3({
               setDraft(nextValue);
               setDraftText(formatValue(nextValue));
             }}
-            onPointerUp={() => void commit(draft)}
+            onPointerUp={(event) =>
+              void commit(Number(event.currentTarget.value))
+            }
             onKeyUp={(event) => {
               if (
                 [
@@ -336,7 +338,7 @@ export function ExperimentNumericControlV3({
                   "PageUp",
                 ].includes(event.key)
               ) {
-                void commit(draft);
+                void commit(Number(event.currentTarget.value));
               }
             }}
           />

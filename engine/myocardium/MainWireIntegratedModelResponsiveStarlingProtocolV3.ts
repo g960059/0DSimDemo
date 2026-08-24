@@ -80,7 +80,12 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 =
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_LOW_EXTENSION_TBV_SCALES_V3 =
   Object.freeze([0.54, 0.48, 0.42, 0.36, 0.31, 0.27, 0.23] as const);
 
-/** High-volume arm retained for the bidirectional Starling presentation. */
+/**
+ * High-volume arm retained for the bidirectional Starling presentation and
+ * for measured-domain ESPVR extension. Every declared target is attempted in
+ * order; an actual numerical boundary still stops the chain without
+ * extrapolating a pressure-volume point.
+ */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 =
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3;
 
@@ -524,7 +529,6 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   ) {
     await runFormalHypervolemicStarlingChainV3(
       center.branch,
-      center.pair,
       sourceGlobalTbvMl,
       append,
     );
@@ -775,13 +779,11 @@ function adaptiveFormalPvaScaleStepV3(
 
 async function runFormalHypervolemicStarlingChainV3(
   centerBranch: MainWireIntegratedModelSessionV3,
-  centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
 ): Promise<void> {
   let reliableBranch = centerBranch;
   let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
-  const reliablePairs: StarlingPairV3[] = [centerPair];
   for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3) {
     const targetGlobalTbvMl = sourceGlobalTbvMl * scale;
     const measured = await measureFormalPressureVolumeTargetV3(
@@ -798,18 +800,6 @@ async function runFormalHypervolemicStarlingChainV3(
     append(measured.pair);
     reliableBranch = measured.branch;
     reliableTargetGlobalTbvMl = targetGlobalTbvMl;
-    reliablePairs.push(measured.pair);
-    if (
-      reliablePairs.length >= 4 &&
-      mainWireIntegratedModelStarlingDescendingLimbV3(
-        reliablePairs.map(({ right }) => right),
-      ) !== null &&
-      mainWireIntegratedModelStarlingDescendingLimbV3(
-        reliablePairs.map(({ left }) => left),
-      ) !== null
-    ) {
-      break;
-    }
   }
 }
 

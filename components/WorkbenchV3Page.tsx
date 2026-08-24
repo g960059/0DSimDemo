@@ -557,6 +557,11 @@ const WorkbenchV3Session = ({
     "control" | "analysis" | "scenario" | "save" | "snapshot" | null
   >(null);
   const analysisCaptureTokenRef = React.useRef<symbol | null>(null);
+  const analysisCaptureReleaseRef = React.useRef<Readonly<{
+    token: symbol;
+    promise: Promise<void>;
+    resolve: () => void;
+  }> | null>(null);
   const surfaceRef = React.useRef<ExperimentSurfaceV2 | null>(null);
   const briefingRef = React.useRef<ExperimentPlacementBriefingV2 | null>(null);
   const briefingMutationRevisionRef = React.useRef(0);
@@ -729,6 +734,8 @@ const WorkbenchV3Session = ({
       runtimeRef.current = null;
       exclusiveOperationRef.current = null;
       analysisCaptureTokenRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       setAnalysisCapturePending(false);
       setStatus({
         kind: "error",
@@ -944,6 +951,8 @@ const WorkbenchV3Session = ({
       setAnalysisErrorByKey({});
       exclusiveOperationRef.current = null;
       analysisCaptureTokenRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       presentationSampleStore.reset();
 
       const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
@@ -1098,6 +1107,8 @@ const WorkbenchV3Session = ({
     return () => {
       cancelled = true;
       runtimeRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       void runtime?.dispose();
     };
   }, [
@@ -1371,18 +1382,35 @@ const WorkbenchV3Session = ({
       value: number,
     ): Promise<boolean> => {
       const runtime = runtimeRef.current;
-      const frame = latestFrameRef.current;
+      const operation = exclusiveOperationRef.current;
       if (
         runtime === null ||
-        frame === null ||
+        latestFrameRef.current === null ||
         scenarioIds.length === 0 ||
-        exclusiveOperationRef.current !== null
+        (operation !== null && operation !== "analysis")
       )
         return false;
-      exclusiveOperationRef.current = "control";
       setPendingControlId(controlId);
       setControlError(null);
+      let ownsControlOperation = false;
       try {
+        if (operation === "analysis") {
+          // A user edit outranks an automatically requested structural
+          // analysis. Let its exact source capture release the live lane, then
+          // cancel any detached work before applying the new input epoch.
+          runtime.cancelAnalysisJobs();
+          await analysisCaptureReleaseRef.current?.promise;
+          runtime.cancelAnalysisJobs();
+        }
+        if (
+          runtimeRef.current !== runtime ||
+          latestFrameRef.current === null ||
+          exclusiveOperationRef.current !== null
+        ) {
+          return false;
+        }
+        exclusiveOperationRef.current = "control";
+        ownsControlOperation = true;
         await runtime.pauseAll();
         const uniqueScenarioIds = [...new Set(scenarioIds)];
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
@@ -1485,12 +1513,22 @@ const WorkbenchV3Session = ({
       } catch (error) {
         setControlError(error instanceof Error ? error.message : String(error));
         const latest = latestFrameRef.current;
-        if (playingIntentRef.current && !document.hidden && latest !== null) {
+        if (
+          ownsControlOperation &&
+          playingIntentRef.current &&
+          !document.hidden &&
+          latest !== null
+        ) {
           runtime.playAll();
         }
         return false;
       } finally {
-        exclusiveOperationRef.current = null;
+        if (
+          ownsControlOperation &&
+          exclusiveOperationRef.current === "control"
+        ) {
+          exclusiveOperationRef.current = null;
+        }
         setPendingControlId(null);
       }
     },
@@ -1535,7 +1573,16 @@ const WorkbenchV3Session = ({
       )
         return false;
       const captureToken = Symbol("structural-analysis-capture");
+      let resolveCaptureRelease!: () => void;
+      const captureReleasePromise = new Promise<void>((resolve) => {
+        resolveCaptureRelease = resolve;
+      });
       analysisCaptureTokenRef.current = captureToken;
+      analysisCaptureReleaseRef.current = Object.freeze({
+        token: captureToken,
+        promise: captureReleasePromise,
+        resolve: resolveCaptureRelease,
+      });
       exclusiveOperationRef.current = "analysis";
       setAnalysisCapturePending(true);
       const pendingKeys = Object.freeze(
@@ -1552,26 +1599,27 @@ const WorkbenchV3Session = ({
       );
       void (async () => {
         let releasedLaneCount = 0;
+        const finishCaptureLock = () => {
+          if (analysisCaptureTokenRef.current !== captureToken) return;
+          analysisCaptureTokenRef.current = null;
+          if (exclusiveOperationRef.current === "analysis") {
+            exclusiveOperationRef.current = null;
+          }
+          const release = analysisCaptureReleaseRef.current;
+          if (release?.token === captureToken) {
+            analysisCaptureReleaseRef.current = null;
+            release.resolve();
+          }
+          setAnalysisCapturePending(false);
+        };
         const releaseCaptureLock = () => {
           releasedLaneCount += 1;
           if (
             releasedLaneCount >= scenarioIds.length &&
             analysisCaptureTokenRef.current === captureToken
           ) {
-            analysisCaptureTokenRef.current = null;
-            if (exclusiveOperationRef.current === "analysis") {
-              exclusiveOperationRef.current = null;
-            }
-            setAnalysisCapturePending(false);
+            finishCaptureLock();
           }
-        };
-        const forceReleaseCaptureLock = () => {
-          if (analysisCaptureTokenRef.current !== captureToken) return;
-          analysisCaptureTokenRef.current = null;
-          if (exclusiveOperationRef.current === "analysis") {
-            exclusiveOperationRef.current = null;
-          }
-          setAnalysisCapturePending(false);
         };
         try {
           const acceptedFrames = await Promise.all(
@@ -1688,7 +1736,7 @@ const WorkbenchV3Session = ({
               }
             });
           }
-          forceReleaseCaptureLock();
+          finishCaptureLock();
           setPendingAnalysisKeys((current) =>
             Object.freeze(current.filter((key) => !pendingKeySet.has(key))),
           );
@@ -2830,9 +2878,7 @@ const WorkbenchV3Session = ({
         contract={contract}
         controlError={controlError}
         controlValuesByScenario={controlValuesByScenarioRef.current}
-        disabledByAnalysis={
-          analysisCapturePending || scenarioOperation !== null
-        }
+        disabledByAnalysis={scenarioOperation !== null}
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onApplyControl={applyControl}

@@ -21,7 +21,9 @@ The production workflow is deliberately direct:
    operating point (concurrently when two analysis Worker leases are present);
 4. every fixed-TBV load is warm-started from the preceding settled point on
    that limb; the adaptive low limb reaches at least `60%` and then may extend
-   toward the existing Starling low-flow boundary;
+   toward the existing Starling low-flow boundary, while the high limb attempts
+   the full measured `1.08–1.40×` schedule unless it encounters a numerical
+   boundary;
 5. source coronary tone is held fixed and each load must pass the protocol's
    declared consecutive complete-beat flow/pressure/volume closure checks;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,

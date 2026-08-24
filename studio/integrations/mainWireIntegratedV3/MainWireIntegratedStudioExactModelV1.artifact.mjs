@@ -46899,7 +46899,6 @@ async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSe
   if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3) {
     await runFormalHypervolemicStarlingChainV3(
       center.branch,
-      center.pair,
       sourceGlobalTbvMl,
       append
     );
@@ -47065,10 +47064,9 @@ function adaptiveFormalPvaScaleStepV3(acceptedScaleStep, pair) {
     Math.max(FORMAL_PVA_MINIMUM_SCALE_STEP_V3, acceptedScaleStep * multiplier)
   );
 }
-async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
+async function runFormalHypervolemicStarlingChainV3(centerBranch, sourceGlobalTbvMl, append) {
   let reliableBranch = centerBranch;
   let reliableTargetGlobalTbvMl = sourceGlobalTbvMl;
-  const reliablePairs = [centerPair];
   for (const scale of MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_HYPERVOLEMIC_TBV_SCALES_V3) {
     const targetGlobalTbvMl = sourceGlobalTbvMl * scale;
     const measured = await measureFormalPressureVolumeTargetV3(
@@ -47082,14 +47080,6 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     append(measured.pair);
     reliableBranch = measured.branch;
     reliableTargetGlobalTbvMl = targetGlobalTbvMl;
-    reliablePairs.push(measured.pair);
-    if (reliablePairs.length >= 4 && mainWireIntegratedModelStarlingDescendingLimbV3(
-      reliablePairs.map(({ right }) => right)
-    ) !== null && mainWireIntegratedModelStarlingDescendingLimbV3(
-      reliablePairs.map(({ left }) => left)
-    ) !== null) {
-      break;
-    }
   }
 }
 async function runFormalLowStarlingExtensionV3(coreBoundaryBranch, sourceGlobalTbvMl, coreBoundaryGlobalTbvMl, append) {

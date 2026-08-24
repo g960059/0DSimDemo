@@ -75,6 +75,15 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       }>;
       return partialPayload.left.starlingLocus.completedPointCount;
     });
+    const highPoints = (
+      highAnalysis.payload as unknown as Readonly<{
+        left: Readonly<{
+          starlingLocus: Readonly<{
+            points: readonly Readonly<{ totalBloodVolumeMl: number }>[];
+          }>;
+        }>;
+      }>
+    ).left.starlingLocus.points;
 
     expect(payload.left.starlingLocus).toMatchObject({
       status: "measured-fixed-tbv-protocol",
@@ -95,6 +104,13 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         (_, index) => index + 1,
       ),
     );
+    expect(highPoints).toHaveLength(6);
+    for (const [index, scale] of [1, 1.08, 1.16, 1.24, 1.32, 1.4].entries()) {
+      expect(highPoints[index]!.totalBloodVolumeMl / 5_600).toBeCloseTo(
+        scale,
+        12,
+      );
+    }
     const sourceTbvMl = Math.max(
       ...payload.left.starlingLocus.points.map(
         ({ totalBloodVolumeMl }) => totalBloodVolumeMl,

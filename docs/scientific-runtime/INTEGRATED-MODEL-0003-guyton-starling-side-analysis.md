@@ -178,8 +178,9 @@ bounded calculation contract:
    intentionally close to the high-volume arm's `0.08×` spacing, then the
    ceiling narrows progressively toward low volume while reserving room for at
    least nine retained points. The high-volume Worker proceeds concurrently
-   when the device pool has capacity; a one-slot device prioritizes the
-   low-volume PVA branch.
+   when the device pool has capacity; a one-slot device completes the bounded
+   high-volume branch first so each later low-volume preview already has
+   bilateral support.
 3. Each load uses the shared SV/VC transmural-pressure TBV transform and starts
    from the preceding retained endpoint. Coronary tone is held at its source
    value so a short preload reduction does not spend minutes re-equilibrating
@@ -220,9 +221,11 @@ bounded calculation contract:
 8. PVA is `SW + PE`. Estimated MVO₂ uses current PVA, measured beat heart rate,
    model-derived LVFW+SEP mass, and the declared Suga literature mapping. It is
    an estimate, not measured oxygen consumption or clinical validation.
-9. The high-volume Worker continues until the bounded schedule ends or both
-   circulations confirm a descending limb. After final PVA, the low Worker
-   follows nominal targets toward `0.23×` source TBV, inserting settled
+9. The formal high-volume Worker attempts every bounded target from `1.08×`
+   through `1.40×` source TBV, stopping only at an actual numerical boundary.
+   This extends the measured ESPVR/EDPVR domain for cross-Scenario comparison;
+   it never extrapolates a pressure-volume point. After final PVA, the low
+   Worker follows nominal targets toward `0.23×` source TBV, inserting settled
    midpoints when a requested jump is too large and stopping at the declared
    low-flow or numerical boundary. These extensions populate the bidirectional
    Starling graph progressively. A stopped extension does not invalidate final
