@@ -480,6 +480,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     windowSec: finiteNumber,
     historyDepth: version,
     pressureVolumeAnalysisMode: { enum: ["responsive-preview", "formal-periodic"] },
+    showPressureEnvelope: { type: "boolean" },
     structuralSide: { enum: ["left", "right"] },
     traceColors: { type: "array", items: object([
       "automaticColorHex", "scenarioId", "seriesId",

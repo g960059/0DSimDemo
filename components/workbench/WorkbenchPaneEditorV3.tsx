@@ -45,9 +45,8 @@ import {
   outputLabelV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
   WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
-  WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3,
-  WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3,
   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3,
@@ -105,7 +104,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   fixedBinding: string;
   fixedBindingHint: string;
   outputFixedBindingHint: string;
-  fixedScenarioBinding: string;
   controlPresentation: string;
   sliderPresentation: string;
   buttonsPresentation: string;
@@ -124,10 +122,8 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   emptyCatalog: string;
   editItem: string;
   generalSection: string;
-  historyDepth: string;
-  historyDepthHint: string;
-  formalPressureVolumeAnalysis: string;
-  formalPressureVolumeAnalysisHint: string;
+  pressureEnvelopeOverlay: string;
+  pressureEnvelopeOverlayHint: string;
   label: string;
   itemsSection: string;
   moveDown: string;
@@ -140,9 +136,6 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   seriesCatalog: string;
   scenarioColors: string;
   scenarioColorsHint: string;
-  scenarioScope: string;
-  visibleScenarioScope: string;
-  fixedScenarioScope: string;
   traceVisibility: string;
   traceVisibilityHint: string;
   resetColor: string;
@@ -164,17 +157,16 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     cancel: "Cancel",
     close: "Close pane settings",
     chooseItem: "Choose an item to edit its presentation.",
-    bindingSection: "Scenario binding",
-    activeSlotBinding: "Follow Scenario Manager",
+    bindingSection: "Scenario",
+    activeSlotBinding: "Follow selected scenario",
     activeSlotBindingHint:
       "This pane controls whichever Scenario is selected in Scenario Manager.",
     outputActiveSlotBindingHint:
       "This pane displays the Scenario selected in Scenario Manager.",
-    fixedBinding: "Fixed Scenarios",
+    fixedBinding: "Fix Scenario",
     fixedBindingHint:
       "Every parameter in this pane applies the same absolute value to the selected Scenarios.",
     outputFixedBindingHint: "This pane always displays one selected Scenario.",
-    fixedScenarioBinding: "Fixed Scenario",
     controlPresentation: "Control presentation",
     sliderPresentation: "Slider",
     buttonsPresentation: "Custom buttons",
@@ -204,11 +196,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     emptyCatalog: "No registered items are available.",
     editItem: "Edit item",
     generalSection: "General",
-    historyDepth: "Previous states",
-    historyDepthHint: "0–3 completed parameter states",
-    formalPressureVolumeAnalysis: "Formal ESPVR / EDPVR analysis",
-    formalPressureVolumeAnalysisHint:
-      "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+    pressureEnvelopeOverlay: "Envelope",
+    pressureEnvelopeOverlayHint:
+      "A reference curve joining the maximum pressure found at each volume. It shows the ventricle's upper pressure capability and is not used to calculate PVA.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -227,12 +217,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     scenarioColors: "Scenario colors",
     scenarioColorsHint:
       "Each existing trace keeps its allocated color. Change only the exact Scenario/item you need.",
-    scenarioScope: "Scenario scope",
-    visibleScenarioScope: "Visible Scenarios",
-    fixedScenarioScope: "Fixed Scenarios",
     traceVisibility: "Trace visibility",
     traceVisibilityHint:
-      "The pane uses a Scenario-level scope; exact Scenario/item omissions are optional advanced curation.",
+      "All visible Scenarios are shown by default. Adjust individual Scenario/item traces only when needed.",
     resetColor: "Use automatic color",
     removeItem: "Remove from pane",
     preview: "Preview",
@@ -340,6 +327,8 @@ export function addWorkbenchSurfacePaneV3(
               ? {
                   pressureVolumeAnalysisMode:
                     WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                  showPressureEnvelope:
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
                 }
               : {}),
             ...(graph.renderer === "structural-return"
@@ -1067,28 +1056,6 @@ function GraphPaneEditorV3({
         <EditorSectionHeadingV3>
           {strings.displaySection}
         </EditorSectionHeadingV3>
-        {graph !== undefined && graph.renderer !== "sweep" && (
-          <div className="grid gap-1.5">
-            <CommitNumberInputV3
-              label={strings.historyDepth}
-              value={
-                pane.historyDepth ?? WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3
-              }
-              minimum={WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3}
-              maximum={WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3}
-              step={1}
-              onCommit={(historyDepth) =>
-                onChange({
-                  ...pane,
-                  historyDepth,
-                })
-              }
-            />
-            <p className="text-[10px] text-wb-subtle">
-              {strings.historyDepthHint}
-            </p>
-          </div>
-        )}
         {graph?.renderer === "sweep" && (
           <div className="grid gap-1.5">
             <PaneRangeInputV3
@@ -1106,33 +1073,55 @@ function GraphPaneEditorV3({
           </div>
         )}
         {graph?.renderer === "pressure-volume" && (
-          <label className="flex cursor-pointer items-start justify-between gap-5 rounded-xl bg-wb-soft/55 px-3 py-3">
-            <span className="min-w-0">
-              <span className="block text-xs font-medium text-wb-text">
-                {strings.formalPressureVolumeAnalysis}
+          <button
+            type="button"
+            aria-pressed={
+              pane.showPressureEnvelope ??
+              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+            }
+            className={`block w-full rounded-xl px-3 py-3 text-left transition-colors ${
+              (pane.showPressureEnvelope ??
+              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                ? "bg-wb-selected text-wb-text"
+                : "bg-wb-soft/55 text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+            }`}
+            onClick={() =>
+              onChange({
+                ...pane,
+                showPressureEnvelope: !(
+                  pane.showPressureEnvelope ??
+                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+                ),
+              })
+            }
+          >
+            <span className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium">
+                {strings.pressureEnvelopeOverlay}
               </span>
-              <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
-                {strings.formalPressureVolumeAnalysisHint}
+              <span
+                aria-hidden="true"
+                className={`relative h-4 w-7 rounded-full transition-colors ${
+                  (pane.showPressureEnvelope ??
+                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                    ? "bg-wb-accent"
+                    : "bg-wb-border"
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
+                    (pane.showPressureEnvelope ??
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                      ? "translate-x-3.5"
+                      : "translate-x-0.5"
+                  }`}
+                />
               </span>
             </span>
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--wb-accent)]"
-              checked={
-                (pane.pressureVolumeAnalysisMode ??
-                  WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3) ===
-                "formal-periodic"
-              }
-              onChange={(event) =>
-                onChange({
-                  ...pane,
-                  pressureVolumeAnalysisMode: event.currentTarget.checked
-                    ? "formal-periodic"
-                    : "responsive-preview",
-                })
-              }
-            />
-          </label>
+            <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
+              {strings.pressureEnvelopeOverlayHint}
+            </span>
+          </button>
         )}
       </section>
 
@@ -1142,7 +1131,7 @@ function GraphPaneEditorV3({
       >
         <EditorSectionHeadingV3>{dataSectionTitle}</EditorSectionHeadingV3>
         {graph !== undefined && scenarios.length > 0 && (
-          <GraphScenarioScopeEditorV3
+          <GraphTraceVisibilityEditorV3
             graph={graph}
             pane={pane}
             scenarios={scenarios}
@@ -1232,7 +1221,7 @@ function GraphPaneEditorV3({
   );
 }
 
-function GraphScenarioScopeEditorV3({
+function GraphTraceVisibilityEditorV3({
   graph,
   pane,
   scenarios,
@@ -1245,11 +1234,6 @@ function GraphScenarioScopeEditorV3({
   strings: WorkbenchPaneEditorStringsV3;
   onChange: (pane: ExperimentSurfaceGraphPaneV2) => void;
 }>) {
-  const scopedScenarioIds =
-    pane.scenarioScope.mode === "fixed"
-      ? pane.scenarioScope.scenarioIds
-      : scenarios.map(({ scenarioId }) => scenarioId);
-  const scoped = new Set(scopedScenarioIds);
   const traceItems =
     graph.renderer === "structural-return"
       ? [{ seriesId: null, label: "Guyton / Starling" }]
@@ -1257,7 +1241,6 @@ function GraphScenarioScopeEditorV3({
           .sort((left, right) => left.order - right.order)
           .map(({ seriesId, label }) => ({ seriesId, label }));
   const visibleTraceCount = scenarios.reduce((count, scenario) => {
-    if (!scoped.has(scenario.scenarioId)) return count;
     return (
       count +
       traceItems.filter(
@@ -1270,23 +1253,6 @@ function GraphScenarioScopeEditorV3({
       ).length
     );
   }, 0);
-
-  const updateFixedScenario = (scenarioId: string, selected: boolean) => {
-    const current =
-      pane.scenarioScope.mode === "fixed"
-        ? pane.scenarioScope.scenarioIds
-        : scenarios.map((scenario) => scenario.scenarioId);
-    const next = selected
-      ? current.includes(scenarioId)
-        ? current
-        : [...current, scenarioId]
-      : current.filter((candidate) => candidate !== scenarioId);
-    if (next.length === 0) return;
-    onChange({
-      ...pane,
-      scenarioScope: { mode: "fixed", scenarioIds: next },
-    });
-  };
 
   const updateTrace = (
     scenarioId: string,
@@ -1306,91 +1272,19 @@ function GraphScenarioScopeEditorV3({
 
   return (
     <div className="grid gap-4 rounded-xl bg-wb-soft/55 px-3 py-3">
-      <fieldset className="grid gap-2">
-        <legend className="text-xs font-semibold text-wb-text">
-          {strings.scenarioScope}
-        </legend>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-wb-muted">
-          <input
-            type="radio"
-            name={`graph-scope-${pane.paneId}`}
-            checked={pane.scenarioScope.mode === "visible-scenarios"}
-            onChange={() =>
-              onChange({
-                ...pane,
-                scenarioScope: { mode: "visible-scenarios" },
-              })
-            }
-            className="accent-[var(--wb-accent)]"
-          />
-          {strings.visibleScenarioScope}
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-wb-muted">
-          <input
-            type="radio"
-            name={`graph-scope-${pane.paneId}`}
-            checked={pane.scenarioScope.mode === "fixed"}
-            onChange={() =>
-              onChange({
-                ...pane,
-                scenarioScope: {
-                  mode: "fixed",
-                  scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
-                },
-              })
-            }
-            className="accent-[var(--wb-accent)]"
-          />
-          {strings.fixedScenarioScope}
-        </label>
-        {pane.scenarioScope.mode === "fixed" && (
-          <div className="ml-5 flex flex-wrap gap-2">
-            {scenarios.map((scenario) => {
-              const selected =
-                pane.scenarioScope.mode === "fixed" &&
-                pane.scenarioScope.scenarioIds.includes(scenario.scenarioId);
-              return (
-                <label
-                  key={scenario.scenarioId}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-wb-panel px-2 py-1.5 text-[10px] text-wb-muted"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selected}
-                    disabled={
-                      selected && pane.scenarioScope.scenarioIds.length === 1
-                    }
-                    onChange={(event) =>
-                      updateFixedScenario(
-                        scenario.scenarioId,
-                        event.currentTarget.checked,
-                      )
-                    }
-                    className="accent-[var(--wb-accent)]"
-                  />
-                  {scenario.label}
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </fieldset>
-
-      <details>
-        <summary className="cursor-pointer text-xs font-semibold text-wb-muted">
+      <div>
+        <p className="text-xs font-semibold text-wb-text">
           {strings.traceVisibility}
-        </summary>
-        <p className="mt-2 text-[10px] leading-4 text-wb-subtle">
+        </p>
+        <p className="mt-1 text-[10px] leading-4 text-wb-subtle">
           {strings.traceVisibilityHint}
         </p>
         <div className="mt-3 grid gap-3">
           {scenarios.map((scenario) => {
-            const scenarioInScope = scoped.has(scenario.scenarioId);
             return (
               <fieldset
                 key={scenario.scenarioId}
-                disabled={!scenarioInScope}
-                className="grid gap-2 rounded-lg bg-wb-panel/70 px-3 py-2.5 disabled:opacity-45"
+                className="grid gap-2 rounded-lg bg-wb-panel/70 px-3 py-2.5"
               >
                 <legend className="px-1 text-[10px] font-semibold text-wb-muted">
                   {scenario.label}
@@ -1402,7 +1296,7 @@ function GraphScenarioScopeEditorV3({
                         trace.scenarioId === scenario.scenarioId &&
                         trace.seriesId === item.seriesId,
                     );
-                    const visible = scenarioInScope && !excluded;
+                    const visible = !excluded;
                     return (
                       <label
                         key={item.seriesId ?? "structural"}
@@ -1411,10 +1305,7 @@ function GraphScenarioScopeEditorV3({
                         <input
                           type="checkbox"
                           checked={visible}
-                          disabled={
-                            !scenarioInScope ||
-                            (visible && visibleTraceCount === 1)
-                          }
+                          disabled={visible && visibleTraceCount === 1}
                           onChange={(event) =>
                             updateTrace(
                               scenario.scenarioId,
@@ -1433,7 +1324,7 @@ function GraphScenarioScopeEditorV3({
             );
           })}
         </div>
-      </details>
+      </div>
     </div>
   );
 }
@@ -1689,12 +1580,12 @@ function OutputPaneEditorV3({
           activeLabel={strings.activeSlotBinding}
           allowMultipleFixed={false}
           fixedDescription={strings.outputFixedBindingHint}
-          fixedLabel={strings.fixedScenarioBinding}
+          fixedLabel={strings.fixedBinding}
           fixedScenarioIds={
             pane.binding.mode === "fixed" ? [pane.binding.scenarioId] : []
           }
+          groupLabel={strings.bindingSection}
           mode={pane.binding.mode}
-          paneId={pane.paneId}
           scenarios={scenarios}
           onChange={(mode, scenarioIds) =>
             onChange({
@@ -1833,30 +1724,30 @@ function outputPaneItemManagerEntriesV3(
         isPartialSelection
       )
         return [];
-    return [
-      {
-        ...resolvePaneItemManagerPresentationV3({
-          kind: "output",
-          id: summary.presentationId,
-          storedLabel: resolveStudioOutputPressureSummaryStoredLabelV1({
-            summary,
-            items: selectedItems,
+      return [
+        {
+          ...resolvePaneItemManagerPresentationV3({
+            kind: "output",
+            id: summary.presentationId,
+            storedLabel: resolveStudioOutputPressureSummaryStoredLabelV1({
+              summary,
+              items: selectedItems,
+              locale: input.locale,
+              fallbackEnglishLabel: outputLabelV3,
+            }),
             locale: input.locale,
-            fallbackEnglishLabel: outputLabelV3,
+            catalogFacts: {
+              outputKind: "metric",
+            },
           }),
-          locale: input.locale,
-          catalogFacts: {
-            outputKind: "metric",
-          },
-        }),
-        selected: selectedItems.length === summary.memberOutputIds.length,
-        disableDeselect: false,
-        order:
-          selectedItems.length === 0
-            ? undefined
-            : Math.min(...selectedItems.map(({ order }) => order)),
-      },
-    ];
+          selected: selectedItems.length === summary.memberOutputIds.length,
+          disableDeselect: false,
+          order:
+            selectedItems.length === 0
+              ? undefined
+              : Math.min(...selectedItems.map(({ order }) => order)),
+        },
+      ];
     },
   );
   const scalars = input.contract.outputCatalog
@@ -1918,8 +1809,8 @@ function ControlPaneEditorV3({
           fixedScenarioIds={
             pane.binding.mode === "fixed" ? pane.binding.scenarioIds : []
           }
+          groupLabel={strings.bindingSection}
           mode={pane.binding.mode}
-          paneId={pane.paneId}
           scenarios={scenarios}
           onChange={(mode, scenarioIds) =>
             onChange({

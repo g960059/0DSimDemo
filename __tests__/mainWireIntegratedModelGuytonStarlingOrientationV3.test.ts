@@ -20,9 +20,6 @@ import {
   mainWireIntegratedModelStarlingDescendingLimbV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
-import {
-  buildMainWireIntegratedModelRapidPressureVolumeRelationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
 
 describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
   it("confirms a high-volume descending limb only after two sustained drops", () => {
@@ -240,34 +237,6 @@ describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
             point.settled === false,
         ),
       ).toBe(true);
-      const rapidPvRelation =
-        buildMainWireIntegratedModelRapidPressureVolumeRelationV3(locus);
-      expect(rapidPvRelation.status).not.toBe("insufficient-data");
-      if (rapidPvRelation.status !== "insufficient-data") {
-        const slope = rapidPvRelation.systolicEnvelope.elastanceMmHgPerMl;
-        const intercept = -slope * rapidPvRelation.systolicEnvelope
-          .extrapolatedVolumeAxisInterceptMl;
-        const supportGapsMmHg = rapidPvRelation.systolicEnvelopeLandmarks.map(
-          ({ volumeMl, pressureMmHg }) =>
-            slope * volumeMl + intercept - pressureMmHg,
-        );
-        expect(
-          supportGapsMmHg.filter((gapMmHg) => gapMmHg <= 5).length,
-        ).toBeGreaterThanOrEqual(3);
-        expect(rapidPvRelation.systolicEnvelope.maximumInterLoopSupportGapMmHg)
-          .toBeLessThan(12);
-        expect(rapidPvRelation.systolicEnvelope.maximumLoopPenetrationMmHg)
-          .toBeLessThan(1e-8);
-        for (const point of locus.points) {
-          const ratio = point.totalBloodVolumeMl /
-            acceptedBefore.coronary.fixedGlobalTotalBloodVolumeMl;
-          if (!point.curveEligible || ratio < 0.72 || ratio > 1.24) continue;
-          for (const sample of point.ventricularPressureVolumeLoop) {
-            expect(slope * sample.volumeMl + intercept)
-              .toBeGreaterThanOrEqual(sample.pressureMmHg - 1e-8);
-          }
-        }
-      }
       const curveEligible = locus.points.filter(
         ({ curveEligible }) => curveEligible,
       );

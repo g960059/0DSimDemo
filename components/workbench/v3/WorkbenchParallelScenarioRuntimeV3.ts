@@ -458,6 +458,17 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     return frame;
   }
 
+  /**
+   * Yields detached analysis Workers to an explicit foreground operation.
+   *
+   * The live Scenario lanes and their exact accepted state are unaffected.
+   * Callers may request the analysis again after Save/Snapshot completes.
+   */
+  cancelAnalysisJobs(): void {
+    this.#requireActive();
+    this.#cancelAllAnalysisJobs();
+  }
+
   async requestAnalysis(
     input: Omit<StudioSimulationWorkerRequestAnalysisInputV2, "runtimeSessionId">
       & Readonly<{

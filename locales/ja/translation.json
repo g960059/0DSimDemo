@@ -15,8 +15,7 @@
   "nav": {
     "home": "ホーム",
     "workbench": "シミュレーション",
-    "articles": "記事",
-    "pvaEstimate": "正常成人PVAリファレンス"
+    "articles": "記事"
   },
   "siteHeader": {
     "home": "CircleHeart ホーム",
@@ -88,49 +87,6 @@
     "startFirstSimulation": "最初のシミュレーションを始める",
     "simulationMeta": "{{count}}シナリオ · {{date}}更新",
     "articleFallback": "循環動態を学ぶ記事"
-  },
-  "pvaEstimate": {
-    "back": "ホームへ戻る",
-    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "正常成人PVAリファレンス",
-    "description": "正常成人の標準条件について事前計算された、方法を固定したPVAリファレンスです。現在のsimulation scenarioから導出する値ではありません。",
-    "referenceTitle": "正常成人の標準リファレンス",
-    "referenceDescription": "accepted periodic PV pathから研究laneで得た外的仕事と、phase-wise venous occlusionで定めたPE equivalentを表示します。productionではprotocolの再実行やlive PV pathの積分を行いません。",
-    "show": "PVAリファレンスを表示",
-    "showAgain": "リファレンスをもう一度表示",
-    "idle": "ボタンを押すまでcompact referenceは表示されません。",
-    "resultsTitle": "正常成人リファレンス",
-    "method": "Method: {{methodId}}",
-    "ventricle": "{{ventricle}} PVA estimate",
-    "status": {
-      "limited": "限定推定",
-      "unavailable": "利用不可"
-    },
-    "metrics": {
-      "externalWork": "周期外的仕事 (EW)",
-      "peEquivalent": "PE equivalent",
-      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
-      "emax": "Emax候補",
-      "v0": "V0"
-    },
-    "geometryChartLabel": "{{ventricle}}のESPVR候補とPE-equivalent geometry",
-    "chart": {
-      "geometryNotice": "ESPVR候補とPE-equivalentの幾何です。PV loop上のPVA表示ではありません。",
-      "measured": "測定volume範囲",
-      "extrapolated": "外挿区間",
-      "outside": "収縮末期面積の外挿 {{value}}"
-    },
-    "limitations": "制限事項",
-    "limitation": {
-      "systolic-relation-extrapolation": "収縮末期面積の{{value}}%が測定volume範囲外です。",
-      "protocol-direction-sensitivity": "occlusionとreleaseで傾きが約{{value}}%異なります。",
-      "phase-resolution-sensitivity": "phase解像度を上げると推定値が{{value}}%変化します。",
-      "fixed-contralateral-passive-reference": "反対側心室volumeを固定したintrinsic passive referenceです。"
-    },
-    "boundaryTitle": "この値が意味する範囲",
-    "boundaryDescription": "これは事前計算済みのversioned method-specific referenceです。EWは保存された研究結果であり、productionでは再計算しません。現在のscenario、genericまたは臨床PVA、単一心拍のlive output、MVO₂や酸素消費量を表しません。",
-    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
-    "researchArchive": "固定された研究source（PR #558–#573）をGitHubで見る"
   },
   "publicExperiments": {
     "title": "公開シミュレーション",
@@ -393,18 +349,14 @@
       "buttonValue": "値",
       "addButtonOption": "Buttonを追加",
       "removeButtonOption": "Buttonを削除",
-      "scenarioScope": "Scenarioの範囲",
-      "visibleScenarioScope": "表示中のScenario",
-      "fixedScenarioScope": "Scenarioを固定",
       "traceVisibility": "Traceの表示",
-      "traceVisibilityHint": "通常はpane単位でScenarioを選びます。必要な場合だけ、Scenario×itemの組み合わせを非表示にできます。",
-      "bindingSection": "Scenarioの割り当て",
-      "activeSlotBinding": "Scenario Managerと連動",
+      "traceVisibilityHint": "表示中のすべてのScenarioを描画します。必要な場合だけ、Scenarioごとに表示する項目を調整できます。",
+      "bindingSection": "Scenario",
+      "activeSlotBinding": "選択scenarioと連動",
       "activeSlotBindingHint": "このpaneの全parameterは、Scenario Managerで選択中のScenarioを操作します。",
       "outputActiveSlotBindingHint": "このpaneは、Scenario Managerで選択中のScenarioを表示します。",
       "fixedBinding": "Scenarioを固定",
       "fixedBindingHint": "このpaneの全parameterは、選択したScenarioへ同じ絶対値を同時に適用します。",
-      "fixedScenarioBinding": "1つのScenarioに固定",
       "outputFixedBindingHint": "このpaneは、選択した1つのScenarioを常に表示します。",
       "resetColor": "自動配色に戻す",
       "addPane": "Paneを追加",
@@ -429,10 +381,8 @@
       "emptyCatalog": "登録済みの項目がありません。",
       "noConfigurableSeries": "このグラフの構造軸はrendererが所有するため、変更可能な系列はありません。",
       "series": "グラフ系列",
-      "historyDepth": "変更前の状態",
-      "historyDepthHint": "完了したパラメータ状態を0〜3件表示",
-      "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR解析",
-      "formalPressureVolumeAnalysisHint": "各fixed-TBV loadで完全stateのP1周期収束を確認してからfitします。計算時間は長くなります。",
+      "pressureEnvelopeOverlay": "包絡線",
+      "pressureEnvelopeOverlayHint": "各容積で得られた最大圧を結ぶ参考曲線です。心室が発生できる圧の上限を確認するために表示し、PVAの計算には使いません。",
       "windowSec": "表示時間幅",
       "windowSecHint": "1〜6秒、0.5秒刻み",
       "items": "Items",
@@ -725,7 +675,7 @@
       "0D集中定数モデルでは、空間的な血流、局所壁応力、3D血行動態を解像できません。",
       "現在のexact V3 packageは開発用experimental defaultです。releaseReady、simulationReady、臨床validationを主張しません。",
       "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。",
-      "PV paneの既定は未qualifiedなresponsive fixed-TBV multi-load PV-loop support-envelope previewです。任意のformal modeは完全stateのP1周期収束を通過したloadだけを採用しますが、独立した生理学的・臨床的validation、PVA、酸素消費量のevidenceではありません。",
+      "PV paneの既定はresponsive fixed-TBV multi-load previewです。任意のformal modeは完全stateのP1周期収束を通過したloadだけを採用し、method-specificなSW／ESPVR／指数型EDPVR／PE／PVAと、文献係数によるLV MVO₂推定値を計算しますが、独立した生理学的・臨床的validationや実測酸素消費量ではありません。",
       "Guyton / Starling応答は、遅い冠血流toneを固定した局所period-1 settledの作動点から開始します。作動点以外は適応的preview dataであり、非収束またはperiod-2境界点は接続曲線から除外されます。canonical qualified evidenceではありません。"
     ]
   }

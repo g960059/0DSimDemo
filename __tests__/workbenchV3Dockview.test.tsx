@@ -52,7 +52,10 @@ import {
   updateWorkbenchGraphTraceCustomColorV3,
   updateWorkbenchSurfacePaneV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
-import { WorkbenchPaneBindingButtonV3 } from "@/components/workbench/WorkbenchPaneBindingV3";
+import {
+  WorkbenchPaneBindingButtonV3,
+  WorkbenchPaneBindingModeSelectorV3,
+} from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
   ExperimentOutputGridV3,
   formatExperimentOutputValueV3,
@@ -67,6 +70,7 @@ import {
   suggestWorkbenchScenarioIdV3,
   suggestWorkbenchScenarioLabelV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -155,7 +159,7 @@ describe("V3 Dockview Workbench", () => {
     );
   });
 
-  it("classifies valve gradients with valve outputs and describes open PV path work exactly", () => {
+  it("classifies valve gradients with valve outputs and presents accepted PV work as SW", () => {
     expect(
       studioItemPresentationCategoryV1(
         "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
@@ -165,13 +169,12 @@ describe("V3 Dockview Workbench", () => {
     const work = resolveStudioItemPresentationV1({
       kind: "output",
       itemId: "myocardium.work.external.LV-transmural-pressure-volume-path",
-      fallbackEnglishLabel: "LV pressure-volume path work",
+      fallbackEnglishLabel: "LV stroke work (SW)",
       locale: "en",
     });
     expect(work.description).toContain("line integral");
-    expect(work.description).toContain("capture-to-capture");
-    expect(work.description).not.toContain("enclosed");
-    expect(work.aliases).not.toContain("stroke work");
+    expect(work.description).toContain("stroke work");
+    expect(work.aliases).toContain("stroke work");
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
@@ -478,6 +481,26 @@ describe("V3 Dockview Workbench", () => {
     expect(visible).toContain("Baseline");
   });
 
+  it("uses one segmented linked-or-fixed selector across pane settings", () => {
+    const markup = renderToStaticMarkup(
+      <WorkbenchPaneBindingModeSelectorV3
+        activeLabel="選択scenarioと連動"
+        fixedLabel="Scenarioを固定"
+        groupLabel="Scenario"
+        mode="active-slot"
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain('aria-label="Scenario"');
+    expect(markup).toContain("選択scenarioと連動");
+    expect(markup).toContain("Scenarioを固定");
+    expect(markup).toContain('aria-checked="true"');
+    expect(markup).toContain('data-active="true"');
+    expect(markup).toContain("workbench-control-segments");
+  });
+
   it("preloads Placement Briefing independently from its neutral Snapshot", () => {
     const snapshot = createWorkbenchBriefingSnapshotV3({
       surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
@@ -580,7 +603,7 @@ describe("V3 Dockview Workbench", () => {
           ...graph,
           scenarioScope: {
             mode: "fixed" as const,
-            scenarioIds: ["scenario/a", "scenario/b"],
+            scenarioIds: ["scenario/a"],
           },
           excludedTraces: [{ scenarioId: "scenario/b", seriesId }],
         },
@@ -611,7 +634,7 @@ describe("V3 Dockview Workbench", () => {
         "scenario/b",
         "scenario/a",
       ]),
-    ).toEqual(["scenario/a", "scenario/b"]);
+    ).toEqual(["scenario/b", "scenario/a"]);
     expect(
       resolveWorkbenchGraphScenarioIdsV3(surface.graphPanes[0]!, [
         "scenario/a",
@@ -639,12 +662,26 @@ describe("V3 Dockview Workbench", () => {
       ),
     ).toBe("scenario/b");
 
+    const migratedGraphScope = reconcileWorkbenchSurfaceScenariosV3(
+      surface,
+      scenarios,
+    );
+    expect(migratedGraphScope.graphPanes[0]?.scenarioScope).toEqual({
+      mode: "visible-scenarios",
+    });
+    expect(
+      isWorkbenchGraphTraceExcludedV3(
+        migratedGraphScope.graphPanes[0]!,
+        "scenario/b",
+        seriesId,
+      ),
+    ).toBe(true);
+
     const afterDelete = reconcileWorkbenchSurfaceScenariosV3(surface, [
       { scenarioId: "scenario/a" },
     ]);
     expect(afterDelete.graphPanes[0]?.scenarioScope).toEqual({
-      mode: "fixed",
-      scenarioIds: ["scenario/a"],
+      mode: "visible-scenarios",
     });
     expect(afterDelete.graphPanes[0]?.excludedTraces).toEqual([]);
     expect(afterDelete.controlPanes[0]?.binding).toEqual({
@@ -916,7 +953,9 @@ describe("V3 Dockview Workbench", () => {
     const targetPaneId = configuredResult.selectedPane!.paneId;
     expect(
       workbenchStructuralHistoryAnalysisIdsV3(configured, composition.contract),
-    ).toEqual([structural.analysisId]);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ]);
     expect(
       workbenchStructuralHistoryAnalysisIdsV3(
         {
@@ -927,7 +966,9 @@ describe("V3 Dockview Workbench", () => {
         },
         composition.contract,
       ),
-    ).toEqual([structural.analysisId]);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ]);
   });
 
   it("preserves the live authority after transient Draft persistence failure and permits retry", () => {
@@ -1032,7 +1073,7 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.ejection-fraction.LV-event-defined",
       "hemodynamics.valve-volume.net.AoV",
       "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
+      "myocardium.work.stroke.LV",
       "oxygen.delivery.systemic",
     ]);
     expect(outputPane.binding).toEqual({ mode: "active-slot" });
@@ -1048,9 +1089,8 @@ describe("V3 Dockview Workbench", () => {
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
     expect(graphPanes).toHaveLength(3);
-    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe(
-      "responsive-preview",
-    );
+    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("formal-periodic");
+    expect(graphPanes[0]?.showPressureEnvelope).toBe(false);
     expect(graphPanes[1]?.structuralSide).toBe("right");
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);
@@ -1650,7 +1690,9 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.pressure.waveform",
       "hemodynamics.flow.waveform",
     ]) {
-      const option = options.find((candidate) => candidate.optionId === optionId);
+      const option = options.find(
+        (candidate) => candidate.optionId === optionId,
+      );
       expect(option).toBeDefined();
       const added = addWorkbenchSurfacePaneV3(
         initial,

@@ -3486,6 +3486,52 @@ describe("Studio simulation worker V2 client", () => {
     expect(transport.terminate).not.toHaveBeenCalled();
   });
 
+  it("treats validated analysis progress as activity for the idle timeout", async () => {
+    vi.useFakeTimers();
+    const transport = new FakeWorkerTransportV2();
+    const client = createStudioSimulationWorkerClientForTestV2({
+      transport,
+      responseTimeoutMs: 10,
+      analysisIdleTimeoutMs: 10,
+    });
+    const initialized = client.initialize({
+      expectedModelId: "model/main-wire-v3-r1",
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: { value: 1 },
+    });
+    transport.emitMessage(initializedResponseV2(1));
+    await initialized;
+
+    const requested = client.requestAnalysis({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/guyton-starling-v1",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    });
+
+    await vi.advanceTimersByTimeAsync(9);
+    transport.emitMessage(analysisProgressResponseV2(2, analysisV2({
+      payload: { completedPointCount: 1 },
+    })));
+    await vi.advanceTimersByTimeAsync(9);
+    transport.emitMessage(analysisProgressResponseV2(2, analysisV2({
+      payload: { completedPointCount: 2 },
+    })));
+    await vi.advanceTimersByTimeAsync(9);
+    expect(transport.terminate).not.toHaveBeenCalled();
+
+    transport.emitMessage(analysisResultResponseV2(2, analysisV2()));
+    await expect(requested).resolves.toMatchObject({
+      analysisId: "analysis/guyton-starling-v1",
+    });
+    expect(transport.terminate).not.toHaveBeenCalled();
+  });
+
   it("saves a Experiment, rejects stale versions locally, and accepts Snapshot lineage", async () => {
     const transport = new FakeWorkerTransportV2();
     const client = createStudioSimulationWorkerClientForTestV2({ transport });

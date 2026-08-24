@@ -473,6 +473,12 @@ function assertExperimentModelAndSurfaceMatchV2(
           "structural-return graphs must not configure pressure-volume analysis",
         );
       }
+      if (pane.showPressureEnvelope !== undefined) {
+        throw validationErrorV2(
+          `${panePath}.showPressureEnvelope`,
+          "structural-return graphs must not configure a pressure-volume envelope overlay",
+        );
+      }
       if (pane.historyDepth === undefined) {
         throw validationErrorV2(
           `${panePath}.historyDepth`,
@@ -543,6 +549,15 @@ function assertExperimentModelAndSurfaceMatchV2(
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
         `${graph.renderer} graphs must not configure pressure-volume analysis`,
+      );
+    }
+    if (
+      graph.renderer !== "pressure-volume" &&
+      pane.showPressureEnvelope !== undefined
+    ) {
+      throw validationErrorV2(
+        `${panePath}.showPressureEnvelope`,
+        `${graph.renderer} graphs must not configure a pressure-volume envelope overlay`,
       );
     }
     if (graph.renderer === "sweep" && pane.windowSec === undefined) {
@@ -1206,6 +1221,7 @@ function assertExperimentSurfaceV2(
         "windowSec",
         "historyDepth",
         "pressureVolumeAnalysisMode",
+        "showPressureEnvelope",
         "structuralSide",
         "traceColors",
       ],
@@ -1260,6 +1276,15 @@ function assertExperimentSurfaceV2(
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
         "must be responsive-preview or formal-periodic",
+      );
+    }
+    if (
+      pane.showPressureEnvelope !== undefined &&
+      typeof pane.showPressureEnvelope !== "boolean"
+    ) {
+      throw validationErrorV2(
+        `${panePath}.showPressureEnvelope`,
+        "must be boolean",
       );
     }
     if (

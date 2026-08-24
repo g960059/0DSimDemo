@@ -16,12 +16,16 @@ import {
   prepareBoundExecutionPlanSolveGroupV1,
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
-import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
+import type {
+  StudioSimulationAnalysisV2,
+  StudioSimulationFrameV2,
+} from "@/studio/contracts/v2/simulation";
 import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertExactModelKernelManifestV3,
@@ -355,6 +359,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     try {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
+      expect(
+        composition
+          .localStandardArtifactRevisionUrlV1(
+            new URL("http://127.0.0.1:4176/standard-exact-model.artifact.mjs"),
+          )
+          .searchParams.get("revision"),
+      ).toBe(mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId);
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
@@ -666,6 +677,49 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
+  it("preflights a 4400-to-4200 mL TBV transition and keeps the live Scenario advancing", async () => {
+    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-control-tbv-preflight";
+    const scenarioId = "scenario/baseline";
+    await host.createSession(runtimeSessionId, [
+      {
+        scenarioId,
+        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      },
+    ]);
+    let before = host.currentFrame(runtimeSessionId, scenarioId);
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    await host.applyControl(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+      4_400,
+      0,
+    );
+    for (let ordinal = 0; ordinal < 500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    const low = await host.applyControl(
+      runtimeSessionId,
+      scenarioId,
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+      4_200,
+      1,
+    );
+    expect(low).toMatchObject({
+      inputEpoch: 2,
+      acceptedRevision: before.acceptedRevision,
+      acceptedTimeSec: before.acceptedTimeSec,
+    });
+    for (let ordinal = 0; ordinal < 1_500; ordinal += 1) {
+      before = host.advanceOnePresentationStep(runtimeSessionId, scenarioId);
+    }
+    expect(before).toMatchObject({ inputEpoch: 2 });
+    host.closeSession(runtimeSessionId);
+  }, 120_000);
+
   it("batch-projects selected outputs without changing exact samples", async () => {
     const singleHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const batchHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
@@ -793,7 +847,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       "hemodynamics.ejection-fraction.LV-event-defined",
       "hemodynamics.valve-volume.net.AoV",
       "hemodynamics.output.effective-native-left",
-      "myocardium.work.external.LV-transmural-pressure-volume-path",
+      "myocardium.work.stroke.LV",
       "oxygen.delivery.systemic",
     ]);
 
@@ -969,11 +1023,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     simulation.disposeSession(runtimeSessionId);
   }, 120_000);
 
-  it("connects Standard PV analysis to the bidirectional plan", async () => {
-    const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+  it("connects Standard PV analyses to their bidirectional plans", async () => {
+    const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
-    expect(plan?.partitions).toEqual([
+    const formalPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    );
+    expect(legacyPlan?.partitions).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    ]);
+    expect(formalPlan?.partitions).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
     ]);
@@ -986,7 +1047,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
       },
     ]);
-    const source = host.currentFrame(runtimeSessionId, scenarioId);
+    const source = host.advanceOnePresentationStep(
+      runtimeSessionId,
+      scenarioId,
+    );
+    const progress: StudioSimulationAnalysisV2[] = [];
     const analysis = await host.requestAnalysis(
       runtimeSessionId,
       scenarioId,
@@ -995,6 +1060,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       source.acceptedRevision,
       source.acceptedTimeSec,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      (partial) => progress.push(partial),
     );
     const payload = analysis.payload as unknown as Readonly<{
       left: Readonly<{
@@ -1012,6 +1078,17 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(payload.left.starlingLocus.status).toBe(
       "responsive-fixed-tbv-preview",
     );
+    const initialPayload = progress[0]?.payload as unknown as Readonly<{
+      left: Readonly<{
+        curve: readonly unknown[];
+        starlingLocus: Readonly<{ status: string; points: readonly unknown[] }>;
+      }>;
+    }>;
+    expect(initialPayload.left.curve.length).toBeGreaterThan(1);
+    expect(initialPayload.left.starlingLocus).toMatchObject({
+      status: "requires-protocol",
+      points: [],
+    });
     expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
     expect(
       payload.left.starlingLocus.points.every(

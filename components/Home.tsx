@@ -28,7 +28,6 @@ import {
   experimentSnapshotHref,
   experimentsHref,
   newExperimentHref,
-  pvaEstimateHref,
 } from "@/homeLinks";
 import { type Locale, localeFromPathname } from "@/localeRouting";
 
@@ -215,12 +214,6 @@ export const Home = () => {
               to={articlesHref(locale)}
             >
               {t("nav.articles")}
-            </Link>
-            <Link
-              className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
-              to={pvaEstimateHref(locale)}
-            >
-              {t("nav.pvaEstimate")}
             </Link>
             <Link
               className="rounded-sm hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"

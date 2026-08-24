@@ -34,7 +34,8 @@ export const WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3 =
 export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2;
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
-  "responsive-preview" as const;
+  "formal-periodic" as const;
+export const WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3 = false;
 
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each
@@ -353,9 +354,17 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.valve-volume.net.PV":
     "Effective RV forward stroke volume (PV net)",
   "myocardium.work.external.LV-transmural-pressure-volume-path":
-    "LV transmural PV path work",
+    "LV stroke work (SW)",
   "myocardium.work.external.RV-transmural-pressure-volume-path":
-    "RV transmural PV path work",
+    "RV stroke work (SW)",
+  "myocardium.work.stroke.LV": "LV stroke work (SW)",
+  "myocardium.energy.potential.LV-pressure-volume-area":
+    "LV potential energy (PE)",
+  "myocardium.energy.pressure-volume-area.LV": "LV pressure–volume area (PVA)",
+  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g":
+    "Estimated LV MVO₂ per beat",
+  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g":
+    "Estimated LV MVO₂ per minute",
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV":
     "LV dP/dt max (accepted-step)",
   "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV":
@@ -457,7 +466,7 @@ export function createDefaultExperimentSurfaceV3(
     "hemodynamics.ejection-fraction.LV-event-defined",
     "hemodynamics.valve-volume.net.AoV",
     "hemodynamics.output.effective-native-left",
-    "myocardium.work.external.LV-transmural-pressure-volume-path",
+    "myocardium.work.stroke.LV",
     "oxygen.delivery.systemic",
   ]);
   const defaultOutputs = defaultOutputIds.flatMap((outputId) => {
@@ -523,13 +532,12 @@ export function createDefaultExperimentSurfaceV3(
     controlPanes: Object.freeze([controlPane]),
     note: Object.freeze({ text: "" }),
   });
-  // Single-Scenario waveforms start with familiar item semantics. Structural
-  // and PV panes use the Scenario seed from their first allocation because
-  // Scenario identity is their primary visual distinction.
+  // Waveforms start with familiar item semantics. One-item panes keep Scenario
+  // identity as their primary visual distinction; additional multi-item
+  // Scenarios receive perceptually separated solid-line colors.
   return reconcileWorkbenchGraphColorsV3(
     surface,
     Object.freeze([Object.freeze({ scenarioId: initialScenarioId })]),
-    "series",
   );
 }
 
@@ -569,6 +577,8 @@ function createDefaultGraphPaneV3(
             ? {
                 pressureVolumeAnalysisMode:
                   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                showPressureEnvelope:
+                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
               }
             : {}),
           ...(graph.renderer === "structural-return" ? { structuralSide } : {}),
@@ -591,10 +601,11 @@ function createDefaultGraphPaneV3(
 /**
  * Reconciles pane-level Scenario policies after add/delete/restore.
  *
- * A fixed policy that loses every target falls back to the Workbench's
- * dynamic policy instead of retaining an invalid empty binding. Trace colors
- * are reconciled in the same transaction, while exclusions and fixed targets
- * are retained only when their referenced Scenario/series still exists.
+ * Graph panes now always follow the Workbench's visible Scenario set. A legacy
+ * fixed graph scope is migrated to per-trace exclusions when at least one of
+ * its targets survives, preserving its presentation without retaining a
+ * second Scenario-selection concept. Controller and Output bindings remain
+ * explicit because those panes act on or report one binding context.
  */
 export function reconcileWorkbenchSurfaceScenariosV3(
   surface: ExperimentSurfaceV2,
@@ -602,7 +613,7 @@ export function reconcileWorkbenchSurfaceScenariosV3(
 ): ExperimentSurfaceV2 {
   const scenarioIds = new Set(scenarios.map(({ scenarioId }) => scenarioId));
   const graphPanes = surface.graphPanes.map((pane) => {
-    const fixedScenarioIds =
+    const survivingLegacyFixedScenarioIds =
       pane.scenarioScope.mode === "fixed"
         ? pane.scenarioScope.scenarioIds.filter((scenarioId) =>
             scenarioIds.has(scenarioId),
@@ -611,22 +622,38 @@ export function reconcileWorkbenchSurfaceScenariosV3(
     const selectedSeriesIds = new Set(
       pane.series.map(({ seriesId }) => seriesId),
     );
+    const retainedExclusions = pane.excludedTraces.filter(
+      (trace) =>
+        scenarioIds.has(trace.scenarioId) &&
+        (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId)),
+    );
+    if (
+      pane.scenarioScope.mode === "fixed" &&
+      survivingLegacyFixedScenarioIds.length > 0
+    ) {
+      const legacyTargets = new Set(survivingLegacyFixedScenarioIds);
+      const seriesIds: readonly (string | null)[] =
+        pane.series.length === 0
+          ? Object.freeze([null])
+          : Object.freeze(pane.series.map(({ seriesId }) => seriesId));
+      for (const { scenarioId } of scenarios) {
+        if (legacyTargets.has(scenarioId)) continue;
+        for (const seriesId of seriesIds) {
+          if (
+            !retainedExclusions.some(
+              (trace) =>
+                trace.scenarioId === scenarioId && trace.seriesId === seriesId,
+            )
+          ) {
+            retainedExclusions.push({ scenarioId, seriesId });
+          }
+        }
+      }
+    }
     return Object.freeze({
       ...pane,
-      scenarioScope:
-        pane.scenarioScope.mode === "fixed" && fixedScenarioIds.length > 0
-          ? Object.freeze({
-              mode: "fixed" as const,
-              scenarioIds: Object.freeze(fixedScenarioIds),
-            })
-          : Object.freeze({ mode: "visible-scenarios" as const }),
-      excludedTraces: Object.freeze(
-        pane.excludedTraces.filter(
-          (trace) =>
-            scenarioIds.has(trace.scenarioId) &&
-            (trace.seriesId === null || selectedSeriesIds.has(trace.seriesId)),
-        ),
-      ),
+      scenarioScope: Object.freeze({ mode: "visible-scenarios" as const }),
+      excludedTraces: Object.freeze(retainedExclusions),
     });
   });
   const controlPanes = surface.controlPanes.map((pane) => {
@@ -689,20 +716,12 @@ export function reconcileWorkbenchSurfaceScenariosV3(
   );
 }
 
-/** Resolve the durable graph-pane policy against the currently available UI scope. */
+/** Graph panes compare every Scenario currently visible in Scenario Manager. */
 export function resolveWorkbenchGraphScenarioIdsV3(
-  pane: ExperimentSurfaceGraphPaneV2,
+  _pane: ExperimentSurfaceGraphPaneV2,
   visibleScenarioIds: readonly string[],
 ): readonly string[] {
-  if (pane.scenarioScope.mode === "visible-scenarios") {
-    return visibleScenarioIds;
-  }
-  const visible = new Set(visibleScenarioIds);
-  return Object.freeze(
-    pane.scenarioScope.scenarioIds.filter((scenarioId) =>
-      visible.has(scenarioId),
-    ),
-  );
+  return visibleScenarioIds;
 }
 
 /** Exact trace exclusions are durable Pane Settings, not transient legend state. */

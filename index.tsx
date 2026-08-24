@@ -77,12 +77,6 @@ const AuthoringCliDocsV3Page = React.lazy(
     default: module.AuthoringCliDocsV3Page,
   })),
 );
-const PvaReferenceV1Page = React.lazy(
-  () => import('./components/analysis/PvaEstimateV1Page').then((module) => ({
-    default: module.PvaReferenceV1Page,
-  })),
-);
-
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -209,14 +203,6 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Authoring CLI guide…" />}>
           <AuthoringCliDocsV3Page />
-        </React.Suspense>
-      )}
-    />
-    <Route
-      path="analysis/pva"
-      element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading PVA reference…" />}>
-          <PvaReferenceV1Page />
         </React.Suspense>
       )}
     />

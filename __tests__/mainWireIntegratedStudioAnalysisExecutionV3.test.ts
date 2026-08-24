@@ -13,20 +13,22 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
 
 describe("Main Wire Integrated V3 analysis execution", () => {
-  it("registers two independent preload directions for the side analysis", () => {
-    const plan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+  it("runs both relations bidirectionally with the short high limb first on one slot", () => {
+    const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
+    const formalPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    );
 
-    expect(plan?.partitions).toEqual([
+    expect(legacyPlan?.partitions).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+    ]);
+    expect(formalPlan?.partitions).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
     ]);
-    expect(
-      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-      )?.partitions,
-    ).toEqual(plan?.partitions);
     expect(
       resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
         "analysis/not-registered",
@@ -105,7 +107,97 @@ describe("Main Wire Integrated V3 analysis execution", () => {
       totalPointCount: 3,
     });
   });
+
+  it("publishes the analytic Guyton orientation before either Starling branch settles", () => {
+    const initial = initialAnalysisV3();
+    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+      initial,
+      initial,
+    ]);
+    const payload = merged.payload as unknown as Readonly<{
+      right: Readonly<{
+        curve: readonly unknown[];
+        starlingLocus: Readonly<{ status: string; points: readonly unknown[] }>;
+      }>;
+    }>;
+
+    expect(payload.right.curve).toHaveLength(2);
+    expect(payload.right.starlingLocus).toEqual({
+      status: "requires-protocol",
+      requirement:
+        "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement",
+      points: [],
+    });
+  });
+
+  it("keeps settled Starling progress when the opposite Worker is still on analytic Guyton", () => {
+    const settled = analysisV3("hypovolemic");
+    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+      settled,
+      initialAnalysisV3(99),
+    ]);
+    const payload = merged.payload as unknown as Readonly<{
+      right: Readonly<{
+        curve: readonly Readonly<{ downstreamPressureMmHg: number }>[];
+        starlingLocus: Readonly<{
+          completedPointCount: number;
+          status: string;
+        }>;
+      }>;
+    }>;
+
+    expect(payload.right.curve[0]?.downstreamPressureMmHg).toBe(-3);
+    expect(payload.right.starlingLocus).toMatchObject({
+      status: "responsive-fixed-tbv-preview",
+      completedPointCount: 2,
+    });
+  });
 });
+
+function initialAnalysisV3(
+  firstCurvePressureMmHg = -3,
+): StudioSimulationAnalysisV2 {
+  return Object.freeze({
+    modelId: "model/main-wire-v3-r1",
+    runtimeSessionId: "runtime/source",
+    scenarioId: "scenario/baseline",
+    inputEpoch: 2,
+    sourceAcceptedRevision: 100,
+    sourceAcceptedTimeSec: 0.2,
+    analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    payload: Object.freeze({
+      status: "available",
+      protocolId: "responsive-preview-v3",
+      sourceAcceptedRevision: 101,
+      sourceAcceptedTimeSec: 0.21,
+      right: initialSideV3("right", firstCurvePressureMmHg),
+      left: initialSideV3("left", firstCurvePressureMmHg),
+    }),
+  });
+}
+
+function initialSideV3(
+  side: "right" | "left",
+  firstCurvePressureMmHg: number,
+) {
+  return Object.freeze({
+    side,
+    semantics: "test-initial-structural-orientation",
+    curve: Object.freeze([
+      Object.freeze({
+        downstreamPressureMmHg: firstCurvePressureMmHg,
+        returnFlowLPerMin: 7,
+      }),
+      Object.freeze({ downstreamPressureMmHg: 17, returnFlowLPerMin: 0 }),
+    ]),
+    starlingLocus: Object.freeze({
+      status: "requires-protocol",
+      requirement:
+        "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement",
+      points: Object.freeze([]),
+    }),
+  });
+}
 
 function analysisV3(
   partition: "hypovolemic" | "hypervolemic",
@@ -123,6 +215,8 @@ function analysisV3(
     payload: Object.freeze({
       status: "available",
       protocolId: "responsive-preview-v3",
+      sourceAcceptedRevision: 100,
+      sourceAcceptedTimeSec: 0.2,
       right: sideV3("right", partition, centerFlowLPerMin, complete),
       left: sideV3("left", partition, centerFlowLPerMin, complete),
     }),

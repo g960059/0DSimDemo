@@ -1,198 +1,231 @@
-# Integrated V3 pressure-volume work and PVA boundary
+# Integrated V3 pressure-volume work, PVA, and MVO2 estimate
 
-Status: exact path-work observer and a precomputed canonical normal-adult
-method-specific PVA reference implemented; myocardial oxygen-demand mapping not
-implemented
+Status: accepted-step path-work observer and on-demand Workbench PVA analysis
+implemented; LV MVO2 is a literature-coefficient estimate, not a metabolic
+submodel
 
-## Product and scientific priority
+## Product boundary
 
-The pressure-volume loop is the primary explanatory and measurement plane for
-ventricular mechanics. Chamber pressure and volume waveforms are complementary
-projections of that trajectory. Guyton/Starling analysis supplies the
-circulatory loading context in which the loop moves. This ordering applies to
-future Experiments about chamber contractility, active relaxation, passive
-stiffness, valve disease, mechanical support, and myocardial oxygen demand.
+PVA belongs in the pressure-volume Workbench pane. Production has no dedicated
+PVA page and does not ship the research lane's ledgers, large artifacts,
+auditors, or archived protocol UI. The detailed history remains available at
+immutable tag
+[`research-pva-mvo2-558-573-final`](https://github.com/g960059/0DSimDemo/tree/research-pva-mvo2-558-573-final).
 
-It does not make every loop-derived quantity exact by inspection. A displayed
-loop may be decimated presentation data, and a fitted line may be an unsettled
-orientation aid. Scientific values must have a model-owned accepted-step or
-qualified-analysis owner.
+The production workflow is deliberately direct:
 
-## Implemented exact observer
+1. a PV pane, a structural Starling/Guyton pane, or a PVA-family output needs
+   the shared settled relation family;
+2. the existing background analysis Workers capture the current Scenario;
+3. independent low- and high-volume persistent chains start at the same settled
+   operating point (concurrently when two analysis Worker leases are present);
+4. every retained fixed-TBV load is warm-started from the preceding endpoint
+   on that limb; one anchor, three lower-preload points, and one higher-preload
+   point provide the first PVA, after which normalized curve-shape error and
+   settlement effort adapt the next TBV step; a high-preload endpoint that adds
+   less than `4 mL` of end-systolic-volume coverage widens the following
+   retained target instead of crowding the ESPVR with nearly coincident points;
+5. source coronary tone is held fixed and each load starts closure assessment
+   at three beats. A retained point must pass two consecutive complete-beat
+   flow/pressure/volume and ventricular ES/ED landmark closure checks. Slowly
+   converging points may use up to twelve beats. The beat count is determined
+   by the observed closure sequence, not by preload direction; twelve is a
+   bounded analysis-time budget rather than a relaxed convergence rule;
+6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
+   and, for the LV, a literature MVO2 estimate; and
+7. progress, cancellation after Scenario edits, cache reuse, and bounded
+   history use the existing Workbench analysis runtime.
 
-Standard-61 introduced the capture-to-capture LV metric, and Standard-63 adds
-the corresponding RV metric:
+No ledger quantity is needed to produce the result. This is intentional: the
+mechanical-port ledger cannot own crossbridge cycling, calcium uptake/release,
+basal metabolism, or absolute myocardial oxygen consumption.
+
+## Accepted-step pressure-volume path observer
+
+The model also publishes capture-to-capture LV and RV path work:
 
 ```text
-outputIds:
-  myocardium.work.external.LV-transmural-pressure-volume-path
-  myocardium.work.external.RV-transmural-pressure-volume-path
+myocardium.work.external.LV-transmural-pressure-volume-path
+myocardium.work.external.RV-transmural-pressure-volume-path
 
 W_path = - sum_i 0.5 * (P_tm,i + P_tm,i+1) * (V_i+1 - V_i)
 unit: mmHg*mL
 ```
 
-The accumulator consumes every accepted numerical endpoint, including
-event-clipped substeps. The active integral is part of the exact checkpoint,
-so restore continuation cannot discard or reconstruct the first part of the
-path. Canvas sampling, history retention, and graph decimation are outside the
-measurement owner.
+It consumes every accepted numerical endpoint, including event-clipped
+substeps, and is checkpoint-continuable. It remains a path integral until a
+declared closed periodic beat exists; it is not renamed PVA or MVO2.
 
-The minus sign makes the usual counter-clockwise ventricular loop positive.
-Pressure is explicitly the matching ventricular transmural pressure, aligning
-with the current PV graph and isolating wall load from a common external
-pressure offset. It must not be compared as though it were an absolute
-intracavitary catheter-work value without an explicit pressure-basis
-translation.
+For every retained load point, the on-demand analysis retains the exact
+capture-to-capture accepted-step path work from its settled completed beat.
+The operating-point value, rather than a re-integration of the display loop,
+owns SW.
 
-No artificial end-to-start segment is added. Capture-to-capture electrical
-boundaries do not guarantee that a transient trajectory returns to its initial
-volume and pressure. Consequently:
+## PVA V1 operational definition
 
-- `W_path` is always the accepted path integral;
-- it may be interpreted as closed-loop transmural external work only after a
-  declared periodicity/closure gate passes; and
-- it is never renamed stroke work merely because the beat accumulator emitted
-  a complete electrical window.
-
-This output is not pressure-volume area, potential energy, myocardial oxygen
-consumption, efficiency, or a clinical ischemia index. One `mmHg*mL` is
-`1.33322e-4 J`; any joule projection should remain a presentation conversion,
-not a second numerical integration.
-
-## Production PVA reference V1
-
-Production exposes one deliberately narrow, precomputed completed-protocol
-reference at `/:locale/analysis/pva`. An explicit user action reveals the
-compact reference; it does not rerun the periodic simulation or venous-return
-protocol, read the current scenario, or reintegrate the accepted PV path. The
-method identity is:
+The method identity is:
 
 ```text
-suga-compatible-pva-estimate-phase-wise-venous-occlusion-fixed-passive-slice-v1
+main-wire-integrated-model-settled-hot-start-pva-v1
+suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8
 ```
 
-The retained compact inputs reproduce:
+The pressure basis is ventricular transmural pressure.
 
-| chamber | periodic EW | PE equivalent | PVA estimate | status  |
-| ------- | ----------: | ------------: | -----------: | ------- |
-| LV      |  1.286454 J |    0.295047 J |   1.581501 J | limited |
-| RV      |  0.424312 J |    0.164090 J |   0.588402 J | limited |
+### SW
 
-The output includes the pressure basis, Emax candidate, V0, measured volume
-range, extrapolated area fraction, and the dominant sensitivity. It is not a
-scenario-specific live output. It does not establish generic or clinical PVA,
-and it does not establish MVO2 or oxygen consumption.
-
-The retained EW numbers were produced in the research lane from the accepted
-periodic PV-path work owner. Production preserves those reference values; it
-does not claim to calculate accepted path work on this page. At the retained LV
-and RV endpoints, volume is below the corresponding passive zero-pressure
-volume, so passive-reference subtraction is `0.000 J` in both PE equivalents.
-The displayed chart is ESPVR-candidate and PE-equivalent geometry, not a PV-loop
-rendering of EW and PVA.
-
-The immutable source identity is:
+For the settled operating-point beat,
 
 ```text
-sourceResearchTag: research-pva-mvo2-558-573-final
-sourceCommitSha: 7fa68a21607107db0e766c3449788d9d90d59e60
-sourceStudyId: main-wire-integrated-model-phase-wise-pva-qualification-v2
-pressureBasis: ventricular-transmural
+SW = acceptedTransmuralPathWorkMmHgMl
 ```
 
-The exploratory owners, unsuccessful methods, large artifacts, and detailed
-auditors remain in Git history at immutable tag
-[`research-pva-mvo2-558-573-final`](https://github.com/g960059/0DSimDemo/tree/research-pva-mvo2-558-573-final).
-They are not production runtime dependencies. The movable
-`research/pva-mvo2-558-573` branch remains a convenient development reference.
+This is the accepted-substep path-work observer above, evaluated over the same
+completed beat that supplies the point's compact phase loop and landmarks.
+The `10 ms` phase loop is retained for relation fitting and display, not as a
+second SW owner.
 
-## Generic PVA admission boundary
+### ESPVR
 
-The hierarchy beyond the limited method-specific result remains:
+The primary relation uses one atrial-capture-relative absolute time. Every
+currently settled load contributes to the contemporaneous shape-preserving
+nonlinear isochrone. The scoring interval is fixed before the time search from
+the operating anchor's retained end-systolic volume:
 
 ```text
-accepted LV PV path
-  -> qualified closed-loop external work (EW)
-  -> qualified multi-load systolic/passive relations and potential energy (PE)
-  -> PVA = EW + PE
-  -> separately calibrated PVA-to-MVO2 mapping
+D_anchor = [0.9 V_ES,anchor, 1.1 V_ES,anchor]
+
+J(t) = integral over D_anchor of
+       [P_iso(V,t) - max(0, P_ED(V))] dV
 ```
 
-PE cannot be inferred honestly from one displayed loop. The existing
-responsive fixed-TBV support envelope is explicitly a preview and cannot own
-ESPVR, EDPVR, PE, PVA, or MVO2. The formal fixed-TBV analysis already provides
-the correct isolation and periodic branch machinery, but its fitted relations
-must receive a separately versioned operational definition and qualification
-before they can close the PE region.
+Every candidate must cover that complete physical volume interval without
+pressure extrapolation and must remain above the nonnegative EDPVR throughout
+it. Candidate time is restricted to the operating anchor's late-systolic
+window: from its maximum-pressure phase to its retained end-systolic phase,
+with `0.025` cycle of margin on each side. The analysis evaluates 32
+deterministic coarse times inside that window and subdivides the two neighboring
+coarse intervals around the winner into 32 local intervals. This compares all
+candidates on the same physical pressure-volume domain while avoiding an
+all-cycle search dominated by phases unrelated to end systole. It is only the
+phase-selection score; PE and PVA remain physical pressure-volume integrals.
+Monotonicity is not used to preselect a smaller set of times; the selected
+relation is checked separately over the actual low-volume-to-anchor PVA
+domain. As later low- or high-TBV points settle, the common time, nonlinear
+locus, and full-family EDPVR may all update; `D_anchor` and the anchor-derived
+time window do not. Three or four points use C0 piecewise-linear interpolation;
+five or more use a
+shape-preserving C1 cubic Hermite curve. The low-volume-to-anchor-ESV PVA
+domain must be strictly pressure-increasing. A later point above
+the operating anchor may reveal a turn in the fixed-phase surface section; it
+is retained as measured diagnostic geometry. During an in-flight update the
+Workbench keeps drawing the last valid relation until a newly admissible
+relation replaces it; that visual retention does not retain stale PVA, PE, or
+MVO2 output values. This measured nonlinear locus owns PE, PVA, and the PVA
+input to the literature MVO2 mapper. It is never drawn beyond its measured
+range. No separate classical `Ees`/`V0` line is fitted or displayed.
 
-Standard-62 supplied the prerequisite biventricular event landmarks: MV/TV
-closure defines LV/RV end diastole and AoV/PV closure defines LV/RV end systole,
-all by accepted-step zero-crossing interpolation. Standard-63 additionally
-publishes biventricular path work and accepted-step pressure-rate extrema. This
-improves loop annotation and event-defined SV/EF, but it does not by itself
-qualify ESPVR, PE, PVA, or MVO2.
+Separately, the analysis retains `max_t P_iso(V,t)` over the currently sampled
+family, its winning time at every sampled volume, and the resulting time
+range. Pane Settings can add this upper pressure envelope as a thin overlay;
+the option is off by default. It diagnoses how strongly the single-common-time
+assumption fails and does not own PE, PVA, or the estimated MVO2.
 
-A PVA release must freeze at least:
+### EDPVR
 
-1. pressure basis and chamber scope;
-2. named end-systolic and end-diastolic/event landmarks;
-3. the admitted multi-load intervention and measured load range;
-4. ESPVR/EDPVR fit family, constraints, diagnostics, and extrapolation policy;
-5. the exact polygon/integral used for EW and PE;
-6. periodicity, loop closure, self-intersection, and rejected-point policy;
-7. checkpoint and model/analysis identity; and
-8. uncertainty and validation status exposed beside the value.
+V1 explicitly tests an exponential passive relation:
 
-No single-loop radial line, tangent, arbitrary `V0`, or post-hoc choice after
-viewing the result may substitute for a failed multi-load fit. PVA must remain
-unavailable when its qualification contract is not satisfied.
+```text
+P_ed = A [exp(B (V_ed - V0_ed)) - 1]
+```
 
-## Myocardial oxygen-demand boundary
+`A`, `B`, and `V0_ed` are selected by a fixed bounded,
+volume-quadrature-weighted grid fit to positive-pressure maximum-volume
+landmarks from both qualified preload directions. The current beat-metric owner labels
+these points `maximum-volume`; therefore production calls them an
+end-diastolic proxy rather than claiming inlet-valve closure.
 
-PVA is the preferred long-term teaching bridge from mechanics to myocardial
-oxygen demand. It should coexist with inexpensive contextual proxies such as
-heart rate or rate-pressure product, but those proxies must not become the
-mechanistic owner of the PV-loop lesson.
+### PE and PVA
 
-An absolute MVO2 output requires a separately identified and validated mapping,
-including the PVA coefficient, unloaded/intercept cost, contractility-dependent
-cost, heart-rate convention, unit conversion, calibration population, and
-held-out validation. Until that exists, PVA and `PVA * heart rate` may be
-reported only in their declared mechanical units and scientific status. A
-plausible direction is not permission to assign an absolute oxygen-consumption
-number.
+Let `V_x` be the left ESPVR–EDPVR intersection preceding the
+operating-point end-systolic volume. Inside the measured systolic range,
+`P_ESPVR` is the selected shape-preserving common isochrone. If the left
+intersection lies below the lowest measured point, only that unresolved tail
+uses the lowest point's local tangent; the result records whether that
+extension was used and its span. Then,
 
-## Graph and Experiment contract
+```text
+PE = integral from V_x to V_es of
+       [P_ESPVR(V) - max(0, P_EDPVR(V))] dV
 
-The future PV renderer should consume the exact work/PVA result by Output ID and
-shade the corresponding region from its model-owned geometry. It must not
-reintegrate a decimated visible polyline. Tooltips and legends must distinguish
-path work, qualified EW, PE, and PVA rather than displaying one generic area.
+PVA = SW + PE
+```
 
-Experiments need not force the learner to preregister a hypothesis. They may
-support hypothesis testing, guided comparison, or open observation. Official
-claims, however, must bind their declared scenario roles and measurement
-window to qualified outputs. Exploratory observations can be promoted later by
-creating a new claim specification and rerunning the sealed numerical inputs;
-the original observation is not rewritten into a preregistered result.
+The result is unavailable unless the left intersection exists and
+`P_ESPVR(V) > P_EDPVR(V)` at every sampled interval through `V_es`. Equality is
+allowed only at the zero-area left boundary. One `mmHg*mL` is `1.33322e-4 J`.
 
-## Verification gates for the next release
+## Estimated LV MVO2
 
-Before `W_path` is promoted to qualified closed-loop EW, add all of:
+For the LV only, production maps scenario-specific PVA through the classic
+literature relation:
 
-- analytic clockwise/counter-clockwise and open-path fixtures;
-- exact checkpoint continuation through an in-progress path;
-- model `dt` refinement and event-boundary invariance;
-- independence from presentation cadence and Canvas decimation;
-- declared periodic pressure-volume closure tolerance;
-- self-intersection and valve-event-order rejection;
-- absolute-versus-transmural pressure-basis tests under PEEP/pericardial load;
-  and
-- directional Experiment sweeps for load and chamber-mechanics controls,
-  recorded as observations before any clinical monotonicity claim is admitted.
+```text
+MVO2_per_beat_per_100g = 1.8e-5 * PVA_per_100g + 0.02
+```
 
-PVA then adds multi-load fit recovery, fit-failure, measured-domain,
-extrapolation, and geometry-reconstruction tests. The PVA-to-MVO2 mapping has a
-separate fitting and held-out validation ledger; it cannot borrow numerical
-verification as clinical validation.
+LV mass is derived from the active model definition's `LVFW + SEP` material
+volumes and myocardial density. Per-beat MVO2 uses the current PVA; per-minute
+MVO2 uses the measured duration of the same accepted beat rather than a fixed
+heart rate. The slope and intercept are from the canine LV context reported by
+[Suga et al. (PMID 3790043)](https://pubmed.ncbi.nlm.nih.gov/3790043/).
+[PMID 1478216](https://pubmed.ncbi.nlm.nih.gov/1478216/) supplies supporting
+human linearity context, not the coefficient calibration.
+
+The nonlinear common-isochrone PVA used here does not reproduce the canine
+coefficient study's loading protocol. The output therefore retains that
+mismatch as a machine-readable limitation. Curved ESPVR experiments have
+reported preserved linearity of the oxygen-consumption/PVA relation
+([Nozawa et al., PMID 9689149](https://pubmed.ncbi.nlm.nih.gov/9689149/)), but
+that supports using PVA as an explanatory variable; it does not calibrate this
+model-specific nonlinear boundary or its intercept.
+
+This is visibly labelled **estimated MVO2**. It does not model or measure:
+
+- crossbridge ATP use;
+- calcium cycling;
+- basal metabolism or heat;
+- model-specific contractility-dependent unloaded cost;
+- RV or whole-heart oxygen consumption; or
+- patient-specific or clinical oxygen demand.
+
+## Current limitations
+
+- The load family is a bidirectional fixed-total-blood-volume sweep, not a
+  transient venous-occlusion protocol. Its first PVA uses three lower-preload
+  points down to the greater of `70%` of source TBV and `3360 mL`, plus one
+  higher-preload point. Coverage-first extensions may continue toward `0.18×`
+  and `1.60×` source TBV, stopping earlier at the low-flow or numerical
+  boundary without changing the Workbench TBV control. These extremes are
+  numerical exploration bounds, not asserted physiological states.
+- Coronary autoregulation tone is held at its source value during the bounded
+  preload reduction. This avoids mixing a short mechanical response with
+  repeated 25-second controller re-equilibration, but it is not a fully
+  regulated steady-state family.
+- End diastole uses the model's maximum-volume landmark in V1.
+- The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
+  relative time maximizes positive active-pressure area over the fixed
+  `0.9–1.1 ×` anchor-ESV interval within the anchor late-systolic window. All
+  settled loads participate, so the phase may update as the sweep expands.
+  Volume-specific maximum-pressure phases are retained only as an optional
+  envelope diagnostic.
+- EDPVR fitting uses volume-quadrature weights so adaptive point density does
+  not silently change the represented volume interval. The primary systolic
+  curve is not extrapolated for display; only the unresolved low-volume PE tail
+  uses its measured endpoint tangent.
+- Fits are local to the sampled settled loads and are not clinical validation.
+
+These limitations remain beside the result rather than being hidden in a
+research certification layer. A future V2 can use inlet-valve-closure ED points
+or a transient occlusion family if those changes materially improve the
+teaching result.

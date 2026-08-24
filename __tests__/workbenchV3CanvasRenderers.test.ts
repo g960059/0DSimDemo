@@ -14,7 +14,6 @@ import {
   createWorkbenchCanvasFrameSchedulerV3,
   extractLivePvTrajectoryV3,
   extractLastCompletePvBeatV3,
-  extendPvSystolicRelationToPlotBoundaryV3,
   extendPvVolumeDomainToExtrapolatedInterceptsV3,
   firstSampleAtOrAfterV3,
   guytonZeroFlowPresentationMaximumV3,
@@ -28,15 +27,17 @@ import {
   numericTicksV3,
   orderedFiniteWorkbenchSamplesV3,
   projectHistoricalPvEpochV3,
+  revealPvTrajectoryAfterFirstCompleteCycleV3,
   readWorkbenchCanvasThemeVariablesV3,
   workbenchHistoryAlphaV3,
-  deriveWorkbenchScenarioItemColorV3,
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
   starlingCurvePointsV3,
   starlingPresentationFocusV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchPerceptualColorDistanceV3,
+  workbenchSemanticItemColorV3,
   workbenchModelCyclePhaseOutputIdV3,
   workbenchPresentationOutputSelectionV3,
   type WorkbenchPvPointV3,
@@ -303,21 +304,20 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("renders a moving partial PV trajectory before the first complete beat", () => {
+  it("extracts but does not reveal a partial PV trajectory before the first complete beat", () => {
     const samples = [
       sampleV3(0.2, 0.2, { volume: 118, pressure: 20 }),
       sampleV3(0.4, 0.4, { volume: 88, pressure: 112 }),
       sampleV3(0.6, 0.6, { volume: 70, pressure: 65 }),
     ];
 
-    expect(
-      extractLivePvTrajectoryV3(
-        samples,
-        "volume",
-        "pressure",
-        TEST_CYCLE_PHASE_OUTPUT_ID_V3,
-      ),
-    ).toEqual({
+    const trajectory = extractLivePvTrajectoryV3(
+      samples,
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
+    expect(trajectory).toEqual({
       completedBeat: [],
       liveSegment: [
         {
@@ -340,6 +340,32 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         },
       ],
     });
+    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toEqual({
+      completedBeat: [],
+      liveSegment: [],
+    });
+  });
+
+  it("reveals phase-aware live PV motion after the first complete beat", () => {
+    const trajectory = extractLivePvTrajectoryV3(
+      [
+        sampleV3(0, 0, { volume: 120, pressure: 10 }),
+        sampleV3(0.25, 0.25, { volume: 100, pressure: 80 }),
+        sampleV3(0.5, 0.5, { volume: 65, pressure: 120 }),
+        sampleV3(0.9, 0.9, { volume: 115, pressure: 12 }),
+        sampleV3(1, 0, { volume: 120, pressure: 10 }),
+        sampleV3(1.2, 0.2, { volume: 108, pressure: 52 }),
+      ],
+      "volume",
+      "pressure",
+      TEST_CYCLE_PHASE_OUTPUT_ID_V3,
+    );
+
+    expect(revealPvTrajectoryAfterFirstCompleteCycleV3(trajectory)).toBe(
+      trajectory,
+    );
+    expect(trajectory.completedBeat).toHaveLength(5);
+    expect(trajectory.liveSegment).toHaveLength(2);
   });
 
   it("replaces the completed PV back buffer by phase without an alpha seam", () => {
@@ -463,43 +489,16 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     });
   });
 
-  it("extends only the PV volume lower bound to finite extrapolated intercepts", () => {
+  it("extends the PV volume lower bound without displaying negative volume", () => {
     expect(
       extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [-20, 5]),
-    ).toEqual([-24.5, 190]);
+    ).toEqual([0, 190]);
     expect(
       extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [60]),
     ).toEqual([40, 190]);
-  });
-
-  it("extends ESPVR from V0 to whichever visible upper boundary is reached first", () => {
-    const relation = {
-      status: "complete-preview",
-      systolicEnvelope: {
-        elastanceMmHgPerMl: 2,
-        extrapolatedVolumeAxisInterceptMl: 20,
-      },
-    } as any;
     expect(
-      extendPvSystolicRelationToPlotBoundaryV3(
-        relation,
-        [0, 200],
-        [0, 150],
-      ),
-    ).toEqual([
-      { volumeMl: 20, pressureMmHg: 0 },
-      { volumeMl: 95, pressureMmHg: 150 },
-    ]);
-    expect(
-      extendPvSystolicRelationToPlotBoundaryV3(
-        relation,
-        [0, 60],
-        [0, 150],
-      ),
-    ).toEqual([
-      { volumeMl: 20, pressureMmHg: 0 },
-      { volumeMl: 60, pressureMmHg: 80 },
-    ]);
+      extendPvVolumeDomainToExtrapolatedInterceptsV3([-5, 190], []),
+    ).toEqual([0, 190]);
   });
 
   it("keeps monotonic Worker samples on the allocation-free fast path", () => {
@@ -1032,7 +1031,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       scenarioScope: { mode: "visible-scenarios" },
       excludedTraces: [],
       windowSec: 2,
-      series: ["lvp", "lap", "aop"].map((seriesId, order) => ({
+      series: ["LVP", "LAP", "AoP"].map((seriesId, order) => ({
         seriesId,
         label: seriesId.toUpperCase(),
         order,
@@ -1058,9 +1057,42 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         ),
       ).size,
     ).toBe(6);
+    const traceColors = reconciled.graphPanes[0]?.traceColors ?? [];
+    expect(
+      traceColors
+        .filter(({ scenarioId }) => scenarioId === "scenario/a")
+        .map(({ automaticColorHex }) => automaticColorHex),
+    ).toEqual(["#ff5f73", "#e07ce8", "#39c2ff"]);
+    const minimumPairDistance = (colors: readonly string[]) => Math.min(
+      ...colors.flatMap((left, leftIndex) =>
+        colors.slice(leftIndex + 1).map((right) =>
+          workbenchPerceptualColorDistanceV3(left, right)),
+      ),
+    );
+    expect(minimumPairDistance(traceColors.map(
+      ({ automaticColorHex }) => automaticColorHex,
+    ))).toBeGreaterThan(0.1);
+    for (const appTheme of ["dark", "light"] as const) {
+      const renderedColors = traceColors.map((trace) =>
+        resolveWorkbenchGraphTraceStyleV3({
+          pane: reconciled.graphPanes[0]!,
+          surface: reconciled,
+          renderer: "sweep",
+          authoredScenarioCount: 2,
+          scenarioId: trace.scenarioId,
+          scenarioIndex: trace.scenarioId === "scenario/a" ? 0 : 1,
+          seriesId: trace.seriesId,
+          seriesIndex: reconciled.graphPanes[0]!.series.findIndex(
+            ({ seriesId }) => seriesId === trace.seriesId,
+          ),
+          appTheme,
+        }).color,
+      );
+      expect(minimumPairDistance(renderedColors)).toBeGreaterThan(0.12);
+    }
   });
 
-  it("uses Scenario base color only for future allocations", () => {
+  it("retains allocated colors and gives a new baseline item its semantic color", () => {
     const pane: ExperimentSurfaceGraphPaneV2 = {
       paneId: "pane/pressure",
       role: "graph",
@@ -1073,7 +1105,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       windowSec: 2,
       series: [
         {
-          seriesId: "lvp",
+          seriesId: "LVP",
           label: "LVP",
           order: 0,
         },
@@ -1110,7 +1142,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
           ...recoloredBase.graphPanes[0]!,
           series: [
             ...recoloredBase.graphPanes[0]!.series,
-            { seriesId: "lap", label: "LAP", order: 1 },
+            { seriesId: "LAP", label: "LAP", order: 1 },
           ],
         },
       ],
@@ -1120,14 +1152,14 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     ]);
     expect(
       reconciled.graphPanes[0]?.traceColors?.find(
-        ({ seriesId }) => seriesId === "lvp",
+        ({ seriesId }) => seriesId === "LVP",
       )?.automaticColorHex,
     ).toBe(existing?.[0]?.automaticColorHex);
     expect(
       reconciled.graphPanes[0]?.traceColors?.find(
-        ({ seriesId }) => seriesId === "lap",
+        ({ seriesId }) => seriesId === "LAP",
       )?.automaticColorHex,
-    ).toBe(deriveWorkbenchScenarioItemColorV3("#8b76d1", 1));
+    ).toBe(workbenchSemanticItemColorV3("LAP"));
   });
 
   it("allocates a single-chamber PV loop from the Scenario base color", () => {
@@ -1152,12 +1184,19 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         note: { text: "" },
       },
       [{ scenarioId: "scenario/a" }],
-      "series",
     );
 
     expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#d9822b");
     expect(reconciled.graphPanes[0]?.traceColors?.[0]?.automaticColorHex)
       .toBe("#d9822b");
+
+    const comparison = reconcileWorkbenchGraphColorsV3(reconciled, [
+      { scenarioId: "scenario/a" },
+      { scenarioId: "scenario/b" },
+    ]);
+    expect(comparison.graphPanes[0]?.traceColors?.map(
+      ({ automaticColorHex }) => automaticColorHex,
+    )).toEqual(["#d9822b", "#2f9e7d"]);
   });
 
   it("lets an exact Scenario/item custom color win over its frozen automatic color", () => {

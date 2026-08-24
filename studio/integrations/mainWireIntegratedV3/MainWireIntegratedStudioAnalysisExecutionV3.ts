@@ -17,6 +17,24 @@ import {
 const MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   partitions: Object.freeze([
+    // A one-worker device must finish the short high-volume branch before the
+    // long low-volume sweep so the first low-volume point can already form a
+    // bilateral PV/Starling preview. The final merged locus remains sorted and
+    // therefore independent of this time-to-first-result scheduling order.
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+    MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+  ]),
+  merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
+});
+
+const MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3:
+StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
+  partitions: Object.freeze([
+    // The coverage-first low limb now reaches its low-flow boundary with fewer
+    // retained points than the broad high extension. On a one-slot device,
+    // finish low first; the next high point then admits the bilateral preview
+    // and PVA without waiting for the entire high frontier. Two or more leases
+    // still run both chains in parallel.
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   ]),
@@ -25,10 +43,12 @@ StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
 
 export const resolveMainWireIntegratedStudioAnalysisExecutionPlanV3:
 StudioSimulationAnalysisExecutionPlanResolverV2 = (analysisId) =>
-  analysisId === MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID ||
-  analysisId === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+  analysisId === MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
     ? MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3
-    : null;
+    : analysisId ===
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
+      ? MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3
+      : null;
 
 /**
  * Combines independently progressing preload directions without inventing
@@ -48,19 +68,53 @@ export function mergeMainWireIntegratedStudioStructuralAnalysesV3(
   }
   const payloads = analyses.map(({ payload }, index) =>
     requiredRecordV3(payload, `analysis[${index}].payload`));
+  const progressedPayloads = payloads.filter((payload, index) =>
+    structuralPayloadHasSettledLocusV3(payload, index));
+  const mergeablePayloads = progressedPayloads.length === 0
+    ? payloads
+    : progressedPayloads;
   assertCanonicalEqualV3(
-    payloads.map((payload) => withoutKeysV3(payload, ["left", "right"])),
+    mergeablePayloads.map((payload) =>
+      withoutKeysV3(payload, ["left", "right"])),
     "bidirectional analysis envelope payloads",
   );
   const payload = Object.freeze({
-    ...payloads[0],
-    right: mergeStructuralSideV3(payloads, "right"),
-    left: mergeStructuralSideV3(payloads, "left"),
+    ...mergeablePayloads[0],
+    right: mergeStructuralSideV3(mergeablePayloads, "right"),
+    left: mergeStructuralSideV3(mergeablePayloads, "left"),
   });
   return validateStudioSimulationAnalysisV2({
     ...first,
     payload,
   }, "$.bidirectionalStarlingAnalysis");
+}
+
+function structuralPayloadHasSettledLocusV3(
+  payload: Readonly<Record<string, unknown>>,
+  index: number,
+): boolean {
+  const settledBySide = (["right", "left"] as const).map((side) => {
+    const orientation = requiredRecordV3(
+      payload[side],
+      `analysis[${index}].payload.${side}`,
+    );
+    const locus = requiredRecordV3(
+      orientation.starlingLocus,
+      `analysis[${index}].payload.${side}.starlingLocus`,
+    );
+    if (locus.status === "requires-protocol") return false;
+    if (
+      locus.status !== "responsive-fixed-tbv-preview" &&
+      locus.status !== "measured-fixed-tbv-protocol"
+    ) {
+      throw new Error(`bidirectional ${side} result has an unknown locus`);
+    }
+    return true;
+  });
+  if (settledBySide[0] !== settledBySide[1]) {
+    throw new Error("bidirectional payload mixes structural locus stages");
+  }
+  return settledBySide[0]!;
 }
 
 function mergeStructuralSideV3(
@@ -69,11 +123,33 @@ function mergeStructuralSideV3(
 ): Readonly<Record<string, unknown>> {
   const sides = payloads.map((payload, index) =>
     requiredRecordV3(payload[side], `analysis[${index}].payload.${side}`));
+  const settledSides = sides.filter((candidate, index) => {
+    const locus = requiredRecordV3(
+      candidate.starlingLocus,
+      `analysis[${index}].payload.${side}.starlingLocus`,
+    );
+    if (locus.status === "requires-protocol") return false;
+    if (
+      locus.status !== "responsive-fixed-tbv-preview" &&
+      locus.status !== "measured-fixed-tbv-protocol"
+    ) {
+      throw new Error(`bidirectional ${side} result has an unknown locus`);
+    }
+    return true;
+  });
+  if (settledSides.length === 0) {
+    assertCanonicalEqualV3(
+      sides,
+      `bidirectional ${side} initial structural payloads`,
+    );
+    return sides[0]!;
+  }
   assertCanonicalEqualV3(
-    sides.map((candidate) => withoutKeysV3(candidate, ["starlingLocus"])),
+    settledSides.map((candidate) =>
+      withoutKeysV3(candidate, ["starlingLocus"])),
     `bidirectional ${side} structural payloads`,
   );
-  const loci = sides.map((candidate, index) => {
+  const loci = settledSides.map((candidate, index) => {
     const locus = requiredRecordV3(
       candidate.starlingLocus,
       `analysis[${index}].payload.${side}.starlingLocus`,
@@ -133,14 +209,14 @@ function mergeStructuralSideV3(
   const totalPointCount = allPartitionsComplete
     ? points.length
     : Math.max(
-        points.length,
+        points.length + 1,
         ...loci.map((locus) => requiredSafeIntegerFieldV3(
           locus,
           "totalPointCount",
         )),
       );
   return Object.freeze({
-    ...sides[0],
+    ...settledSides[0],
     starlingLocus: Object.freeze({
       ...loci[0],
       completedPointCount: points.length,

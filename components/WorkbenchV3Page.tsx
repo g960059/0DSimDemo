@@ -141,6 +141,7 @@ import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
+  StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
   StudioSimulationWorkerScenarioCapturesV2,
@@ -167,6 +168,7 @@ import {
   SweepingWaveformCanvasV3,
   WorkbenchScenarioPresentationSampleStoreV3,
   WorkbenchBackgroundWorkerPoolV3,
+  WorkbenchBackgroundJobCancelledErrorV3,
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   resolveWorkbenchGraphTraceStyleV3,
@@ -189,14 +191,15 @@ import {
   type WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
 import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+  buildMainWireIntegratedModelPeriodicPvaV1,
+  type MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import {
-  buildMainWireIntegratedModelRapidPressureVolumeRelationV3,
-  type MainWireIntegratedModelRapidPressureVolumeRelationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelRapidPressureVolumeRelationV3";
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
@@ -515,6 +518,7 @@ const WorkbenchV3Session = ({
   >([]);
   const [analysisCapturePending, setAnalysisCapturePending] =
     React.useState(false);
+  const deferredSaveAfterAnalysisCaptureRef = React.useRef(false);
   const [analysisErrorByKey, setAnalysisErrorByKey] = React.useState<
     Readonly<Record<string, string>>
   >({});
@@ -553,6 +557,11 @@ const WorkbenchV3Session = ({
     "control" | "analysis" | "scenario" | "save" | "snapshot" | null
   >(null);
   const analysisCaptureTokenRef = React.useRef<symbol | null>(null);
+  const analysisCaptureReleaseRef = React.useRef<Readonly<{
+    token: symbol;
+    promise: Promise<void>;
+    resolve: () => void;
+  }> | null>(null);
   const surfaceRef = React.useRef<ExperimentSurfaceV2 | null>(null);
   const briefingRef = React.useRef<ExperimentPlacementBriefingV2 | null>(null);
   const briefingMutationRevisionRef = React.useRef(0);
@@ -725,6 +734,8 @@ const WorkbenchV3Session = ({
       runtimeRef.current = null;
       exclusiveOperationRef.current = null;
       analysisCaptureTokenRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       setAnalysisCapturePending(false);
       setStatus({
         kind: "error",
@@ -940,6 +951,8 @@ const WorkbenchV3Session = ({
       setAnalysisErrorByKey({});
       exclusiveOperationRef.current = null;
       analysisCaptureTokenRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       presentationSampleStore.reset();
 
       const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
@@ -1094,6 +1107,8 @@ const WorkbenchV3Session = ({
     return () => {
       cancelled = true;
       runtimeRef.current = null;
+      analysisCaptureReleaseRef.current?.resolve();
+      analysisCaptureReleaseRef.current = null;
       void runtime?.dispose();
     };
   }, [
@@ -1367,18 +1382,35 @@ const WorkbenchV3Session = ({
       value: number,
     ): Promise<boolean> => {
       const runtime = runtimeRef.current;
-      const frame = latestFrameRef.current;
+      const operation = exclusiveOperationRef.current;
       if (
         runtime === null ||
-        frame === null ||
+        latestFrameRef.current === null ||
         scenarioIds.length === 0 ||
-        exclusiveOperationRef.current !== null
+        (operation !== null && operation !== "analysis")
       )
         return false;
-      exclusiveOperationRef.current = "control";
       setPendingControlId(controlId);
       setControlError(null);
+      let ownsControlOperation = false;
       try {
+        if (operation === "analysis") {
+          // A user edit outranks an automatically requested structural
+          // analysis. Let its exact source capture release the live lane, then
+          // cancel any detached work before applying the new input epoch.
+          runtime.cancelAnalysisJobs();
+          await analysisCaptureReleaseRef.current?.promise;
+          runtime.cancelAnalysisJobs();
+        }
+        if (
+          runtimeRef.current !== runtime ||
+          latestFrameRef.current === null ||
+          exclusiveOperationRef.current !== null
+        ) {
+          return false;
+        }
+        exclusiveOperationRef.current = "control";
+        ownsControlOperation = true;
         await runtime.pauseAll();
         const uniqueScenarioIds = [...new Set(scenarioIds)];
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
@@ -1481,12 +1513,22 @@ const WorkbenchV3Session = ({
       } catch (error) {
         setControlError(error instanceof Error ? error.message : String(error));
         const latest = latestFrameRef.current;
-        if (playingIntentRef.current && !document.hidden && latest !== null) {
+        if (
+          ownsControlOperation &&
+          playingIntentRef.current &&
+          !document.hidden &&
+          latest !== null
+        ) {
           runtime.playAll();
         }
         return false;
       } finally {
-        exclusiveOperationRef.current = null;
+        if (
+          ownsControlOperation &&
+          exclusiveOperationRef.current === "control"
+        ) {
+          exclusiveOperationRef.current = null;
+        }
         setPendingControlId(null);
       }
     },
@@ -1505,10 +1547,24 @@ const WorkbenchV3Session = ({
       const availableScenarioIds = new Set(
         scenarioDescriptorsRef.current.map(({ scenarioId }) => scenarioId),
       );
-      const scenarioIds = Object.freeze(
+      const requestedAvailableScenarioIds = Object.freeze(
         [...new Set(requestedScenarioIds)].filter((scenarioId) =>
           availableScenarioIds.has(scenarioId),
         ),
+      );
+      const scenarioIds = Object.freeze(
+        [
+          ...new Set(
+            requestedAvailableScenarioIds.map(
+              (scenarioId) =>
+                equivalentAnalysisSourceByScenarioRef.current.get(scenarioId) ??
+                scenarioId,
+            ),
+          ),
+        ].filter((scenarioId) => {
+          const key = workbenchAnalysisHistoryKeyV3(scenarioId, analysisId);
+          return !pendingAnalysisKeys.includes(key);
+        }),
       );
       if (
         runtime === null ||
@@ -1517,7 +1573,16 @@ const WorkbenchV3Session = ({
       )
         return false;
       const captureToken = Symbol("structural-analysis-capture");
+      let resolveCaptureRelease!: () => void;
+      const captureReleasePromise = new Promise<void>((resolve) => {
+        resolveCaptureRelease = resolve;
+      });
       analysisCaptureTokenRef.current = captureToken;
+      analysisCaptureReleaseRef.current = Object.freeze({
+        token: captureToken,
+        promise: captureReleasePromise,
+        resolve: resolveCaptureRelease,
+      });
       exclusiveOperationRef.current = "analysis";
       setAnalysisCapturePending(true);
       const pendingKeys = Object.freeze(
@@ -1534,26 +1599,27 @@ const WorkbenchV3Session = ({
       );
       void (async () => {
         let releasedLaneCount = 0;
+        const finishCaptureLock = () => {
+          if (analysisCaptureTokenRef.current !== captureToken) return;
+          analysisCaptureTokenRef.current = null;
+          if (exclusiveOperationRef.current === "analysis") {
+            exclusiveOperationRef.current = null;
+          }
+          const release = analysisCaptureReleaseRef.current;
+          if (release?.token === captureToken) {
+            analysisCaptureReleaseRef.current = null;
+            release.resolve();
+          }
+          setAnalysisCapturePending(false);
+        };
         const releaseCaptureLock = () => {
           releasedLaneCount += 1;
           if (
             releasedLaneCount >= scenarioIds.length &&
             analysisCaptureTokenRef.current === captureToken
           ) {
-            analysisCaptureTokenRef.current = null;
-            if (exclusiveOperationRef.current === "analysis") {
-              exclusiveOperationRef.current = null;
-            }
-            setAnalysisCapturePending(false);
+            finishCaptureLock();
           }
-        };
-        const forceReleaseCaptureLock = () => {
-          if (analysisCaptureTokenRef.current !== captureToken) return;
-          analysisCaptureTokenRef.current = null;
-          if (exclusiveOperationRef.current === "analysis") {
-            exclusiveOperationRef.current = null;
-          }
-          setAnalysisCapturePending(false);
         };
         try {
           const acceptedFrames = await Promise.all(
@@ -1597,6 +1663,33 @@ const WorkbenchV3Session = ({
                 });
                 commitAnalysisV3(analysis);
               } catch (error) {
+                if (error instanceof WorkbenchBackgroundJobCancelledErrorV3) {
+                  const cancelledScenarioIds = Object.freeze([
+                    acceptedFrame.scenarioId,
+                    ...[...equivalentAnalysisSourceByScenarioRef.current]
+                      .filter(
+                        ([, sourceScenarioId]) =>
+                          sourceScenarioId === acceptedFrame.scenarioId,
+                      )
+                      .map(([targetScenarioId]) => targetScenarioId),
+                  ]);
+                  const cancelledKeys = cancelledScenarioIds.map((scenarioId) =>
+                    workbenchAnalysisHistoryKeyV3(scenarioId, analysisId),
+                  );
+                  cancelledKeys.forEach((cancelledKey) =>
+                    queuedAnalysisProgressByKeyRef.current.delete(cancelledKey),
+                  );
+                  replaceAnalysisByKeyV3(
+                    withoutRecordKeysV3(
+                      analysisByKeyRef.current,
+                      cancelledKeys,
+                    ),
+                  );
+                  setAnalysisErrorByKey((current) =>
+                    withoutRecordKeysV3(current, cancelledKeys),
+                  );
+                  return;
+                }
                 let currentFrame: StudioSimulationFrameV2 | null = null;
                 try {
                   currentFrame = runtime.latestFrame(acceptedFrame.scenarioId);
@@ -1643,7 +1736,7 @@ const WorkbenchV3Session = ({
               }
             });
           }
-          forceReleaseCaptureLock();
+          finishCaptureLock();
           setPendingAnalysisKeys((current) =>
             Object.freeze(current.filter((key) => !pendingKeySet.has(key))),
           );
@@ -1651,7 +1744,12 @@ const WorkbenchV3Session = ({
       })();
       return true;
     },
-    [commitAnalysisV3, queueAnalysisProgressV3],
+    [
+      commitAnalysisV3,
+      pendingAnalysisKeys,
+      queueAnalysisProgressV3,
+      replaceAnalysisByKeyV3,
+    ],
   );
 
   const adoptScenarioStateV3 = React.useCallback(
@@ -1913,10 +2011,15 @@ const WorkbenchV3Session = ({
       frame === null ||
       surface === null ||
       (remoteContentRepository === null && contentStore === null) ||
-      backgroundWorkerPool === null ||
-      exclusiveOperationRef.current !== null
+      backgroundWorkerPool === null
     )
       return;
+    if (exclusiveOperationRef.current === "analysis") {
+      deferredSaveAfterAnalysisCaptureRef.current = true;
+      setSaveState("saving");
+      return;
+    }
+    if (exclusiveOperationRef.current !== null) return;
     const currentSurface = surfaceRef.current;
     if (currentSurface === null) return;
     const submittedSurface = reconcileWorkbenchSurfaceScenariosV3(
@@ -1930,6 +2033,10 @@ const WorkbenchV3Session = ({
     setSaveState("saving");
     setSaveError(null);
     try {
+      // Persistence is an explicit foreground action. Detached relation
+      // refinement is restartable and must never make Save wait for the long
+      // adaptive sweep to exhaust its Worker partitions.
+      runtime.cancelAnalysisJobs();
       await runtime.pauseAll();
       let captures: StudioSimulationWorkerScenarioCapturesV2;
       try {
@@ -2106,6 +2213,13 @@ const WorkbenchV3Session = ({
     surface,
     t,
   ]);
+
+  React.useEffect(() => {
+    if (analysisCapturePending || !deferredSaveAfterAnalysisCaptureRef.current)
+      return;
+    deferredSaveAfterAnalysisCaptureRef.current = false;
+    void saveExperimentV3();
+  }, [analysisCapturePending, saveExperimentV3]);
 
   const createSnapshotV3 = React.useCallback(
     async (
@@ -2443,6 +2557,78 @@ const WorkbenchV3Session = ({
     scenarioOperation !== null ||
     saveState === "saving" ||
     snapshotState === "creating";
+  const periodicPvaOutputScenarioIds = React.useMemo(() => {
+    const analysisOutputIds = new Set<string>(
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+    );
+    return Object.freeze([
+      ...new Set(
+        outputPanes.flatMap((pane) => {
+          if (
+            !pane.items.some(({ outputId }) => analysisOutputIds.has(outputId))
+          )
+            return [];
+          const scenarioId = resolveWorkbenchOutputPaneScenarioIdV3(
+            pane,
+            activeScenarioId,
+            scenarios,
+          );
+          return scenarioId === null ? [] : [scenarioId];
+        }),
+      ),
+    ]);
+  }, [activeScenarioId, outputPanes, scenarios]);
+  const missingPeriodicPvaOutputScenarioIds =
+    periodicPvaOutputScenarioIds.filter((scenarioId) => {
+      const key = workbenchAnalysisHistoryKeyV3(
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      );
+      return (
+        analysisByKey[key] === undefined &&
+        analysisErrorByKey[key] === undefined &&
+        !pendingAnalysisKeys.includes(key)
+      );
+    });
+  const periodicPvaOutputRequestKey = structuralReturnComparisonRequestKeyV3(
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    missingPeriodicPvaOutputScenarioIds,
+  );
+  const lastPeriodicPvaOutputRequestKeyRef = React.useRef<string | null>(null);
+  const [periodicPvaOutputRetryNonce, setPeriodicPvaOutputRetryNonce] =
+    React.useState(0);
+  React.useEffect(() => {
+    if (periodicPvaOutputRequestKey === null) {
+      lastPeriodicPvaOutputRequestKeyRef.current = null;
+      return;
+    }
+    if (
+      (latestFrame?.acceptedRevision ?? 0) <= 0 ||
+      runtimeOperationPending ||
+      lastPeriodicPvaOutputRequestKeyRef.current === periodicPvaOutputRequestKey
+    )
+      return;
+    if (
+      requestAnalysis(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        missingPeriodicPvaOutputScenarioIds,
+      )
+    ) {
+      lastPeriodicPvaOutputRequestKeyRef.current = periodicPvaOutputRequestKey;
+      return;
+    }
+    const retryTimer = window.setTimeout(() => {
+      setPeriodicPvaOutputRetryNonce((nonce) => nonce + 1);
+    }, 250);
+    return () => window.clearTimeout(retryTimer);
+  }, [
+    latestFrame?.acceptedRevision,
+    missingPeriodicPvaOutputScenarioIds,
+    periodicPvaOutputRequestKey,
+    periodicPvaOutputRetryNonce,
+    requestAnalysis,
+    runtimeOperationPending,
+  ]);
   const pendingAnalysisScenarioIds = new Set(
     pendingAnalysisKeys.flatMap((key) => {
       const scenarioId = workbenchScenarioIdFromAnalysisKeyV3(key);
@@ -2640,6 +2826,20 @@ const WorkbenchV3Session = ({
         ? null
         : (runtimeRef.current?.maybeLatestFrame(scenarioId) ??
           (latestFrame?.scenarioId === scenarioId ? latestFrame : null));
+    const periodicPvaAnalysisKey =
+      scenarioId === null
+        ? null
+        : workbenchAnalysisHistoryKeyV3(
+            scenarioId,
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+          );
+    const periodicPva =
+      periodicPvaAnalysisKey === null
+        ? undefined
+        : periodicPvaFromAnalysisV3(
+            analysisByKey[periodicPvaAnalysisKey],
+            "left",
+          );
     return (
       <OutputPaneBodyV3
         contract={contract}
@@ -2648,6 +2848,12 @@ const WorkbenchV3Session = ({
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onOpenBindingSettings={() => openPaneSettings(pane.paneId, "binding")}
         pane={pane}
+        periodicPva={periodicPva}
+        periodicPvaAnalysisError={
+          periodicPvaAnalysisKey === null
+            ? undefined
+            : analysisErrorByKey[periodicPvaAnalysisKey]
+        }
         scrollMode={scrollMode}
         showBinding={scenarios.length > 1}
         scenarioLabel={
@@ -2672,9 +2878,7 @@ const WorkbenchV3Session = ({
         contract={contract}
         controlError={controlError}
         controlValuesByScenario={controlValuesByScenarioRef.current}
-        disabledByAnalysis={
-          analysisCapturePending || scenarioOperation !== null
-        }
+        disabledByAnalysis={scenarioOperation !== null}
         locale={resolvedLocale}
         onAddItem={() => openPaneSettings(pane.paneId, "items", "add")}
         onApplyControl={applyControl}
@@ -2694,7 +2898,10 @@ const WorkbenchV3Session = ({
             (graph) =>
               graph.renderer === "structural-return" &&
               pendingAnalysisKeys.includes(
-                workbenchAnalysisHistoryKeyV3(scenarioId, graph.analysisId),
+                workbenchAnalysisHistoryKeyV3(
+                  scenarioId,
+                  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+                ),
               ),
           )
             ? [scenarioId]
@@ -3292,20 +3499,17 @@ const WorkbenchV3Session = ({
             emptyCatalog: t("workbench.editor.emptyCatalog"),
             editItem: t("workbench.editor.editItem"),
             generalSection: t("workbench.editor.settingsSections.general"),
-            historyDepth: t("workbench.editor.historyDepth"),
-            historyDepthHint: t("workbench.editor.historyDepthHint"),
-            formalPressureVolumeAnalysis: t(
-              "workbench.editor.formalPressureVolumeAnalysis",
+            pressureEnvelopeOverlay: t(
+              "workbench.editor.pressureEnvelopeOverlay",
             ),
-            formalPressureVolumeAnalysisHint: t(
-              "workbench.editor.formalPressureVolumeAnalysisHint",
+            pressureEnvelopeOverlayHint: t(
+              "workbench.editor.pressureEnvelopeOverlayHint",
             ),
             fixedBinding: t("workbench.editor.fixedBinding"),
             fixedBindingHint: t("workbench.editor.fixedBindingHint"),
             outputFixedBindingHint: t(
               "workbench.editor.outputFixedBindingHint",
             ),
-            fixedScenarioBinding: t("workbench.editor.fixedScenarioBinding"),
             label: t("workbench.editor.label"),
             itemsSection: t("workbench.editor.items"),
             moveDown: t("workbench.editor.moveDown"),
@@ -3322,9 +3526,6 @@ const WorkbenchV3Session = ({
             seriesCatalog: t("workbench.editor.series"),
             scenarioColors: t("workbench.editor.scenarioColors"),
             scenarioColorsHint: t("workbench.editor.scenarioColorsHint"),
-            scenarioScope: t("workbench.editor.scenarioScope"),
-            visibleScenarioScope: t("workbench.editor.visibleScenarioScope"),
-            fixedScenarioScope: t("workbench.editor.fixedScenarioScope"),
             traceVisibility: t("workbench.editor.traceVisibility"),
             traceVisibilityHint: t("workbench.editor.traceVisibilityHint"),
             resetColor: t("workbench.editor.resetColor"),
@@ -3954,6 +4155,8 @@ function GraphPaneBodyV3({
     visibleScenarioIds,
   );
   if (graph.renderer === "structural-return") {
+    const structuralAnalysisId =
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
     const pending = new Set(pendingAnalysisKeys);
     const traces = Object.freeze(
       scenarios.flatMap((scenario, scenarioIndex) => {
@@ -3964,7 +4167,7 @@ function GraphPaneBodyV3({
           return [];
         const key = workbenchAnalysisHistoryKeyV3(
           scenario.scenarioId,
-          graph.analysisId,
+          structuralAnalysisId,
         );
         const traceStyle = resolveWorkbenchGraphTraceStyleV3({
           pane,
@@ -3999,6 +4202,7 @@ function GraphPaneBodyV3({
     return (
       <StructuralReturnGraphPaneV3
         acceptedStepAvailable={(frame?.acceptedRevision ?? 0) > 0}
+        analysisId={structuralAnalysisId}
         graph={graph}
         structuralSide={
           pane.structuralSide ?? (graph.side === "left" ? "left" : "right")
@@ -4101,11 +4305,12 @@ function SampledGraphPaneBodyV3({
   const authoredScenarioCount = scenarios.length;
   const cyclePhaseOutputId = workbenchModelCyclePhaseOutputIdV3(contract);
   const pendingAnalysisSet = new Set(pendingAnalysisKeys);
+  // Workbench exposes one physiological PV relation owner. Legacy authored
+  // `responsive-preview` values remain readable in portable content, but no
+  // longer select the retired multi-load support envelope.
   const pressureVolumeAnalysisId =
-    pane.pressureVolumeAnalysisMode === "formal-periodic"
-      ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-      : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID;
-  const rapidRelationScenarioIds =
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
+  const pvaAnalysisScenarioIds =
     graph.renderer === "pressure-volume" &&
     displayedSeries.some(
       ({ seriesId }) => seriesId === "LV" || seriesId === "RV",
@@ -4114,7 +4319,7 @@ function SampledGraphPaneBodyV3({
           .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
           .map(({ scenarioId }) => scenarioId)
       : [];
-  const missingRapidRelationScenarioIds = rapidRelationScenarioIds.filter(
+  const missingPvaAnalysisScenarioIds = pvaAnalysisScenarioIds.filter(
     (scenarioId) => {
       const key = workbenchAnalysisHistoryKeyV3(
         scenarioId,
@@ -4127,39 +4332,36 @@ function SampledGraphPaneBodyV3({
       );
     },
   );
-  const rapidRelationRequestKey = JSON.stringify([
+  const pvaAnalysisRequestKey = JSON.stringify([
     pressureVolumeAnalysisId,
-    ...missingRapidRelationScenarioIds,
+    ...missingPvaAnalysisScenarioIds,
   ]);
-  const lastRapidRelationRequestKeyRef = React.useRef<string | null>(null);
+  const lastPvaAnalysisRequestKeyRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (missingRapidRelationScenarioIds.length === 0) {
-      lastRapidRelationRequestKeyRef.current = null;
+    if (missingPvaAnalysisScenarioIds.length === 0) {
+      lastPvaAnalysisRequestKeyRef.current = null;
       return;
     }
     if (
       graph.renderer !== "pressure-volume" ||
       (frame?.acceptedRevision ?? 0) <= 0 ||
       operationPending ||
-      lastRapidRelationRequestKeyRef.current === rapidRelationRequestKey
+      lastPvaAnalysisRequestKeyRef.current === pvaAnalysisRequestKey
     )
       return;
     if (
-      onRequestAnalysis(
-        pressureVolumeAnalysisId,
-        missingRapidRelationScenarioIds,
-      )
+      onRequestAnalysis(pressureVolumeAnalysisId, missingPvaAnalysisScenarioIds)
     ) {
-      lastRapidRelationRequestKeyRef.current = rapidRelationRequestKey;
+      lastPvaAnalysisRequestKeyRef.current = pvaAnalysisRequestKey;
     }
   }, [
     frame?.acceptedRevision,
     graph.renderer,
-    missingRapidRelationScenarioIds,
+    missingPvaAnalysisScenarioIds,
     onRequestAnalysis,
     operationPending,
     pressureVolumeAnalysisId,
-    rapidRelationRequestKey,
+    pvaAnalysisRequestKey,
   ]);
   if (graph.renderer === "pressure-volume") {
     const bindings = displayedSeries.flatMap((series) => {
@@ -4188,27 +4390,12 @@ function SampledGraphPaneBodyV3({
             pressureVolumeAnalysisId,
           );
           const relationSide = pressureVolumeRelationSideV3(binding.seriesId);
-          const rapidPressureVolumeRelation =
+          const periodicPva =
             relationSide === null
               ? undefined
-              : rapidPressureVolumeRelationFromAnalysisV3(
+              : periodicPvaFromAnalysisV3(
                   analysisByKey[analysisKey],
                   relationSide,
-                );
-          const rapidPressureVolumeRelationHistory =
-            relationSide === null
-              ? Object.freeze([])
-              : Object.freeze(
-                  workbenchBoundedGraphHistoryV3(
-                    analysisHistoryByKey[analysisKey] ?? [],
-                    pane.historyDepth ?? 1,
-                  ).flatMap((analysis) => {
-                    const relation = rapidPressureVolumeRelationFromAnalysisV3(
-                      analysis,
-                      relationSide,
-                    );
-                    return relation === undefined ? [] : [relation];
-                  }),
                 );
           const style = resolveWorkbenchGraphTraceStyleV3({
             pane,
@@ -4241,12 +4428,13 @@ function SampledGraphPaneBodyV3({
               chamberId: binding.seriesId,
               chamberLabel: series.label,
               chamberColor: style.color,
-              ...(rapidPressureVolumeRelation === undefined
+              ...(periodicPva === undefined ? {} : { periodicPva }),
+              ...(analysisErrorByKey[analysisKey] === undefined
                 ? {}
-                : { rapidPressureVolumeRelation }),
-              rapidPressureVolumeRelationHistory,
-              rapidPressureVolumeRelationPending:
-                pendingAnalysisSet.has(analysisKey),
+                : {
+                    periodicPvaAnalysisError: analysisErrorByKey[analysisKey],
+                  }),
+              periodicPvaAnalysisPending: pendingAnalysisSet.has(analysisKey),
             },
           ];
         });
@@ -4258,8 +4446,8 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
-          analysisMode={pane.pressureVolumeAnalysisMode ?? "responsive-preview"}
           traces={traces}
+          showPressureEnvelope={pane.showPressureEnvelope}
         />
       </ExperimentGraphPresentationV3>
     );
@@ -4359,42 +4547,37 @@ function pressureVolumeRelationSideV3(
   return null;
 }
 
-const RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3 = new WeakMap<
+const PERIODIC_PVA_CACHE_V3 = new WeakMap<
   StudioSimulationAnalysisV2,
-  Map<
-    "left" | "right",
-    MainWireIntegratedModelRapidPressureVolumeRelationV3 | null
-  >
+  Map<"left" | "right", MainWireIntegratedModelPeriodicPvaV1 | null>
 >();
 
-function rapidPressureVolumeRelationFromAnalysisV3(
+function periodicPvaFromAnalysisV3(
   analysis: StudioSimulationAnalysisV2 | undefined,
   side: "left" | "right",
-): MainWireIntegratedModelRapidPressureVolumeRelationV3 | undefined {
+): MainWireIntegratedModelPeriodicPvaV1 | undefined {
   if (analysis === undefined) return undefined;
-  const cached =
-    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis)?.get(side);
+  const cached = PERIODIC_PVA_CACHE_V3.get(analysis)?.get(side);
   if (cached !== undefined) return cached ?? undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(
     analysis.payload,
     side,
   );
-  let relation: MainWireIntegratedModelRapidPressureVolumeRelationV3 | null =
-    null;
+  let pva: MainWireIntegratedModelPeriodicPvaV1 | null = null;
   try {
     if (orientation !== null) {
-      relation = buildMainWireIntegratedModelRapidPressureVolumeRelationV3(
+      pva = buildMainWireIntegratedModelPeriodicPvaV1(
         orientation.starlingLocus,
+        side === "left" ? "LV" : "RV",
       );
     }
   } catch {
-    relation = null;
+    pva = null;
   }
-  const analysisCache =
-    RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.get(analysis) ?? new Map();
-  analysisCache.set(side, relation);
-  RAPID_PRESSURE_VOLUME_RELATION_CACHE_V3.set(analysis, analysisCache);
-  return relation ?? undefined;
+  const analysisCache = PERIODIC_PVA_CACHE_V3.get(analysis) ?? new Map();
+  analysisCache.set(side, pva);
+  PERIODIC_PVA_CACHE_V3.set(analysis, analysisCache);
+  return pva ?? undefined;
 }
 
 type StructuralReturnScenarioTraceV3 = Readonly<{
@@ -4409,6 +4592,7 @@ type StructuralReturnScenarioTraceV3 = Readonly<{
 
 function StructuralReturnGraphPaneV3({
   acceptedStepAvailable,
+  analysisId,
   graph,
   onRequestAnalysis,
   operationPending,
@@ -4416,6 +4600,7 @@ function StructuralReturnGraphPaneV3({
   traces,
 }: Readonly<{
   acceptedStepAvailable: boolean;
+  analysisId: string;
   graph: StructuralReturnGraphDefinitionV2;
   onRequestAnalysis: (
     analysisId: string,
@@ -4427,6 +4612,12 @@ function StructuralReturnGraphPaneV3({
 }>) {
   const { t } = useTranslation();
   const lastAutoRequestedKeyRef = React.useRef<string | null>(null);
+  const retainedOrientationByScenarioRef = React.useRef(
+    new Map<
+      string,
+      NonNullable<ReturnType<typeof structuralReturnOrientationFromPayloadV3>>
+    >(),
+  );
   const missingScenarioIds = React.useMemo(
     () =>
       Object.freeze(
@@ -4440,7 +4631,7 @@ function StructuralReturnGraphPaneV3({
     [traces],
   );
   const currentRequestKey = structuralReturnComparisonRequestKeyV3(
-    graph.analysisId,
+    analysisId,
     missingScenarioIds,
   );
   React.useEffect(() => {
@@ -4455,18 +4646,36 @@ function StructuralReturnGraphPaneV3({
         operationPending,
       })
     ) {
-      if (onRequestAnalysis(graph.analysisId, missingScenarioIds)) {
+      if (onRequestAnalysis(analysisId, missingScenarioIds)) {
         lastAutoRequestedKeyRef.current = currentRequestKey;
       }
     }
   }, [
     acceptedStepAvailable,
     currentRequestKey,
-    graph.analysisId,
+    analysisId,
     missingScenarioIds,
     onRequestAnalysis,
     operationPending,
   ]);
+  React.useEffect(() => {
+    const retained = retainedOrientationByScenarioRef.current;
+    const activeKeys = new Set(
+      traces.map(({ scenarioId }) => `${structuralSide}:${scenarioId}`),
+    );
+    for (const key of retained.keys()) {
+      if (!activeKeys.has(key)) retained.delete(key);
+    }
+    for (const trace of traces) {
+      const orientation = structuralReturnOrientationFromPayloadV3(
+        trace.analysis?.payload,
+        structuralSide,
+      );
+      if (orientation !== null) {
+        retained.set(`${structuralSide}:${trace.scenarioId}`, orientation);
+      }
+    }
+  }, [structuralSide, traces]);
   const comparisonTraces = React.useMemo(
     () =>
       Object.freeze(
@@ -4484,11 +4693,22 @@ function StructuralReturnGraphPaneV3({
               return candidate === null ? [] : [candidate];
             }),
           );
-          const fallbackOrientation =
+          const retainedOrientation =
             trace.pending && currentOrientation === null
+              ? (retainedOrientationByScenarioRef.current.get(
+                  `${structuralSide}:${trace.scenarioId}`,
+                ) ?? null)
+              : null;
+          const historyFallbackOrientation =
+            trace.pending &&
+            currentOrientation === null &&
+            retainedOrientation === null
               ? (historyOrientations.at(-1) ?? null)
               : null;
-          const orientation = currentOrientation ?? fallbackOrientation;
+          const orientation =
+            currentOrientation ??
+            retainedOrientation ??
+            historyFallbackOrientation;
           if (orientation === null) return [];
           return [
             Object.freeze({
@@ -4496,10 +4716,10 @@ function StructuralReturnGraphPaneV3({
               scenarioLabel: trace.scenarioLabel,
               color: trace.color,
               orientation,
-              orientationAlpha: fallbackOrientation === null ? 1 : 0.34,
+              orientationAlpha: historyFallbackOrientation === null ? 1 : 0.34,
               pending: trace.pending,
               historyOrientations:
-                fallbackOrientation === null
+                historyFallbackOrientation === null
                   ? historyOrientations
                   : Object.freeze(historyOrientations.slice(0, -1)),
             }),
@@ -4681,9 +4901,9 @@ export function workbenchStructuralAnalysisCompleteV3(
     if (orientation === null) return false;
     const locus = orientation.starlingLocus;
     return (
-      locus.status === "measured-fixed-tbv-protocol" ||
-      (locus.status === "responsive-fixed-tbv-preview" &&
-        locus.completedPointCount === locus.totalPointCount)
+      (locus.status === "measured-fixed-tbv-protocol" ||
+        locus.status === "responsive-fixed-tbv-preview") &&
+      locus.completedPointCount === locus.totalPointCount
     );
   });
 }
@@ -4709,12 +4929,12 @@ export function workbenchStructuralHistoryAnalysisIdsV3(
       ({ graphId }) => graphId === pane.graphId,
     );
     if (graph?.renderer === "structural-return") {
-      analysisIds.add(graph.analysisId);
+      analysisIds.add(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      );
     } else if (graph?.renderer === "pressure-volume") {
       analysisIds.add(
-        pane.pressureVolumeAnalysisMode === "formal-periodic"
-          ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-          : MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
       );
     }
   }
@@ -4883,6 +5103,79 @@ function resolveWorkbenchPaneItemLabelV3(
   });
 }
 
+const WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+);
+
+export function workbenchPeriodicPvaOutputValueV3(
+  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  outputId: string,
+): StudioSimulationOutputValueV2 | undefined {
+  const projection =
+    periodicPva?.status === "available"
+      ? periodicPva
+      : periodicPva?.status === "collecting"
+        ? periodicPva.preview
+        : null;
+  if (projection === null || projection === undefined) return undefined;
+  let value: number | null;
+  switch (outputId) {
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+      if (projection.potentialEnergy === null) return undefined;
+      value = projection.potentialEnergy.joule * 1e3;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+      if (projection.pva === null) return undefined;
+      value = projection.pva.joule * 1e3;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+      value =
+        projection.estimatedMvo2?.status === "available"
+          ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
+          : null;
+      break;
+    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+      value =
+        projection.estimatedMvo2?.status === "available"
+          ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
+          : null;
+      break;
+    default:
+      return undefined;
+  }
+  return Object.freeze({
+    outputId,
+    value,
+    availability:
+      value === null ? "not-evaluated-at-accepted-state" : "available",
+    quality: value === null ? "not-assessed" : "accepted-derived",
+  });
+}
+
+function periodicPvaOutputNoticeV3(
+  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  analysisError: string | undefined,
+): string | undefined {
+  if (analysisError !== undefined)
+    return `PVA analysis unavailable: ${analysisError}`;
+  if (periodicPva === undefined) return "PVA analysis is waiting to start";
+  if (periodicPva.status === "available") {
+    return periodicPva.edpvr.parameterBoundaryHit
+      ? "EDPVR zero-pressure intercept reached its search boundary; PE/PVA extrapolation is limited"
+      : undefined;
+  }
+  if (periodicPva.status === "collecting") {
+    if (periodicPva.preview?.stage === "pva") {
+      return `Provisional PVA from ${periodicPva.preview.pointCount} settled points; refining to at least ${periodicPva.progress.totalPointCount}`;
+    }
+    if (periodicPva.preview?.stage === "relations") {
+      return `Provisional ESPVR / EDPVR from ${periodicPva.preview.pointCount} settled points`;
+    }
+    return `PVA analysis ${periodicPva.progress.completedPointCount} settled points; minimum ${periodicPva.progress.totalPointCount}`;
+  }
+  return `PVA analysis unavailable: ${periodicPva.reason}`;
+}
+
 export function materializeWorkbenchOutputPresentationItemsV3(
   input: Readonly<{
     contract: ModelContractV2;
@@ -4890,6 +5183,8 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     locale: "en" | "ja";
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
+    periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+    periodicPvaAnalysisError?: string;
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
   const outputById = new Map(
@@ -4911,9 +5206,10 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       const definition = outputById.get(outputId);
       return definition === undefined ? [] : [definition];
     });
-    const hasCompleteSummarySelection = summary?.memberOutputIds.every(
-      (outputId) => selectedById.has(outputId),
-    ) ?? false;
+    const hasCompleteSummarySelection =
+      summary?.memberOutputIds.every((outputId) =>
+        selectedById.has(outputId),
+      ) ?? false;
     if (
       summary !== undefined &&
       summaryDefinitions?.length === summary.memberOutputIds.length &&
@@ -4982,7 +5278,17 @@ export function materializeWorkbenchOutputPresentationItemsV3(
 
     const definition = outputById.get(item.outputId);
     if (definition === undefined) continue;
-    const outputValue = input.frame?.outputs[item.outputId];
+    const outputValue =
+      workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId) ??
+      input.frame?.outputs[item.outputId];
+    const pvaNotice = WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1.has(
+      item.outputId,
+    )
+      ? periodicPvaOutputNoticeV3(
+          input.periodicPva,
+          input.periodicPvaAnalysisError,
+        )
+      : undefined;
     result.push({
       itemId: item.outputId,
       label: resolveWorkbenchPaneItemLabelV3({
@@ -4996,9 +5302,11 @@ export function materializeWorkbenchOutputPresentationItemsV3(
       significantDigits: definition.significantDigits,
       availability: outputValue?.availability ?? "unavailable",
       quality: outputValue?.quality ?? "not-assessed",
-      ...(outputValue?.quality === "not-assessed"
-        ? { qualityNotice: input.notAssessedNotice }
-        : {}),
+      ...(pvaNotice !== undefined
+        ? { qualityNotice: pvaNotice }
+        : outputValue?.quality === "not-assessed"
+          ? { qualityNotice: input.notAssessedNotice }
+          : {}),
     });
   }
   return result;
@@ -5011,6 +5319,8 @@ function OutputPaneBodyV3({
   onAddItem,
   onOpenBindingSettings,
   pane,
+  periodicPva,
+  periodicPvaAnalysisError,
   scrollMode = "contained",
   showBinding,
   scenarioLabel,
@@ -5021,6 +5331,8 @@ function OutputPaneBodyV3({
   onAddItem: () => void;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
+  periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+  periodicPvaAnalysisError?: string;
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;
   scenarioLabel: string;
@@ -5040,6 +5352,8 @@ function OutputPaneBodyV3({
     locale,
     notAssessedNotice: t("workbench.live.outputNotAssessed"),
     pane,
+    periodicPva,
+    periodicPvaAnalysisError,
   });
   return (
     <div
@@ -5329,10 +5643,10 @@ function scalarAvailableOutputV3(
     : null;
 }
 
-function withoutRecordKeysV3(
-  record: Readonly<Record<string, string>>,
+function withoutRecordKeysV3<T>(
+  record: Readonly<Record<string, T>>,
   keys: readonly string[],
-): Readonly<Record<string, string>> {
+): Readonly<Record<string, T>> {
   const removed = new Set(keys);
   if (!keys.some((key) => key in record)) return record;
   return Object.freeze(

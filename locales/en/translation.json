@@ -15,8 +15,7 @@
   "nav": {
     "home": "Home",
     "workbench": "Simulations",
-    "articles": "Articles",
-    "pvaEstimate": "Normal-adult PVA reference"
+    "articles": "Articles"
   },
   "siteHeader": {
     "home": "CircleHeart home",
@@ -88,49 +87,6 @@
     "startFirstSimulation": "Start your first simulation",
     "simulationMeta": "{{count}} scenarios · Updated {{date}}",
     "articleFallback": "An article about circulatory physiology"
-  },
-  "pvaEstimate": {
-    "back": "Back to home",
-    "eyebrow": "PRECOMPUTED METHOD-SPECIFIC REFERENCE",
-    "title": "Normal-adult PVA reference",
-    "description": "A precomputed, method-specific PVA reference for the canonical normal-adult condition. It is not derived from the current simulation scenario.",
-    "referenceTitle": "Canonical normal-adult reference",
-    "referenceDescription": "Displays external work previously obtained from accepted periodic PV paths and a PE equivalent defined by phase-wise venous occlusion. Production does not rerun that protocol or integrate a live PV path.",
-    "show": "Show PVA reference",
-    "showAgain": "Show reference again",
-    "idle": "The compact reference remains hidden until you request it.",
-    "resultsTitle": "Canonical normal-adult reference",
-    "method": "Method: {{methodId}}",
-    "ventricle": "{{ventricle}} PVA estimate",
-    "status": {
-      "limited": "Limited estimate",
-      "unavailable": "Unavailable"
-    },
-    "metrics": {
-      "externalWork": "Periodic external work (EW)",
-      "peEquivalent": "PE equivalent",
-      "passiveSubtraction": "Passive-reference subtraction: {{value}} J",
-      "emax": "Emax candidate",
-      "v0": "V0"
-    },
-    "geometryChartLabel": "{{ventricle}} ESPVR candidate and PE-equivalent geometry",
-    "chart": {
-      "geometryNotice": "ESPVR candidate and PE-equivalent geometry; this is not a PV-loop PVA rendering.",
-      "measured": "Measured volume range",
-      "extrapolated": "Extrapolated segment",
-      "outside": "Extrapolated systolic area {{value}}"
-    },
-    "limitations": "Limitations",
-    "limitation": {
-      "systolic-relation-extrapolation": "{{value}}% of the systolic area lies outside the measured volume range.",
-      "protocol-direction-sensitivity": "Occlusion and release slopes differ by about {{value}}%.",
-      "phase-resolution-sensitivity": "The estimate changes by {{value}}% at finer phase resolution.",
-      "fixed-contralateral-passive-reference": "The intrinsic passive reference fixes the contralateral ventricular volume."
-    },
-    "boundaryTitle": "What this value means",
-    "boundaryDescription": "This is a versioned, precomputed method-specific reference. The retained EW values came from accepted PV-path work in the archived research study; production does not recompute them. It is not the current scenario, generic or clinical PVA, a live single-beat output, MVO₂, or oxygen consumption.",
-    "provenance": "Source study: {{studyId}} · immutable tag: {{tag}}",
-    "researchArchive": "View the immutable PR #558–#573 research source on GitHub"
   },
   "publicExperiments": {
     "title": "Public simulations",
@@ -393,18 +349,14 @@
       "buttonValue": "Value",
       "addButtonOption": "Add button",
       "removeButtonOption": "Remove button",
-      "scenarioScope": "Scenario scope",
-      "visibleScenarioScope": "Visible Scenarios",
-      "fixedScenarioScope": "Fixed Scenarios",
       "traceVisibility": "Trace visibility",
-      "traceVisibilityHint": "Choose Scenarios at pane level by default. Hide an exact Scenario/item pair only when needed.",
-      "bindingSection": "Scenario binding",
-      "activeSlotBinding": "Follow Scenario Manager",
+      "traceVisibilityHint": "All visible Scenarios are shown by default. Adjust individual Scenario/item traces only when needed.",
+      "bindingSection": "Scenario",
+      "activeSlotBinding": "Follow selected scenario",
       "activeSlotBindingHint": "Every parameter in this pane controls the Scenario selected in Scenario Manager.",
       "outputActiveSlotBindingHint": "This pane displays the Scenario selected in Scenario Manager.",
-      "fixedBinding": "Fixed Scenarios",
+      "fixedBinding": "Fix Scenario",
       "fixedBindingHint": "Every parameter in this pane applies the same absolute value to the selected Scenarios.",
-      "fixedScenarioBinding": "Fixed Scenario",
       "outputFixedBindingHint": "This pane always displays one selected Scenario.",
       "resetColor": "Use automatic color",
       "addPane": "Add pane",
@@ -429,10 +381,8 @@
       "emptyCatalog": "No registered items are available.",
       "noConfigurableSeries": "This graph owns its structural axes and has no configurable series.",
       "series": "Graph series",
-      "historyDepth": "Previous states",
-      "historyDepthHint": "0–3 completed parameter states",
-      "formalPressureVolumeAnalysis": "Formal ESPVR / EDPVR analysis",
-      "formalPressureVolumeAnalysisHint": "Qualifies full-state period-1 closure at every fixed-TBV load before fitting. Substantially slower.",
+      "pressureEnvelopeOverlay": "Envelope",
+      "pressureEnvelopeOverlayHint": "A reference curve joining the maximum pressure found at each volume. It shows the ventricle's upper pressure capability and is not used to calculate PVA.",
       "windowSec": "Waveform window",
       "windowSecHint": "1–6 seconds in 0.5 second steps",
       "items": "Items",
@@ -725,7 +675,7 @@
       "A 0D lumped-parameter model cannot resolve spatial blood flow, local wall stress, or three-dimensional hemodynamics.",
       "The current exact V3 package is an experimental development default. It does not claim release readiness, simulation readiness, or clinical validation.",
       "Parameters and outputs are approximations and require validation for each intended scientific use.",
-      "PV panes default to a responsive fixed-TBV multi-load PV-loop support-envelope preview, which is not qualified evidence. Their optional formal mode admits only full-state period-1 qualified loads, but remains a numerical analysis rather than independent physiological or clinical validation, PVA, or oxygen-consumption evidence.",
+      "PV panes default to a responsive fixed-TBV multi-load preview. Their optional formal mode admits only full-state period-1 qualified loads and computes a method-specific SW/ESPVR/exponential-EDPVR/PE/PVA decomposition plus an LV literature-coefficient MVO₂ estimate; neither is independent physiological or clinical validation or measured oxygen consumption.",
       "The Guyton / Starling response starts from a locally period-1-settled operating anchor with slow coronary tone frozen. Off-centre adaptive points are preview data; nonconverged or period-2 boundary points are excluded from the connected curve, and the result is not canonical qualified evidence."
     ]
   }

@@ -30,7 +30,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3 =
   "frozen-accepted-step-volume-constrained-structural-orientation-not-simulated-response" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3 =
-  "independent-fixed-tbv-fixture-forks-with-per-point-settlement-and-numerical-qualification" as const;
+  "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement" as const;
 
 export type MainWireIntegratedModelGuytonSideV3 = "right" | "left";
 
@@ -43,6 +43,8 @@ export type MainWireIntegratedModelGuytonPointV3 = Readonly<{
 export type MainWireIntegratedModelPressureVolumeLoopPointV3 = Readonly<{
   volumeMl: number;
   pressureMmHg: number;
+  /** Normalized atrial-capture phase; legacy responsive preview points may omit it. */
+  phase01?: number;
 }>;
 
 export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
@@ -63,15 +65,21 @@ export type MainWireIntegratedModelStarlingPointV3 = Readonly<{
   evidence:
     | "responsive-preview"
     | "responsive-settled-anchor"
-    | "qualified-periodic";
+    | "qualified-periodic"
+    | "fixed-tone-periodic";
   measurementWindowStatus:
     | "complete-beat-converged"
     | "complete-beat-preview"
     | "complete-beat-cap"
     | "period-2-detected"
     | "responsive-period1-settled"
-    | "canonical-period1-qualified";
+    | "canonical-period1-qualified"
+    | "fixed-tone-period1-settled";
   acceptedMeasurementDurationSec: number;
+  /** Exact accepted-step path work from the retained completed beat. */
+  acceptedTransmuralPathWorkMmHgMl?: number;
+  /** Exact duration of the retained completed beat. */
+  acceptedBeatDurationSec?: number;
   /** Last complete analysis beat sampled from the fixed-TBV branch. */
   ventricularPressureVolumeLoop:
     readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];
@@ -118,15 +126,16 @@ export type MainWireIntegratedModelStarlingLocusV3 =
       maximumBeatCount: number;
       completedPointCount: number;
       totalPointCount: number;
-      slowControllerPolicy: "fully-active";
+      slowControllerPolicy:
+        "active-source-period1-then-coronary-tone-frozen";
       convergencePolicy:
-        "canonical-full-accepted-state-period1-closure";
+        "complete-beat-output-period1-closure";
       points: readonly (MainWireIntegratedModelStarlingPointV3 & Readonly<{
         quality: "locally-converged";
         curveEligible: true;
         settled: true;
-        evidence: "qualified-periodic";
-        measurementWindowStatus: "canonical-period1-qualified";
+        evidence: "fixed-tone-periodic";
+        measurementWindowStatus: "fixed-tone-period1-settled";
       }>)[];
     }>;
 
@@ -391,7 +400,7 @@ function buildSideOrientationV3(
       starlingLocus?.status === "responsive-fixed-tbv-preview"
         ? "The operating anchor is locally period-1-settled in the frozen-tone responsive regime; off-centre Starling points remain adaptive preview data rather than canonical settled periodic evidence."
         : starlingLocus?.status === "measured-fixed-tbv-protocol"
-          ? "The formal locus uses independent fixed-TBV branches with active controllers and repeated complete-beat closure at every included point; it is numerical analysis, not physiological or clinical validation."
+          ? "The shared formal locus settles one active-controller source, freezes its coronary tone, and uses repeated complete-beat closure along hot-started TBV branches; it is numerical analysis, not physiological or clinical validation."
           : "A qualified Starling locus requires independent fixed-TBV V3 fixture forks, settlement, and numerical qualification at every point.",
     ]),
   });

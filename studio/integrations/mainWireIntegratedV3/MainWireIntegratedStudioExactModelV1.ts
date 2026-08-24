@@ -72,7 +72,10 @@ import {
   type MainWireIntegratedModelOutputValueV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
-import { MainWireIntegratedModelSessionV3 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
+import {
+  MainWireIntegratedModelSessionV3,
+  type MainWireIntegratedModelObservationV3,
+} from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
   MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
   MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
@@ -534,7 +537,7 @@ const STANDARD_MODEL_METRIC_DEFINITIONS_V1 = Object.freeze(
       unit: definition.unit,
       significantDigits: definition.significantDigits,
       shape: "scalar",
-      scope: "beat",
+      scope: definition.scope ?? "beat",
       dependencies: Object.freeze([...(definition.dependencies ?? [])]),
     }),
   ),
@@ -998,10 +1001,11 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
             >
           >
         | null,
+      sourceObservation?: MainWireIntegratedModelObservationV3,
     ): StudioSimulationAnalysisV2 => {
       const payload = validateAndOwnStudioSimulationPortableJsonV2(
         buildMainWireIntegratedModelGuytonStarlingOrientationV3(
-          starling?.anchorObservation ?? observation,
+          starling?.anchorObservation ?? sourceObservation ?? observation,
           scenario.fixture.hemodynamicResearchInputs,
           starling === null
             ? undefined
@@ -1026,13 +1030,38 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
     // Analysis is a cold boundary. Rehydrate an isolated object Session from
     // the exact accepted checkpoint instead of pulling the live typed
     // authority back onto the presentation hot path.
-    const analysisSource =
+    const exactCheckpoint =
+      await scenario.modelSession.checkpointStandardExact();
+    let analysisSource =
       await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
-        await scenario.modelSession.checkpointStandardExact(),
+        exactCheckpoint,
         scenario.fixture.hemodynamicResearchInputs,
         1,
         scenario.fixture.mechanismResearchInputs,
       );
+    // A restored checkpoint deliberately omits the previous accepted-step
+    // object. Reconstruct one readback on a disposable clone so the analytic
+    // Guyton orientation can appear before the slow settled Starling family,
+    // without advancing the actual analysis source.
+    if (observation.lastAcceptedStep !== null) {
+      onProgress?.(toAnalysis(null));
+    } else {
+      const previewAcceptedTimeSec =
+        analysisSource.currentAcceptedState().acceptedTimeSec;
+      const previewAdvance = analysisSource.advanceToPresentationTime(
+        previewAcceptedTimeSec + MAIN_WIRE_EXECUTION_PLAN_PRESENTATION_DT_SEC_V1,
+      );
+      if (previewAdvance.status === "advanced") {
+        onProgress?.(toAnalysis(null, previewAdvance.observation));
+      }
+      analysisSource =
+        await MainWireIntegratedModelSessionV3.restoreStandardExactCheckpoint(
+          exactCheckpoint,
+          scenario.fixture.hemodynamicResearchInputs,
+          1,
+          scenario.fixture.mechanismResearchInputs,
+        );
+    }
     const starling =
       analysisId ===
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
@@ -1211,6 +1240,52 @@ export class MainWireIntegratedStudioStandardRuntimeHostV1 {
       accepted.acceptedTimeSec !== sourceAccepted.acceptedTimeSec
     ) {
       throw new Error("Standard fixture warm start changed the accepted clock");
+    }
+    if (
+      fixture.hemodynamicResearchInputs.totalBloodVolumeMl !==
+      original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl
+    ) {
+      const preflightExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        scenarioId,
+        bindMainWireIntegratedStudioExecutionPlanV1(),
+      );
+      const preflight =
+        await MainWireIntegratedTypedAuthoritySessionV1.restoreCanonicalBinary(
+          await candidate.checkpointCanonicalBinary(),
+          fixture.hemodynamicResearchInputs,
+          1,
+          fixture.mechanismResearchInputs,
+          preflightExecutionPlan.initialization,
+        );
+      const originBaseTick = executionPlanBaseTickAtTimeV1(
+        preflightExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      );
+      const endTimeSec =
+        accepted.acceptedTimeSec +
+        60 / fixture.hemodynamicResearchInputs.heartRateBpm;
+      for (let ordinal = 1; ; ordinal += 1) {
+        const targetBaseTick = executionPlanPresentationBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          originBaseTick,
+          ordinal,
+        );
+        const targetTimeSec = executionPlanTimeAtBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          targetBaseTick,
+        );
+        if (targetTimeSec > endTimeSec + 1e-12) break;
+        const preflightAdvance =
+          preflight.advanceToPresentationTime(targetTimeSec);
+        if (preflightAdvance.status !== "advanced") {
+          throw new Error(
+            `Standard TBV warm start rejected before commit: ${advanceFailureMessageV1(
+              preflightAdvance,
+            )}`,
+          );
+        }
+      }
     }
     const current = this.#requiredScenario(runtimeSessionId, scenarioId);
     if (current !== original || current.inputEpoch !== expectedInputEpoch) {

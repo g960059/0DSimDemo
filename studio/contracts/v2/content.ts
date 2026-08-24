@@ -122,8 +122,7 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
  * every load and can take substantially longer to complete.
  */
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
-  | "responsive-preview"
-  | "formal-periodic";
+  "responsive-preview" | "formal-periodic";
 
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
@@ -149,8 +148,13 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
    */
   historyDepth?: number;
   /** Required only for `pressure-volume`; every other renderer must omit it. */
-  pressureVolumeAnalysisMode?:
-    ExperimentSurfacePressureVolumeAnalysisModeV2;
+  pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
+  /**
+   * Optional upper projection of the sampled pressure-time-volume family.
+   * The overlay is diagnostic only; the fixed-core common isochrone remains
+   * the nonlinear PE/PVA owner. Required only for `pressure-volume` panes.
+   */
+  showPressureEnvelope?: boolean;
   /**
    * Author-selected circulation side for a structural Guyton/Starling pane.
    * Required for `structural-return`; every other renderer must omit it.

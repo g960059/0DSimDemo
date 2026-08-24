@@ -2,7 +2,7 @@
   "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
   "manifest": {
     "schemaId": "circleheart-studio-exact-model-kernel-v3",
-    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-63",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-64",
     "modelFamilyId": "circleheart.main-wire-integrated-transaction",
     "equations": {
       "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
@@ -2175,18 +2175,6 @@
         ]
       },
       {
-        "outputId": "myocardium.work.external.LV-transmural-pressure-volume-path",
-        "kind": "metric",
-        "unit": "mmHg*mL",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.volume.LV",
-          "hemodynamics.pressure.transmural.LV"
-        ]
-      },
-      {
         "outputId": "myocardium.work.external.RV-transmural-pressure-volume-path",
         "kind": "metric",
         "unit": "mmHg*mL",
@@ -2196,6 +2184,65 @@
         "dependencies": [
           "hemodynamics.volume.RV",
           "hemodynamics.pressure.transmural.RV"
+        ]
+      },
+      {
+        "outputId": "myocardium.work.stroke.LV",
+        "kind": "metric",
+        "unit": "mJ",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.pressure.transmural.LV"
+        ]
+      },
+      {
+        "outputId": "myocardium.energy.potential.LV-pressure-volume-area",
+        "kind": "metric",
+        "unit": "mJ",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "window",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.pressure.transmural.LV"
+        ]
+      },
+      {
+        "outputId": "myocardium.energy.pressure-volume-area.LV",
+        "kind": "metric",
+        "unit": "mJ",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "window",
+        "dependencies": [
+          "myocardium.work.stroke.LV",
+          "myocardium.energy.potential.LV-pressure-volume-area"
+        ]
+      },
+      {
+        "outputId": "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+        "kind": "metric",
+        "unit": "mL O2/beat/100g",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "window",
+        "dependencies": [
+          "myocardium.energy.pressure-volume-area.LV"
+        ]
+      },
+      {
+        "outputId": "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
+        "kind": "metric",
+        "unit": "mL O2/min/100g",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "window",
+        "dependencies": [
+          "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+          "rhythm.heart-rate.instantaneous"
         ]
       },
       {
@@ -2742,8 +2789,12 @@
       "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
       "output/hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
       "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
-      "output/myocardium.work.external.LV-transmural-pressure-volume-path",
       "output/myocardium.work.external.RV-transmural-pressure-volume-path",
+      "output/myocardium.work.stroke.LV",
+      "output/myocardium.energy.potential.LV-pressure-volume-area",
+      "output/myocardium.energy.pressure-volume-area.LV",
+      "output/oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+      "output/oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
       "output/hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
       "output/hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
       "output/hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",

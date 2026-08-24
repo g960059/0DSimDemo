@@ -210,7 +210,16 @@ function localStandardArtifactUrlV1(): string {
   // their HTTPS or loopback HTTP origin.
   return resolved.protocol === "file:"
     ? new URL("__circleheart_local_standard_artifact__.mjs", loopbackBase).href
-    : resolved.href;
+    : localStandardArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localStandardArtifactRevisionUrlV1(resolved: URL): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    standardRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
 }
 
 /** One active-bundle composition shared across StrictMode remounts. */

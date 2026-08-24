@@ -46,6 +46,9 @@ import {
 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const WORKER_RESPONSE_TIMEOUT_MS_V2 = 30_000;
+// A settled analysis may spend longer than an interactive request inside one
+// load point. This is an idle deadline and validated progress refreshes it.
+const WORKER_ANALYSIS_IDLE_TIMEOUT_MS_V2 = 5 * 60_000;
 /**
  * Snapshot admission executes a bounded public-executable protocol for every
  * Scenario. It therefore has a separate, user-configurable deadline instead
@@ -110,6 +113,7 @@ export interface StudioSimulationWorkerTransportV2 {
 
 export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
   responseTimeoutMs?: number;
+  analysisIdleTimeoutMs?: number;
   snapshotAdmissionTimeoutMs?: number;
 }>;
 
@@ -121,6 +125,7 @@ export type StudioSimulationWorkerPresentationTimingV2 = Readonly<{
 type StudioSimulationWorkerClientTestOptionsV2 = Readonly<{
   transport: StudioSimulationWorkerTransportV2;
   responseTimeoutMs?: number;
+  analysisIdleTimeoutMs?: number;
   snapshotAdmissionTimeoutMs?: number;
 }>;
 
@@ -215,13 +220,14 @@ type ExpectedResponseV2 =
       kind: "disposed";
     }>;
 
-type PendingRequestV2 = Readonly<{
+type PendingRequestV2 = {
   resolve(response: StudioSimulationWorkerResponseV2): void;
   reject(error: Error): void;
   timeout: ReturnType<typeof setTimeout>;
+  timeoutMs: number;
   expected: ExpectedResponseV2;
   onAnalysisProgress?: (analysis: StudioSimulationAnalysisV2) => void;
-}>;
+};
 
 export type StudioSimulationWorkerRequestAnalysisClientInputV2 =
   StudioSimulationWorkerRequestAnalysisInputV2 & Readonly<{
@@ -246,6 +252,7 @@ type ScenarioOperationV2 =
 export class StudioSimulationWorkerClientV2 {
   readonly #worker: StudioSimulationWorkerTransportV2;
   readonly #responseTimeoutMs: number;
+  readonly #analysisIdleTimeoutMs: number;
   readonly #snapshotAdmissionTimeoutMs: number;
   readonly #pending = new Map<number, PendingRequestV2>();
   #nextRequestId = 1;
@@ -295,6 +302,18 @@ export class StudioSimulationWorkerClientV2 {
       throw new Error("simulation worker response timeout must be within [1, 300000]");
     }
     this.#responseTimeoutMs = responseTimeoutMs;
+    const analysisIdleTimeoutMs = options.analysisIdleTimeoutMs
+      ?? WORKER_ANALYSIS_IDLE_TIMEOUT_MS_V2;
+    if (
+      !Number.isSafeInteger(analysisIdleTimeoutMs)
+      || analysisIdleTimeoutMs < 1
+      || analysisIdleTimeoutMs > 300_000
+    ) {
+      throw new Error(
+        "simulation worker analysis idle timeout must be within [1, 300000]",
+      );
+    }
+    this.#analysisIdleTimeoutMs = analysisIdleTimeoutMs;
     const snapshotAdmissionTimeoutMs =
       options.snapshotAdmissionTimeoutMs
       ?? WORKER_SNAPSHOT_ADMISSION_TIMEOUT_MS_V2;
@@ -614,7 +633,7 @@ export class StudioSimulationWorkerClientV2 {
         inputEpoch: this.#inputEpoch,
         sourceAcceptedRevision: this.#acceptedRevision,
         sourceAcceptedTimeSec: this.#acceptedTimeSec,
-      }, undefined, onProgress);
+      }, this.#analysisIdleTimeoutMs, onProgress);
       if (response.status !== "ok" || response.kind !== "analysis-result") {
         throw new Error("simulation worker returned another analysis response");
       }
@@ -978,16 +997,12 @@ export class StudioSimulationWorkerClientV2 {
       return Promise.reject(new Error("simulation worker client is terminated"));
     }
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        if (!this.#pending.has(request.requestId)) return;
-        this.#terminateWith(new Error(
-          `simulation worker request ${request.requestId} timed out`,
-        ));
-      }, timeoutMs);
+      const timeout = this.#scheduleRequestTimeout(request.requestId, timeoutMs);
       this.#pending.set(request.requestId, {
         resolve,
         reject,
         timeout,
+        timeoutMs,
         expected,
         onAnalysisProgress,
       });
@@ -1031,6 +1046,7 @@ export class StudioSimulationWorkerClientV2 {
           );
         }
         assertExpectedAnalysisV2(response.analysis, pending.expected);
+        this.#refreshPendingTimeout(response.requestId, pending);
         pending.onAnalysisProgress?.(response.analysis);
       } catch (error) {
         this.#terminateWith(errorAsErrorV2(error));
@@ -1046,6 +1062,29 @@ export class StudioSimulationWorkerClientV2 {
     this.#settlePending(response.requestId);
     pending.resolve(response);
   };
+
+  #scheduleRequestTimeout(
+    requestId: number,
+    timeoutMs: number,
+  ): ReturnType<typeof setTimeout> {
+    return setTimeout(() => {
+      if (!this.#pending.has(requestId)) return;
+      this.#terminateWith(new Error(
+        `simulation worker request ${requestId} timed out`,
+      ));
+    }, timeoutMs);
+  }
+
+  #refreshPendingTimeout(
+    requestId: number,
+    pending: PendingRequestV2,
+  ): void {
+    clearTimeout(pending.timeout);
+    pending.timeout = this.#scheduleRequestTimeout(
+      requestId,
+      pending.timeoutMs,
+    );
+  }
 
   readonly #onWorkerError = (event: ErrorEvent): void => {
     let message = "simulation worker terminated with an error";
