@@ -3461,20 +3461,11 @@ const WorkbenchV3Session = ({
             formalPressureVolumeAnalysisHint: t(
               "workbench.editor.formalPressureVolumeAnalysisHint",
             ),
-            pressureVolumeRelationModel: t(
-              "workbench.editor.pressureVolumeRelationModel",
+            pressureEnvelopeOverlay: t(
+              "workbench.editor.pressureEnvelopeOverlay",
             ),
-            classicalLinearRelation: t(
-              "workbench.editor.classicalLinearRelation",
-            ),
-            classicalLinearRelationHint: t(
-              "workbench.editor.classicalLinearRelationHint",
-            ),
-            shapePreservingLocusRelation: t(
-              "workbench.editor.shapePreservingLocusRelation",
-            ),
-            shapePreservingLocusRelationHint: t(
-              "workbench.editor.shapePreservingLocusRelationHint",
+            pressureEnvelopeOverlayHint: t(
+              "workbench.editor.pressureEnvelopeOverlayHint",
             ),
             fixedBinding: t("workbench.editor.fixedBinding"),
             fixedBindingHint: t("workbench.editor.fixedBindingHint"),
@@ -4422,7 +4413,7 @@ function SampledGraphPaneBodyV3({
       >
         <PressureVolumeLoopCanvasV3
           traces={traces}
-          relationModel={pane.pressureVolumeRelationModel}
+          showPressureEnvelope={pane.showPressureEnvelope}
         />
       </ExperimentGraphPresentationV3>
     );

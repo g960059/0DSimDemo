@@ -476,6 +476,7 @@ describe("Studio Experiment data V2", () => {
     pressureVolume.content.surface.graphPanes[0].historyDepth = 1;
     pressureVolume.content.surface.graphPanes[0].pressureVolumeAnalysisMode =
       "responsive-preview";
+    pressureVolume.content.surface.graphPanes[0].showPressureEnvelope = true;
     pressureVolume.content.surface.graphPanes[0].series = [{
       seriesId: "LV",
       label: "LV",
@@ -490,6 +491,10 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/must not configure a waveform window/);
 
     delete pressureVolume.content.surface.graphPanes[0].windowSec;
+    expect(
+      validateExperimentV2(pressureVolume).content.surface.graphPanes[0]
+        ?.showPressureEnvelope,
+    ).toBe(true);
     expect(() => assertExperimentContentMatchesModelV2(
       validateExperimentV2(pressureVolume).content,
       pressureVolumeModel,
@@ -524,6 +529,13 @@ describe("Studio Experiment data V2", () => {
       validateExperimentV2(sweepWithHistory).content,
       modelContractV2(),
     )).toThrow(/sweep graphs must not configure an explicit history depth/);
+
+    const sweepWithEnvelope = experimentV2() as Record<string, any>;
+    sweepWithEnvelope.content.surface.graphPanes[0].showPressureEnvelope = true;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(sweepWithEnvelope).content,
+      modelContractV2(),
+    )).toThrow(/must not configure a pressure-volume envelope overlay/);
 
     pressureVolume.content.surface.graphPanes[0].series = [];
     expect(() => assertExperimentContentMatchesModelV2(

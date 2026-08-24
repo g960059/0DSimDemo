@@ -473,10 +473,10 @@ function assertExperimentModelAndSurfaceMatchV2(
           "structural-return graphs must not configure pressure-volume analysis",
         );
       }
-      if (pane.pressureVolumeRelationModel !== undefined) {
+      if (pane.showPressureEnvelope !== undefined) {
         throw validationErrorV2(
-          `${panePath}.pressureVolumeRelationModel`,
-          "structural-return graphs must not configure a pressure-volume relation model",
+          `${panePath}.showPressureEnvelope`,
+          "structural-return graphs must not configure a pressure-volume envelope overlay",
         );
       }
       if (pane.historyDepth === undefined) {
@@ -553,11 +553,11 @@ function assertExperimentModelAndSurfaceMatchV2(
     }
     if (
       graph.renderer !== "pressure-volume" &&
-      pane.pressureVolumeRelationModel !== undefined
+      pane.showPressureEnvelope !== undefined
     ) {
       throw validationErrorV2(
-        `${panePath}.pressureVolumeRelationModel`,
-        `${graph.renderer} graphs must not configure a pressure-volume relation model`,
+        `${panePath}.showPressureEnvelope`,
+        `${graph.renderer} graphs must not configure a pressure-volume envelope overlay`,
       );
     }
     if (graph.renderer === "sweep" && pane.windowSec === undefined) {
@@ -1221,7 +1221,7 @@ function assertExperimentSurfaceV2(
         "windowSec",
         "historyDepth",
         "pressureVolumeAnalysisMode",
-        "pressureVolumeRelationModel",
+        "showPressureEnvelope",
         "structuralSide",
         "traceColors",
       ],
@@ -1279,13 +1279,12 @@ function assertExperimentSurfaceV2(
       );
     }
     if (
-      pane.pressureVolumeRelationModel !== undefined &&
-      pane.pressureVolumeRelationModel !== "classical-linear" &&
-      pane.pressureVolumeRelationModel !== "shape-preserving-locus"
+      pane.showPressureEnvelope !== undefined &&
+      typeof pane.showPressureEnvelope !== "boolean"
     ) {
       throw validationErrorV2(
-        `${panePath}.pressureVolumeRelationModel`,
-        "must be classical-linear or shape-preserving-locus",
+        `${panePath}.showPressureEnvelope`,
+        "must be boolean",
       );
     }
     if (

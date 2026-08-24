@@ -124,10 +124,6 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
   "responsive-preview" | "formal-periodic";
 
-/** Visual pressure-volume relation owned by one PV pane. */
-export type ExperimentSurfacePressureVolumeRelationModelV2 =
-  "classical-linear" | "shape-preserving-locus";
-
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;
   role: "graph";
@@ -154,12 +150,11 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   /** Required only for `pressure-volume`; every other renderer must omit it. */
   pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
   /**
-   * The shape-preserving locus is the default nonlinear PVA boundary and is
-   * displayed only over measured common-isochrone volumes. The retained
-   * `classical-linear` option is an anchor-local teaching approximation and
-   * never owns PE, PVA, or estimated MVO2.
+   * Optional upper projection of the sampled pressure-time-volume family.
+   * The overlay is diagnostic only; the fixed-core common isochrone remains
+   * the nonlinear PE/PVA owner. Required only for `pressure-volume` panes.
    */
-  pressureVolumeRelationModel?: ExperimentSurfacePressureVolumeRelationModelV2;
+  showPressureEnvelope?: boolean;
   /**
    * Author-selected circulation side for a structural Guyton/Starling pane.
    * Required for `structural-return`; every other renderer must omit it.

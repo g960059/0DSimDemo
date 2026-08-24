@@ -60,7 +60,7 @@ The method identity is:
 
 ```text
 main-wire-integrated-model-settled-hot-start-pva-v1
-suga-pva-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v5
+suga-pva-fixed-core-refined-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v7
 ```
 
 The pressure basis is ventricular transmural pressure.
@@ -80,43 +80,47 @@ second SW owner.
 
 ### ESPVR
 
-The primary relation uses one atrial-capture-relative absolute time across the
-settled bidirectional preload family. Every currently available qualified
-settled point participates in phase selection. At each candidate time those
+The primary relation uses one atrial-capture-relative absolute time. Phase
+selection is owned by a fixed five-point core: the operating anchor, the three
+nearest settled lower-TBV points, and the nearest settled higher-TBV point.
+Before all five are available, the anchor plus the available bilateral subset
+may provide a provisional relation preview. At each candidate time the core's
 contemporaneous pressure-volume points form a shape-preserving nonlinear
 isochrone, and the analysis evaluates
 
 ```text
-J(t) = integral over the current isochrone's measured volume domain of
-         [P_iso(V,t) - P_ED(V)] dV
+V_core(t) = volume span contemporaneously measured by the same five loads
+
+J_core(t) = integral over V_core(t) of
+              [P_iso,core(V,t) - P_ED,core(V)] dV
 ```
 
-The time with the largest positive admissible `J(t)` owns the common
-isochrone. The analysis recomputes this selection whenever another settled
-load arrives, so both the selected time and the measured curve may evolve as
-the bidirectional sweep expands. Three or four points use C0 piecewise-linear
-interpolation; five or more use a monotone shape-preserving C1 cubic Hermite
-curve. During an in-flight update the Workbench keeps drawing the last valid
-relation until a newly admissible relation replaces it; that visual retention
-does not retain stale PVA, PE, or MVO2 output values. The final family owns the
-final selected phase and curve. This measured nonlinear locus owns PE, PVA,
-and the PVA input to the literature MVO2 mapper. It is never drawn beyond its
-measured range.
+The analysis evaluates 128 deterministic coarse times and subdivides the two
+neighboring coarse intervals around the winner into 32 local intervals. The
+largest positive `J_core(t)` locks once all five core points have settled. The
+objective intentionally includes both pressure and the contemporaneous
+contraction width of the fixed load family. Monotonicity is not used to
+preselect a smaller set of times; the selected relation is checked separately over the actual
+low-volume-to-anchor PVA domain. Later low- or high-TBV points are sampled at
+that same time and extend or refine the measured nonlinear locus and EDPVR; they do
+not change the selected time, its core EDPVR, or its scoring domain. Three or
+four points use C0 piecewise-linear interpolation; five or more use a
+shape-preserving C1 cubic Hermite curve. The low-volume-to-anchor-ESV PVA
+domain must be strictly pressure-increasing. A later point above
+the operating anchor may reveal a turn in the fixed-phase surface section; it
+is retained as measured diagnostic geometry rather than being allowed to move
+the phase or invalidate an otherwise admissible PVA domain. During an in-flight
+update the Workbench keeps drawing the last valid relation until a newly admissible
+relation replaces it; that visual retention does not retain stale PVA, PE, or
+MVO2 output values. This measured nonlinear locus owns PE, PVA, and the PVA
+input to the literature MVO2 mapper. It is never drawn beyond its measured
+range. No separate classical `Ees`/`V0` line is fitted or displayed.
 
-For teaching, Pane Settings can instead show the tangent to this locus at the
-operating-point end-systolic volume. It reports a local elastance and a visual
-volume-axis intercept, but it is explicitly display-only: it neither owns PVA
-nor imposes a positive `V0`. This avoids presenting an endpoint secant or a
-global straight-line fit as if it were a model-native ESPVR.
-Negative apparent intercepts are not silently clamped: curvature and the fitted
-load range are known to move linear ESPVR intercepts substantially
-([Kass et al., PMID 2910541](https://pubmed.ncbi.nlm.nih.gov/2910541/)).
-
-Separately, the analysis retains `max_t P_iso(V,t)`, its winning time at every
-sampled volume, and the resulting time range. This pressure envelope diagnoses
-how strongly the single-common-time assumption fails; it does not own PE or
-the estimated MVO2. Semilunar-valve closure is likewise retained only as a
-comparator.
+Separately, the analysis retains `max_t P_iso(V,t)` over the currently sampled
+family, its winning time at every sampled volume, and the resulting time
+range. Pane Settings can add this upper pressure envelope as a thin overlay;
+the option is off by default. It diagnoses how strongly the single-common-time
+assumption fails and does not own PE, PVA, or the estimated MVO2.
 
 ### EDPVR
 
@@ -199,10 +203,10 @@ This is visibly labelled **estimated MVO2**. It does not model or measure:
 - End diastole uses the model's maximum-volume landmark in V1.
 - The primary ESPVR is one nonlinear common isochrone. Its atrial-capture
   relative time maximizes the integrated positive pressure area above EDPVR
-  over the contemporaneous measured domain of every currently available
-  settled point. The selection is intentionally updated as the family grows.
-  Volume-specific maximum-pressure phases are retained only as an envelope
-  diagnostic, and semilunar closure remains a comparator.
+  over the fixed anchor + low-three + high-one selection core. The phase locks
+  when that core is complete; later settled points extend the measured curve
+  without redefining its phase. Volume-specific maximum-pressure phases are
+  retained only as an optional envelope diagnostic.
 - EDPVR fitting uses volume-quadrature weights so adaptive point density does
   not silently change the represented volume interval. The primary systolic
   curve is not extrapolated for display; only the unresolved low-volume PE tail

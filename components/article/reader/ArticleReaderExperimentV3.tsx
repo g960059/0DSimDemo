@@ -1030,7 +1030,7 @@ function ArticleReaderLiveGraphV3({
           }
           runtime={runtime}
           traces={traces}
-          relationModel={pane.pressureVolumeRelationModel}
+          showPressureEnvelope={pane.showPressureEnvelope}
         />
       </ExperimentGraphPresentationV3>
     );
@@ -1126,12 +1126,12 @@ function ArticleReaderLiveGraphV3({
 
 function ArticleReaderPressureVolumeCanvasV3({
   analysisId,
-  relationModel,
+  showPressureEnvelope,
   runtime,
   traces,
 }: Readonly<{
   analysisId: string;
-  relationModel: ExperimentSurfaceGraphPaneV2["pressureVolumeRelationModel"];
+  showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
   runtime: ArticleReaderRuntimeHookV3;
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
@@ -1205,7 +1205,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   return (
     <PressureVolumeLoopCanvasV3
       traces={enrichedTraces}
-      relationModel={relationModel}
+      showPressureEnvelope={showPressureEnvelope}
     />
   );
 }

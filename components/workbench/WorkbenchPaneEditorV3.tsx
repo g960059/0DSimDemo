@@ -48,7 +48,7 @@ import {
   WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3,
   WORKBENCH_GRAPH_HISTORY_MIN_DEPTH_V3,
   WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
-  WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3,
+  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3,
   WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3,
@@ -129,11 +129,8 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   historyDepthHint: string;
   formalPressureVolumeAnalysis: string;
   formalPressureVolumeAnalysisHint: string;
-  pressureVolumeRelationModel: string;
-  classicalLinearRelation: string;
-  classicalLinearRelationHint: string;
-  shapePreservingLocusRelation: string;
-  shapePreservingLocusRelationHint: string;
+  pressureEnvelopeOverlay: string;
+  pressureEnvelopeOverlayHint: string;
   label: string;
   itemsSection: string;
   moveDown: string;
@@ -215,13 +212,9 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     formalPressureVolumeAnalysis: "Settled PVA / MVO₂ analysis",
     formalPressureVolumeAnalysisHint:
       "Reuses one bidirectional settled hot-start family for Starling/Guyton, ESPVR/EDPVR, accepted-step SW, PE, PVA, and the LV literature MVO₂ estimate.",
-    pressureVolumeRelationModel: "ESPVR display",
-    classicalLinearRelation: "Local linear approximation",
-    classicalLinearRelationHint:
-      "Display-only tangent at the current end-systolic point. It does not own PE, PVA, or estimated MVO₂.",
-    shapePreservingLocusRelation: "Nonlinear end-systolic locus",
-    shapePreservingLocusRelationHint:
-      "Default PVA boundary. Connects measured common-isochrone points without display extrapolation.",
+    pressureEnvelopeOverlay: "Upper pressure envelope",
+    pressureEnvelopeOverlayHint:
+      "Optionally overlays maxτ P(V, τ). It diagnoses variation in the winning phase and never owns PE, PVA, or estimated MVO₂.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -353,8 +346,8 @@ export function addWorkbenchSurfacePaneV3(
               ? {
                   pressureVolumeAnalysisMode:
                     WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
-                  pressureVolumeRelationModel:
-                    WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3,
+                  showPressureEnvelope:
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
                 }
               : {}),
             ...(graph.renderer === "structural-return"
@@ -1130,55 +1123,55 @@ function GraphPaneEditorV3({
                 {strings.formalPressureVolumeAnalysisHint}
               </span>
             </span>
-            <fieldset className="space-y-2">
-              <legend className="text-[10px] font-medium text-wb-muted">
-                {strings.pressureVolumeRelationModel}
-              </legend>
-              {(
-                [
-                  {
-                    value: "classical-linear" as const,
-                    label: strings.classicalLinearRelation,
-                    hint: strings.classicalLinearRelationHint,
-                  },
-                  {
-                    value: "shape-preserving-locus" as const,
-                    label: strings.shapePreservingLocusRelation,
-                    hint: strings.shapePreservingLocusRelationHint,
-                  },
-                ] as const
-              ).map((option) => {
-                const selected =
-                  (pane.pressureVolumeRelationModel ??
-                    WORKBENCH_PRESSURE_VOLUME_RELATION_DEFAULT_MODEL_V3) ===
-                  option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={selected}
-                    className={`block w-full rounded-lg px-2.5 py-2 text-left transition-colors ${
-                      selected
-                        ? "bg-wb-selected text-wb-text"
-                        : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+            <button
+              type="button"
+              aria-pressed={
+                pane.showPressureEnvelope ??
+                WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+              }
+              className={`block w-full rounded-lg px-2.5 py-2 text-left transition-colors ${
+                (pane.showPressureEnvelope ??
+                WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                  ? "bg-wb-selected text-wb-text"
+                  : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
+              }`}
+              onClick={() =>
+                onChange({
+                  ...pane,
+                  showPressureEnvelope: !(
+                    pane.showPressureEnvelope ??
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+                  ),
+                })
+              }
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-[11px] font-medium">
+                  {strings.pressureEnvelopeOverlay}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`relative h-4 w-7 rounded-full transition-colors ${
+                    (pane.showPressureEnvelope ??
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                      ? "bg-wb-accent"
+                      : "bg-wb-border"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
+                      (pane.showPressureEnvelope ??
+                      WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                        ? "translate-x-3.5"
+                        : "translate-x-0.5"
                     }`}
-                    onClick={() =>
-                      onChange({
-                        ...pane,
-                        pressureVolumeRelationModel: option.value,
-                      })
-                    }
-                  >
-                    <span className="block text-[11px] font-medium">
-                      {option.label}
-                    </span>
-                    <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
-                      {option.hint}
-                    </span>
-                  </button>
-                );
-              })}
-            </fieldset>
+                  />
+                </span>
+              </span>
+              <span className="mt-0.5 block text-[10px] leading-4 text-wb-subtle">
+                {strings.pressureEnvelopeOverlayHint}
+              </span>
+            </button>
           </div>
         )}
       </section>

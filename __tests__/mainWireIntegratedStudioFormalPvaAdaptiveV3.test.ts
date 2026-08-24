@@ -156,14 +156,11 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       );
       expect(fullPva.espvr).toMatchObject({
         primaryCurveLaw: "measured-domain-shape-preserving-locus",
+        phaseSelectionPolicy:
+          "operating-anchor-plus-nearest-three-lower-and-one-higher-load",
+        phaseSelectionStatus: "locked",
+        phaseSelectionPointCount: 5,
       });
-      expect(fullPva.espvr.educationalLinearApproximation).toMatchObject({
-        method: "anchor-local-tangent",
-        use: "display-only-not-pva-owner",
-      });
-      expect(
-        fullPva.espvr.educationalLinearApproximation?.elastanceMmHgPerMl,
-      ).toBeGreaterThan(0);
       expect(fullPva.espvr.fitPoints).toHaveLength(fullPva.source.pointCount);
       expect(fullPva.potentialEnergy.joule).toBeGreaterThan(0);
       expect(fullPva.pva.joule).toBeCloseTo(
