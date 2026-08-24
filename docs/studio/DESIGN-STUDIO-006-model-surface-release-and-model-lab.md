@@ -38,8 +38,14 @@ state.
 PE, PVA, and literature-mapped estimated MVO2 are analysis-method outputs. The
 Workbench and Reader may compose them beside exact outputs, but exact frame
 selection, exact manifests, and exact checkpoint continuation do not include
-them. Changing their algorithm or catalog normally versions the analysis
-method/profile rather than the numerical model.
+them.
+
+Method and profile identities are semantically distinct from `modelId`.
+Deployment is not yet independently pinned: the current registry stores
+`analysisProfileId` as immutable metadata on a model release and rejects a
+different profile for the same `modelId`. A profile change therefore requires
+a new model release registration until the registry and durable-content pins
+gain an independent analysis layer.
 
 ### Model Surface
 
@@ -72,8 +78,8 @@ durable pins until deliberately retired under the content policy.
 
 Artifact-only optimization under one `modelId` is allowed only when the exact
 manifest is unchanged and the repository's equivalence gate permits the new
-revision. Otherwise mint a new exact identity. Analysis-only changes do not use
-that exception because they belong to the analysis profile.
+revision. Otherwise mint a new exact identity. The artifact-equivalence
+exception cannot alter the model release's analysis-profile binding.
 
 Snapshot admission checks executable consistency and model-owned numerical
 gates. It does not certify settlement, physiology, or clinical validity.
@@ -84,20 +90,3 @@ gates. It does not certify settlement, physiology, or clinical validity.
 the ordinary Worker architecture. It cannot create durable content. Official
 content uses the ordinary Experiment/Snapshot/Article workflow and the same
 Supabase authority as every other author.
-
-## Implementation entry points
-
-Only open these when the task needs the boundary:
-
-- exact and Surface schemas/composition:
-  `studio/contracts/v2/modelSurface.ts`;
-- analysis profile/method catalog:
-  `studio/analysis/StudioAnalysisMethodRegistryV1.ts`;
-- registry resolution and client composition:
-  `StudioSupabaseModelReleaseResolverV1.ts` and
-  `StudioDefaultCompositionV2.ts`;
-- Worker ticket and artifact admission: `studio/contracts/v2/release.ts` and
-  `DynamicExactModelRuntimeLoaderV2.ts`.
-
-Code and tests own current IDs, catalogs, lifecycle RPC shapes, and admission
-details. Do not duplicate them here.

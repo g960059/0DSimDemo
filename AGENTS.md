@@ -1,23 +1,10 @@
-# Repository guidance
+# Repository constraints
 
-Source code and tests are authoritative. Documentation should explain boundaries
-or system-wide intent that would otherwise require reading many files; do not
-duplicate catalogs, formulas, worker mechanics, or implementation detail that
-is easy to discover with `rg`.
+Source code and tests are authoritative. Keep docs only for durable,
+cross-cutting boundaries costly to reconstruct from code. Do not duplicate
+discoverable IDs, catalogs, formulas, or worker mechanics; keep completed
+research and superseded designs in Git history.
 
-Read progressively:
-
-- start at `docs/README.md` only when a repository-wide boundary matters;
-- use `docs/scientific-runtime/README.md` for integrated-model claims;
-- use `docs/studio/README.md` for Studio identity and persistence;
-- open evidence documents only for scientific-source or validation work.
-
-Keep these ownership layers distinct:
-
-- the exact model owns numerical semantics, checkpoints, primitive outputs,
-  and model-accumulated metrics;
-- an analysis method owns results such as PE, PVA, and estimated MVO2;
-- the Model Surface owns product exposure and presentation composition.
-
-Git history is the archive for completed research lanes, superseded plans, and
-release narratives. Keep only current, reusable context in the working tree.
+The exact model owns numerical and checkpoint semantics, analysis methods own
+derived results, and the Model Surface owns exposure and presentation. Exact
+frames must not reserve analysis outputs as placeholders.

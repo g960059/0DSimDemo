@@ -146,12 +146,12 @@ Briefing, database schema, Auth, and hosting are independently versioned
 product concerns. Changing any of those without changing numerical execution
 must not mint another `modelId`.
 
-The Standard ABI uses `ExactModelKernelManifestV3` and a separate immutable
-`ModelSurfaceReleaseManifestV1`, so ordinary graph, Studio-derived output,
-Knob, protocol, and admission work cannot churn `modelId`. A metric computed
-inside the exact numerical Session from accepted substeps remains model-owned;
-changing its semantics is a numerical-contract change and does mint a new
-`modelId`.
+The Standard ABI keeps the exact manifest, analysis profile, and immutable
+Model Surface as separate semantic owners. Ordinary graph, presentation,
+Knob, protocol, and admission work therefore does not change exact numerical
+meaning. A metric accumulated inside the exact numerical Session from accepted
+substeps remains model-owned; changing its semantics is an exact-contract
+change and does require a new `modelId`.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
 model-owned corruption checks. The immutable scientific model definition and
@@ -168,26 +168,17 @@ their stored `modelId`; migration or cloning is explicit.
 ### 4.1 Dynamic exact-model resolution
 
 The browser does not bundle historical releases into one application chunk.
-It resolves one small, hash-free launch projection from Supabase:
+It resolves a small, hash-free launch projection from Supabase that binds the
+exact artifact, Model Surface, and analysis profile. Source schemas own the
+projection fields.
 
-```ts
-type ModelWorkerReleaseTicket = Readonly<{
-  modelId: string;
-  artifactRevisionId: string;
-  manifest: ExactModelKernelManifestV3;
-  moduleAbi: "circleheart-exact-model-esm-v1";
-  artifactUrl: string;
-  surfaceRelease: ModelSurfaceReleaseManifestV1;
-}>;
-```
-
-The same registry launch contract also owns the display name, default fixture,
-and an `analysisProfileId`. These immutable row values are launch metadata,
-not scientific identity; changing them requires an explicit metadata
-transition rather than another `modelId`. The exact manifest is
-scientific-contract authority. `artifactRevisionId` identifies the currently
-certified deterministic implementation beneath that model; it is not persisted
-as Studio content identity.
+Display name, default fixture, and `analysisProfileId` are immutable launch
+metadata on the current model-release row. They are not exact scientific
+semantics, but the present registry still rejects changing them under the same
+`modelId`; another binding therefore requires a new model release registration.
+The exact manifest remains scientific-contract authority. The implementation
+revision identifies the certified deterministic artifact beneath that model
+and is not persisted as Studio content identity.
 
 The Standard module ABI exports only the executable release:
 

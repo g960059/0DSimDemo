@@ -28,10 +28,8 @@ Scenario binds private Worker-local storage before its Session starts. UI
 render cadence, graph history, analysis Workers, and authoring state cannot
 mutate accepted numerical state.
 
-Current implementation details and invariants are owned by code and tests,
-especially the typed-authority Session, exact-model integration, execution-plan
-compiler, checkpoint tests, and periodic numerical suites. This document does
-not duplicate their catalogs or tolerances.
+Code and tests own implementation details, catalogs, algorithms, and numerical
+tolerances.
 
 ## Ownership layers
 
@@ -48,9 +46,11 @@ Three layers must remain separate:
    analysis profile without redefining either.
 
 An exact output-ABI correction requires a new immutable `modelId` even when it
-does not change equations or solver behavior. Analysis-method evolution should
-normally change the analysis profile or method identity, not mint another
-numerical model.
+does not change equations or solver behavior. Analysis method and profile
+identities remain semantically distinct from the exact model, but the current
+registry binds `analysisProfileId` as immutable model-release metadata.
+Deploying another profile therefore still requires a new model release
+registration until the registry gains an independently pinned analysis layer.
 
 ## Pressure-volume and oxygen interpretation
 
@@ -63,8 +63,8 @@ ordinary Workbench and Reader.
 The MVO2 value is not a metabolic submodel. The numerical model does not own
 ATP use, basal metabolism, calcium uptake/release energy, or total myocardial
 oxygen consumption. PVA is therefore a method-specific mechanical proxy, not
-an exact whole-heart energy identity. The research lane that established this
-boundary remains available through Git history.
+an exact whole-heart energy identity. The completed research lane is retained
+at Git tag `research-pva-mvo2-558-573-final`.
 
 ## Scientific claim limits
 
