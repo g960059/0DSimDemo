@@ -9,6 +9,7 @@ import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/a
 import type { MainWireIntegratedModelStarlingLocusV3 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
@@ -63,6 +64,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
           points: readonly Readonly<{
             totalBloodVolumeMl: number;
             completedBeatCount: number;
+            maximumNormalizedBeatDelta: number;
           }>[];
         }>;
       }>;
@@ -143,11 +145,19 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       );
     const firstLowScale = corePoints[1]!.totalBloodVolumeMl / sourceTbvMl;
     expect(1 - firstLowScale).toBeCloseTo(0.1, 12);
-    for (const point of corePoints.slice(1)) {
-      const scale = point.totalBloodVolumeMl / sourceTbvMl;
-      expect(point.completedBeatCount).toBeGreaterThanOrEqual(
-        scale >= 0.82 ? 3 : scale >= 0.7 ? 4 : 5,
-      );
+    const continuationPoints = [
+      ...payload.left.starlingLocus.points.slice(1),
+      ...highPoints.slice(1),
+    ];
+    expect(
+      continuationPoints.some(
+        ({ completedBeatCount }) => completedBeatCount < 12,
+      ),
+    ).toBe(true);
+    for (const point of continuationPoints) {
+      expect(point.completedBeatCount).toBeGreaterThanOrEqual(3);
+      expect(point.completedBeatCount).toBeLessThanOrEqual(12);
+      expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
     }
     expect(lowHost.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
@@ -270,5 +280,75 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       ),
     ).toBeCloseTo(3_360, 8);
     host.closeSession(runtimeSessionId);
+  }, 120_000);
+
+  it("retains formal ESPVR and EDPVR coverage from a 6800 mL source", async () => {
+    const lowHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const highHost = new MainWireIntegratedStudioStandardRuntimeHostV1();
+    const runtimeSessionId = "session/standard-formal-pva-high-source";
+    const scenarioId = "scenario/high-source";
+    const fixture = {
+      scenarioId,
+      fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    } as const;
+    await Promise.all([
+      lowHost.createSession(runtimeSessionId, [fixture]),
+      highHost.createSession(runtimeSessionId, [fixture]),
+    ]);
+    await Promise.all([
+      lowHost.applyControl(
+        runtimeSessionId,
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+        6_800,
+        0,
+      ),
+      highHost.applyControl(
+        runtimeSessionId,
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1.totalBloodVolumeMl,
+        6_800,
+        0,
+      ),
+    ]);
+    const source = lowHost.currentFrame(runtimeSessionId, scenarioId);
+    const highSource = highHost.currentFrame(runtimeSessionId, scenarioId);
+    const [lowAnalysis, highAnalysis] = await Promise.all([
+      lowHost.requestAnalysis(
+        runtimeSessionId,
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        source.inputEpoch,
+        source.acceptedRevision,
+        source.acceptedTimeSec,
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      ),
+      highHost.requestAnalysis(
+        runtimeSessionId,
+        scenarioId,
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        highSource.inputEpoch,
+        highSource.acceptedRevision,
+        highSource.acceptedTimeSec,
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      ),
+    ]);
+    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+      highAnalysis,
+      lowAnalysis,
+    ]);
+    const locus = (
+      merged.payload as unknown as Readonly<{
+        left: Readonly<{
+          starlingLocus: MainWireIntegratedModelStarlingLocusV3;
+        }>;
+      }>
+    ).left.starlingLocus;
+    const pva = buildMainWireIntegratedModelPeriodicPvaV1(locus, "LV");
+    if (pva.status !== "available") throw new Error(pva.reason);
+    expect(pva.espvr.fitPoints.length).toBeGreaterThanOrEqual(5);
+    expect(pva.edpvr.fitPoints.length).toBeGreaterThanOrEqual(5);
+    lowHost.closeSession(runtimeSessionId);
+    highHost.closeSession(runtimeSessionId);
   }, 120_000);
 });

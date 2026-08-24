@@ -187,14 +187,18 @@ bounded calculation contract:
    from the preceding retained endpoint. Coronary tone is held at its source
    value so a short preload reduction does not spend minutes re-equilibrating
    the 25-second autoregulation controller.
-4. A requested curve point is retained only after the declared complete-beat minimum provides
-   two consecutive flow/pressure/volume comparisons within the P1 closure
-   limits. The minimum is three beats near the anchor, four in the intermediate
-   preload range, and five in the low extension. More beats remain available
-   when closure needs them. A large TBV jump may use short, unreported one-beat
-   bridge states to preserve numerical hot-start continuity; these states are
-   not fitted or displayed. Period-2 or nonconverged requested endpoints fail
-   the bootstrap or stop the later frontier rather than being silently fitted.
+4. Closure assessment starts after three complete beats, and a requested curve
+   point is retained only after two consecutive flow/pressure/volume and
+   ventricular ES/ED landmark comparisons pass the P1 limits. The accepted
+   beat count follows measured convergence rather than preload direction. Most
+   well-hot-started points finish early; a slow point may extend to a
+   twelve-beat safety cap. This cap bounds analysis latency; it does not weaken
+   the closure rule. A target that does not close within the budget returns to
+   the coverage driver so that a closer bridge can be inserted. A large TBV
+   jump may use short, unreported one-beat bridge states to preserve numerical
+   hot-start continuity; these states are not fitted or displayed. Period-2 or
+   nonconverged requested endpoints fail the bootstrap or stop the later
+   frontier rather than being silently fitted.
    On the high limb, an end-systolic-volume gain below `4 mL` in either
    ventricle widens the next retained TBV target. This avoids spending ESPVR
    markers inside a saturated, visually compressed volume band; unreported

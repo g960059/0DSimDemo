@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-64",
-  "artifactRevisionId": "e88a0cae2c4dac926d60e11ad30adeeda12946c16959d3aec2eda2373fea39fa",
-  "artifactSha256": "8b587d9493aa5e9f94114841fb87fdb872c2aec82082d0562c4383ceb4244fde",
+  "artifactRevisionId": "6324fe418ea7a345b74ad6692a2dbd6206d6a7ab0d6720739d627db8d7dbfcc6",
+  "artifactSha256": "0a4bbd3cab04b356048145deba2a1d2e45da5d48caa176f2ebf547a69308f7f6",
   "predecessorArtifactRevisionId": null,
   "equivalenceReportSha256": null
 }

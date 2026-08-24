@@ -25,8 +25,12 @@ The production workflow is deliberately direct:
    settlement effort adapt the next TBV step; a high-preload endpoint that adds
    less than `4 mL` of end-systolic-volume coverage widens the following
    retained target instead of crowding the ESPVR with nearly coincident points;
-5. source coronary tone is held fixed and each load must pass the protocol's
-   declared consecutive complete-beat flow/pressure/volume closure checks;
+5. source coronary tone is held fixed and each load starts closure assessment
+   at three beats. A retained point must pass two consecutive complete-beat
+   flow/pressure/volume and ventricular ES/ED landmark closure checks. Slowly
+   converging points may use up to twelve beats. The beat count is determined
+   by the observed closure sequence, not by preload direction; twelve is a
+   bounded analysis-time budget rather than a relaxed convergence rule;
 6. the merged settled point family is projected to SW, ESPVR, EDPVR, PE, PVA,
    and, for the LV, a literature MVO2 estimate; and
 7. progress, cancellation after Scenario edits, cache reuse, and bounded

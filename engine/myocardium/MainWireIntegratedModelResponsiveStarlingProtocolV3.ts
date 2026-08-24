@@ -77,10 +77,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 =
  * earlier at the declared low-flow or numerical boundary. The high limb stops
  * at its numerical boundary. No pressure-volume point is extrapolated.
  */
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 =
-  0.18;
-export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 =
-  1.6;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 = 0.18;
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 = 1.6;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_CORE_POINT_COUNT_V3 = 4;
 
@@ -119,6 +117,7 @@ export function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
 const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
 const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
@@ -150,6 +149,8 @@ const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
 const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
 const AORTIC_PRESSURE_CLOSURE_MMHG_V3 = 0.5;
 const VENTRICULAR_VOLUME_CLOSURE_ML_V3 = 1;
+const VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3 = 1;
+const VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3 = 1;
 const EARLY_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3 = 2;
 const FINAL_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3 = 4;
 const DESCENDING_LIMB_ABSOLUTE_DROP_L_PER_MIN_V3 = 0.15;
@@ -435,12 +436,16 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  * The live Scenario is never advanced. A persistent analysis Worker first
  * settles an isolated copy at the Scenario TBV with the active coronary
  * controller. It then freezes the controller state at that settled endpoint
- * and admits each load after three consecutive complete beats satisfy the
- * declared flow/pressure/volume closure gates. The low-volume bootstrap
- * publishes progressive PVA previews while a second persistent Worker runs
- * the high-volume frontier from the same captured Scenario source. Both
- * frontiers adapt their next TBV step from retained curve shape and settlement
- * effort rather than spending a fixed point budget uniformly.
+ * and admits each load after three to twelve complete beats satisfy the
+ * declared flow/pressure/volume and ventricular landmark closure gates. The
+ * number of beats is selected by measured period-1 closure rather than TBV
+ * direction: any well-hot-started point may finish at three beats, while a
+ * slowly converging point may use the twelve-beat safety budget. The
+ * low-volume bootstrap publishes progressive PVA previews while a second
+ * persistent Worker runs the high-volume frontier from the same captured
+ * Scenario source. Both frontiers adapt their next TBV step from retained
+ * curve shape and settlement effort rather than spending a fixed point budget
+ * uniformly.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   sourceSession: MainWireIntegratedModelSessionV3,
@@ -617,11 +622,14 @@ function settleFormalPressureVolumeSourceV3(
     beats.push(completed);
     if (
       beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 &&
-      period1ConvergedV3(beats)
+      period1ConvergedV3(beats, formalBeatPairClosureScoreV3)
     ) {
       return Object.freeze({ status: "settled" as const, branch });
     }
-    if (beats.length >= 5 && period2DetectedV3(beats)) {
+    if (
+      beats.length >= 5 &&
+      period2DetectedV3(beats, formalBeatPairClosureScoreV3)
+    ) {
       return rejectedV3("active-controller source reached a period-2 boundary");
     }
     if (beats.length >= FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3) break;
@@ -728,12 +736,6 @@ async function runFormalHypovolemicCoverageChainV3(
     );
     if (advanced.status !== "reached") return;
   }
-}
-
-function formalPvaMinimumCompleteBeatCountV3(targetScale: number): number {
-  if (targetScale >= 0.82) return 3;
-  if (targetScale >= 0.7) return 4;
-  return 5;
 }
 
 function adaptiveFormalCoverageScaleStepV3(
@@ -844,13 +846,17 @@ async function runFormalHypervolemicStarlingChainV3(
       accept,
     );
     boundary = advanced.boundary;
-    if (!(boundary.scale > priorScale + 1e-12)) return;
+    if (!(boundary.scale > priorScale + 1e-12)) {
+      return;
+    }
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypervolemic",
       recentAcceptedScaleStepV3(samples),
       samples,
     );
-    if (advanced.status !== "reached") return;
+    if (advanced.status !== "reached") {
+      return;
+    }
   }
 }
 
@@ -914,7 +920,6 @@ async function advanceFormalCoverageTowardScaleV3(
       continuationBranch,
       sourceGlobalTbvMl * requestedScale,
       "continuation",
-      formalPvaMinimumCompleteBeatCountV3(requestedScale),
     );
     if (
       measured.status === "accepted" &&
@@ -1288,7 +1293,6 @@ async function measureFormalPressureVolumeBranchV3(
   sourceSession: MainWireIntegratedModelSessionV3,
   targetGlobalTbvMl: number,
   role: MainWireIntegratedModelStarlingPointV3["role"],
-  minimumCompleteBeatCount: number = MINIMUM_COMPLETE_BEAT_COUNT_V3,
 ): Promise<MeasuredBranchV3> {
   let branch: MainWireIntegratedModelSessionV3;
   try {
@@ -1352,12 +1356,15 @@ async function measureFormalPressureVolumeBranchV3(
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (beats.length >= minimumCompleteBeatCount) {
-        if (period1ConvergedV3(beats)) {
+      if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+        if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
           locallyConverged = true;
           break;
         }
-        if (beats.length >= 5 && period2DetectedV3(beats)) {
+        if (
+          beats.length >= 5 &&
+          period2DetectedV3(beats, formalBeatPairClosureScoreV3)
+        ) {
           return rejectedV3(
             "fixed-tone PVA branch reached a period-2 boundary",
           );
@@ -1366,12 +1373,21 @@ async function measureFormalPressureVolumeBranchV3(
       const maximumBeatCount =
         role === "operating-anchor"
           ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
-          : DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
+          : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
       if (beats.length >= maximumBeatCount) break;
     }
     if (!locallyConverged) {
+      const previousScore =
+        beats.length >= 3
+          ? formalBeatPairClosureScoreV3(beats.at(-3)!, beats.at(-2)!)
+          : Number.POSITIVE_INFINITY;
+      const latestScore = latestBeatClosureScoreV3(
+        beats,
+        formalBeatPairClosureScoreV3,
+      );
       return rejectedV3(
-        "fixed-tone PVA branch did not establish complete-beat period-1 closure",
+        `fixed-tone PVA branch did not establish strict period-1 closure ` +
+          `(beats=${beats.length}, previous=${previousScore}, latest=${latestScore})`,
       );
     }
     const pressureVolumeBeat = pressureVolumeBeats.at(-1);
@@ -1391,7 +1407,10 @@ async function measureFormalPressureVolumeBranchV3(
       quality: "locally-converged" as const,
       curveEligible: true as const,
       completedBeatCount: beats.length,
-      maximumNormalizedBeatDelta: recentBeatClosureScoreV3(beats),
+      maximumNormalizedBeatDelta: recentBeatClosureScoreV3(
+        beats,
+        formalBeatPairClosureScoreV3,
+      ),
       settled: true as const,
       finiteAndFixedTbvPassed: true as const,
       evidence: "fixed-tone-periodic" as const,
@@ -1596,36 +1615,52 @@ function measureBranchV3(
   });
 }
 
+type BeatPairClosureScoreV3 = (
+  left: MainWireIntegratedModelCompletedBeatMetricsV3,
+  right: MainWireIntegratedModelCompletedBeatMetricsV3,
+) => number;
+
 function period1ConvergedV3(
   beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],
+  closureScore: BeatPairClosureScoreV3 = beatPairClosureScoreV3,
 ): boolean {
   const consecutiveComparisonCount = 2;
   if (beats.length < consecutiveComparisonCount + 1) return false;
   const suffix = beats.slice(-(consecutiveComparisonCount + 1));
   return suffix
     .slice(1)
-    .every((beat, index) => beatPairClosureScoreV3(suffix[index]!, beat) <= 1);
+    .every((beat, index) => closureScore(suffix[index]!, beat) <= 1);
+}
+
+function latestBeatClosureScoreV3(
+  beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],
+  closureScore: BeatPairClosureScoreV3 = beatPairClosureScoreV3,
+): number {
+  if (beats.length < 2) return Number.POSITIVE_INFINITY;
+  return closureScore(beats.at(-2)!, beats.at(-1)!);
 }
 
 function recentBeatClosureScoreV3(
   beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],
+  closureScore: BeatPairClosureScoreV3 = beatPairClosureScoreV3,
 ): number {
   if (beats.length < 2) return Number.POSITIVE_INFINITY;
-  const adjacent = beatPairClosureScoreV3(beats.at(-2)!, beats.at(-1)!);
+  const adjacent = closureScore(beats.at(-2)!, beats.at(-1)!);
   return beats.length < 3
     ? adjacent
-    : Math.max(beatPairClosureScoreV3(beats.at(-3)!, beats.at(-2)!), adjacent);
+    : Math.max(closureScore(beats.at(-3)!, beats.at(-2)!), adjacent);
 }
 
 function period2DetectedV3(
   beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],
+  closureScore: BeatPairClosureScoreV3 = beatPairClosureScoreV3,
 ): boolean {
   if (beats.length < 5) return false;
   const p2 =
-    beatPairClosureScoreV3(beats.at(-5)!, beats.at(-3)!) <= 1 &&
-    beatPairClosureScoreV3(beats.at(-4)!, beats.at(-2)!) <= 1 &&
-    beatPairClosureScoreV3(beats.at(-3)!, beats.at(-1)!) <= 1;
-  const adjacent = beatPairClosureScoreV3(beats.at(-2)!, beats.at(-1)!);
+    closureScore(beats.at(-5)!, beats.at(-3)!) <= 1 &&
+    closureScore(beats.at(-4)!, beats.at(-2)!) <= 1 &&
+    closureScore(beats.at(-3)!, beats.at(-1)!) <= 1;
+  const adjacent = closureScore(beats.at(-2)!, beats.at(-1)!);
   return p2 && adjacent > 1;
 }
 
@@ -1665,6 +1700,41 @@ function beatPairClosureScoreV3(
       left.minimumLeftVentricularVolumeMl -
         right.minimumLeftVentricularVolumeMl,
     ) / VENTRICULAR_VOLUME_CLOSURE_ML_V3,
+  );
+}
+
+function formalBeatPairClosureScoreV3(
+  left: MainWireIntegratedModelCompletedBeatMetricsV3,
+  right: MainWireIntegratedModelCompletedBeatMetricsV3,
+): number {
+  const landmarkScore = (
+    leftLandmark: MainWireIntegratedModelPressureVolumeLandmarkV3,
+    rightLandmark: MainWireIntegratedModelPressureVolumeLandmarkV3,
+  ) =>
+    Math.max(
+      Math.abs(leftLandmark.volumeMl - rightLandmark.volumeMl) /
+        VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3,
+      Math.abs(leftLandmark.pressureMmHg - rightLandmark.pressureMmHg) /
+        VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3,
+    );
+  return Math.max(
+    beatPairClosureScoreV3(left, right),
+    landmarkScore(
+      left.leftVentricularPressureVolumeLandmarks.endDiastolic,
+      right.leftVentricularPressureVolumeLandmarks.endDiastolic,
+    ),
+    landmarkScore(
+      left.leftVentricularPressureVolumeLandmarks.endSystolic,
+      right.leftVentricularPressureVolumeLandmarks.endSystolic,
+    ),
+    landmarkScore(
+      left.rightVentricularPressureVolumeLandmarks.endDiastolic,
+      right.rightVentricularPressureVolumeLandmarks.endDiastolic,
+    ),
+    landmarkScore(
+      left.rightVentricularPressureVolumeLandmarks.endSystolic,
+      right.rightVentricularPressureVolumeLandmarks.endSystolic,
+    ),
   );
 }
 
