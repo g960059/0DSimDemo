@@ -30,13 +30,14 @@ import {
   revealPvTrajectoryAfterFirstCompleteCycleV3,
   readWorkbenchCanvasThemeVariablesV3,
   workbenchHistoryAlphaV3,
-  deriveWorkbenchScenarioItemColorV3,
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
   starlingCurvePointsV3,
   starlingPresentationFocusV3,
   updateWorkbenchScenarioBaseColorV3,
+  workbenchPerceptualColorDistanceV3,
+  workbenchSemanticItemColorV3,
   workbenchModelCyclePhaseOutputIdV3,
   workbenchPresentationOutputSelectionV3,
   type WorkbenchPvPointV3,
@@ -1030,7 +1031,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       scenarioScope: { mode: "visible-scenarios" },
       excludedTraces: [],
       windowSec: 2,
-      series: ["lvp", "lap", "aop"].map((seriesId, order) => ({
+      series: ["LVP", "LAP", "AoP"].map((seriesId, order) => ({
         seriesId,
         label: seriesId.toUpperCase(),
         order,
@@ -1056,9 +1057,42 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         ),
       ).size,
     ).toBe(6);
+    const traceColors = reconciled.graphPanes[0]?.traceColors ?? [];
+    expect(
+      traceColors
+        .filter(({ scenarioId }) => scenarioId === "scenario/a")
+        .map(({ automaticColorHex }) => automaticColorHex),
+    ).toEqual(["#ff5f73", "#e07ce8", "#39c2ff"]);
+    const minimumPairDistance = (colors: readonly string[]) => Math.min(
+      ...colors.flatMap((left, leftIndex) =>
+        colors.slice(leftIndex + 1).map((right) =>
+          workbenchPerceptualColorDistanceV3(left, right)),
+      ),
+    );
+    expect(minimumPairDistance(traceColors.map(
+      ({ automaticColorHex }) => automaticColorHex,
+    ))).toBeGreaterThan(0.1);
+    for (const appTheme of ["dark", "light"] as const) {
+      const renderedColors = traceColors.map((trace) =>
+        resolveWorkbenchGraphTraceStyleV3({
+          pane: reconciled.graphPanes[0]!,
+          surface: reconciled,
+          renderer: "sweep",
+          authoredScenarioCount: 2,
+          scenarioId: trace.scenarioId,
+          scenarioIndex: trace.scenarioId === "scenario/a" ? 0 : 1,
+          seriesId: trace.seriesId,
+          seriesIndex: reconciled.graphPanes[0]!.series.findIndex(
+            ({ seriesId }) => seriesId === trace.seriesId,
+          ),
+          appTheme,
+        }).color,
+      );
+      expect(minimumPairDistance(renderedColors)).toBeGreaterThan(0.12);
+    }
   });
 
-  it("uses Scenario base color only for future allocations", () => {
+  it("retains allocated colors and gives a new baseline item its semantic color", () => {
     const pane: ExperimentSurfaceGraphPaneV2 = {
       paneId: "pane/pressure",
       role: "graph",
@@ -1071,7 +1105,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       windowSec: 2,
       series: [
         {
-          seriesId: "lvp",
+          seriesId: "LVP",
           label: "LVP",
           order: 0,
         },
@@ -1108,7 +1142,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
           ...recoloredBase.graphPanes[0]!,
           series: [
             ...recoloredBase.graphPanes[0]!.series,
-            { seriesId: "lap", label: "LAP", order: 1 },
+            { seriesId: "LAP", label: "LAP", order: 1 },
           ],
         },
       ],
@@ -1118,14 +1152,14 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     ]);
     expect(
       reconciled.graphPanes[0]?.traceColors?.find(
-        ({ seriesId }) => seriesId === "lvp",
+        ({ seriesId }) => seriesId === "LVP",
       )?.automaticColorHex,
     ).toBe(existing?.[0]?.automaticColorHex);
     expect(
       reconciled.graphPanes[0]?.traceColors?.find(
-        ({ seriesId }) => seriesId === "lap",
+        ({ seriesId }) => seriesId === "LAP",
       )?.automaticColorHex,
-    ).toBe(deriveWorkbenchScenarioItemColorV3("#8b76d1", 1));
+    ).toBe(workbenchSemanticItemColorV3("LAP"));
   });
 
   it("allocates a single-chamber PV loop from the Scenario base color", () => {
@@ -1150,12 +1184,19 @@ describe("V3-neutral Workbench Canvas helpers", () => {
         note: { text: "" },
       },
       [{ scenarioId: "scenario/a" }],
-      "series",
     );
 
     expect(reconciled.scenarioColorSeeds?.[0]?.colorHex).toBe("#d9822b");
     expect(reconciled.graphPanes[0]?.traceColors?.[0]?.automaticColorHex)
       .toBe("#d9822b");
+
+    const comparison = reconcileWorkbenchGraphColorsV3(reconciled, [
+      { scenarioId: "scenario/a" },
+      { scenarioId: "scenario/b" },
+    ]);
+    expect(comparison.graphPanes[0]?.traceColors?.map(
+      ({ automaticColorHex }) => automaticColorHex,
+    )).toEqual(["#d9822b", "#2f9e7d"]);
   });
 
   it("lets an exact Scenario/item custom color win over its frozen automatic color", () => {

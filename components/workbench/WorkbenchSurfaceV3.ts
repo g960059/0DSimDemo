@@ -532,13 +532,12 @@ export function createDefaultExperimentSurfaceV3(
     controlPanes: Object.freeze([controlPane]),
     note: Object.freeze({ text: "" }),
   });
-  // Single-Scenario waveforms start with familiar item semantics. Structural
-  // and PV panes use the Scenario seed from their first allocation because
-  // Scenario identity is their primary visual distinction.
+  // Waveforms start with familiar item semantics. One-item panes keep Scenario
+  // identity as their primary visual distinction; additional multi-item
+  // Scenarios receive perceptually separated solid-line colors.
   return reconcileWorkbenchGraphColorsV3(
     surface,
     Object.freeze([Object.freeze({ scenarioId: initialScenarioId })]),
-    "series",
   );
 }
 

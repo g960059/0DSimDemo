@@ -56,8 +56,11 @@ const WORKBENCH_LEGACY_SEMANTIC_COLOR_PALETTE_V3 = Object.freeze([
 
 /** Stable semantic seed used only when a single-Scenario trace is allocated. */
 export function workbenchSemanticItemColorV3(seriesId: string): string {
-  return WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3[seriesId]?.dark
-    ?? "#66717b";
+  return workbenchSemanticItemColorOrNullV3(seriesId) ?? "#66717b";
+}
+
+function workbenchSemanticItemColorOrNullV3(seriesId: string): string | null {
+  return WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3[seriesId]?.dark ?? null;
 }
 
 export function workbenchDefaultScenarioColorV3(index: number): string {
@@ -80,10 +83,7 @@ export function workbenchScenarioColorSeedV3(input: Readonly<{
     ?? workbenchDefaultScenarioColorV3(input.scenarioIndex);
 }
 
-/**
- * Produces a coherent Scenario family without line-style encoding. The result
- * is persisted immediately; later base-color edits do not recompute it.
- */
+/** Deterministic fallback used before a missing trace has been materialized. */
 export function deriveWorkbenchScenarioItemColorV3(
   baseColorHex: string,
   itemIndex: number,
@@ -91,22 +91,38 @@ export function deriveWorkbenchScenarioItemColorV3(
   if (!Number.isSafeInteger(itemIndex) || itemIndex <= 0) {
     return canonicalColorHexV3(baseColorHex);
   }
-  const [hue, saturation, lightness] = rgbToHslV3(
+  const [lightness, chroma, hue] = rgbToOklchV3(
     hexToRgbV3(canonicalColorHexV3(baseColorHex)),
   );
-  const variants = Object.freeze([
-    Object.freeze({ hue: 0, saturation: 0, lightness: 0 }),
-    Object.freeze({ hue: 14, saturation: -10, lightness: 8 }),
-    Object.freeze({ hue: -14, saturation: 4, lightness: -8 }),
-    Object.freeze({ hue: 28, saturation: -6, lightness: -2 }),
-    Object.freeze({ hue: -28, saturation: -2, lightness: 6 }),
+  const hueOffsets = Object.freeze([0, 95, -95, 170, -170]);
+  const lightnessOffsets = Object.freeze([0, 0.07, -0.04, 0.03, -0.02]);
+  return oklchToHexV3([
+    clampV3(
+      lightness + lightnessOffsets[itemIndex % lightnessOffsets.length]!,
+      0.66,
+      0.82,
+    ),
+    clampV3(Math.max(chroma, 0.14), 0.12, 0.18),
+    (hue + hueOffsets[itemIndex % hueOffsets.length]! + 360) % 360,
   ]);
-  const variant = variants[itemIndex % variants.length]!;
-  return rgbToHexV3(hslToRgbV3([
-    (hue + variant.hue + 360) % 360,
-    clampV3(saturation + variant.saturation, 35, 90),
-    clampV3(lightness + variant.lightness, 35, 60),
-  ]));
+}
+
+/** Perceptual distance used by the automatic solid-line color allocator. */
+export function workbenchPerceptualColorDistanceV3(
+  leftColorHex: string,
+  rightColorHex: string,
+): number {
+  const left = rgbToOklabV3(
+    hexToRgbV3(canonicalColorHexV3(leftColorHex)),
+  );
+  const right = rgbToOklabV3(
+    hexToRgbV3(canonicalColorHexV3(rightColorHex)),
+  );
+  return Math.hypot(
+    left[0] - right[0],
+    left[1] - right[1],
+    left[2] - right[2],
+  );
 }
 
 export function resolveWorkbenchGraphTraceStyleV3(input: Readonly<{
@@ -165,7 +181,6 @@ export function resolveWorkbenchAutomaticGraphColorV3(input: Readonly<{
 export function reconcileWorkbenchGraphColorsV3(
   surface: ExperimentSurfaceV2,
   scenarios: readonly Readonly<{ scenarioId: string }>[],
-  newTraceStrategy: "scenario-base" | "series" = "scenario-base",
 ): ExperimentSurfaceV2 {
   const allowed = new Set(scenarios.map(({ scenarioId }) => scenarioId));
   const currentById = new Map(
@@ -197,7 +212,6 @@ export function reconcileWorkbenchGraphColorsV3(
       pane,
       scenarios,
       baseById,
-      newTraceStrategy,
     );
     if (next !== pane) panesChanged = true;
     return next;
@@ -240,7 +254,6 @@ function reconcilePaneTraceColorsV3(
   pane: ExperimentSurfaceGraphPaneV2,
   scenarios: readonly Readonly<{ scenarioId: string }>[],
   baseById: ReadonlyMap<string, string>,
-  newTraceStrategy: "scenario-base" | "series",
 ): ExperimentSurfaceGraphPaneV2 {
   const targetSeriesIds = pane.series.length === 0
     ? [null]
@@ -253,23 +266,45 @@ function reconcilePaneTraceColorsV3(
         targetKeys.has(traceColorKeyV3(scenarioId, seriesId)))
       .map((trace) => [traceColorKeyV3(trace.scenarioId, trace.seriesId), trace]),
   );
-  const traceColors = scenarios.flatMap(({ scenarioId }) =>
-    targetSeriesIds.map((seriesId, itemIndex) => {
+  const usedColors = new Set(
+    [...currentByKey.values()].map(
+      ({ automaticColorHex, customColorHex }) =>
+        canonicalColorHexV3(customColorHex ?? automaticColorHex),
+    ),
+  );
+  const traceColors: ExperimentSurfaceGraphTraceColorV2[] = [];
+  const adaptiveMultiItemPane = targetSeriesIds.length > 1;
+  scenarios.forEach(({ scenarioId }, scenarioIndex) => {
+    targetSeriesIds.forEach((seriesId, itemIndex) => {
       const key = traceColorKeyV3(scenarioId, seriesId);
       const current = currentByKey.get(key);
-      if (current !== undefined) return current;
+      if (current !== undefined) {
+        traceColors.push(current);
+        return;
+      }
       const base = baseById.get(scenarioId) ?? workbenchDefaultScenarioColorV3(0);
-      const automaticColorHex = newTraceStrategy === "series"
-          && seriesId !== null
-          && !isPressureVolumePaneV3(pane)
-        ? workbenchSemanticItemColorV3(seriesId)
-        : deriveWorkbenchScenarioItemColorV3(base, itemIndex);
-      return Object.freeze({
+      const semanticColor = seriesId === null
+        ? null
+        : workbenchSemanticItemColorOrNullV3(seriesId);
+      const automaticColorHex = !adaptiveMultiItemPane
+        ? canonicalColorHexV3(base)
+        : scenarioIndex === 0 && semanticColor !== null
+        ? semanticColor
+        : allocateAdaptiveWorkbenchTraceColorV3({
+            baseColorHex: base,
+            preferredIndex:
+              scenarioIndex * targetSeriesIds.length + itemIndex,
+            usedColorHexes: [...usedColors],
+          });
+      const trace = Object.freeze({
         scenarioId,
         seriesId,
         automaticColorHex,
       } satisfies ExperimentSurfaceGraphTraceColorV2);
-    }));
+      traceColors.push(trace);
+      usedColors.add(automaticColorHex);
+    });
+  });
   const current = pane.traceColors ?? [];
   const changed = current.length !== traceColors.length
     || traceColors.some((trace, index) => current[index] !== trace);
@@ -280,11 +315,61 @@ function reconcilePaneTraceColorsV3(
   });
 }
 
-function isPressureVolumePaneV3(
-  pane: ExperimentSurfaceGraphPaneV2,
-): boolean {
-  return pane.pressureVolumeAnalysisMode !== undefined
-    || pane.graphId.includes("pressure-volume");
+function allocateAdaptiveWorkbenchTraceColorV3(input: Readonly<{
+  baseColorHex: string;
+  preferredIndex: number;
+  usedColorHexes: readonly string[];
+}>): string {
+  const [, , baseHue] = rgbToOklchV3(
+    hexToRgbV3(canonicalColorHexV3(input.baseColorHex)),
+  );
+  const candidates: string[] = [];
+  const candidateKeys = new Set<string>();
+  const goldenAngleDeg = 137.50776405003785;
+  const lightnessTiers = Object.freeze([0.74, 0.82, 0.67]);
+  for (const lightness of lightnessTiers) {
+    for (let index = 0; index < 24; index += 1) {
+      const hue = (
+        baseHue +
+        (input.preferredIndex + index) * goldenAngleDeg
+      ) % 360;
+      const candidate = ensureWorkbenchGraphContrastV3(
+        oklchToHexV3([lightness, lightness === 0.82 ? 0.13 : 0.17, hue]),
+        "dark",
+      );
+      if (candidateKeys.has(candidate)) continue;
+      candidateKeys.add(candidate);
+      candidates.push(candidate);
+    }
+  }
+  if (input.usedColorHexes.length === 0) {
+    return candidates[0] ?? canonicalColorHexV3(input.baseColorHex);
+  }
+  let winner = candidates[0] ?? canonicalColorHexV3(input.baseColorHex);
+  let winnerDistance = -1;
+  for (const candidate of candidates) {
+    const nearestDistance = Math.min(
+      ...(["dark", "light"] as const).flatMap((appTheme) => {
+        const resolvedCandidate = resolveWorkbenchAutomaticGraphColorV3({
+          colorHex: candidate,
+          appTheme,
+        });
+        return input.usedColorHexes.map((usedColor) =>
+          workbenchPerceptualColorDistanceV3(
+            resolvedCandidate,
+            resolveWorkbenchAutomaticGraphColorV3({
+              colorHex: usedColor,
+              appTheme,
+            }),
+          ));
+      }),
+    );
+    if (nearestDistance > winnerDistance) {
+      winner = candidate;
+      winnerDistance = nearestDistance;
+    }
+  }
+  return winner;
 }
 
 function traceColorKeyV3(scenarioId: string, seriesId: string | null): string {
@@ -298,6 +383,8 @@ function canonicalColorHexV3(value: string): string {
 
 type RgbV3 = readonly [number, number, number];
 type HslV3 = readonly [number, number, number];
+type OklabV3 = readonly [number, number, number];
+type OklchV3 = readonly [number, number, number];
 
 function hexToRgbV3(value: string): RgbV3 {
   return Object.freeze([
@@ -355,6 +442,81 @@ function hslToRgbV3([hue, saturationPercent, lightnessPercent]: HslV3): RgbV3 {
     (red + match) * 255,
     (green + match) * 255,
     (blue + match) * 255,
+  ]);
+}
+
+function rgbToOklabV3([redByte, greenByte, blueByte]: RgbV3): OklabV3 {
+  const [red, green, blue] = [redByte, greenByte, blueByte].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.04045
+      ? value / 12.92
+      : ((value + 0.055) / 1.055) ** 2.4;
+  });
+  const l = Math.cbrt(
+    0.4122214708 * red! + 0.5363325363 * green! + 0.0514459929 * blue!,
+  );
+  const m = Math.cbrt(
+    0.2119034982 * red! + 0.6806995451 * green! + 0.1073969566 * blue!,
+  );
+  const s = Math.cbrt(
+    0.0883024619 * red! + 0.2817188376 * green! + 0.6299787005 * blue!,
+  );
+  return Object.freeze([
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]);
+}
+
+function rgbToOklchV3(rgb: RgbV3): OklchV3 {
+  const [lightness, a, b] = rgbToOklabV3(rgb);
+  const hueRadians = Math.atan2(b, a);
+  return Object.freeze([
+    lightness,
+    Math.hypot(a, b),
+    (hueRadians * 180 / Math.PI + 360) % 360,
+  ]);
+}
+
+function oklchToHexV3([lightness, requestedChroma, hue]: OklchV3): string {
+  const radians = hue * Math.PI / 180;
+  for (let chroma = requestedChroma; chroma >= 0; chroma -= 0.004) {
+    const rgb = oklabToSrgbV3([
+      lightness,
+      chroma * Math.cos(radians),
+      chroma * Math.sin(radians),
+    ]);
+    if (rgb.every((channel) => channel >= 0 && channel <= 255)) {
+      return rgbToHexV3(rgb);
+    }
+  }
+  const neutral = oklabToSrgbV3([lightness, 0, 0]);
+  return rgbToHexV3([
+    clampV3(neutral[0], 0, 255),
+    clampV3(neutral[1], 0, 255),
+    clampV3(neutral[2], 0, 255),
+  ]);
+}
+
+function oklabToSrgbV3([lightness, a, b]: OklabV3): RgbV3 {
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const linear = Object.freeze([
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ]);
+  const encode = (channel: number) => {
+    const value = channel <= 0.0031308
+      ? 12.92 * channel
+      : 1.055 * channel ** (1 / 2.4) - 0.055;
+    return value * 255;
+  };
+  return Object.freeze([
+    encode(linear[0]!),
+    encode(linear[1]!),
+    encode(linear[2]!),
   ]);
 }
 
