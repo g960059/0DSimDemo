@@ -146,12 +146,12 @@ Briefing, database schema, Auth, and hosting are independently versioned
 product concerns. Changing any of those without changing numerical execution
 must not mint another `modelId`.
 
-The Standard ABI keeps the exact manifest, analysis profile, and immutable
-Model Surface as separate semantic owners. Ordinary graph, presentation,
-Knob, protocol, and admission work therefore does not change exact numerical
-meaning. A metric accumulated inside the exact numerical Session from accepted
-substeps remains model-owned; changing its semantics is an exact-contract
-change and does require a new `modelId`.
+The Studio runtime composition keeps the exact manifest, analysis profile, and
+immutable Model Surface as separate semantic owners. Ordinary graph,
+presentation, Knob, protocol, and admission work therefore does not change
+exact numerical meaning. A metric accumulated inside the exact numerical
+Session from accepted substeps remains model-owned; changing its semantics is
+an exact-contract change and does require a new `modelId`.
 
 Integrity hashes remain inside CI, the model registry, artifact storage, and
 model-owned corruption checks. The immutable scientific model definition and
@@ -229,9 +229,9 @@ React StrictMode remounts and multiple new-Session navigations. A page reload
 resolves a replaced active bundle. This avoids changing numerical defaults
 halfway through one authoring visit.
 
-Analysis execution IDs are immutable semantic identifiers. Existing
-`main-wire-integrated-v3` semantics must not be overwritten; future analysis
-implementations receive a new explicitly versioned profile ID.
+Analysis execution IDs are immutable semantic identifiers. Existing semantics
+must not be overwritten; a changed analysis implementation receives a new
+explicitly versioned profile ID.
 
 Before public deployment, the release gate must exercise module-Worker Blob
 ESM import and Storage CORS in Playwright WebKit plus real Safari/iOS Safari.
@@ -350,26 +350,11 @@ another input epoch and cannot reuse the previous candidate. If no candidate
 is already ready at the brief action, the captured live checkpoint is admitted
 directly; capture never waits for the speculative Worker.
 
-Workbench observes complete-cycle output closure for up to a bounded number of
-cycles. This is an ephemeral acceleration heuristic named a *steady
-candidate*. It is neither the model's formal period-1 qualification nor a
-durable settlement assertion. PV/Starling analyses start from the same
-candidate and may apply stricter model-owned convergence. Snapshot admission
-still independently verifies executable safety. Candidate diagnostics and
-settlement status are never written into Experiment or Snapshot content.
-
-Candidate work is single-flight per Scenario/input epoch and starts after a
-parameter change, not during initial load or Scenario duplication. After three
-complete cycles it exposes an exact bounded warm-start candidate, then may
-continue toward observed output closure in the background. PV/Starling and
-Snapshot capture only read a candidate already available at request time; they
-never join or promote an unfinished prewarm. The lowest-priority prewarm may
-therefore improve later requests without delaying the first graph or the
-author's click. The pool remains bounded for normal work; explicit Save or
-Snapshot admission may use one temporary burst Worker so two already-running
-bidirectional analysis lanes cannot place the author's explicit action behind
-an entire sweep. Persistent live Scenario Workers are outside this pool and
-never stop for detached candidate computation.
+An ephemeral exact candidate may be reused only while model, fixture, Scenario,
+and input epoch still match. It is neither persisted nor a settlement or
+qualification claim. Code owns its scheduling, convergence heuristic, and
+resource policy. Snapshot admission still independently verifies executable
+safety.
 
 ### 7.4 Common Snapshot admission
 

@@ -219,16 +219,19 @@ Article, and hosting releases are versioned separately and must not churn
 
 The registry accepts only the Standard exact-model manifest. The display name,
 default fixture, and analysis-profile ID are immutable launch metadata on the
-release row, but they are not the scientific identity digest. A future rename
-or launch-default change therefore requires an explicit metadata migration or
-versioned metadata API, not another `modelId`. Public reads return those values
-with the manifest and public Storage path, but continue to hide artifact SHA,
-revision evidence, and source commit. Exact artifacts export
-`createCircleHeartExactModelReleaseV1() -> { manifest, executables }`.
-Registry metadata is the sole authority for the default fixture. Analysis
-profile IDs are immutable references; changed analysis semantics require
-another profile ID and an explicit metadata transition rather than minting a
-scientific model identity.
+model-release row, not fields in the scientific identity digest. Public reads
+return those values with the manifest and public Storage path, but continue to
+hide artifact SHA, revision evidence, and source commit. Exact artifacts export
+`createCircleHeartExactModelReleaseV1() -> { manifest, executables }`, and
+registry metadata is the sole authority for the default fixture.
+
+The current registration API rejects rebinding any of that launch metadata
+under the same `modelId`. A display-name or launch-default change ultimately
+belongs in a separately versioned metadata layer rather than scientific
+identity. A changed analysis implementation requires a new immutable profile
+ID; because durable content does not yet pin that profile independently, the
+current publication path also requires another model release. Historical
+release rows must not be mutated to emulate either transition.
 
 After the exact release and Surface files are committed, a maintainer with an
 authenticated Supabase CLI session publishes immutable registry rows without
