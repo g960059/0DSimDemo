@@ -99,7 +99,7 @@ import {
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
-import currentWorkbenchSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+import currentWorkbenchSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {

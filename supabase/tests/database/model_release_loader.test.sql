@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(23);
+select plan(45);
 
 select lives_ok(
   $$
@@ -298,6 +298,337 @@ select ok(
     from public.get_model_release_v1('model/dynamic-loader-test-v1') as release
   ) ?| array['artifact_sha256', 'equivalence_report_sha256', 'source_commit'],
   'Browser release lookup exposes only the opaque revision, not integrity evidence'
+);
+
+select lives_ok(
+  $$
+    select public.set_model_launch_default_fixture_v1(
+      'model/dynamic-loader-test-v1',
+      '{"schemaId":"fixture/test-v1","value":2}'::jsonb
+    )
+  $$,
+  'The launch fixture can change without publishing an exact artifact'
+);
+
+select is(
+  (select display_name
+    from public.get_model_release_v2('model/dynamic-loader-test-v1')),
+  'Dynamic loader test',
+  'Visible model-row metadata remains immutable; Surface owns product naming'
+);
+
+select is(
+  (select default_fixture
+    from public.get_model_release_v2('model/dynamic-loader-test-v1')),
+  '{"schemaId":"fixture/test-v1","value":2}'::jsonb,
+  'Current lookup resolves the independently mutable launch fixture'
+);
+
+select is(
+  (select manifest
+    from public.get_model_release_v2('model/dynamic-loader-test-v1')),
+  '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-test-v1","modelFamilyId":"model/dynamic-loader-test"}'::jsonb,
+  'A launch-default update leaves the exact manifest unchanged'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_release_v3(
+      'model/dynamic-loader-test-v1',
+      'model/dynamic-loader-test',
+      'Ignored replacement name',
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-test-v1","modelFamilyId":"model/dynamic-loader-test","primitiveSignalCatalog":[{"outputId":"signal/new"}]}'::jsonb,
+      repeat('d', 64),
+      'model-releases/model/dynamic-loader-test-v1/dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd/model.mjs',
+      repeat('e', 64),
+      'invalid-same-model-primitive-addition',
+      '{"schemaId":"fixture/test-v1","value":2}'::jsonb,
+      null,
+      null
+    )
+  $$,
+  '23505',
+  'model_id model/dynamic-loader-test-v1 is already registered with another scientific contract',
+  'A primitive-catalog change cannot reuse an existing modelId'
+);
+
+select ok(
+  not pg_catalog.has_function_privilege(
+    'service_role',
+    'public.register_model_release_v2(text,text,text,jsonb,text,text,text,text,jsonb,text,text,text)',
+    'EXECUTE'
+  ),
+  'Current publishers cannot register a legacy analysis-profile selector'
+);
+
+select ok(
+  not (
+    select to_jsonb(release)
+    from public.get_model_release_v2('model/dynamic-loader-test-v1') as release
+  ) ? 'analysis_profile_id',
+  'Current release reads do not expose the legacy analysis-profile selector'
+);
+
+select is(
+  (
+    public.register_model_release_v3(
+      'model/dynamic-loader-v3-test-v1',
+      'model/dynamic-loader-v3-test',
+      'V3 registration test',
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-v3-test-v1","modelFamilyId":"model/dynamic-loader-v3-test"}'::jsonb,
+      repeat('4', 64),
+      'model-releases/model/dynamic-loader-v3-test-v1/4444444444444444444444444444444444444444444444444444444444444444/model.mjs',
+      repeat('5', 64),
+      'dynamic-loader-v3-test',
+      '{"schemaId":"fixture/v3-test-v1","value":1}'::jsonb,
+      null,
+      null
+    ) ->> 'launchDefaultVersion'
+  )::bigint,
+  1::bigint,
+  'V3 registration seeds one independently versioned launch default'
+);
+
+select lives_ok(
+  $$
+    select public.set_model_launch_default_fixture_v1(
+      'model/dynamic-loader-v3-test-v1',
+      '{"schemaId":"fixture/v3-test-v1","value":2}'::jsonb
+    )
+  $$,
+  'The operator can update a V3-registered launch default'
+);
+
+select is(
+  (
+    public.register_model_release_v3(
+      'model/dynamic-loader-v3-test-v1',
+      'model/dynamic-loader-v3-test',
+      'Ignored replacement name',
+      '{"schemaId":"circleheart-studio-exact-model-kernel-v3","modelId":"model/dynamic-loader-v3-test-v1","modelFamilyId":"model/dynamic-loader-v3-test"}'::jsonb,
+      repeat('4', 64),
+      'model-releases/model/dynamic-loader-v3-test-v1/4444444444444444444444444444444444444444444444444444444444444444/model.mjs',
+      repeat('5', 64),
+      'dynamic-loader-v3-republish',
+      '{"schemaId":"fixture/v3-test-v1","value":3}'::jsonb,
+      null,
+      null
+    ) ->> 'launchDefaultVersion'
+  )::bigint,
+  2::bigint,
+  'Artifact republish preserves the independently updated launch-default version'
+);
+
+select is(
+  (select default_fixture
+    from public.get_model_release_v2('model/dynamic-loader-v3-test-v1')),
+  '{"schemaId":"fixture/v3-test-v1","value":2}'::jsonb,
+  'Artifact republish does not overwrite the operator launch default'
+);
+
+select is(
+  (select display_name
+    from public.get_model_release_v2('model/dynamic-loader-v3-test-v1')),
+  'V3 registration test',
+  'Artifact republish does not mutate legacy model-row naming metadata'
+);
+
+select ok(
+  pg_catalog.has_function_privilege(
+    'service_role',
+    'public.register_model_release_v3(text,text,text,jsonb,text,text,text,text,jsonb,text,text)',
+    'EXECUTE'
+  )
+  and pg_catalog.has_function_privilege(
+    'service_role',
+    'public.set_model_launch_default_fixture_v1(text,jsonb)',
+    'EXECUTE'
+  )
+  and pg_catalog.has_function_privilege(
+    'service_role',
+    'public.get_model_release_v2(text)',
+    'EXECUTE'
+  )
+  and pg_catalog.has_function_privilege(
+    'service_role',
+    'public.get_active_model_bundle_v2()',
+    'EXECUTE'
+  ),
+  'The service role can publish and resolve through only the current APIs'
+);
+
+select lives_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/dynamic-loader-v3-test-v1',
+      'surface-series/dynamic-loader-v3-test',
+      null,
+      'model/dynamic-loader-v3-test',
+      'V3 test surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/dynamic-loader-v3-test-v1",
+        "surfaceSeriesId":"surface-series/dynamic-loader-v3-test",
+        "predecessorSurfaceReleaseId":null,
+        "modelFamilyId":"model/dynamic-loader-v3-test",
+        "displayName":"V3 test surface",
+        "exposedExactOutputIds":[],
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'dynamic-loader-v3-test'
+    )
+  $$,
+  'A Surface can be registered for the V3 exact release'
+);
+
+select lives_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/dynamic-loader-v3-test-v2',
+      'surface-series/dynamic-loader-v3-test',
+      'surface/dynamic-loader-v3-test-v1',
+      'model/dynamic-loader-v3-test',
+      'V3 test surface v2',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/dynamic-loader-v3-test-v2",
+        "surfaceSeriesId":"surface-series/dynamic-loader-v3-test",
+        "predecessorSurfaceReleaseId":"surface/dynamic-loader-v3-test-v1",
+        "modelFamilyId":"model/dynamic-loader-v3-test",
+        "displayName":"V3 test surface v2",
+        "exposedExactOutputIds":["signal/test"],
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'dynamic-loader-v3-test'
+    )
+  $$,
+  'An additive Surface successor may expose another exact output'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/dynamic-loader-v3-test-v3-invalid',
+      'surface-series/dynamic-loader-v3-test',
+      'surface/dynamic-loader-v3-test-v2',
+      'model/dynamic-loader-v3-test',
+      'Invalid V3 test surface v3',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/dynamic-loader-v3-test-v3-invalid",
+        "surfaceSeriesId":"surface-series/dynamic-loader-v3-test",
+        "predecessorSurfaceReleaseId":"surface/dynamic-loader-v3-test-v2",
+        "modelFamilyId":"model/dynamic-loader-v3-test",
+        "displayName":"Invalid V3 test surface v3",
+        "exposedExactOutputIds":[],
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'dynamic-loader-v3-test'
+    )
+  $$,
+  '22023',
+  'model surface upgrade cannot hide an exact output',
+  'A Surface successor cannot hide an exact output in the same series'
+);
+
+select lives_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/legacy-exposure-test-v1',
+      'surface-series/legacy-exposure-test',
+      null,
+      'model/dynamic-loader-v3-test',
+      'Legacy exposure test surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/legacy-exposure-test-v1",
+        "surfaceSeriesId":"surface-series/legacy-exposure-test",
+        "predecessorSurfaceReleaseId":null,
+        "modelFamilyId":"model/dynamic-loader-v3-test",
+        "displayName":"Legacy exposure test surface",
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'dynamic-loader-v3-test'
+    )
+  $$,
+  'A legacy Surface without an explicit exact-output policy remains loadable'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/legacy-exposure-test-v2-invalid',
+      'surface-series/legacy-exposure-test',
+      'surface/legacy-exposure-test-v1',
+      'model/dynamic-loader-v3-test',
+      'Invalid legacy exposure successor',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/legacy-exposure-test-v2-invalid",
+        "surfaceSeriesId":"surface-series/legacy-exposure-test",
+        "predecessorSurfaceReleaseId":"surface/legacy-exposure-test-v1",
+        "modelFamilyId":"model/dynamic-loader-v3-test",
+        "displayName":"Invalid legacy exposure successor",
+        "exposedExactOutputIds":[],
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'dynamic-loader-v3-test'
+    )
+  $$,
+  '22023',
+  'legacy and explicit exact-output exposure require different model surface series',
+  'A Surface successor cannot switch from legacy to explicit exposure policy'
+);
+
+select lives_ok(
+  $$select public.set_model_release_stage_v1(
+    'model/dynamic-loader-v3-test-v1', 'stable'
+  )$$,
+  'The V3 exact release can be promoted'
+);
+
+select lives_ok(
+  $$select public.set_model_surface_release_stage_v1(
+    'surface/dynamic-loader-v3-test-v1', 'stable'
+  )$$,
+  'The V3 Surface can be promoted'
+);
+
+select lives_ok(
+  $$
+    select public.set_active_model_bundle_v1(
+      null,
+      'model/dynamic-loader-v3-test-v1',
+      'surface/dynamic-loader-v3-test-v1'
+    )
+  $$,
+  'The V3 exact/Surface pair can become the launch bundle'
+);
+
+select is(
+  (select default_fixture from public.get_active_model_bundle_v2()),
+  '{"schemaId":"fixture/v3-test-v1","value":2}'::jsonb,
+  'Active-bundle V2 resolves the operator launch default'
 );
 
 select * from finish();

@@ -28,6 +28,9 @@ import {
   admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
+  resolveStudioAnalysisMethodsForSurfaceV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 
@@ -169,9 +172,17 @@ export class DynamicExactModelRuntimeLoaderV2 {
     ) {
       throw new Error("Exact model artifact manifest does not match the registry");
     }
+    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+      ticket.surfaceRelease,
+      [
+        ...ticket.manifest.primitiveSignalCatalog,
+        ...ticket.manifest.modelMetricCatalog,
+      ],
+    );
     const composed = composeStandardModelContractV1(
       ticket.manifest,
       ticket.surfaceRelease,
+      analysisMethods.capabilities,
     );
     for (const requiredCapability of [
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
@@ -185,6 +196,7 @@ export class DynamicExactModelRuntimeLoaderV2 {
     }
     const runtime = admitExactModelExecutableRuntimeV2(
       release.executables,
+      composed.exactContract,
       composed.contract,
     );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);

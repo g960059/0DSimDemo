@@ -115,6 +115,8 @@ export type ModelSurfaceReleaseManifestV1 = Readonly<{
   predecessorSurfaceReleaseId: string | null;
   modelFamilyId: string;
   displayName: string;
+  /** Exact outputs intentionally exposed by this Surface; absent on legacy releases. */
+  exposedExactOutputIds?: readonly string[];
   controlCatalog: readonly ModelSurfaceControlDefinitionV1[];
   derivedOutputCatalog: readonly ModelSurfaceDerivedOutputDefinitionV1[];
   graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
@@ -130,6 +132,7 @@ export type ModelSurfaceReleaseManifestV1 = Readonly<{
 export type MaterializedModelSurfaceV1 = Readonly<{
   surfaceReleaseId: string;
   modelFamilyId: string;
+  exposedExactOutputIds: readonly string[];
   controlCatalog: readonly ModelSurfaceControlDefinitionV1[];
   derivedOutputCatalog: readonly ModelSurfaceDerivedOutputDefinitionV1[];
   graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
@@ -138,6 +141,7 @@ export type MaterializedModelSurfaceV1 = Readonly<{
 }>;
 
 export type ComposedStandardModelContractV1 = Readonly<{
+  exactContract: ModelContractV2;
   contract: ModelContractV2;
   surface: MaterializedModelSurfaceV1;
 }>;
@@ -281,7 +285,12 @@ export function assertModelSurfaceReleaseManifestV1(
   value: unknown,
 ): asserts value is ModelSurfaceReleaseManifestV1 {
   assertPortableStudioJsonObjectV2(value, "$.surfaceRelease");
-  assertExactKeysV1(value, SURFACE_KEYS_V1, "$.surfaceRelease");
+  assertRequiredAndOptionalKeysV1(
+    value,
+    SURFACE_KEYS_V1,
+    ["exposedExactOutputIds"],
+    "$.surfaceRelease",
+  );
   const surface = value as unknown as Record<string, unknown>;
   if (surface.schemaId !== STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID) {
     throw new ModelSurfaceValidationErrorV1(
@@ -314,6 +323,12 @@ export function assertModelSurfaceReleaseManifestV1(
     "$.surfaceRelease.modelFamilyId",
   );
   assertDisplayNameV1(surface.displayName, "$.surfaceRelease.displayName");
+  if (surface.exposedExactOutputIds !== undefined) {
+    assertUniqueIdArrayV1(
+      surface.exposedExactOutputIds,
+      "$.surfaceRelease.exposedExactOutputIds",
+    );
+  }
   assertSurfaceControlCatalogV1(surface.controlCatalog);
   assertDerivedOutputCatalogV1(surface.derivedOutputCatalog);
   assertSurfaceGraphCatalogV1(
@@ -422,7 +437,7 @@ export function composeStandardModelContractV1(
   const kernelContract: ModelContractV2 = Object.freeze({
     modelId: kernel.modelId,
     modelFamilyId: kernel.modelFamilyId,
-    displayName: surfaceRelease.displayName,
+    displayName: kernel.modelId,
     fixtureSchemaId: kernel.fixtureSchema.fixtureSchemaId,
     checkpointCodecId: kernel.checkpointCodec.checkpointCodecId,
     snapshotGateId: STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
@@ -442,14 +457,20 @@ export function composeStandardModelContractV1(
   const exposedControlIds = new Set(
     materialized.controlCatalog.map(({ controlId }) => controlId),
   );
+  const exposedExactOutputIds = new Set(
+    materialized.exposedExactOutputIds,
+  );
   const contract: ModelContractV2 = Object.freeze({
     ...kernelContract,
+    displayName: surfaceRelease.displayName,
     controlCatalog: Object.freeze(kernel.primitiveControlCatalog.filter(
       ({ controlId }) => exposedControlIds.has(controlId),
     )),
     outputCatalog: Object.freeze([
-      ...kernel.primitiveSignalCatalog,
-      ...kernel.modelMetricCatalog,
+      ...kernel.primitiveSignalCatalog.filter(({ outputId }) =>
+        exposedExactOutputIds.has(outputId)),
+      ...kernel.modelMetricCatalog.filter(({ outputId }) =>
+        exposedExactOutputIds.has(outputId)),
       ...materialized.derivedOutputCatalog.map(stripDerivationV1),
     ]),
     graphCatalog: Object.freeze(
@@ -457,7 +478,11 @@ export function composeStandardModelContractV1(
     ),
   });
   assertModelContractV2(contract);
-  return Object.freeze({ contract, surface: materialized });
+  return Object.freeze({
+    exactContract: kernelContract,
+    contract,
+    surface: materialized,
+  });
 }
 
 /**
@@ -498,9 +523,16 @@ export function materializeModelSurfaceForModelV1(
   const controlCatalog = surface.controlCatalog.filter((item) =>
     requirementsSatisfiedV1(item.requiredCapabilities, capabilities)
     && controls.has(item.controlId));
-  const availableOutputs = new Set(
-    model.outputCatalog.map(({ outputId }) => outputId),
+  const modelOutputsById = new Map(
+    model.outputCatalog.map((output) => [output.outputId, output]),
   );
+  const declaredExactOutputIds = surface.exposedExactOutputIds
+    ?? model.outputCatalog.map(({ outputId }) => outputId);
+  const exposedExactOutputIds = declaredExactOutputIds.filter((outputId) =>
+    modelOutputsById.has(outputId));
+  const exposedExactOutputCatalog = exposedExactOutputIds.map((outputId) =>
+    modelOutputsById.get(outputId)!);
+  const availableOutputs = new Set(exposedExactOutputIds);
   const derivedOutputCatalog: ModelSurfaceDerivedOutputDefinitionV1[] = [];
   const remainingDerived = [...surface.derivedOutputCatalog];
   let addedOutput = true;
@@ -531,7 +563,7 @@ export function materializeModelSurfaceForModelV1(
       availableOutputs.has(outputId)));
   assertMaterializedGraphCatalogV1(
     graphCatalog,
-    model.outputCatalog,
+    exposedExactOutputCatalog,
     derivedOutputCatalog,
   );
   const knobCatalog = surface.knobCatalog.filter((knob) =>
@@ -543,6 +575,7 @@ export function materializeModelSurfaceForModelV1(
   return Object.freeze({
     surfaceReleaseId: surface.surfaceReleaseId,
     modelFamilyId: surface.modelFamilyId,
+    exposedExactOutputIds: Object.freeze(exposedExactOutputIds),
     controlCatalog: Object.freeze(controlCatalog),
     derivedOutputCatalog: Object.freeze(derivedOutputCatalog),
     graphCatalog: Object.freeze(graphCatalog),
@@ -592,6 +625,16 @@ export function assertModelSurfaceCompatibleV1(
     model,
     additionalCapabilities,
   );
+  if (
+    surface.exposedExactOutputIds !== undefined
+    && surface.exposedExactOutputIds.length
+      !== materialized.exposedExactOutputIds.length
+  ) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.exposedExactOutputIds",
+      "contains an output unsupported by the pinned exact model",
+    );
+  }
   const catalogs = [
     ["controlCatalog", surface.controlCatalog, materialized.controlCatalog],
     [
@@ -644,6 +687,7 @@ export function assertAdditiveModelSurfaceUpgradeV1(
     "controlId",
     "controlCatalog",
   );
+  assertExactOutputExposureExtensionV1(previous, next);
   assertCatalogExtensionV1(
     previous.derivedOutputCatalog,
     next.derivedOutputCatalog,
@@ -668,6 +712,36 @@ export function assertAdditiveModelSurfaceUpgradeV1(
     "protocolId",
     "protocolCatalog",
   );
+}
+
+function assertExactOutputExposureExtensionV1(
+  previous: ModelSurfaceReleaseManifestV1,
+  next: ModelSurfaceReleaseManifestV1,
+): void {
+  if (
+    previous.exposedExactOutputIds === undefined
+    || next.exposedExactOutputIds === undefined
+  ) {
+    if (
+      previous.exposedExactOutputIds !== undefined
+      || next.exposedExactOutputIds !== undefined
+    ) {
+      throw new ModelSurfaceValidationErrorV1(
+        "$.surfaceRelease.exposedExactOutputIds",
+        "legacy and explicit exposure policies require different Surface series",
+      );
+    }
+    return;
+  }
+  const nextIds = new Set(next.exposedExactOutputIds);
+  const removed = previous.exposedExactOutputIds.find((outputId) =>
+    !nextIds.has(outputId));
+  if (removed !== undefined) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.exposedExactOutputIds",
+      `an additive Surface upgrade cannot hide exact output ${removed}`,
+    );
+  }
 }
 
 export function controlCapabilityV1(controlId: string): string {
@@ -739,7 +813,7 @@ function assertDerivedOutputCatalogV1(value: unknown): void {
   value.forEach((entry, index) => {
     const path = `$.surfaceRelease.derivedOutputCatalog[${index}]`;
     assertRecordV1(entry, path);
-    assertExactKeysV1(entry, [
+    assertRequiredAndOptionalKeysV1(entry, [
       "dependencies",
       "derivationId",
       "kind",
@@ -748,7 +822,7 @@ function assertDerivedOutputCatalogV1(value: unknown): void {
       "scope",
       "shape",
       "unit",
-    ], path);
+    ], ["significantDigits"], path);
     assertPortableModelIdentifierV2(entry.outputId, `${path}.outputId`);
     assertPortableModelIdentifierV2(entry.derivationId, `${path}.derivationId`);
     assertUniqueCatalogIdV1(ids, entry.outputId, `${path}.outputId`);
@@ -786,6 +860,21 @@ function assertDerivedOutputCatalogV1(value: unknown): void {
       throw new ModelSurfaceValidationErrorV1(
         `${path}.scope`,
         'must be "instant", "beat", or "window"',
+      );
+    }
+    const significantDigits = entry.significantDigits;
+    if (
+      significantDigits !== undefined
+      && (
+        typeof significantDigits !== "number"
+        || !Number.isSafeInteger(significantDigits)
+        || significantDigits < 1
+        || significantDigits > 12
+      )
+    ) {
+      throw new ModelSurfaceValidationErrorV1(
+        `${path}.significantDigits`,
+        "must be an integer between 1 and 12",
       );
     }
   });
@@ -1022,6 +1111,9 @@ function stripDerivationV1(
     shape: value.shape,
     scope: value.scope,
     dependencies: Object.freeze([...value.dependencies]),
+    ...(value.significantDigits === undefined
+      ? {}
+      : { significantDigits: value.significantDigits }),
   });
 }
 

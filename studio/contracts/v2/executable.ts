@@ -67,7 +67,10 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
 
 /** Hash-free exact runtime projection. Artifact bytes and digest stay private. */
 export type ResolvedExactModelRuntimeV2 = Readonly<{
+  /** Surface-composed contract used for durable Studio content. */
   contract: ModelContractV2;
+  /** Exact-only contract used to admit numerical executable adapters. */
+  exactContract: ModelContractV2;
   captureAdapter: RegisteredModelCaptureAdapterV2;
   experimentCapture: RegisteredModelExperimentCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;

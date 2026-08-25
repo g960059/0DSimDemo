@@ -41,13 +41,13 @@ import {
 } from "@/components/workbench/v3";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  buildMainWireIntegratedModelPeriodicPvaV1,
   type MainWireIntegratedModelPeriodicPvaV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
+  type StudioPeriodicPvaDerivationV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -1179,6 +1179,7 @@ function ArticleReaderPressureVolumeCanvasV3({
           const periodicPva = periodicPvaFromPayloadV3(
             runtime.state.analysisByKey[key]?.payload,
             side,
+            runtime.periodicPvaDerivation,
           );
           return Object.freeze({
             ...trace,
@@ -1221,11 +1222,13 @@ function pressureVolumeRelationSideV3(
 function periodicPvaFromPayloadV3(
   payload: unknown,
   side: "left" | "right",
+  derivation: StudioPeriodicPvaDerivationV1 | null,
 ): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  if (derivation === null) return undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(payload, side);
   if (orientation === null) return undefined;
   try {
-    return buildMainWireIntegratedModelPeriodicPvaV1(
+    return derivation.build(
       orientation.starlingLocus,
       side === "left" ? "LV" : "RV",
     );
@@ -1506,6 +1509,7 @@ export function ArticleReaderOutputsV3({
               ? periodicPvaFromPayloadV3(
                   runtime.state.analysisByKey[analysisKey]?.payload,
                   "left",
+                  runtime.periodicPvaDerivation,
                 )
               : undefined;
           const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
@@ -2163,6 +2167,7 @@ function requiredArticleReaderRuntimeCompositionV3(
 ): Readonly<{
   releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
   resolveAnalysisExecutionPlan: StudioClientCompositionV2["analysisExecutionPlan"];
+  periodicPvaDerivation: StudioClientCompositionV2["periodicPvaDerivation"];
 }> {
   if (composition === null) {
     throw new Error(
@@ -2172,6 +2177,7 @@ function requiredArticleReaderRuntimeCompositionV3(
   return Object.freeze({
     releaseTicket: composition.workerReleaseTicket,
     resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
+    periodicPvaDerivation: composition.periodicPvaDerivation,
   });
 }
 

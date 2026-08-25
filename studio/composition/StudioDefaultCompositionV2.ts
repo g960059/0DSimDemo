@@ -1,6 +1,4 @@
-import type {
-  ModelContractV2,
-} from "@/studio/contracts/v2/model";
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
@@ -26,8 +24,9 @@ import type {
   StudioModelSurfacePinV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+  resolveStudioAnalysisMethodsForSurfaceV1,
+  type StudioPeriodicPvaDerivationV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -35,7 +34,7 @@ import {
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import standardRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 
@@ -49,6 +48,7 @@ export type StudioClientCompositionV2 = Readonly<{
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -57,9 +57,6 @@ export type StudioClientCompositionV2 = Readonly<{
 }>;
 
 export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;
-
-export const DEFAULT_STUDIO_ANALYSIS_EXECUTION_PLAN_V2 =
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
 
 let browserCompositionPromiseV2:
   Promise<StudioDefaultClientCompositionV2> | undefined;
@@ -124,9 +121,8 @@ async function createRegistryClientCompositionV2(
     releaseStage: release.stage,
     defaultFixture: release.defaultFixture,
     contract: release.contract,
-    analysisExecutionPlan: analysisExecutionPlanForProfileV2(
-      release.analysisProfileId,
-    ),
+    analysisExecutionPlan: release.analysisExecutionPlan,
+    periodicPvaDerivation: release.periodicPvaDerivation,
     workerReleaseTicket: release.ticket,
     surfaceReleaseId: release.surfaceReleaseId,
     surfaceSeriesId: release.surfaceSeriesId,
@@ -156,9 +152,17 @@ Promise<StudioClientCompositionV2> {
     }
     assertExactModelKernelManifestV3(standardClientDescriptorV1.manifest);
     assertModelSurfaceReleaseManifestV1(standardSurfaceReleaseV1);
+    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+      standardSurfaceReleaseV1,
+      [
+        ...standardClientDescriptorV1.manifest.primitiveSignalCatalog,
+        ...standardClientDescriptorV1.manifest.modelMetricCatalog,
+      ],
+    );
     const composed = composeStandardModelContractV1(
       standardClientDescriptorV1.manifest,
       standardSurfaceReleaseV1,
+      analysisMethods.capabilities,
     );
     const artifactUrl = localStandardArtifactUrlV1();
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
@@ -176,8 +180,8 @@ Promise<StudioClientCompositionV2> {
       releaseStage: "dev" as const,
       defaultFixture: standardClientDescriptorV1.defaultFixture,
       contract: composed.contract,
-      analysisExecutionPlan:
-        resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
+      analysisExecutionPlan: analysisMethods.resolveExecutionPlan,
+      periodicPvaDerivation: analysisMethods.periodicPvaDerivation,
       workerReleaseTicket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
@@ -300,16 +304,4 @@ export function loadStudioSnapshotClientCompositionV2(
     }
   });
   return pending;
-}
-
-function analysisExecutionPlanForProfileV2(
-  profileId: string,
-): StudioSimulationAnalysisExecutionPlanResolverV2 {
-  if (profileId === "standard-no-model-analysis-v1") {
-    return () => null;
-  }
-  if (profileId === "main-wire-integrated-standard-v1") {
-    return resolveMainWireIntegratedStudioAnalysisExecutionPlanV3;
-  }
-  throw new Error(`Unsupported Studio analysis profile ${profileId}`);
 }

@@ -52,6 +52,9 @@ export function validateStudioModelWorkerReleaseTicketV2(
     envelope.moduleAbi,
     "$.moduleAbi",
   );
+  // Older in-memory V2 tickets carried analysisProfileId. Accept and discard
+  // that field so deployed senders remain compatible without restoring it as
+  // a current release selector.
   const record = exactPlainRecordV2(value, [
     "artifactRevisionId",
     "artifactUrl",
@@ -60,7 +63,20 @@ export function validateStudioModelWorkerReleaseTicketV2(
     "moduleAbi",
     "schemaId",
     "surfaceRelease",
-  ], "$");
+  ], "$", ["analysisProfileId"]);
+  if (
+    record.analysisProfileId !== undefined
+    && (
+      typeof record.analysisProfileId !== "string"
+      || record.analysisProfileId.length === 0
+      || record.analysisProfileId !== record.analysisProfileId.trim()
+    )
+  ) {
+    throw new StudioModelReleaseValidationErrorV2(
+      "$.analysisProfileId",
+      "legacy compatibility value must be a nonempty trimmed string",
+    );
+  }
   if (record.schemaId !== STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID) {
     throw new StudioModelReleaseValidationErrorV2(
       "$.schemaId",
@@ -155,17 +171,19 @@ function exactPlainRecordV2(
   value: unknown,
   expectedKeys: readonly string[],
   path: string,
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
   const record = plainRecordV2(value, path);
   const actualKeys = Object.keys(record).sort();
   const sortedExpected = [...expectedKeys].sort();
+  const allowed = new Set([...expectedKeys, ...optionalKeys]);
   if (
-    actualKeys.length !== sortedExpected.length
-    || actualKeys.some((key, index) => key !== sortedExpected[index])
+    sortedExpected.some((key) => !Object.hasOwn(record, key))
+    || actualKeys.some((key) => !allowed.has(key))
   ) {
     throw new StudioModelReleaseValidationErrorV2(
       path,
-      `keys must be exactly ${sortedExpected.join(", ")}`,
+      `required keys are ${sortedExpected.join(", ")}; optional keys are ${optionalKeys.join(", ") || "none"}`,
     );
   }
   return record;

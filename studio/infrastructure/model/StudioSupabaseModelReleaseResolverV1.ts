@@ -1,8 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import {
+  resolveStudioAnalysisMethodsForSurfaceV1,
+  type StudioPeriodicPvaDerivationV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import type {
-  ModelContractV2,
-} from "@/studio/contracts/v2/model";
+  StudioSimulationAnalysisExecutionPlanResolverV2,
+} from "@/studio/contracts/v2/simulation";
 import {
   assertPortableStudioJsonObjectV2,
 } from "@/studio/contracts/v2/model";
@@ -38,7 +43,8 @@ import {
 export type StudioResolvedModelReleaseV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
-  analysisProfileId: string;
+  analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
@@ -65,7 +71,7 @@ export type StudioModelReleaseRpcResultV1 = Readonly<{
 
 export interface StudioModelReleaseRpcPortV1 {
   call(
-    functionName: "get_model_release_v1" | "get_active_model_bundle_v1",
+    functionName: "get_model_release_v2" | "get_active_model_bundle_v2",
     parameters: Readonly<Record<string, string>>,
   ): Promise<StudioModelReleaseRpcResultV1>;
 }
@@ -144,7 +150,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
 
   async resolveActiveBundle(): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
-      "get_active_model_bundle_v1",
+      "get_active_model_bundle_v2",
       Object.freeze({}),
     );
     if (result.error !== null) {
@@ -189,7 +195,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     surfacePin: StudioModelSurfacePinV1,
   ): Promise<StudioResolvedModelReleaseV1> {
     const result = await this.#rpc.call(
-      "get_model_release_v1",
+      "get_model_release_v2",
       Object.freeze({ p_model_id: modelId }),
     );
     if (result.error !== null) {
@@ -244,10 +250,6 @@ export class StudioSupabaseModelReleaseResolverV1 {
       "$.default_fixture",
     );
     const defaultFixture = ownJsonObjectV1(row.default_fixture);
-    const analysisProfileId = requiredStringV1(
-      row.analysis_profile_id,
-      "analysis_profile_id",
-    );
     assertStudioReleaseStageV1(row.stage, "$.stage");
     const artifactUrl = publicArtifactUrlV1(this.#supabaseOrigin, artifactPath);
     assertExactModelKernelManifestV3(row.manifest);
@@ -278,9 +280,14 @@ export class StudioSupabaseModelReleaseResolverV1 {
     ) {
       throw new Error("Pinned Model Surface belongs to another series");
     }
+    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+      surface.manifest,
+      [...kernel.primitiveSignalCatalog, ...kernel.modelMetricCatalog],
+    );
     const composed = composeStandardModelContractV1(
       kernel,
       surface.manifest,
+      analysisMethods.capabilities,
     );
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
@@ -294,7 +301,8 @@ export class StudioSupabaseModelReleaseResolverV1 {
     return Object.freeze({
       contract: composed.contract,
       defaultFixture,
-      analysisProfileId,
+      analysisExecutionPlan: analysisMethods.resolveExecutionPlan,
+      periodicPvaDerivation: analysisMethods.periodicPvaDerivation,
       stage: row.stage,
       ticket,
       surfaceReleaseId: composed.surface.surfaceReleaseId,

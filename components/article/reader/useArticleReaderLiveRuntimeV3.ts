@@ -8,6 +8,9 @@ import type {
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
+import type {
+  StudioPeriodicPvaDerivationV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
@@ -21,6 +24,7 @@ import {
 export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   state: ArticleReaderLiveRuntimeStateV3;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -46,6 +50,7 @@ export function useArticleReaderLiveRuntimeV3(
   snapshot: ExperimentSnapshotV2,
   exactModel: Readonly<{
     releaseTicket: StudioModelWorkerReleaseTicketV2;
+    periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,
@@ -170,6 +175,7 @@ export function useArticleReaderLiveRuntimeV3(
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
+    periodicPvaDerivation: exactModel.periodicPvaDerivation,
     applyControl,
     play,
     pause,
@@ -178,6 +184,7 @@ export function useArticleReaderLiveRuntimeV3(
     selectScenario,
   }), [
     applyControl,
+    exactModel.periodicPvaDerivation,
     pause,
     play,
     requestAnalysis,

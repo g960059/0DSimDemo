@@ -24,7 +24,7 @@ import {
 import standardDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import {
   createDefaultExperimentSurfaceV3,
   reconcileWorkbenchSurfaceScenariosV3,
@@ -179,15 +179,15 @@ describe("Studio numerical authoring V1", () => {
 
     expect(() => validateExecutableBundleV2(
       withoutPackedPresentation,
-      composed.contract,
+      composed.exactContract,
     )).toThrow(/advancePresentationBatch/);
     expect(() => validateExecutableBundleV2(
       release.executables,
-      composed.contract,
+      composed.exactContract,
     )).not.toThrow();
     expect(() => validateExecutableBundleV2(
       withoutExecutionPlan as unknown as typeof release.executables,
-      composed.contract,
+      composed.exactContract,
     )).toThrow(/executionPlan|execution plan/);
   });
 });
@@ -208,6 +208,7 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
   );
   const runtime = admitExactModelExecutableRuntimeV2(
     release.executables,
+    composed.exactContract,
     composed.contract,
   );
   const resolved = Object.freeze({

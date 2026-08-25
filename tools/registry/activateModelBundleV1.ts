@@ -10,6 +10,9 @@ import {
 import {
   validateRegisteredModelModuleAbiV2,
 } from "@/studio/contracts/v2/release";
+import {
+  resolveStudioAnalysisMethodsForSurfaceV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 
 if (
   process.argv[1] !== undefined
@@ -44,7 +47,7 @@ async function assertActivatableBundleV1(
   options: ActiveModelBundleOptionsV1,
 ): Promise<void> {
   const model = singleRowV1(
-    await rpcV1(baseUrl, secret, "get_model_release_v1", {
+    await rpcV1(baseUrl, secret, "get_model_release_v2", {
       p_model_id: options.modelId,
     }),
     "Exact model",
@@ -73,7 +76,14 @@ async function assertActivatableBundleV1(
   // The registry owns immutable bytes; activation additionally proves that
   // this particular Standard kernel/Surface pair can materialize the public
   // Workbench contract before the singleton pointer moves.
-  composeStandardModelContractV1(model.manifest, surface.manifest);
+  const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    surface.manifest,
+  );
+  composeStandardModelContractV1(
+    model.manifest,
+    surface.manifest,
+    analysisMethods.capabilities,
+  );
 }
 
 function singleRowV1(value: unknown, label: string): Record<string, unknown> {
