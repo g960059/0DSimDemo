@@ -26,7 +26,6 @@ export type RegisteredModelModuleAbiV2 = "circleheart-exact-model-esm-v1";
 export type StudioStandardModelWorkerReleaseTicketV2 = Readonly<{
   schemaId: typeof STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID;
   modelId: string;
-  analysisProfileId: string;
   artifactRevisionId: string;
   manifest: ExactModelKernelManifestV3;
   surfaceRelease: ModelSurfaceReleaseManifestV1;
@@ -53,8 +52,10 @@ export function validateStudioModelWorkerReleaseTicketV2(
     envelope.moduleAbi,
     "$.moduleAbi",
   );
+  // Older in-memory V2 tickets carried analysisProfileId. Accept and discard
+  // that field so deployed senders remain compatible without restoring it as
+  // a current release selector.
   const record = exactPlainRecordV2(value, [
-    "analysisProfileId",
     "artifactRevisionId",
     "artifactUrl",
     "manifest",
@@ -62,7 +63,20 @@ export function validateStudioModelWorkerReleaseTicketV2(
     "moduleAbi",
     "schemaId",
     "surfaceRelease",
-  ], "$");
+  ], "$", ["analysisProfileId"]);
+  if (
+    record.analysisProfileId !== undefined
+    && (
+      typeof record.analysisProfileId !== "string"
+      || record.analysisProfileId.length === 0
+      || record.analysisProfileId !== record.analysisProfileId.trim()
+    )
+  ) {
+    throw new StudioModelReleaseValidationErrorV2(
+      "$.analysisProfileId",
+      "legacy compatibility value must be a nonempty trimmed string",
+    );
+  }
   if (record.schemaId !== STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID) {
     throw new StudioModelReleaseValidationErrorV2(
       "$.schemaId",
@@ -70,10 +84,6 @@ export function validateStudioModelWorkerReleaseTicketV2(
     );
   }
   assertPortableModelIdentifierV2(record.modelId, "$.modelId");
-  assertPortableModelIdentifierV2(
-    record.analysisProfileId,
-    "$.analysisProfileId",
-  );
   if (
     typeof record.artifactRevisionId !== "string"
     || !/^[0-9a-f]{64}$/.test(record.artifactRevisionId)
@@ -102,7 +112,6 @@ export function validateStudioModelWorkerReleaseTicketV2(
   return Object.freeze({
     schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
     modelId: record.modelId,
-    analysisProfileId: record.analysisProfileId,
     artifactRevisionId: record.artifactRevisionId,
     manifest: ownPortableValueV2(record.manifest),
     surfaceRelease: ownPortableValueV2(record.surfaceRelease),
@@ -162,17 +171,19 @@ function exactPlainRecordV2(
   value: unknown,
   expectedKeys: readonly string[],
   path: string,
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
   const record = plainRecordV2(value, path);
   const actualKeys = Object.keys(record).sort();
   const sortedExpected = [...expectedKeys].sort();
+  const allowed = new Set([...expectedKeys, ...optionalKeys]);
   if (
-    actualKeys.length !== sortedExpected.length
-    || actualKeys.some((key, index) => key !== sortedExpected[index])
+    sortedExpected.some((key) => !Object.hasOwn(record, key))
+    || actualKeys.some((key) => !allowed.has(key))
   ) {
     throw new StudioModelReleaseValidationErrorV2(
       path,
-      `keys must be exactly ${sortedExpected.join(", ")}`,
+      `required keys are ${sortedExpected.join(", ")}; optional keys are ${optionalKeys.join(", ") || "none"}`,
     );
   }
   return record;

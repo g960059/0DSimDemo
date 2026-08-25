@@ -35,26 +35,9 @@ mutate accepted numerical state.
 Code and tests own implementation details, catalogs, algorithms, and numerical
 tolerances.
 
-## Ownership layers
-
-Three layers must remain separate:
-
-1. **Exact model** — equations, solver and event semantics, fixture and
-   checkpoint contracts, primitive signals, and metrics accumulated by the
-   numerical Session. Exact frames contain only this catalog.
-2. **Analysis method/profile** — computations that run from exact captures or
-   settled families. PE, PVA, and literature-mapped estimated MVO2 are owned
-   here; they are not null placeholders in the exact frame.
-3. **Model Surface** — which compatible controls, graphs, and presentation
-   objects the product exposes. It composes with an exact release and an
-   analysis profile without redefining either.
-
-An exact output-ABI correction requires a new immutable `modelId` even when it
-does not change equations or solver behavior. Analysis method and profile
-identities remain semantically distinct from the exact model, but the current
-registry binds `analysisProfileId` as immutable model-release metadata.
-Deploying another profile therefore still requires a new model release
-registration until the registry gains an independently pinned analysis layer.
+Exact, analysis, and Surface ownership and their identity consequences are
+defined once in
+[Studio identity and release composition](../studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
 
 ## Pressure-volume and oxygen interpretation
 

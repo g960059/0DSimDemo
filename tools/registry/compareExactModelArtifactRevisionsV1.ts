@@ -13,12 +13,13 @@ import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurfa
 import type { StudioSimulationScenarioInputV2 } from "@/studio/contracts/v2/simulation";
 import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
+import { resolveStudioAnalysisMethodsForSurfaceV1 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import standardSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+import standardSurfaceReleaseV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 
 export const EXACT_MODEL_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID =
   "circleheart-exact-model-artifact-equivalence-report-v1" as const;
@@ -242,7 +243,10 @@ async function captureV1(
   const model = composeStandardModelContractV1(
     release.manifest,
     standardSurfaceReleaseV1,
-  ).contract;
+    resolveStudioAnalysisMethodsForSurfaceV1(
+      standardSurfaceReleaseV1,
+    ).capabilities,
+  ).exactContract;
   return release.executables.experimentCapture.captureAcceptedCandidate({
     experimentId: `experiment/artifact-equivalence/${caseId}`,
     model,

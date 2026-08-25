@@ -11,9 +11,8 @@ tables, RPC names, quotas, schedules, and operational commands.
 Supabase owns:
 
 - authentication and identity linking;
-- immutable exact-model and Model-Surface registry records, certified
-  artifact-revision bindings, and the immutable analysis-profile ID attached
-  to each model-release row;
+- immutable exact-model and Model-Surface registry records and certified
+  artifact-revision bindings;
 - private Experiment and Article ownership;
 - immutable Snapshot and Article-content storage;
 - public pointers and anonymous read authorization;
@@ -66,25 +65,20 @@ repository's predecessor-bound, byte-exact frame and checkpoint equivalence
 path. Presentation, Auth, storage, Article, and hosting releases do not by
 themselves change exact numerical identity.
 
-Display name, launch fixture, and analysis-profile ID are immutable launch
-metadata on the current model-release row, not fields in the scientific
-identity digest. The current registration API rejects rebinding them under the
-same `modelId`.
-
-Analysis method/profile definitions and catalogs are source-owned; the
-database stores only the profile ID selected by a model-release row.
-
-Display/default changes ultimately belong in a separately versioned metadata
-layer. A changed analysis implementation requires a new immutable profile ID;
-because durable content does not yet pin that profile independently, the
-current publication path also requires another model release. Historical rows
-must not be mutated to emulate either transition. The fuller ownership model
-is in
+Analysis methods are source-owned and selected by immutable IDs in the Model
+Surface. The legacy analysis-profile column remains readable for older
+clients, but current publication and reads do not select or expose it. A
+new-Session default fixture may change without minting a new `modelId`; saved
+content keeps its own fixture/checkpoint, while visible naming belongs to the
+Surface. The fuller ownership model is in
 [DESIGN-STUDIO-006](../docs/studio/DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
 
 Active-bundle replacement affects only new Sessions. Existing Experiments and
 Snapshots retain their stored exact-model and Surface pins and must never
 follow a later launch target.
+
+Deploy clients and migrations before publishing or activating a Surface that
+uses new method IDs or manifest fields; stale clients fail closed.
 
 ## Migration and rollout boundary
 

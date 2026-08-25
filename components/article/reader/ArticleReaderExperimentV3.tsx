@@ -39,17 +39,15 @@ import {
   useWorkbenchScenarioPresentationSamplesV3,
   type WorkbenchPressureVolumeTraceV3,
 } from "@/components/workbench/v3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+  type MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+  type StudioPeriodicPvaDerivationV1,
 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
-import {
-  buildMainWireIntegratedModelPeriodicPvaV1,
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -63,7 +61,6 @@ import type {
 } from "@/studio/contracts/v2/content";
 import type {
   ControlDefinitionV2,
-  MetricOutputDefinitionV2,
   ModelContractV2,
   StructuralReturnGraphDefinitionV2,
   SweepGraphDefinitionV2,
@@ -452,12 +449,9 @@ function ArticleReaderLiveOwnerV3({
       articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing),
     [briefing, contract, snapshot],
   );
-  const composition = requiredArticleReaderRuntimeCompositionV3(
-    runtimeComposition,
-  );
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
-    composition,
+    requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
     briefing.scenarioScope.initialFocusScenarioId,
     briefing.scenarioScope.visibleScenarioIds,
     structuralAnalyses,
@@ -465,7 +459,6 @@ function ArticleReaderLiveOwnerV3({
   );
   const detail = (
     <ArticleReaderLiveDetailV3
-      analysisOutputCatalog={composition.analysisOutputCatalog}
       briefing={briefing}
       contract={contract}
       inline={presentation === "inflow" && expandedPresentation === null}
@@ -623,7 +616,6 @@ type ArticleReaderRuntimeHookV3 = ReturnType<
 >;
 
 function ArticleReaderLiveDetailV3({
-  analysisOutputCatalog,
   briefing,
   contract,
   inline,
@@ -631,7 +623,6 @@ function ArticleReaderLiveDetailV3({
   snapshot,
   title,
 }: Readonly<{
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   briefing: ExperimentPlacementBriefingV2;
   contract: ModelContractV2;
   inline: boolean;
@@ -781,7 +772,6 @@ function ArticleReaderLiveDetailV3({
 
           {briefing.outputs.length > 0 && (
             <ArticleReaderOutputsV3
-              analysisOutputCatalog={analysisOutputCatalog}
               briefing={briefing}
               compact={inline}
               contract={contract}
@@ -1189,6 +1179,7 @@ function ArticleReaderPressureVolumeCanvasV3({
           const periodicPva = periodicPvaFromPayloadV3(
             runtime.state.analysisByKey[key]?.payload,
             side,
+            runtime.periodicPvaDerivation,
           );
           return Object.freeze({
             ...trace,
@@ -1231,11 +1222,13 @@ function pressureVolumeRelationSideV3(
 function periodicPvaFromPayloadV3(
   payload: unknown,
   side: "left" | "right",
+  derivation: StudioPeriodicPvaDerivationV1 | null,
 ): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  if (derivation === null) return undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(payload, side);
   if (orientation === null) return undefined;
   try {
-    return buildMainWireIntegratedModelPeriodicPvaV1(
+    return derivation.build(
       orientation.starlingLocus,
       side === "left" ? "LV" : "RV",
     );
@@ -1425,14 +1418,12 @@ export function ArticleReaderStructuralReturnGraphV3({
 }
 
 export function ArticleReaderOutputsV3({
-  analysisOutputCatalog = [],
   briefing,
   compact = false,
   contract,
   runtime,
   sampleStore,
 }: Readonly<{
-  analysisOutputCatalog?: readonly MetricOutputDefinitionV2[];
   briefing: ExperimentPlacementBriefingV2;
   compact?: boolean;
   contract: ModelContractV2;
@@ -1446,10 +1437,6 @@ export function ArticleReaderOutputsV3({
     throw new Error("Article Reader outputs require a sample store");
   }
   const samples = useWorkbenchScenarioPresentationSamplesV3(ownedSampleStore);
-  const outputCatalog = React.useMemo(
-    () => [...contract.outputCatalog, ...analysisOutputCatalog],
-    [analysisOutputCatalog, contract.outputCatalog],
-  );
   const analysisScenarioIds = React.useMemo(
     () =>
       Object.freeze([
@@ -1508,7 +1495,7 @@ export function ArticleReaderOutputsV3({
       <ExperimentOutputGridV3
         variant="article"
         items={[...briefing.outputs].sort(compareOrderV3).map((output) => {
-          const definition = outputCatalog.find(
+          const definition = contract.outputCatalog.find(
             ({ outputId }) => outputId === output.outputId,
           );
           const latest = samples[output.scenarioId]?.at(-1);
@@ -1522,6 +1509,7 @@ export function ArticleReaderOutputsV3({
               ? periodicPvaFromPayloadV3(
                   runtime.state.analysisByKey[analysisKey]?.payload,
                   "left",
+                  runtime.periodicPvaDerivation,
                 )
               : undefined;
           const value = ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3.has(
@@ -2179,7 +2167,7 @@ function requiredArticleReaderRuntimeCompositionV3(
 ): Readonly<{
   releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
   resolveAnalysisExecutionPlan: StudioClientCompositionV2["analysisExecutionPlan"];
-  analysisOutputCatalog: StudioClientCompositionV2["analysisOutputCatalog"];
+  periodicPvaDerivation: StudioClientCompositionV2["periodicPvaDerivation"];
 }> {
   if (composition === null) {
     throw new Error(
@@ -2189,7 +2177,7 @@ function requiredArticleReaderRuntimeCompositionV3(
   return Object.freeze({
     releaseTicket: composition.workerReleaseTicket,
     resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
-    analysisOutputCatalog: composition.analysisOutputCatalog,
+    periodicPvaDerivation: composition.periodicPvaDerivation,
   });
 }
 

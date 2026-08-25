@@ -47,7 +47,6 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-  studioAnalysisOutputCatalogForProfileV1,
 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 
 const NOOP = () => {};
@@ -170,10 +169,8 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
     releaseStage: "stable",
     defaultFixture: Object.freeze({}),
     contract,
-    analysisOutputCatalog: studioAnalysisOutputCatalogForProfileV1(
-      STANDARD_TEST_RELEASE_TICKET_V1.analysisProfileId,
-    ),
     analysisExecutionPlan: () => null,
+    periodicPvaDerivation: null,
     workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
     surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
@@ -340,6 +337,7 @@ function readerRuntimeStubV3(
       ...stateOverrides,
     }),
     sampleStore,
+    periodicPvaDerivation: null,
     play: NOOP,
     pause: async () => undefined,
     setPlaybackRate: NOOP,

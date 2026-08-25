@@ -32,9 +32,9 @@ Snapshots additionally pin the exact Surface release used to author them.
 Historical content must fail closed when a required release is unavailable; it
 must never substitute the current active release.
 
-Exact artifact revisions, analysis profiles, Model Surfaces, and active-bundle
-composition are separate semantic owners. Their current registry binding and
-lifecycle are defined in
+Exact artifact revisions, Surface-pinned analysis methods, Model Surfaces, and
+active-bundle composition have separate responsibilities. Their registry
+binding and lifecycle are defined in
 [DESIGN-STUDIO-006](DESIGN-STUDIO-006-model-surface-release-and-model-lab.md).
 
 ## Portable content boundary

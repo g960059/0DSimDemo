@@ -1,22 +1,22 @@
 import type {
-  MetricOutputDefinitionV2,
-  OutputDefinitionV2,
-} from "@/studio/contracts/v2/model";
+  ModelSurfaceDerivedOutputDefinitionV1,
+  ModelSurfaceReleaseManifestV1,
+} from "@/studio/contracts/v2/modelSurface";
+import {
+  analysisCapabilityV1,
+  assertModelSurfaceReleaseManifestV1,
+  derivationCapabilityV1,
+} from "@/studio/contracts/v2/modelSurface";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+  buildMainWireIntegratedModelPeriodicPvaV1,
   resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
-
-export const STUDIO_NO_MODEL_ANALYSIS_PROFILE_V1_ID =
-  "standard-no-model-analysis-v1" as const;
-export const MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V1_ID =
-  "main-wire-integrated-standard-v1" as const;
-export const MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID =
-  "main-wire-integrated-standard-v2" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 =
   Object.freeze({
@@ -42,171 +42,226 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1 =
       .estimatedMvo2PerMinPer100G,
   ] as const);
 
-export type StudioAnalysisMethodDefinitionV1 = Readonly<{
-  analysisMethodId: string;
-  outputCatalog: readonly MetricOutputDefinitionV2[];
+type StudioCanonicalAnalysisOutputV1 = Readonly<{
+  outputId: string;
+  kind: "metric";
+  unit: string;
+  shape: "scalar" | "vector";
+  scope: "instant" | "beat" | "window";
+  dependencies: readonly string[];
 }>;
 
-export type StudioAnalysisProfileDefinitionV1 = Readonly<{
-  analysisProfileId: string;
-  methodCatalog: readonly StudioAnalysisMethodDefinitionV1[];
+export type StudioPeriodicPvaDerivationV1 = Readonly<{
+  methodId: string;
+  build: typeof buildMainWireIntegratedModelPeriodicPvaV1;
+}>;
+
+type StudioAnalysisDerivationMethodV1 = Readonly<{
+  derivationId: string;
+  outputs: readonly StudioCanonicalAnalysisOutputV1[];
+  requiredAnalysisIds: readonly string[];
+  periodicPvaDerivation?: StudioPeriodicPvaDerivationV1;
+}>;
+
+export type ResolvedStudioAnalysisMethodsV1 = Readonly<{
+  capabilities: readonly string[];
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
 }>;
 
-const NO_ANALYSIS_EXECUTION_PLAN_V1:
-  StudioSimulationAnalysisExecutionPlanResolverV2 = () => null;
+const KNOWN_ANALYSIS_REQUEST_IDS_V1 = new Set<string>([
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+]);
 
-const MAIN_WIRE_PERIODIC_PVA_OUTPUT_CATALOG_V1 = Object.freeze([
-  Object.freeze({
-    outputId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1 = Object.freeze({
+  derivationId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+  outputs: Object.freeze([
+    Object.freeze({
+      outputId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
         .potentialEnergyMilliJoule,
-    kind: "metric" as const,
-    unit: "mJ",
-    significantDigits: 3,
-    shape: "scalar" as const,
-    scope: "window" as const,
-    dependencies: Object.freeze([
-      "hemodynamics.volume.LV",
-      "hemodynamics.pressure.transmural.LV",
-    ]),
-  }),
-  Object.freeze({
-    outputId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+      kind: "metric" as const,
+      unit: "mJ",
+      shape: "scalar" as const,
+      scope: "window" as const,
+      dependencies: Object.freeze([
+        "hemodynamics.volume.LV",
+        "hemodynamics.pressure.transmural.LV",
+      ]),
+    }),
+    Object.freeze({
+      outputId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
         .pressureVolumeAreaMilliJoule,
-    kind: "metric" as const,
-    unit: "mJ",
-    significantDigits: 3,
-    shape: "scalar" as const,
-    scope: "window" as const,
-    dependencies: Object.freeze([
-      "myocardium.work.stroke.LV",
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
-        .potentialEnergyMilliJoule,
-    ]),
-  }),
-  Object.freeze({
-    outputId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+      kind: "metric" as const,
+      unit: "mJ",
+      shape: "scalar" as const,
+      scope: "window" as const,
+      dependencies: Object.freeze([
+        "myocardium.work.stroke.LV",
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+          .potentialEnergyMilliJoule,
+      ]),
+    }),
+    Object.freeze({
+      outputId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
         .estimatedMvo2PerBeatPer100G,
-    kind: "metric" as const,
-    unit: "mL O2/beat/100g",
-    significantDigits: 3,
-    shape: "scalar" as const,
-    scope: "window" as const,
-    dependencies: Object.freeze([
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
-        .pressureVolumeAreaMilliJoule,
-    ]),
-  }),
-  Object.freeze({
-    outputId:
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+      kind: "metric" as const,
+      unit: "mL O2/beat/100g",
+      shape: "scalar" as const,
+      scope: "window" as const,
+      dependencies: Object.freeze([
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+          .pressureVolumeAreaMilliJoule,
+      ]),
+    }),
+    Object.freeze({
+      outputId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
         .estimatedMvo2PerMinPer100G,
-    kind: "metric" as const,
-    unit: "mL O2/min/100g",
-    significantDigits: 3,
-    shape: "scalar" as const,
-    scope: "window" as const,
-    dependencies: Object.freeze([
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
-        .estimatedMvo2PerBeatPer100G,
-      "rhythm.heart-rate.instantaneous",
-    ]),
-  }),
-] satisfies readonly MetricOutputDefinitionV2[]);
-
-const MAIN_WIRE_STRUCTURAL_METHOD_V1 = Object.freeze({
-  analysisMethodId:
-    MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-  outputCatalog: Object.freeze([]),
-});
-
-const MAIN_WIRE_FORMAL_PV_METHOD_WITHOUT_OUTPUTS_V1 = Object.freeze({
-  analysisMethodId:
+      kind: "metric" as const,
+      unit: "mL O2/min/100g",
+      shape: "scalar" as const,
+      scope: "window" as const,
+      dependencies: Object.freeze([
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1
+          .estimatedMvo2PerBeatPer100G,
+        "rhythm.heart-rate.instantaneous",
+      ]),
+    }),
+  ]),
+  requiredAnalysisIds: Object.freeze([
     MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  outputCatalog: Object.freeze([]),
-});
-
-const MAIN_WIRE_FORMAL_PV_METHOD_V2 = Object.freeze({
-  analysisMethodId:
-    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  outputCatalog: MAIN_WIRE_PERIODIC_PVA_OUTPUT_CATALOG_V1,
-});
-
-const STUDIO_ANALYSIS_PROFILES_V1 = Object.freeze([
-  Object.freeze({
-    analysisProfileId: STUDIO_NO_MODEL_ANALYSIS_PROFILE_V1_ID,
-    methodCatalog: Object.freeze([]),
-    resolveExecutionPlan: NO_ANALYSIS_EXECUTION_PLAN_V1,
+  ]),
+  periodicPvaDerivation: Object.freeze({
+    methodId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+    build: buildMainWireIntegratedModelPeriodicPvaV1,
   }),
-  Object.freeze({
-    analysisProfileId: MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V1_ID,
-    methodCatalog: Object.freeze([
-      MAIN_WIRE_STRUCTURAL_METHOD_V1,
-      MAIN_WIRE_FORMAL_PV_METHOD_WITHOUT_OUTPUTS_V1,
-    ]),
-    resolveExecutionPlan:
-      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-  }),
-  Object.freeze({
-    analysisProfileId: MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
-    methodCatalog: Object.freeze([
-      MAIN_WIRE_STRUCTURAL_METHOD_V1,
-      MAIN_WIRE_FORMAL_PV_METHOD_V2,
-    ]),
-    resolveExecutionPlan:
-      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-  }),
-] satisfies readonly StudioAnalysisProfileDefinitionV1[]);
+}) satisfies StudioAnalysisDerivationMethodV1;
 
-export function resolveStudioAnalysisProfileV1(
-  analysisProfileId: string,
-): StudioAnalysisProfileDefinitionV1 {
-  const profile = STUDIO_ANALYSIS_PROFILES_V1.find(
-    (candidate) => candidate.analysisProfileId === analysisProfileId,
-  );
-  if (profile === undefined) {
-    throw new Error(`Unsupported Studio analysis profile ${analysisProfileId}`);
-  }
-  return profile;
-}
+const DERIVATION_METHODS_BY_ID_V1 = new Map<string,
+StudioAnalysisDerivationMethodV1>([
+  [
+    MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1.derivationId,
+    MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
+  ],
+]);
 
-export function studioAnalysisOutputCatalogForProfileV1(
-  analysisProfileId: string,
-): readonly MetricOutputDefinitionV2[] {
-  const catalog = Object.freeze(
-    resolveStudioAnalysisProfileV1(analysisProfileId).methodCatalog.flatMap(
-      ({ outputCatalog }) => outputCatalog,
-    ),
-  );
-  const outputIds = new Set<string>();
-  for (const { outputId } of catalog) {
-    if (outputIds.has(outputId)) {
-      throw new Error(
-        `Studio analysis profile ${analysisProfileId} repeats output ${outputId}`,
-      );
+/**
+ * Resolves internal analysis implementations selected by one immutable
+ * Surface. The returned capabilities materialize only known methods; an old
+ * client that cannot execute a newer method therefore loses that analysis,
+ * not the exact model or the rest of the Workbench.
+ *
+ * Analysis methods are code responsibilities, not a third release identity.
+ * Their immutable method IDs are pinned by Surface entries.
+ */
+export function resolveStudioAnalysisMethodsForSurfaceV1(
+  surfaceValue: unknown,
+  exactOutputs: readonly Readonly<{ outputId: string }>[] = [],
+): ResolvedStudioAnalysisMethodsV1 {
+  assertModelSurfaceReleaseManifestV1(surfaceValue);
+  const surface: ModelSurfaceReleaseManifestV1 = surfaceValue;
+  const selectedAnalysisIds = new Set<string>();
+  const capabilities = new Set<string>();
+  const requiredDerivationIds = new Set<string>();
+
+  for (const item of [
+    ...surface.controlCatalog,
+    ...surface.derivedOutputCatalog,
+    ...surface.graphCatalog,
+    ...surface.knobCatalog,
+    ...surface.protocolCatalog,
+  ]) {
+    for (const capability of item.requiredCapabilities) {
+      if (!capability.startsWith("analysis/")) continue;
+      const analysisId = capability.slice("analysis/".length);
+      if (KNOWN_ANALYSIS_REQUEST_IDS_V1.has(analysisId)) {
+        selectedAnalysisIds.add(analysisId);
+        capabilities.add(analysisCapabilityV1(analysisId));
+      }
     }
-    outputIds.add(outputId);
-  }
-  return catalog;
-}
-
-export function admitStudioAnalysisOutputCatalogForModelV1(
-  analysisProfileId: string,
-  exactOutputCatalog: readonly OutputDefinitionV2[],
-): readonly MetricOutputDefinitionV2[] {
-  const catalog = studioAnalysisOutputCatalogForProfileV1(analysisProfileId);
-  const exactOutputIds = new Set(
-    exactOutputCatalog.map(({ outputId }) => outputId),
-  );
-  for (const { outputId } of catalog) {
-    if (exactOutputIds.has(outputId)) {
-      throw new Error(
-        `Studio analysis output ${outputId} collides with the exact model catalog`,
-      );
+    for (const capability of item.requiredCapabilities) {
+      if (capability.startsWith("derivation/")) {
+        requiredDerivationIds.add(capability.slice("derivation/".length));
+      }
     }
   }
-  return catalog;
+
+  const outputDerivationIds = new Set<string>();
+  for (const output of surface.derivedOutputCatalog) {
+    outputDerivationIds.add(output.derivationId);
+  }
+  let periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null = null;
+  for (const derivationId of new Set([
+    ...requiredDerivationIds,
+    ...outputDerivationIds,
+  ])) {
+    const method = DERIVATION_METHODS_BY_ID_V1.get(derivationId);
+    if (method === undefined) continue;
+    const declaredOutputs = surface.derivedOutputCatalog.filter(
+      (output) => output.derivationId === derivationId,
+    );
+    if (!declaredOutputs.every((output) =>
+      methodOwnsOutputSemanticsV1(method, output))) continue;
+    capabilities.add(derivationCapabilityV1(derivationId));
+    if (method.periodicPvaDerivation !== undefined) {
+      periodicPvaDerivation = method.periodicPvaDerivation;
+    }
+    for (const analysisId of method.requiredAnalysisIds) {
+      if (!KNOWN_ANALYSIS_REQUEST_IDS_V1.has(analysisId)) continue;
+      selectedAnalysisIds.add(analysisId);
+      capabilities.add(analysisCapabilityV1(analysisId));
+    }
+  }
+
+  // Standard 64 and earlier exposed these IDs from the exact catalog before
+  // Surface-owned derivations existed. Preserve those immutable releases
+  // without reviving analysisProfileId as a third release selector.
+  const exactOutputIds = new Set(exactOutputs.map(({ outputId }) => outputId));
+  if (
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.every(
+      (outputId) => exactOutputIds.has(outputId),
+    )
+  ) {
+    periodicPvaDerivation =
+      MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1.periodicPvaDerivation ?? null;
+    selectedAnalysisIds.add(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    );
+    capabilities.add(analysisCapabilityV1(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ));
+  }
+
+  const resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2 =
+    (analysisId) => selectedAnalysisIds.has(analysisId)
+      ? resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(analysisId)
+      : null;
+  return Object.freeze({
+    capabilities: Object.freeze([...capabilities].sort()),
+    periodicPvaDerivation,
+    resolveExecutionPlan,
+  });
+}
+
+function methodOwnsOutputSemanticsV1(
+  method: StudioAnalysisDerivationMethodV1,
+  output: ModelSurfaceDerivedOutputDefinitionV1,
+): boolean {
+  const canonical = method.outputs.find(
+    ({ outputId }) => outputId === output.outputId,
+  );
+  return canonical !== undefined
+    && output.kind === canonical.kind
+    && output.unit === canonical.unit
+    && output.shape === canonical.shape
+    && output.scope === canonical.scope
+    && sameStringsV1(output.dependencies, canonical.dependencies);
+}
+
+function sameStringsV1(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  return left.length === right.length
+    && left.every((value, index) => value === right[index]);
 }

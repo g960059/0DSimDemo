@@ -625,7 +625,6 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
 function modelsV1(): StudioAuthoringModelPortV1 {
   return {
     resolveModel: vi.fn().mockResolvedValue({
-      contract: {
         modelId: "model/example",
         modelFamilyId: "model-family/example",
         displayName: "Example",
@@ -635,8 +634,6 @@ function modelsV1(): StudioAuthoringModelPortV1 {
         controlCatalog: [],
         outputCatalog: [],
         graphCatalog: [],
-      },
-      analysisOutputCatalog: [],
     }),
     resolveActiveNumericalModel: vi.fn(),
     resolveLatestNumericalModel: vi.fn(),

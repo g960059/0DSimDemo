@@ -134,7 +134,6 @@ import {
 import { validateExperimentPlacementBriefingV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import type {
   ControlDefinitionV2,
-  MetricOutputDefinitionV2,
   ModelContractV2,
   StructuralReturnGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
@@ -192,23 +191,21 @@ import {
   type WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
 import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+  type MainWireIntegratedModelPeriodicPvaV1,
+} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
+  type StudioPeriodicPvaDerivationV1,
 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
-import {
-  buildMainWireIntegratedModelPeriodicPvaV1,
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
   | Readonly<{
       kind: "live";
       contract: ModelContractV2;
-      analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
       frame: StudioSimulationFrameV2;
     }>
   | Readonly<{
@@ -531,6 +528,9 @@ const WorkbenchV3Session = ({
   const workerReleaseTicketRef = React.useRef<
     StudioModelWorkerReleaseTicketV2 | undefined
   >(undefined);
+  const periodicPvaDerivationRef = React.useRef<
+    StudioPeriodicPvaDerivationV1 | null
+  >(null);
   const surfaceSeriesIdRef = React.useRef<string | undefined>(undefined);
   const surfaceReleaseIdRef = React.useRef<string | undefined>(undefined);
   const translationRef = React.useRef(t);
@@ -577,8 +577,6 @@ const WorkbenchV3Session = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
-  const analysisOutputCatalog =
-    status.kind === "live" ? status.analysisOutputCatalog : Object.freeze([]);
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -824,6 +822,7 @@ const WorkbenchV3Session = ({
       if (cancelled) return;
       setReleaseStage(composition.releaseStage);
       workerReleaseTicketRef.current = composition.workerReleaseTicket;
+      periodicPvaDerivationRef.current = composition.periodicPvaDerivation;
       surfaceSeriesIdRef.current = composition.surfaceSeriesId;
       surfaceReleaseIdRef.current = composition.surfaceReleaseId;
       const record =
@@ -1094,7 +1093,6 @@ const WorkbenchV3Session = ({
       setStatus({
         kind: "live",
         contract: composition.contract,
-        analysisOutputCatalog: composition.analysisOutputCatalog,
         frame: initial,
       });
       const playbackIntent = playingIntentRef.current;
@@ -2807,6 +2805,7 @@ const WorkbenchV3Session = ({
         operationPending={runtimeOperationPending}
         pane={graphPane}
         pendingAnalysisKeys={pendingAnalysisKeys}
+        periodicPvaDerivation={periodicPvaDerivationRef.current}
         sampleStore={presentationSampleStore}
         scenarios={scenarios}
         surface={surface}
@@ -2845,10 +2844,10 @@ const WorkbenchV3Session = ({
         : periodicPvaFromAnalysisV3(
             analysisByKey[periodicPvaAnalysisKey],
             "left",
+            periodicPvaDerivationRef.current,
           );
     return (
       <OutputPaneBodyV3
-        analysisOutputCatalog={analysisOutputCatalog}
         contract={contract}
         frame={frame}
         locale={resolvedLocale}
@@ -3454,7 +3453,6 @@ const WorkbenchV3Session = ({
           locale={resolvedLocale}
           selectedPane={paneSettings}
           contract={contract}
-          analysisOutputCatalog={analysisOutputCatalog}
           surface={surface}
           scenarios={scenarios}
           onClose={() => setPaneSettings(null)}
@@ -4120,6 +4118,7 @@ function GraphPaneBodyV3({
   operationPending,
   pane,
   pendingAnalysisKeys,
+  periodicPvaDerivation,
   sampleStore,
   scenarios,
   surface,
@@ -4141,6 +4140,7 @@ function GraphPaneBodyV3({
   operationPending: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisKeys: readonly string[];
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   surface: ExperimentSurfaceV2;
@@ -4235,6 +4235,7 @@ function GraphPaneBodyV3({
       operationPending={operationPending}
       pane={pane}
       pendingAnalysisKeys={pendingAnalysisKeys}
+      periodicPvaDerivation={periodicPvaDerivation}
       sampleStore={sampleStore}
       scenarios={scenarios}
       surface={surface}
@@ -4256,6 +4257,7 @@ function SampledGraphPaneBodyV3({
   operationPending,
   pane,
   pendingAnalysisKeys,
+  periodicPvaDerivation,
   sampleStore,
   scenarios,
   surface,
@@ -4281,6 +4283,7 @@ function SampledGraphPaneBodyV3({
   operationPending: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisKeys: readonly string[];
+  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   surface: ExperimentSurfaceV2;
@@ -4404,6 +4407,7 @@ function SampledGraphPaneBodyV3({
               : periodicPvaFromAnalysisV3(
                   analysisByKey[analysisKey],
                   relationSide,
+                  periodicPvaDerivation,
                 );
           const style = resolveWorkbenchGraphTraceStyleV3({
             pane,
@@ -4557,15 +4561,17 @@ function pressureVolumeRelationSideV3(
 
 const PERIODIC_PVA_CACHE_V3 = new WeakMap<
   StudioSimulationAnalysisV2,
-  Map<"left" | "right", MainWireIntegratedModelPeriodicPvaV1 | null>
+  Map<string, MainWireIntegratedModelPeriodicPvaV1 | null>
 >();
 
 function periodicPvaFromAnalysisV3(
   analysis: StudioSimulationAnalysisV2 | undefined,
   side: "left" | "right",
+  derivation: StudioPeriodicPvaDerivationV1 | null,
 ): MainWireIntegratedModelPeriodicPvaV1 | undefined {
-  if (analysis === undefined) return undefined;
-  const cached = PERIODIC_PVA_CACHE_V3.get(analysis)?.get(side);
+  if (analysis === undefined || derivation === null) return undefined;
+  const cacheKey = `${derivation.methodId}\u0000${side}`;
+  const cached = PERIODIC_PVA_CACHE_V3.get(analysis)?.get(cacheKey);
   if (cached !== undefined) return cached ?? undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(
     analysis.payload,
@@ -4574,7 +4580,7 @@ function periodicPvaFromAnalysisV3(
   let pva: MainWireIntegratedModelPeriodicPvaV1 | null = null;
   try {
     if (orientation !== null) {
-      pva = buildMainWireIntegratedModelPeriodicPvaV1(
+      pva = derivation.build(
         orientation.starlingLocus,
         side === "left" ? "LV" : "RV",
       );
@@ -4583,7 +4589,7 @@ function periodicPvaFromAnalysisV3(
     pva = null;
   }
   const analysisCache = PERIODIC_PVA_CACHE_V3.get(analysis) ?? new Map();
-  analysisCache.set(side, pva);
+  analysisCache.set(cacheKey, pva);
   PERIODIC_PVA_CACHE_V3.set(analysis, analysisCache);
   return pva ?? undefined;
 }
@@ -5187,7 +5193,6 @@ function periodicPvaOutputNoticeV3(
 export function materializeWorkbenchOutputPresentationItemsV3(
   input: Readonly<{
     contract: ModelContractV2;
-    analysisOutputCatalog?: readonly MetricOutputDefinitionV2[];
     frame: StudioSimulationFrameV2 | null;
     locale: "en" | "ja";
     notAssessedNotice: string;
@@ -5197,10 +5202,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
   const outputById = new Map(
-    [
-      ...input.contract.outputCatalog,
-      ...(input.analysisOutputCatalog ?? []),
-    ].map((output) => [output.outputId, output]),
+    input.contract.outputCatalog.map((output) => [output.outputId, output]),
   );
   const sortedItems = [...input.pane.items].sort(
     (left, right) => left.order - right.order,
@@ -5325,7 +5327,6 @@ export function materializeWorkbenchOutputPresentationItemsV3(
 }
 
 function OutputPaneBodyV3({
-  analysisOutputCatalog,
   contract,
   frame,
   locale,
@@ -5338,7 +5339,6 @@ function OutputPaneBodyV3({
   showBinding,
   scenarioLabel,
 }: Readonly<{
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
   locale: "en" | "ja";
@@ -5361,7 +5361,6 @@ function OutputPaneBodyV3({
       ? t("workbench.live.paneBindingActive", { scenario: scenarioLabel })
       : t("workbench.live.paneBindingFixed", { scenarios: scenarioLabel });
   const selected = materializeWorkbenchOutputPresentationItemsV3({
-    analysisOutputCatalog,
     contract,
     frame,
     locale,

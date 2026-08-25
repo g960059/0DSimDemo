@@ -680,8 +680,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {
-    const { contract, analysisOutputCatalog } =
-      await loadStudioDefaultClientCompositionV2();
+    const { contract } = await loadStudioDefaultClientCompositionV2();
     const analysisOutputIds = Object.values(
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
     );
@@ -690,10 +689,7 @@ describe("settled hot-start PVA V1", () => {
         analysisOutputIds.includes(
           outputId as (typeof analysisOutputIds)[number],
         )),
-    ).toBe(false);
-    expect(analysisOutputCatalog.map(({ outputId }) => outputId)).toEqual(
-      analysisOutputIds,
-    );
+    ).toBe(true);
     const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
       formalLocusV1(settledPointsV1()),
       "LV",
@@ -721,7 +717,6 @@ describe("settled hot-start PVA V1", () => {
     };
 
     const items = materializeWorkbenchOutputPresentationItemsV3({
-      analysisOutputCatalog,
       contract,
       frame: null,
       locale: "en",
@@ -781,7 +776,6 @@ describe("settled hot-start PVA V1", () => {
     }
     const earlyPvaMilliJoule = early.pva.joule * 1e3;
     const progressItems = materializeWorkbenchOutputPresentationItemsV3({
-      analysisOutputCatalog,
       contract,
       frame: null,
       locale: "en",

@@ -1,7 +1,4 @@
-import type {
-  MetricOutputDefinitionV2,
-  ModelContractV2,
-} from "@/studio/contracts/v2/model";
+import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import { assertCaptureAdapterMatchesModelV2 } from "@/studio/contracts/v2/model";
 import type {
   RegisteredModelExecutableBundleV2,
@@ -162,16 +159,27 @@ function validateAndOwnExecutableBundleV2(
 /** Validates once, owns portable data, and freezes the admitted runtime. */
 export function admitExactModelExecutableRuntimeV2(
   bundle: RegisteredModelExecutableBundleV2,
+  exactContract: ModelContractV2,
   contract: ModelContractV2,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): ResolvedExactModelRuntimeV2 {
   const executionPlanDescriptor = validateAndOwnExecutableBundleV2(
     bundle,
-    contract,
+    exactContract,
   );
+  if (
+    contract.modelId !== exactContract.modelId
+    || contract.modelFamilyId !== exactContract.modelFamilyId
+    || contract.fixtureSchemaId !== exactContract.fixtureSchemaId
+    || contract.checkpointCodecId !== exactContract.checkpointCodecId
+    || contract.snapshotGateId !== exactContract.snapshotGateId
+  ) {
+    throw new ExactModelExecutableValidationErrorV1(
+      "public and exact contracts must share one exact identity",
+    );
+  }
   return Object.freeze({
     contract,
-    analysisOutputCatalog: Object.freeze([...analysisOutputCatalog]),
+    exactContract,
     captureAdapter: Object.freeze({
       modelId: bundle.captureAdapter.modelId,
       fixtureSchemaId: bundle.captureAdapter.fixtureSchemaId,

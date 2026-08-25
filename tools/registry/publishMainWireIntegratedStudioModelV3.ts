@@ -15,9 +15,6 @@ import {
 import {
   uploadImmutableExactModelArtifactV1,
 } from "./ImmutableExactModelArtifactStorageV1";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -66,7 +63,7 @@ async function main(): Promise<void> {
     cwd: repositoryRoot,
     encoding: "utf8",
   }).trim();
-  await rpc(baseUrl, secret, "register_model_release_v2", {
+  await rpc(baseUrl, secret, "register_model_release_v3", {
     p_model_id: exactRelease.manifest.modelId,
     p_model_family_id: exactRelease.manifest.modelFamilyId,
     p_display_name: "Main Wire V3",
@@ -77,8 +74,6 @@ async function main(): Promise<void> {
     p_source_commit: sourceCommit,
     p_default_fixture:
       MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-    p_analysis_profile_id:
-      MAIN_WIRE_INTEGRATED_STUDIO_ANALYSIS_PROFILE_V2_ID,
     p_expected_artifact_revision_id:
       lock.predecessorArtifactRevisionId,
     p_equivalence_report_sha256: lock.equivalenceReportSha256,

@@ -28,7 +28,6 @@ import type {
 import {
   assertCaptureAdapterMatchesModelV2,
   assertModelContractV2,
-  type MetricOutputDefinitionV2,
   type RegisteredModelCaptureAdapterV2,
   type ModelContractV2,
 } from "@/studio/contracts/v2/model";
@@ -229,7 +228,6 @@ export function createScenarioPresetCaptureClonerV2(
 export function validateExperimentContentForModelV2(
   value: unknown,
   modelValue: unknown,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): ExperimentContentV2 {
   const content = clonePortableJsonV2(
     value,
@@ -237,11 +235,7 @@ export function validateExperimentContentForModelV2(
   ) as ExperimentContentV2;
   assertExperimentContentV2(content, "$.content");
   assertModelContractV2(modelValue);
-  assertExperimentContentMatchesModelV2(
-    content,
-    modelValue,
-    analysisOutputCatalog,
-  );
+  assertExperimentContentMatchesModelV2(content, modelValue);
   return content;
 }
 
@@ -255,7 +249,6 @@ export function validateExperimentContentForModelV2(
 export function validateExperimentDesiredContentForModelV2(
   value: unknown,
   modelValue: unknown,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): ExperimentDesiredContentV2 {
   const desiredContent = clonePortableJsonV2(
     value,
@@ -263,11 +256,7 @@ export function validateExperimentDesiredContentForModelV2(
   ) as ExperimentDesiredContentV2;
   assertExperimentDesiredContentV2(desiredContent, "$.desiredContent");
   assertModelContractV2(modelValue);
-  assertExperimentDesiredContentMatchesModelV2(
-    desiredContent,
-    modelValue,
-    analysisOutputCatalog,
-  );
+  assertExperimentDesiredContentMatchesModelV2(desiredContent, modelValue);
   return desiredContent;
 }
 
@@ -381,26 +370,18 @@ function assertCaptureCorrelationScenariosV2(
 export function assertExperimentContentMatchesModelV2(
   content: ExperimentContentV2,
   model: ModelContractV2,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): void {
-  assertExperimentModelAndSurfaceMatchV2(
-    content,
-    model,
-    "$.content",
-    analysisOutputCatalog,
-  );
+  assertExperimentModelAndSurfaceMatchV2(content, model, "$.content");
 }
 
 export function assertExperimentDesiredContentMatchesModelV2(
   desiredContent: ExperimentDesiredContentV2,
   model: ModelContractV2,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[] = [],
 ): void {
   assertExperimentModelAndSurfaceMatchV2(
     desiredContent,
     model,
     "$.desiredContent",
-    analysisOutputCatalog,
   );
 }
 
@@ -445,7 +426,6 @@ function assertExperimentModelAndSurfaceMatchV2(
   }>,
   model: ModelContractV2,
   path: string,
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[],
 ): void {
   if (content.modelId !== model.modelId) {
     throw validationErrorV2(
@@ -457,9 +437,7 @@ function assertExperimentModelAndSurfaceMatchV2(
     model.graphCatalog.map((definition) => [definition.graphId, definition]),
   );
   const outputsById = new Map(
-    [...model.outputCatalog, ...analysisOutputCatalog].map(
-      (definition) => [definition.outputId, definition],
-    ),
+    model.outputCatalog.map((definition) => [definition.outputId, definition]),
   );
   const controlsById = new Map(
     model.controlCatalog.map((definition) => [definition.controlId, definition]),

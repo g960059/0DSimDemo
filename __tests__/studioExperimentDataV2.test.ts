@@ -1284,7 +1284,7 @@ function exactRuntimeResolverV2() {
       }
       return {
         contract,
-        analysisOutputCatalog: [],
+        exactContract: contract,
         captureAdapter,
         experimentCapture: {
           modelId: contract.modelId,

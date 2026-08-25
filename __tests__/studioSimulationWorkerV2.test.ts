@@ -4537,9 +4537,13 @@ function exactRuntimeV2(
   };
   const executionPlan = overrides.executionPlan
     ?? defaultExecutionPlanAdapterV1();
+  const exactContract: ModelContractV2 = Object.freeze({
+    ...contract,
+    graphCatalog: Object.freeze([]),
+  });
   return {
     contract,
-    analysisOutputCatalog: [],
+    exactContract,
     captureAdapter: {
       modelId: contract.modelId,
       fixtureSchemaId: contract.fixtureSchemaId,

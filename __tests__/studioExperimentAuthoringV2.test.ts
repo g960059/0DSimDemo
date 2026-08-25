@@ -808,7 +808,7 @@ function harnessV2(
         }
         return {
           contract: model,
-          analysisOutputCatalog: [],
+          exactContract: model,
           captureAdapter: adapter,
           experimentCapture: {
             modelId: model.modelId,

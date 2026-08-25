@@ -592,11 +592,7 @@ async function captureDesiredContentV1(
     content,
     (message) => new StudioExperimentCaptureMutationErrorV2(message),
   );
-  assertExperimentContentMatchesModelV2(
-    content,
-    resolved.contract,
-    resolved.runtime.analysisOutputCatalog,
-  );
+  assertExperimentContentMatchesModelV2(content, resolved.contract);
   await assertExperimentCapturesMatchModelV2(
     content,
     resolved.contract,

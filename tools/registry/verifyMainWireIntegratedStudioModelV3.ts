@@ -10,6 +10,9 @@ import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  resolveStudioAnalysisMethodsForSurfaceV1,
+} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -40,7 +43,7 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import mainWireIntegratedStandardSurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import generatedExecutionPlanV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import {
@@ -290,17 +293,21 @@ async function assertArtifactAdmission(
     fail("artifact kernel manifest differs from the source release");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
+  const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    mainWireIntegratedStandardSurfaceV1,
+  );
   const composed = composeStandardModelContractV1(
     sourceRelease.manifest,
     mainWireIntegratedStandardSurfaceV1,
+    analysisMethods.capabilities,
   );
   const executables = release.executables as
     ReturnType<typeof createCircleHeartExactModelReleaseV1>["executables"];
-  validateExecutableBundleV2(executables, composed.contract);
+  validateExecutableBundleV2(executables, composed.exactContract);
   executables.fixtureAdapter.validateCompleteFixture({
     context: {
       scenarioId: "scenario/standard-registry-verification",
-      modelId: composed.contract.modelId,
+      modelId: composed.exactContract.modelId,
     },
     fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   });
@@ -320,7 +327,7 @@ async function assertArtifactAdmission(
   const frame = await executables.simulationAdapter
     .advanceOnePresentationStep({ runtimeSessionId, scenarioId });
   if (
-    frame.modelId !== composed.contract.modelId
+    frame.modelId !== composed.exactContract.modelId
     || frame.acceptedTimeSec !== 0.002
   ) {
     fail("artifact runtime failed its accepted-frame smoke check");

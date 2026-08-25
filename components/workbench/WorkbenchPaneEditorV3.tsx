@@ -27,9 +27,7 @@ import type {
 } from "@/studio/contracts/v2/content";
 import type {
   GraphDefinitionV2,
-  MetricOutputDefinitionV2,
   ModelContractV2,
-  OutputDefinitionV2,
 } from "@/studio/contracts/v2/model";
 import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
@@ -585,7 +583,6 @@ export function compareWorkbenchOutputPaneByScenarioV3(
 }
 
 export function WorkbenchPaneEditorV3({
-  analysisOutputCatalog,
   initialItemIntent,
   initialSection,
   locale,
@@ -598,7 +595,6 @@ export function WorkbenchPaneEditorV3({
   onChange,
   onClose,
 }: Readonly<{
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   open: boolean;
   initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
   initialSection?: WorkbenchPaneEditorSectionV3;
@@ -916,7 +912,6 @@ export function WorkbenchPaneEditorV3({
                   )}
                   {pane.role === "output" && (
                     <OutputPaneEditorV3
-                      analysisOutputCatalog={analysisOutputCatalog}
                       contract={contract}
                       initialItemIntent={initialItemIntent}
                       locale={locale}
@@ -1546,7 +1541,6 @@ function TraceColorInputV3({
 }
 
 function OutputPaneEditorV3({
-  analysisOutputCatalog,
   contract,
   dataSectionTitle,
   initialItemIntent,
@@ -1556,7 +1550,6 @@ function OutputPaneEditorV3({
   strings,
   onChange,
 }: Readonly<{
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
   contract: ModelContractV2;
   dataSectionTitle: string;
   initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
@@ -1572,15 +1565,7 @@ function OutputPaneEditorV3({
       summary,
     ]),
   );
-  const outputCatalog = Object.freeze([
-    ...contract.outputCatalog,
-    ...analysisOutputCatalog,
-  ]);
-  const entries = outputPaneItemManagerEntriesV3({
-    outputCatalog,
-    locale,
-    pane,
-  });
+  const entries = outputPaneItemManagerEntriesV3({ contract, locale, pane });
   return (
     <>
       <section
@@ -1627,7 +1612,7 @@ function OutputPaneEditorV3({
             pane.items.map(({ outputId }) => outputId),
           );
           const availableMemberIds = memberOutputIds.filter((outputId) =>
-            outputCatalog.some(
+            contract.outputCatalog.some(
               (candidate) => candidate.outputId === outputId,
             ),
           );
@@ -1696,13 +1681,13 @@ function OutputPaneEditorV3({
 
 function outputPaneItemManagerEntriesV3(
   input: Readonly<{
-    outputCatalog: readonly OutputDefinitionV2[];
+    contract: ModelContractV2;
     locale: "en" | "ja";
     pane: ExperimentSurfaceOutputPaneV2;
   }>,
 ): readonly PaneItemManagerEntryV3[] {
   const outputById = new Map(
-    input.outputCatalog.map((output) => [output.outputId, output]),
+    input.contract.outputCatalog.map((output) => [output.outputId, output]),
   );
   const selectedById = new Map(
     input.pane.items.map((item) => [item.outputId, item]),
@@ -1765,7 +1750,7 @@ function outputPaneItemManagerEntriesV3(
       ];
     },
   );
-  const scalars = input.outputCatalog
+  const scalars = input.contract.outputCatalog
     .filter(({ outputId }) => !groupedOutputIds.has(outputId))
     .map((output): PaneItemManagerEntryV3 => {
       const selectedItem = selectedById.get(output.outputId);

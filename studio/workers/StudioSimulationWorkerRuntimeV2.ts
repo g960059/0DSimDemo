@@ -1057,7 +1057,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         fixture: this.#requiredScenarioFixture(scenarioId),
       })),
       surface,
-    }, runtime.contract, runtime.analysisOutputCatalog);
+    }, runtime.contract);
     const correlation = validateExperimentCaptureCorrelationV2({
       runtimeSessionId: physicalRuntimeSessionId,
       scenarios: this.#scenarioOrder.map((scenarioId) => ({
@@ -1209,7 +1209,7 @@ export class StudioSimulationWorkerRuntimeV2 {
         fixture: this.#requiredScenarioFixture(scenarioId),
       })),
       surface: request.surface,
-    }, context.runtime.contract, context.runtime.analysisOutputCatalog);
+    }, context.runtime.contract);
     if (request.surfaceSeriesId !== this.#requiredSurfaceSeriesId()) {
       throw new Error("simulation worker Save Surface series pin changed");
     }
@@ -1813,28 +1813,39 @@ function assertExactRuntimeV2(
     throw new Error("registered exact runtime is invalid");
   }
   assertModelContractV2(runtime.contract);
+  assertModelContractV2(runtime.exactContract);
+  if (
+    runtime.contract.modelId !== runtime.exactContract.modelId
+    || runtime.contract.modelFamilyId !== runtime.exactContract.modelFamilyId
+    || runtime.contract.fixtureSchemaId !== runtime.exactContract.fixtureSchemaId
+    || runtime.contract.checkpointCodecId
+      !== runtime.exactContract.checkpointCodecId
+    || runtime.contract.snapshotGateId !== runtime.exactContract.snapshotGateId
+  ) {
+    throw new Error("registered public and exact contracts disagree");
+  }
   assertCaptureAdapterMatchesModelV2(
     runtime.captureAdapter,
-    runtime.contract,
+    runtime.exactContract,
   );
-  const modelId = runtime.contract.modelId;
+  const modelId = runtime.exactContract.modelId;
   if (
     runtime.experimentCapture?.modelId !== modelId
     || runtime.experimentCapture.fixtureSchemaId
-      !== runtime.contract.fixtureSchemaId
+      !== runtime.exactContract.fixtureSchemaId
     || runtime.experimentCapture.checkpointCodecId
-      !== runtime.contract.checkpointCodecId
+      !== runtime.exactContract.checkpointCodecId
     || typeof runtime.experimentCapture.captureAcceptedCandidate !== "function"
     || runtime.snapshotGate?.modelId !== modelId
     || runtime.snapshotGate.snapshotGateId
-      !== runtime.contract.snapshotGateId
+      !== runtime.exactContract.snapshotGateId
     || typeof runtime.snapshotGate.admitFrozenCandidate !== "function"
     || runtime.fixtureAdapter?.modelId !== modelId
     || runtime.fixtureAdapter.fixtureSchemaId
-      !== runtime.contract.fixtureSchemaId
+      !== runtime.exactContract.fixtureSchemaId
     || typeof runtime.fixtureAdapter.validateCompleteFixture !== "function"
     || (
-      runtime.contract.controlCatalog.length > 0
+      runtime.exactContract.controlCatalog.length > 0
       && typeof runtime.fixtureAdapter.reduceControlAction !== "function"
     )
   ) {
@@ -1857,9 +1868,9 @@ function assertExactRuntimeV2(
   if (
     runtime.simulationAdapter.modelId !== modelId
     || runtime.simulationAdapter.fixtureSchemaId
-      !== runtime.contract.fixtureSchemaId
+      !== runtime.exactContract.fixtureSchemaId
     || runtime.simulationAdapter.checkpointCodecId
-      !== runtime.contract.checkpointCodecId
+      !== runtime.exactContract.checkpointCodecId
   ) {
     throw new Error(
       `registered simulation adapter does not exactly match model ${modelId}`,
@@ -1978,7 +1989,7 @@ async function captureFirstExperimentContentV2(input: Readonly<{
   const content = validateExperimentContentForModelV2({
     ...capturedContent,
     surfaceSeriesId: input.desiredContent.surfaceSeriesId,
-  }, input.runtime.contract, input.runtime.analysisOutputCatalog);
+  }, input.runtime.contract);
   assertCapturedDesiredContentAtBoundaryV2(
     input.desiredContent,
     content,

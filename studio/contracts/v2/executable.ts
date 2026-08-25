@@ -6,7 +6,6 @@ import type {
   ModelIdV2,
 } from "./ids";
 import type {
-  MetricOutputDefinitionV2,
   ModelContractV2,
   RegisteredModelCaptureAdapterV2,
 } from "./model";
@@ -68,9 +67,10 @@ export type RegisteredModelExecutableBundleV2 = Readonly<{
 
 /** Hash-free exact runtime projection. Artifact bytes and digest stay private. */
 export type ResolvedExactModelRuntimeV2 = Readonly<{
+  /** Surface-composed contract used for durable Studio content. */
   contract: ModelContractV2;
-  /** Studio analysis outputs admitted beside, never into, the exact contract. */
-  analysisOutputCatalog: readonly MetricOutputDefinitionV2[];
+  /** Exact-only contract used to admit numerical executable adapters. */
+  exactContract: ModelContractV2;
   captureAdapter: RegisteredModelCaptureAdapterV2;
   experimentCapture: RegisteredModelExperimentCaptureAdapterV2;
   snapshotGate: RegisteredModelSnapshotGateAdapterV2;
