@@ -3,7 +3,8 @@ import {
   type MainWireIntegratedModelPressureVolumeLoopPointV3,
   type MainWireIntegratedModelStarlingLocusV3,
   type MainWireIntegratedModelStarlingPointV3,
-} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
+
 import type {
   MainWireIntegratedModelCompletedBeatMetricsV3,
   MainWireIntegratedModelPressureVolumeLandmarkV3,
@@ -19,13 +20,13 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
   type MainWireIntegratedModelResponsiveStarlingPartitionV3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 
 export {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
   type MainWireIntegratedModelResponsiveStarlingPartitionV3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_PROTOCOL_V3_ID =
   "main-wire-integrated-model-responsive-fixed-tone-tbv-starling-preview-v3" as const;

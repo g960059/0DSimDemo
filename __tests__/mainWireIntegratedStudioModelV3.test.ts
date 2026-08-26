@@ -7,7 +7,7 @@ import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { buildNodes } from "@/engine/core/topology";
-import { MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -19,7 +19,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
 import type {

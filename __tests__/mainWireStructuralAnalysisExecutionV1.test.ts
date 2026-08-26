@@ -5,7 +5,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
   mergeMainWireStructuralAnalysesV1,

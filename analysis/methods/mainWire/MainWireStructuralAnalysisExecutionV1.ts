@@ -3,11 +3,11 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 export {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 export {
   buildMainWirePeriodicPvaV1,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,

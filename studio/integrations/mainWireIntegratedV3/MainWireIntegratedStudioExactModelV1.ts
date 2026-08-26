@@ -29,8 +29,8 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
-import { buildMainWireIntegratedModelGuytonStarlingOrientationV3 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import { buildMainWireIntegratedModelGuytonStarlingOrientationV3 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
@@ -92,7 +92,7 @@ import {
   runMainWireIntegratedModelFormalPressureVolumeProtocolV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
   type MainWireIntegratedModelResponsiveStarlingPartitionV3,
-} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import { admitMainWireIntegratedModelSnapshotV3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelSnapshotAdmissionV3";
 import type {

@@ -77,7 +77,7 @@ import {
   suggestWorkbenchScenarioIdV3,
   suggestWorkbenchScenarioLabelV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,

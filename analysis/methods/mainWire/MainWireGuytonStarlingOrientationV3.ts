@@ -1,6 +1,7 @@
 import {
   buildNonCoronaryCirculationGraphV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+
 import {
   nonValveEdgeLossV1,
   vascularPvLawFromNodeV1,
@@ -15,7 +16,7 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
   complianceFromPtm,
   stressedVolumeFromPtm,
@@ -24,7 +25,7 @@ import {
 
 export {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3 =
   "frozen-accepted-step-volume-constrained-structural-orientation-not-simulated-response" as const;

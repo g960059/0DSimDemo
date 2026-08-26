@@ -2,7 +2,7 @@ import type {
   MainWireIntegratedModelPressureVolumeLoopPointV3,
   MainWireIntegratedModelStarlingLocusV3,
   MainWireIntegratedModelStarlingPointV3,
-} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   evaluateMainWireIntegratedModelLvMvo2EstimateV1,
   type MainWireIntegratedModelLvMvo2EstimateV1,

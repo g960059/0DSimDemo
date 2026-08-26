@@ -6,7 +6,7 @@ import type {
   MainWireIntegratedModelPressureVolumeLoopPointV3,
   MainWireIntegratedModelStarlingLocusV3,
   MainWireIntegratedModelStarlingPointV3,
-} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import { buildMainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
@@ -15,7 +15,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
   mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3,
   mainWireIntegratedModelFormalPvaTargetGlobalTbvMlV3,
-} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   PressureVolumeLoopCanvasV3,

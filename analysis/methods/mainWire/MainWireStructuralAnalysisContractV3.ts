@@ -1,6 +1,6 @@
 /**
  * Portable analysis identities shared by the exact numerical Worker and its
- * main-thread coordinator. This module deliberately contains no numerical
+ * main-thread coordinator. This analysis-owned module contains no numerical
  * implementation so importing an execution plan cannot pull the model into
  * the browser bundle.
  */

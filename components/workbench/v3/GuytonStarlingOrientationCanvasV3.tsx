@@ -4,8 +4,8 @@ import { LoaderCircle } from "lucide-react";
 import type {
   MainWireIntegratedModelGuytonSideV3,
   MainWireIntegratedModelStructuralReturnOrientationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
-import { mainWireIntegratedModelStarlingDescendingLimbV3 } from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
+} from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
+import { mainWireIntegratedModelStarlingDescendingLimbV3 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
   scaleLinearV3,
   readWorkbenchCanvasThemeVariablesV3,

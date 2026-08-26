@@ -210,7 +210,7 @@ import {
   resolveWorkbenchPaneItemLabelV3,
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
   type MainWirePeriodicPvaV1,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";

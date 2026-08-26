@@ -18,6 +18,9 @@ const trackedPaths = execFileSync(
 
 const forbiddenExactPaths = new Set([
   "engine/ModelCore.ts",
+  "engine/myocardium/MainWireIntegratedModelAnalysisContractV3.ts",
+  "engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3.ts",
+  "engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3.ts",
   "tools/verifyBaseline.ts",
 ]);
 const forbiddenPathRules = [
