@@ -49,6 +49,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
+  applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
@@ -88,6 +89,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const projection = resolveRegisteredExactModelFixtureProjectionV1(
       MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
     );
+    const controls = createCircleHeartExactModelReleaseV1()
+      .manifest.primitiveControlCatalog;
+
+    expect(controls).toHaveLength(57);
+    for (const definition of controls) {
+      const increased = definition.defaultValue + definition.step;
+      const value = increased <= definition.maximum
+        ? increased
+        : definition.defaultValue - definition.step;
+      expect(value).toBeGreaterThanOrEqual(definition.minimum);
+      expect(value).not.toBe(definition.defaultValue);
+      const fixture =
+        applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          [{ controlId: definition.controlId, value }],
+        );
+      expect(
+        projection.controlValue(fixture, definition.controlId),
+        definition.controlId,
+      ).toBe(value);
+    }
 
     expect(projection.controlValue({
       hemodynamicResearchInputs: {
