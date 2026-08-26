@@ -1,8 +1,6 @@
 /**
  * Joint four-chamber mechanics boundary intended for host integration.
  *
- * This contract does not by itself establish ModelCore runtime wiring.
- *
  * Main wire owns blood/vascular nodes, edges, and valves. One mechanics
  * provider jointly maps the four candidate chamber volumes to four transmural
  * pressures while owning all coupled Land/passive/Maxwell/TriSeg internal

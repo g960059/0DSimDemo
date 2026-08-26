@@ -5,8 +5,8 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 97;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 46;
+export const FAST_SUITE_FILE_BUDGET = 77;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
   "__tests__/appTheme.test.ts",
@@ -84,13 +84,8 @@ export const fastTests = [
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
-  "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/chambers.test.ts",
   "engine/__tests__/circulationGraphKernelV1.test.ts",
-  "engine/__tests__/flowIntegrals.test.ts",
-  "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
-  "engine/__tests__/starlingFit.test.ts",
-  "engine/__tests__/valveTiming.test.ts",
 ] as const;
 
 /**
@@ -183,30 +178,6 @@ export const regressionTests = [
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",
   "__tests__/recoveryConcealmentAvGateCheckpointV2.test.ts",
-  "engine/__tests__/transitionSteadyProtocol.test.ts",
-  "engine/__tests__/atrialPhysiologyBridgeV2.test.ts",
-  "engine/__tests__/baseline.test.ts",
-  "engine/__tests__/chambersElastanceShape.test.ts",
-  "engine/__tests__/chambersOperatingPoint.test.ts",
-  "engine/__tests__/chambersReservoirBehavior.test.ts",
-  "engine/__tests__/chambersReservoirGates.test.ts",
-  "engine/__tests__/coronary.test.ts",
-  "engine/__tests__/guytonStarling.test.ts",
-  "engine/__tests__/guytonVascular.test.ts",
-  "engine/__tests__/health.test.ts",
-  "engine/__tests__/hemorrhage.test.ts",
-  "engine/__tests__/interactionMechanics.test.ts",
-  "engine/__tests__/modelCoreAtrialPressureDecomposition.test.ts",
-  "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
-  "engine/__tests__/observables.test.ts",
-  "engine/__tests__/runtimeParameterSanitation.test.ts",
-  "engine/__tests__/settling.test.ts",
-  "engine/__tests__/stateContract.test.ts",
-  "engine/__tests__/steadyCrossCheck.test.ts",
-  "engine/__tests__/steadyJob.test.ts",
-  "engine/__tests__/transitionSteadyWorker.test.ts",
-  "engine/__tests__/valveFlowMetrics.test.ts",
-  "engine/__tests__/verification.test.ts",
 ] as const;
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */

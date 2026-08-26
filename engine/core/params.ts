@@ -1,6 +1,4 @@
-import type { CoreRuntimeParams } from "@/engine/protocol";
-
-export function defaultParams(): CoreRuntimeParams {
+export function defaultParams() {
   return {
     HR: 75,
     contractility: 1.0,
@@ -74,3 +72,5 @@ export function defaultParams(): CoreRuntimeParams {
     PV_Aref: 4.0, PV_Amax: 4.0, PV_Aleak: 0, PV_kOpen: 2.0, PV_tauOpen: 0.010, PV_tauClose: 0.006, PV_R: 0.005, PV_L: 0.001, PV_B: 2e-6
   };
 }
+
+export type CoreRuntimeParams = ReturnType<typeof defaultParams>;

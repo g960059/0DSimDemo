@@ -130,7 +130,7 @@ describe("local paired vascular and edge tangents", () => {
     const ao = graph.nodes[graph.nodeIndex.get("Ao")!]!;
     for (const policy of [
       "adaptive-volume-tolerance",
-      "model-core-compatible-fixed32",
+      "fixed-32-iterations",
     ] as const) {
       const paired =
         vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
@@ -167,7 +167,7 @@ describe("local paired vascular and edge tangents", () => {
       const law = Object.freeze(vascularPvLawFromNodeV1(node, VASCULAR));
       for (const policy of [
         "adaptive-volume-tolerance",
-        "model-core-compatible-fixed32",
+        "fixed-32-iterations",
       ] as const) {
         expect(vascularTransmuralPressureFromLawV1(
           law,

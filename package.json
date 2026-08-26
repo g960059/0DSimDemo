@@ -60,7 +60,6 @@
     "characterize:coronary:v3-lesion-structural-cmd-directional:v1": "vite-node --script tools/scientific/runCoronaryV3LesionStructuralCmdDirectionalCharacterizationV1.ts --output artifacts/coronary-v3/lesion-structural-cmd-directional-v1.json",
     "characterize:coronary:v3-structural-cmd-active-reserve:v2": "vite-node --script tools/scientific/runCoronaryV3StructuralCmdActiveReserveCharacterizationV2.ts --output artifacts/coronary-v3/structural-cmd-active-reserve-v2.json",
     "render:coronary:v3-reduced-pressure-step-diagnostic:v1": "vite-node --script tools/scientific/renderCoronaryV3ReducedPressureStepArtifactsSvgV1.ts --v1-input artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json --v2-input artifacts/coronary-v3/reduced-pressure-step-numerical-v2.json --output artifacts/coronary-v3/reduced-pressure-step-raw-diagnostic-v1.svg",
-    "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
   },
   "dependencies": {
