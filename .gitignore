@@ -32,6 +32,7 @@ dist/
 dist-public-content/
 /.firebase/
 /artifacts/
+/data/myocardium/visuals/
 
 # machine-local Claude Code permissions (do not track)
 .claude/settings.local.json

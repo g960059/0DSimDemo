@@ -150,7 +150,6 @@ export type CoronaryTopologyPriorV1 = Readonly<{
     acceptedToneStateCount: 3;
     inertanceIncluded: false;
     totalBloodVolumeLedgerRequired: true;
-    legacyModelCoreCoronaryHeuristicsUsed: false;
   }>;
 }>;
 
@@ -418,7 +417,6 @@ export const NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V1 = Object.freeze({
     acceptedToneStateCount: 3 as const,
     inertanceIncluded: false as const,
     totalBloodVolumeLedgerRequired: true as const,
-    legacyModelCoreCoronaryHeuristicsUsed: false as const,
   }),
 }) satisfies CoronaryTopologyPriorV1;
 
