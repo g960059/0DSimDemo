@@ -1,7 +1,7 @@
 import {
   defaultArticleBriefingV3,
   materializeSurfaceControlPaneBindingV3,
-} from "@/components/article/ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
 import { reconcileWorkbenchGraphColorsV3 } from "@/components/workbench/v3/WorkbenchGraphColorV3";
 import { validateExperimentPlacementBriefingV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {

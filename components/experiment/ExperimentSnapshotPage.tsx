@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import {
   defaultArticleBriefingV3,
-} from "@/components/article/ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
 import {
   ArticleReaderExperimentV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";

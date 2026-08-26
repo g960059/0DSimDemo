@@ -1,15 +1,19 @@
-import { portableEditorIdV3 } from "@/components/article/ArticleEditorStateV3";
+import { portableArticleEditorIdV3 } from "@/components/article/editor/ArticleEditorIdentityV3";
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleBlockV2,
   type StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
-import type { StudioSupabaseContentRepositoryV1 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
-type ArticleRemoteAuthoringRepositoryV3 = Pick<
-  StudioSupabaseContentRepositoryV1,
-  "publishArticle" | "readArticle" | "unpublishArticle"
->;
+export interface ArticleRemoteAuthoringRepositoryV3 {
+  publishArticle(input: Readonly<{
+    articleId: string;
+    expectedVersion: number;
+    publicSlug: string;
+  }>): Promise<void>;
+  readArticle(articleId: string): Promise<StudioArticleDraftV2 | null>;
+  unpublishArticle(articleId: string, expectedVersion: number): Promise<void>;
+}
 
 export const ARTICLE_EDITOR_PEEK_FRACTION_STORAGE_KEY_V3 =
   "circleheart.article-editor.peek-fraction.v1";
@@ -321,7 +325,7 @@ export function createEmptyArticleDraftV3(
 ): StudioArticleDraftV2 {
   return Object.freeze({
     schemaId: STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
-    articleId: portableEditorIdV3("article"),
+    articleId: portableArticleEditorIdV3("article"),
     draftVersion: 0,
     visibility: "draft",
     locale,

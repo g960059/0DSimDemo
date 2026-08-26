@@ -191,29 +191,23 @@ export function materializeSurfaceControlPaneBindingV3(
 }
 
 export function createArticleExperimentBlockV3(
-  snapshot: ExperimentSnapshotV2,
-  briefingOrCreateId:
-    | ExperimentPlacementBriefingV2
-    | ((kind: "block" | "placement") => string) =
-      defaultArticleBriefingV3(snapshot),
-  createIdValue: (kind: "block" | "placement") => string = portableEditorIdV3,
+  input: Readonly<{
+    snapshot: ExperimentSnapshotV2;
+    briefing?: ExperimentPlacementBriefingV2;
+    createId: (kind: "block" | "placement") => string;
+  }>,
 ): StudioArticleExperimentBlockV2 {
-  const briefing = typeof briefingOrCreateId === "function"
-    ? defaultArticleBriefingV3(snapshot)
-    : briefingOrCreateId;
-  const createId = typeof briefingOrCreateId === "function"
-    ? briefingOrCreateId
-    : createIdValue;
-  const blockId = createId("block");
-  const placementId = createId("placement");
+  const briefing = input.briefing ?? defaultArticleBriefingV3(input.snapshot);
+  const blockId = input.createId("block");
+  const placementId = input.createId("placement");
   const placement = validateExperimentPlacementAgainstSnapshotV2({
     schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
     placementId,
-    snapshotId: snapshot.snapshotId,
+    snapshotId: input.snapshot.snapshotId,
     briefing,
     titleOverride: null,
     caption: null,
-  }, snapshot);
+  }, input.snapshot);
   return Object.freeze({
     blockId,
     kind: "experiment",
@@ -237,16 +231,6 @@ function normalizedBriefingTitleV3(
   if (normalized.length > 0) return normalized;
   const fallback = scenarioFallback?.trim() ?? "";
   return fallback.length > 0 ? fallback : "Simulation";
-}
-
-export function portableEditorIdV3(
-  kind: "block" | "placement" | "article" | "choice",
-): string {
-  const random = typeof globalThis.crypto?.randomUUID === "function"
-    ? globalThis.crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  if (kind === "article") return `article-${random}`;
-  return `${kind}/local-${random}`;
 }
 
 function compareSurfacePaneOrderV3(

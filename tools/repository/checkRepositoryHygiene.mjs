@@ -17,6 +17,7 @@ const trackedPaths = execFileSync(
   .filter(Boolean);
 
 const forbiddenExactPaths = new Set([
+  "components/article/ArticleEditorStateV3.ts",
   "engine/ModelCore.ts",
   "engine/myocardium/MainWireIntegratedModelAnalysisContractV3.ts",
   "engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3.ts",
@@ -27,6 +28,10 @@ const forbiddenPathRules = [
   {
     pattern: /^components\/[^/]+Page\.tsx$/,
     message: "route pages must live in a product-area directory",
+  },
+  {
+    pattern: /^components\/article\/ArticleEditor(?:Page|Policy|BlocksV3|ChromeV3|RichBlocksV3|UtilitiesV3)\.(?:ts|tsx)$/,
+    message: "Article editor implementation belongs in its feature directory",
   },
   {
     pattern:
@@ -79,11 +84,16 @@ const requiredBoundaryPaths = [
   "analysis/contracts/AnalysisMethodRegistryV1.ts",
   "analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1.ts",
   "analysis/registry/RegisteredAnalysisMethodsV1.ts",
-  "components/article/ArticleEditorPage.tsx",
-  "components/article/ArticleEditorPolicy.ts",
+  "components/article/editor/ArticleEditorBlocksV3.tsx",
+  "components/article/editor/ArticleEditorPage.tsx",
+  "components/article/editor/ArticleEditorPolicy.ts",
+  "components/article/editor/ArticleEditorRichBlocksV3.tsx",
   "components/workbench/WorkbenchPage.tsx",
+  "components/workbench/WorkbenchGraphPaneBodyV3.tsx",
+  "components/workbench/WorkbenchPaneBodiesV3.tsx",
   "components/workbench/WorkbenchSession.tsx",
   "domain/json/CanonicalJson.ts",
+  "studio/application/article/ArticleExperimentPlacementV3.ts",
   "studio/application/modelSurface/ModelSurfacePresentationBundleV1.ts",
   "studio/contracts/v2/simulation.ts",
   "studio/infrastructure/browser/BrowserContentStore.ts",
@@ -171,6 +181,13 @@ const architectureImportRules = [
     pattern:
       /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:infrastructure|integrations|presentation)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:components|infrastructure|integrations|presentation|server|supabase)\/)/,
     message: "Studio application code must depend on ports, not concrete infrastructure or UI",
+  },
+  {
+    appliesTo: (trackedPath) =>
+      trackedPath === "components/article/editor/ArticleEditorPolicy.ts",
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/studio\/infrastructure\/|@\/(?:server|supabase)\/)/,
+    message: "Article editor policy must depend on a repository port, not concrete infrastructure",
   },
 ];
 const machineLocalPathPatterns = [

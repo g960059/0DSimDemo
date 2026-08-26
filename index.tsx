@@ -38,7 +38,7 @@ const PublicExperimentDirectoryPage = React.lazy(
   })),
 );
 const ArticleEditorPage = React.lazy(
-  () => import('./components/article/ArticleEditorPage').then((module) => ({
+  () => import('./components/article/editor/ArticleEditorPage').then((module) => ({
     default: module.ArticleEditorPage,
   })),
 );

@@ -18,7 +18,7 @@ import {
   articleBriefingPresentationV3,
   resolveArticlePlacementBriefingV3,
   resolveArticlePlacementTitleV3,
-} from "@/components/article/ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
 import {
   isWorkbenchGraphTraceExcludedV3,
   resolveWorkbenchGraphScenarioIdsV3,
