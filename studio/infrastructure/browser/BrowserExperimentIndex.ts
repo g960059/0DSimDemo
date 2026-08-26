@@ -12,10 +12,6 @@ export const BROWSER_EXPERIMENT_INDEX_SCHEMA_ID =
 export const BROWSER_EXPERIMENT_RECORD_SCHEMA_ID =
   "circleheart-studio-browser-experiment-record-v5" as const;
 
-const RETIRED_EXPERIMENT_INDEX_KEYS = Object.freeze([
-  "circleheart.studio.browser-experiment-index.v4",
-]);
-
 export type BrowserExperimentRecord = Readonly<{
   schemaId: typeof BROWSER_EXPERIMENT_RECORD_SCHEMA_ID;
   experimentId: string;
@@ -33,7 +29,7 @@ type BrowserExperimentIndexEnvelope = Readonly<{
 
 export type BrowserExperimentIndexStorage = Pick<
   Storage,
-  "getItem" | "removeItem" | "setItem"
+  "getItem" | "setItem"
 >;
 
 /**
@@ -51,8 +47,6 @@ export class BrowserExperimentIndex {
     storage: BrowserExperimentIndexStorage = window.localStorage,
   ) {
     this.#storage = storage;
-    RETIRED_EXPERIMENT_INDEX_KEYS.forEach((key) =>
-      this.#storage.removeItem(key));
   }
 
   list(): readonly BrowserExperimentRecord[] {

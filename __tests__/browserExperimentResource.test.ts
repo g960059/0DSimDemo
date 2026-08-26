@@ -26,20 +26,6 @@ class MemoryStorageV3 {
 }
 
 describe("browser Experiment resource metadata", () => {
-  it("retires the pre-cutover Workbench-prefixed metadata index", () => {
-    const storage = new MemoryStorageV3();
-    storage.setItem(
-      "circleheart.studio.browser-experiment-index.v4",
-      JSON.stringify({ schemaId: "legacy", experiments: [] }),
-    );
-
-    new BrowserExperimentIndex(storage);
-
-    expect(storage.values.has(
-      "circleheart.studio.browser-experiment-index.v4",
-    )).toBe(false);
-  });
-
   it("keeps title and publication pointer outside the numerical content store", () => {
     const storage = new MemoryStorageV3();
     const index = new BrowserExperimentIndex(storage);

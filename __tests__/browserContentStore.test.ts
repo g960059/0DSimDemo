@@ -234,25 +234,6 @@ function articleV3(
 }
 
 describe("browser content store", () => {
-  it("deletes every retired pre-release envelope instead of migrating it", () => {
-    const storage = new MemoryStorageV3();
-    [
-      "circleheart.studio.browser-content.v2",
-      "circleheart.studio.browser-content.v3",
-      "circleheart.studio.browser-content.v3.binding-v1",
-      "circleheart.studio.browser-content.v4",
-      "circleheart.studio.browser-content.v5",
-      "circleheart.studio.browser-content.v6",
-      "circleheart.studio.browser-content.v7",
-      "circleheart.studio.browser-content.v8",
-    ].forEach((key) => storage.setItem(key, "legacy"));
-
-    const store = new BrowserContentStore(storage);
-
-    expect(store.listExperiments()).toEqual([]);
-    expect([...storage.values.keys()]).toEqual([]);
-  });
-
   it("creates only explicitly saved Experiments and advances version by one", () => {
     const store = new BrowserContentStore(new MemoryStorageV3());
     expect(store.listExperiments()).toEqual([]);

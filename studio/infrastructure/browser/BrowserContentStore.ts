@@ -24,29 +24,17 @@ import {
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 
 /**
- * Fresh pre-release envelope. There is deliberately no compatibility reader:
- * every retired shape is deleted at construction so legacy concepts cannot
- * leak back into the authoring model.
+ * Current pre-release envelope. There is deliberately no compatibility
+ * reader; retired keys are inert and left to browser storage maintenance.
  */
 export const BROWSER_CONTENT_STORE_KEY =
   "circleheart.studio.browser-content.v9";
 export const BROWSER_CONTENT_STORE_SCHEMA_ID =
   "circleheart-studio-browser-content-v9" as const;
 
-const RETIRED_CONTENT_STORE_KEYS = Object.freeze([
-  "circleheart.studio.browser-content.v2",
-  "circleheart.studio.browser-content.v3",
-  "circleheart.studio.browser-content.v3.binding-v1",
-  "circleheart.studio.browser-content.v4",
-  "circleheart.studio.browser-content.v5",
-  "circleheart.studio.browser-content.v6",
-  "circleheart.studio.browser-content.v7",
-  "circleheart.studio.browser-content.v8",
-]);
-
 export type BrowserStoragePort = Pick<
   Storage,
-  "getItem" | "removeItem" | "setItem"
+  "getItem" | "setItem"
 >;
 
 type BrowserContentEnvelope = Readonly<{
@@ -66,7 +54,6 @@ export class BrowserContentStore {
 
   constructor(storage: BrowserStoragePort = window.localStorage) {
     this.#storage = storage;
-    RETIRED_CONTENT_STORE_KEYS.forEach((key) => this.#storage.removeItem(key));
   }
 
   listExperiments(): readonly ExperimentV2[] {
