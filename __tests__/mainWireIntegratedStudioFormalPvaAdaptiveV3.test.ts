@@ -71,7 +71,9 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     }>;
     const initialProgressPayload = progress[0]?.payload as unknown as Readonly<{
       status: string;
-      left: null;
+      left: Readonly<{
+        starlingLocus: Readonly<{ status: string }>;
+      }>;
     }>;
     const progressCounts = progress.slice(1).map((partial) => {
       const partialPayload = partial.payload as unknown as Readonly<{
@@ -100,8 +102,10 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen",
     });
     expect(initialProgressPayload).toMatchObject({
-      status: "accepted-step-readback-required",
-      left: null,
+      status: "available",
+      left: {
+        starlingLocus: { status: "requires-protocol" },
+      },
     });
     expect(
       payload.left.starlingLocus.completedPointCount,
