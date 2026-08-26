@@ -17,61 +17,35 @@ const trackedPaths = execFileSync(
   .filter(Boolean);
 
 const forbiddenExactPaths = new Set([
-  "__tests__/integratedLaneBootstrapV1.test.ts",
-  "__tests__/integratedLaneObservableRegistryV1.test.ts",
-  "__tests__/integratedLaneSessionV1.test.ts",
-  "caseDoc.ts",
-  "caseValidation.ts",
-  "contexts/AuthContext.tsx",
-  "engine/__tests__/guytonStarlingWorkerCore.test.ts",
-  "engine/__tests__/guytonStarlingWorkerQueue.test.ts",
-  "engine/__tests__/instanceKnobs.test.ts",
-  "engine/__tests__/knobs.test.ts",
-  "engine/__tests__/verifyGuytonStarling.test.ts",
-  "engine/guytonStarlingChainProtocol.ts",
-  "engine/guytonStarlingChainWorker.ts",
-  "engine/guytonStarlingChainWorkerCore.ts",
-  "engine/guytonStarlingValidation.ts",
-  "engine/guytonStarlingWorker.ts",
-  "engine/guytonStarlingWorkerCore.ts",
-  "engine/guytonStarlingWorkerQueue.ts",
-  "engine/instanceKnobs.ts",
-  "engine/knobs.ts",
-  "engine/myocardium/MainWireIntegratedLaneBootstrapV1.ts",
-  "engine/myocardium/MainWireIntegratedLaneObservableRegistryV1.ts",
-  "engine/myocardium/MainWireIntegratedLaneSessionV1.ts",
-  "engine/myocardium/activation/periodicActivationSchedulerV1.ts",
-  "engine/myocardium/calcium/PrescribedCalciumTransientV1.ts",
-  "engine/myocardium/calcium/index.ts",
-  "engine/myocardium/calcium/protocols.ts",
-  "engine/myocardium/contracts.ts",
-  "engine/myocardium/mechanics/contracts.ts",
-  "engine/myocardium/mechanics/identityForcePhase3BReport.ts",
-  "engine/myocardium/mechanics/index.ts",
-  "engine/myocardium/mechanics/passiveExponentialEnergyV1.ts",
-  "engine/myocardium/mechanics/virtualPowerGeneralizedForceV1.ts",
-  "engine/myocardium/mechanics/virtualPowerNominalEngineeringV1.ts",
-  "engine/myocardium/myofilament/land2017/protocols.ts",
-  "engine/myocardium/provenance.ts",
-  "firebase-applet-config.json",
-  "firebase-blueprint.json",
-  "firebaseSetup.ts",
-  "firestore.rules",
-  "logs.txt",
-  "mv_out.txt",
-  "playwright.e2e.config.ts",
-  "components/WorkbenchPreRegistrationPage.tsx",
-  "rawParameterCatalog.ts",
-  "readingConversion.ts",
-  "test_blocknote.ts",
-  "test_blocknote_esm.mjs",
-  "tools/verifyGuytonStarling.ts",
-  "studio/application/runtime/SimulationSessionCoordinatorV1.ts",
-  "tools/myocardium/verifyContracts.ts",
-  "vitest.archive.config.ts",
-  "vitest.heavy.config.ts",
-  "vitest.research.config.ts",
+  "engine/ModelCore.ts",
+  "tools/verifyBaseline.ts",
 ]);
+const forbiddenPathRules = [
+  {
+    pattern: /^components\/[^/]+Page\.tsx$/,
+    message: "route pages must live in a product-area directory",
+  },
+  {
+    pattern:
+      /^studio\/integrations\/mainWireIntegratedV3\/model-surface-workbench-v[12]\.json$/,
+    message: "superseded pre-analysis Surfaces belong in Git history",
+  },
+  {
+    pattern:
+      /^studio\/infrastructure\/browser\/StudioBrowser(?:ContentStore|ExperimentIndex)V3\.ts$/,
+    message: "current browser implementations must not carry product-generation names",
+  },
+  {
+    pattern:
+      /^(?:caseDoc|caseValidation|rawParameterCatalog|readingConversion|firebaseSetup|test_blocknote)\.ts$/,
+    message: "retired root utilities belong in Git history",
+  },
+  {
+    pattern:
+      /^(?:firebase-applet-config|firebase-blueprint)\.json$|^(?:firestore\.rules|logs\.txt|mv_out\.txt|playwright\.e2e\.config\.ts|test_blocknote_esm\.mjs|vitest\.(?:archive|heavy|research)\.config\.ts)$/,
+    message: "retired configuration or scratch output belongs in Git history",
+  },
+];
 const forbiddenPrefixes = [
   "migrated_prompt_history/",
   "tools/sweeps/",
@@ -84,43 +58,31 @@ const forbiddenPrefixes = [
   "engine/myocardium/state/",
   "engine/diagnostics/morphology/",
   "engine/mechanics2/",
+  "engine/verification/",
   "studio/adapters/mainWire/",
   "studio/application/content/",
   "studio/contracts/v1/",
   "studio/infrastructure/artifacts/",
   "tools/mechanics2/",
 ];
-const requiredTrackedPaths = [
-  "components/WorkbenchV3Page.tsx",
-  "components/workbench/WorkbenchDockview.tsx",
-  "__tests__/workbenchV3Dockview.test.tsx",
-  "engine/myocardium/MainWireIntegratedModelOutputRegistryV3.ts",
-  "engine/myocardium/MainWireIntegratedModelRuntimeV3.ts",
-  "engine/myocardium/MainWireIntegratedModelSessionV3.ts",
-  "engine/myocardium/experiments/MainWireIntegratedModelSnapshotAdmissionV3.ts",
-  "engine/myocardium/experiments/MainWireIntegratedModelSnapshotQualificationV3.ts",
-  "studio/application/authoring/StudioExperimentAuthoringApplicationV2.ts",
-  "studio/application/authoring/StudioExperimentDataV2.ts",
-  "studio/application/runtime/StudioFixtureReducerV2.ts",
-  "studio/contracts/v2/index.ts",
+// These are architectural anchors, not a catalog of current implementation
+// files. IDs, formulas, releases, and worker mechanics remain discoverable
+// from their owning source and tests.
+const requiredBoundaryPaths = [
+  "components/article/ArticleEditorPage.tsx",
+  "components/article/ArticleEditorPolicy.ts",
+  "components/workbench/WorkbenchPage.tsx",
+  "components/workbench/WorkbenchSession.tsx",
   "studio/contracts/v2/simulation.ts",
-  "studio/composition/StudioDefaultCompositionV2.ts",
-  "studio/infrastructure/experiments/InMemoryExperimentRepositoryV2.ts",
-  "studio/infrastructure/json/StudioCanonicalJson.ts",
-  "studio/infrastructure/model/ExactModelExecutableValidationV1.ts",
+  "studio/infrastructure/browser/BrowserContentStore.ts",
+  "studio/infrastructure/browser/BrowserExperimentIndex.ts",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.ts",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1.ts",
+  "studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json",
   "studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
-  "studio/workers/StudioSimulationWorkerClientV2.ts",
   "studio/workers/StudioSimulationWorkerProtocolV2.ts",
-  "studio/workers/StudioSimulationWorkerRuntimeV2.ts",
-  "studio/workers/StudioSimulationWorkerV2.ts",
-  "supabase/config.toml",
-  ".firebaserc",
-  "firebase.json",
-  "supabase/migrations/20260809000100_active_model_bundle.sql",
   "tools/registry/verifyMainWireIntegratedStudioModelV3.ts",
 ];
 const portableTextExtensions = new Set([
@@ -135,6 +97,42 @@ const portableTextExtensions = new Set([
   ".yaml",
   ".yml",
 ]);
+const sourceExtensions = new Set([".js", ".mjs", ".ts", ".tsx"]);
+const forbiddenSourcePatterns = [
+  {
+    pattern: /(?:from\s*|import\s*\()\s*["'][^"']*engine\/ModelCore(?:\.ts)?["']/,
+    message: "the retired ModelCore runtime must not regain an importer",
+  },
+  {
+    pattern: /\bmodel-core-compatible-fixed32\b/,
+    message: "the admitted inverse policy must not be named after retired ModelCore",
+  },
+  {
+    pattern: /\bStudioBrowser(?:ContentStore|ExperimentIndex)V3\b/,
+    message: "current browser implementations must not regain product-generation names",
+  },
+];
+const architectureImportRules = [
+  {
+    appliesTo: (trackedPath) =>
+      trackedPath.startsWith("engine/") || trackedPath.startsWith("runtime/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/|(?:\.\.\/)+)(?:components|studio|server|supabase)\//,
+    message: "exact numerics and runtime must not depend on UI, Studio, or infrastructure",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("studio/contracts/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:application|analysis|composition|infrastructure|integrations|presentation|workers)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:application|analysis|composition|infrastructure|integrations|presentation|workers)\/)/,
+    message: "portable contracts must not depend on implementations",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("studio/analysis/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/infrastructure\/|@\/(?:server|supabase)\/|(?:\.\.\/)+infrastructure\/)/,
+    message: "analysis methods must not depend on UI or concrete infrastructure",
+  },
+];
 const machineLocalPathPatterns = [
   /\/Users\/[^/]+\//,
   /\/home\/[^/]+\//,
@@ -143,7 +141,7 @@ const machineLocalPathPatterns = [
 
 const failures = [];
 const trackedPathSet = new Set(trackedPaths);
-for (const requiredPath of requiredTrackedPaths) {
+for (const requiredPath of requiredBoundaryPaths) {
   if (!trackedPathSet.has(requiredPath)) {
     failures.push(
       `${requiredPath}: required Studio foundation source is not tracked`,
@@ -162,12 +160,30 @@ for (const trackedPath of trackedPaths) {
       `${trackedPath}: historical scratch output belongs in Git history, not the working tree`,
     );
   }
+  const forbiddenPathRule = forbiddenPathRules.find(({ pattern }) =>
+    pattern.test(trackedPath));
+  if (forbiddenPathRule !== undefined) {
+    failures.push(`${trackedPath}: ${forbiddenPathRule.message}`);
+  }
   if (portableTextExtensions.has(path.extname(trackedPath))) {
     const text = readFileSync(absolutePath, "utf8");
     if (machineLocalPathPatterns.some((pattern) => pattern.test(text))) {
       failures.push(
         `${trackedPath}: tracked portable content must not contain a machine-local absolute path`,
       );
+    }
+    if (
+      trackedPath !== "tools/repository/checkRepositoryHygiene.mjs"
+      && sourceExtensions.has(path.extname(trackedPath))
+    ) {
+      for (const { pattern, message } of forbiddenSourcePatterns) {
+        if (pattern.test(text)) failures.push(`${trackedPath}: ${message}`);
+      }
+      for (const { appliesTo, pattern, message } of architectureImportRules) {
+        if (appliesTo(trackedPath) && pattern.test(text)) {
+          failures.push(`${trackedPath}: ${message}`);
+        }
+      }
     }
   }
 }
