@@ -52,14 +52,16 @@ import {
 } from "@/components/workbench/WorkbenchSessionFeedbackV3";
 import {
   WorkbenchPaneEditorV3,
+  type WorkbenchPaneEditorItemIntentV3,
+  type WorkbenchPaneEditorSectionV3,
+} from "@/components/workbench/WorkbenchPaneEditorV3";
+import {
   addWorkbenchSurfacePaneV3,
   compareWorkbenchOutputPaneByScenarioV3,
   deleteWorkbenchSurfacePaneV3,
   duplicateWorkbenchSurfacePaneV3,
   updateWorkbenchSurfacePaneV3,
-  type WorkbenchPaneEditorItemIntentV3,
-  type WorkbenchPaneEditorSectionV3,
-} from "@/components/workbench/WorkbenchPaneEditorV3";
+} from "@/components/workbench/WorkbenchSurfacePaneOperationsV3";
 import {
   WorkbenchScenarioManagerV3,
   scenarioIdentityColorV3,

@@ -51,13 +51,15 @@ import {
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3,
+  updateWorkbenchGraphTraceCustomColorV3,
+} from "@/components/workbench/WorkbenchPaneEditorV3";
+import {
   addWorkbenchSurfacePaneV3,
   compareWorkbenchOutputPaneByScenarioV3,
   deleteWorkbenchSurfacePaneV3,
   duplicateWorkbenchSurfacePaneV3,
-  updateWorkbenchGraphTraceCustomColorV3,
   updateWorkbenchSurfacePaneV3,
-} from "@/components/workbench/WorkbenchPaneEditorV3";
+} from "@/components/workbench/WorkbenchSurfacePaneOperationsV3";
 import {
   WorkbenchPaneBindingButtonV3,
   WorkbenchPaneBindingModeSelectorV3,
