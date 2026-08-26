@@ -1323,7 +1323,7 @@ export function ArticleEditorPage() {
               const placementContract = placementSnapshot === null
                 ? null
                 : compositionBySnapshotId.get(placementSnapshot.snapshotId)
-                    ?.contract ?? null;
+                    ?.modelSurface.contract ?? null;
               const previousBlock = draft.blocks[index - 1];
               const hasTextAbove = draft.blocks.slice(0, index)
                 .some(isArticleTextBlockV3);
@@ -1600,7 +1600,7 @@ export function ArticleEditorPage() {
             snapshot={selectedPeek.snapshot}
             contract={compositionBySnapshotId.get(
               selectedPeek.snapshot.snapshotId,
-            )?.contract ?? null}
+            )?.modelSurface.contract ?? null}
             runtimeComposition={compositionBySnapshotId.get(
               selectedPeek.snapshot.snapshotId,
             ) ?? null}

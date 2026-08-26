@@ -207,7 +207,6 @@ describe("Studio Supabase boundary V1", () => {
     )).toBe(first);
     const resolved = await first;
     expect(resolved).toMatchObject({
-      contract: { modelId: standardClientDescriptorV1.manifest.modelId },
       defaultFixture: standardClientDescriptorV1.defaultFixture,
       stage: "stable",
       ticket: {
@@ -262,16 +261,13 @@ describe("Studio Supabase boundary V1", () => {
 
     expect(resolved).toMatchObject({
       activeBundleVersion: 7,
-      contract: {
-        modelId: standardClientDescriptorV1.manifest.modelId,
-        modelFamilyId: standardClientDescriptorV1.manifest.modelFamilyId,
-      },
       stage: "stable",
-      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
-      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceStage: "stable",
       ticket: {
         modelId: standardClientDescriptorV1.manifest.modelId,
+        manifest: {
+          modelFamilyId: standardClientDescriptorV1.manifest.modelFamilyId,
+        },
         surfaceRelease: {
           surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
         },
@@ -325,7 +321,7 @@ describe("Studio Supabase boundary V1", () => {
       pin,
     );
 
-    expect(first.contract.modelId).toBe(next.contract.modelId);
+    expect(first.ticket.modelId).toBe(next.ticket.modelId);
     expect(first.ticket.artifactRevisionId).toBe("a".repeat(64));
     expect(next.ticket.artifactRevisionId).toBe("b".repeat(64));
     expect(next.ticket.artifactUrl).toContain("b".repeat(64));
@@ -400,21 +396,21 @@ describe("Studio Supabase boundary V1", () => {
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
     });
-    expect((await resolver.resolveActiveBundle()).contract.modelId)
+    expect((await resolver.resolveActiveBundle()).ticket.modelId)
       .toBe(modelB);
     bundleRow = activeRow(row(
       modelC,
       manifestC,
       "circleheart-exact-model-esm-v1",
     ), 1);
-    expect((await resolver.resolveActiveBundle()).contract.modelId)
+    expect((await resolver.resolveActiveBundle()).ticket.modelId)
       .toBe(modelC);
     await expect(resolver.resolveExactModel(modelA, {
       kind: "release",
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
     })).resolves.toBe(exactA);
-    expect(exactA.contract.modelId).toBe(modelA);
+    expect(exactA.ticket.modelId).toBe(modelA);
   });
 
   it("reports an unavailable exact release without substituting the active model", async () => {
@@ -602,15 +598,17 @@ describe("Studio Supabase boundary V1", () => {
       standardClientDescriptorV1.manifest.modelId,
       seriesPin,
     );
-    expect(firstOpen.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
+    expect(firstOpen.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV1.surfaceReleaseId);
 
     latestSurface = surfaceV2;
     const reopened = await createResolver().resolveExactModel(
       standardClientDescriptorV1.manifest.modelId,
       seriesPin,
     );
-    expect(reopened.surfaceReleaseId).toBe(surfaceV2.surfaceReleaseId);
-    expect(reopened.contract.graphCatalog.some((graph) =>
+    expect(reopened.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV2.surfaceReleaseId);
+    expect(reopened.ticket.surfaceRelease.graphCatalog.some((graph) =>
       graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(true);
     expect(surfaceCall).toHaveBeenCalledWith(
@@ -629,8 +627,9 @@ describe("Studio Supabase boundary V1", () => {
         surfaceReleaseId: surfaceV1.surfaceReleaseId,
       },
     );
-    expect(frozenSnapshot.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
-    expect(frozenSnapshot.contract.graphCatalog.some((graph) =>
+    expect(frozenSnapshot.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV1.surfaceReleaseId);
+    expect(frozenSnapshot.ticket.surfaceRelease.graphCatalog.some((graph) =>
       graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(false);
   });

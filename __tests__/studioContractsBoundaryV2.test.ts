@@ -64,6 +64,12 @@ describe("Studio V2 dependency boundary", () => {
         reason: "imports UI or concrete infrastructure",
       },
       {
+        directory: "studio/infrastructure/model",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:analysis\/methods|studio\/integrations)\//,
+        reason: "imports a concrete model family",
+      },
+      {
         directory: "studio/application",
         forbidden:
           /(?:from|import\()\s*["'][^"']*@\/(?:components|server|supabase|studio\/(?:infrastructure|integrations|presentation))\//,

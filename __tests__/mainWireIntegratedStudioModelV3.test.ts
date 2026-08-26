@@ -378,14 +378,19 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
-        defaultModelId:
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        surfaceReleaseId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-        surfaceSeriesId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-        workerReleaseTicket: {
-          moduleAbi: "circleheart-exact-model-esm-v1",
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          workerReleaseTicket: {
+            moduleAbi: "circleheart-exact-model-esm-v1",
+          },
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
         },
       });
       await expect(
@@ -394,12 +399,17 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
         ),
       ).resolves.toMatchObject({
-        defaultModelId:
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        surfaceReleaseId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-        surfaceSeriesId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
       });
       await expect(
         composition.loadStudioExperimentClientCompositionV2(

@@ -680,7 +680,8 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {
-    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const { contract } = (await loadStudioDefaultClientCompositionV2())
+      .modelSurface;
     const analysisOutputIds = Object.values(
       MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
     );

@@ -193,7 +193,7 @@ function ExperimentSnapshotV3Resource({
                 }),
               })}
               snapshot={snapshot}
-              contract={composition?.contract ?? null}
+              contract={composition?.modelSurface.contract ?? null}
               runtimeComposition={composition}
               live
               expandedPresentation={expanded ? "fullscreen" : null}

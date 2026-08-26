@@ -680,10 +680,10 @@ function modelCandidateV3(
   resolutionKey?: string,
 ): DevModelCandidateV3 {
   return Object.freeze({
-    modelId: composition.defaultModelId,
-    displayName: composition.contract.displayName,
-    stage: composition.releaseStage,
-    surfaceReleaseId: composition.surfaceReleaseId,
+    modelId: composition.exactModel.modelId,
+    displayName: composition.modelSurface.contract.displayName,
+    stage: composition.exactModel.stage,
+    surfaceReleaseId: composition.modelSurface.identity.surfaceReleaseId,
     source,
     ...(resolutionKey === undefined ? {} : { resolutionKey }),
     available: true,

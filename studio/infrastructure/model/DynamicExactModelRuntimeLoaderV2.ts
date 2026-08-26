@@ -7,9 +7,6 @@ import type {
   ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  composeStandardModelContractV1,
-} from "@/studio/contracts/v2/modelSurface";
-import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
 import {
@@ -28,8 +25,11 @@ import {
   admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
-  resolveMainWireAnalysisMethodsForSurfaceV1,
-} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+  materializeModelSurfaceV1,
+} from "@/studio/application/modelSurface/ModelSurfacePresentationBundleV1";
+import {
+  resolveRegisteredAnalysisMethodsV1,
+} from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import {
   studioCanonicalJsonStringify,
 } from "@/domain/json/CanonicalJson";
@@ -172,18 +172,18 @@ export class DynamicExactModelRuntimeLoaderV2 {
     ) {
       throw new Error("Exact model artifact manifest does not match the registry");
     }
-    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+    const analysis = resolveRegisteredAnalysisMethodsV1(
       ticket.surfaceRelease,
       [
         ...ticket.manifest.primitiveSignalCatalog,
         ...ticket.manifest.modelMetricCatalog,
       ],
     );
-    const composed = composeStandardModelContractV1(
-      ticket.manifest,
-      ticket.surfaceRelease,
-      analysisMethods.capabilities,
-    );
+    const modelSurface = materializeModelSurfaceV1({
+      kernel: ticket.manifest,
+      surfaceRelease: ticket.surfaceRelease,
+      analysis,
+    });
     for (const requiredCapability of [
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -196,8 +196,8 @@ export class DynamicExactModelRuntimeLoaderV2 {
     }
     const runtime = admitExactModelExecutableRuntimeV2(
       release.executables,
-      composed.exactContract,
-      composed.contract,
+      modelSurface.exactContract,
+      modelSurface.contract,
     );
     const contractValidationMs = nonnegativeDurationV2(validationStartedAtMs);
     this.#coldTimingByTicket.set(canonicalTicket, Object.freeze({

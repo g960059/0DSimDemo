@@ -165,16 +165,36 @@ function contractV3(): ModelContractV2 {
 function runtimeCompositionV3(): StudioClientCompositionV2 {
   const contract = contractV3();
   return Object.freeze({
-    defaultModelId: contract.modelId,
-    releaseStage: "stable",
-    defaultFixture: Object.freeze({}),
-    contract,
-    analysisExecutionPlan: () => null,
-    periodicPvaDerivation: null,
-    workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
-    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
-    surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
-    surfaceStage: "stable",
+    exactModel: Object.freeze({
+      modelId: contract.modelId,
+      stage: "stable" as const,
+      defaultFixture: Object.freeze({}),
+      workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+    }),
+    modelSurface: Object.freeze({
+      identity: Object.freeze({
+        modelFamilyId: contract.modelFamilyId,
+        surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+        surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+        stage: "stable" as const,
+      }),
+      contract,
+      catalog: Object.freeze({
+        surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+        modelFamilyId: contract.modelFamilyId,
+        exposedExactOutputIds: Object.freeze([]),
+        controlCatalog: Object.freeze([]),
+        derivedOutputCatalog: Object.freeze([]),
+        graphCatalog: Object.freeze([]),
+        knobCatalog: Object.freeze([]),
+        protocolCatalog: Object.freeze([]),
+      }),
+      analysis: Object.freeze({
+        capabilities: Object.freeze([]),
+        periodicPvaDerivation: null,
+        resolveExecutionPlan: () => null,
+      }),
+    }),
   });
 }
 

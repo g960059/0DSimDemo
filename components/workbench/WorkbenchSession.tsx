@@ -739,11 +739,11 @@ export const WorkbenchSession = ({
         throw error;
       }
       if (cancelled) return;
-      setReleaseStage(composition.releaseStage);
-      workerReleaseTicketRef.current = composition.workerReleaseTicket;
-      periodicPvaDerivationRef.current = composition.periodicPvaDerivation;
-      surfaceSeriesIdRef.current = composition.surfaceSeriesId;
-      surfaceReleaseIdRef.current = composition.surfaceReleaseId;
+      setReleaseStage(composition.exactModel.stage);
+      workerReleaseTicketRef.current = composition.exactModel.workerReleaseTicket;
+      periodicPvaDerivationRef.current = composition.modelSurface.analysis.periodicPvaDerivation;
+      surfaceSeriesIdRef.current = composition.modelSurface.identity.surfaceSeriesId;
+      surfaceReleaseIdRef.current = composition.modelSurface.identity.surfaceReleaseId;
       const record =
         storedExperiment === null
           ? null
@@ -783,7 +783,7 @@ export const WorkbenchSession = ({
         pendingSurface ??
         initialContent?.surface ??
         createDefaultExperimentSurfaceV3(
-          composition.contract,
+          composition.modelSurface.contract,
           initialScenarioId,
         );
       const baselineLabel = translationRef.current(
@@ -824,9 +824,9 @@ export const WorkbenchSession = ({
         defaultTitle: experimentTitleRef.current,
         snapshot: createWorkbenchBriefingSnapshotV3({
           defaultTitle: experimentTitleRef.current,
-          modelId: composition.defaultModelId,
-          surfaceSeriesId: composition.surfaceSeriesId,
-          surfaceReleaseId: composition.surfaceReleaseId,
+          modelId: composition.exactModel.modelId,
+          surfaceSeriesId: composition.modelSurface.identity.surfaceSeriesId,
+          surfaceReleaseId: composition.modelSurface.identity.surfaceReleaseId,
           scenarios: candidateScenarioDescriptors,
           surface: nextSurface,
         }),
@@ -859,7 +859,7 @@ export const WorkbenchSession = ({
       controlValuesByScenarioRef.current = {};
       setControlValues(
         controlValuesForFixtureV3(
-          composition.contract,
+          composition.modelSurface.contract,
           storedScenario?.capture.fixture,
         ),
       );
@@ -884,7 +884,7 @@ export const WorkbenchSession = ({
               Object.freeze({
                 scenarioId: initialScenarioId,
                 label: baselineLabel,
-                fixture: composition.defaultFixture,
+                fixture: composition.exactModel.defaultFixture,
               }),
             ]
           : initialContent.scenarios.map((scenario) =>
@@ -896,15 +896,15 @@ export const WorkbenchSession = ({
               }),
             );
       runtime = new WorkbenchParallelScenarioRuntimeV3({
-        expectedModelId: composition.defaultModelId,
-        releaseTicket: composition.workerReleaseTicket,
+        expectedModelId: composition.exactModel.modelId,
+        releaseTicket: composition.exactModel.workerReleaseTicket,
         backgroundWorkerPool,
-        resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
+        resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
         presentationOutputIds: () =>
           surfaceRef.current === null
             ? Object.freeze([])
             : workbenchPresentationOutputSelectionV3(
-                composition.contract,
+                composition.modelSurface.contract,
                 surfaceRef.current,
               ),
         onFrames: (frames) => {
@@ -915,7 +915,7 @@ export const WorkbenchSession = ({
             surfaceRef.current === null
               ? undefined
               : workbenchPresentationOutputSelectionV3(
-                  composition.contract,
+                  composition.modelSurface.contract,
                   surfaceRef.current,
                 ),
           );
@@ -965,7 +965,7 @@ export const WorkbenchSession = ({
         capturedScenarios.scenarios.map((scenario) => [
           scenario.scenarioId,
           controlValuesForFixtureV3(
-            composition.contract,
+            composition.modelSurface.contract,
             scenario.capture.fixture,
           ),
         ]),
@@ -976,7 +976,7 @@ export const WorkbenchSession = ({
       setActiveScenarioId(capturedScenarios.activeScenarioId);
       setControlValues(
         controlValuesByScenario[capturedScenarios.activeScenarioId] ??
-          controlValuesForFixtureV3(composition.contract, undefined),
+          controlValuesForFixtureV3(composition.modelSurface.contract, undefined),
       );
       const baseline = capturedScenarios.scenarios.find(
         ({ scenarioId }) => scenarioId === capturedScenarios.activeScenarioId,
@@ -988,7 +988,7 @@ export const WorkbenchSession = ({
               Object.freeze({
                 schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID,
                 presetId: "preset/workbench-startup-baseline",
-                modelId: composition.defaultModelId,
+                modelId: composition.exactModel.modelId,
                 title: translationRef.current(
                   "workbench.editor.scenarioManager.baselinePresetTitle",
                 ),
@@ -1011,7 +1011,7 @@ export const WorkbenchSession = ({
       runtimeRef.current = runtime;
       setStatus({
         kind: "live",
-        contract: composition.contract,
+        contract: composition.modelSurface.contract,
         frame: initial,
       });
       const playbackIntent = playingIntentRef.current;

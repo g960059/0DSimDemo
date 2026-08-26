@@ -78,11 +78,13 @@ const requiredBoundaryPaths = [
   "analysis/contracts/AnalysisExecutionV1.ts",
   "analysis/contracts/AnalysisMethodRegistryV1.ts",
   "analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1.ts",
+  "analysis/registry/RegisteredAnalysisMethodsV1.ts",
   "components/article/ArticleEditorPage.tsx",
   "components/article/ArticleEditorPolicy.ts",
   "components/workbench/WorkbenchPage.tsx",
   "components/workbench/WorkbenchSession.tsx",
   "domain/json/CanonicalJson.ts",
+  "studio/application/modelSurface/ModelSurfacePresentationBundleV1.ts",
   "studio/contracts/v2/simulation.ts",
   "studio/infrastructure/browser/BrowserContentStore.ts",
   "studio/infrastructure/browser/BrowserExperimentIndex.ts",
@@ -145,10 +147,18 @@ const architectureImportRules = [
   {
     appliesTo: (trackedPath) =>
       trackedPath.startsWith("analysis/methods/")
+      || trackedPath.startsWith("analysis/registry/")
       || trackedPath.startsWith("analysis/runtime/"),
     pattern:
       /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:application|composition|infrastructure|integrations|presentation|workers)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:application|composition|infrastructure|integrations|presentation|workers|components|server|supabase)\/)/,
     message: "analysis code must not depend on UI or concrete infrastructure",
+  },
+  {
+    appliesTo: (trackedPath) =>
+      trackedPath.startsWith("studio/infrastructure/model/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/analysis\/methods\/|@\/studio\/integrations\/)/,
+    message: "generic model infrastructure must resolve registries instead of importing a model family",
   },
   {
     appliesTo: (trackedPath) => trackedPath.startsWith("domain/"),

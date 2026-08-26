@@ -22,6 +22,12 @@ import {
   type StudioModelSurfaceRpcPortV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelSurfaceResolverV1";
 import {
+  composeModelSurfacePresentationBundleV1,
+} from "@/studio/application/modelSurface/ModelSurfacePresentationBundleV1";
+import {
+  resolveRegisteredAnalysisMethodsV1,
+} from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import {
   StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
@@ -200,23 +206,51 @@ function createAuthoringModelPortV1(
     release: Awaited<ReturnType<
       StudioSupabaseModelReleaseResolverV1["resolveActiveBundle"]
     >>,
-  ) => Object.freeze({
-    contract: release.contract,
-    defaultFixture: release.defaultFixture,
-    runtime: await runtimes.load(release.ticket),
-    surfaceReleaseId: release.surfaceReleaseId,
-    surfaceSeriesId: release.surfaceSeriesId,
-  });
+  ) => {
+    const analysis = resolveRegisteredAnalysisMethodsV1(
+      release.ticket.surfaceRelease,
+      [
+        ...release.ticket.manifest.primitiveSignalCatalog,
+        ...release.ticket.manifest.modelMetricCatalog,
+      ],
+    );
+    const modelSurface = composeModelSurfacePresentationBundleV1({
+      kernel: release.ticket.manifest,
+      surfaceRelease: release.ticket.surfaceRelease,
+      stage: release.surfaceStage,
+      analysis,
+    });
+    return Object.freeze({
+      contract: modelSurface.contract,
+      defaultFixture: release.defaultFixture,
+      runtime: await runtimes.load(release.ticket),
+      surfaceReleaseId: modelSurface.identity.surfaceReleaseId,
+      surfaceSeriesId: modelSurface.identity.surfaceSeriesId,
+    });
+  };
   return Object.freeze({
     async resolveModel(input) {
-      return (await exactModels.resolveExactModel(
+      const release = await exactModels.resolveExactModel(
         input.modelId,
         {
           kind: "release" as const,
           surfaceSeriesId: input.surfaceSeriesId,
           surfaceReleaseId: input.surfaceReleaseId,
         },
-      )).contract;
+      );
+      const analysis = resolveRegisteredAnalysisMethodsV1(
+        release.ticket.surfaceRelease,
+        [
+          ...release.ticket.manifest.primitiveSignalCatalog,
+          ...release.ticket.manifest.modelMetricCatalog,
+        ],
+      );
+      return composeModelSurfacePresentationBundleV1({
+        kernel: release.ticket.manifest,
+        surfaceRelease: release.ticket.surfaceRelease,
+        stage: release.surfaceStage,
+        analysis,
+      }).contract;
     },
     async resolveActiveNumericalModel() {
       return ownNumerical(await exactModels.resolveActiveBundle());

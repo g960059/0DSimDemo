@@ -206,7 +206,8 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
-    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const { contract } = (await loadStudioDefaultClientCompositionV2())
+      .modelSurface;
     for (const locale of ["en", "ja"] as const) {
       for (const output of contract.outputCatalog) {
         const presentation = resolveStudioItemPresentationV1({
@@ -313,7 +314,8 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("renders pressure triplets as one clinical pane item", async () => {
-    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const { contract } = (await loadStudioDefaultClientCompositionV2())
+      .modelSurface;
     const pane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
       .outputPanes[0]!;
     const available = (outputId: string, value: number) => ({
@@ -371,7 +373,8 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("preserves an atomic pressure item when a pane does not select the triplet", async () => {
-    const { contract } = await loadStudioDefaultClientCompositionV2();
+    const { contract } = (await loadStudioDefaultClientCompositionV2())
+      .modelSurface;
     const defaultPane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
       .outputPanes[0]!;
     const pane = {
@@ -457,7 +460,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("discloses human model information without implementation identities", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const contract = composition.contract;
+    const contract = composition.modelSurface.contract;
     const markup = renderToStaticMarkup(
       <WorkbenchSimulationInfoPanelV3
         activeTab="model"
@@ -619,7 +622,7 @@ describe("V3 Dockview Workbench", () => {
       { scenarioId: "scenario/b" },
     ] as const;
     const original = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
       "scenario/a",
     );
     const graph = original.graphPanes[0]!;
@@ -738,7 +741,7 @@ describe("V3 Dockview Workbench", () => {
   it("materializes only the current Output pane contract before persistence", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const original = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
       "scenario/a",
     );
     const outputPane = original.outputPanes[0]!;
@@ -963,8 +966,8 @@ describe("V3 Dockview Workbench", () => {
 
   it("selects every analysis-backed pane that retains visual history", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(composition.contract);
-    const structural = composition.contract.graphCatalog.find(
+    const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
+    const structural = composition.modelSurface.contract.graphCatalog.find(
       ({ renderer }) => renderer === "structural-return",
     )!;
     if (structural.renderer !== "structural-return") {
@@ -973,14 +976,14 @@ describe("V3 Dockview Workbench", () => {
     const configuredResult = addWorkbenchSurfacePaneV3(
       original,
       "graph",
-      composition.contract,
+      composition.modelSurface.contract,
       structural.graphId,
       "right",
     );
     const configured = configuredResult.surface;
     const targetPaneId = configuredResult.selectedPane!.paneId;
     expect(
-      workbenchStructuralHistoryAnalysisIdsV3(configured, composition.contract),
+      workbenchStructuralHistoryAnalysisIdsV3(configured, composition.modelSurface.contract),
     ).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     ]);
@@ -992,7 +995,7 @@ describe("V3 Dockview Workbench", () => {
             pane.paneId === targetPaneId ? { ...pane, historyDepth: 0 } : pane,
           ),
         },
-        composition.contract,
+        composition.modelSurface.contract,
       ),
     ).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
@@ -1059,7 +1062,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("starts with the teaching dashboard: LV PV, systemic return, and a six-second pressure sweep", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const graphPanes = surface.graphPanes;
     const outputPane = surface.outputPanes[0]!;
     const controlPane = surface.controlPanes[0]!;
@@ -1131,7 +1134,7 @@ describe("V3 Dockview Workbench", () => {
       ),
     ).toBe(true);
     for (const pane of graphPanes) {
-      const graph = composition.contract.graphCatalog.find(
+      const graph = composition.modelSurface.contract.graphCatalog.find(
         ({ graphId }) => graphId === pane.graphId,
       )!;
       expect("windowSec" in pane).toBe(graph.renderer === "sweep");
@@ -1155,12 +1158,12 @@ describe("V3 Dockview Workbench", () => {
 
   it("resolves authored sweep series only through the graph-owned catalog", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const pressurePane = surface.graphPanes.find(
       ({ graphId }) =>
         graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
     )!;
-    const pressureGraph = composition.contract.graphCatalog.find(
+    const pressureGraph = composition.modelSurface.contract.graphCatalog.find(
       ({ graphId }) => graphId === pressurePane.graphId,
     )!;
     if (pressureGraph.renderer !== "sweep") {
@@ -1172,7 +1175,7 @@ describe("V3 Dockview Workbench", () => {
       )!,
     );
     const selectedOutputs = selectedBindings.map(({ outputId }) =>
-      composition.contract.outputCatalog.find(
+      composition.modelSurface.contract.outputCatalog.find(
         (output) => output.outputId === outputId,
       )!,
     );
@@ -1194,11 +1197,11 @@ describe("V3 Dockview Workbench", () => {
 
   it("keeps custom pane presentation in the Experiment Surface", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(composition.contract);
+    const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const added = addWorkbenchSurfacePaneV3(
       original,
       "output",
-      composition.contract,
+      composition.modelSurface.contract,
     );
     expect(added.selectedPane).not.toBeNull();
     const selectedPane = added.selectedPane!;
@@ -1235,7 +1238,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("duplicates a split pane with independent authored items", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const source = surface.graphPanes[0]!;
     const duplicated = duplicateWorkbenchSurfacePaneV3(surface, {
       kind: "graph",
@@ -1255,7 +1258,7 @@ describe("V3 Dockview Workbench", () => {
   it("compares Output panes by fixing one whole pane per Scenario", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
       "scenario/a",
     );
     const source = surface.outputPanes[0]!;
@@ -1314,7 +1317,7 @@ describe("V3 Dockview Workbench", () => {
   it("updates and resets one exact Scenario/item color without touching siblings", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const pane = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
     ).graphPanes.find(
       ({ graphId }) =>
         graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
@@ -1369,12 +1372,12 @@ describe("V3 Dockview Workbench", () => {
 
   it("preserves role-specific and explicitly empty Briefings across Worker restart", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const snapshot = createWorkbenchBriefingSnapshotV3({
       defaultTitle: "Workbench experiment",
-      surfaceSeriesId: composition.surfaceSeriesId,
-      surfaceReleaseId: composition.surfaceReleaseId,
-      modelId: composition.contract.modelId,
+      surfaceSeriesId: composition.modelSurface.identity.surfaceSeriesId,
+      surfaceReleaseId: composition.modelSurface.identity.surfaceReleaseId,
+      modelId: composition.modelSurface.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
         { scenarioId: "scenario/comparison", label: "Comparison" },
@@ -1466,11 +1469,11 @@ describe("V3 Dockview Workbench", () => {
 
   it("materializes the active slot only for a newly picked control", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.contract);
+    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const snapshot = createWorkbenchBriefingSnapshotV3({
       surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
-      modelId: composition.contract.modelId,
+      modelId: composition.modelSurface.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
         { scenarioId: "scenario/comparison", label: "Comparison" },
@@ -1518,7 +1521,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("copies a fixed source-pane binding instead of the active capture slot", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(composition.contract);
+    const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const surface = {
       ...original,
       controlPanes: [
@@ -1534,7 +1537,7 @@ describe("V3 Dockview Workbench", () => {
     const snapshot = createWorkbenchBriefingSnapshotV3({
       surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
       surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
-      modelId: composition.contract.modelId,
+      modelId: composition.modelSurface.contract.modelId,
       scenarios: [
         { scenarioId: "scenario/default", label: "Baseline" },
         { scenarioId: "scenario/comparison", label: "Comparison" },
@@ -1559,7 +1562,7 @@ describe("V3 Dockview Workbench", () => {
     async (kind) => {
       const composition = await loadStudioDefaultClientCompositionV2();
       const original = createDefaultExperimentSurfaceV3(
-        composition.contract,
+        composition.modelSurface.contract,
         "scenario/default",
       );
       const panes = (surface: typeof original) =>
@@ -1571,7 +1574,7 @@ describe("V3 Dockview Workbench", () => {
       const added = addWorkbenchSurfacePaneV3(
         original,
         kind,
-        composition.contract,
+        composition.modelSurface.contract,
         kind === "graph"
           ? "hemodynamics.flow.waveform.comprehensive-v1"
           : undefined,
@@ -1594,7 +1597,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const original = createDefaultExperimentSurfaceV3(composition.contract);
+    const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),
     ];
@@ -1605,7 +1608,7 @@ describe("V3 Dockview Workbench", () => {
       "hemodynamics.guyton-starling",
     ]);
     expect(
-      composition.contract.graphCatalog.map(({ graphId }) => graphId),
+      composition.modelSurface.contract.graphCatalog.map(({ graphId }) => graphId),
     ).toEqual(
       expect.arrayContaining([
         ...constructorGraphIds,
@@ -1617,12 +1620,12 @@ describe("V3 Dockview Workbench", () => {
       const added = addWorkbenchSurfacePaneV3(
         original,
         "graph",
-        composition.contract,
+        composition.modelSurface.contract,
         option.graphId,
         "structuralSide" in option ? option.structuralSide : undefined,
       );
       const pane = added.surface.graphPanes.at(-1)!;
-      const graph = composition.contract.graphCatalog.find(
+      const graph = composition.modelSurface.contract.graphCatalog.find(
         ({ graphId }) => graphId === option.graphId,
       )!;
       expect(pane.graphId).toBe(option.graphId);
@@ -1651,7 +1654,7 @@ describe("V3 Dockview Workbench", () => {
     const pulmonary = addWorkbenchSurfacePaneV3(
       original,
       "graph",
-      composition.contract,
+      composition.modelSurface.contract,
       "hemodynamics.guyton-starling",
       "left",
     );
@@ -1727,11 +1730,11 @@ describe("V3 Dockview Workbench", () => {
   it("keeps output and control pane composition Scenario-neutral", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const baselineSurface = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
       "scenario/baseline",
     );
     const alternateSurface = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
       "scenario/as",
     );
     expect(alternateSurface.outputPanes).toEqual(baselineSurface.outputPanes);
@@ -1919,7 +1922,7 @@ describe("V3 Dockview Workbench", () => {
   it("preserves Surface edits submitted after an asynchronous durable operation", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const durableSurface = createDefaultExperimentSurfaceV3(
-      composition.contract,
+      composition.modelSurface.contract,
     );
     const editedSurface = {
       ...durableSurface,

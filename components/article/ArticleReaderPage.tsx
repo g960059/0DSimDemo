@@ -553,7 +553,7 @@ function ArticleReaderV3Resource({
                 key={block.blockId}
                 block={block}
                 snapshot={snapshot}
-                contract={runtimeComposition?.contract ?? null}
+                contract={runtimeComposition?.modelSurface.contract ?? null}
                 contractAvailability={contractState.kind === "loading"
                   ? "loading"
                   : runtimeComposition === null ? "unavailable" : "ready"}

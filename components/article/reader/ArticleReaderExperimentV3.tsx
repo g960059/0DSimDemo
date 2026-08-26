@@ -2165,9 +2165,12 @@ function readerErrorMessageV3(cause: unknown): string {
 function requiredArticleReaderRuntimeCompositionV3(
   composition: StudioClientCompositionV2 | null,
 ): Readonly<{
-  releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
-  resolveAnalysisExecutionPlan: StudioClientCompositionV2["analysisExecutionPlan"];
-  periodicPvaDerivation: StudioClientCompositionV2["periodicPvaDerivation"];
+  releaseTicket:
+    StudioClientCompositionV2["exactModel"]["workerReleaseTicket"];
+  resolveAnalysisExecutionPlan:
+    StudioClientCompositionV2["modelSurface"]["analysis"]["resolveExecutionPlan"];
+  periodicPvaDerivation:
+    StudioClientCompositionV2["modelSurface"]["analysis"]["periodicPvaDerivation"];
 }> {
   if (composition === null) {
     throw new Error(
@@ -2175,9 +2178,9 @@ function requiredArticleReaderRuntimeCompositionV3(
     );
   }
   return Object.freeze({
-    releaseTicket: composition.workerReleaseTicket,
-    resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
-    periodicPvaDerivation: composition.periodicPvaDerivation,
+    releaseTicket: composition.exactModel.workerReleaseTicket,
+    resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
+    periodicPvaDerivation: composition.modelSurface.analysis.periodicPvaDerivation,
   });
 }
 
