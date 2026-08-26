@@ -12,7 +12,6 @@ import { Link, Navigate, useParams } from "react-router-dom";
 
 import {
   articleEditorHref,
-  devDashboardHref,
   experimentDetailHref,
   experimentSnapshotHref,
   homeHref,
@@ -34,11 +33,11 @@ import type {
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  StudioBrowserContentStoreV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+  BrowserContentStore,
+} from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
-  StudioBrowserExperimentIndexV3,
-} from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+  BrowserExperimentIndex,
+} from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
@@ -183,13 +182,13 @@ export function mergeDevModelCandidatesV3(
   return Object.freeze(merged);
 }
 
-export function DevDashboardV3Page() {
+export function DevDashboardPage() {
   const { t } = useTranslation();
   const { locale: localeParam } = useParams();
   const locale: Locale = isLocale(localeParam) ? localeParam : "ja";
-  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const store = React.useMemo(() => new BrowserContentStore(), []);
   const experimentIndex = React.useMemo(
-    () => new StudioBrowserExperimentIndexV3(),
+    () => new BrowserExperimentIndex(),
     [],
   );
   const remoteRepository = React.useMemo(
@@ -500,9 +499,9 @@ function DevInventoryLinkV3({
 }
 
 async function loadDevDashboardV3(input: Readonly<{
-  experimentIndex: StudioBrowserExperimentIndexV3;
+  experimentIndex: BrowserExperimentIndex;
   remoteRepository: ReturnType<typeof createStudioSupabaseContentRepositoryV1>;
-  store: StudioBrowserContentStoreV3;
+  store: BrowserContentStore;
   untitled: string;
 }>): Promise<DevDashboardReadyV3> {
   let experiments: readonly DevExperimentItemV3[];
@@ -726,4 +725,4 @@ function errorMessageV3(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default DevDashboardV3Page;
+export default DevDashboardPage;

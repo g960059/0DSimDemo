@@ -2,12 +2,12 @@ import type { StudioArticleDraftV2 } from "@/studio/contracts/v2/article";
 import {
   publicArticleExcerptV3,
 } from "@/components/site/PublicCatalogPresentationV3";
-import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import { BrowserContentStore } from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
-  StudioBrowserExperimentIndexV3,
-  STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
-  type StudioBrowserExperimentRecordV3,
-} from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+  BrowserExperimentIndex,
+  BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
+  type BrowserExperimentRecord,
+} from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 import {
   createStudioSupabaseContentRepositoryV1,
   type StudioPublicArticleSummaryV1,
@@ -21,7 +21,7 @@ import {
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 
 export type PublicExperimentCatalogItemV3 = Readonly<{
-  record: StudioBrowserExperimentRecordV3;
+  record: BrowserExperimentRecord;
   snapshotId: string;
   modelId: string;
   scenarioCount: number;
@@ -49,12 +49,12 @@ export function publicArticlesForLocaleV3(
 }
 
 type PublicCatalogContentPortV3 = Pick<
-  StudioBrowserContentStoreV3,
+  BrowserContentStore,
   "listArticles" | "listSnapshots"
 >;
 
 type PublicCatalogExperimentIndexPortV3 = Pick<
-  StudioBrowserExperimentIndexV3,
+  BrowserExperimentIndex,
   "list"
 >;
 
@@ -63,9 +63,9 @@ type PublicCatalogExperimentIndexPortV3 = Pick<
  * Backend catalog adoption replaces this adapter, not the Home/List UI.
  */
 export function readPublicCatalogV3(
-  store: PublicCatalogContentPortV3 = new StudioBrowserContentStoreV3(),
+  store: PublicCatalogContentPortV3 = new BrowserContentStore(),
   experimentIndex: PublicCatalogExperimentIndexPortV3 =
-    new StudioBrowserExperimentIndexV3(),
+    new BrowserExperimentIndex(),
 ): PublicCatalogV3 {
   const snapshotById = new Map(store.listSnapshots().map((snapshot) => [
     snapshot.snapshotId,
@@ -183,7 +183,7 @@ function publicCatalogFromPublicSummariesV3(input: Pick<
     articles: input.articles,
     experiments: Object.freeze(input.experiments.map((resource) => Object.freeze({
       record: Object.freeze({
-        schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+        schemaId: BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
         experimentId: resource.experimentId,
         title: resource.title,
         createdAt: resource.publishedAt,

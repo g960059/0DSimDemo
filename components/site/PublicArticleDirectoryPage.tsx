@@ -13,7 +13,7 @@ import {
   completePublicStaticContentHandoffV1,
 } from "@/components/site/PublicStaticContentHandoffV1";
 
-export function PublicArticleDirectoryV3Page() {
+export function PublicArticleDirectoryPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
@@ -122,4 +122,4 @@ function EmptyDirectoryV3({
   );
 }
 
-export default PublicArticleDirectoryV3Page;
+export default PublicArticleDirectoryPage;

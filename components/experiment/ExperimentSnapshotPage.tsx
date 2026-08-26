@@ -24,13 +24,13 @@ import {
   type ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 import {
-  StudioBrowserContentStoreV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+  BrowserContentStore,
+} from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
-export function ExperimentSnapshotV3Page() {
+export function ExperimentSnapshotPage() {
   const location = useLocation();
   const { snapshotId } = useParams();
   return (
@@ -52,7 +52,7 @@ function ExperimentSnapshotV3Resource({
   const { t } = useTranslation();
   const locale = localeFromPathname(pathname);
   const navigate = useNavigate();
-  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const store = React.useMemo(() => new BrowserContentStore(), []);
   const remoteRepository = React.useMemo(
     createStudioSupabaseContentRepositoryV1,
     [],
@@ -210,4 +210,4 @@ function ExperimentSnapshotV3Resource({
   );
 }
 
-export default ExperimentSnapshotV3Page;
+export default ExperimentSnapshotPage;

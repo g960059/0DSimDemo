@@ -5,9 +5,9 @@ import {
   StudioArticleExperimentAuthoringHandoffStoreV3,
 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import {
-  STUDIO_BROWSER_EXPERIMENT_INDEX_V3_KEY,
-  StudioBrowserExperimentIndexV3,
-} from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+  BROWSER_EXPERIMENT_INDEX_KEY,
+  BrowserExperimentIndex,
+} from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 
 class MemoryStorageV3 {
   readonly values = new Map<string, string>();
@@ -25,7 +25,7 @@ class MemoryStorageV3 {
   }
 }
 
-describe("Browser Experiment resource metadata V3", () => {
+describe("browser Experiment resource metadata", () => {
   it("retires the pre-cutover Workbench-prefixed metadata index", () => {
     const storage = new MemoryStorageV3();
     storage.setItem(
@@ -33,7 +33,7 @@ describe("Browser Experiment resource metadata V3", () => {
       JSON.stringify({ schemaId: "legacy", experiments: [] }),
     );
 
-    new StudioBrowserExperimentIndexV3(storage);
+    new BrowserExperimentIndex(storage);
 
     expect(storage.values.has(
       "circleheart.studio.browser-experiment-index.v4",
@@ -42,7 +42,7 @@ describe("Browser Experiment resource metadata V3", () => {
 
   it("keeps title and publication pointer outside the numerical content store", () => {
     const storage = new MemoryStorageV3();
-    const index = new StudioBrowserExperimentIndexV3(storage);
+    const index = new BrowserExperimentIndex(storage);
     const experimentId = "experiment-resource-001";
 
     const created = index.ensure({
@@ -67,7 +67,7 @@ describe("Browser Experiment resource metadata V3", () => {
     });
     expect(published.publishedSnapshotId).toBe("snapshot/severe-as-v1");
     expect(index.read(experimentId)).toEqual(published);
-    expect(storage.values.get(STUDIO_BROWSER_EXPERIMENT_INDEX_V3_KEY))
+    expect(storage.values.get(BROWSER_EXPERIMENT_INDEX_KEY))
       .not.toContain("fixture");
 
     expect(index.delete(experimentId)).toBe(true);
@@ -76,7 +76,7 @@ describe("Browser Experiment resource metadata V3", () => {
   });
 
   it("does not overwrite existing metadata when an Experiment is rediscovered", () => {
-    const index = new StudioBrowserExperimentIndexV3(new MemoryStorageV3());
+    const index = new BrowserExperimentIndex(new MemoryStorageV3());
     const experimentId = "experiment-resource-002";
     const first = index.ensure({
       experimentId,

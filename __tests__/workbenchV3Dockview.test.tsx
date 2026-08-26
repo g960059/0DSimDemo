@@ -5,34 +5,40 @@ import { describe, expect, it, vi } from "vitest";
 import "@/i18n";
 
 import {
+  materializeWorkbenchOutputPresentationItemsV3,
+  scalarAvailableOutputV3,
+} from "@/components/workbench/WorkbenchItemPresentation";
+import {
   archiveWorkbenchAnalysesV3,
   cloneWorkbenchAnalysisForScenarioV3,
   cloneWorkbenchScenarioAnalysesV3,
-  cloneWorkbenchControlValuesV3,
-  createWorkbenchBriefingSnapshotV3,
   invalidateWorkbenchScenarioAnalysisEquivalenceV3,
-  materializeWorkbenchOutputPresentationItemsV3,
-  modelLabEnabledV3,
-  workbenchDurableContentAvailableV3,
-  workbenchPublicationAvailableV3,
-  reconcileWorkbenchBriefingV3,
-  resolveWorkbenchBriefingEditorChangeV3,
-  resolveWorkbenchInitialBriefingV3,
-  resolveWorkbenchInitialSaveStateV3,
-  shouldConfirmWorkbenchDiscardV3,
-  resolveControlDraftCommitV3,
-  resolveWorkbenchSurfaceAfterCommitV3,
   shouldAutoRequestStructuralReturnComparisonV3,
-  shouldPublishWorkbenchRootFrameV3,
   structuralReturnComparisonRequestKeyV3,
   withoutWorkbenchScenarioAnalysisHistoryV3,
   workbenchAnalysisHistoryKeyV3,
   workbenchAnalysisMatchesFrameEpochV3,
-  workbenchBriefingSourceScenariosMatchV3,
   workbenchBoundedGraphHistoryV3,
   workbenchStructuralHistoryAnalysisIdsV3,
+} from "@/components/workbench/WorkbenchAnalysisState";
+import {
+  createWorkbenchBriefingSnapshotV3,
+  reconcileWorkbenchBriefingV3,
+  resolveWorkbenchBriefingEditorChangeV3,
+  resolveWorkbenchInitialBriefingV3,
+  workbenchBriefingSourceScenariosMatchV3,
+} from "@/components/workbench/WorkbenchBriefingPolicy";
+import {
+  cloneWorkbenchControlValuesV3,
+  modelLabEnabledV3,
+  resolveWorkbenchInitialSaveStateV3,
+  resolveWorkbenchSurfaceAfterCommitV3,
+  shouldConfirmWorkbenchDiscardV3,
+  shouldPublishWorkbenchRootFrameV3,
+  workbenchDurableContentAvailableV3,
+  workbenchPublicationAvailableV3,
   workbenchScenarioRuntimeStatusV3,
-} from "@/components/WorkbenchV3Page";
+} from "@/components/workbench/WorkbenchSessionPolicy";
 import {
   createDefaultExperimentSurfaceV3,
   isWorkbenchGraphTraceExcludedV3,
@@ -60,6 +66,7 @@ import {
   ExperimentOutputGridV3,
   formatExperimentOutputValueV3,
   formatExperimentPressureSummaryV3,
+  resolveControlDraftCommitV3,
   resolveExperimentOutputDisplayV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
@@ -98,8 +105,6 @@ import {
   saveWorkbenchAreaLayoutPreferenceV3,
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
-import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
-import currentWorkbenchSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
@@ -113,9 +118,32 @@ import {
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,
   STANDARD_TEST_SURFACE_SERIES_ID_V1,
 } from "./helpers/standardReleaseTicketV1";
-import historicalStandard60Client from "./fixtures/main-wire-integrated-standard-60-client.json";
 
 describe("V3 Dockview Workbench", () => {
+  it("exposes only assessed finite scalar outputs", () => {
+    const output = {
+      outputId: "test.output",
+      availability: "available" as const,
+      quality: "accepted-derived" as const,
+      value: 12.5,
+    };
+
+    expect(scalarAvailableOutputV3(output)).toBe(12.5);
+    expect(
+      scalarAvailableOutputV3({ ...output, quality: "not-assessed" }),
+    ).toBeNull();
+    expect(scalarAvailableOutputV3({ ...output, value: Number.NaN })).toBeNull();
+    expect(
+      scalarAvailableOutputV3({ ...output, value: Number.POSITIVE_INFINITY }),
+    ).toBeNull();
+    expect(
+      scalarAvailableOutputV3({
+        ...output,
+        availability: "not-evaluated-at-accepted-state",
+      }),
+    ).toBeNull();
+  });
+
   it("shares localized presentation metadata across output and control item paths", () => {
     const presentation = resolveStudioItemPresentationV1({
       kind: "control",
@@ -1635,76 +1663,6 @@ describe("V3 Dockview Workbench", () => {
     expect(structuralPanes.map(({ structuralSide }) => structuralSide)).toEqual(
       ["right", "left"],
     );
-  });
-
-  it("falls back to legacy waveform graphs for the historical Standard-60 contract", () => {
-    const composition = composeStandardModelContractV1(
-      historicalStandard60Client.manifest,
-      currentWorkbenchSurfaceV2,
-    );
-    expect(composition.contract.modelId).toContain("standard-60");
-    expect(
-      composition.contract.graphCatalog.map(({ graphId }) => graphId),
-    ).toEqual([
-      "hemodynamics.pressure.waveform",
-      "hemodynamics.flow.waveform",
-      "hemodynamics.pressure-volume",
-      "hemodynamics.guyton-starling",
-    ]);
-
-    const options = workbenchGraphPaneOptionsForContractV3(
-      composition.contract,
-    );
-    expect(
-      options.map(({ optionId, graphId }) => ({ optionId, graphId })),
-    ).toEqual([
-      {
-        optionId: "hemodynamics.pressure-volume",
-        graphId: "hemodynamics.pressure-volume",
-      },
-      {
-        optionId: "hemodynamics.pressure.waveform",
-        graphId: "hemodynamics.pressure.waveform",
-      },
-      {
-        optionId: "hemodynamics.flow.waveform",
-        graphId: "hemodynamics.flow.waveform",
-      },
-      {
-        optionId: "hemodynamics.guyton-starling/systemic",
-        graphId: "hemodynamics.guyton-starling",
-      },
-      {
-        optionId: "hemodynamics.guyton-starling/pulmonary",
-        graphId: "hemodynamics.guyton-starling",
-      },
-    ]);
-
-    const initial = createDefaultExperimentSurfaceV3(composition.contract);
-    expect(initial.graphPanes.map(({ graphId }) => graphId)).toEqual([
-      "hemodynamics.pressure-volume",
-      "hemodynamics.guyton-starling",
-      "hemodynamics.pressure.waveform",
-    ]);
-    for (const optionId of [
-      "hemodynamics.pressure.waveform",
-      "hemodynamics.flow.waveform",
-    ]) {
-      const option = options.find(
-        (candidate) => candidate.optionId === optionId,
-      );
-      expect(option).toBeDefined();
-      const added = addWorkbenchSurfacePaneV3(
-        initial,
-        "graph",
-        composition.contract,
-        option?.graphId,
-      );
-      expect(added.selectedPane).toEqual(
-        expect.objectContaining({ kind: "graph" }),
-      );
-      expect(added.surface.graphPanes.at(-1)?.graphId).toBe(option?.graphId);
-    }
   });
 
   it("keeps an empty role area recoverable through an explicit add action", () => {

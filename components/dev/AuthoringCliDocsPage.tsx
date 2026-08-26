@@ -115,7 +115,7 @@ const discoverCommand =
 const executeCommand =
   "npm --silent run author:content -- --profile my-author --command command.json";
 
-export function AuthoringCliDocsV3Page() {
+export function AuthoringCliDocsPage() {
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const text = copy[locale];

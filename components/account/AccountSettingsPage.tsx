@@ -17,7 +17,7 @@ const ACCOUNT_LANGUAGE_OPTIONS_V3: readonly Readonly<{
   Object.freeze({ locale: "en", labelKey: "common.language.en" }),
 ]);
 
-export function AccountSettingsV3Page() {
+export function AccountSettingsPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
@@ -63,4 +63,4 @@ export function AccountSettingsV3Page() {
   );
 }
 
-export default AccountSettingsV3Page;
+export default AccountSettingsPage;

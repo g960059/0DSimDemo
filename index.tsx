@@ -12,69 +12,69 @@ import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } 
 const Home = React.lazy(
   () => import('./components/Home').then((module) => ({ default: module.Home })),
 );
-const WorkbenchV3Page = React.lazy(
-  () => import('./components/WorkbenchV3Page').then((module) => ({
-    default: module.WorkbenchV3Page,
+const WorkbenchPage = React.lazy(
+  () => import('./components/workbench/WorkbenchPage').then((module) => ({
+    default: module.WorkbenchPage,
   })),
 );
-const WorkbenchModelLabV3Page = React.lazy(
-  () => import('./components/WorkbenchV3Page').then((module) => ({
-    default: module.WorkbenchModelLabV3Page,
+const WorkbenchModelLabPage = React.lazy(
+  () => import('./components/workbench/WorkbenchPage').then((module) => ({
+    default: module.WorkbenchModelLabPage,
   })),
 );
-const DevDashboardV3Page = React.lazy(
-  () => import('./components/DevDashboardV3Page').then((module) => ({
-    default: module.DevDashboardV3Page,
+const DevDashboardPage = React.lazy(
+  () => import('./components/dev/DevDashboardPage').then((module) => ({
+    default: module.DevDashboardPage,
   })),
 );
-const WorkbenchSelectorV3Page = React.lazy(
-  () => import('./components/WorkbenchSelectorV3Page').then((module) => ({
-    default: module.WorkbenchSelectorV3Page,
+const WorkbenchSelectorPage = React.lazy(
+  () => import('./components/workbench/WorkbenchSelectorPage').then((module) => ({
+    default: module.WorkbenchSelectorPage,
   })),
 );
-const PublicExperimentDirectoryV3Page = React.lazy(
-  () => import('./components/PublicExperimentDirectoryV3Page').then((module) => ({
-    default: module.PublicExperimentDirectoryV3Page,
+const PublicExperimentDirectoryPage = React.lazy(
+  () => import('./components/site/PublicExperimentDirectoryPage').then((module) => ({
+    default: module.PublicExperimentDirectoryPage,
   })),
 );
-const ArticleEditorV3Page = React.lazy(
-  () => import('./components/ArticleEditorV3Page').then((module) => ({
-    default: module.ArticleEditorV3Page,
+const ArticleEditorPage = React.lazy(
+  () => import('./components/article/ArticleEditorPage').then((module) => ({
+    default: module.ArticleEditorPage,
   })),
 );
-const ArticleLibraryV3Page = React.lazy(
-  () => import('./components/ArticleLibraryV3Page').then((module) => ({
-    default: module.ArticleLibraryV3Page,
+const ArticleLibraryPage = React.lazy(
+  () => import('./components/article/ArticleLibraryPage').then((module) => ({
+    default: module.ArticleLibraryPage,
   })),
 );
-const PublicArticleDirectoryV3Page = React.lazy(
-  () => import('./components/PublicArticleDirectoryV3Page').then((module) => ({
-    default: module.PublicArticleDirectoryV3Page,
+const PublicArticleDirectoryPage = React.lazy(
+  () => import('./components/site/PublicArticleDirectoryPage').then((module) => ({
+    default: module.PublicArticleDirectoryPage,
   })),
 );
-const ArticleReaderV3Page = React.lazy(
-  () => import('./components/ArticleReaderV3Page').then((module) => ({
-    default: module.ArticleReaderV3Page,
+const ArticleReaderPage = React.lazy(
+  () => import('./components/article/ArticleReaderPage').then((module) => ({
+    default: module.ArticleReaderPage,
   })),
 );
-const ExperimentSnapshotV3Page = React.lazy(
-  () => import('./components/ExperimentSnapshotV3Page').then((module) => ({
-    default: module.ExperimentSnapshotV3Page,
+const ExperimentSnapshotPage = React.lazy(
+  () => import('./components/experiment/ExperimentSnapshotPage').then((module) => ({
+    default: module.ExperimentSnapshotPage,
   })),
 );
-const AccountAccessV3Page = React.lazy(
-  () => import('./components/AccountAccessV3Page').then((module) => ({
-    default: module.AccountAccessV3Page,
+const AccountAccessPage = React.lazy(
+  () => import('./components/account/AccountAccessPage').then((module) => ({
+    default: module.AccountAccessPage,
   })),
 );
-const AccountSettingsV3Page = React.lazy(
-  () => import('./components/AccountSettingsV3Page').then((module) => ({
-    default: module.AccountSettingsV3Page,
+const AccountSettingsPage = React.lazy(
+  () => import('./components/account/AccountSettingsPage').then((module) => ({
+    default: module.AccountSettingsPage,
   })),
 );
-const AuthoringCliDocsV3Page = React.lazy(
-  () => import('./components/AuthoringCliDocsV3Page').then((module) => ({
-    default: module.AuthoringCliDocsV3Page,
+const AuthoringCliDocsPage = React.lazy(
+  () => import('./components/dev/AuthoringCliDocsPage').then((module) => ({
+    default: module.AuthoringCliDocsPage,
   })),
 );
 const rootElement = document.getElementById('root');
@@ -98,7 +98,7 @@ const appRoutes = () => (
       path="experiments"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Experiments…" />}>
-          <PublicExperimentDirectoryV3Page />
+          <PublicExperimentDirectoryPage />
         </React.Suspense>
       )}
     />
@@ -106,15 +106,15 @@ const appRoutes = () => (
       path="me/experiments"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading saved Experiments…" />}>
-          <WorkbenchSelectorV3Page />
+          <WorkbenchSelectorPage />
         </React.Suspense>
       )}
     />
     <Route
       path="experiments/:experimentId"
       element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading V3 Workbench…" />}>
-          <WorkbenchV3Page />
+        <React.Suspense fallback={<ProductPageLoading label="Loading Workbench…" />}>
+          <WorkbenchPage />
         </React.Suspense>
       )}
     />
@@ -122,7 +122,7 @@ const appRoutes = () => (
       path="dev"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading development content…" />}>
-          <DevDashboardV3Page />
+          <DevDashboardPage />
         </React.Suspense>
       )}
     />
@@ -130,7 +130,7 @@ const appRoutes = () => (
       path="dev/model-lab"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Model Lab…" />}>
-          <WorkbenchModelLabV3Page />
+          <WorkbenchModelLabPage />
         </React.Suspense>
       )}
     />
@@ -138,7 +138,7 @@ const appRoutes = () => (
       path="snapshots/:snapshotId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Snapshot…" />}>
-          <ExperimentSnapshotV3Page />
+          <ExperimentSnapshotPage />
         </React.Suspense>
       )}
     />
@@ -146,7 +146,7 @@ const appRoutes = () => (
       path="articles"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Articles…" />}>
-          <PublicArticleDirectoryV3Page />
+          <PublicArticleDirectoryPage />
         </React.Suspense>
       )}
     />
@@ -154,7 +154,7 @@ const appRoutes = () => (
       path="me/articles"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading saved Articles…" />}>
-          <ArticleLibraryV3Page />
+          <ArticleLibraryPage />
         </React.Suspense>
       )}
     />
@@ -162,7 +162,7 @@ const appRoutes = () => (
       path="articles/:articleId/edit"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article Editor…" />}>
-          <ArticleEditorV3Page />
+          <ArticleEditorPage />
         </React.Suspense>
       )}
     />
@@ -170,7 +170,7 @@ const appRoutes = () => (
       path="articles/:articleId/preview"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article preview…" />}>
-          <ArticleReaderV3Page />
+          <ArticleReaderPage />
         </React.Suspense>
       )}
     />
@@ -178,7 +178,7 @@ const appRoutes = () => (
       path="articles/:articleId"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Article…" />}>
-          <ArticleReaderV3Page />
+          <ArticleReaderPage />
         </React.Suspense>
       )}
     />
@@ -186,7 +186,7 @@ const appRoutes = () => (
       path="login"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading account…" />}>
-          <AccountAccessV3Page />
+          <AccountAccessPage />
         </React.Suspense>
       )}
     />
@@ -194,7 +194,7 @@ const appRoutes = () => (
       path="me/settings"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading settings…" />}>
-          <AccountSettingsV3Page />
+          <AccountSettingsPage />
         </React.Suspense>
       )}
     />
@@ -202,7 +202,7 @@ const appRoutes = () => (
       path="docs/authoring-cli"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Authoring CLI guide…" />}>
-          <AuthoringCliDocsV3Page />
+          <AuthoringCliDocsPage />
         </React.Suspense>
       )}
     />

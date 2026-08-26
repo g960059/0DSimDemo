@@ -124,7 +124,7 @@ describe('application theme', () => {
   });
 
   it('keeps every tool region on one plane above the graph workspace', () => {
-    const workbench = readFileSync('components/WorkbenchV3Page.tsx', 'utf8');
+    const workbench = readFileSync('components/workbench/WorkbenchSession.tsx', 'utf8');
     const scenarios = readFileSync(
       'components/workbench/WorkbenchScenarioManagerV3.tsx',
       'utf8',

@@ -5,19 +5,19 @@ import {
   requireOpaqueExperimentIdV3,
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 
-export const STUDIO_BROWSER_EXPERIMENT_INDEX_V3_KEY =
+export const BROWSER_EXPERIMENT_INDEX_KEY =
   "circleheart.studio.browser-experiment-index.v5";
-export const STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID =
+export const BROWSER_EXPERIMENT_INDEX_SCHEMA_ID =
   "circleheart-studio-browser-experiment-index-v5" as const;
-export const STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID =
+export const BROWSER_EXPERIMENT_RECORD_SCHEMA_ID =
   "circleheart-studio-browser-experiment-record-v5" as const;
 
-const RETIRED_EXPERIMENT_INDEX_KEYS_V3 = Object.freeze([
+const RETIRED_EXPERIMENT_INDEX_KEYS = Object.freeze([
   "circleheart.studio.browser-experiment-index.v4",
 ]);
 
-export type StudioBrowserExperimentRecordV3 = Readonly<{
-  schemaId: typeof STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID;
+export type BrowserExperimentRecord = Readonly<{
+  schemaId: typeof BROWSER_EXPERIMENT_RECORD_SCHEMA_ID;
   experimentId: string;
   title: string;
   createdAt: string;
@@ -26,12 +26,12 @@ export type StudioBrowserExperimentRecordV3 = Readonly<{
   publishedSnapshotId: string | null;
 }>;
 
-type StudioBrowserExperimentIndexEnvelopeV3 = Readonly<{
-  schemaId: typeof STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID;
-  experiments: readonly StudioBrowserExperimentRecordV3[];
+type BrowserExperimentIndexEnvelope = Readonly<{
+  schemaId: typeof BROWSER_EXPERIMENT_INDEX_SCHEMA_ID;
+  experiments: readonly BrowserExperimentRecord[];
 }>;
 
-export type StudioBrowserExperimentIndexStorageV3 = Pick<
+export type BrowserExperimentIndexStorage = Pick<
   Storage,
   "getItem" | "removeItem" | "setItem"
 >;
@@ -39,27 +39,27 @@ export type StudioBrowserExperimentIndexStorageV3 = Pick<
 /**
  * Browser-backed resource index for Experiment metadata.
  *
- * The numerical Experiment remains owned by StudioBrowserContentStoreV3. Title,
+ * The numerical Experiment remains owned by BrowserContentStore. Title,
  * activity time, and the publication pointer do not enter a simulation Worker
  * and can later move to an authenticated backend without changing Snapshot
  * identity or numerical authoring contracts.
  */
-export class StudioBrowserExperimentIndexV3 {
-  readonly #storage: StudioBrowserExperimentIndexStorageV3;
+export class BrowserExperimentIndex {
+  readonly #storage: BrowserExperimentIndexStorage;
 
   constructor(
-    storage: StudioBrowserExperimentIndexStorageV3 = window.localStorage,
+    storage: BrowserExperimentIndexStorage = window.localStorage,
   ) {
     this.#storage = storage;
-    RETIRED_EXPERIMENT_INDEX_KEYS_V3.forEach((key) =>
+    RETIRED_EXPERIMENT_INDEX_KEYS.forEach((key) =>
       this.#storage.removeItem(key));
   }
 
-  list(): readonly StudioBrowserExperimentRecordV3[] {
+  list(): readonly BrowserExperimentRecord[] {
     return this.#read().experiments;
   }
 
-  read(experimentId: string): StudioBrowserExperimentRecordV3 | null {
+  read(experimentId: string): BrowserExperimentRecord | null {
     requireOpaqueExperimentIdV3(experimentId);
     return this.#read().experiments.find((record) =>
       record.experimentId === experimentId) ?? null;
@@ -69,11 +69,11 @@ export class StudioBrowserExperimentIndexV3 {
     experimentId: string;
     title: string;
     nowIso: string;
-  }>): StudioBrowserExperimentRecordV3 {
+  }>): BrowserExperimentRecord {
     const stored = this.read(input.experimentId);
     if (stored !== null) return stored;
-    const created = validateStudioBrowserExperimentRecordV3({
-      schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+    const created = validateBrowserExperimentRecord({
+      schemaId: BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
       experimentId: input.experimentId,
       title: input.title,
       createdAt: input.nowIso,
@@ -92,7 +92,7 @@ export class StudioBrowserExperimentIndexV3 {
     experimentId: string;
     title: string;
     nowIso: string;
-  }>): StudioBrowserExperimentRecordV3 {
+  }>): BrowserExperimentRecord {
     return this.#replace(input.experimentId, (current) => ({
       ...current,
       title: input.title,
@@ -100,7 +100,7 @@ export class StudioBrowserExperimentIndexV3 {
     }));
   }
 
-  touch(experimentId: string, nowIso: string): StudioBrowserExperimentRecordV3 {
+  touch(experimentId: string, nowIso: string): BrowserExperimentRecord {
     return this.#replace(experimentId, (current) => ({
       ...current,
       updatedAt: nowIso,
@@ -111,7 +111,7 @@ export class StudioBrowserExperimentIndexV3 {
     experimentId: string;
     snapshotId: string;
     nowIso: string;
-  }>): StudioBrowserExperimentRecordV3 {
+  }>): BrowserExperimentRecord {
     return this.#replace(input.experimentId, (current) => ({
       ...current,
       publishedSnapshotId: requiredPortableIdV3(
@@ -138,9 +138,9 @@ export class StudioBrowserExperimentIndexV3 {
   #replace(
     experimentId: string,
     update: (
-      current: StudioBrowserExperimentRecordV3,
-    ) => StudioBrowserExperimentRecordV3,
-  ): StudioBrowserExperimentRecordV3 {
+      current: BrowserExperimentRecord,
+    ) => BrowserExperimentRecord,
+  ): BrowserExperimentRecord {
     requireOpaqueExperimentIdV3(experimentId);
     const current = this.#read();
     const stored = current.experiments.find((record) =>
@@ -148,7 +148,7 @@ export class StudioBrowserExperimentIndexV3 {
     if (stored === undefined) {
       throw new Error(`Browser Experiment record not found: ${experimentId}`);
     }
-    const replacement = validateStudioBrowserExperimentRecordV3(update(stored));
+    const replacement = validateBrowserExperimentRecord(update(stored));
     this.#write({
       ...current,
       experiments: Object.freeze(current.experiments.map((record) =>
@@ -157,8 +157,8 @@ export class StudioBrowserExperimentIndexV3 {
     return replacement;
   }
 
-  #read(): StudioBrowserExperimentIndexEnvelopeV3 {
-    const raw = this.#storage.getItem(STUDIO_BROWSER_EXPERIMENT_INDEX_V3_KEY);
+  #read(): BrowserExperimentIndexEnvelope {
+    const raw = this.#storage.getItem(BROWSER_EXPERIMENT_INDEX_KEY);
     if (raw === null) return emptyExperimentIndexV3();
     let parsed: unknown;
     try {
@@ -177,13 +177,13 @@ export class StudioBrowserExperimentIndexV3 {
       keys.length !== 2
       || keys[0] !== "experiments"
       || keys[1] !== "schemaId"
-      || record.schemaId !== STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID
+      || record.schemaId !== BROWSER_EXPERIMENT_INDEX_SCHEMA_ID
       || !Array.isArray(record.experiments)
     ) {
       throw new Error("Stored browser Experiment index schema is invalid");
     }
     const experiments = Object.freeze(record.experiments.map(
-      validateStudioBrowserExperimentRecordV3,
+      validateBrowserExperimentRecord,
     ));
     const identities = new Set<string>();
     for (const experiment of experiments) {
@@ -195,28 +195,28 @@ export class StudioBrowserExperimentIndexV3 {
       identities.add(experiment.experimentId);
     }
     return Object.freeze({
-      schemaId: STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID,
+      schemaId: BROWSER_EXPERIMENT_INDEX_SCHEMA_ID,
       experiments,
     });
   }
 
-  #write(input: StudioBrowserExperimentIndexEnvelopeV3): void {
+  #write(input: BrowserExperimentIndexEnvelope): void {
     const envelope = Object.freeze({
-      schemaId: STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID,
+      schemaId: BROWSER_EXPERIMENT_INDEX_SCHEMA_ID,
       experiments: Object.freeze(input.experiments.map(
-        validateStudioBrowserExperimentRecordV3,
+        validateBrowserExperimentRecord,
       )),
     });
     this.#storage.setItem(
-      STUDIO_BROWSER_EXPERIMENT_INDEX_V3_KEY,
+      BROWSER_EXPERIMENT_INDEX_KEY,
       studioCanonicalJsonStringify(envelope),
     );
   }
 }
 
-export function validateStudioBrowserExperimentRecordV3(
+export function validateBrowserExperimentRecord(
   value: unknown,
-): StudioBrowserExperimentRecordV3 {
+): BrowserExperimentRecord {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Browser Experiment record must be an object");
   }
@@ -233,7 +233,7 @@ export function validateStudioBrowserExperimentRecordV3(
   if (
     keys.length !== expected.length
     || keys.some((key, index) => key !== expected[index])
-    || record.schemaId !== STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID
+    || record.schemaId !== BROWSER_EXPERIMENT_RECORD_SCHEMA_ID
   ) {
     throw new Error("Browser Experiment record schema is invalid");
   }
@@ -251,7 +251,7 @@ export function validateStudioBrowserExperimentRecordV3(
     ? null
     : requiredPortableIdV3(record.publishedSnapshotId, "publishedSnapshotId");
   return Object.freeze({
-    schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+    schemaId: BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
     experimentId,
     title,
     createdAt,
@@ -260,9 +260,9 @@ export function validateStudioBrowserExperimentRecordV3(
   });
 }
 
-function emptyExperimentIndexV3(): StudioBrowserExperimentIndexEnvelopeV3 {
+function emptyExperimentIndexV3(): BrowserExperimentIndexEnvelope {
   return Object.freeze({
-    schemaId: STUDIO_BROWSER_EXPERIMENT_INDEX_V3_SCHEMA_ID,
+    schemaId: BROWSER_EXPERIMENT_INDEX_SCHEMA_ID,
     experiments: Object.freeze([]),
   });
 }

@@ -28,12 +28,12 @@ import {
  * every retired shape is deleted at construction so legacy concepts cannot
  * leak back into the authoring model.
  */
-export const STUDIO_BROWSER_CONTENT_STORE_V3_KEY =
+export const BROWSER_CONTENT_STORE_KEY =
   "circleheart.studio.browser-content.v9";
-export const STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID =
+export const BROWSER_CONTENT_STORE_SCHEMA_ID =
   "circleheart-studio-browser-content-v9" as const;
 
-const RETIRED_CONTENT_STORE_KEYS_V3 = Object.freeze([
+const RETIRED_CONTENT_STORE_KEYS = Object.freeze([
   "circleheart.studio.browser-content.v2",
   "circleheart.studio.browser-content.v3",
   "circleheart.studio.browser-content.v3.binding-v1",
@@ -44,29 +44,29 @@ const RETIRED_CONTENT_STORE_KEYS_V3 = Object.freeze([
   "circleheart.studio.browser-content.v8",
 ]);
 
-export type StudioBrowserStoragePortV3 = Pick<
+export type BrowserStoragePort = Pick<
   Storage,
   "getItem" | "removeItem" | "setItem"
 >;
 
-type StudioBrowserContentEnvelopeV3 = Readonly<{
-  schemaId: typeof STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID;
+type BrowserContentEnvelope = Readonly<{
+  schemaId: typeof BROWSER_CONTENT_STORE_SCHEMA_ID;
   experiments: readonly ExperimentV2[];
   snapshots: readonly ExperimentSnapshotV2[];
   articles: readonly StudioArticleDraftV2[];
 }>;
 
-export type StudioBrowserPublicationSnapshotSourceV3 = Readonly<{
+export type BrowserPublicationSnapshotSource = Readonly<{
   experimentId: string;
   expectedVersion: number;
 }>;
 
-export class StudioBrowserContentStoreV3 {
-  readonly #storage: StudioBrowserStoragePortV3;
+export class BrowserContentStore {
+  readonly #storage: BrowserStoragePort;
 
-  constructor(storage: StudioBrowserStoragePortV3 = window.localStorage) {
+  constructor(storage: BrowserStoragePort = window.localStorage) {
     this.#storage = storage;
-    RETIRED_CONTENT_STORE_KEYS_V3.forEach((key) => this.#storage.removeItem(key));
+    RETIRED_CONTENT_STORE_KEYS.forEach((key) => this.#storage.removeItem(key));
   }
 
   listExperiments(): readonly ExperimentV2[] {
@@ -170,7 +170,7 @@ export class StudioBrowserContentStoreV3 {
   saveSnapshotCommit(
     input: StudioSimulationWorkerAdmittedSnapshotCommitV2,
     candidateContentValue: unknown,
-    publicationSource?: StudioBrowserPublicationSnapshotSourceV3,
+    publicationSource?: BrowserPublicationSnapshotSource,
   ): Readonly<{ snapshot: ExperimentSnapshotV2 }> {
     assertStudioSimulationWorkerAdmittedSnapshotCommitV2(input);
     const candidateContent = validateExperimentContentV2(
@@ -224,8 +224,8 @@ export class StudioBrowserContentStoreV3 {
     return article;
   }
 
-  #read(): StudioBrowserContentEnvelopeV3 {
-    const raw = this.#storage.getItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY);
+  #read(): BrowserContentEnvelope {
+    const raw = this.#storage.getItem(BROWSER_CONTENT_STORE_KEY);
     if (raw === null) return emptyEnvelopeV3();
     let parsed: unknown;
     try {
@@ -244,15 +244,15 @@ export class StudioBrowserContentStoreV3 {
     if (
       keys.length !== expected.length
       || keys.some((key, index) => key !== expected[index])
-      || record.schemaId !== STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID
+      || record.schemaId !== BROWSER_CONTENT_STORE_SCHEMA_ID
       || !Array.isArray(record.experiments)
       || !Array.isArray(record.snapshots)
       || !Array.isArray(record.articles)
     ) {
       throw new Error("Stored Studio browser content schema is invalid");
     }
-    const envelope: StudioBrowserContentEnvelopeV3 = Object.freeze({
-      schemaId: STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
+    const envelope: BrowserContentEnvelope = Object.freeze({
+      schemaId: BROWSER_CONTENT_STORE_SCHEMA_ID,
       experiments: Object.freeze(record.experiments.map(validateExperimentV2)),
       snapshots: Object.freeze(record.snapshots.map(validateExperimentSnapshotV2)),
       articles: Object.freeze(record.articles.map(validateStudioArticleDraftV2)),
@@ -261,16 +261,16 @@ export class StudioBrowserContentStoreV3 {
     return envelope;
   }
 
-  #write(input: StudioBrowserContentEnvelopeV3): void {
-    const envelope: StudioBrowserContentEnvelopeV3 = Object.freeze({
-      schemaId: STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
+  #write(input: BrowserContentEnvelope): void {
+    const envelope: BrowserContentEnvelope = Object.freeze({
+      schemaId: BROWSER_CONTENT_STORE_SCHEMA_ID,
       experiments: Object.freeze(input.experiments.map(validateExperimentV2)),
       snapshots: Object.freeze(input.snapshots.map(validateExperimentSnapshotV2)),
       articles: Object.freeze(input.articles.map(validateStudioArticleDraftV2)),
     });
     assertEnvelopeV3(envelope);
     this.#storage.setItem(
-      STUDIO_BROWSER_CONTENT_STORE_V3_KEY,
+      BROWSER_CONTENT_STORE_KEY,
       studioCanonicalJsonStringify(envelope),
     );
   }
@@ -308,7 +308,7 @@ function assertContentPreservesCandidateAuthoredContentV3(
 }
 
 function assertPublicationSourceV3(
-  source: StudioBrowserPublicationSnapshotSourceV3 | undefined,
+  source: BrowserPublicationSnapshotSource | undefined,
   candidate: ReturnType<typeof validateExperimentContentV2>,
   experiments: readonly ExperimentV2[],
 ): void {
@@ -342,7 +342,7 @@ function assertPublicationSourceV3(
   );
 }
 
-function assertEnvelopeV3(envelope: StudioBrowserContentEnvelopeV3): void {
+function assertEnvelopeV3(envelope: BrowserContentEnvelope): void {
   assertUniqueV3(
     envelope.experiments.map(({ experimentId }) => experimentId),
     "Experiment",
@@ -435,9 +435,9 @@ function assertArticleDraftAdvanceV3(
   }
 }
 
-function emptyEnvelopeV3(): StudioBrowserContentEnvelopeV3 {
+function emptyEnvelopeV3(): BrowserContentEnvelope {
   return Object.freeze({
-    schemaId: STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
+    schemaId: BROWSER_CONTENT_STORE_SCHEMA_ID,
     experiments: Object.freeze([]),
     snapshots: Object.freeze([]),
     articles: Object.freeze([]),

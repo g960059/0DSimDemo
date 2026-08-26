@@ -13,7 +13,7 @@ import {
 
 type AccountAccessStatusV3 = "idle" | "sending" | "sent" | "redirecting";
 
-export function AccountAccessV3Page() {
+export function AccountAccessPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -144,4 +144,4 @@ function errorMessageV3(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default AccountAccessV3Page;
+export default AccountAccessPage;

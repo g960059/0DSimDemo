@@ -13,10 +13,10 @@ import {
   type ExperimentV2,
 } from "@/studio/contracts/v2/content";
 import {
-  STUDIO_BROWSER_CONTENT_STORE_V3_KEY,
-  STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
-  StudioBrowserContentStoreV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+  BROWSER_CONTENT_STORE_KEY,
+  BROWSER_CONTENT_STORE_SCHEMA_ID,
+  BrowserContentStore,
+} from "@/studio/infrastructure/browser/BrowserContentStore";
 import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
 import {
   createStudioSimulationWorkerClientForTestV2,
@@ -233,7 +233,7 @@ function articleV3(
   };
 }
 
-describe("Studio browser content store V3", () => {
+describe("browser content store", () => {
   it("deletes every retired pre-release envelope instead of migrating it", () => {
     const storage = new MemoryStorageV3();
     [
@@ -247,14 +247,14 @@ describe("Studio browser content store V3", () => {
       "circleheart.studio.browser-content.v8",
     ].forEach((key) => storage.setItem(key, "legacy"));
 
-    const store = new StudioBrowserContentStoreV3(storage);
+    const store = new BrowserContentStore(storage);
 
     expect(store.listExperiments()).toEqual([]);
     expect([...storage.values.keys()]).toEqual([]);
   });
 
   it("creates only explicitly saved Experiments and advances version by one", () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     expect(store.listExperiments()).toEqual([]);
 
     const initial = experimentV3();
@@ -276,7 +276,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("rechecks a Worker Save against the submitted authored candidate", () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const candidate = experimentV3();
     const changedByWorker = {
       ...candidate,
@@ -297,7 +297,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("rejects generic IDs, skipped initial versions, stale writes, and model swaps", () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const generic = experimentV3({ experimentId: "experiment/generic" });
     expect(() => store.saveExperiment(generic, generic.content))
       .toThrow(/opaque Experiment identity/);
@@ -320,7 +320,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("persists an admitted neutral Snapshot without creating an Experiment", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const sessionContent = experimentV3();
     const commit = await admittedCommitV3(sessionContent);
 
@@ -338,7 +338,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("validates a version-matched saved Experiment when a source is supplied", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const sessionContent = experimentV3();
     const commit = await admittedCommitV3(sessionContent, {
       source: "saved-experiment",
@@ -366,7 +366,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("rechecks worker-qualified labels and fixtures against the frozen candidate", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const candidate = experimentV3();
     const changed = {
       ...candidate,
@@ -386,7 +386,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("never overwrites an immutable snapshotId", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const candidate = experimentV3();
     const experiment = store.saveExperiment(candidate, candidate.content);
     const source = {
@@ -406,7 +406,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("stores Briefing only in Placement while reusing a neutral Snapshot", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const experiment = experimentV3();
     const saved = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
@@ -431,7 +431,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("rejects an Article Placement whose Briefing cannot resolve in its Snapshot", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const candidate = experimentV3();
     const experiment = store.saveExperiment(candidate, candidate.content);
     const publication = store.saveSnapshotCommit(
@@ -466,7 +466,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("enforces Article compare-and-swap and rejects dangling Snapshot references", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const experiment = experimentV3();
     const saved = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
@@ -488,7 +488,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("deletes an Experiment without cascading to immutable Snapshots or Articles", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const candidate = experimentV3();
     const experiment = store.saveExperiment(candidate, candidate.content);
     const snapshot = store.saveSnapshotCommit(await admittedCommitV3(
@@ -504,7 +504,7 @@ describe("Studio browser content store V3", () => {
   });
 
   it("deletes an Article without cascading to its neutral Snapshot", async () => {
-    const store = new StudioBrowserContentStoreV3(new MemoryStorageV3());
+    const store = new BrowserContentStore(new MemoryStorageV3());
     const experiment = experimentV3();
     const snapshot = store.saveSnapshotCommit(await admittedCommitV3(
       experiment,
@@ -520,14 +520,14 @@ describe("Studio browser content store V3", () => {
 
   it("fails closed when the single current envelope is corrupt", () => {
     const storage = new MemoryStorageV3();
-    storage.setItem(STUDIO_BROWSER_CONTENT_STORE_V3_KEY, JSON.stringify({
-      schemaId: STUDIO_BROWSER_CONTENT_STORE_V3_SCHEMA_ID,
+    storage.setItem(BROWSER_CONTENT_STORE_KEY, JSON.stringify({
+      schemaId: BROWSER_CONTENT_STORE_SCHEMA_ID,
       experiments: [],
       snapshots: [],
       articles: [],
       legacyWorkspace: {},
     }));
-    const store = new StudioBrowserContentStoreV3(storage);
+    const store = new BrowserContentStore(storage);
 
     expect(() => store.listSnapshots()).toThrow(/schema is invalid/);
   });

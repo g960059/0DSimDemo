@@ -18,7 +18,7 @@ import type {
   StudioArticleDraftV2,
 } from "@/studio/contracts/v2/article";
 import type { ExperimentSnapshotV2 } from "@/studio/contracts/v2/content";
-import type { StudioBrowserExperimentRecordV3 } from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+import type { BrowserExperimentRecord } from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 
 describe("public catalog V3", () => {
   it("exposes public Articles and valid published Snapshot pointers only", () => {
@@ -199,7 +199,7 @@ function publicArticleSummary(articleId: string, locale: "ja" | "en") {
 function experimentRecord(
   experimentId: string,
   publishedSnapshotId: string | null,
-): StudioBrowserExperimentRecordV3 {
+): BrowserExperimentRecord {
   return {
     schemaId: "circleheart-studio-browser-experiment-record-v5",
     experimentId,

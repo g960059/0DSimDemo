@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   mergeDevModelCandidatesV3,
   type DevModelCandidateV3,
-} from "@/components/DevDashboardV3Page";
+} from "@/components/dev/DevDashboardPage";
 import {
   studioDevSurfacesEnabledV1,
 } from "@/studio/application/dev/StudioDevAccessV1";

@@ -62,8 +62,6 @@ import {
   resolveStudioAnalysisMethodsForSurfaceV1,
 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
-import mainWireIntegratedStudioHistoricalSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
-import mainWireIntegratedStudioPreviousSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -1131,19 +1129,9 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
-  it("starts a new Surface series when adding analysis-owned output semantics", () => {
-    assertModelSurfaceReleaseManifestV1(
-      mainWireIntegratedStudioHistoricalSurfaceV1,
-    );
-    assertModelSurfaceReleaseManifestV1(
-      mainWireIntegratedStudioPreviousSurfaceV1,
-    );
+  it("owns analysis output semantics in the current Surface series", () => {
     assertModelSurfaceReleaseManifestV1(
       mainWireIntegratedStudioStandardSurfaceV1,
-    );
-    assertAdditiveModelSurfaceUpgradeV1(
-      mainWireIntegratedStudioHistoricalSurfaceV1,
-      mainWireIntegratedStudioPreviousSurfaceV1,
     );
     expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId).toBe(
       "circleheart.main-wire.surface.workbench-analysis-v1",
@@ -1151,8 +1139,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(
       mainWireIntegratedStudioStandardSurfaceV1.predecessorSurfaceReleaseId,
     ).toBeNull();
-    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId).not.toBe(
-      mainWireIntegratedStudioPreviousSurfaceV1.surfaceSeriesId,
+    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId).toBe(
+      "circleheart.main-wire.surface.workbench-analysis",
     );
   });
 
@@ -1248,15 +1236,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     );
     expect(wrongUnitComposition.surface.derivedOutputCatalog).toHaveLength(0);
 
-    const legacyMethods = resolveStudioAnalysisMethodsForSurfaceV1(
-      mainWireIntegratedStudioPreviousSurfaceV1,
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.map(
-        (outputId) => ({ outputId }),
-      ),
-    );
-    expect(legacyMethods.periodicPvaDerivation?.build).toBe(
-      buildMainWireIntegratedModelPeriodicPvaV1,
-    );
   });
 
   it("lets Surface explicitly expose exact outputs without leaking later primitives", () => {

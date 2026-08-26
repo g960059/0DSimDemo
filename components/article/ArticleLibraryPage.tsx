@@ -16,8 +16,8 @@ import {
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  StudioBrowserContentStoreV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+  BrowserContentStore,
+} from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
@@ -35,11 +35,11 @@ type ArticleLibraryStateV3 =
   | Readonly<{ kind: "ready"; items: readonly ArticleLibraryItemV3[] }>
   | Readonly<{ kind: "error"; message: string }>;
 
-export function ArticleLibraryV3Page() {
+export function ArticleLibraryPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const store = React.useMemo(() => new BrowserContentStore(), []);
   const remoteRepository = React.useMemo(
     createStudioSupabaseContentRepositoryV1,
     [],
@@ -249,4 +249,4 @@ function errorMessageV3(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default ArticleLibraryV3Page;
+export default ArticleLibraryPage;

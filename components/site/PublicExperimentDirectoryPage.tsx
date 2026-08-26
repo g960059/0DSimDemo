@@ -7,7 +7,7 @@ import { experimentSnapshotHref, newExperimentHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { readPublicCatalogAsyncV3 } from "@/components/site/PublicCatalogV3";
 
-export function PublicExperimentDirectoryV3Page() {
+export function PublicExperimentDirectoryPage() {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
@@ -104,4 +104,4 @@ export function PublicExperimentDirectoryV3Page() {
   );
 }
 
-export default PublicExperimentDirectoryV3Page;
+export default PublicExperimentDirectoryPage;

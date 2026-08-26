@@ -19,7 +19,7 @@ import {
   resolveArticleEditorRouteDraftV3,
   splitArticleTextSelectionV3,
   synchronizeRemoteArticlePublicationV3,
-} from "@/components/ArticleEditorV3Page";
+} from "@/components/article/ArticleEditorPolicy";
 import {
   ArticleBriefingEditorV3,
   ArticleExperimentPlacementV3,

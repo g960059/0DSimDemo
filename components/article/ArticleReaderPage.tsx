@@ -43,8 +43,8 @@ import type {
   ExperimentSnapshotV2,
 } from "@/studio/contracts/v2/content";
 import {
-  StudioBrowserContentStoreV3,
-} from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+  BrowserContentStore,
+} from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
@@ -121,7 +121,7 @@ function initialArticleReaderPeekFractionV3(): number {
   }
 }
 
-export function ArticleReaderV3Page() {
+export function ArticleReaderPage() {
   const location = useLocation();
   const { articleId } = useParams();
   return (
@@ -150,7 +150,7 @@ function ArticleReaderV3Resource({
   const locale = localeFromPathname(pathname);
   const authoredPreview = /\/articles\/[^/]+\/preview\/?$/.test(pathname);
   const navigate = useNavigate();
-  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const store = React.useMemo(() => new BrowserContentStore(), []);
   const remoteRepository = React.useMemo(
     createStudioSupabaseContentRepositoryV1,
     [],
@@ -694,4 +694,4 @@ function ArticleReaderV3Resource({
   );
 }
 
-export default ArticleReaderV3Page;
+export default ArticleReaderPage;

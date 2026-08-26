@@ -24,18 +24,18 @@ import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
-import { StudioBrowserContentStoreV3 } from "@/studio/infrastructure/browser/StudioBrowserContentStoreV3";
+import { BrowserContentStore } from "@/studio/infrastructure/browser/BrowserContentStore";
 import {
-  StudioBrowserExperimentIndexV3,
-  STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
-  type StudioBrowserExperimentRecordV3,
-} from "@/studio/infrastructure/browser/StudioBrowserExperimentIndexV3";
+  BrowserExperimentIndex,
+  BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
+  type BrowserExperimentRecord,
+} from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 import {
   createStudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 
 type WorkbenchSelectorItemV3 = Readonly<{
-  record: StudioBrowserExperimentRecordV3;
+  record: BrowserExperimentRecord;
   modelId: string;
   surfaceSeriesId: string;
   version: number;
@@ -50,18 +50,18 @@ type WorkbenchSelectorStateV3 =
     }>
   | Readonly<{ kind: "error"; message: string }>;
 
-export function WorkbenchSelectorV3Page() {
+export function WorkbenchSelectorPage() {
   const { t } = useTranslation();
   const { locale: localeParam } = useParams();
   const locale: Locale = isLocale(localeParam) ? localeParam : "ja";
   const navigate = useNavigate();
-  const store = React.useMemo(() => new StudioBrowserContentStoreV3(), []);
+  const store = React.useMemo(() => new BrowserContentStore(), []);
   const remoteRepository = React.useMemo(
     createStudioSupabaseContentRepositoryV1,
     [],
   );
   const experimentIndex = React.useMemo(
-    () => new StudioBrowserExperimentIndexV3(),
+    () => new BrowserExperimentIndex(),
     [],
   );
   const [state, setState] = React.useState<WorkbenchSelectorStateV3>({
@@ -77,7 +77,7 @@ export function WorkbenchSelectorV3Page() {
         const resources = (await remoteRepository.listMyExperiments()).items;
         const items = Object.freeze(resources.map((resource) => Object.freeze({
           record: Object.freeze({
-            schemaId: STUDIO_BROWSER_EXPERIMENT_RECORD_V3_SCHEMA_ID,
+            schemaId: BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,
             experimentId: resource.experimentId,
             title: resource.title,
             createdAt: resource.createdAt,
@@ -396,4 +396,4 @@ function errorMessageV3(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export default WorkbenchSelectorV3Page;
+export default WorkbenchSelectorPage;

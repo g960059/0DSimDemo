@@ -24,7 +24,7 @@ import {
 import {
   materializeWorkbenchOutputPresentationItemsV3,
   workbenchPeriodicPvaOutputValueV3,
-} from "@/components/WorkbenchV3Page";
+} from "@/components/workbench/WorkbenchItemPresentation";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1 } from

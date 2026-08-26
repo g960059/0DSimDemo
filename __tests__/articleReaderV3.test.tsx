@@ -19,7 +19,7 @@ import {
 import {
   articleReaderPeekFractionForPointerV3,
   clampArticleReaderPeekFractionV3,
-} from "@/components/ArticleReaderV3Page";
+} from "@/components/article/ArticleReaderPage";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
