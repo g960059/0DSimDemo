@@ -36,7 +36,7 @@ import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulatio
 import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
 import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
 import { articleReaderPresentationOutputSelectionV3 } from "@/components/article/reader/ArticleReaderPresentationOutputSelectionV3";
-import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,

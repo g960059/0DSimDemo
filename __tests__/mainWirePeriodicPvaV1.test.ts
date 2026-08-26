@@ -20,7 +20,7 @@ import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } fro
 import {
   PressureVolumeLoopCanvasV3,
   retainWorkbenchPvRelationDrawingV3,
-} from "@/components/workbench/v3/PressureVolumeLoopCanvasV3";
+} from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
   workbenchPeriodicPvaOutputValueV3,

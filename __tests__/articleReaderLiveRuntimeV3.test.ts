@@ -20,10 +20,10 @@ import type {
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import type {
   WorkbenchParallelScenarioSeedV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,

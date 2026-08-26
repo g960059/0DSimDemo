@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioRuntimeClientV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
@@ -13,12 +13,12 @@ import {
   type WorkbenchGroupPlaybackRateStateV3,
   type WorkbenchGroupTimeConductorDependenciesV3,
   type WorkbenchGroupTimeConductorTimerV3,
-} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+} from "@/components/workbench/runtime/WorkbenchGroupTimeConductorV3";
 import type {
   WorkbenchBackgroundJobHandleV3,
   WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,
-} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+} from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
 } from "./helpers/standardReleaseTicketV1";

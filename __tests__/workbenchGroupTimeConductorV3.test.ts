@@ -4,9 +4,9 @@ import {
   WorkbenchGroupTimeConductorV3,
   type WorkbenchGroupTimeConductorLaneV3,
   type WorkbenchGroupTimeConductorTimerV3,
-} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+} from "@/components/workbench/runtime/WorkbenchGroupTimeConductorV3";
 import { WorkbenchPerformanceDiagnosticsV3 } from
-  "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
+  "@/components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 import {
   formatWorkbenchPlaybackRateV3,
   snapWorkbenchPlaybackRateV3,

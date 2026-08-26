@@ -12,23 +12,23 @@ import type {
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioSeedV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import type {
   WorkbenchGroupPlaybackRateStateV3,
-} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+} from "@/components/workbench/runtime/WorkbenchGroupTimeConductorV3";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   WorkbenchBackgroundWorkerPoolV3,
   type WorkbenchBackgroundWorkerPoolPortV3,
-} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+} from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import {
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceValueV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
-} from "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
+} from "@/components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:

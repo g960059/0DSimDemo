@@ -2,7 +2,7 @@ import {
   defaultArticleBriefingV3,
   materializeSurfaceControlPaneBindingV3,
 } from "@/studio/application/article/ArticleExperimentPlacementV3";
-import { reconcileWorkbenchGraphColorsV3 } from "@/components/workbench/v3/WorkbenchGraphColorV3";
+import { reconcileWorkbenchGraphColorsV3 } from "@/components/workbench/presentation/WorkbenchGraphColorV3";
 import { validateExperimentPlacementBriefingV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,

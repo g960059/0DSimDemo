@@ -5,7 +5,7 @@ import {
   recordWorkbenchPerformanceEventIntervalV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
-} from "./WorkbenchPerformanceDiagnosticsV3";
+} from "../runtime/WorkbenchPerformanceDiagnosticsV3";
 
 export const WORKBENCH_MAXIMUM_CANVAS_PIXEL_RATIO_V3 = 2;
 

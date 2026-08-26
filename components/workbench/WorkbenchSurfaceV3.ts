@@ -4,7 +4,7 @@ import type {
   ExperimentSurfaceOutputPaneV2,
   ExperimentSurfaceV2,
 } from "@/studio/contracts/v2/content";
-import { reconcileWorkbenchGraphColorsV3 } from "./v3/WorkbenchGraphColorV3";
+import { reconcileWorkbenchGraphColorsV3 } from "./presentation/WorkbenchGraphColorV3";
 import {
   STUDIO_GRAPH_HISTORY_DEFAULT_DEPTH_V2,
   STUDIO_GRAPH_HISTORY_MAX_DEPTH_V2,

@@ -5,7 +5,7 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
-import { structuralReturnOrientationFromPayloadV3 } from "@/components/workbench/v3/GuytonStarlingOrientationCanvasV3";
+import { structuralReturnOrientationFromPayloadV3 } from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 
 const EMPTY_WORKBENCH_GRAPH_HISTORY_V3 = Object.freeze([] as never[]);
 

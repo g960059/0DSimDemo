@@ -1,17 +1,13 @@
 import React from "react";
 import {
-  AlertTriangle,
   ArrowLeft,
   Check,
   ClipboardList,
   Home,
   Moon,
-  Plus,
-  RefreshCw,
   Save,
   Sun,
   Upload,
-  X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
@@ -49,6 +45,12 @@ import {
 import { WorkbenchSimulationInfoV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import {
+  WorkbenchRuntimeErrorV3,
+  WorkbenchSaveErrorBannerV3,
+  WorkbenchSnapshotErrorBannerV3,
+  WorkbenchUnavailableModelV3,
+} from "@/components/workbench/WorkbenchSessionFeedbackV3";
+import {
   WorkbenchPaneEditorV3,
   addWorkbenchSurfacePaneV3,
   compareWorkbenchOutputPaneByScenarioV3,
@@ -66,7 +68,6 @@ import {
   type WorkbenchScenarioDuplicateIntentV3,
   type WorkbenchScenarioRenameIntentV3,
 } from "@/components/workbench/WorkbenchScenarioManagerV3";
-import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
   WORKBENCH_SCENARIO_ID_V3,
   createDefaultExperimentSurfaceV3,
@@ -139,24 +140,26 @@ import { materializeExactModelControlValuesV1 } from
   "@/studio/application/model/ExactModelControlValuesV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
+  reconcileWorkbenchGraphColorsV3,
+  updateWorkbenchScenarioBaseColorV3,
+  workbenchPresentationOutputSelectionV3,
+} from "@/components/workbench/presentation";
+import {
   WorkbenchBackgroundWorkerPoolV3,
   WorkbenchBackgroundJobCancelledErrorV3,
-  reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceEventIntervalV3,
-  updateWorkbenchScenarioBaseColorV3,
-  workbenchPresentationOutputSelectionV3,
   type WorkbenchGroupPlaybackRateStateV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
-} from "@/components/workbench/v3";
-import { WorkbenchParallelAuthoringCoordinatorV3 } from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
+} from "@/components/workbench/runtime";
+import { WorkbenchParallelAuthoringCoordinatorV3 } from "@/components/workbench/runtime/WorkbenchParallelAuthoringCoordinatorV3";
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioSeedV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
-import { randomPortableTokenV3 } from "@/components/workbench/v3/randomPortableTokenV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
+import { randomPortableTokenV3 } from "@/components/workbench/runtime/randomPortableTokenV3";
 import {
   archiveWorkbenchAnalysesV3,
   cloneWorkbenchAnalysisForScenarioV3,
@@ -2007,97 +2010,90 @@ export const WorkbenchSession = ({
         );
       }
       const targetExperimentId = saved.experimentId;
-      // The authoring Worker is transient and already terminated. Persistence
-      // failure therefore leaves the independent live lane pool untouched so
-      // the user can retry without losing unsaved exact Scenario state.
-      commitWorkbenchTransientAuthoringResultV3({
-        persist: () => saved,
-        adoptDurable: (durableExperiment) => {
-          const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
-            currentMutationRevision: surfaceMutationRevisionRef.current,
-            currentSurface: surfaceRef.current,
-            durableSurface: durableExperiment.content.surface,
-            submittedMutationRevision: submittedSurfaceMutationRevision,
-          });
-          experimentRef.current = durableExperiment;
-          setExperiment(durableExperiment);
-          const nowIso = new Date().toISOString();
-          const existingRecord =
-            experimentRecord?.experimentId === targetExperimentId
-              ? experimentRecord
-              : null;
-          const touchedRecord =
-            remoteContentRepository === null
-              ? existingRecord === null
-                ? experimentIndex.ensure({
-                    experimentId: targetExperimentId,
-                    title: submittedTitle,
-                    nowIso,
-                  })
-                : experimentIndex.rename({
-                    experimentId: targetExperimentId,
-                    title: submittedTitle,
-                    nowIso,
-                  })
-              : remoteExperimentRecordV3(remoteSavedResource!);
-          const isFirstSave = experimentIdRef.current === null;
-          experimentIdRef.current = targetExperimentId;
-          setExperimentRecord(touchedRecord);
-          surfaceRef.current = surfaceResolution.surface;
-          setSurface(surfaceResolution.surface);
-          setScenarios(
-            Object.freeze(
-              durableExperiment.content.scenarios.map(({ scenarioId, label }) =>
-                Object.freeze({ scenarioId, label }),
+      const durableExperiment = saved;
+      const surfaceResolution = resolveWorkbenchSurfaceAfterCommitV3({
+        currentMutationRevision: surfaceMutationRevisionRef.current,
+        currentSurface: surfaceRef.current,
+        durableSurface: durableExperiment.content.surface,
+        submittedMutationRevision: submittedSurfaceMutationRevision,
+      });
+      experimentRef.current = durableExperiment;
+      setExperiment(durableExperiment);
+      const nowIso = new Date().toISOString();
+      const existingRecord =
+        experimentRecord?.experimentId === targetExperimentId
+          ? experimentRecord
+          : null;
+      const touchedRecord =
+        remoteContentRepository === null
+          ? existingRecord === null
+            ? experimentIndex.ensure({
+                experimentId: targetExperimentId,
+                title: submittedTitle,
+                nowIso,
+              })
+            : experimentIndex.rename({
+                experimentId: targetExperimentId,
+                title: submittedTitle,
+                nowIso,
+              })
+          : remoteExperimentRecordV3(remoteSavedResource!);
+      const isFirstSave = experimentIdRef.current === null;
+      experimentIdRef.current = targetExperimentId;
+      setExperimentRecord(touchedRecord);
+      surfaceRef.current = surfaceResolution.surface;
+      setSurface(surfaceResolution.surface);
+      setScenarios(
+        Object.freeze(
+          durableExperiment.content.scenarios.map(({ scenarioId, label }) =>
+            Object.freeze({ scenarioId, label }),
+          ),
+        ),
+      );
+      if (contract !== null) {
+        controlValuesByScenarioRef.current = Object.fromEntries(
+          durableExperiment.content.scenarios.map((scenario) => [
+            scenario.scenarioId,
+            materializeExactModelControlValuesV1(
+              contract,
+              scenario.capture.fixture,
+              requiredWorkbenchFixtureProjectionV1(
+                fixtureProjectionRef.current,
               ),
             ),
-          );
-          if (contract !== null) {
-            controlValuesByScenarioRef.current = Object.fromEntries(
-              durableExperiment.content.scenarios.map((scenario) => [
-                scenario.scenarioId,
-                materializeExactModelControlValuesV1(
-                  contract,
-                  scenario.capture.fixture,
-                  requiredWorkbenchFixtureProjectionV1(
-                    fixtureProjectionRef.current,
-                  ),
+          ]),
+        );
+        const activeId = activeScenarioIdRef.current;
+        if (activeId !== null) {
+          setControlValues(
+            controlValuesByScenarioRef.current[activeId] ??
+              materializeExactModelControlValuesV1(
+                contract,
+                undefined,
+                requiredWorkbenchFixtureProjectionV1(
+                  fixtureProjectionRef.current,
                 ),
-              ]),
-            );
-            const activeId = activeScenarioIdRef.current;
-            if (activeId !== null) {
-              setControlValues(
-                controlValuesByScenarioRef.current[activeId] ??
-                  materializeExactModelControlValuesV1(
-                    contract,
-                    undefined,
-                    requiredWorkbenchFixtureProjectionV1(
-                      fixtureProjectionRef.current,
-                    ),
-                  ),
-              );
-            }
-          }
-          setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
-          setHasUnsavedContentChanges(surfaceResolution.hasNewerMutations);
-          setHasUncommittedTitleChanges(
-            (experimentTitleRef.current.trim() ||
-              t("workbench.selector.untitled")) !== touchedRecord.title,
+              ),
           );
-          setSnapshotState("idle");
-          setSnapshotPurpose(null);
-          if (isFirstSave) {
-            navigate(
-              `${experimentDetailHref({
-                experimentId: targetExperimentId,
-                locale: resolvedLocale,
-              })}${location.search}`,
-              { replace: true },
-            );
-          }
-        },
-      });
+        }
+      }
+      setSaveState(surfaceResolution.hasNewerMutations ? "dirty" : "clean");
+      setHasUnsavedContentChanges(surfaceResolution.hasNewerMutations);
+      setHasUncommittedTitleChanges(
+        (experimentTitleRef.current.trim() ||
+          t("workbench.selector.untitled")) !== touchedRecord.title,
+      );
+      setSnapshotState("idle");
+      setSnapshotPurpose(null);
+      if (isFirstSave) {
+        navigate(
+          `${experimentDetailHref({
+            experimentId: targetExperimentId,
+            locale: resolvedLocale,
+          })}${location.search}`,
+          { replace: true },
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       // Never adopt another tab's newer version as an implicit retry base:
@@ -3132,116 +3128,48 @@ export const WorkbenchSession = ({
       </header>
 
       {saveError !== null && (
-        <div
-          role="alert"
-          className="flex shrink-0 items-start gap-2 border-b border-wb-warning/25 bg-wb-warning-soft px-3 py-2 text-xs leading-5 text-wb-text"
-          data-testid="workbench-save-error-v3"
-        >
-          <AlertTriangle
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-wb-warning"
-            aria-hidden="true"
-          />
-          <span className="min-w-0 break-words">
-            {t("workbench.editor.saveError")}: {saveError}
-          </span>
-        </div>
+        <WorkbenchSaveErrorBannerV3
+          message={`${t("workbench.editor.saveError")}: ${saveError}`}
+        />
       )}
 
       {snapshotError !== null && !briefingOpen && (
-        <div
-          role="alert"
-          className="flex shrink-0 items-start gap-2 border-b border-wb-warning/25 bg-wb-warning-soft px-3 py-2 text-xs leading-5 text-wb-text"
-          data-testid="workbench-snapshot-error-v3"
-        >
-          <AlertTriangle
-            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-wb-warning"
-            aria-hidden="true"
-          />
-          <span className="min-w-0 flex-1 break-words">
-            {t("workbench.editor.snapshotError")}: {snapshotError}
-          </span>
-          {snapshotError ===
-            t("workbench.editor.publishRequiresLinkedAccount") && (
-            <Link
-              to={loginHref(resolvedLocale)}
-              className="shrink-0 font-semibold text-wb-accent hover:underline"
-            >
-              {t("siteHeader.login")}
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => setSnapshotError(null)}
-            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
-            aria-label={t("common.close")}
-          >
-            <X className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
-        </div>
+        <WorkbenchSnapshotErrorBannerV3
+          closeLabel={t("common.close")}
+          login={
+            snapshotError ===
+            t("workbench.editor.publishRequiresLinkedAccount")
+              ? {
+                  href: loginHref(resolvedLocale),
+                  label: t("siteHeader.login"),
+                }
+              : null
+          }
+          message={`${t("workbench.editor.snapshotError")}: ${snapshotError}`}
+          onClose={() => setSnapshotError(null)}
+        />
       )}
 
       {status.kind === "unavailable-model" ? (
-        <section
-          className="m-4 max-w-3xl self-center rounded-xl border border-wb-warning/50 bg-wb-warning-soft p-6 text-sm"
-          role="alert"
-          data-testid="workbench-unavailable-model-v3"
-        >
-          <div className="flex items-start gap-3">
-            <AlertTriangle
-              className="mt-0.5 h-5 w-5 shrink-0 text-wb-warning"
-              aria-hidden="true"
-            />
-            <div className="min-w-0">
-              <h2 className="font-bold text-wb-text">
-                {t("workbench.unavailable.title")}
-              </h2>
-              <p className="mt-2 leading-6 text-wb-muted">
-                {t("workbench.unavailable.description")}
-              </p>
-              {recoveryError !== null && (
-                <p className="mt-3 text-xs text-wb-danger" role="alert">
-                  {recoveryError}
-                </p>
-              )}
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Link
-                  to={myExperimentsHref(isLocale(locale) ? locale : undefined)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-wb-line bg-wb-panel px-3 text-xs font-bold text-wb-text hover:bg-wb-hover"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t("workbench.unavailable.back")}
-                </Link>
-                <button
-                  type="button"
-                  onClick={startLatestWorkbenchV3}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-wb-accent px-3 text-xs font-bold text-white hover:opacity-90"
-                >
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t("workbench.unavailable.startLatest")}
-                </button>
-              </div>
-              <p className="mt-4 text-xs leading-5 text-wb-subtle">
-                {t("workbench.unavailable.preserved")}
-              </p>
-            </div>
-          </div>
-        </section>
+        <WorkbenchUnavailableModelV3
+          back={{
+            href: myExperimentsHref(isLocale(locale) ? locale : undefined),
+            label: t("workbench.unavailable.back"),
+          }}
+          description={t("workbench.unavailable.description")}
+          onStartLatest={startLatestWorkbenchV3}
+          preservedNotice={t("workbench.unavailable.preserved")}
+          recoveryError={recoveryError}
+          startLatestLabel={t("workbench.unavailable.startLatest")}
+          title={t("workbench.unavailable.title")}
+        />
       ) : status.kind === "error" ? (
-        <section
-          className="m-4 rounded-lg border border-wb-danger/50 bg-wb-danger-soft p-5 text-sm text-wb-danger"
-          role="alert"
-        >
-          <p className="font-bold">{t("workbench.live.errorTitle")}</p>
-          <p className="mt-2 font-mono text-xs">{status.message}</p>
-          <button
-            type="button"
-            className="mt-4 inline-flex h-9 items-center gap-2 rounded border border-wb-danger/50 bg-wb-panel px-3 text-xs font-bold text-wb-text hover:bg-wb-hover"
-            onClick={() => restartRuntime()}
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            {t("workbench.live.restart")}
-          </button>
-        </section>
+        <WorkbenchRuntimeErrorV3
+          message={status.message}
+          onRestart={() => restartRuntime()}
+          restartLabel={t("workbench.live.restart")}
+          title={t("workbench.live.errorTitle")}
+        />
       ) : (
         <WorkbenchPerformanceProfilerV3>
           {mobileWorkbenchShell ? (

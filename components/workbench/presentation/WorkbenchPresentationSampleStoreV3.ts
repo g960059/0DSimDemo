@@ -17,7 +17,7 @@ import {
   recordWorkbenchPerformanceEventIntervalV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
-} from "./WorkbenchPerformanceDiagnosticsV3";
+} from "../runtime/WorkbenchPerformanceDiagnosticsV3";
 
 const EMPTY_WORKBENCH_PRESENTATION_SAMPLES_V3:
   readonly WorkbenchScalarSampleV3[] = Object.freeze([]);

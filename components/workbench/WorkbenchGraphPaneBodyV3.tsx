@@ -19,7 +19,7 @@ import {
   workbenchModelCyclePhaseOutputIdV3,
   type WorkbenchScenarioOrbitHistoryV3,
   type WorkbenchScenarioPresentationSamplesV3,
-} from "@/components/workbench/v3";
+} from "@/components/workbench/presentation";
 import {
   shouldAutoRequestStructuralReturnComparisonV3,
   structuralReturnComparisonRequestKeyV3,

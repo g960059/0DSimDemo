@@ -4,7 +4,7 @@ import {
   WorkbenchBackgroundJobCancelledErrorV3,
   WorkbenchBackgroundWorkerPoolV3,
   resolveWorkbenchBackgroundWorkerBudgetV3,
-} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+} from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import type {
   StudioSimulationWorkerClientV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";

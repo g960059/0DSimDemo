@@ -17,7 +17,7 @@ import {
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
   type ScenarioPresetV2,
 } from "@/studio/contracts/v2/content";
-import { workbenchDefaultScenarioColorV3 } from "./v3/WorkbenchGraphColorV3";
+import { workbenchDefaultScenarioColorV3 } from "./presentation/WorkbenchGraphColorV3";
 
 export type WorkbenchScenarioDescriptorV3 = Readonly<{
   scenarioId: string;

@@ -106,7 +106,6 @@ import {
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
-import { commitWorkbenchTransientAuthoringResultV3 } from "@/components/workbench/WorkbenchTransientAuthoringCommitV3";
 import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
   resolveStudioItemPresentationV1,
@@ -1000,32 +999,6 @@ describe("V3 Dockview Workbench", () => {
     ).toEqual([
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     ]);
-  });
-
-  it("preserves the live authority after transient Draft persistence failure and permits retry", () => {
-    const adoptDurable = vi.fn();
-    const persist = vi
-      .fn()
-      .mockImplementationOnce(() => {
-        throw new Error("storage quota rejected setItem");
-      })
-      .mockReturnValueOnce("durable-experiment");
-
-    expect(() =>
-      commitWorkbenchTransientAuthoringResultV3({
-        persist,
-        adoptDurable,
-      }),
-    ).toThrow("storage quota rejected setItem");
-    expect(adoptDurable).not.toHaveBeenCalled();
-
-    expect(
-      commitWorkbenchTransientAuthoringResultV3({
-        persist,
-        adoptDurable,
-      }),
-    ).toBe("durable-experiment");
-    expect(adoptDurable).toHaveBeenCalledOnce();
   });
 
   it("renders a visible panel even when it is not globally active", () => {

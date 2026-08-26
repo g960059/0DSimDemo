@@ -56,7 +56,7 @@ import {
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchGraphTraceStyleV3,
   workbenchScenarioColorSeedV3,
-} from "./v3/WorkbenchGraphColorV3";
+} from "./presentation/WorkbenchGraphColorV3";
 import { ExperimentPaneAddItemButtonV3 } from "./ExperimentPanePresentationV3";
 import { WorkbenchPaneBindingEditorV3 } from "./WorkbenchPaneBindingV3";
 

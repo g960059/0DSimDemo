@@ -4,7 +4,7 @@ import {
   guytonStarlingAxisLabelsV3,
   guytonStarlingPlotDomainV3,
   structuralReturnOrientationFromPayloadV3,
-} from "@/components/workbench/v3/GuytonStarlingOrientationCanvasV3";
+} from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,

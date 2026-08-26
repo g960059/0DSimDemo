@@ -42,7 +42,7 @@ import {
   resolveWorkbenchAutomaticGraphColorV3,
   workbenchDefaultScenarioColorV3,
 } from
-  "@/components/workbench/v3/WorkbenchGraphColorV3";
+  "@/components/workbench/presentation/WorkbenchGraphColorV3";
 import {
   articleBriefingPresentationV3,
   defaultArticleBriefingV3,

@@ -15,7 +15,7 @@ import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   ArticleReaderLiveRuntimeV3,
   type ArticleReaderLiveRuntimeStateV3,

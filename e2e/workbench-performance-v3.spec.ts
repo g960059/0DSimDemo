@@ -9,7 +9,7 @@ import {
 
 import type {
   WorkbenchPerformanceSnapshotV3,
-} from "../components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
+} from "../components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
 type PerformanceBudgetV3 = Readonly<{
   minimumRootModelTimeRatio: number;

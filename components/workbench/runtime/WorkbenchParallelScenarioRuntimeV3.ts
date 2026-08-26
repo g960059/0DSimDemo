@@ -41,7 +41,7 @@ import {
 import {
   resolveWorkbenchPresentationProfileV3,
   type WorkbenchPresentationProfileV3,
-} from "./WorkbenchPresentationProfileV3";
+} from "../presentation/WorkbenchPresentationProfileV3";
 import type {
   WorkbenchBackgroundJobHandleV3,
   WorkbenchBackgroundWorkerPoolPortV3,
