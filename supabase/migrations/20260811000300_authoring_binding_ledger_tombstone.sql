@@ -1,0 +1,2 @@
+-- Version retained because it was applied to the prerelease remote database.
+-- The superseded authoring binding objects are removed by a forward migration.

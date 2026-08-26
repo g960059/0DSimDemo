@@ -944,12 +944,6 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     runningOperationReceipt,
     committedOperationReceipt,
   ] });
-  const replayResult = object(["receipt", "replayed"], {
-    replayed: { const: true },
-    receipt: committedOperationReceipt,
-  });
-  const mutationResult = (normal: Readonly<Record<string, unknown>>) =>
-    Object.freeze({ oneOf: [normal, replayResult] });
   const nullable = (schema: Readonly<Record<string, unknown>>) =>
     Object.freeze({ oneOf: [schema, { type: "null" }] });
   const previewInputRequired = [
@@ -1026,9 +1020,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       }) }),
     Object.freeze({ action: "experiment.apply", mutation: true,
       inputSchema: object(["plan"], { plan: experimentPlan }),
-      resultSchema: mutationResult(object(["observations", "savedExperiment"], {
+      resultSchema: object(["observations", "savedExperiment"], {
         savedExperiment: experimentSummary, observations,
-      })) }),
+      }) }),
     Object.freeze({ action: "experiment.presentation.save", mutation: true,
       inputSchema: object([
         "expectedVersion", "experimentId", "surface", "surfaceReleaseId", "title",
@@ -1036,7 +1030,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
         experimentId: id, expectedVersion: version, surfaceReleaseId: id,
         title: id,
         surface: experimentSurface,
-      }), resultSchema: mutationResult(experimentSummary) }),
+      }), resultSchema: experimentSummary }),
     Object.freeze({ action: "snapshot.seal", mutation: true,
       inputSchema: object([
         "createdAt", "exactModel", "expectedVersion", "experimentId", "observeOutputIds",
@@ -1045,7 +1039,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
         createdAt: { type: "string", format: "date-time" },
         observeOutputIds: nullableStringArray,
       }),
-      resultSchema: mutationResult(object(["observations", "sealedSnapshot"], {
+      resultSchema: object(["observations", "sealedSnapshot"], {
         sealedSnapshot: object([
           "createdAt", "modelId", "scenarioIds", "snapshotId",
           "surfaceReleaseId", "surfaceSeriesId",
@@ -1055,37 +1049,37 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
           createdAt: { type: "string", format: "date-time" },
         }),
         observations,
-      })) }),
+      }) }),
     Object.freeze({ action: "article.briefing.place", mutation: true,
       inputSchema: object([
         "articleId", "expectedVersion", "selection", "snapshotId", "target",
       ], {
         articleId: id, expectedVersion: version, snapshotId: id,
         selection: briefingSelection, target: briefingTarget,
-      }), resultSchema: mutationResult(object([
+      }), resultSchema: object([
         "articleId", "blockCount", "blockId", "draftVersion", "locale",
         "placementId", "snapshotId", "title", "visibility",
       ], {
         articleId: id, draftVersion: version, visibility: { enum: ["draft", "public"] },
         locale: id, title: id, blockCount: version,
         blockId: id, placementId: id, snapshotId: id,
-      })) }),
+      }) }),
     Object.freeze({ action: "article.blocks.patch", mutation: true,
       inputSchema: object(["articleId", "expectedVersion", "operations", "title"], {
         articleId: id, expectedVersion: version, title: nullableId,
         operations: { type: "array", minItems: 1, items: articleBlockOperation },
-      }), resultSchema: mutationResult(articleSummary) }),
+      }), resultSchema: articleSummary }),
     Object.freeze({ action: "experiment.publish", mutation: true,
       inputSchema: object(["expectedVersion", "experimentId", "publicSlug", "snapshotId"], {
         experimentId: id, expectedVersion: version, snapshotId: id, publicSlug,
-      }), resultSchema: mutationResult(published) }),
+      }), resultSchema: published }),
     Object.freeze({ action: "article.save", mutation: true,
       inputSchema: articleSaveInputSchema,
-      resultSchema: mutationResult(articleSummary) }),
+      resultSchema: articleSummary }),
     Object.freeze({ action: "article.publish", mutation: true,
       inputSchema: object(["articleId", "expectedVersion", "publicSlug"], {
         articleId: id, expectedVersion: version, publicSlug,
-      }), resultSchema: mutationResult(published) }),
+      }), resultSchema: published }),
   ];
   const commandEnvelope = Object.freeze({
     oneOf: actions.map(({ action, inputSchema }) => object(
@@ -1137,11 +1131,11 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     protocol: {
       stdout: "exactly-one-json-envelope",
       stderr: "progress-and-debug-only",
-      mutationRetry: "reuse-commandId-and-query-operation-receipt-first",
+      mutationRetry: "reuse-commandId-for-the-identical-semantic-mutation",
       concurrency: "one-refresh-token-rotation-per-profile",
       numericalMutation: "preview-exact-plan-then-apply",
       publication: "standalone-explicit-action",
-      commandIdentity: "commandId-is-bound-to-canonical-command-sha256-for-at-least-30-days",
+      commandIdentity: "commandId-is-bound-by-authority-request-fingerprint-for-at-least-30-days",
       errorRecovery: {
         "fix-command": "correct input against the action JSON Schema and mint a new commandId",
         "mint-new-command-id": "preserve the old command file and mint a UUID for the new semantic request",
@@ -1344,19 +1338,6 @@ export async function executeStudioAuthoringCommandV1(
 ): Promise<unknown> {
   const command = validateStudioAuthoringCommandV1(commandValue);
   await policy.authorize(command);
-  const operationKind = mutationOperationKindV1(command.action);
-  if (operationKind !== null) {
-    const receipt = await repository.readMyAuthoringOperationReceipt(command.commandId);
-    if (receipt !== null) {
-      if (receipt.operationKind !== operationKind) {
-        throw new Error("commandId is already used by another mutation");
-      }
-      if (receipt.status === "running") {
-        throw new Error("Authoring operation is already running; query operation.read before retrying");
-      }
-      return Object.freeze({ replayed: true, receipt });
-    }
-  }
   switch (command.action) {
     case "experiment.list": return repository.listMyExperiments(command.input);
     case "snapshot.list": return repository.listMySnapshots(command.input);
@@ -1563,22 +1544,6 @@ async function assertArticleMatchesAuthorityV1(
     assertExperimentContentMatchesModelV2(snapshot.content, model);
     assertExperimentBriefingMatchesModelV2(placement.briefing, model);
   }));
-}
-
-function mutationOperationKindV1(
-  action: StudioAuthoringCommandV1["action"],
-): string | null {
-  switch (action) {
-    case "experiment.apply":
-    case "experiment.presentation.save": return "save-experiment-v1";
-    case "snapshot.seal": return "commit-admitted-experiment-snapshot-v1";
-    case "article.briefing.place":
-    case "article.blocks.patch":
-    case "article.save": return "save-article-v1";
-    case "experiment.publish": return "publish-experiment-v1";
-    case "article.publish": return "publish-article-v1";
-    default: return null;
-  }
 }
 
 function scenarioOperationsV1(value: unknown): readonly StudioAuthoringScenarioOperationV1[] {

@@ -30,7 +30,7 @@ const copy = {
     principles: [
       ["同じ権限", "ブラウザと同じGoogle / Supabaseユーザーとして動作し、service-role keyは受け付けません。"],
       ["機械可読", "stdoutは常に1つのJSON envelopeです。進捗と診断だけをstderrへ出します。"],
-      ["安全な再試行", "write commandは最低30日間commandIdへ束縛されます。応答が失われても、同じJSONを同じcommandIdで再実行できます。"],
+      ["安全な再試行", "write commandのauthority request fingerprintは最低30日間commandIdへ束縛されます。応答が失われても、同じsemantic commandを同じcommandIdで再実行できます。"],
       ["公開は明示的", "保存・Snapshot化・Briefing配置・公開は別actionです。previewや保存が勝手に公開へ進むことはありません。"],
     ],
     setupTitle: "1. ログイン",
@@ -72,7 +72,7 @@ const copy = {
     principles: [
       ["Same authority", "It acts as the same Google / Supabase user as the browser and rejects service-role keys."],
       ["Machine-readable", "stdout is exactly one JSON envelope. Only progress and diagnostics use stderr."],
-      ["Safe retries", "Each write remains bound to its commandId for at least 30 days. After a lost response, retry the identical JSON with the identical commandId."],
+      ["Safe retries", "Each write's authority request fingerprint remains bound to its commandId for at least 30 days. After a lost response, retry the identical semantic command with the identical commandId."],
       ["Explicit publication", "Save, Snapshot seal, Briefing placement, and publication are separate actions. Preview and save never publish implicitly."],
     ],
     setupTitle: "1. Sign in",

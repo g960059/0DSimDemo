@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(25);
 
 insert into auth.users (
   id,
@@ -169,6 +169,27 @@ select matches(
   ),
   '^[0-9a-f]{64}$',
   'Committed operation receipt fingerprints Experiment content'
+);
+
+select ok(
+  (
+    select expires_at >= created_at + interval '30 days'
+    from studio.operation_receipts
+    where operation_id = '20000000-0000-0000-0000-000000000001'
+  ),
+  'Mutation request fingerprints remain authoritative for at least 30 days'
+);
+
+select ok(
+  to_regclass('studio.authoring_command_bindings') is null,
+  'The superseded authoring command binding table is absent'
+);
+
+select ok(
+  to_regprocedure(
+    'public.claim_my_authoring_command_v1(uuid,text,text)'
+  ) is null,
+  'The superseded authoring command claim RPC is absent'
 );
 
 select is(
