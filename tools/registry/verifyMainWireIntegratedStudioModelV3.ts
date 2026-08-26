@@ -32,7 +32,7 @@ import {
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   importExactExecutableArtifactModuleV2,
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";

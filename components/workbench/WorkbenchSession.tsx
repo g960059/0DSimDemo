@@ -126,7 +126,7 @@ import type {
   StudioSimulationWorkerScenarioStateV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import { BrowserContentStore } from "@/studio/infrastructure/browser/BrowserContentStore";
-import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
+import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import {
   BrowserExperimentIndex,
   BROWSER_EXPERIMENT_RECORD_SCHEMA_ID,

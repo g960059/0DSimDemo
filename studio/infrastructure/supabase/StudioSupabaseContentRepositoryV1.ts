@@ -15,6 +15,10 @@ import {
   type StudioPublishedArticleV1,
   validateStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublishedArticleV1";
+import type {
+  StudioPublicArticleSummaryV1,
+  StudioPublicExperimentSummaryV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   type ExperimentContentV2,
@@ -23,7 +27,7 @@ import {
 } from "@/studio/contracts/v2/content";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   assertStudioAdmittedSnapshotCommitV1,
   type StudioAdmittedSnapshotCommitV1,
@@ -101,25 +105,6 @@ export type StudioRemoteArticleSummaryV1 = Readonly<{
   createdAt: string;
   updatedAt: string;
   publicSlug: string | null;
-}>;
-
-export type StudioPublicExperimentSummaryV1 = Readonly<{
-  experimentId: string;
-  title: string;
-  publicSlug: string;
-  publishedAt: string;
-  snapshotId: string;
-  modelId: string;
-  scenarioCount: number;
-}>;
-
-export type StudioPublicArticleSummaryV1 = Readonly<{
-  articleId: string;
-  locale: string;
-  title: string;
-  excerpt: string | null;
-  publicSlug: string;
-  publishedAt: string;
 }>;
 
 export function createStudioSupabaseContentRepositoryV1():

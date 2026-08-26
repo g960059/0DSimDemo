@@ -6,7 +6,7 @@ import type {
 import {
   evaluateMainWireIntegratedModelLvMvo2EstimateV1,
   type MainWireIntegratedModelLvMvo2EstimateV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
+} from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID =

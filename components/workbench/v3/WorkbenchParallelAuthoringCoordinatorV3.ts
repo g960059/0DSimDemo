@@ -17,7 +17,7 @@ import {
   type StudioSimulationWorkerAdmittedSnapshotCommitV2,
 } from "@/studio/workers/StudioSimulationWorkerClientV2";
 import { studioCanonicalJsonStringify } from
-  "@/studio/infrastructure/json/StudioCanonicalJson";
+  "@/domain/json/CanonicalJson";
 import type {
   WorkbenchBackgroundJobPriorityV3,
   WorkbenchBackgroundWorkerPoolPortV3,

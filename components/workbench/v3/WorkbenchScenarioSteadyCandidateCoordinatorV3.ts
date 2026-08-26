@@ -7,7 +7,7 @@ import type {
   StudioSimulationOutputValueV2,
 } from "@/studio/contracts/v2/simulation";
 import { studioCanonicalJsonStringify } from
-  "@/studio/infrastructure/json/StudioCanonicalJson";
+  "@/domain/json/CanonicalJson";
 import type { StudioSimulationWorkerClientV2 } from
   "@/studio/workers/StudioSimulationWorkerClientV2";
 

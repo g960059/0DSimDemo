@@ -43,7 +43,7 @@ import {
 } from "@/studio/contracts/v2/model";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 export const STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID =
   "circleheart-studio-authoring-command-v1" as const;

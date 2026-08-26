@@ -32,7 +32,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 const MAXIMUM_EXACT_MODEL_ARTIFACT_BYTES_V2 = 32 * 1024 * 1024;
 

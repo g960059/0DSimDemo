@@ -17,7 +17,7 @@ import {
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   assertStudioSimulationWorkerAdmittedSnapshotCommitV2,
   type StudioSimulationWorkerAdmittedSnapshotCommitV2,

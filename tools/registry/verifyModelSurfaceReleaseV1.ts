@@ -9,7 +9,7 @@ import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
-import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
+import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

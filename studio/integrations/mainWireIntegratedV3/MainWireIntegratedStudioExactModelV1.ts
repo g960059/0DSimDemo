@@ -136,7 +136,7 @@ import { validateAndOwnStudioSimulationPortableJsonV2 } from "@/studio/contracts
 import {
   cloneAndFreezeStudioJson,
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,

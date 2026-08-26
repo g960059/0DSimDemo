@@ -21,7 +21,7 @@ import {
 } from "@/studio/contracts/v2/simulation";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 const MAIN_WIRE_BIDIRECTIONAL_STARLING_PLAN_V1:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({

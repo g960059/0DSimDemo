@@ -8,13 +8,14 @@ export class StudioCanonicalJsonError extends Error {
 }
 
 /**
- * Small Studio-owned canonical JSON implementation.
+ * Infrastructure-neutral canonical JSON implementation.
  *
  * It follows ECMAScript primitive serialization and lexicographic object-key
  * ordering while rejecting values JSON.stringify would silently omit/coerce.
- * Studio infrastructure uses this at portable JSON boundaries without
- * importing a model package. Registry package hashing stays private to the
- * registry implementation.
+ * Application, analysis, and infrastructure code use this at portable JSON
+ * boundaries without importing a model package. The Studio-prefixed export
+ * names remain temporarily stable because the admitted exact artifact embeds
+ * them; renaming them requires a new exact-model identity.
  */
 export function studioCanonicalJsonStringify(value: unknown): string {
   return serialize(value, "$", new Set<object>(), 0);

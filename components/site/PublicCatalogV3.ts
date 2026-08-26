@@ -10,13 +10,13 @@ import {
 } from "@/studio/infrastructure/browser/BrowserExperimentIndex";
 import {
   createStudioSupabaseContentRepositoryV1,
-  type StudioPublicArticleSummaryV1,
   type StudioSummaryCursorV1,
   type StudioSupabaseContentRepositoryV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import {
   readStudioPublicHomeBootstrapV1,
   STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
+  type StudioPublicArticleSummaryV1,
   type StudioPublicHomeBootstrapV1,
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 

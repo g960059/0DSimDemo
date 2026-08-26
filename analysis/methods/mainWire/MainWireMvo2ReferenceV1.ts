@@ -1,5 +1,8 @@
 import { NORMAL_ADULT_FIVE_WALL_PRIOR_V1 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
+// This literature projection is an analysis method; the exact model owns only
+// the anatomical prior imported above.
+
 export const MAIN_WIRE_INTEGRATED_MODEL_MVO2_REFERENCE_V1_ID =
   "main-wire-integrated-model-lv-pva-mvo2-literature-estimate-v1" as const;
 

@@ -1,6 +1,6 @@
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   requireOpaqueExperimentIdV3,
 } from "@/studio/infrastructure/browser/StudioExperimentIdentityV3";

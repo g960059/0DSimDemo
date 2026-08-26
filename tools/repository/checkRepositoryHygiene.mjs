@@ -56,12 +56,15 @@ const forbiddenPrefixes = [
   "engine/myocardium/kinematics/",
   "engine/myocardium/protocols/",
   "engine/myocardium/state/",
+  "engine/myocardium/analysis/",
   "engine/diagnostics/morphology/",
   "engine/mechanics2/",
   "engine/verification/",
   "studio/adapters/mainWire/",
   "studio/application/content/",
+  "studio/analysis/",
   "studio/contracts/v1/",
+  "studio/infrastructure/json/",
   "studio/infrastructure/artifacts/",
   "tools/mechanics2/",
 ];
@@ -69,10 +72,13 @@ const forbiddenPrefixes = [
 // files. IDs, formulas, releases, and worker mechanics remain discoverable
 // from their owning source and tests.
 const requiredBoundaryPaths = [
+  "analysis/contracts/AnalysisMethodRegistryV1.ts",
+  "analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1.ts",
   "components/article/ArticleEditorPage.tsx",
   "components/article/ArticleEditorPolicy.ts",
   "components/workbench/WorkbenchPage.tsx",
   "components/workbench/WorkbenchSession.tsx",
+  "domain/json/CanonicalJson.ts",
   "studio/contracts/v2/simulation.ts",
   "studio/infrastructure/browser/BrowserContentStore.ts",
   "studio/infrastructure/browser/BrowserExperimentIndex.ts",
@@ -127,10 +133,28 @@ const architectureImportRules = [
     message: "portable contracts must not depend on implementations",
   },
   {
-    appliesTo: (trackedPath) => trackedPath.startsWith("studio/analysis/"),
+    appliesTo: (trackedPath) => trackedPath.startsWith("analysis/contracts/"),
     pattern:
-      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/infrastructure\/|@\/(?:server|supabase)\/|(?:\.\.\/)+infrastructure\/)/,
+      /(?:from\s*|import\s*\()\s*["'](?:@\/(?:analysis\/methods|components|engine|runtime|server|supabase)\/|@\/studio\/(?:application|analysis|composition|infrastructure|integrations|presentation|workers)\/|(?:\.\.\/)+(?:methods|components|engine|runtime|server|supabase|application|analysis|composition|infrastructure|integrations|presentation|workers)\/)/,
+    message: "generic analysis contracts must not depend on model families or implementations",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("analysis/methods/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:application|composition|infrastructure|integrations|presentation|workers)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:application|composition|infrastructure|integrations|presentation|workers|components|server|supabase)\/)/,
     message: "analysis methods must not depend on UI or concrete infrastructure",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("domain/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/(?:analysis|components|engine|runtime|server|studio|supabase)\/|(?:\.\.\/)+(?:analysis|components|engine|runtime|server|studio|supabase)\/)/,
+    message: "domain primitives must not depend on model, application, UI, or infrastructure",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("studio/application/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:infrastructure|integrations|presentation)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:components|infrastructure|integrations|presentation|server|supabase)\/)/,
+    message: "Studio application code must depend on ports, not concrete infrastructure or UI",
   },
 ];
 const machineLocalPathPatterns = [

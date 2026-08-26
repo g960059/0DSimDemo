@@ -1,6 +1,6 @@
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 export const STUDIO_EXPERIMENT_SESSION_HANDOFF_V3_KEY =
   "circleheart.studio.experiment-session-handoff.v1";
