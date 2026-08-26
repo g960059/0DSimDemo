@@ -75,6 +75,7 @@ const forbiddenPrefixes = [
 // files. IDs, formulas, releases, and worker mechanics remain discoverable
 // from their owning source and tests.
 const requiredBoundaryPaths = [
+  "analysis/contracts/AnalysisExecutionV1.ts",
   "analysis/contracts/AnalysisMethodRegistryV1.ts",
   "analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1.ts",
   "components/article/ArticleEditorPage.tsx",
@@ -142,10 +143,12 @@ const architectureImportRules = [
     message: "generic analysis contracts must not depend on model families or implementations",
   },
   {
-    appliesTo: (trackedPath) => trackedPath.startsWith("analysis/methods/"),
+    appliesTo: (trackedPath) =>
+      trackedPath.startsWith("analysis/methods/")
+      || trackedPath.startsWith("analysis/runtime/"),
     pattern:
       /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/(?:application|composition|infrastructure|integrations|presentation|workers)\/|@\/(?:server|supabase)\/|(?:\.\.\/)+(?:application|composition|infrastructure|integrations|presentation|workers|components|server|supabase)\/)/,
-    message: "analysis methods must not depend on UI or concrete infrastructure",
+    message: "analysis code must not depend on UI or concrete infrastructure",
   },
   {
     appliesTo: (trackedPath) => trackedPath.startsWith("domain/"),

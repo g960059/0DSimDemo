@@ -66,7 +66,7 @@ export const STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 =
 /**
  * Immutable, on-demand analysis of one exact accepted simulation boundary.
  *
- * Analyses are ephemeral presentation/runtime results. They deliberately stay
+ * Analysis methods own these ephemeral results. They deliberately stay
  * out of every streamed frame and carry the exact source clock so a caller can
  * never mistake a result computed from an older input or accepted state for
  * the currently displayed simulation.
@@ -160,9 +160,9 @@ export type RegisteredModelSimulationAdapterV2 = Readonly<{
     expectedInputEpoch: number;
   }>): Promise<StudioSimulationFrameV2>;
   /**
-   * Computes a read-only model-owned analysis from one exact accepted state.
-   * Implementations must reject stale expected clocks and must not advance or
-   * otherwise mutate the numerical session.
+   * Compatibility ABI for admitted artifacts that still embed analysis
+   * execution. New callers route through an AnalysisExecutor; implementations
+   * must reject stale clocks and must not mutate the numerical session.
    */
   requestAnalysis(input: Readonly<{
     runtimeSessionId: string;

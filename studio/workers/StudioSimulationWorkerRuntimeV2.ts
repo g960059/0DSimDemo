@@ -9,6 +9,13 @@ import {
   validateExperimentSnapshotV2,
   validateExperimentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
+import type {
+  AnalysisExecutionRequestV1,
+  AnalysisExecutorV1,
+} from "@/analysis/contracts/AnalysisExecutionV1";
+import {
+  LEGACY_EXACT_ANALYSIS_EXECUTOR_V1,
+} from "@/analysis/runtime/LegacyExactAnalysisExecutorV1";
 import {
   createStudioFixtureReducerV2,
   type StudioFixtureReducerFacadeV2,
@@ -113,6 +120,7 @@ export type StudioSimulationWorkerRuntimeDependenciesV2 = Readonly<{
   takeExactRuntimeLoadTiming?(
     modelId: string,
   ): ExactModelRuntimeLoadTimingV2 | undefined;
+  analysisExecutor?: AnalysisExecutorV1;
   port: StudioSimulationWorkerPortV2;
   queueCapacity?: number;
   snapshotIds?: ExperimentSnapshotIdFactoryPortV2;
@@ -137,6 +145,7 @@ export class StudioSimulationWorkerRuntimeV2 {
   readonly #takeExactRuntimeLoadTiming: StudioSimulationWorkerRuntimeDependenciesV2[
     "takeExactRuntimeLoadTiming"
   ];
+  readonly #analysisExecutor: AnalysisExecutorV1;
   readonly #port: StudioSimulationWorkerPortV2;
   readonly #queueCapacity: number;
   readonly #snapshotIds: ExperimentSnapshotIdFactoryPortV2;
@@ -177,6 +186,16 @@ export class StudioSimulationWorkerRuntimeV2 {
       throw new Error("simulation worker runtime timing port is invalid");
     }
     if (
+      dependencies.analysisExecutor !== undefined
+      && (
+        dependencies.analysisExecutor === null
+        || typeof dependencies.analysisExecutor !== "object"
+        || typeof dependencies.analysisExecutor.execute !== "function"
+      )
+    ) {
+      throw new Error("simulation worker analysis executor is invalid");
+    }
+    if (
       dependencies.port === null
       || typeof dependencies.port !== "object"
       || typeof dependencies.port.postMessage !== "function"
@@ -208,6 +227,8 @@ export class StudioSimulationWorkerRuntimeV2 {
     this.#loadExactRuntime = dependencies.loadExactRuntime;
     this.#takeExactRuntimeLoadTiming =
       dependencies.takeExactRuntimeLoadTiming;
+    this.#analysisExecutor = dependencies.analysisExecutor
+      ?? LEGACY_EXACT_ANALYSIS_EXECUTOR_V1;
     this.#port = dependencies.port;
     this.#queueCapacity = queueCapacity;
     this.#snapshotIds = dependencies.snapshotIds
@@ -825,7 +846,7 @@ export class StudioSimulationWorkerRuntimeV2 {
 
     let proposedAnalysis: unknown;
     try {
-      proposedAnalysis = await adapter.requestAnalysis({
+      const analysisRequest: AnalysisExecutionRequestV1 = Object.freeze({
         runtimeSessionId: physicalRuntimeSessionId,
         scenarioId: request.scenarioId,
         analysisId: request.analysisId,
@@ -846,6 +867,15 @@ export class StudioSimulationWorkerRuntimeV2 {
           });
         },
       });
+      proposedAnalysis = await this.#analysisExecutor.execute(Object.freeze({
+        source: Object.freeze({
+          acceptedFrame: currentFrame,
+          legacyExact: Object.freeze({
+            request: (input) => adapter.requestAnalysis(input),
+          }),
+        }),
+        request: analysisRequest,
+      }));
     } catch (error) {
       this.#assertAnalysisDidNotMutate(priorFrame, error);
       throw new Error(

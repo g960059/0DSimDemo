@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type {
+  AnalysisExecutorV1,
+} from "@/analysis/contracts/AnalysisExecutionV1";
+
 import {
   STUDIO_EXPERIMENT_SNAPSHOT_V2_SCHEMA_ID,
   STUDIO_EXPERIMENT_SCENARIO_LIMIT_V2,
@@ -1928,6 +1932,56 @@ describe("Studio simulation worker V2 runtime", () => {
       scenarioId: "scenario/baseline",
     })).toEqual(before);
     expect(harness.runtime.state).toBe("active");
+  });
+
+  it("can execute analysis outside the admitted exact adapter", async () => {
+    const embeddedRequestAnalysis = vi.fn(() => Promise.reject(
+      new Error("embedded analysis must not run"),
+    ));
+    const execute = vi.fn<AnalysisExecutorV1["execute"]>(
+      async ({ source, request }) => {
+        expect(source.acceptedFrame).toMatchObject({
+          acceptedRevision: request.expectedAcceptedRevision,
+          acceptedTimeSec: request.expectedAcceptedTimeSec,
+          inputEpoch: request.expectedInputEpoch,
+        });
+        return analysisV2({
+          analysisId: request.analysisId,
+          inputEpoch: request.expectedInputEpoch,
+          sourceAcceptedRevision: request.expectedAcceptedRevision,
+          sourceAcceptedTimeSec: request.expectedAcceptedTimeSec,
+          payload: { owner: "analysis-executor" },
+        });
+      },
+    );
+    const harness = runtimeHarnessV2({
+      analysisExecutor: Object.freeze({ execute }),
+      requestAnalysis: embeddedRequestAnalysis,
+    });
+    harness.runtime.enqueue(initializeRequestV2(1));
+    await harness.runtime.whenIdle();
+
+    harness.runtime.enqueue(createStudioSimulationRequestAnalysisRequestV2(2, {
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      analysisId: "analysis/external-v1",
+      expectedInputEpoch: 0,
+      expectedAcceptedRevision: 0,
+      expectedAcceptedTimeSec: 0,
+    }));
+    await harness.runtime.whenIdle();
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(embeddedRequestAnalysis).not.toHaveBeenCalled();
+    expect(harness.port.messages.at(-1)).toMatchObject({
+      requestId: 2,
+      status: "ok",
+      kind: "analysis-result",
+      analysis: {
+        analysisId: "analysis/external-v1",
+        payload: { owner: "analysis-executor" },
+      },
+    });
   });
 
   it("rejects stale and unknown analyses recoverably", async () => {
@@ -4316,6 +4370,7 @@ function outputV2(outputId: string, value: number | number[]) {
 }
 
 function runtimeHarnessV2(overrides: Readonly<{
+  analysisExecutor?: AnalysisExecutorV1;
   createSession?: RegisteredModelSimulationAdapterV2["createSession"];
   disposeSession?: RegisteredModelSimulationAdapterV2["disposeSession"];
   currentFrame?: RegisteredModelSimulationAdapterV2["currentFrame"];
@@ -4402,6 +4457,9 @@ function runtimeHarnessV2(overrides: Readonly<{
   const loadAdapter = vi.fn(() => Promise.resolve(exactRuntime));
   const runtime = new StudioSimulationWorkerRuntimeV2({
     loadExactRuntime: loadAdapter,
+    ...(overrides.analysisExecutor === undefined
+      ? {}
+      : { analysisExecutor: overrides.analysisExecutor }),
     port,
     snapshotIds: {
       nextSnapshotId: vi.fn(() => "snapshot/worker-test/1"),
