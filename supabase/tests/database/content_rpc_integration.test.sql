@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(33);
+select plan(22);
 
 insert into auth.users (
   id,
@@ -122,16 +122,6 @@ create temporary table rpc_state (
   value jsonb not null
 );
 
-select is(
-  public.claim_my_authoring_command_v1(
-    '20000000-0000-0000-0000-000000000001',
-    'experiment.apply',
-    repeat('c', 64)
-  ),
-  null::jsonb,
-  'An AI command reserves its UUID before the content mutation begins'
-);
-
 insert into rpc_state (key, value)
 select 'save', public.save_experiment_v1(
   '20000000-0000-0000-0000-000000000001',
@@ -190,39 +180,6 @@ select is(
 );
 
 select is(
-  public.claim_my_authoring_command_v1(
-    '20000000-0000-0000-0000-000000000001',
-    'experiment.apply',
-    repeat('c', 64)
-  ) ->> 'status',
-  'committed',
-  'An AI command claim returns its already committed operation receipt'
-);
-
-select is(
-  public.claim_my_authoring_command_v1(
-    '20000000-0000-0000-0000-000000000001',
-    'experiment.apply',
-    repeat('c', 64)
-  ) ->> 'status',
-  'committed',
-  'The same canonical AI command claim is idempotent'
-);
-
-select throws_ok(
-  $$
-    select public.claim_my_authoring_command_v1(
-      '20000000-0000-0000-0000-000000000001',
-      'experiment.apply',
-      repeat('d', 64)
-    )
-  $$,
-  '23505',
-  'command_id was already used for a different authoring command',
-  'A command UUID cannot be rebound to different semantic input'
-);
-
-select is(
   public.save_experiment_v1(
     '20000000-0000-0000-0000-000000000001',
     null,
@@ -248,147 +205,6 @@ select is(
   (select count(*) from studio.experiment_contents),
   1::bigint,
   'Exact operation replay creates no duplicate immutable content'
-);
-
-insert into studio.operation_receipts (
-  actor_id,
-  operation_id,
-  operation_kind,
-  request,
-  status,
-  result,
-  completed_at
-) values (
-  '10000000-0000-0000-0000-000000000001',
-  '20000000-0000-0000-0000-000000000014',
-  'save-article-v1',
-  '{}'::jsonb,
-  'committed',
-  '{"articleId":"30000000-0000-0000-0000-000000000014"}'::jsonb,
-  now()
-);
-
-select throws_ok(
-  $$
-    select public.claim_my_authoring_command_v1(
-      '20000000-0000-0000-0000-000000000014',
-      'article.save',
-      repeat('f', 64)
-    )
-  $$,
-  '23505',
-  'command_id already belongs to an unbound content operation',
-  'An AI command cannot adopt an older unbound content receipt'
-);
-
-insert into studio.operation_receipts (
-  actor_id,
-  operation_id,
-  operation_kind,
-  request,
-  status,
-  created_at
-) values (
-  '10000000-0000-0000-0000-000000000001',
-  '20000000-0000-0000-0000-000000000015',
-  'save-experiment-v1',
-  '{}'::jsonb,
-  'running',
-  '2026-08-11T00:00:00.000Z'
-);
-
-insert into studio.authoring_command_bindings (
-  actor_id,
-  command_id,
-  command_action,
-  command_digest,
-  created_at
-) values (
-  '10000000-0000-0000-0000-000000000001',
-  '20000000-0000-0000-0000-000000000015',
-  'experiment.apply',
-  repeat('a', 64),
-  '2026-08-11T00:00:01.000Z'
-);
-
-update studio.operation_receipts
-set status = 'committed',
-    result = '{"experimentId":"30000000-0000-0000-0000-000000000015","version":0}'::jsonb,
-    completed_at = '2026-08-11T00:00:02.000Z'
-where actor_id = '10000000-0000-0000-0000-000000000001'
-  and operation_id = '20000000-0000-0000-0000-000000000015';
-
-select is(
-  (
-    select committed_operation_kind
-    from studio.authoring_command_bindings
-    where actor_id = '10000000-0000-0000-0000-000000000001'
-      and command_id = '20000000-0000-0000-0000-000000000015'
-  ),
-  null::text,
-  'A late concurrent command binding cannot adopt an earlier operation on commit'
-);
-
-select throws_ok(
-  $$
-    select public.claim_my_authoring_command_v1(
-      '20000000-0000-0000-0000-000000000015',
-      'experiment.apply',
-      repeat('a', 64)
-    )
-  $$,
-  '23505',
-  'command_id already belongs to an unbound content operation',
-  'A retry fails closed after the concurrent unbound-operation race'
-);
-
-delete from studio.operation_receipts
-where actor_id = '10000000-0000-0000-0000-000000000001'
-  and operation_id = '20000000-0000-0000-0000-000000000001';
-
-select is(
-  public.claim_my_authoring_command_v1(
-    '20000000-0000-0000-0000-000000000001',
-    'experiment.apply',
-    repeat('c', 64)
-  ) ->> 'status',
-  'committed',
-  'A bound AI command remains replayable after general receipt GC'
-);
-
-insert into studio.authoring_command_bindings (
-  actor_id,
-  command_id,
-  command_action,
-  command_digest,
-  created_at
-) values (
-  '10000000-0000-0000-0000-000000000001',
-  '20000000-0000-0000-0000-000000000016',
-  'article.save',
-  repeat('b', 64),
-  now() - interval '31 days'
-);
-
-select is(
-  public.claim_my_authoring_command_v1(
-    '20000000-0000-0000-0000-000000000017',
-    'article.save',
-    repeat('d', 64)
-  ),
-  null::jsonb,
-  'A new command is accepted after lazily expiring unrelated old bindings'
-);
-
-select is(
-  (
-    select count(*)
-    from studio.authoring_command_bindings
-    where actor_id = '10000000-0000-0000-0000-000000000001'
-      and command_id = '20000000-0000-0000-0000-000000000016'
-  ),
-  0::bigint,
-  'Expired command bindings cannot permanently consume the actor history quota'
 );
 
 select throws_ok(
@@ -699,19 +515,6 @@ select pg_catalog.set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-0000-0000-000000000003","role":"authenticated","is_anonymous":true}',
   true
-);
-
-select throws_ok(
-  $$
-    select public.claim_my_authoring_command_v1(
-      '20000000-0000-0000-0000-000000000013',
-      'article.save',
-      repeat('e', 64)
-    )
-  $$,
-  '42501',
-  'AI authoring command claims require a signed-in user',
-  'Anonymous readers cannot allocate permanent AI command bindings'
 );
 
 select ok(

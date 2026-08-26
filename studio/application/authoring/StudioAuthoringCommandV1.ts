@@ -41,10 +41,6 @@ import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   assertPortableStudioJsonObjectV2,
 } from "@/studio/contracts/v2/model";
-import {
-  studioCanonicalJsonStringify,
-} from "@/domain/json/CanonicalJson";
-
 export const STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID =
   "circleheart-studio-authoring-command-v1" as const;
 export const STUDIO_AUTHORING_PROTOCOL_DESCRIPTION_V1_SCHEMA_ID =
@@ -60,16 +56,6 @@ type StudioAuthoringListRequestV1 = Readonly<{
   limit: number;
   cursor: StudioAuthoringListCursorV1 | null;
 }>;
-type StudioAuthoringMutationActionV1 =
-  | "experiment.apply"
-  | "experiment.presentation.save"
-  | "snapshot.seal"
-  | "article.briefing.place"
-  | "article.blocks.patch"
-  | "experiment.publish"
-  | "article.save"
-  | "article.publish";
-
 export type StudioAuthoringArticleBlockOperationV1 =
   | Readonly<{
       operation: "replace";
@@ -243,11 +229,6 @@ export interface StudioAuthoringRepositoryPortV1 {
   readArticle(articleId: string): Promise<StudioArticleDraftV2 | null>;
   readMyAuthoringOperationReceipt(operationId: string):
     Promise<StudioAuthoringOperationReceiptV1 | null>;
-  claimMyAuthoringCommand(input: Readonly<{
-    commandId: string;
-    action: StudioAuthoringMutationActionV1;
-    commandDigest: string;
-  }>): Promise<StudioAuthoringOperationReceiptV1 | null>;
   saveExperiment(input: Readonly<{
     experimentId: string | null;
     expectedVersion: number | null;
@@ -1363,16 +1344,12 @@ export async function executeStudioAuthoringCommandV1(
 ): Promise<unknown> {
   const command = validateStudioAuthoringCommandV1(commandValue);
   await policy.authorize(command);
-  const mutation = mutationDescriptorV1(command.action);
-  if (mutation !== null) {
-    const receipt = await repository.claimMyAuthoringCommand({
-      commandId: command.commandId,
-      action: mutation.action,
-      commandDigest: await authoringCommandDigestV1(command),
-    });
+  const operationKind = mutationOperationKindV1(command.action);
+  if (operationKind !== null) {
+    const receipt = await repository.readMyAuthoringOperationReceipt(command.commandId);
     if (receipt !== null) {
-      if (receipt.operationKind !== mutation.operationKind) {
-        throw new Error("commandId is already bound to another mutation action");
+      if (receipt.operationKind !== operationKind) {
+        throw new Error("commandId is already used by another mutation");
       }
       if (receipt.status === "running") {
         throw new Error("Authoring operation is already running; query operation.read before retrying");
@@ -1486,17 +1463,6 @@ export async function executeStudioAuthoringCommandV1(
   }
 }
 
-async function authoringCommandDigestV1(
-  command: StudioAuthoringCommandV1,
-): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(studioCanonicalJsonStringify(command)),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function describeModelForAuthoringV1(
   repository: StudioAuthoringRepositoryPortV1,
   models: StudioAuthoringModelPortV1,
@@ -1599,36 +1565,18 @@ async function assertArticleMatchesAuthorityV1(
   }));
 }
 
-function mutationDescriptorV1(
+function mutationOperationKindV1(
   action: StudioAuthoringCommandV1["action"],
-): Readonly<{
-  action: StudioAuthoringMutationActionV1;
-  operationKind: string;
-}> | null {
+): string | null {
   switch (action) {
     case "experiment.apply":
-    case "experiment.presentation.save": return Object.freeze({
-      action,
-      operationKind: "save-experiment-v1",
-    });
-    case "snapshot.seal": return Object.freeze({
-      action,
-      operationKind: "commit-admitted-experiment-snapshot-v1",
-    });
+    case "experiment.presentation.save": return "save-experiment-v1";
+    case "snapshot.seal": return "commit-admitted-experiment-snapshot-v1";
     case "article.briefing.place":
     case "article.blocks.patch":
-    case "article.save": return Object.freeze({
-      action,
-      operationKind: "save-article-v1",
-    });
-    case "experiment.publish": return Object.freeze({
-      action,
-      operationKind: "publish-experiment-v1",
-    });
-    case "article.publish": return Object.freeze({
-      action,
-      operationKind: "publish-article-v1",
-    });
+    case "article.save": return "save-article-v1";
+    case "experiment.publish": return "publish-experiment-v1";
+    case "article.publish": return "publish-article-v1";
     default: return null;
   }
 }

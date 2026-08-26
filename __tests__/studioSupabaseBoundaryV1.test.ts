@@ -962,26 +962,6 @@ describe("Studio Supabase boundary V1", () => {
     );
   });
 
-  it("claims one canonical AI command before replaying its operation receipt", async () => {
-    const commandId = "45454545-4545-4545-8545-454545454545";
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    const client = { rpc } as unknown as SupabaseClient;
-
-    await expect(new StudioSupabaseContentRepositoryV1(client)
-      .claimMyAuthoringCommand({
-        commandId,
-        action: "experiment.apply",
-        commandDigest: "a".repeat(64),
-      })).resolves.toBeNull();
-    expect(rpc).toHaveBeenCalledWith(
-      "claim_my_authoring_command_v1",
-      {
-        p_command_id: commandId,
-        p_command_action: "experiment.apply",
-        p_command_digest: "a".repeat(64),
-      },
-    );
-  });
 });
 
 function experimentContentV1(): ExperimentContentV2 {

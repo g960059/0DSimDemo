@@ -452,30 +452,6 @@ export class StudioSupabaseContentRepositoryV1 {
     return parseAuthoringOperationReceiptV1(data);
   }
 
-  async claimMyAuthoringCommand(input: Readonly<{
-    commandId: string;
-    action: string;
-    commandDigest: string;
-  }>): Promise<StudioAuthoringOperationReceiptV1 | null> {
-    if (!isUuidV1(input.commandId)) {
-      throw new Error("Authoring command ID must be a UUID");
-    }
-    if (!/^[a-z][a-z0-9.-]{0,79}$/.test(input.action)) {
-      throw new Error("Authoring command action is invalid");
-    }
-    if (!/^[0-9a-f]{64}$/.test(input.commandDigest)) {
-      throw new Error("Authoring command digest must be lowercase SHA-256");
-    }
-    return parseAuthoringOperationReceiptV1(await this.#rpc(
-      "claim_my_authoring_command_v1",
-      {
-        p_command_id: input.commandId,
-        p_command_action: input.action,
-        p_command_digest: input.commandDigest,
-      },
-    ));
-  }
-
   async listPublicExperiments(
     request: StudioSummaryPageRequestV1 = {},
   ): Promise<StudioSummaryPageV1<StudioPublicExperimentSummaryV1>> {

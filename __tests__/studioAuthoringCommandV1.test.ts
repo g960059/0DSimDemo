@@ -299,7 +299,7 @@ describe("Studio authoring command V1", () => {
 
   it("returns a committed receipt before repeating an expensive mutation", async () => {
     const repository = repositoryV1();
-    vi.mocked(repository.claimMyAuthoringCommand).mockResolvedValue({
+    vi.mocked(repository.readMyAuthoringOperationReceipt).mockResolvedValue({
       operationId: "66666666-6666-4666-8666-666666666666",
       operationKind: "save-experiment-v1",
       status: "committed",
@@ -324,11 +324,9 @@ describe("Studio authoring command V1", () => {
     });
     expect(repository.readMyExperiment).not.toHaveBeenCalled();
     expect(repository.saveExperiment).not.toHaveBeenCalled();
-    expect(repository.claimMyAuthoringCommand).toHaveBeenCalledWith({
-      commandId: "66666666-6666-4666-8666-666666666666",
-      action: "experiment.presentation.save",
-      commandDigest: expect.stringMatching(/^[0-9a-f]{64}$/),
-    });
+    expect(repository.readMyAuthoringOperationReceipt).toHaveBeenCalledWith(
+      "66666666-6666-4666-8666-666666666666",
+    );
   });
 
   it("patches selected Article blocks without replacing the whole draft", async () => {
@@ -613,7 +611,6 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
     readSnapshot: vi.fn().mockResolvedValue(null),
     readArticle: vi.fn().mockResolvedValue(null),
     readMyAuthoringOperationReceipt: vi.fn().mockResolvedValue(null),
-    claimMyAuthoringCommand: vi.fn().mockResolvedValue(null),
     saveExperiment: vi.fn(),
     commitSnapshot: vi.fn(),
     publishExperiment: vi.fn().mockResolvedValue(undefined),

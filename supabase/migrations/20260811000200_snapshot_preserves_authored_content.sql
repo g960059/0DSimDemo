@@ -1,5 +1,5 @@
--- Keep Snapshot lineage on the saved Experiment's authored Surface series and
--- expose permanent AI command bindings only to signed-in authors.
+-- A Snapshot may update checkpoints, but it stays on the saved Experiment's
+-- exact model, authored Surface series, presentation, scenarios, and fixtures.
 
 create or replace function studio.snapshot_preserves_authored_content_v1(
   p_saved jsonb,
@@ -38,12 +38,3 @@ begin
   return true;
 end;
 $$;
-
-revoke all on function public.claim_my_authoring_command_v1(uuid, text, text)
-  from public;
-revoke all on function public.claim_my_authoring_command_v1(uuid, text, text)
-  from anon;
-grant execute on function public.claim_my_authoring_command_v1(uuid, text, text)
-  to authenticated;
-grant execute on function public.claim_my_authoring_command_v1(uuid, text, text)
-  to service_role;
