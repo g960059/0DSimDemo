@@ -212,12 +212,12 @@ import {
 } from "@/components/workbench/WorkbenchItemPresentation";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+  type MainWirePeriodicPvaV1,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  type MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 type WorkbenchStatusV3 =
   | Readonly<{ kind: "loading" }>
@@ -448,7 +448,7 @@ export const WorkbenchSession = ({
     StudioModelWorkerReleaseTicketV2 | undefined
   >(undefined);
   const periodicPvaDerivationRef = React.useRef<
-    StudioPeriodicPvaDerivationV1 | null
+    MainWirePeriodicPvaDerivationV1 | null
   >(null);
   const surfaceSeriesIdRef = React.useRef<string | undefined>(undefined);
   const surfaceReleaseIdRef = React.useRef<string | undefined>(undefined);
@@ -2482,7 +2482,7 @@ export const WorkbenchSession = ({
     snapshotState === "creating";
   const periodicPvaOutputScenarioIds = React.useMemo(() => {
     const analysisOutputIds = new Set<string>(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+      MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     );
     return Object.freeze([
       ...new Set(
@@ -3574,7 +3574,7 @@ function GraphPaneBodyV3({
   operationPending: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisKeys: readonly string[];
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   surface: ExperimentSurfaceV2;
@@ -3711,7 +3711,7 @@ function SampledGraphPaneBodyV3({
   operationPending: boolean;
   pane: ExperimentSurfaceGraphPaneV2;
   pendingAnalysisKeys: readonly string[];
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
   scenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[];
   surface: ExperimentSurfaceV2;
@@ -3989,14 +3989,14 @@ function pressureVolumeRelationSideV3(
 
 const PERIODIC_PVA_CACHE_V3 = new WeakMap<
   StudioSimulationAnalysisV2,
-  Map<string, MainWireIntegratedModelPeriodicPvaV1 | null>
+  Map<string, MainWirePeriodicPvaV1 | null>
 >();
 
 function periodicPvaFromAnalysisV3(
   analysis: StudioSimulationAnalysisV2 | undefined,
   side: "left" | "right",
-  derivation: StudioPeriodicPvaDerivationV1 | null,
-): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  derivation: MainWirePeriodicPvaDerivationV1 | null,
+): MainWirePeriodicPvaV1 | undefined {
   if (analysis === undefined || derivation === null) return undefined;
   const cacheKey = `${derivation.methodId}\u0000${side}`;
   const cached = PERIODIC_PVA_CACHE_V3.get(analysis)?.get(cacheKey);
@@ -4005,7 +4005,7 @@ function periodicPvaFromAnalysisV3(
     analysis.payload,
     side,
   );
-  let pva: MainWireIntegratedModelPeriodicPvaV1 | null = null;
+  let pva: MainWirePeriodicPvaV1 | null = null;
   try {
     if (orientation !== null) {
       pva = derivation.build(
@@ -4236,7 +4236,7 @@ function OutputPaneBodyV3({
   onAddItem: () => void;
   onOpenBindingSettings: () => void;
   pane: ExperimentSurfaceOutputPaneV2;
-  periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+  periodicPva?: MainWirePeriodicPvaV1;
   periodicPvaAnalysisError?: string;
   scrollMode?: "contained" | "parent" | "section";
   showBinding: boolean;

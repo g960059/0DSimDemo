@@ -5,7 +5,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
-import { buildMainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import { buildMainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type { MainWireIntegratedModelStarlingLocusV3 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
@@ -13,7 +13,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import { mergeMainWireIntegratedStudioStructuralAnalysesV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+import { mergeMainWireStructuralAnalysesV1 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 
 describe("Standard Main Wire formal PVA adaptive chain", () => {
   it("settles a cold source before the adaptive low-volume chain", async () => {
@@ -172,7 +172,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
     }
     expect(lowHost.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
-    const periodicPva = buildMainWireIntegratedModelPeriodicPvaV1(
+    const periodicPva = buildMainWirePeriodicPvaV1(
       payload.left.starlingLocus as MainWireIntegratedModelStarlingLocusV3,
       "LV",
     );
@@ -180,7 +180,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       status: "collecting",
       reason: expect.stringContaining("higher-preload"),
     });
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       highAnalysis,
       analysis,
     ]);
@@ -191,7 +191,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         }>;
       }>
     ).left.starlingLocus;
-    const fullPva = buildMainWireIntegratedModelPeriodicPvaV1(
+    const fullPva = buildMainWirePeriodicPvaV1(
       mergedLocus,
       "LV",
     );
@@ -352,7 +352,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
       ),
     ]);
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       highAnalysis,
       lowAnalysis,
     ]);
@@ -363,7 +363,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         }>;
       }>
     ).left.starlingLocus;
-    const pva = buildMainWireIntegratedModelPeriodicPvaV1(locus, "LV");
+    const pva = buildMainWirePeriodicPvaV1(locus, "LV");
     if (pva.status !== "available") throw new Error(pva.reason);
     expect(pva.espvr.fitPoints.length).toBeGreaterThanOrEqual(5);
     expect(pva.edpvr.fitPoints.length).toBeGreaterThanOrEqual(5);

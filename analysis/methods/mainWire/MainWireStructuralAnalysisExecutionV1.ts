@@ -9,10 +9,10 @@ export {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 export {
-  buildMainWireIntegratedModelPeriodicPvaV1,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+  buildMainWirePeriodicPvaV1,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+  type MainWirePeriodicPvaV1,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
   validateStudioSimulationAnalysisV2,
   type StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -23,7 +23,7 @@ import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
 
-const MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3:
+const MAIN_WIRE_BIDIRECTIONAL_STARLING_PLAN_V1:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   partitions: Object.freeze([
     // A one-worker device must finish the short high-volume branch before the
@@ -33,10 +33,10 @@ StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
   ]),
-  merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
+  merge: mergeMainWireStructuralAnalysesV1,
 });
 
-const MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3:
+const MAIN_WIRE_FORMAL_PRESSURE_VOLUME_PLAN_V1:
 StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
   partitions: Object.freeze([
     // The coverage-first low limb now reaches its low-flow boundary with fewer
@@ -47,16 +47,16 @@ StudioSimulationAnalysisExecutionPlanV2 = Object.freeze({
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
     MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   ]),
-  merge: mergeMainWireIntegratedStudioStructuralAnalysesV3,
+  merge: mergeMainWireStructuralAnalysesV1,
 });
 
-export const resolveMainWireIntegratedStudioAnalysisExecutionPlanV3:
+export const resolveMainWireStructuralAnalysisExecutionPlanV1:
 StudioSimulationAnalysisExecutionPlanResolverV2 = (analysisId) =>
   analysisId === MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID
-    ? MAIN_WIRE_INTEGRATED_STUDIO_BIDIRECTIONAL_STARLING_PLAN_V3
+    ? MAIN_WIRE_BIDIRECTIONAL_STARLING_PLAN_V1
     : analysisId ===
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-      ? MAIN_WIRE_INTEGRATED_STUDIO_FORMAL_PRESSURE_VOLUME_PLAN_V3
+      ? MAIN_WIRE_FORMAL_PRESSURE_VOLUME_PLAN_V1
       : null;
 
 /**
@@ -64,7 +64,7 @@ StudioSimulationAnalysisExecutionPlanResolverV2 = (analysisId) =>
  * samples. Exact duplicate center points collapse by TBV/role identity; every
  * other measured or boundary point remains model-owned.
  */
-export function mergeMainWireIntegratedStudioStructuralAnalysesV3(
+export function mergeMainWireStructuralAnalysesV1(
   analyses: readonly StudioSimulationAnalysisV2[],
 ): StudioSimulationAnalysisV2 {
   if (analyses.length === 0) {
@@ -73,24 +73,24 @@ export function mergeMainWireIntegratedStudioStructuralAnalysesV3(
   if (analyses.length === 1) return analyses[0]!;
   const first = analyses[0]!;
   for (const analysis of analyses.slice(1)) {
-    assertSameAnalysisEnvelopeV3(first, analysis);
+    assertSameAnalysisEnvelopeV1(first, analysis);
   }
   const payloads = analyses.map(({ payload }, index) =>
-    requiredRecordV3(payload, `analysis[${index}].payload`));
+    requiredRecordV1(payload, `analysis[${index}].payload`));
   const progressedPayloads = payloads.filter((payload, index) =>
-    structuralPayloadHasSettledLocusV3(payload, index));
+    structuralPayloadHasSettledLocusV1(payload, index));
   const mergeablePayloads = progressedPayloads.length === 0
     ? payloads
     : progressedPayloads;
-  assertCanonicalEqualV3(
+  assertCanonicalEqualV1(
     mergeablePayloads.map((payload) =>
-      withoutKeysV3(payload, ["left", "right"])),
+      withoutKeysV1(payload, ["left", "right"])),
     "bidirectional analysis envelope payloads",
   );
   const payload = Object.freeze({
     ...mergeablePayloads[0],
-    right: mergeStructuralSideV3(mergeablePayloads, "right"),
-    left: mergeStructuralSideV3(mergeablePayloads, "left"),
+    right: mergeStructuralSideV1(mergeablePayloads, "right"),
+    left: mergeStructuralSideV1(mergeablePayloads, "left"),
   });
   return validateStudioSimulationAnalysisV2({
     ...first,
@@ -98,16 +98,16 @@ export function mergeMainWireIntegratedStudioStructuralAnalysesV3(
   }, "$.bidirectionalStarlingAnalysis");
 }
 
-function structuralPayloadHasSettledLocusV3(
+function structuralPayloadHasSettledLocusV1(
   payload: Readonly<Record<string, unknown>>,
   index: number,
 ): boolean {
   const settledBySide = (["right", "left"] as const).map((side) => {
-    const orientation = requiredRecordV3(
+    const orientation = requiredRecordV1(
       payload[side],
       `analysis[${index}].payload.${side}`,
     );
-    const locus = requiredRecordV3(
+    const locus = requiredRecordV1(
       orientation.starlingLocus,
       `analysis[${index}].payload.${side}.starlingLocus`,
     );
@@ -126,14 +126,14 @@ function structuralPayloadHasSettledLocusV3(
   return settledBySide[0]!;
 }
 
-function mergeStructuralSideV3(
+function mergeStructuralSideV1(
   payloads: readonly Readonly<Record<string, unknown>>[],
   side: "right" | "left",
 ): Readonly<Record<string, unknown>> {
   const sides = payloads.map((payload, index) =>
-    requiredRecordV3(payload[side], `analysis[${index}].payload.${side}`));
+    requiredRecordV1(payload[side], `analysis[${index}].payload.${side}`));
   const settledSides = sides.filter((candidate, index) => {
-    const locus = requiredRecordV3(
+    const locus = requiredRecordV1(
       candidate.starlingLocus,
       `analysis[${index}].payload.${side}.starlingLocus`,
     );
@@ -147,19 +147,19 @@ function mergeStructuralSideV3(
     return true;
   });
   if (settledSides.length === 0) {
-    assertCanonicalEqualV3(
+    assertCanonicalEqualV1(
       sides,
       `bidirectional ${side} initial structural payloads`,
     );
     return sides[0]!;
   }
-  assertCanonicalEqualV3(
+  assertCanonicalEqualV1(
     settledSides.map((candidate) =>
-      withoutKeysV3(candidate, ["starlingLocus"])),
+      withoutKeysV1(candidate, ["starlingLocus"])),
     `bidirectional ${side} structural payloads`,
   );
   const loci = settledSides.map((candidate, index) => {
-    const locus = requiredRecordV3(
+    const locus = requiredRecordV1(
       candidate.starlingLocus,
       `analysis[${index}].payload.${side}.starlingLocus`,
     );
@@ -175,8 +175,8 @@ function mergeStructuralSideV3(
     }
     return locus;
   });
-  assertCanonicalEqualV3(
-    loci.map((locus) => withoutKeysV3(
+  assertCanonicalEqualV1(
+    loci.map((locus) => withoutKeysV1(
       locus,
       ["completedPointCount", "points", "totalPointCount"],
     )),
@@ -186,7 +186,7 @@ function mergeStructuralSideV3(
   for (const [locusIndex, locus] of loci.entries()) {
     const points = locus.points as readonly unknown[];
     for (const [pointIndex, value] of points.entries()) {
-      const point = requiredRecordV3(
+      const point = requiredRecordV1(
         value,
         `analysis[${locusIndex}].payload.${side}.starlingLocus.points[${pointIndex}]`,
       );
@@ -200,7 +200,7 @@ function mergeStructuralSideV3(
       const identity = `${role}:${tbv}`;
       const prior = pointByIdentity.get(identity);
       if (prior !== undefined) {
-        assertCanonicalEqualV3(
+        assertCanonicalEqualV1(
           [prior, point],
           `bidirectional ${side} duplicate Starling point ${identity}`,
         );
@@ -208,18 +208,18 @@ function mergeStructuralSideV3(
     }
   }
   const points = Object.freeze([...pointByIdentity.values()].sort((left, right) => {
-    const leftPressure = requiredFiniteFieldV3(left, "fillingPressureMmHg");
-    const rightPressure = requiredFiniteFieldV3(right, "fillingPressureMmHg");
+    const leftPressure = requiredFiniteFieldV1(left, "fillingPressureMmHg");
+    const rightPressure = requiredFiniteFieldV1(right, "fillingPressureMmHg");
     return leftPressure - rightPressure;
   }));
   const allPartitionsComplete = loci.every((locus) =>
-    requiredSafeIntegerFieldV3(locus, "completedPointCount")
-      === requiredSafeIntegerFieldV3(locus, "totalPointCount"));
+    requiredSafeIntegerFieldV1(locus, "completedPointCount")
+      === requiredSafeIntegerFieldV1(locus, "totalPointCount"));
   const totalPointCount = allPartitionsComplete
     ? points.length
     : Math.max(
         points.length + 1,
-        ...loci.map((locus) => requiredSafeIntegerFieldV3(
+        ...loci.map((locus) => requiredSafeIntegerFieldV1(
           locus,
           "totalPointCount",
         )),
@@ -235,7 +235,7 @@ function mergeStructuralSideV3(
   });
 }
 
-function assertSameAnalysisEnvelopeV3(
+function assertSameAnalysisEnvelopeV1(
   expected: StudioSimulationAnalysisV2,
   candidate: StudioSimulationAnalysisV2,
 ): void {
@@ -254,7 +254,7 @@ function assertSameAnalysisEnvelopeV3(
   }
 }
 
-function assertCanonicalEqualV3(
+function assertCanonicalEqualV1(
   values: readonly unknown[],
   label: string,
 ): void {
@@ -265,7 +265,7 @@ function assertCanonicalEqualV3(
   }
 }
 
-function withoutKeysV3(
+function withoutKeysV1(
   value: Readonly<Record<string, unknown>>,
   omitted: readonly string[],
 ): Readonly<Record<string, unknown>> {
@@ -273,7 +273,7 @@ function withoutKeysV3(
     !omitted.includes(key))));
 }
 
-function requiredRecordV3(
+function requiredRecordV1(
   value: unknown,
   path: string,
 ): Readonly<Record<string, unknown>> {
@@ -283,15 +283,15 @@ function requiredRecordV3(
   return value as Readonly<Record<string, unknown>>;
 }
 
-function requiredFiniteFieldV3(value: unknown, field: string): number {
-  const candidate = requiredRecordV3(value, "Starling point")[field];
+function requiredFiniteFieldV1(value: unknown, field: string): number {
+  const candidate = requiredRecordV1(value, "Starling point")[field];
   if (typeof candidate !== "number" || !Number.isFinite(candidate)) {
     throw new Error(`Starling point ${field} must be finite`);
   }
   return candidate;
 }
 
-function requiredSafeIntegerFieldV3(
+function requiredSafeIntegerFieldV1(
   value: Readonly<Record<string, unknown>>,
   field: string,
 ): number {

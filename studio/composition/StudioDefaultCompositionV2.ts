@@ -24,9 +24,9 @@ import type {
   StudioModelSurfacePinV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+  type MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -48,7 +48,7 @@ export type StudioClientCompositionV2 = Readonly<{
   defaultFixture: StudioJsonValueV2;
   contract: ModelContractV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -152,7 +152,7 @@ Promise<StudioClientCompositionV2> {
     }
     assertExactModelKernelManifestV3(standardClientDescriptorV1.manifest);
     assertModelSurfaceReleaseManifestV1(standardSurfaceReleaseV1);
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
       standardSurfaceReleaseV1,
       [
         ...standardClientDescriptorV1.manifest.primitiveSignalCatalog,

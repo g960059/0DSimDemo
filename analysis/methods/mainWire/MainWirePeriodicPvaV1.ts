@@ -7,9 +7,9 @@ import {
   evaluateMainWireIntegratedModelLvMvo2EstimateV1,
   type MainWireIntegratedModelLvMvo2EstimateV1,
 } from "@/engine/myocardium/analysis/MainWireIntegratedModelMvo2ReferenceV1";
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID =
+export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
-export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID =
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID =
   "suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8" as const;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
@@ -133,10 +133,10 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
   estimatedMvo2: MainWireIntegratedModelLvMvo2EstimateV1 | null;
 }>;
 
-export type MainWireIntegratedModelPeriodicPvaV1 =
+export type MainWirePeriodicPvaV1 =
   | Readonly<{
-      analysisId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID;
+      analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
+      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID;
       status: "collecting" | "unavailable";
       ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1;
       pressureBasis: "transmural";
@@ -145,8 +145,8 @@ export type MainWireIntegratedModelPeriodicPvaV1 =
       preview: MainWireIntegratedModelPeriodicPvaPreviewV1 | null;
     }>
   | Readonly<{
-      analysisId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID;
+      analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
+      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID;
       outputId: string;
       status: "available";
       /** Displayable throughout refinement; this field only reports completion. */
@@ -219,10 +219,10 @@ type ExponentialFitV1 = Readonly<{
   parameterBoundaryHit: boolean;
 }>;
 
-export function buildMainWireIntegratedModelPeriodicPvaV1(
+export function buildMainWirePeriodicPvaV1(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
-): MainWireIntegratedModelPeriodicPvaV1 {
+): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
     completedPointCount:
       "completedPointCount" in locus ? locus.completedPointCount : 0,
@@ -233,10 +233,10 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     status: "collecting" | "unavailable",
     reason: string,
     preview: MainWireIntegratedModelPeriodicPvaPreviewV1 | null = null,
-  ): MainWireIntegratedModelPeriodicPvaV1 =>
+  ): MainWirePeriodicPvaV1 =>
     Object.freeze({
-      analysisId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID,
-      methodId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+      analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
       status,
       ventricleId,
       pressureBasis: "transmural" as const,
@@ -540,7 +540,7 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     ventricleId === "LV"
       ? evaluateMainWireIntegratedModelLvMvo2EstimateV1({
           pvaOutputId: outputId,
-          pvaMethodId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+          pvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
           pvaEstimateJ: pvaJ,
           heartRateBpm: 60 / acceptedBeatDurationSec,
         })
@@ -565,8 +565,8 @@ export function buildMainWireIntegratedModelPeriodicPvaV1(
     joule: pvaJ,
   });
   return Object.freeze({
-    analysisId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_V1_ID,
-    methodId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+    analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
     outputId,
     status: "available" as const,
     completionStatus: espvrProjection.phaseSelectionStatus,

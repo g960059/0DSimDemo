@@ -6,11 +6,11 @@ import {
   controlLabelV3,
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
-import type { MainWireIntegratedModelPeriodicPvaV1 } from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type { ExperimentSurfaceOutputPaneV2 } from "@/studio/contracts/v2/content";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import type {
@@ -25,7 +25,7 @@ import {
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 
 const WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
 );
 
 export function resolveWorkbenchPaneItemLabelV3(
@@ -53,7 +53,7 @@ export function resolveWorkbenchPaneItemLabelV3(
 }
 
 export function workbenchPeriodicPvaOutputValueV3(
-  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  periodicPva: MainWirePeriodicPvaV1 | undefined,
   outputId: string,
 ): StudioSimulationOutputValueV2 | undefined {
   const projection = periodicPva?.status === "available"
@@ -64,20 +64,20 @@ export function workbenchPeriodicPvaOutputValueV3(
   if (projection === null || projection === undefined) return undefined;
   let value: number | null;
   switch (outputId) {
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
       if (projection.potentialEnergy === null) return undefined;
       value = projection.potentialEnergy.joule * 1e3;
       break;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
       if (projection.pva === null) return undefined;
       value = projection.pva.joule * 1e3;
       break;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
       value = projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
         : null;
       break;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
       value = projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
         : null;
@@ -101,7 +101,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     locale: "en" | "ja";
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
-    periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+    periodicPva?: MainWirePeriodicPvaV1;
     periodicPvaAnalysisError?: string;
   }>,
 ): readonly ExperimentOutputPresentationItemV3[] {
@@ -241,7 +241,7 @@ export function scalarAvailableOutputV3(
 }
 
 function periodicPvaOutputNoticeV3(
-  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  periodicPva: MainWirePeriodicPvaV1 | undefined,
   analysisError: string | undefined,
 ): string | undefined {
   if (analysisError !== undefined) {

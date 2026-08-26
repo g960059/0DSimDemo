@@ -9,8 +9,8 @@ import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
-  StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
@@ -24,7 +24,7 @@ import {
 export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   state: ArticleReaderLiveRuntimeStateV3;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -50,7 +50,7 @@ export function useArticleReaderLiveRuntimeV3(
   snapshot: ExperimentSnapshotV2,
   exactModel: Readonly<{
     releaseTicket: StudioModelWorkerReleaseTicketV2;
-    periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+    periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,

@@ -28,8 +28,8 @@ import {
   admitExactModelExecutableRuntimeV2,
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   studioCanonicalJsonStringify,
 } from "@/studio/infrastructure/json/StudioCanonicalJson";
@@ -172,7 +172,7 @@ export class DynamicExactModelRuntimeLoaderV2 {
     ) {
       throw new Error("Exact model artifact manifest does not match the registry");
     }
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
       ticket.surfaceRelease,
       [
         ...ticket.manifest.primitiveSignalCatalog,

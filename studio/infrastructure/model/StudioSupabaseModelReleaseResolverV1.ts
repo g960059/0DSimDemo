@@ -2,9 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+  type MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
@@ -44,7 +44,7 @@ export type StudioResolvedModelReleaseV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
   analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
   surfaceReleaseId: string;
@@ -280,7 +280,7 @@ export class StudioSupabaseModelReleaseResolverV1 {
     ) {
       throw new Error("Pinned Model Surface belongs to another series");
     }
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
       surface.manifest,
       [...kernel.primitiveSignalCatalog, ...kernel.modelMetricCatalog],
     );

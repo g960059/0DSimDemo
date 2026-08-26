@@ -46,8 +46,8 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 const NOOP = () => {};
 
@@ -822,7 +822,7 @@ describe("Article Reader V3 experiment anchor", () => {
         {
           sourcePaneId: "pane/outputs",
           outputId:
-            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+            MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
           scenarioId: "scenario/comparison",
           label: "PVA",
           order: 0,

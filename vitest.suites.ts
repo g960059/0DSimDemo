@@ -5,10 +5,11 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 77;
+export const FAST_SUITE_FILE_BUDGET = 78;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
+  "__tests__/analysisMethodRegistryV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/coupledHemodynamicsSolverV1.test.ts",
   "__tests__/articleReaderV3.test.tsx",
@@ -42,10 +43,10 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
-  "__tests__/mainWireIntegratedModelPeriodicPvaV1.test.ts",
+  "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
-  "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
+  "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireNormalAdultBloodVolumeOperatingPointV1.test.ts",
@@ -114,9 +115,9 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedTypedAuthoritySessionV1.test.ts",
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
-  "__tests__/mainWireIntegratedModelPeriodicPvaV1.test.ts",
+  "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
-  "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
+  "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",

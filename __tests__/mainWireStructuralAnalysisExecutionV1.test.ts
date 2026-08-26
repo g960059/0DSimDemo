@@ -8,16 +8,16 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
-  mergeMainWireIntegratedStudioStructuralAnalysesV3,
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+  mergeMainWireStructuralAnalysesV1,
+  resolveMainWireStructuralAnalysisExecutionPlanV1,
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 
 describe("Main Wire Integrated V3 analysis execution", () => {
   it("runs both relations bidirectionally with the short high limb first on one slot", () => {
-    const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+    const legacyPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
-    const formalPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+    const formalPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     );
 
@@ -30,7 +30,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
       MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
     ]);
     expect(
-      resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+      resolveMainWireStructuralAnalysisExecutionPlanV1(
         "analysis/not-registered",
       ),
     ).toBeNull();
@@ -39,7 +39,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
   it("merges measured points and collapses the duplicate exact center", () => {
     const low = analysisV3("hypovolemic");
     const high = analysisV3("hypervolemic");
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       low,
       high,
     ]);
@@ -81,7 +81,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
 
   it("rejects two Workers that disagree about their exact center", () => {
     expect(() =>
-      mergeMainWireIntegratedStudioStructuralAnalysesV3([
+      mergeMainWireStructuralAnalysesV1([
         analysisV3("hypovolemic"),
         analysisV3("hypervolemic", 5.6),
       ]),
@@ -89,7 +89,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
   });
 
   it("reports the measured union as complete after both directions finish", () => {
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       analysisV3("hypovolemic", 5.5, true),
       analysisV3("hypervolemic", 5.5, true),
     ]);
@@ -110,7 +110,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
 
   it("publishes the analytic Guyton orientation before either Starling branch settles", () => {
     const initial = initialAnalysisV3();
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       initial,
       initial,
     ]);
@@ -132,7 +132,7 @@ describe("Main Wire Integrated V3 analysis execution", () => {
 
   it("keeps settled Starling progress when the opposite Worker is still on analytic Guyton", () => {
     const settled = analysisV3("hypovolemic");
-    const merged = mergeMainWireIntegratedStudioStructuralAnalysesV3([
+    const merged = mergeMainWireStructuralAnalysesV1([
       settled,
       initialAnalysisV3(99),
     ]);

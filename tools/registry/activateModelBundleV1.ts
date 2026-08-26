@@ -11,8 +11,8 @@ import {
   validateRegisteredModelModuleAbiV2,
 } from "@/studio/contracts/v2/release";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 if (
   process.argv[1] !== undefined
@@ -76,7 +76,7 @@ async function assertActivatableBundleV1(
   // The registry owns immutable bytes; activation additionally proves that
   // this particular Standard kernel/Surface pair can materialize the public
   // Workbench contract before the singleton pointer moves.
-  const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+  const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
     surface.manifest,
   );
   composeStandardModelContractV1(

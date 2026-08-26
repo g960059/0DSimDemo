@@ -8,8 +8,8 @@ import type {
   MainWireIntegratedModelPeriodicPvaCurvePointV1,
   MainWireIntegratedModelPeriodicPvaEdpvrV1,
   MainWireIntegratedModelPeriodicPvaEspvrV1,
-  MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+  MainWirePeriodicPvaV1,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 import {
   finiteWorkbenchScalarValueV3,
@@ -56,7 +56,7 @@ export type WorkbenchPressureVolumeTraceV3 =
     chamberLabel: string;
     /** Final resolved trace color from the automatic comparison strategy. */
     chamberColor: string;
-    periodicPva?: MainWireIntegratedModelPeriodicPvaV1;
+    periodicPva?: MainWirePeriodicPvaV1;
     periodicPvaAnalysisError?: string;
     periodicPvaAnalysisPending?: boolean;
   }>;
@@ -1127,7 +1127,7 @@ function useRetainedPeriodicPvaDrawingsV1(
 }
 
 function periodicPvaDrawingV1(
-  pva: MainWireIntegratedModelPeriodicPvaV1 | null | undefined,
+  pva: MainWirePeriodicPvaV1 | null | undefined,
 ): PeriodicPvaDrawingV1 | null {
   if (pva?.status === "available") {
     return Object.freeze({

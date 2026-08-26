@@ -41,13 +41,13 @@ import {
 } from "@/components/workbench/v3";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
 import {
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+  type MainWirePeriodicPvaV1,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+  type MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -95,7 +95,7 @@ export type ArticleReaderExperimentV3Props = Readonly<{
 
 type ArticleReaderPresentationV3 = "inflow" | "peek" | "fullscreen";
 const ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3 = new Set<string>(
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
 );
 export type ArticleReaderExpandedPresentationV3 = Exclude<
   ArticleReaderPresentationV3,
@@ -1222,8 +1222,8 @@ function pressureVolumeRelationSideV3(
 function periodicPvaFromPayloadV3(
   payload: unknown,
   side: "left" | "right",
-  derivation: StudioPeriodicPvaDerivationV1 | null,
-): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  derivation: MainWirePeriodicPvaDerivationV1 | null,
+): MainWirePeriodicPvaV1 | undefined {
   if (derivation === null) return undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(payload, side);
   if (orientation === null) return undefined;
@@ -1535,7 +1535,7 @@ export function ArticleReaderOutputsV3({
 }
 
 function articleReaderPeriodicPvaScalarV3(
-  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  periodicPva: MainWirePeriodicPvaV1 | undefined,
   outputId: string,
 ): number | null {
   const projection =
@@ -1546,19 +1546,19 @@ function articleReaderPeriodicPvaScalarV3(
         : null;
   if (projection === null) return null;
   switch (outputId) {
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
       return projection.potentialEnergy?.joule === undefined
         ? null
         : projection.potentialEnergy.joule * 1e3;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
       return projection.pva?.joule === undefined
         ? null
         : projection.pva.joule * 1e3;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
       return projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
         : null;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
       return projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
         : null;
