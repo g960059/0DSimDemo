@@ -51,7 +51,12 @@ import {
   MainWireIntegratedStudioStandardRuntimeHostV1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+import { resolveRegisteredExactModelFixtureProjectionV1 } from
+  "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
   buildMainWirePeriodicPvaV1,
@@ -79,6 +84,25 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("resolves exact fixture controls through the model family registry", () => {
+    const projection = resolveRegisteredExactModelFixtureProjectionV1(
+      MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+    );
+
+    expect(projection.controlValue({
+      hemodynamicResearchInputs: {
+        heartRateBpm: 72,
+        totalBloodVolumeMl: 5_100,
+      },
+    }, "rhythm.heart-rate-bpm")).toBe(72);
+    expect(projection.controlValue({
+      hemodynamicResearchInputs: { heartRateBpm: 72 },
+    }, "unknown-control")).toBeNull();
+    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
+      "model-family/unregistered",
+    )).toThrow(/No exact fixture projection is registered/);
+  });
+
   it("keeps the exact current frame identical to the accepted batch boundary", async () => {
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-current-frame-repeatability";

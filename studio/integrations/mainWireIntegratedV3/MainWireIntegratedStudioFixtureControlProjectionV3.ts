@@ -30,3 +30,10 @@ export function mainWireIntegratedStudioControlValueFromFixtureV3(
   const value = (inputs as Record<string, unknown>)[inputKey];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
+
+export const mainWireIntegratedStudioFixtureProjectionV3:
+ExactModelFixtureProjectionV1 = Object.freeze({
+  controlValue: mainWireIntegratedStudioControlValueFromFixtureV3,
+});
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";

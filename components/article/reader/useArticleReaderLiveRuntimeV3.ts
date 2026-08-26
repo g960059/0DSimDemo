@@ -11,6 +11,8 @@ import type {
 import type {
   MainWirePeriodicPvaDerivationV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
@@ -24,6 +26,7 @@ import {
 export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   state: ArticleReaderLiveRuntimeStateV3;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  fixtureProjection: ExactModelFixtureProjectionV1;
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   play(): void;
   pause(): Promise<void>;
@@ -50,6 +53,7 @@ export function useArticleReaderLiveRuntimeV3(
   snapshot: ExperimentSnapshotV2,
   exactModel: Readonly<{
     releaseTicket: StudioModelWorkerReleaseTicketV2;
+    fixtureProjection: ExactModelFixtureProjectionV1;
     periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
@@ -175,6 +179,7 @@ export function useArticleReaderLiveRuntimeV3(
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
+    fixtureProjection: exactModel.fixtureProjection,
     periodicPvaDerivation: exactModel.periodicPvaDerivation,
     applyControl,
     play,
@@ -184,6 +189,7 @@ export function useArticleReaderLiveRuntimeV3(
     selectScenario,
   }), [
     applyControl,
+    exactModel.fixtureProjection,
     exactModel.periodicPvaDerivation,
     pause,
     play,

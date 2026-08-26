@@ -26,6 +26,10 @@ import {
   resolveRegisteredAnalysisMethodsV1,
   type RegisteredAnalysisMethodsV1,
 } from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
+import { resolveRegisteredExactModelFixtureProjectionV1 } from
+  "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -46,6 +50,7 @@ export type StudioClientCompositionV2 = Readonly<{
     modelId: string;
     stage: "dev" | "stable" | "retired";
     defaultFixture: StudioJsonValueV2;
+    fixtureProjection: ExactModelFixtureProjectionV1;
     workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   }>;
   modelSurface: ModelSurfacePresentationBundleV1<RegisteredAnalysisMethodsV1>;
@@ -294,6 +299,9 @@ function composeStudioClientCompositionV2(
       modelId: release.ticket.modelId,
       stage: release.stage,
       defaultFixture: release.defaultFixture,
+      fixtureProjection: resolveRegisteredExactModelFixtureProjectionV1(
+        release.ticket.surfaceRelease.modelFamilyId,
+      ),
       workerReleaseTicket: release.ticket,
     }),
     modelSurface,

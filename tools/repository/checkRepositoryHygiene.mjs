@@ -94,10 +94,13 @@ const requiredBoundaryPaths = [
   "components/workbench/WorkbenchSession.tsx",
   "domain/json/CanonicalJson.ts",
   "studio/application/article/ArticleExperimentPlacementV3.ts",
+  "studio/application/model/ExactModelControlValuesV1.ts",
+  "studio/application/model/ExactModelFixtureProjectionV1.ts",
   "studio/application/modelSurface/ModelSurfacePresentationBundleV1.ts",
   "studio/contracts/v2/simulation.ts",
   "studio/infrastructure/browser/BrowserContentStore.ts",
   "studio/infrastructure/browser/BrowserExperimentIndex.ts",
+  "studio/registry/RegisteredExactModelFixtureProjectionV1.ts",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.ts",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json",
@@ -188,6 +191,20 @@ const architectureImportRules = [
     pattern:
       /(?:from\s*|import\s*\()\s*["'](?:@\/studio\/infrastructure\/|@\/(?:server|supabase)\/)/,
     message: "Article editor policy must depend on a repository port, not concrete infrastructure",
+  },
+  {
+    appliesTo: (trackedPath) =>
+      trackedPath.startsWith("components/workbench/")
+      || trackedPath.startsWith("components/article/reader/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["']@\/studio\/integrations\//,
+    message: "model-facing presentation must consume the resolved client composition",
+  },
+  {
+    appliesTo: (trackedPath) => trackedPath.startsWith("studio/registry/"),
+    pattern:
+      /(?:from\s*|import\s*\()\s*["'](?:@\/components\/|@\/studio\/infrastructure\/|@\/(?:server|supabase)\/)/,
+    message: "code registries must not depend on UI or concrete infrastructure",
   },
 ];
 const machineLocalPathPatterns = [

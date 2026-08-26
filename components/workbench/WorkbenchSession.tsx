@@ -134,7 +134,9 @@ import {
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import { StudioArticleExperimentAuthoringHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import { StudioExperimentSessionHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
-import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
+import type { ExactModelFixtureProjectionV1 } from "@/studio/application/model/ExactModelFixtureProjectionV1";
+import { materializeExactModelControlValuesV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
   WorkbenchBackgroundWorkerPoolV3,
@@ -410,6 +412,8 @@ export const WorkbenchSession = ({
   const periodicPvaDerivationRef = React.useRef<
     MainWirePeriodicPvaDerivationV1 | null
   >(null);
+  const fixtureProjectionRef =
+    React.useRef<ExactModelFixtureProjectionV1 | null>(null);
   const surfaceSeriesIdRef = React.useRef<string | undefined>(undefined);
   const surfaceReleaseIdRef = React.useRef<string | undefined>(undefined);
   const translationRef = React.useRef(t);
@@ -701,6 +705,7 @@ export const WorkbenchSession = ({
       if (cancelled) return;
       setReleaseStage(composition.exactModel.stage);
       workerReleaseTicketRef.current = composition.exactModel.workerReleaseTicket;
+      fixtureProjectionRef.current = composition.exactModel.fixtureProjection;
       periodicPvaDerivationRef.current = composition.modelSurface.analysis.periodicPvaDerivation;
       surfaceSeriesIdRef.current = composition.modelSurface.identity.surfaceSeriesId;
       surfaceReleaseIdRef.current = composition.modelSurface.identity.surfaceReleaseId;
@@ -818,9 +823,10 @@ export const WorkbenchSession = ({
       setScenarioError(null);
       controlValuesByScenarioRef.current = {};
       setControlValues(
-        controlValuesForFixtureV3(
+        materializeExactModelControlValuesV1(
           composition.modelSurface.contract,
           storedScenario?.capture.fixture,
+          composition.exactModel.fixtureProjection,
         ),
       );
       setControlError(null);
@@ -924,9 +930,10 @@ export const WorkbenchSession = ({
       const controlValuesByScenario = Object.fromEntries(
         capturedScenarios.scenarios.map((scenario) => [
           scenario.scenarioId,
-          controlValuesForFixtureV3(
+          materializeExactModelControlValuesV1(
             composition.modelSurface.contract,
             scenario.capture.fixture,
+            composition.exactModel.fixtureProjection,
           ),
         ]),
       );
@@ -936,7 +943,11 @@ export const WorkbenchSession = ({
       setActiveScenarioId(capturedScenarios.activeScenarioId);
       setControlValues(
         controlValuesByScenario[capturedScenarios.activeScenarioId] ??
-          controlValuesForFixtureV3(composition.modelSurface.contract, undefined),
+          materializeExactModelControlValuesV1(
+            composition.modelSurface.contract,
+            undefined,
+            composition.exactModel.fixtureProjection,
+          ),
       );
       const baseline = capturedScenarios.scenarios.find(
         ({ scenarioId }) => scenarioId === capturedScenarios.activeScenarioId,
@@ -1682,7 +1693,13 @@ export const WorkbenchSession = ({
         controlValuesByScenarioRef.current[next.activeScenarioId] ??
           (contract === null
             ? {}
-            : controlValuesForFixtureV3(contract, undefined)),
+            : materializeExactModelControlValuesV1(
+                contract,
+                undefined,
+                requiredWorkbenchFixtureProjectionV1(
+                  fixtureProjectionRef.current,
+                ),
+              )),
       );
       setStatus((current) =>
         current.kind === "live" ? { ...current, frame: next.frame } : current,
@@ -1763,9 +1780,12 @@ export const WorkbenchSession = ({
           if (contract !== null) {
             controlValuesByScenarioRef.current = {
               ...controlValuesByScenarioRef.current,
-              [intent.scenarioId]: controlValuesForFixtureV3(
+              [intent.scenarioId]: materializeExactModelControlValuesV1(
                 contract,
                 intent.preset.capture.fixture,
+                requiredWorkbenchFixtureProjectionV1(
+                  fixtureProjectionRef.current,
+                ),
               ),
             };
           }
@@ -2036,14 +2056,26 @@ export const WorkbenchSession = ({
             controlValuesByScenarioRef.current = Object.fromEntries(
               durableExperiment.content.scenarios.map((scenario) => [
                 scenario.scenarioId,
-                controlValuesForFixtureV3(contract, scenario.capture.fixture),
+                materializeExactModelControlValuesV1(
+                  contract,
+                  scenario.capture.fixture,
+                  requiredWorkbenchFixtureProjectionV1(
+                    fixtureProjectionRef.current,
+                  ),
+                ),
               ]),
             );
             const activeId = activeScenarioIdRef.current;
             if (activeId !== null) {
               setControlValues(
                 controlValuesByScenarioRef.current[activeId] ??
-                  controlValuesForFixtureV3(contract, undefined),
+                  materializeExactModelControlValuesV1(
+                    contract,
+                    undefined,
+                    requiredWorkbenchFixtureProjectionV1(
+                      fixtureProjectionRef.current,
+                    ),
+                  ),
               );
             }
           }
@@ -3488,23 +3520,6 @@ export const WorkbenchSession = ({
   );
 };
 
-function controlValuesForFixtureV3(
-  contract: ModelContractV2,
-  fixture: unknown,
-): Readonly<Record<string, number>> {
-  return Object.freeze(
-    Object.fromEntries(
-      contract.controlCatalog.map((control) => [
-        control.controlId,
-        mainWireIntegratedStudioControlValueFromFixtureV3(
-          fixture,
-          control.controlId,
-        ) ?? control.defaultValue,
-      ]),
-    ),
-  );
-}
-
 function appendFramesV3(
   frames: readonly StudioSimulationFrameV2[],
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3,
@@ -3601,6 +3616,15 @@ function requiredWorkbenchReleaseTicketV3(
 ): StudioModelWorkerReleaseTicketV2 {
   if (value === undefined) {
     throw new Error("Workbench Standard Worker release ticket is unavailable");
+  }
+  return value;
+}
+
+function requiredWorkbenchFixtureProjectionV1(
+  value: ExactModelFixtureProjectionV1 | null,
+): ExactModelFixtureProjectionV1 {
+  if (value === null) {
+    throw new Error("Workbench exact fixture projection is unavailable");
   }
   return value;
 }

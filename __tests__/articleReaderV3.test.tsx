@@ -169,6 +169,9 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
       modelId: contract.modelId,
       stage: "stable" as const,
       defaultFixture: Object.freeze({}),
+      fixtureProjection: Object.freeze({
+        controlValue: () => null,
+      }),
       workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     }),
     modelSurface: Object.freeze({
@@ -357,6 +360,9 @@ function readerRuntimeStubV3(
       ...stateOverrides,
     }),
     sampleStore,
+    fixtureProjection: Object.freeze({
+      controlValue: () => null,
+    }),
     periodicPvaDerivation: null,
     play: NOOP,
     pause: async () => undefined,

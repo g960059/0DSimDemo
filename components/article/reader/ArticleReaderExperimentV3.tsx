@@ -65,7 +65,10 @@ import type {
   StructuralReturnGraphDefinitionV2,
   SweepGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
-import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
+import { resolveExactModelControlValueV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import {
   articleReaderAnalysisKeyV3,
   type ArticleReaderStructuralAnalysisRequestV3,
@@ -1631,13 +1634,23 @@ export function ArticleReaderControlV3({
   const targetValues = targetIds.map(
     (scenarioId) =>
       runtime.state.committedControlValues[scenarioId]?.[control.controlId] ??
-      readerControlInitialValueV3(snapshot, scenarioId, definition),
+      readerControlInitialValueV3(
+        snapshot,
+        scenarioId,
+        definition,
+        runtime.fixtureProjection,
+      ),
   );
   const committedRuntimeValue =
     runtime.state.committedControlValues[primaryTargetId]?.[control.controlId];
   const initialValue =
     committedRuntimeValue ??
-    readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+    readerControlInitialValueV3(
+      snapshot,
+      primaryTargetId,
+      definition,
+      runtime.fixtureProjection,
+    );
   const [value, setValue] = React.useState(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const committedRef = React.useRef(initialValue);
@@ -1650,7 +1663,12 @@ export function ArticleReaderControlV3({
   React.useEffect(() => {
     const next =
       committedRuntimeValue ??
-      readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+      readerControlInitialValueV3(
+        snapshot,
+        primaryTargetId,
+        definition,
+        runtime.fixtureProjection,
+      );
     setValue(next);
     committedRef.current = next;
   }, [committedRuntimeValue, definition, primaryTargetId, snapshot]);
@@ -2112,16 +2130,12 @@ function readerControlInitialValueV3(
   snapshot: ExperimentSnapshotV2,
   scenarioId: string,
   definition: ControlDefinitionV2,
+  projection: ExactModelFixtureProjectionV1,
 ): number {
   const fixture = snapshot.content.scenarios.find(
     (scenario) => scenario.scenarioId === scenarioId,
   )?.capture.fixture;
-  return (
-    mainWireIntegratedStudioControlValueFromFixtureV3(
-      fixture,
-      definition.controlId,
-    ) ?? definition.defaultValue
-  );
+  return resolveExactModelControlValueV1(definition, fixture, projection);
 }
 
 export function selectedSweepOutputIdsV3(
@@ -2167,6 +2181,8 @@ function requiredArticleReaderRuntimeCompositionV3(
 ): Readonly<{
   releaseTicket:
     StudioClientCompositionV2["exactModel"]["workerReleaseTicket"];
+  fixtureProjection:
+    StudioClientCompositionV2["exactModel"]["fixtureProjection"];
   resolveAnalysisExecutionPlan:
     StudioClientCompositionV2["modelSurface"]["analysis"]["resolveExecutionPlan"];
   periodicPvaDerivation:
@@ -2179,6 +2195,7 @@ function requiredArticleReaderRuntimeCompositionV3(
   }
   return Object.freeze({
     releaseTicket: composition.exactModel.workerReleaseTicket,
+    fixtureProjection: composition.exactModel.fixtureProjection,
     resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
     periodicPvaDerivation: composition.modelSurface.analysis.periodicPvaDerivation,
   });
