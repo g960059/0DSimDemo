@@ -241,6 +241,7 @@ export function ExperimentNumericControlV3({
       acceptedValue: value,
       candidate,
       control,
+      forceCommit: mixed,
       onCommit,
     });
     setDraft(result.displayValue);
@@ -443,15 +444,17 @@ export async function resolveControlDraftCommitV3({
   acceptedValue,
   candidate,
   control,
+  forceCommit = false,
   onCommit,
 }: Readonly<{
   acceptedValue: number;
   candidate: number;
   control: ControlDefinitionV2;
+  forceCommit?: boolean;
   onCommit: (value: number) => Promise<boolean>;
 }>): Promise<ControlDraftCommitResultV3> {
   const normalized = normalizeControlValueV3(candidate, control);
-  if (normalized === acceptedValue) {
+  if (!forceCommit && normalized === acceptedValue) {
     return Object.freeze({ accepted: true, displayValue: acceptedValue });
   }
   const accepted = await onCommit(normalized);

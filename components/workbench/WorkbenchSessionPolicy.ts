@@ -5,6 +5,8 @@ import type {
 import { studioDevSurfacesEnabledV1 } from "@/studio/application/dev/StudioDevAccessV1";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
+import type { ExactModelControlValuesV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 
 const WORKBENCH_ROOT_FRAME_INTERVAL_SEC_V3 = 0.1;
 
@@ -156,7 +158,7 @@ export function workbenchScenarioRuntimeStatusV3(
 
 /** A duplicated Scenario must not share its mutable editor object identity. */
 export function cloneWorkbenchControlValuesV3(
-  source: Readonly<Record<string, number>>,
-): Readonly<Record<string, number>> {
+  source: ExactModelControlValuesV1,
+): ExactModelControlValuesV1 {
   return Object.freeze({ ...source });
 }

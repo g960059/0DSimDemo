@@ -53,14 +53,16 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+} from "@/domain/model/MainWireStandardIdentityV1";
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
+import { resolveExactModelControlValueV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import {
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
-  buildMainWirePeriodicPvaV1,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  buildMainWirePeriodicPvaMethodV8,
   resolveMainWireStructuralAnalysisExecutionPlanV1,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
@@ -85,9 +87,13 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
-  it("resolves exact fixture controls through the model family registry", () => {
+  it("resolves controls only for the current exact model and fixture ABI", () => {
     const projection = resolveRegisteredExactModelFixtureProjectionV1(
-      MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
+      },
     );
     const controls = createCircleHeartExactModelReleaseV1()
       .manifest.primitiveControlCatalog;
@@ -108,7 +114,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       expect(
         projection.controlValue(fixture, definition.controlId),
         definition.controlId,
-      ).toBe(value);
+      ).toEqual({ status: "value", value });
     }
 
     expect(projection.controlValue({
@@ -116,12 +122,46 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         heartRateBpm: 72,
         totalBloodVolumeMl: 5_100,
       },
-    }, "rhythm.heart-rate-bpm")).toBe(72);
+    }, "rhythm.heart-rate-bpm")).toEqual({ status: "value", value: 72 });
     expect(projection.controlValue({
       hemodynamicResearchInputs: { heartRateBpm: 72 },
-    }, "unknown-control")).toBeNull();
+    }, "unknown-control")).toEqual({ status: "unsupported" });
+
+    const divergentWalls =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        [{
+          controlId: "myocardium.active-tension-scale.LVFW",
+          value: 1.2,
+        }],
+      );
+    expect(projection.controlValue(
+      divergentWalls,
+      "myocardium.contractility",
+    )).toEqual({ status: "mixed" });
+
+    const aggregateContractility = controls.find(
+      ({ controlId }) => controlId === "myocardium.contractility",
+    );
+    expect(aggregateContractility).toBeDefined();
+    expect(() => resolveExactModelControlValueV1(
+      aggregateContractility!,
+      { ventricularContractilityScale: 1.35 },
+      projection,
+    )).toThrow(/cannot project registered control/);
+
     expect(() => resolveRegisteredExactModelFixtureProjectionV1(
-      "model-family/unregistered",
+      {
+        modelId: "model/retired",
+        fixtureSchemaId:
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
+      },
+    )).toThrow(/No exact fixture projection is registered/);
+    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId: "fixture/retired-v1",
+      },
     )).toThrow(/No exact fixture projection is registered/);
   });
 
@@ -484,10 +524,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       artifactUrl: "https://registry.example/model-releases/standard.mjs",
     });
     expect(ticket.moduleAbi).toBe("circleheart-exact-model-esm-v1");
-    expect(validateStudioModelWorkerReleaseTicketV2({
+    expect(() => validateStudioModelWorkerReleaseTicketV2({
       ...ticket,
-      analysisProfileId: "legacy-profile-ignored-at-current-boundary",
-    })).not.toHaveProperty("analysisProfileId");
+      analysisProfileId: "retired-profile",
+    })).toThrow(/optional keys are none/);
     expect(() =>
       validateStudioModelWorkerReleaseTicketV2({
         ...ticket,
@@ -1189,6 +1229,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     assertModelSurfaceReleaseManifestV1(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
+    const implicitExposure = structuredClone(
+      mainWireIntegratedStudioStandardSurfaceV1,
+    ) as Record<string, unknown>;
+    delete implicitExposure.exposedExactOutputIds;
+    expect(() => assertModelSurfaceReleaseManifestV1(
+      implicitExposure,
+    )).toThrow(/exposedExactOutputIds/);
     expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId).toBe(
       "circleheart.main-wire.surface.workbench-analysis-v1",
     );
@@ -1215,21 +1262,20 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
     const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
       mainWireIntegratedStudioStandardSurfaceV1,
-      [...exact.primitiveSignalCatalog, ...exact.modelMetricCatalog],
     );
     expect(methods.capabilities).toContain(
       derivationCapabilityV1(
-        MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+        MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
       ),
     );
     expect(methods.resolveExecutionPlan(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     )).not.toBeNull();
     expect(methods.periodicPvaDerivation?.methodId).toBe(
-      MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+      MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
     );
     expect(methods.periodicPvaDerivation?.build).toBe(
-      buildMainWirePeriodicPvaV1,
+      buildMainWirePeriodicPvaMethodV8,
     );
     const composition = composeStandardModelContractV1(
       exact,
@@ -1259,38 +1305,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       }),
     );
     assertModelSurfaceReleaseManifestV1(unsupported);
-    const unsupportedMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+    expect(() => resolveMainWireAnalysisMethodsForSurfaceV1(
       unsupported,
-    );
-    const degraded = composeStandardModelContractV1(
-      exact,
-      unsupported,
-      unsupportedMethods.capabilities,
-    );
-    expect(degraded.surface.derivedOutputCatalog).toHaveLength(0);
-    expect(degraded.contract.graphCatalog.length).toBeGreaterThan(0);
-    expect(unsupportedMethods.periodicPvaDerivation).toBeNull();
+    )).toThrow(/Client does not support analysis derivation/);
 
     const wrongUnit = structuredClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     wrongUnit.derivedOutputCatalog[0]!.unit = "kJ";
     assertModelSurfaceReleaseManifestV1(wrongUnit);
-    const wrongUnitMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+    expect(() => resolveMainWireAnalysisMethodsForSurfaceV1(
       wrongUnit,
-    );
-    expect(wrongUnitMethods.periodicPvaDerivation).toBeNull();
-    expect(wrongUnitMethods.capabilities).not.toContain(
-      derivationCapabilityV1(
-        MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
-      ),
-    );
-    const wrongUnitComposition = composeStandardModelContractV1(
-      exact,
-      wrongUnit,
-      wrongUnitMethods.capabilities,
-    );
-    expect(wrongUnitComposition.surface.derivedOutputCatalog).toHaveLength(0);
+    )).toThrow(/incompatible with Surface/);
 
   });
 
@@ -1317,10 +1343,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
     const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
       mainWireIntegratedStudioStandardSurfaceV1,
-      [
-        ...futureExact.primitiveSignalCatalog,
-        ...futureExact.modelMetricCatalog,
-      ],
     );
     const composition = composeStandardModelContractV1(
       futureExact,

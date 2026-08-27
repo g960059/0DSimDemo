@@ -56,6 +56,7 @@ insert into studio.model_surface_releases (
     "predecessorSurfaceReleaseId":null,
     "modelFamilyId":"model/summary-test",
     "displayName":"Summary test Surface",
+    "exposedExactOutputIds":[],
     "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
     "knobCatalog":[],"protocolCatalog":[]
   }'::jsonb,

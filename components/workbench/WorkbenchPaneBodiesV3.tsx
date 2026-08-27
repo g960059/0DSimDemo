@@ -20,6 +20,8 @@ import type {
   ExperimentSurfaceOutputPaneV2,
 } from "@/studio/contracts/v2/content";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import type { ExactModelControlValuesV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerScenarioDescriptorV2 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 
@@ -141,7 +143,7 @@ export function ControlPaneBodyV3({
   contract: ModelContractV2;
   controlError: string | null;
   controlValuesByScenario: Readonly<
-    Record<string, Readonly<Record<string, number>>>
+    Record<string, ExactModelControlValuesV1>
   >;
   disabledByAnalysis: boolean;
   locale: "en" | "ja";
@@ -190,13 +192,20 @@ export function ControlPaneBodyV3({
       return definition === undefined ? [] : [{ definition, item }];
     });
   const presentedControls = selectedControls.map(({ definition, item }) => {
-    const values = targetScenarioIds.map(
+    const projectedValues = targetScenarioIds.map(
       (scenarioId) =>
         controlValuesByScenario[scenarioId]?.[definition.controlId] ??
-        definition.defaultValue,
+        Object.freeze({
+          status: "mixed" as const,
+        }),
     );
-    const value = values[0] ?? definition.defaultValue;
-    const mixed = values.some((candidate) => candidate !== value);
+    const first = projectedValues[0];
+    const value = first?.status === "value"
+      ? first.value
+      : definition.defaultValue;
+    const mixed = projectedValues.some((candidate) =>
+      candidate.status === "mixed" ||
+      (candidate.status === "value" && candidate.value !== value));
     return { definition, item, value, mixed };
   });
   return (

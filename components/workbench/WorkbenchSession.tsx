@@ -138,7 +138,10 @@ import {
 import { StudioArticleExperimentAuthoringHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioArticleExperimentAuthoringHandoffV3";
 import { StudioExperimentSessionHandoffStoreV3 } from "@/studio/infrastructure/browser/StudioExperimentSessionHandoffV3";
 import type { ExactModelFixtureProjectionV1 } from "@/studio/application/model/ExactModelFixtureProjectionV1";
-import { materializeExactModelControlValuesV1 } from
+import {
+  materializeExactModelControlValuesV1,
+  type ExactModelControlValuesV1,
+} from
   "@/studio/application/model/ExactModelControlValuesV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
@@ -371,7 +374,7 @@ export const WorkbenchSession = ({
   const [backgroundWorkerPool, setBackgroundWorkerPool] =
     React.useState<WorkbenchBackgroundWorkerPoolV3 | null>(null);
   const [runtimeGeneration, setRuntimeGeneration] = React.useState(0);
-  const [, setControlValues] = React.useState<Readonly<Record<string, number>>>(
+  const [, setControlValues] = React.useState<ExactModelControlValuesV1>(
     {},
   );
   const [pendingControlId, setPendingControlId] = React.useState<string | null>(
@@ -441,7 +444,7 @@ export const WorkbenchSession = ({
   const lastRootFrameTimeSecRef = React.useRef(Number.NEGATIVE_INFINITY);
   const activeScenarioIdRef = React.useRef<string | null>(null);
   const controlValuesByScenarioRef = React.useRef<
-    Record<string, Readonly<Record<string, number>>>
+    Record<string, ExactModelControlValuesV1>
   >({});
   const playingIntentRef = React.useRef(true);
   const exclusiveOperationRef = React.useRef<
@@ -830,7 +833,7 @@ export const WorkbenchSession = ({
       setControlValues(
         materializeExactModelControlValuesV1(
           composition.modelSurface.contract,
-          storedScenario?.capture.fixture,
+          storedScenario?.capture.fixture ?? composition.exactModel.defaultFixture,
           composition.exactModel.fixtureProjection,
         ),
       );
@@ -950,7 +953,7 @@ export const WorkbenchSession = ({
         controlValuesByScenario[capturedScenarios.activeScenarioId] ??
           materializeExactModelControlValuesV1(
             composition.modelSurface.contract,
-            undefined,
+            composition.exactModel.defaultFixture,
             composition.exactModel.fixtureProjection,
           ),
       );
@@ -1284,6 +1287,7 @@ export const WorkbenchSession = ({
       const operation = exclusiveOperationRef.current;
       if (
         runtime === null ||
+        contract === null ||
         latestFrameRef.current === null ||
         scenarioIds.length === 0 ||
         (operation !== null && operation !== "analysis")
@@ -1351,6 +1355,23 @@ export const WorkbenchSession = ({
         const activeId = activeScenarioIdRef.current;
         const nextRootFrame =
           activeId === null ? nextFrames[0]! : runtime.latestFrame(activeId);
+        const projection = requiredWorkbenchFixtureProjectionV1(
+          fixtureProjectionRef.current,
+        );
+        const acceptedScenarios = await Promise.all(
+          uniqueScenarioIds.map((scenarioId) =>
+            runtime.captureScenario(scenarioId)),
+        );
+        const projectedControlValues = Object.fromEntries(
+          acceptedScenarios.map((scenario) => [
+            scenario.scenarioId,
+            materializeExactModelControlValuesV1(
+              contract,
+              scenario.capture.fixture,
+              projection,
+            ),
+          ]),
+        );
         latestFrameRef.current = nextRootFrame;
         lastRootFrameTimeSecRef.current = nextRootFrame.acceptedTimeSec;
         if (analysesToArchive.length > 0) {
@@ -1394,10 +1415,7 @@ export const WorkbenchSession = ({
           ...Object.fromEntries(
             uniqueScenarioIds.map((scenarioId) => [
               scenarioId,
-              Object.freeze({
-                ...(controlValuesByScenarioRef.current[scenarioId] ?? {}),
-                [controlId]: value,
-              }),
+              projectedControlValues[scenarioId]!,
             ]),
           ),
         });
@@ -1696,15 +1714,7 @@ export const WorkbenchSession = ({
       setControlError(null);
       setControlValues(
         controlValuesByScenarioRef.current[next.activeScenarioId] ??
-          (contract === null
-            ? {}
-            : materializeExactModelControlValuesV1(
-                contract,
-                undefined,
-                requiredWorkbenchFixtureProjectionV1(
-                  fixtureProjectionRef.current,
-                ),
-              )),
+          {},
       );
       setStatus((current) =>
         current.kind === "live" ? { ...current, frame: next.frame } : current,
@@ -2069,13 +2079,7 @@ export const WorkbenchSession = ({
         if (activeId !== null) {
           setControlValues(
             controlValuesByScenarioRef.current[activeId] ??
-              materializeExactModelControlValuesV1(
-                contract,
-                undefined,
-                requiredWorkbenchFixtureProjectionV1(
-                  fixtureProjectionRef.current,
-                ),
-              ),
+              {},
           );
         }
       }

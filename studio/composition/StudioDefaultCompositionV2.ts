@@ -33,7 +33,7 @@ import { resolveRegisteredExactModelFixtureProjectionV1 } from
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+  "@/domain/model/MainWireStandardIdentityV1";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
@@ -280,10 +280,6 @@ function composeStudioClientCompositionV2(
 ): StudioClientCompositionV2 {
   const analysis = resolveRegisteredAnalysisMethodsV1(
     release.ticket.surfaceRelease,
-    [
-      ...release.ticket.manifest.primitiveSignalCatalog,
-      ...release.ticket.manifest.modelMetricCatalog,
-    ],
   );
   const modelSurface = composeModelSurfacePresentationBundleV1({
     kernel: release.ticket.manifest,
@@ -300,7 +296,11 @@ function composeStudioClientCompositionV2(
       stage: release.stage,
       defaultFixture: release.defaultFixture,
       fixtureProjection: resolveRegisteredExactModelFixtureProjectionV1(
-        release.ticket.surfaceRelease.modelFamilyId,
+        {
+          modelId: release.ticket.modelId,
+          fixtureSchemaId:
+            release.ticket.manifest.fixtureSchema.fixtureSchemaId,
+        },
       ),
       workerReleaseTicket: release.ticket,
     }),

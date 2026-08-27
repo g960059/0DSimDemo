@@ -170,7 +170,10 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
       stage: "stable" as const,
       defaultFixture: Object.freeze({}),
       fixtureProjection: Object.freeze({
-        controlValue: () => null,
+        controlValue: () => Object.freeze({
+          status: "value" as const,
+          value: 1,
+        }),
       }),
       workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
     }),
@@ -344,7 +347,7 @@ function readerRuntimeStubV3(
       activeScenarioId: "scenario/baseline",
       pendingControlInstanceId: null,
       pendingAnalysisKeys: Object.freeze([]),
-      committedControlValues: Object.freeze({}),
+      fixtureByScenario: Object.freeze({}),
       analysisByKey: Object.freeze({}),
       analysisHistoryByKey: Object.freeze({}),
       analysisErrorByKey: Object.freeze({}),
@@ -361,7 +364,10 @@ function readerRuntimeStubV3(
     }),
     sampleStore,
     fixtureProjection: Object.freeze({
-      controlValue: () => null,
+      controlValue: () => Object.freeze({
+        status: "value" as const,
+        value: 1,
+      }),
     }),
     periodicPvaDerivation: null,
     play: NOOP,

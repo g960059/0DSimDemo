@@ -9,8 +9,8 @@ import {
   resolveMainWireStructuralAnalysisExecutionPlanV1,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
-  buildMainWirePeriodicPvaV1,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  buildMainWirePeriodicPvaMethodV8,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -42,7 +42,7 @@ export const MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1 =
 
 export type MainWirePeriodicPvaDerivationV1 = Readonly<{
   methodId: string;
-  build: typeof buildMainWirePeriodicPvaV1;
+  build: typeof buildMainWirePeriodicPvaMethodV8;
 }>;
 
 type MainWireAnalysisDerivationRuntimeV1 = Readonly<{
@@ -57,7 +57,7 @@ export type ResolvedMainWireAnalysisMethodsV1 = Readonly<{
 }>;
 
 const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1 = Object.freeze({
-  derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+  derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   outputs: Object.freeze([
     Object.freeze({
       outputId: MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1
@@ -116,8 +116,8 @@ const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1 = Object.freeze({
   runtime: Object.freeze({
     kind: "periodic-pva" as const,
     derivation: Object.freeze({
-      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
-      build: buildMainWirePeriodicPvaV1,
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+      build: buildMainWirePeriodicPvaMethodV8,
     }),
   }),
 }) satisfies AnalysisDerivationRegistrationV1<
@@ -131,16 +131,6 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     ]),
     derivations: Object.freeze([MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1]),
-    legacyExactOutputBindings: Object.freeze([Object.freeze({
-      exactOutputIds:
-        MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-      runtimeDerivationIds: Object.freeze([
-        MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
-      ]),
-      analysisIds: Object.freeze([
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-      ]),
-    })]),
     resolveExecutionPlan:
       resolveMainWireStructuralAnalysisExecutionPlanV1,
   });
@@ -148,16 +138,14 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
 /** Main Wire composition wrapper over the model-independent registry. */
 export function resolveMainWireAnalysisMethodsForSurfaceV1(
   surfaceValue: unknown,
-  exactOutputs: readonly Readonly<{ outputId: string }>[] = [],
 ): ResolvedMainWireAnalysisMethodsV1 {
   const resolved = resolveAnalysisMethodsForSurfaceV1({
     registry: MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1,
     surfaceValue,
-    exactOutputs,
   });
   const periodicPvaRuntime = resolved.derivations.find(
     ({ derivationId }) =>
-      derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+      derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   )?.runtime;
   return Object.freeze({
     capabilities: resolved.capabilities,

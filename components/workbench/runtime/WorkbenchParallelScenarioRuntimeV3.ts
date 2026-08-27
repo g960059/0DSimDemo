@@ -384,7 +384,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     scenarioId: string;
     label: string;
   }>): Promise<StudioSimulationWorkerScenarioStateV2> {
-    const source = await this.#captureScenario(input.sourceScenarioId);
+    const source = await this.captureScenario(input.sourceScenarioId);
     const ownedCapture = validateStudioSimulationScenarioInputV2({
       scenarioId: input.scenarioId,
       fixture: source.capture.fixture,
@@ -506,7 +506,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
         || sourceFrame.acceptedTimeSec !== input.expectedAcceptedTimeSec
       ) throw new Error("parallel Scenario analysis source clocks are stale");
 
-      const source = await this.#captureScenario(input.scenarioId);
+      const source = await this.captureScenario(input.scenarioId);
       if (
         source.capture.checkpoint.acceptedRevision
           !== input.expectedAcceptedRevision
@@ -865,7 +865,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
     }
   }
 
-  async #captureScenario(scenarioId: string): Promise<ExperimentScenarioV2> {
+  async captureScenario(scenarioId: string): Promise<ExperimentScenarioV2> {
     this.#requireActive();
     const lane = this.#requiredLane(scenarioId);
     const captures = await lane.client.readScenarios({
@@ -885,7 +885,7 @@ export class WorkbenchParallelScenarioRuntimeV3 {
 
   async #prewarmLane(lane: WorkbenchParallelScenarioLaneV3): Promise<void> {
     if (this.#steadyCandidates === undefined) return;
-    const scenario = await this.#captureScenario(
+    const scenario = await this.captureScenario(
       lane.descriptor.scenarioId,
     );
     this.#steadyCandidates.prewarm(

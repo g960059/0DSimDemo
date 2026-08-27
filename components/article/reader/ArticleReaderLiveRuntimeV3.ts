@@ -1,4 +1,4 @@
-import type { ExperimentSnapshotV2 } from
+import type { ExperimentScenarioV2, ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -46,8 +46,8 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   /** Composite Briefing identity (`sourcePaneId` + `controlId`). */
   pendingControlInstanceId: string | null;
   pendingAnalysisKeys: readonly string[];
-  committedControlValues: Readonly<
-    Record<string, Readonly<Record<string, number>>>
+  fixtureByScenario: Readonly<
+    Record<string, ExperimentScenarioV2["capture"]["fixture"]>
   >;
   analysisByKey: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisHistoryByKey: Readonly<
@@ -68,6 +68,7 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   WorkbenchParallelScenarioRuntimeV3,
   | "dispose"
   | "applyControl"
+  | "captureScenario"
   | "initialize"
   | "latestFrame"
   | "pauseAll"
@@ -193,7 +194,10 @@ export class ArticleReaderLiveRuntimeV3 {
       activeScenarioId,
       pendingControlInstanceId: null,
       pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
-      committedControlValues: EMPTY_ARTICLE_READER_CONTROL_VALUES_V3,
+      fixtureByScenario: articleReaderFixtureByScenarioV3(
+        snapshot,
+        scenarioIds,
+      ),
       analysisByKey: EMPTY_ARTICLE_READER_ANALYSES_V3,
       analysisHistoryByKey: EMPTY_ARTICLE_READER_ANALYSIS_HISTORY_V3,
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
@@ -591,12 +595,17 @@ export class ArticleReaderLiveRuntimeV3 {
         this.sampleStore,
         this.#presentationOutputIds,
       );
-      const committedControlValues = withArticleReaderCommittedControlValueV3(
-        this.#state.committedControlValues,
-        input.scenarioIds,
-        input.controlId,
-        input.value,
+      const acceptedScenarios = await Promise.all(
+        input.scenarioIds.map((scenarioId) =>
+          runtime.captureScenario(scenarioId)),
       );
+      const fixtureByScenario = Object.freeze({
+        ...this.#state.fixtureByScenario,
+        ...Object.fromEntries(acceptedScenarios.map((scenario) => [
+          scenario.scenarioId,
+          scenario.capture.fixture,
+        ])),
+      });
       const analysisHistoryByKey = archiveArticleReaderAnalysesV3(
         clearZeroDepthArticleReaderAnalysisHistoryV3(
           this.#state.analysisHistoryByKey,
@@ -611,7 +620,7 @@ export class ArticleReaderLiveRuntimeV3 {
           articleReaderAnalysisKeyV3(scenarioId, analysisId)));
       this.#resumeAfterExclusiveOperationV3(runtime, {
         pendingControlInstanceId: null,
-        committedControlValues,
+        fixtureByScenario,
         analysisByKey: withoutArticleReaderRecordKeysV3(
           this.#state.analysisByKey,
           clearedAnalysisKeys,
@@ -719,9 +728,6 @@ export class ArticleReaderLiveRuntimeV3 {
   }
 }
 
-const EMPTY_ARTICLE_READER_CONTROL_VALUES_V3 = Object.freeze(
-  Object.create(null),
-) as Readonly<Record<string, Readonly<Record<string, number>>>>;
 const EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3 = Object.freeze([]) as
   readonly string[];
 const EMPTY_ARTICLE_READER_ANALYSES_V3 = Object.freeze(
@@ -890,22 +896,17 @@ export function validatedArticleReaderVisibleScenarioIdsV3(
     requested.has(scenarioId)));
 }
 
-function withArticleReaderCommittedControlValueV3(
-  current: ArticleReaderLiveRuntimeStateV3["committedControlValues"],
+function articleReaderFixtureByScenarioV3(
+  snapshot: ExperimentSnapshotV2,
   scenarioIds: readonly string[],
-  controlId: string,
-  value: number,
-): ArticleReaderLiveRuntimeStateV3["committedControlValues"] {
-  const next: Record<string, Readonly<Record<string, number>>> = {
-    ...current,
-  };
-  for (const scenarioId of scenarioIds) {
-    next[scenarioId] = Object.freeze({
-      ...(current[scenarioId] ?? {}),
-      [controlId]: value,
-    });
-  }
-  return Object.freeze(next);
+): ArticleReaderLiveRuntimeStateV3["fixtureByScenario"] {
+  const visibleScenarioIds = new Set(scenarioIds);
+  return Object.freeze(Object.fromEntries(
+    snapshot.content.scenarios.flatMap((scenario) =>
+      visibleScenarioIds.has(scenario.scenarioId)
+        ? [[scenario.scenarioId, scenario.capture.fixture] as const]
+        : []),
+  ));
 }
 
 export function appendArticleReaderFramesV3(

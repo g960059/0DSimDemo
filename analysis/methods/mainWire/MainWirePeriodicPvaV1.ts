@@ -9,7 +9,8 @@ import {
 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
-export const MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID =
+/** Published method identity. Semantic changes require a new ID and builder. */
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID =
   "suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8" as const;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
@@ -136,7 +137,7 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
 export type MainWirePeriodicPvaV1 =
   | Readonly<{
       analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID;
+      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID;
       status: "collecting" | "unavailable";
       ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1;
       pressureBasis: "transmural";
@@ -146,7 +147,7 @@ export type MainWirePeriodicPvaV1 =
     }>
   | Readonly<{
       analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID;
+      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID;
       outputId: string;
       status: "available";
       /** Displayable throughout refinement; this field only reports completion. */
@@ -219,7 +220,8 @@ type ExponentialFitV1 = Readonly<{
   parameterBoundaryHit: boolean;
 }>;
 
-export function buildMainWirePeriodicPvaV1(
+/** Append-only V8 implementation; publish changed semantics as a new builder. */
+export function buildMainWirePeriodicPvaMethodV8(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
 ): MainWirePeriodicPvaV1 {
@@ -236,7 +238,7 @@ export function buildMainWirePeriodicPvaV1(
   ): MainWirePeriodicPvaV1 =>
     Object.freeze({
       analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
-      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
       status,
       ventricleId,
       pressureBasis: "transmural" as const,
@@ -540,7 +542,7 @@ export function buildMainWirePeriodicPvaV1(
     ventricleId === "LV"
       ? evaluateMainWireIntegratedModelLvMvo2EstimateV1({
           pvaOutputId: outputId,
-          pvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+          pvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
           pvaEstimateJ: pvaJ,
           heartRateBpm: 60 / acceptedBeatDurationSec,
         })
@@ -566,7 +568,7 @@ export function buildMainWirePeriodicPvaV1(
   });
   return Object.freeze({
     analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
-    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
     outputId,
     status: "available" as const,
     completionStatus: espvrProjection.phaseSelectionStatus,

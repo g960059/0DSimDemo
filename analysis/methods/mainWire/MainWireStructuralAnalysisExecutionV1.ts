@@ -9,8 +9,8 @@ export {
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 export {
-  buildMainWirePeriodicPvaV1,
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V1_ID,
+  buildMainWirePeriodicPvaMethodV8,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   type MainWirePeriodicPvaV1,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {

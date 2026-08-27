@@ -7,7 +7,10 @@ import type {
   MainWireIntegratedModelStarlingLocusV3,
   MainWireIntegratedModelStarlingPointV3,
 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
-import { buildMainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import {
+  buildMainWirePeriodicPvaMethodV8,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3,
@@ -32,13 +35,14 @@ import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1 } from
 
 describe("settled hot-start PVA V1", () => {
   it("calculates accepted-step SW, an area-max common-isochrone ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
       "LV",
     );
 
     expect(result.status).toBe("available");
     if (result.status !== "available") throw new Error(result.reason);
+    expect(result.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID);
     expect(result.completionStatus).toBe("complete");
     expect(result.source).toMatchObject({
       primaryLineage: "persistent-worker-settled-hot-start-chain",
@@ -169,7 +173,7 @@ describe("settled hot-start PVA V1", () => {
         ),
       });
     });
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(curved),
       "LV",
     );
@@ -227,7 +231,7 @@ describe("settled hot-start PVA V1", () => {
       });
     });
 
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(points),
       "LV",
     );
@@ -259,11 +263,11 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("is insensitive to adaptive point density over the same volume domain", () => {
-    const uniform = buildMainWirePeriodicPvaV1(
+    const uniform = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
       "LV",
     );
-    const adaptive = buildMainWirePeriodicPvaV1(
+    const adaptive = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(
         settledPointsV1([
           1.16, 1.08, 1, 0.99, 0.965, 0.925, 0.86, 0.78, 0.7, 0.64, 0.6,
@@ -298,7 +302,7 @@ describe("settled hot-start PVA V1", () => {
     const partial = formalLocusV1(points, 21);
 
     expect(
-      buildMainWirePeriodicPvaV1(partial, "LV"),
+      buildMainWirePeriodicPvaMethodV8(partial, "LV"),
     ).toMatchObject({
       status: "collecting",
       progress: { completedPointCount: 4, totalPointCount: 5 },
@@ -310,11 +314,11 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("progresses from a narrow three-point preview to a bilateral five-point PVA", () => {
-    const relations = buildMainWirePeriodicPvaV1(
+    const relations = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.08, 1, 0.92]), 21),
       "LV",
     );
-    const provisionalPva = buildMainWirePeriodicPvaV1(
+    const provisionalPva = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
@@ -347,7 +351,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("publishes PVA after five bidirectional points while the wider family continues", () => {
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
@@ -366,7 +370,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("uses every settled load for preview but keeps the five-load PVA admission minimum", () => {
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84]), 21),
       "LV",
     );
@@ -410,11 +414,11 @@ describe("settled hot-start PVA V1", () => {
       },
     );
     const core = phaseAdaptiveFamily.slice(0, 5);
-    const coreResult = buildMainWirePeriodicPvaV1(
+    const coreResult = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(core, phaseAdaptiveFamily.length),
       "LV",
     );
-    const extendedResult = buildMainWirePeriodicPvaV1(
+    const extendedResult = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(phaseAdaptiveFamily),
       "LV",
     );
@@ -452,7 +456,7 @@ describe("settled hot-start PVA V1", () => {
     const adaptiveRatios = [
       1.16, 1.08, 1, 0.96, 0.91, 0.855, 0.8, 0.75, 0.7, 0.65, 0.6,
     ];
-    const adaptive = buildMainWirePeriodicPvaV1(
+    const adaptive = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1(adaptiveRatios)),
       "LV",
     );
@@ -504,7 +508,7 @@ describe("settled hot-start PVA V1", () => {
       }),
     );
 
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(points),
       "LV",
     );
@@ -531,7 +535,7 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(
-      buildMainWirePeriodicPvaV1(formalLocusV1(points), "LV"),
+      buildMainWirePeriodicPvaMethodV8(formalLocusV1(points), "LV"),
     ).toMatchObject({ status: "unavailable" });
   });
 
@@ -550,7 +554,7 @@ describe("settled hot-start PVA V1", () => {
     );
 
     expect(
-      buildMainWirePeriodicPvaV1(formalLocusV1(points), "LV"),
+      buildMainWirePeriodicPvaMethodV8(formalLocusV1(points), "LV"),
     ).toMatchObject({
       status: "unavailable",
       reason: expect.stringContaining("fixed anchor-ESV neighborhood"),
@@ -558,7 +562,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("does not expose an RV oxygen estimate", () => {
-    const result = buildMainWirePeriodicPvaV1(
+    const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
       "RV",
     );
@@ -567,7 +571,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps the PV pane focused on curves instead of a numerical result card", () => {
-    const periodicPva = buildMainWirePeriodicPvaV1(
+    const periodicPva = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
       "LV",
     );
@@ -626,7 +630,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("renders settled-point progress in the PV pane", () => {
-    const periodicPva = buildMainWirePeriodicPvaV1(
+    const periodicPva = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
@@ -691,7 +695,7 @@ describe("settled hot-start PVA V1", () => {
           outputId as (typeof analysisOutputIds)[number],
         )),
     ).toBe(true);
-    const periodicPva = buildMainWirePeriodicPvaV1(
+    const periodicPva = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
       "LV",
     );
@@ -767,7 +771,7 @@ describe("settled hot-start PVA V1", () => {
       ),
     ).toBeUndefined();
 
-    const early = buildMainWirePeriodicPvaV1(
+    const early = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1([1.16, 1, 0.92, 0.84, 0.76]), 21),
       "LV",
     );
@@ -881,7 +885,7 @@ function formalLocusV1(
 
 function endpointSecantPotentialEnergyV1(
   result: Extract<
-    ReturnType<typeof buildMainWirePeriodicPvaV1>,
+    ReturnType<typeof buildMainWirePeriodicPvaMethodV8>,
     Readonly<{ status: "available" }>
   >,
 ): number {

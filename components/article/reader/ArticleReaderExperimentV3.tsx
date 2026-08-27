@@ -67,7 +67,10 @@ import type {
 } from "@/studio/contracts/v2/model";
 import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
-import { resolveExactModelControlValueV1 } from
+import {
+  resolveExactModelControlValueV1,
+  type ExactModelResolvedControlValueV1,
+} from
   "@/studio/application/model/ExactModelControlValuesV1";
 import {
   articleReaderAnalysisKeyV3,
@@ -1631,50 +1634,58 @@ export function ArticleReaderControlV3({
   );
   const primaryTargetId =
     targetIds[0] ?? briefing.scenarioScope.initialFocusScenarioId;
-  const targetValues = targetIds.map(
-    (scenarioId) =>
-      runtime.state.committedControlValues[scenarioId]?.[control.controlId] ??
-      readerControlInitialValueV3(
-        snapshot,
-        scenarioId,
-        definition,
-        runtime.fixtureProjection,
-      ),
-  );
-  const committedRuntimeValue =
-    runtime.state.committedControlValues[primaryTargetId]?.[control.controlId];
-  const initialValue =
-    committedRuntimeValue ??
+  const targetValues = targetIds.map((scenarioId) =>
     readerControlInitialValueV3(
       snapshot,
-      primaryTargetId,
+      scenarioId,
       definition,
       runtime.fixtureProjection,
-    );
+      runtime.state.fixtureByScenario[scenarioId],
+    ));
+  const initialProjected = readerControlInitialValueV3(
+    snapshot,
+    primaryTargetId,
+    definition,
+    runtime.fixtureProjection,
+    runtime.state.fixtureByScenario[primaryTargetId],
+  );
+  const initialValue = initialProjected.status === "value"
+    ? initialProjected.value
+    : definition.defaultValue;
   const [value, setValue] = React.useState(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const committedRef = React.useRef(initialValue);
   const commitInFlightRef = React.useRef(false);
   const controlInstanceId = articleReaderControlInstanceIdV3(control);
-  const mixed =
-    targetValues.length > 1 &&
-    targetValues.some((candidate) => candidate !== targetValues[0]);
+  const mixed = targetValues.some((candidate) =>
+    candidate.status === "mixed" ||
+    (candidate.status === "value" && candidate.value !== initialValue));
 
   React.useEffect(() => {
-    const next =
-      committedRuntimeValue ??
-      readerControlInitialValueV3(
-        snapshot,
-        primaryTargetId,
-        definition,
-        runtime.fixtureProjection,
-      );
+    const nextProjected = readerControlInitialValueV3(
+      snapshot,
+      primaryTargetId,
+      definition,
+      runtime.fixtureProjection,
+      runtime.state.fixtureByScenario[primaryTargetId],
+    );
+    const next = nextProjected.status === "value"
+      ? nextProjected.value
+      : definition.defaultValue;
     setValue(next);
     committedRef.current = next;
-  }, [committedRuntimeValue, definition, primaryTargetId, snapshot]);
+  }, [
+    definition,
+    primaryTargetId,
+    runtime.fixtureProjection,
+    runtime.state.fixtureByScenario,
+    snapshot,
+  ]);
 
   const commit = async (next: number) => {
-    if (next === committedRef.current || commitInFlightRef.current) return;
+    if (
+      (!mixed && next === committedRef.current) || commitInFlightRef.current
+    ) return;
     commitInFlightRef.current = true;
     setError(null);
     try {
@@ -2131,8 +2142,9 @@ function readerControlInitialValueV3(
   scenarioId: string,
   definition: ControlDefinitionV2,
   projection: ExactModelFixtureProjectionV1,
-): number {
-  const fixture = snapshot.content.scenarios.find(
+  currentFixture?: unknown,
+): ExactModelResolvedControlValueV1 {
+  const fixture = currentFixture ?? snapshot.content.scenarios.find(
     (scenario) => scenario.scenarioId === scenarioId,
   )?.capture.fixture;
   return resolveExactModelControlValueV1(definition, fixture, projection);

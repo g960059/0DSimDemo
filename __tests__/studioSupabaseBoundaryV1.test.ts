@@ -449,6 +449,7 @@ describe("Studio Supabase boundary V1", () => {
       predecessorSurfaceReleaseId: null,
       modelFamilyId: model.modelFamilyId,
       displayName: "Main Wire Surface",
+      exposedExactOutputIds: [],
       controlCatalog: [],
       derivedOutputCatalog: [],
       graphCatalog: [],
@@ -468,7 +469,7 @@ describe("Studio Supabase boundary V1", () => {
       materialized: {
         surfaceReleaseId: manifest.surfaceReleaseId,
         modelFamilyId: manifest.modelFamilyId,
-        exposedExactOutputIds: model.outputCatalog.map(({ outputId }) => outputId),
+        exposedExactOutputIds: [],
         controlCatalog: [],
         derivedOutputCatalog: [],
         graphCatalog: [],

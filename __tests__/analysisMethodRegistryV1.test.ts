@@ -4,18 +4,33 @@ import {
   defineAnalysisMethodRegistryV1,
   resolveAnalysisMethodsForSurfaceV1,
 } from "@/analysis/contracts/AnalysisMethodRegistryV1";
+import { resolveRegisteredAnalysisMethodsV1 } from
+  "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import { assertModelSurfaceReleaseManifestV1 } from
+  "@/studio/contracts/v2/modelSurface";
 import surfaceValue from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 
 const derivation = surfaceValue.derivedOutputCatalog[0]!;
 const analysisId =
   "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
+const surfaceAnalysisIds = Object.freeze([...new Set([
+  ...surfaceValue.controlCatalog,
+  ...surfaceValue.derivedOutputCatalog,
+  ...surfaceValue.graphCatalog,
+  ...surfaceValue.knobCatalog,
+  ...surfaceValue.protocolCatalog,
+].flatMap(({ requiredCapabilities }) =>
+  requiredCapabilities.flatMap((capability) =>
+    capability.startsWith("analysis/")
+      ? [capability.slice("analysis/".length)]
+      : [])))]);
 
 describe("analysis method registry V1", () => {
   it("resolves only methods supplied by the injected registry", () => {
     const runtime = Object.freeze({ marker: "injected" as const });
     const registry = defineAnalysisMethodRegistryV1({
-      analysisRequestIds: [analysisId],
+      analysisRequestIds: surfaceAnalysisIds,
       derivations: [{
         derivationId: derivation.derivationId,
         outputs: surfaceValue.derivedOutputCatalog.map((output) => ({
@@ -47,54 +62,26 @@ describe("analysis method registry V1", () => {
     }]);
   });
 
-  it("does not infer Main Wire methods when the registry is empty", () => {
-    const resolved = resolveAnalysisMethodsForSurfaceV1({
+  it("fails explicitly when this client lacks a Surface-pinned method", () => {
+    expect(() => resolveAnalysisMethodsForSurfaceV1({
       registry: defineAnalysisMethodRegistryV1({
         analysisRequestIds: [],
         derivations: [],
         resolveExecutionPlan: () => null,
       }),
       surfaceValue,
-    });
-
-    expect(resolved.capabilities).toEqual([]);
-    expect(resolved.derivations).toEqual([]);
-    expect(resolved.resolveExecutionPlan(analysisId)).toBeNull();
+    })).toThrow(/Client does not support analysis/);
   });
 
-  it("selects explicitly registered compatibility runtimes without inventing a Surface capability", () => {
-    const runtime = Object.freeze({ marker: "legacy" as const });
-    const registry = defineAnalysisMethodRegistryV1({
-      analysisRequestIds: [analysisId],
-      derivations: [{
-        derivationId: derivation.derivationId,
-        outputs: [],
-        requiredAnalysisIds: [analysisId],
-        runtime,
-      }],
-      legacyExactOutputBindings: [{
-        exactOutputIds: ["legacy.output"],
-        runtimeDerivationIds: [derivation.derivationId],
-        analysisIds: [analysisId],
-      }],
-      resolveExecutionPlan: () => null,
-    });
-
-    const resolved = resolveAnalysisMethodsForSurfaceV1({
-      registry,
-      surfaceValue: {
-        ...surfaceValue,
-        derivedOutputCatalog: [],
-        graphCatalog: [],
-      },
-      exactOutputs: [{ outputId: "legacy.output" }],
-    });
-
-    expect(resolved.capabilities).toEqual([`analysis/${analysisId}`]);
-    expect(resolved.derivations).toEqual([{
-      derivationId: derivation.derivationId,
-      runtime,
-    }]);
+  it("dispatches registered methods by model family", () => {
+    const foreignSurface: unknown = {
+      ...surfaceValue,
+      modelFamilyId: "model-family/foreign-v1",
+    };
+    assertModelSurfaceReleaseManifestV1(foreignSurface);
+    expect(() => resolveRegisteredAnalysisMethodsV1(
+      foreignSurface,
+    )).toThrow(/No analysis method registry is available/);
   });
 
   it("fails registry definition on duplicate or dangling identities", () => {

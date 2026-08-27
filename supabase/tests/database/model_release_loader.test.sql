@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(45);
+select plan(43);
 
 select lives_ok(
   $$
@@ -541,63 +541,6 @@ select throws_ok(
   '22023',
   'model surface upgrade cannot hide an exact output',
   'A Surface successor cannot hide an exact output in the same series'
-);
-
-select lives_ok(
-  $$
-    select public.register_model_surface_release_v1(
-      'surface/legacy-exposure-test-v1',
-      'surface-series/legacy-exposure-test',
-      null,
-      'model/dynamic-loader-v3-test',
-      'Legacy exposure test surface',
-      '{
-        "schemaId":"circleheart-studio-model-surface-release-v1",
-        "surfaceReleaseId":"surface/legacy-exposure-test-v1",
-        "surfaceSeriesId":"surface-series/legacy-exposure-test",
-        "predecessorSurfaceReleaseId":null,
-        "modelFamilyId":"model/dynamic-loader-v3-test",
-        "displayName":"Legacy exposure test surface",
-        "controlCatalog":[],
-        "derivedOutputCatalog":[],
-        "graphCatalog":[],
-        "knobCatalog":[],
-        "protocolCatalog":[]
-      }'::jsonb,
-      'dynamic-loader-v3-test'
-    )
-  $$,
-  'A legacy Surface without an explicit exact-output policy remains loadable'
-);
-
-select throws_ok(
-  $$
-    select public.register_model_surface_release_v1(
-      'surface/legacy-exposure-test-v2-invalid',
-      'surface-series/legacy-exposure-test',
-      'surface/legacy-exposure-test-v1',
-      'model/dynamic-loader-v3-test',
-      'Invalid legacy exposure successor',
-      '{
-        "schemaId":"circleheart-studio-model-surface-release-v1",
-        "surfaceReleaseId":"surface/legacy-exposure-test-v2-invalid",
-        "surfaceSeriesId":"surface-series/legacy-exposure-test",
-        "predecessorSurfaceReleaseId":"surface/legacy-exposure-test-v1",
-        "modelFamilyId":"model/dynamic-loader-v3-test",
-        "displayName":"Invalid legacy exposure successor",
-        "exposedExactOutputIds":[],
-        "controlCatalog":[],
-        "derivedOutputCatalog":[],
-        "graphCatalog":[],
-        "knobCatalog":[],
-        "protocolCatalog":[]
-      }'::jsonb,
-      'dynamic-loader-v3-test'
-    )
-  $$,
-  '22023',
-  'legacy and explicit exact-output exposure require different model surface series',
-  'A Surface successor cannot switch from legacy to explicit exposure policy'
 );
 
 select lives_ok(

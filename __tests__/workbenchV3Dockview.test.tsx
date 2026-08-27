@@ -606,8 +606,14 @@ describe("V3 Dockview Workbench", () => {
 
   it("owns duplicate control values independently from their source", () => {
     const source = Object.freeze({
-      "control/systemic-resistance": 1,
-      "control/venous-tone": 0.14,
+      "control/systemic-resistance": Object.freeze({
+        status: "value" as const,
+        value: 1,
+      }),
+      "control/venous-tone": Object.freeze({
+        status: "value" as const,
+        value: 0.14,
+      }),
     });
     const duplicate = cloneWorkbenchControlValuesV3(source);
 
@@ -1976,8 +1982,17 @@ describe("V3 Dockview Workbench", () => {
         onCommit: accept,
       }),
     ).resolves.toEqual({ accepted: true, displayValue: 1.2 });
+    await expect(
+      resolveControlDraftCommitV3({
+        acceptedValue: 1,
+        candidate: 1,
+        control,
+        forceCommit: true,
+        onCommit: accept,
+      }),
+    ).resolves.toEqual({ accepted: true, displayValue: 1 });
     expect(reject).toHaveBeenCalledWith(1.2);
-    expect(accept).toHaveBeenCalledWith(1.2);
+    expect(accept.mock.calls).toEqual([[1.2], [1]]);
   });
 
   it("keeps role areas exact in the server fallback", () => {

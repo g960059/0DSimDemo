@@ -5,6 +5,10 @@ import {
 import type {
   ModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+} from
+  "@/domain/model/MainWireStandardIdentityV1";
 
 /** Union point for analysis method packs shipped by this client release. */
 export type RegisteredAnalysisMethodsV1 = ResolvedMainWireAnalysisMethodsV1;
@@ -15,7 +19,13 @@ export type RegisteredAnalysisMethodsV1 = ResolvedMainWireAnalysisMethodsV1;
  */
 export function resolveRegisteredAnalysisMethodsV1(
   surface: ModelSurfaceReleaseManifestV1,
-  exactOutputs: readonly Readonly<{ outputId: string }>[],
 ): RegisteredAnalysisMethodsV1 {
-  return resolveMainWireAnalysisMethodsForSurfaceV1(surface, exactOutputs);
+  if (
+    surface.modelFamilyId === MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3
+  ) {
+    return resolveMainWireAnalysisMethodsForSurfaceV1(surface);
+  }
+  throw new Error(
+    `No analysis method registry is available for model family ${surface.modelFamilyId}`,
+  );
 }

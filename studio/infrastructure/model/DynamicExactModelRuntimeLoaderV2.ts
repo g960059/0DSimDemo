@@ -174,10 +174,6 @@ export class DynamicExactModelRuntimeLoaderV2 {
     }
     const analysis = resolveRegisteredAnalysisMethodsV1(
       ticket.surfaceRelease,
-      [
-        ...ticket.manifest.primitiveSignalCatalog,
-        ...ticket.manifest.modelMetricCatalog,
-      ],
     );
     const modelSurface = materializeModelSurfaceV1({
       kernel: ticket.manifest,

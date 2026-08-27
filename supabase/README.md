@@ -66,8 +66,8 @@ path. Presentation, Auth, storage, Article, and hosting releases do not by
 themselves change exact numerical identity.
 
 Analysis methods are source-owned and selected by immutable IDs in the Model
-Surface. The legacy analysis-profile column remains readable for older
-clients, but current publication and reads do not select or expose it. A
+Surface. The physical analysis-profile column is migration-only storage;
+current tickets reject it and current APIs neither select nor expose it. A
 new-Session default fixture may change without minting a new `modelId`; saved
 content keeps its own fixture/checkpoint, while visible naming belongs to the
 Surface. The fuller ownership model is in

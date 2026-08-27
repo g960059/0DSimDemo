@@ -115,8 +115,8 @@ export type ModelSurfaceReleaseManifestV1 = Readonly<{
   predecessorSurfaceReleaseId: string | null;
   modelFamilyId: string;
   displayName: string;
-  /** Exact outputs intentionally exposed by this Surface; absent on legacy releases. */
-  exposedExactOutputIds?: readonly string[];
+  /** Exact outputs intentionally exposed by this Surface. */
+  exposedExactOutputIds: readonly string[];
   controlCatalog: readonly ModelSurfaceControlDefinitionV1[];
   derivedOutputCatalog: readonly ModelSurfaceDerivedOutputDefinitionV1[];
   graphCatalog: readonly ModelSurfaceGraphDefinitionV1[];
@@ -172,6 +172,7 @@ const SURFACE_KEYS_V1 = Object.freeze([
   "controlCatalog",
   "derivedOutputCatalog",
   "displayName",
+  "exposedExactOutputIds",
   "graphCatalog",
   "knobCatalog",
   "modelFamilyId",
@@ -288,7 +289,7 @@ export function assertModelSurfaceReleaseManifestV1(
   assertRequiredAndOptionalKeysV1(
     value,
     SURFACE_KEYS_V1,
-    ["exposedExactOutputIds"],
+    [],
     "$.surfaceRelease",
   );
   const surface = value as unknown as Record<string, unknown>;
@@ -323,12 +324,10 @@ export function assertModelSurfaceReleaseManifestV1(
     "$.surfaceRelease.modelFamilyId",
   );
   assertDisplayNameV1(surface.displayName, "$.surfaceRelease.displayName");
-  if (surface.exposedExactOutputIds !== undefined) {
-    assertUniqueIdArrayV1(
-      surface.exposedExactOutputIds,
-      "$.surfaceRelease.exposedExactOutputIds",
-    );
-  }
+  assertUniqueIdArrayV1(
+    surface.exposedExactOutputIds,
+    "$.surfaceRelease.exposedExactOutputIds",
+  );
   assertSurfaceControlCatalogV1(surface.controlCatalog);
   assertDerivedOutputCatalogV1(surface.derivedOutputCatalog);
   assertSurfaceGraphCatalogV1(
@@ -393,7 +392,7 @@ export function assertModelSurfaceReleaseManifestV1(
   assertProtocolCatalogV1(surface.protocolCatalog);
 }
 
-/** Capabilities projected from the legacy V2 public contract. */
+/** Capabilities projected from the current public model contract. */
 export function modelCapabilitiesFromContractV1(
   model: ModelContractV2,
   additional: readonly string[] = [],
@@ -526,9 +525,7 @@ export function materializeModelSurfaceForModelV1(
   const modelOutputsById = new Map(
     model.outputCatalog.map((output) => [output.outputId, output]),
   );
-  const declaredExactOutputIds = surface.exposedExactOutputIds
-    ?? model.outputCatalog.map(({ outputId }) => outputId);
-  const exposedExactOutputIds = declaredExactOutputIds.filter((outputId) =>
+  const exposedExactOutputIds = surface.exposedExactOutputIds.filter((outputId) =>
     modelOutputsById.has(outputId));
   const exposedExactOutputCatalog = exposedExactOutputIds.map((outputId) =>
     modelOutputsById.get(outputId)!);
@@ -626,8 +623,7 @@ export function assertModelSurfaceCompatibleV1(
     additionalCapabilities,
   );
   if (
-    surface.exposedExactOutputIds !== undefined
-    && surface.exposedExactOutputIds.length
+    surface.exposedExactOutputIds.length
       !== materialized.exposedExactOutputIds.length
   ) {
     throw new ModelSurfaceValidationErrorV1(
@@ -718,21 +714,6 @@ function assertExactOutputExposureExtensionV1(
   previous: ModelSurfaceReleaseManifestV1,
   next: ModelSurfaceReleaseManifestV1,
 ): void {
-  if (
-    previous.exposedExactOutputIds === undefined
-    || next.exposedExactOutputIds === undefined
-  ) {
-    if (
-      previous.exposedExactOutputIds !== undefined
-      || next.exposedExactOutputIds !== undefined
-    ) {
-      throw new ModelSurfaceValidationErrorV1(
-        "$.surfaceRelease.exposedExactOutputIds",
-        "legacy and explicit exposure policies require different Surface series",
-      );
-    }
-    return;
-  }
   const nextIds = new Set(next.exposedExactOutputIds);
   const removed = previous.exposedExactOutputIds.find((outputId) =>
     !nextIds.has(outputId));

@@ -5,7 +5,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
-import { buildMainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { buildMainWirePeriodicPvaMethodV8 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type { MainWireIntegratedModelStarlingLocusV3 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulation";
 import {
@@ -172,7 +172,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
     }
     expect(lowHost.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
-    const periodicPva = buildMainWirePeriodicPvaV1(
+    const periodicPva = buildMainWirePeriodicPvaMethodV8(
       payload.left.starlingLocus as MainWireIntegratedModelStarlingLocusV3,
       "LV",
     );
@@ -191,7 +191,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         }>;
       }>
     ).left.starlingLocus;
-    const fullPva = buildMainWirePeriodicPvaV1(
+    const fullPva = buildMainWirePeriodicPvaMethodV8(
       mergedLocus,
       "LV",
     );
@@ -363,7 +363,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
         }>;
       }>
     ).left.starlingLocus;
-    const pva = buildMainWirePeriodicPvaV1(locus, "LV");
+    const pva = buildMainWirePeriodicPvaMethodV8(locus, "LV");
     if (pva.status !== "available") throw new Error(pva.reason);
     expect(pva.espvr.fitPoints.length).toBeGreaterThanOrEqual(5);
     expect(pva.edpvr.fitPoints.length).toBeGreaterThanOrEqual(5);

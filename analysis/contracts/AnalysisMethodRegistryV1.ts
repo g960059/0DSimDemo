@@ -27,21 +27,9 @@ export type AnalysisDerivationRegistrationV1<Runtime> = Readonly<{
   runtime: Runtime;
 }>;
 
-/**
- * Temporary read compatibility for an immutable exact release that exposed
- * outputs before Surface-owned derivations existed. New releases must express
- * the same selection through a versioned Surface instead.
- */
-export type AnalysisLegacyExactOutputBindingV1 = Readonly<{
-  exactOutputIds: readonly string[];
-  runtimeDerivationIds: readonly string[];
-  analysisIds: readonly string[];
-}>;
-
 export type AnalysisMethodRegistryV1<Runtime> = Readonly<{
   analysisRequestIds: readonly string[];
   derivations: readonly AnalysisDerivationRegistrationV1<Runtime>[];
-  legacyExactOutputBindings: readonly AnalysisLegacyExactOutputBindingV1[];
   resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
 }>;
 
@@ -61,7 +49,6 @@ export function defineAnalysisMethodRegistryV1<Runtime>(
   input: Readonly<{
     analysisRequestIds: readonly string[];
     derivations: readonly AnalysisDerivationRegistrationV1<Runtime>[];
-    legacyExactOutputBindings?: readonly AnalysisLegacyExactOutputBindingV1[];
     resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,
 ): AnalysisMethodRegistryV1<Runtime> {
@@ -69,12 +56,11 @@ export function defineAnalysisMethodRegistryV1<Runtime>(
     input.analysisRequestIds,
     "analysis request",
   );
-  const derivationIds = uniqueIdsV1(
+  uniqueIdsV1(
     input.derivations.map(({ derivationId }) => derivationId),
     "analysis derivation",
   );
   const analysisIdSet = new Set(analysisRequestIds);
-  const derivationIdSet = new Set(derivationIds);
   for (const derivation of input.derivations) {
     for (const analysisId of derivation.requiredAnalysisIds) {
       if (!analysisIdSet.has(analysisId)) {
@@ -84,30 +70,9 @@ export function defineAnalysisMethodRegistryV1<Runtime>(
       }
     }
   }
-  const legacyExactOutputBindings = input.legacyExactOutputBindings ?? [];
-  for (const binding of legacyExactOutputBindings) {
-    if (binding.exactOutputIds.length === 0) {
-      throw new Error("Legacy exact-output binding must name an output");
-    }
-    for (const derivationId of binding.runtimeDerivationIds) {
-      if (!derivationIdSet.has(derivationId)) {
-        throw new Error(
-          `Legacy exact-output binding names unregistered derivation ${derivationId}`,
-        );
-      }
-    }
-    for (const analysisId of binding.analysisIds) {
-      if (!analysisIdSet.has(analysisId)) {
-        throw new Error(
-          `Legacy exact-output binding names unregistered analysis ${analysisId}`,
-        );
-      }
-    }
-  }
   return Object.freeze({
     analysisRequestIds,
     derivations: Object.freeze([...input.derivations]),
-    legacyExactOutputBindings: Object.freeze([...legacyExactOutputBindings]),
     resolveExecutionPlan: input.resolveExecutionPlan,
   });
 }
@@ -121,7 +86,6 @@ export function resolveAnalysisMethodsForSurfaceV1<Runtime>(
   input: Readonly<{
     registry: AnalysisMethodRegistryV1<Runtime>;
     surfaceValue: unknown;
-    exactOutputs?: readonly Readonly<{ outputId: string }>[];
   }>,
 ): ResolvedAnalysisMethodsV1<Runtime> {
   assertModelSurfaceReleaseManifestV1(input.surfaceValue);
@@ -152,6 +116,7 @@ export function resolveAnalysisMethodsForSurfaceV1<Runtime>(
           registeredAnalysisIds,
           selectedAnalysisIds,
           capabilities,
+          surface.surfaceReleaseId,
         );
       } else if (capability.startsWith("derivation/")) {
         requestedDerivationIds.add(capability.slice("derivation/".length));
@@ -164,12 +129,20 @@ export function resolveAnalysisMethodsForSurfaceV1<Runtime>(
 
   for (const derivationId of requestedDerivationIds) {
     const method = derivationById.get(derivationId);
-    if (method === undefined) continue;
+    if (method === undefined) {
+      throw new Error(
+        `Client does not support analysis derivation ${derivationId} pinned by Surface ${surface.surfaceReleaseId}`,
+      );
+    }
     const declaredOutputs = surface.derivedOutputCatalog.filter(
       (output) => output.derivationId === derivationId,
     );
     if (!declaredOutputs.every((output) =>
-      methodOwnsOutputSemanticsV1(method, output))) continue;
+      methodOwnsOutputSemanticsV1(method, output))) {
+      throw new Error(
+        `Client analysis derivation ${derivationId} is incompatible with Surface ${surface.surfaceReleaseId}`,
+      );
+    }
     selectedDerivations.set(derivationId, method);
     capabilities.add(derivationCapabilityV1(derivationId));
     for (const analysisId of method.requiredAnalysisIds) {
@@ -178,26 +151,7 @@ export function resolveAnalysisMethodsForSurfaceV1<Runtime>(
         registeredAnalysisIds,
         selectedAnalysisIds,
         capabilities,
-      );
-    }
-  }
-
-  const exactOutputIds = new Set(
-    (input.exactOutputs ?? []).map(({ outputId }) => outputId),
-  );
-  for (const binding of input.registry.legacyExactOutputBindings) {
-    if (!binding.exactOutputIds.every((outputId) =>
-      exactOutputIds.has(outputId))) continue;
-    for (const derivationId of binding.runtimeDerivationIds) {
-      const method = derivationById.get(derivationId);
-      if (method !== undefined) selectedDerivations.set(derivationId, method);
-    }
-    for (const analysisId of binding.analysisIds) {
-      selectAnalysisV1(
-        analysisId,
-        registeredAnalysisIds,
-        selectedAnalysisIds,
-        capabilities,
+        surface.surfaceReleaseId,
       );
     }
   }
@@ -220,8 +174,13 @@ function selectAnalysisV1(
   registeredAnalysisIds: ReadonlySet<string>,
   selectedAnalysisIds: Set<string>,
   capabilities: Set<string>,
+  surfaceReleaseId: string,
 ): void {
-  if (!registeredAnalysisIds.has(analysisId)) return;
+  if (!registeredAnalysisIds.has(analysisId)) {
+    throw new Error(
+      `Client does not support analysis ${analysisId} pinned by Surface ${surfaceReleaseId}`,
+    );
+  }
   selectedAnalysisIds.add(analysisId);
   capabilities.add(analysisCapabilityV1(analysisId));
 }

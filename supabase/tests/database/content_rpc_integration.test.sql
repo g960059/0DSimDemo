@@ -77,6 +77,7 @@ insert into studio.model_surface_releases (
     "predecessorSurfaceReleaseId":null,
     "modelFamilyId":"model/integration-test",
     "displayName":"Integration test Surface",
+    "exposedExactOutputIds":[],
     "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
     "knobCatalog":[],"protocolCatalog":[]
   }'::jsonb,
@@ -102,6 +103,7 @@ insert into studio.model_surface_releases (
     "predecessorSurfaceReleaseId":null,
     "modelFamilyId":"model/integration-test",
     "displayName":"Integration alternate Surface",
+    "exposedExactOutputIds":[],
     "controlCatalog":[],"derivedOutputCatalog":[],"graphCatalog":[],
     "knobCatalog":[],"protocolCatalog":[]
   }'::jsonb,

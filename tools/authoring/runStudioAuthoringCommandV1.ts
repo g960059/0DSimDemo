@@ -209,10 +209,6 @@ function createAuthoringModelPortV1(
   ) => {
     const analysis = resolveRegisteredAnalysisMethodsV1(
       release.ticket.surfaceRelease,
-      [
-        ...release.ticket.manifest.primitiveSignalCatalog,
-        ...release.ticket.manifest.modelMetricCatalog,
-      ],
     );
     const modelSurface = composeModelSurfacePresentationBundleV1({
       kernel: release.ticket.manifest,
@@ -240,10 +236,6 @@ function createAuthoringModelPortV1(
       );
       const analysis = resolveRegisteredAnalysisMethodsV1(
         release.ticket.surfaceRelease,
-        [
-          ...release.ticket.manifest.primitiveSignalCatalog,
-          ...release.ticket.manifest.modelMetricCatalog,
-        ],
       );
       return composeModelSurfacePresentationBundleV1({
         kernel: release.ticket.manifest,

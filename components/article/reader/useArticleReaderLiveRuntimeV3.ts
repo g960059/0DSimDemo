@@ -219,9 +219,12 @@ function initialStateV3(
     activeScenarioId,
     pendingControlInstanceId: null,
     pendingAnalysisKeys: Object.freeze([]),
-    committedControlValues: Object.freeze(Object.create(null)) as Readonly<
-      Record<string, Readonly<Record<string, number>>>
-    >,
+    fixtureByScenario: Object.freeze(Object.fromEntries(
+      snapshot.content.scenarios.flatMap((scenario) =>
+        visibleScenarioIds.includes(scenario.scenarioId)
+          ? [[scenario.scenarioId, scenario.capture.fixture] as const]
+          : []),
+    )),
     analysisByKey: Object.freeze(Object.create(null)) as Readonly<
       Record<string, never>
     >,

@@ -71,6 +71,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -109,6 +110,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -151,6 +153,7 @@ select throws_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Invalid shrinking surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[],
         "derivedOutputCatalog":[],
         "graphCatalog":[],
@@ -180,6 +183,7 @@ select throws_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Invalid redefined surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -214,6 +218,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface v2",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -251,6 +256,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v2",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface v3",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
