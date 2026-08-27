@@ -18,6 +18,10 @@ import {
 } from "@/engine/core/circulationGraphKernelV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
+  validateMainWireAorticRootInertanceResearchProfileV1,
+  type MainWireAorticRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
+import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
@@ -35,6 +39,12 @@ import {
   type MainWireAorticValveResearchProfileV1,
   type MainWireValveEvaluationWithAorticResearchV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
+import {
+  stepMainWireAorticValveLocalInertanceScalarsV1,
+  validateMainWireAorticValveLocalInertanceProfileV1,
+  type MainWireAorticValveLocalInertanceEvaluationV1,
+  type MainWireAorticValveLocalInertanceProfileV1,
+} from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
 import {
   stressedVolumeFromPtm,
   type VascularPvLaw,
@@ -157,6 +167,9 @@ type NodeRecord<T> = Readonly<Record<NonCoronaryNodeNameV1, T>>;
 type EdgeRecord<T> = Readonly<Record<NonCoronaryEdgeNameV1, T>>;
 type DynamicEdgeRecord<T> = Readonly<Record<NonCoronaryDynamicEdgeNameV1, T>>;
 type ValveRecord<T> = Readonly<Record<NonCoronaryValveNameV1, T>>;
+type NonCoronaryValveEvaluationV1 =
+  | MainWireValveEvaluationWithAorticResearchV1
+  | MainWireAorticValveLocalInertanceEvaluationV1;
 
 export type NonCoronaryChamberVolumesMlV1 = Readonly<{
   LV: number;
@@ -230,6 +243,12 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
   /** Fixed-profile source research only; omission preserves canonical V2. */
   aorticValveResearchProfile?: MainWireAorticValveResearchProfileV1;
+  /** Coupled source research; q state is supplied and promoted by its runner. */
+  aorticValveLocalInertanceResearchProfile?:
+    MainWireAorticValveLocalInertanceProfileV1;
+  /** Scales graph-owned Ao_SA L without adding or moving a flow state. */
+  aorticRootInertanceResearchProfile?:
+    MainWireAorticRootInertanceResearchProfileV1;
 }>;
 
 /**
@@ -418,6 +437,8 @@ export type NonCoronaryCirculationTrialInputV1<
   options?: NonCoronaryCirculationNewtonOptionsV1;
   protocolResistanceScaleByEdge?:
     NonCoronaryProtocolResistanceScaleByEdgeV1;
+  /** Immutable accepted q_n owned outside the canonical checkpoint schema. */
+  aorticValveLocalInertancePreviousAcceptedFlowMlPerSec?: number;
   conservativeCompanion?: NonCoronaryConservativeCompanionAdapterV1<
     TEvaluation,
     TCompanionTrial
@@ -538,7 +559,7 @@ export type NonCoronaryCirculationTrialSuccessV1<
   candidateValveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
-  valveEvaluations: ValveRecord<MainWireValveEvaluationWithAorticResearchV1>;
+  valveEvaluations: ValveRecord<NonCoronaryValveEvaluationV1>;
   candidateMechanicsEvaluation: TEvaluation;
   /** Present when a device configuration was supplied, including all-off. */
   mechanicalSupport?: MechanicalSupportHydraulicEvaluationV1;
@@ -673,7 +694,7 @@ export type NonCoronaryPreparedCandidateBorrowV1<TEvaluation> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireValveEvaluationWithAorticResearchV1[];
+  valveEvaluations: readonly NonCoronaryValveEvaluationV1[];
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
     DynamicMechanicalSupportHydraulicEvaluationV1 | null;
@@ -725,7 +746,7 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireValveEvaluationWithAorticResearchV1[];
+  valveEvaluations: readonly NonCoronaryValveEvaluationV1[];
   candidateMechanicsEvaluation: TEvaluation;
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
@@ -758,7 +779,7 @@ type MutableCandidateNumericalPageV1 = {
   readonly edgeFlowsMlPerSec: Float64Array;
   readonly dynamicEdgeFlowsMlPerSec: Float64Array;
   readonly valveStates: MainWireQuasiSteadyOrificeValveStateV2[];
-  readonly valveEvaluations: MainWireValveEvaluationWithAorticResearchV1[];
+  readonly valveEvaluations: NonCoronaryValveEvaluationV1[];
   readonly nodeVolumeRatesMlPerSec: Float64Array;
   readonly continuityResidualMlByNode: Float64Array;
   readonly scaledIndependentResidual: Float64Array;
@@ -992,7 +1013,7 @@ MutableCandidateNumericalPageV1 {
       NON_CORONARY_VALVE_NAMES_V1.length,
     ),
     valveEvaluations:
-      Array<MainWireValveEvaluationWithAorticResearchV1>(
+      Array<NonCoronaryValveEvaluationV1>(
         NON_CORONARY_VALVE_NAMES_V1.length,
       ),
     nodeVolumeRatesMlPerSec:
@@ -1349,6 +1370,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
   try {
     requirePositive(input.dtSec, "dtSec");
     validateRuntime(input.runtime);
+    validateAorticValveLocalInertanceTrialInputV1(input);
     validateProtocolResistanceScaleByEdge(
       input.protocolResistanceScaleByEdge,
     );
@@ -1410,6 +1432,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validateAorticValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -1623,6 +1646,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validateAorticValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -1776,6 +1800,7 @@ export function materializeNonCoronaryCirculationCandidateTrialV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validateAorticValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -2680,22 +2705,34 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
         NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
       ]!;
       const evaluation = valveName === "AoV"
-          && input.runtime.aorticValveResearchProfile !== undefined
-        ? stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
+          && input.runtime.aorticValveLocalInertanceResearchProfile !== undefined
+        ? stepMainWireAorticValveLocalInertanceScalarsV1(
           previousOpening01,
+          input.aorticValveLocalInertancePreviousAcceptedFlowMlPerSec!,
           input.dtSec,
           upstreamPressure,
           downstreamPressure,
           valveResearchInput.valves.AoV,
-          input.runtime.aorticValveResearchProfile,
+          requirePositive(edge.L ?? 0, "AoV topology local inertance"),
+          input.runtime.aorticValveLocalInertanceResearchProfile,
         )
-        : stepMainWireQuasiSteadyOrificeValveScalarsV2(
-          previousOpening01,
-          input.dtSec,
-          upstreamPressure,
-          downstreamPressure,
-          valveResearchInput.valves[valveName],
-        );
+        : valveName === "AoV"
+            && input.runtime.aorticValveResearchProfile !== undefined
+          ? stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
+            previousOpening01,
+            input.dtSec,
+            upstreamPressure,
+            downstreamPressure,
+            valveResearchInput.valves.AoV,
+            input.runtime.aorticValveResearchProfile,
+          )
+          : stepMainWireQuasiSteadyOrificeValveScalarsV2(
+            previousOpening01,
+            input.dtSec,
+            upstreamPressure,
+            downstreamPressure,
+            valveResearchInput.valves[valveName],
+          );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
@@ -2727,7 +2764,10 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
-        (edge.L ?? 0) / (
+        (edge.L ?? 0) * dynamicEdgeInertanceResearchScaleV1(
+          input.runtime,
+          dynamicName,
+        ) / (
           edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1
         ),
         `${name} inertanceMmHgSec2PerMl`,
@@ -3078,7 +3118,10 @@ function analyticEdgeFlowPressureDerivativesV1<
         ? Math.max(losses.areaRatio, 1e-6)
         : 1;
       inertanceMmHgSec2PerMl = requirePositive(
-        (edge.L ?? 0) / areaDenominator,
+        (edge.L ?? 0) * dynamicEdgeInertanceResearchScaleV1(
+          input.runtime,
+          edgeName as NonCoronaryDynamicEdgeNameV1,
+        ) / areaDenominator,
         `${edgeName} inertance tangent base`,
       );
       if (edge.useChiResistance && losses.areaRatio > 1e-6) {
@@ -4527,6 +4570,39 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  if (runtime.aorticValveLocalInertanceResearchProfile !== undefined) {
+    const profileIssues = validateMainWireAorticValveLocalInertanceProfileV1(
+      runtime.aorticValveLocalInertanceResearchProfile,
+    );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticValveLocalInertanceResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+    if (runtime.aorticValveResearchProfile !== undefined) {
+      throw new Error(
+        "aortic valve pressure-recovery and local-inertance profiles are mutually exclusive",
+      );
+    }
+    if (runtime.valveResearchInput.valves.AoV.closedReverseEroaCm2 !== 0) {
+      throw new Error(
+        "aorticValveLocalInertanceResearchProfile requires competent AoV",
+      );
+    }
+  }
+  if (runtime.aorticRootInertanceResearchProfile !== undefined) {
+    const profileIssues =
+      validateMainWireAorticRootInertanceResearchProfileV1(
+        runtime.aorticRootInertanceResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticRootInertanceResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+  }
 }
 
 function validateMechanicalSupportInput(
@@ -4891,6 +4967,28 @@ function validateProtocolResistanceScaleByEdge(
   }
 }
 
+function validateAorticValveLocalInertanceTrialInputV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+): void {
+  const enabled =
+    input.runtime.aorticValveLocalInertanceResearchProfile !== undefined;
+  const previousFlow =
+    input.aorticValveLocalInertancePreviousAcceptedFlowMlPerSec;
+  if (!enabled && previousFlow !== undefined) {
+    throw new Error(
+      "AoV local-inertance previous flow requires its fixed runtime profile",
+    );
+  }
+  if (enabled && (!(previousFlow! >= 0) || !Number.isFinite(previousFlow))) {
+    throw new Error(
+      "AoV local-inertance research requires finite nonnegative previous accepted flow",
+    );
+  }
+}
+
 function validateConservativeCompanionAdapter<TEvaluation, TCompanionTrial>(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
 ): void {
@@ -4923,6 +5021,16 @@ function protocolResistanceScaleForEdge<TEvaluation, TCompanionTrial>(
   edgeName: NonCoronaryEdgeNameV1,
 ): number {
   return input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;
+}
+
+function dynamicEdgeInertanceResearchScaleV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  edgeName: NonCoronaryDynamicEdgeNameV1,
+): number {
+  const profile = runtime.aorticRootInertanceResearchProfile;
+  return profile !== undefined && edgeName === profile.dynamicEdgeId
+    ? profile.inertanceScaleFromTopology
+    : 1;
 }
 
 function applyProtocolResistanceScale<

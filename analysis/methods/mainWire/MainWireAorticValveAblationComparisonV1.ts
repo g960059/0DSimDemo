@@ -13,6 +13,7 @@ export const MAIN_WIRE_AORTIC_VALVE_ABLATION_COMPARISON_V1_ID =
 
 export type MainWireAorticValveAblationArmIdV1 =
   | "canonical"
+  | "historical-topology-local-inertance"
   | MainWireAorticValveResearchProfileIdV1;
 
 export const MAIN_WIRE_AORTIC_VALVE_ABLATION_COMPARISON_CLAIM_V1 =
@@ -74,6 +75,7 @@ export type MainWireAorticValveAblationArmMetricsV1 = Readonly<{
   aorticOpeningTargetEpisodeCount: number;
   aorticLeafletOpeningEpisodeCount: number;
   maximumAbsoluteOpeningConstraintResidual01: number;
+  maximumAbsolutePowerBalanceResidualMmHgMlPerSec: number;
 }>;
 
 export type MainWireAorticValveAblationComparisonV1 = Readonly<{
@@ -144,11 +146,12 @@ function measureArm(
     aorticForwardFlowTimeSec: aortic.forwardFlowTimeSec,
     aorticForwardEpisodeCount: aortic.forwardEpisodeCount,
     aorticFlowPeakThresholdMlPerSec,
-    aorticFlowPeakCountAboveFivePercent: countStrictLocalMaxima(
+    aorticFlowPeakCountAboveFivePercent: countMainWireStrictLocalMaximaV1(
       forwardFlows,
       aorticFlowPeakThresholdMlPerSec,
     ),
-    aorticFlowAcEnergyFraction10To50Hz: spectralEnergyFraction(
+    aorticFlowAcEnergyFraction10To50Hz:
+      mainWirePeriodicSpectralEnergyFractionV1(
       forwardFlows,
       result.dtSec,
       10,
@@ -176,10 +179,12 @@ function measureArm(
     aorticLeafletOpeningEpisodeCount: aortic.leafletOpeningEpisodeCount,
     maximumAbsoluteOpeningConstraintResidual01:
       aortic.maximumAbsoluteOpeningEquationResidual01,
+    maximumAbsolutePowerBalanceResidualMmHgMlPerSec:
+      aortic.maximumAbsolutePowerResidualMmHgMlPerSec,
   });
 }
 
-function countStrictLocalMaxima(
+export function countMainWireStrictLocalMaximaV1(
   values: readonly number[],
   threshold: number,
 ): number {
@@ -196,7 +201,7 @@ function countStrictLocalMaxima(
   return count;
 }
 
-function spectralEnergyFraction(
+export function mainWirePeriodicSpectralEnergyFractionV1(
   values: readonly number[],
   dtSec: number,
   lowerHz: number,

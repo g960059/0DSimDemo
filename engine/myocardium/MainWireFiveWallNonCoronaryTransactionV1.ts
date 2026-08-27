@@ -301,6 +301,8 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     /** Protocol-only transient occlusion; never persisted as a case parameter. */
     protocolResistanceScaleByEdge?:
       NonCoronaryProtocolResistanceScaleByEdgeV1;
+    /** Research-runner-owned AoV q_n; promoted only after this step succeeds. */
+    aorticValveLocalInertancePreviousAcceptedFlowMlPerSec?: number;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
   validateAcceptedPair(previous);
@@ -333,6 +335,8 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     options: input.circulationNewtonOptions,
     protocolResistanceScaleByEdge:
       input.protocolResistanceScaleByEdge,
+    aorticValveLocalInertancePreviousAcceptedFlowMlPerSec:
+      input.aorticValveLocalInertancePreviousAcceptedFlowMlPerSec,
     evaluateCandidateMechanics: (volumesMl) => {
       const mechanicsEvaluation = provider.evaluationResultOwnershipMode ===
           "exclusive-result"

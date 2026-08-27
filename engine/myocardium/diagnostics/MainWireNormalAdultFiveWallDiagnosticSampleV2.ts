@@ -1,6 +1,10 @@
 import type {
   MainWireFiveWallNonCoronaryStepSuccessV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
+import type {
+  NonCoronaryEdgeNameV1,
+  NonCoronaryNodeNameV1,
+} from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   sampleMainWireNormalAdultFiveWallStepV1,
   type MainWireNormalAdultFiveWallClosedLoopSampleV1,
@@ -28,6 +32,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM =
     baseSampleSchema: "unchanged-V1" as const,
     acceptedStepReadbackOnly: true as const,
     emitsAuthoritativeCommonIntrathoracicPressure: true as const,
+    emitsCompleteCirculationNodeAndEdgeReadback: true as const,
     addsDynamicState: false as const,
     changesFixedV1RunnerJson: false as const,
   });
@@ -43,6 +48,16 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
       typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID;
     /** Authoritative accepted-step respiratory Pth used by the transaction. */
     commonIntrathoracicPressureMmHg: number;
+    /** Complete exact circulation-node pressure readback at this candidate. */
+    circulationNodeAbsolutePressureMmHg: Readonly<Record<
+      NonCoronaryNodeNameV1,
+      number
+    >>;
+    /** Complete exact circulation-edge flow readback at this candidate. */
+    circulationEdgeFlowMlPerSec: Readonly<Record<
+      NonCoronaryEdgeNameV1,
+      number
+    >>;
     /** Accepted-step material strain; diagnostic readback, never a new state. */
     wallFiberLogStrain: Readonly<Record<
       MainWireNormalAdultFiveWallDiagnosticWallIdV2,
@@ -108,6 +123,12 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
       MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID,
     commonIntrathoracicPressureMmHg:
       step.commonIntrathoracicPressureMmHg,
+    circulationNodeAbsolutePressureMmHg: Object.freeze({
+      ...circulation.nodeAbsolutePressuresMmHg,
+    }),
+    circulationEdgeFlowMlPerSec: Object.freeze({
+      ...circulation.edgeFlowsMlPerSec,
+    }),
     wallFiberLogStrain: Object.freeze({
       ...mechanics.effectiveFiberLogStrainByWall,
     }),

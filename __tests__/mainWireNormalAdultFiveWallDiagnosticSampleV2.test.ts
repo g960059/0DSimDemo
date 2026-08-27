@@ -51,6 +51,9 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
     const {
       diagnosticSampleId: _diagnosticSampleId,
       commonIntrathoracicPressureMmHg: _commonIntrathoracicPressureMmHg,
+      circulationNodeAbsolutePressureMmHg:
+        _circulationNodeAbsolutePressureMmHg,
+      circulationEdgeFlowMlPerSec: _circulationEdgeFlowMlPerSec,
       wallFiberLogStrain: _wallFiberLogStrain,
       wallEnergyLedgerDensity: _wallEnergyLedgerDensity,
       acceptedMechanicsJacobianAudit: _acceptedMechanicsJacobianAudit,
@@ -61,6 +64,10 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
     expect(baseProjection).toEqual(base);
     expect(diagnostic.commonIntrathoracicPressureMmHg)
       .toBe(stepped.commonIntrathoracicPressureMmHg);
+    expect(diagnostic.circulationNodeAbsolutePressureMmHg)
+      .toEqual(stepped.circulationTrial.nodeAbsolutePressuresMmHg);
+    expect(diagnostic.circulationEdgeFlowMlPerSec)
+      .toEqual(stepped.circulationTrial.edgeFlowsMlPerSec);
     expect(Object.keys(base)).not.toContain("wallFiberLogStrain");
     expect(Object.values(diagnostic.wallFiberLogStrain).every(Number.isFinite))
       .toBe(true);
@@ -87,5 +94,7 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
       .changesFixedV1RunnerJson).toBe(false);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM
       .emitsAuthoritativeCommonIntrathoracicPressure).toBe(true);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM
+      .emitsCompleteCirculationNodeAndEdgeReadback).toBe(true);
   }, 60_000);
 });

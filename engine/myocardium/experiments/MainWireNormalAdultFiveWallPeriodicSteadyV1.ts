@@ -7,6 +7,10 @@ import {
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import {
+  resolveMainWireAorticRootInertanceResearchProfileV1,
+  type MainWireAorticRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   checkpointMainWireFiveWallNonCoronaryV1,
@@ -50,6 +54,11 @@ import {
   type MainWireNormalAdultFiveWallMacroPhysiologyPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallMacroPhysiologyPointsV1";
 import {
+  resolveMainWireAorticOutflowDriverRootAblationArmV1,
+  type MainWireAorticOutflowDriverRootAblationArmIdV1,
+  type MainWireAorticOutflowDriverRootAblationArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
+import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/integrity/stableHash";
@@ -82,6 +91,10 @@ import {
   type MainWireAorticValveResearchProfileIdV1,
   type MainWireAorticValveResearchProfileV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
+import {
+  MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+  type MainWireAorticValveLocalInertanceProfileV1,
+} from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
@@ -224,6 +237,12 @@ export type MainWireNormalAdultFiveWallAorticValveResearchOptionsV1 =
     maximumBeatCount?: number;
   }>;
 
+export type MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1 =
+  Readonly<{
+    dtSec: number;
+    maximumBeatCount?: number;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticValveResearchRunV1 = Readonly<{
   configurationRole: "fixed-aortic-valve-research-profile";
   profile: MainWireAorticValveResearchProfileV1;
@@ -237,6 +256,46 @@ export type MainWireNormalAdultFiveWallAorticValveResearchRunV1 = Readonly<{
     exactRuntimeIdentityIncludesProfile: true;
   }>;
 }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowResearchRunV1 = Readonly<{
+  configurationRole: "fixed-aortic-outflow-driver-root-ablation-arm";
+  arm: MainWireAorticOutflowDriverRootAblationArmV1;
+  materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+  aorticRootInertanceProfile:
+    MainWireAorticRootInertanceResearchProfileV1 | null;
+  periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+  claim: Readonly<{
+    sourceResearchRunnerOnly: true;
+    independentCanonicalColdStart: true;
+    warmStartApplied: false;
+    genericParameterPatchAccepted: false;
+    valveDiseaseBracketApplied: false;
+    aorticValveConstitutiveLawChanged: false;
+    acceptedStateOrCheckpointTopologyChanged: false;
+    exactRuntimeIdentityIncludesRootProfileWhenActive: true;
+  }>;
+}>;
+
+export type MainWireNormalAdultFiveWallAorticValveLocalInertanceResearchRunV1 =
+  Readonly<{
+    configurationRole: "fixed-aortic-valve-local-inertance-research-profile";
+    profile: MainWireAorticValveLocalInertanceProfileV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    externalFlowStateAudit: NonNullable<
+      MainWireNormalAdultFiveWallPeriodicResultV1[
+        "aorticValveLocalInertanceResearchAudit"
+      ]
+    >;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true;
+      canonicalAcceptedStateOrCheckpointChanged: false;
+      standardWarmStartEmitted: false;
+    }>;
+  }>;
 
 export type MainWireNormalAdultFiveWallMacroPhysiologyResearchRunV1 = Readonly<{
   configurationRole: "fixed-research-point";
@@ -309,6 +368,17 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
   terminalCycleBoundaryWarmStart:
     MainWireNormalAdultFiveWallCycleWarmStartV1 | null;
+  aorticValveLocalInertanceResearchAudit?: Readonly<{
+    profileId: MainWireAorticValveLocalInertanceProfileV1["profileId"];
+    initialAcceptedFlowMlPerSec: 0;
+    terminalAcceptedFlowMlPerSec: number;
+    cycleBoundaryAcceptedFlowsMlPerSec: readonly number[];
+    period1BoundaryClosureSatisfied: boolean;
+    period2BoundaryClosureSatisfied: boolean;
+    externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true;
+    canonicalAcceptedStateOrCheckpointChanged: false;
+    standardWarmStartEmitted: false;
+  }>;
   failure: null | Readonly<{
     beatIndex: number;
     stepWithinBeat: number;
@@ -439,6 +509,120 @@ export function runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
   });
 }
 
+/** Fixed 2x2 ventricular-driver/Ao_SA-inertance arm from a cold start. */
+export function runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowDriverRootAblationArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowDriverRootAblationArmV1(armId);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const aorticRootInertanceProfile = arm.aorticRootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      arm.aorticRootInertanceProfileId,
+    );
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 =
+    aorticRootInertanceProfile === null
+      ? baselineRuntime
+      : Object.freeze({
+        ...baselineRuntime,
+        aorticRootInertanceResearchProfile: aorticRootInertanceProfile,
+      });
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-driver-root-ablation-arm" as const,
+    arm,
+    materialPoint,
+    aorticRootInertanceProfile,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesRootProfileWhenActive: true as const,
+    }),
+  });
+}
+
+/** Coupled historical AoV-L retest with runner-owned q and no warm start. */
+export function runMainWireNormalAdultFiveWallAorticValveLocalInertanceResearchV1(
+  options: MainWireNormalAdultFiveWallAorticValveResearchOptionsV1,
+): MainWireNormalAdultFiveWallAorticValveLocalInertanceResearchRunV1 {
+  assertExactAorticValveResearchOptions(options);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    aorticValveLocalInertanceResearchProfile:
+      MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+  });
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  const externalFlowStateAudit =
+    periodicResult.aorticValveLocalInertanceResearchAudit;
+  if (externalFlowStateAudit === undefined) {
+    throw new Error("AoV local-inertance runner omitted external q audit");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-valve-local-inertance-research-profile" as const,
+    profile: MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+    periodicResult,
+    externalFlowStateAudit,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true as const,
+      canonicalAcceptedStateOrCheckpointChanged: false as const,
+      standardWarmStartEmitted: false as const,
+    }),
+  });
+}
+
 /**
  * Runs one of the fixed circulatory-load sensitivity points from an independent
  * canonical cold start. The intentionally narrow option surface prevents this
@@ -549,6 +733,14 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
   resolvedAssembly?: ResolvedPeriodicAssemblyV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const resolved = validateAndResolveOptions(options);
+  const localAorticValveInertanceProfile =
+    runtime.aorticValveLocalInertanceResearchProfile;
+  if (
+    localAorticValveInertanceProfile !== undefined
+    && resolved.warmStart !== null
+  ) {
+    throw new Error("AoV local-inertance research does not accept standard warm start");
+  }
   const provider = resolvedAssembly?.provider
     ?? createCanonicalMainWireNormalAdultFiveWallProviderV1(resolved.laSlsMode);
   const pericardium = createMainWireNormalAdultCommonPericardiumV1(
@@ -607,6 +799,10 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     );
 
   let state = initializedState;
+  let localAorticValveAcceptedFlowMlPerSec =
+    localAorticValveInertanceProfile === undefined ? null : 0;
+  const localAorticValveBoundaryFlowsMlPerSec: number[] =
+    localAorticValveInertanceProfile === undefined ? [] : [0];
   const boundaryStates: AcceptedState[] = [state];
   const observations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
   const retainedCompleteBeats: MainWireNormalAdultFiveWallRetainedBeatV1[] = [];
@@ -632,6 +828,12 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
         runtime,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
         pericardium,
+        ...(localAorticValveAcceptedFlowMlPerSec === null
+          ? {}
+          : {
+            aorticValveLocalInertancePreviousAcceptedFlowMlPerSec:
+              localAorticValveAcceptedFlowMlPerSec,
+          }),
       });
       if (stepped.converged === false) {
         retainedPartialBeat = beatSamples;
@@ -652,10 +854,19 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
         break beatLoop;
       }
       state = stepped.acceptedState;
+      if (localAorticValveAcceptedFlowMlPerSec !== null) {
+        localAorticValveAcceptedFlowMlPerSec =
+          stepped.circulationTrial.edgeFlowsMlPerSec.AoV;
+      }
       beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
     }
 
     boundaryStates.push(state);
+    if (localAorticValveAcceptedFlowMlPerSec !== null) {
+      localAorticValveBoundaryFlowsMlPerSec.push(
+        localAorticValveAcceptedFlowMlPerSec,
+      );
+    }
     const currentBoundaryIndex = boundaryStates.length - 1;
     const period1 = compareMainWireFiveWallAcceptedStatesV1(
       state,
@@ -683,15 +894,32 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
         .retainedCompleteBeatCount
     ) retainedCompleteBeats.shift();
     if (boundaryStates.length > 3) boundaryStates.shift();
-    if (classification.status !== "not-converged") break;
+    const externalClosure = classifyAorticValveLocalFlowClosure(
+      localAorticValveBoundaryFlowsMlPerSec,
+    );
+    if (
+      (
+        classification.status === "period1-converged"
+        && externalClosure.period1BoundaryClosureSatisfied
+      )
+      || (
+        classification.status === "period2-suspect"
+        && externalClosure.period2BoundaryClosureSatisfied
+      )
+    ) break;
   }
 
+  const externalClosure = classifyAorticValveLocalFlowClosure(
+    localAorticValveBoundaryFlowsMlPerSec,
+  );
   const terminationReason = resolveTerminationReason(
     failure,
     classification,
+    externalClosure,
   );
   const terminalCycleBoundaryWarmStart = failure === null
     && observations.length > 0
+    && localAorticValveInertanceProfile === undefined
     ? buildCycleBoundaryWarmStart(
       provider,
       state,
@@ -726,6 +954,24 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     retainedCompleteBeats: Object.freeze(retainedCompleteBeats),
     retainedPartialBeat: Object.freeze(retainedPartialBeat),
     terminalCycleBoundaryWarmStart,
+    ...(localAorticValveInertanceProfile === undefined
+      || localAorticValveAcceptedFlowMlPerSec === null
+      ? {}
+      : {
+        aorticValveLocalInertanceResearchAudit: Object.freeze({
+          profileId: localAorticValveInertanceProfile.profileId,
+          initialAcceptedFlowMlPerSec: 0 as const,
+          terminalAcceptedFlowMlPerSec:
+            localAorticValveAcceptedFlowMlPerSec,
+          cycleBoundaryAcceptedFlowsMlPerSec: Object.freeze([
+            ...localAorticValveBoundaryFlowsMlPerSec,
+          ]),
+          ...externalClosure,
+          externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true as const,
+          canonicalAcceptedStateOrCheckpointChanged: false as const,
+          standardWarmStartEmitted: false as const,
+        }),
+      }),
     failure,
     initializationAudit,
     policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
@@ -777,6 +1023,22 @@ function assertExactAorticValveResearchOptions(
     if (!allowed.has(key)) {
       throw new Error(
         `aortic-valve research options reject unsupported field: ${key}`,
+      );
+    }
+  }
+}
+
+function assertExactAorticOutflowResearchOptions(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+): void {
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error("aortic-outflow research options must be an object");
+  }
+  const allowed = new Set(["dtSec", "maximumBeatCount"]);
+  for (const key of Object.keys(options)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `aortic-outflow research options reject unsupported field: ${key}`,
       );
     }
   }
@@ -1244,15 +1506,63 @@ function classify(
   });
 }
 
+type MainWireAorticValveLocalFlowClosureV1 = Readonly<{
+  period1BoundaryClosureSatisfied: boolean;
+  period2BoundaryClosureSatisfied: boolean;
+}>;
+
+function classifyAorticValveLocalFlowClosure(
+  boundaryFlowsMlPerSec: readonly number[],
+): MainWireAorticValveLocalFlowClosureV1 {
+  if (boundaryFlowsMlPerSec.length === 0) {
+    return Object.freeze({
+      period1BoundaryClosureSatisfied: true,
+      period2BoundaryClosureSatisfied: true,
+    });
+  }
+  const policy = MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1;
+  const scaleMlPerSec = 1_000;
+  const consecutive = policy.consecutiveBeats;
+  const period1BoundaryClosureSatisfied =
+    boundaryFlowsMlPerSec.length >= consecutive + 1
+    && Array.from({ length: consecutive }, (_, offset) => {
+      const index = boundaryFlowsMlPerSec.length - 1 - offset;
+      return Math.abs(
+        boundaryFlowsMlPerSec[index]!
+          - boundaryFlowsMlPerSec[index - 1]!,
+      ) / scaleMlPerSec;
+    }).every((delta) => delta <= policy.period1NormalizedTolerance);
+  const period2BoundaryClosureSatisfied =
+    boundaryFlowsMlPerSec.length >= consecutive + 2
+    && Array.from({ length: consecutive }, (_, offset) => {
+      const index = boundaryFlowsMlPerSec.length - 1 - offset;
+      return Math.abs(
+        boundaryFlowsMlPerSec[index]!
+          - boundaryFlowsMlPerSec[index - 2]!,
+      ) / scaleMlPerSec;
+    }).every((delta) => delta <= policy.period2NormalizedTolerance);
+  return Object.freeze({
+    period1BoundaryClosureSatisfied,
+    period2BoundaryClosureSatisfied,
+  });
+}
+
 function resolveTerminationReason(
   failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"],
   classification: MainWireFiveWallPeriodicClassificationV1,
+  externalClosure: MainWireAorticValveLocalFlowClosureV1,
 ): MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 {
   if (failure !== null) return "step-failure";
-  if (classification.status === "period1-converged") {
+  if (
+    classification.status === "period1-converged"
+    && externalClosure.period1BoundaryClosureSatisfied
+  ) {
     return "period1-converged";
   }
-  if (classification.status === "period2-suspect") return "period2-suspect";
+  if (
+    classification.status === "period2-suspect"
+    && externalClosure.period2BoundaryClosureSatisfied
+  ) return "period2-suspect";
   return "maximum-beats-reached";
 }
 

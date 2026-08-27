@@ -46,6 +46,13 @@ import {
   resolveMainWireAorticValveResearchProfileV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
+  resolveMainWireAorticRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
+import {
+  MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_ABLATION_V1_ID,
+  MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+} from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
+import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   composeMainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
@@ -732,6 +739,98 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     }
     expect(Math.abs(analytic.diagnostics.totalBloodVolumeErrorMl))
       .toBeLessThan(1e-9);
+  });
+
+  it("applies the fixed Ao_SA inertance profile consistently in the primal and tangent", () => {
+    const profile = resolveMainWireAorticRootInertanceResearchProfileV1(
+      "aortic-root-inertance-high",
+    );
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      aorticRootInertanceResearchProfile: profile,
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const dtSec = 0.001;
+    const analytic = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec,
+      runtime,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics: coupledElasticMechanicsCallback(initial, true),
+    });
+    expect(analytic.converged).toBe(true);
+    if (analytic.converged === false) throw new Error(analytic.message);
+    expect(analytic.diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(analytic.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference).not.toBeNull();
+    expect(analytic.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference!).toBeLessThan(2e-5);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    const edge = graph.edges[graph.edgeIndex.get("Ao_SA")!];
+    const losses = baseNonValveEdgeLossV1(edge, runtime.losses);
+    const flow = analytic.candidateDynamicEdgeFlowsMlPerSec.Ao_SA;
+    const previousFlow = initial.dynamicEdgeFlowsMlPerSec.Ao_SA;
+    const gradient = analytic.nodeAbsolutePressuresMmHg.Ao
+      - analytic.nodeAbsolutePressuresMmHg.SA;
+    const effectiveInertance = edge.L!
+      * profile.inertanceScaleFromTopology;
+    const residual = effectiveInertance * (flow - previousFlow) / dtSec
+      + losses.resistanceMmHgSecPerMl * flow
+      + losses.quadraticLossMmHgSec2PerMl2 * flow * Math.abs(flow)
+      - gradient;
+    expect(Math.abs(residual)).toBeLessThan(1e-9);
+    expect(Object.keys(analytic.candidateDynamicEdgeFlowsMlPerSec))
+      .toEqual(["Ao_SA", "PA_PArt"]);
+  });
+
+  it("accepts runner-owned AoV local q without adding it to canonical state topology", () => {
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      aorticValveLocalInertanceResearchProfile:
+        MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime,
+      aorticValveLocalInertancePreviousAcceptedFlowMlPerSec: 0,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics: coupledElasticMechanicsCallback(initial, true),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(trial.valveEvaluations.AoV.modelId)
+      .toBe(MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_ABLATION_V1_ID);
+    expect(trial.diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(trial.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference!).toBeLessThan(2e-5);
+    expect(Object.keys(initial)).not.toContain("aorticValveFlowMlPerSec");
+    expect(Object.keys(initial.valveStates.AoV))
+      .toEqual(["leafletOpeningFraction01"]);
+    const missingPreviousFlow =
+      evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+        previousAcceptedState: initial,
+        dtSec: 0.001,
+        runtime,
+        evaluateCandidateMechanics:
+          coupledElasticMechanicsCallback(initial, true),
+      });
+    expect(missingPreviousFlow.converged).toBe(false);
+    if (missingPreviousFlow.converged === true) {
+      throw new Error("missing previous AoV flow unexpectedly converged");
+    }
+    expect(missingPreviousFlow.message)
+      .toContain("requires finite nonnegative previous accepted flow");
   });
 
   it("uses graph-owned respiratory external pressure and downstream waterfall inside the transaction", () => {
