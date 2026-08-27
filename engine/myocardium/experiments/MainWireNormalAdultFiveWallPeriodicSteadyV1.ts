@@ -33,8 +33,10 @@ import {
   type MainWireVentricularCalciumWaveformProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
-  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1_ID,
   resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
+  resolveMainWireVentricularCalciumDelayedMixtureProfileV1,
+  type MainWireVentricularCalciumDelayedMixtureProfileIdV1,
   type MainWireVentricularCalciumDelayedMixtureProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
 import {
@@ -49,8 +51,10 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1,
   resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1,
   type MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
+  type MainWireNormalAdultFiveWallCirculatoryLoadPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCirculatoryLoadPointsV1";
 import {
   resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
@@ -354,6 +358,27 @@ export type MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchR
       calciumOrMechanicsStateAdded: false;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-delayed-mixture-load-research-point";
+    profile: MainWireVentricularCalciumDelayedMixtureProfileV1;
+    loadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumAndLoadParams: true;
     }>;
   }>;
 
@@ -694,11 +719,14 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearch
 export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
   options:
     MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  profileId: MainWireVentricularCalciumDelayedMixtureProfileIdV1 =
+    MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1_ID,
 ): MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchRunV1 {
   assertExactVentricularCalciumWaveformResearchOptions(options);
-  const profile = MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1;
+  const profile =
+    resolveMainWireVentricularCalciumDelayedMixtureProfileV1(profileId);
   const calciumDriveParams =
-    resolveMainWireVentricularCalciumDelayedMixtureParamsV1();
+    resolveMainWireVentricularCalciumDelayedMixtureParamsV1(profileId);
   const runtime = normalAdultMainWireRuntimeV1();
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
   const bloodVolumeOperatingPoint =
@@ -740,6 +768,66 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureRe
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/** Fixed delayed-mixture × circulatory-load point from a cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  profileId: MainWireVentricularCalciumDelayedMixtureProfileIdV1,
+  loadPointId: MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile =
+    resolveMainWireVentricularCalciumDelayedMixtureProfileV1(profileId);
+  const loadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(loadPointId);
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumDelayedMixtureParamsV1(profileId);
+  const runtime =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(loadPointId);
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-delayed-mixture-load-research-point" as const,
+    profile,
+    loadPoint,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumAndLoadParams: true as const,
     }),
   });
 }

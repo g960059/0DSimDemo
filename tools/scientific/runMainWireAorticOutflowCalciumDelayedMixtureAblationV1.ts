@@ -6,6 +6,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumDelayedMixtureComparisonV1";
 import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
@@ -28,14 +29,20 @@ const canonical =
     { dtSec, maximumBeatCount },
     "canonical",
   );
-const delayedMixture =
-  runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1({
-    dtSec,
-    maximumBeatCount,
-  });
+const delayedMixtureRuns =
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1.map(
+    (profileId) =>
+      runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
+        { dtSec, maximumBeatCount },
+        profileId,
+      ),
+  );
 const comparison = compareMainWireAorticOutflowCalciumDelayedMixtureV1(
   canonical.periodicResult,
-  delayedMixture.periodicResult,
+  delayedMixtureRuns.map((run) => Object.freeze({
+    profileId: run.profile.profileId,
+    periodicResult: run.periodicResult,
+  })),
 );
 const report = Object.freeze({
   artifactSchemaVersion: 1 as const,
@@ -52,20 +59,29 @@ const report = Object.freeze({
   exactIdentities: Object.freeze({
     canonicalProtocolIdentityHash:
       canonical.periodicResult.protocolIdentityHash,
-    delayedMixtureProtocolIdentityHash:
-      delayedMixture.periodicResult.protocolIdentityHash,
     canonicalCalciumDriveStableHash:
       canonical.periodicResult.protocolComponentHashes
         .calciumDriveFixedParamsStableHash,
-    delayedMixtureCalciumDriveStableHash:
-      delayedMixture.periodicResult.protocolComponentHashes
-        .calciumDriveFixedParamsStableHash,
+    delayedMixtureProtocolIdentityHashes: Object.freeze(Object.fromEntries(
+      delayedMixtureRuns.map((run) => [
+        run.profile.profileId,
+        run.periodicResult.protocolIdentityHash,
+      ]),
+    )),
+    delayedMixtureCalciumDriveStableHashes: Object.freeze(Object.fromEntries(
+      delayedMixtureRuns.map((run) => [
+        run.profile.profileId,
+        run.periodicResult.protocolComponentHashes
+          .calciumDriveFixedParamsStableHash,
+      ]),
+    )),
   }),
-  resolvedCandidate: Object.freeze({
-    profile: delayedMixture.profile,
-    calciumDriveParams: delayedMixture.calciumDriveParams,
-    runnerClaim: delayedMixture.claim,
-  }),
+  resolvedCandidates: Object.freeze(delayedMixtureRuns.map((run) =>
+    Object.freeze({
+      profile: run.profile,
+      calciumDriveParams: run.calciumDriveParams,
+      runnerClaim: run.claim,
+    }))),
   comparison,
   interpretationBoundary: Object.freeze({
     physiologicalAcceptanceEstablished: false as const,
@@ -89,12 +105,18 @@ if (outputPath === null) {
     byteLength: Buffer.byteLength(serialized),
     canonicalTerminationReason:
       report.comparison.canonical.cycle.terminationReason,
-    candidateTerminationReason:
-      report.comparison.delayedMixture.cycle.terminationReason,
-    retainedDirectionalCandidate:
-      report.comparison.candidateScreen.retainedDirectionalCandidate,
-    referenceNormalizedCandidate:
-      report.comparison.candidateScreen.referenceNormalizedCandidate,
+    candidates: report.comparison.delayedMixtures.map((arm) => ({
+      profileId: arm.profile!.profileId,
+      terminationReason: arm.cycle.terminationReason,
+      retainedDirectionalCandidate:
+        arm.candidateScreen!.retainedDirectionalCandidate,
+      morphologyPreserved:
+        arm.morphologyScreen!.morphologyPreserved,
+      retainedMorphologySafeDirectionalCandidate:
+        arm.morphologyScreen!.retainedMorphologySafeDirectionalCandidate,
+      referenceNormalizedCandidate:
+        arm.morphologyScreen!.referenceNormalizedMorphologySafeCandidate,
+    })),
   })}\n`);
 }
 

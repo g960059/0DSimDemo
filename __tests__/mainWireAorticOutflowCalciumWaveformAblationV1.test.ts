@@ -8,6 +8,11 @@ import {
   compareMainWireAorticOutflowCalciumDelayedMixtureV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumDelayedMixtureComparisonV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_LOAD_POINT_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_LOAD_PROFILE_ID_V1,
+  measureMainWireAorticOutflowCalciumDelayedMixtureLoadEnvelopeV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumDelayedMixtureLoadEnvelopeV1";
+import {
   measurePeriodicAorticPressureFlowCouplingV1,
 } from "@/analysis/methods/mainWire/MainWireAorticPressureFlowCouplingV1";
 import {
@@ -18,8 +23,10 @@ import {
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1,
   resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
+  resolveMainWireVentricularCalciumDelayedMixtureProfileV1,
   validateMainWireVentricularCalciumDelayedMixtureProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
 import {
@@ -31,7 +38,9 @@ import {
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
@@ -185,58 +194,80 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       });
   });
 
-  it("seals a single-peaked exposure-preserving delayed mixture", () => {
+  it("seals and morphology-classifies an exposure-preserving delayed-mixture factorial", () => {
     const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
-    const profile =
-      MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1;
-    const params = resolveMainWireVentricularCalciumDelayedMixtureParamsV1();
-    const measured = measurePeriodicBiexponentialDelayedMixtureShapeV1(
-      prior.cycleLengthSec,
-      prior.ventricular.riseTimeConstantSec,
-      prior.ventricular.decayTimeConstantSec,
-      profile.delayedWeight01,
-      profile.delaySec,
-    );
-    expect(profile.delayedWeight01).toBe(0.25);
-    expect(profile.delaySec).toBe(prior.ventricular.riseTimeConstantSec);
-    expect(profile.unnormalizedMixturePeak01)
-      .toBe(measured.unnormalizedMixturePeak01);
-    expect(profile.ventricularSupradiastolicCalciumCycleExposureScaleFromPrior)
-      .toBeCloseTo(1, 14);
-    expect(validateMainWireVentricularCalciumDelayedMixtureProfileV1(profile))
-      .toEqual([]);
+    const profiles =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1.map(
+        resolveMainWireVentricularCalciumDelayedMixtureProfileV1,
+      );
+    expect(profiles.map((profile) => [
+      profile.delayedWeightFactor,
+      profile.delayReference,
+    ])).toEqual([
+      ["quarter", "baseline-ventricular-rise-time-constant"],
+      ["half", "baseline-ventricular-rise-time-constant"],
+      ["quarter", "baseline-ventricular-decay-time-constant"],
+      ["half", "baseline-ventricular-decay-time-constant"],
+    ]);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1)
+      .toBe(profiles[0]);
     expect(MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1)
       .toMatchObject({
+        oneSidedFactorial: true,
+        everyProfilePreservesVentricularCalciumCycleExposure: true,
         calciumOrMechanicsStateAdded: false,
         acceptedStateOrCheckpointTopologyChanged: false,
         parameterSearchOrFitting: false,
         hemodynamicOutcomeUsedToDeriveProfile: false,
       });
-
-    const sampleCount = 20_000;
-    const pulses = Array.from({ length: sampleCount }, (_, index) =>
-      evaluateFiveWallNormalCalciumDriveV1(
-        (index + 0.5) / sampleCount,
-        params,
-      ).ventricularNormalizedPulse01);
-    const numericalIntegral = pulses.reduce((sum, value) => sum + value, 0)
-      / sampleCount;
-    expect(numericalIntegral)
-      .toBeCloseTo(measured.normalizedMixtureCycleIntegralSec, 8);
-    expect(Math.max(...pulses)).toBeCloseTo(1, 7);
-    expect(countStrictCyclicLocalMaxima(pulses, 0.05)).toBe(1);
     const base = measurePeriodicBiexponentialCalciumPulseShapeV1(
       prior.cycleLengthSec,
       prior.ventricular.riseTimeConstantSec,
       prior.ventricular.decayTimeConstantSec,
     );
-    expect(
-      params.ventricular.peakAmplitudeUM * numericalIntegral,
-    ).toBeCloseTo(
-      prior.ventricular.peakAmplitudeUM
-        * base.normalizedPulseCycleIntegralSec,
-      8,
-    );
+    const sampleCount = 20_000;
+    const peakCounts: number[] = [];
+    for (const profile of profiles) {
+      const params =
+        resolveMainWireVentricularCalciumDelayedMixtureParamsV1(
+          profile.profileId,
+        );
+      const measured = measurePeriodicBiexponentialDelayedMixtureShapeV1(
+        prior.cycleLengthSec,
+        prior.ventricular.riseTimeConstantSec,
+        prior.ventricular.decayTimeConstantSec,
+        profile.delayedWeight01,
+        profile.delaySec,
+      );
+      expect(profile.unnormalizedMixturePeak01)
+        .toBe(measured.unnormalizedMixturePeak01);
+      expect(profile
+        .ventricularSupradiastolicCalciumCycleExposureScaleFromPrior)
+        .toBeCloseTo(1, 14);
+      expect(validateMainWireVentricularCalciumDelayedMixtureProfileV1(profile))
+        .toEqual([]);
+      const pulses = Array.from({ length: sampleCount }, (_, index) =>
+        evaluateFiveWallNormalCalciumDriveV1(
+          (index + 0.5) / sampleCount,
+          params,
+        ).ventricularNormalizedPulse01);
+      const numericalIntegral = pulses.reduce(
+        (sum, value) => sum + value,
+        0,
+      ) / sampleCount;
+      expect(numericalIntegral)
+        .toBeCloseTo(measured.normalizedMixtureCycleIntegralSec, 8);
+      expect(Math.max(...pulses)).toBeCloseTo(1, 7);
+      peakCounts.push(countStrictCyclicLocalMaxima(pulses, 0.05));
+      expect(
+        params.ventricular.peakAmplitudeUM * numericalIntegral,
+      ).toBeCloseTo(
+        prior.ventricular.peakAmplitudeUM
+          * base.normalizedPulseCycleIntegralSec,
+        8,
+      );
+    }
+    expect(peakCounts).toEqual([1, 1, 2, 2]);
   });
 
   it("preserves the canonical run exactly and changes only calcium identity", () => {
@@ -354,37 +385,88 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
         { dtSec: 0.02, maximumBeatCount: 2 },
         "canonical",
       );
-    const delayed =
-      runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
-        { dtSec: 0.02, maximumBeatCount: 2 },
+    const delayedRuns =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1.map(
+        (profileId) =>
+          runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
+            { dtSec: 0.02, maximumBeatCount: 2 },
+            profileId,
+          ),
       );
-    expect(delayed.periodicResult.protocolIdentityHash)
-      .not.toBe(canonical.periodicResult.protocolIdentityHash);
     const withoutCalciumHash = (
       hashes: typeof canonical.periodicResult.protocolComponentHashes,
     ) => {
       const { calciumDriveFixedParamsStableHash: _, ...rest } = hashes;
       return rest;
     };
-    expect(withoutCalciumHash(delayed.periodicResult.protocolComponentHashes))
-      .toEqual(withoutCalciumHash(
+    for (const delayed of delayedRuns) {
+      expect(delayed.periodicResult.protocolIdentityHash)
+        .not.toBe(canonical.periodicResult.protocolIdentityHash);
+      expect(withoutCalciumHash(
+        delayed.periodicResult.protocolComponentHashes,
+      )).toEqual(withoutCalciumHash(
         canonical.periodicResult.protocolComponentHashes,
       ));
-    expect(delayed.claim).toMatchObject({
-      circulationRuntimeChanged: false,
-      mechanicsProviderChanged: false,
-      calciumOrMechanicsStateAdded: false,
-      acceptedStateOrCheckpointTopologyChanged: false,
-    });
+      expect(delayed.claim).toMatchObject({
+        circulationRuntimeChanged: false,
+        mechanicsProviderChanged: false,
+        calciumOrMechanicsStateAdded: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+      });
+    }
     const comparison = compareMainWireAorticOutflowCalciumDelayedMixtureV1(
       canonical.periodicResult,
-      delayed.periodicResult,
+      delayedRuns.map((run) => ({
+        profileId: run.profile.profileId,
+        periodicResult: run.periodicResult,
+      })),
     );
-    expect(comparison.delayedMixture
-      .ventricularCalciumStrictLocalPeakCountAboveFivePercent).toBe(1);
-    expect(comparison.delayedMixture
-      .lvfwActiveStressStrictLocalPeakCountAboveFivePercent).toBeGreaterThan(0);
+    expect(comparison.delayedMixtures).toHaveLength(4);
+    expect(comparison.factorialContrasts).toHaveLength(12);
+    expect(comparison.delayedMixtures.map((arm) =>
+      arm.ventricularCalciumStrictLocalPeakCountAboveFivePercent))
+      .toEqual([1, 1, 2, 2]);
+    expect(comparison.delayedMixtures.map((arm) =>
+      arm.morphologyScreen!.morphologyPreserved))
+      .toEqual([true, true, false, false]);
+    for (const arm of comparison.delayedMixtures) {
+      expect(arm.lvfwActiveStressStrictLocalPeakCountAboveFivePercent)
+        .toBeGreaterThan(0);
+    }
     expect(allNumbersFiniteOrNull(comparison)).toBe(true);
+  }, 60_000);
+
+  it("pairs the morphology-safe arm with the fixed systemic-load envelope", () => {
+    const inputs =
+      MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_LOAD_POINT_IDS_V1.map(
+        (loadPointId) => ({
+          loadPointId,
+          canonicalResult:
+            runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              loadPointId,
+            ),
+          candidateResult:
+            runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_LOAD_PROFILE_ID_V1,
+              loadPointId,
+            ).periodicResult,
+        }),
+      );
+    const envelope =
+      measureMainWireAorticOutflowCalciumDelayedMixtureLoadEnvelopeV1(inputs);
+    expect(envelope.arms).toHaveLength(3);
+    expect(envelope.profile.profileId)
+      .toBe(MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_LOAD_PROFILE_ID_V1);
+    expect(envelope.morphologyPreservedAcrossEnvelope).toBe(true);
+    expect(envelope.claim.outcomeInformedProfileSelection).toBe(true);
+    expect(envelope.claim.numericParameterFittingOrOptimization).toBe(false);
+    expect(allNumbersFiniteOrNull(envelope)).toBe(true);
+    expect(() =>
+      measureMainWireAorticOutflowCalciumDelayedMixtureLoadEnvelopeV1(
+        inputs.slice(1),
+      )).toThrow("missing delayed-mixture load point");
   }, 60_000);
 });
 
