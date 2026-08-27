@@ -56,7 +56,7 @@ readonly MainWireSolverReplacementCorpusCaseV1[] = Object.freeze([
     "high-contractility",
     DEFAULTS,
     1.25,
-    // Re-pinned when Standard-63 routed the common convenience control
+    // Re-pinned when the common convenience control began routing
     // through the wall-explicit LVFW/SEP/RVFW mechanics input. The independent
     // coupled-solver branch/tolerance comparison remains the acceptance owner.
     "c240175fcab98bb93cd593a473e3ffefe2ad8cc2732c3f761e914c845a9b999f",

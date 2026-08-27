@@ -566,6 +566,7 @@ export class ArticleReaderLiveRuntimeV3 {
       ),
       error: null,
     });
+    let mutationDispatched = false;
     try {
       await runtime.pauseAll();
       if (this.#runtime !== runtime) return;
@@ -580,6 +581,7 @@ export class ArticleReaderLiveRuntimeV3 {
           .filter((analysis): analysis is StudioSimulationAnalysisV2 =>
             analysis !== undefined
             && analysis.inputEpoch === frame.inputEpoch));
+      mutationDispatched = true;
       const frames = await Promise.all(input.scenarioIds.map((scenarioId) => {
         const current = runtime.latestFrame(scenarioId);
         return runtime.applyControl({
@@ -639,11 +641,11 @@ export class ArticleReaderLiveRuntimeV3 {
     } catch (error) {
       const normalized = errorAsErrorV3(error);
       if (this.#runtime === runtime) {
-        if (input.scenarioIds.length > 1) {
-          // Worker lanes have independent accepted-state transactions. Once a
-          // multi-target Promise rejects, a sibling may already have committed;
-          // without a cross-lane rollback protocol the only safe authority is
-          // fail-closed rather than a misleading resumed comparison.
+        if (mutationDispatched) {
+          // Dispatch is the mutation boundary. An apply or the following exact
+          // fixture capture may fail after accepted state has already changed,
+          // even for one lane. Without rollback, the controller must discard
+          // the numerical authority rather than resume stale projected state.
           this.#fail(normalized, runtime);
         } else {
           this.#resumeAfterExclusiveOperationV3(runtime, {
@@ -710,14 +712,16 @@ export class ArticleReaderLiveRuntimeV3 {
     this.#runtime = null;
     try {
       authority.terminate();
-    } finally {
-      this.#publish({
-        status: "failed",
-        pendingControlInstanceId: null,
-        pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
-        error,
-      });
+    } catch {
+      // Numerical authority was already revoked above. Cleanup failure must
+      // not replace the causal error or make the failed runtime observable.
     }
+    this.#publish({
+      status: "failed",
+      pendingControlInstanceId: null,
+      pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
+      error,
+    });
   }
 
   #publish(

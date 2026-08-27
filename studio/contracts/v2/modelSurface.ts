@@ -484,11 +484,7 @@ export function composeStandardModelContractV1(
   });
 }
 
-/**
- * Materializes the items supported by one pinned exact model. A capability
- * added for a newer family member hides only the new item; it never makes the
- * complete Surface unavailable to historical exact content.
- */
+/** Materializes a Surface only when its exact-output pin fits this model. */
 export function materializeModelSurfaceForModelV1(
   surface: ModelSurfaceReleaseManifestV1,
   model: ModelContractV2,
@@ -525,8 +521,16 @@ export function materializeModelSurfaceForModelV1(
   const modelOutputsById = new Map(
     model.outputCatalog.map((output) => [output.outputId, output]),
   );
-  const exposedExactOutputIds = surface.exposedExactOutputIds.filter((outputId) =>
-    modelOutputsById.has(outputId));
+  const unsupportedExactOutputIndex = surface.exposedExactOutputIds.findIndex(
+    (outputId) => !modelOutputsById.has(outputId),
+  );
+  if (unsupportedExactOutputIndex >= 0) {
+    throw new ModelSurfaceValidationErrorV1(
+      `$.surfaceRelease.exposedExactOutputIds[${unsupportedExactOutputIndex}]`,
+      "is unsupported by the pinned exact model",
+    );
+  }
+  const exposedExactOutputIds = [...surface.exposedExactOutputIds];
   const exposedExactOutputCatalog = exposedExactOutputIds.map((outputId) =>
     modelOutputsById.get(outputId)!);
   const availableOutputs = new Set(exposedExactOutputIds);
@@ -622,15 +626,6 @@ export function assertModelSurfaceCompatibleV1(
     model,
     additionalCapabilities,
   );
-  if (
-    surface.exposedExactOutputIds.length
-      !== materialized.exposedExactOutputIds.length
-  ) {
-    throw new ModelSurfaceValidationErrorV1(
-      "$.surfaceRelease.exposedExactOutputIds",
-      "contains an output unsupported by the pinned exact model",
-    );
-  }
   const catalogs = [
     ["controlCatalog", surface.controlCatalog, materialized.controlCatalog],
     [

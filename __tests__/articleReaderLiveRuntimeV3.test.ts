@@ -408,7 +408,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(harness.requestAnalysis).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a rejected control recoverable and restores the prior play intent", async () => {
+  it("fails closed when a dispatched single-Scenario control rejects", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, {
       applyControlError: new Error("control failed"),
@@ -430,14 +430,37 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       "scenario/two": { offset: 1 },
     });
     expect(controller.getSnapshot()).toMatchObject({
-      status: "playing",
+      status: "failed",
       pendingControlInstanceId: null,
-      controlErrorByInstanceId: {
-        "pane/control\u001fcontrol/svr": "control failed",
-      },
     });
-    expect(harness.playAll).toHaveBeenCalledTimes(2);
-    expect(harness.terminate).not.toHaveBeenCalled();
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    expect(harness.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when exact fixture capture fails after control acceptance", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot, {
+      captureScenarioError: new Error("capture failed"),
+    });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+    });
+    await controller.start();
+
+    await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
+      controlId: "control/svr",
+      scenarioIds: ["scenario/one"],
+      value: 44,
+    })).rejects.toThrow("capture failed");
+
+    expect(harness.applyControl).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot()).toMatchObject({
+      status: "failed",
+      pendingControlInstanceId: null,
+    });
+    expect(harness.terminate).toHaveBeenCalledTimes(1);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when a multi-Scenario control can partially commit", async () => {
@@ -716,6 +739,7 @@ function runtimeHarnessV3(
     advanceOnPause?: boolean;
     applyControlError?: Error;
     applyControlErrorByScenarioId?: Readonly<Record<string, Error>>;
+    captureScenarioError?: Error;
   }> = {},
 ) {
   let dependencies: ArticleReaderParallelRuntimeFactoryInputV3 | undefined;
@@ -763,6 +787,9 @@ function runtimeHarnessV3(
     return next;
   });
   const captureScenario = vi.fn(async (scenarioId: string) => {
+    if (gates.captureScenarioError !== undefined) {
+      throw gates.captureScenarioError;
+    }
     const source = snapshot.content.scenarios.find(
       (scenario) => scenario.scenarioId === scenarioId,
     );

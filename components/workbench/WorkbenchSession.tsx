@@ -407,7 +407,6 @@ export const WorkbenchSession = ({
   >([]);
   const [analysisCapturePending, setAnalysisCapturePending] =
     React.useState(false);
-  const deferredSaveAfterAnalysisCaptureRef = React.useRef(false);
   const [analysisErrorByKey, setAnalysisErrorByKey] = React.useState<
     Readonly<Record<string, string>>
   >({});
@@ -1296,6 +1295,7 @@ export const WorkbenchSession = ({
       setPendingControlId(controlId);
       setControlError(null);
       let ownsControlOperation = false;
+      let mutationDispatched = false;
       try {
         if (operation === "analysis") {
           // A user edit outranks an automatically requested structural
@@ -1342,6 +1342,7 @@ export const WorkbenchSession = ({
             );
           }),
         );
+        mutationDispatched = true;
         const nextFrames = await Promise.all(
           acceptedFrames.map((acceptedFrame) =>
             runtime.applyControl({
@@ -1428,7 +1429,26 @@ export const WorkbenchSession = ({
         }
         return true;
       } catch (error) {
-        setControlError(error instanceof Error ? error.message : String(error));
+        const message = error instanceof Error ? error.message : String(error);
+        setControlError(message);
+        if (mutationDispatched && runtimeRef.current === runtime) {
+          // Once a Worker receives a control command, a rejected apply or a
+          // later fixture capture can leave accepted exact state changed. The
+          // UI has no rollback authority, so discard the entire runtime.
+          playingIntentRef.current = false;
+          setIsPlaying(false);
+          runtimeRef.current = null;
+          try {
+            runtime.terminate();
+          } catch {
+            // Authority is already revoked; preserve the causal control error.
+          }
+          setStatus({
+            kind: "error",
+            message: `${message} The exact runtime was stopped; restart is required.`,
+          });
+          return false;
+        }
         const latest = latestFrameRef.current;
         if (
           ownsControlOperation &&
@@ -1933,11 +1953,17 @@ export const WorkbenchSession = ({
     )
       return;
     if (exclusiveOperationRef.current === "analysis") {
-      deferredSaveAfterAnalysisCaptureRef.current = true;
-      setSaveState("saving");
-      return;
+      // Save is a foreground action. Revoke the detached analysis and wait only
+      // for its exact-source capture to release the live lane.
+      runtime.cancelAnalysisJobs();
+      await analysisCaptureReleaseRef.current?.promise;
+      runtime.cancelAnalysisJobs();
     }
-    if (exclusiveOperationRef.current !== null) return;
+    if (
+      runtimeRef.current !== runtime
+      || latestFrameRef.current === null
+      || exclusiveOperationRef.current !== null
+    ) return;
     const currentSurface = surfaceRef.current;
     if (currentSurface === null) return;
     const submittedSurface = reconcileWorkbenchSurfaceScenariosV3(
@@ -2130,13 +2156,6 @@ export const WorkbenchSession = ({
     surface,
     t,
   ]);
-
-  React.useEffect(() => {
-    if (analysisCapturePending || !deferredSaveAfterAnalysisCaptureRef.current)
-      return;
-    deferredSaveAfterAnalysisCaptureRef.current = false;
-    void saveExperimentV3();
-  }, [analysisCapturePending, saveExperimentV3]);
 
   const createSnapshotV3 = React.useCallback(
     async (

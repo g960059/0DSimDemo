@@ -53,9 +53,9 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-} from "@/domain/model/MainWireStandardIdentityV1";
+} from
+  "@/domain/model/MainWireStandardIdentityV1";
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import { resolveExactModelControlValueV1 } from
@@ -92,7 +92,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
         fixtureSchemaId:
-          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
       },
     );
     const controls = createCircleHeartExactModelReleaseV1()
@@ -154,7 +155,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       {
         modelId: "model/retired",
         fixtureSchemaId:
-          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
       },
     )).toThrow(/No exact fixture projection is registered/);
     expect(() => resolveRegisteredExactModelFixtureProjectionV1(
@@ -1359,6 +1361,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(composition.contract.displayName).toBe(
       mainWireIntegratedStudioStandardSurfaceV1.displayName,
     );
+
+    const incompatibleExactExposure = structuredClone(
+      mainWireIntegratedStudioStandardSurfaceV1,
+    );
+    incompatibleExactExposure.exposedExactOutputIds.push(
+      "research.unsupported-exact-output",
+    );
+    expect(() => composeStandardModelContractV1(
+      exact,
+      incompatibleExactExposure,
+      methods.capabilities,
+    )).toThrow(/unsupported by the pinned exact model/);
 
     const validatedCurrentSurface: unknown =
       mainWireIntegratedStudioStandardSurfaceV1;

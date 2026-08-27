@@ -25,8 +25,6 @@ import {
 import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
-import { composeStandardModelContractV1 } from
-  "@/studio/contracts/v2/modelSurface";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
@@ -437,17 +435,14 @@ describe("Studio Supabase boundary V1", () => {
     );
   });
 
-  it("resolves a Surface separately and rejects a family mismatch", async () => {
-    const model = composeStandardModelContractV1(
-      standardClientDescriptorV1.manifest,
-      standardSurfaceReleaseV1,
-    ).contract;
+  it("resolves a Surface manifest separately and rejects a family mismatch", async () => {
+    const modelFamilyId = standardClientDescriptorV1.manifest.modelFamilyId;
     const manifest = {
       schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
       surfaceReleaseId: "surface/main-wire-v1",
       surfaceSeriesId: "surface-series/main-wire",
       predecessorSurfaceReleaseId: null,
-      modelFamilyId: model.modelFamilyId,
+      modelFamilyId,
       displayName: "Main Wire Surface",
       exposedExactOutputIds: [],
       controlCatalog: [],
@@ -463,28 +458,20 @@ describe("Studio Supabase boundary V1", () => {
     const resolver = new StudioSupabaseModelSurfaceResolverV1({ rpc: { call } });
 
     await expect(
-      resolver.resolveExactSurface(manifest.surfaceReleaseId, model),
+      resolver.resolveExactSurfaceManifest(
+        manifest.surfaceReleaseId,
+        modelFamilyId,
+      ),
     ).resolves.toEqual({
       manifest,
-      materialized: {
-        surfaceReleaseId: manifest.surfaceReleaseId,
-        modelFamilyId: manifest.modelFamilyId,
-        exposedExactOutputIds: [],
-        controlCatalog: [],
-        derivedOutputCatalog: [],
-        graphCatalog: [],
-        knobCatalog: [],
-        protocolCatalog: [],
-      },
       stage: "dev",
     });
-    const resolvedSurface = await resolver.resolveExactSurface(
+    const resolvedSurface = await resolver.resolveExactSurfaceManifest(
       manifest.surfaceReleaseId,
-      model,
+      modelFamilyId,
     );
     expect(Object.isFrozen(resolvedSurface.manifest)).toBe(true);
     expect(Object.isFrozen(resolvedSurface.manifest.controlCatalog)).toBe(true);
-    expect(Object.isFrozen(resolvedSurface.materialized)).toBe(true);
     expect(call).toHaveBeenCalledWith(
       "get_model_surface_release_v1",
       {
@@ -501,37 +488,11 @@ describe("Studio Supabase boundary V1", () => {
       data: [{ manifest: wrongFamily, stage: "stable" }],
       error: null,
     });
-    await expect(resolver.resolveExactSurface(wrongFamily.surfaceReleaseId, model))
-      .rejects.toThrow(/must match model family/);
-
-    const newerSurface = {
-      ...manifest,
-      surfaceReleaseId: "surface/main-wire-v2",
-      predecessorSurfaceReleaseId: manifest.surfaceReleaseId,
-      graphCatalog: [{
-        graphId: "graph.future-signal",
-        renderer: "sweep",
-        seriesCatalog: [{
-          kind: "scalar",
-          seriesId: "future-signal",
-          outputId: "signal/future",
-        }],
-        defaultSeriesIds: ["future-signal"],
-        requiredCapabilities: ["output/signal/future"],
-      }],
-    } as const;
-    call.mockResolvedValueOnce({
-      data: [{ manifest: newerSurface, stage: "stable" }],
-      error: null,
-    });
-    const historicalModelSurface = await resolver.resolveExactSurface(
-      newerSurface.surfaceReleaseId,
-      model,
-    );
-    expect(historicalModelSurface.manifest.surfaceReleaseId)
-      .toBe(newerSurface.surfaceReleaseId);
-    expect(historicalModelSurface.manifest.graphCatalog).toHaveLength(1);
-    expect(historicalModelSurface.materialized.graphCatalog).toEqual([]);
+    await expect(resolver.resolveExactSurfaceManifest(
+      wrongFamily.surfaceReleaseId,
+      modelFamilyId,
+    ))
+      .rejects.toThrow(/another model family/);
   });
 
   it("reopens a mutable Standard Experiment on the latest additive Surface while a Snapshot stays exact", async () => {

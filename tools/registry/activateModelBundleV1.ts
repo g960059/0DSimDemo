@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   assertExactModelKernelManifestV3,
+  assertModelSurfaceCompatibleV1,
   assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
@@ -11,8 +12,8 @@ import {
   validateRegisteredModelModuleAbiV2,
 } from "@/studio/contracts/v2/release";
 import {
-  resolveMainWireAnalysisMethodsForSurfaceV1,
-} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+  resolveRegisteredAnalysisMethodsV1,
+} from "@/analysis/registry/RegisteredAnalysisMethodsV1";
 
 if (
   process.argv[1] !== undefined
@@ -76,13 +77,21 @@ async function assertActivatableBundleV1(
   // The registry owns immutable bytes; activation additionally proves that
   // this particular Standard kernel/Surface pair can materialize the public
   // Workbench contract before the singleton pointer moves.
-  const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+  const analysisMethods = resolveRegisteredAnalysisMethodsV1(
     surface.manifest,
   );
-  composeStandardModelContractV1(
+  const composed = composeStandardModelContractV1(
     model.manifest,
     surface.manifest,
     analysisMethods.capabilities,
+  );
+  assertModelSurfaceCompatibleV1(
+    surface.manifest,
+    composed.exactContract,
+    Object.freeze([
+      ...model.manifest.capabilities,
+      ...analysisMethods.capabilities,
+    ]),
   );
 }
 

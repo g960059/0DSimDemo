@@ -1,10 +1,11 @@
 import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
+import standardClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import {
   mainWireIntegratedStudioFixtureProjectionV3,
 } from
@@ -20,7 +21,7 @@ export function resolveRegisteredExactModelFixtureProjectionV1(
   if (
     identity.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1
     && identity.fixtureSchemaId ===
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1
+      standardClientDescriptorV1.manifest.fixtureSchema.fixtureSchemaId
   ) {
     return mainWireIntegratedStudioFixtureProjectionV3;
   }

@@ -8,6 +8,7 @@ import type {
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  assertModelSurfaceCompatibleV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 
@@ -44,6 +45,11 @@ export function materializeModelSurfaceV1<
     input.kernel,
     input.surfaceRelease,
     input.analysis.capabilities,
+  );
+  assertModelSurfaceCompatibleV1(
+    input.surfaceRelease,
+    composed.exactContract,
+    Object.freeze([...input.kernel.capabilities, ...input.analysis.capabilities]),
   );
   return Object.freeze({
     exactContract: composed.exactContract,
