@@ -79,6 +79,11 @@ export type MainWireQuasiSteadyOrificeValveInputV2 = {
   readonly downstreamPressureMmHg: number;
 };
 
+export type MainWireValveOpeningTargetAndTangentV2 = Readonly<{
+  openingTarget01: number;
+  dOpeningTargetDPressureGradientPerMmHg: number;
+}>;
+
 export type MainWireQuasiSteadyOrificeValveDirectionV2 =
   | "forward"
   | "reverse"
@@ -246,19 +251,11 @@ export function stepMainWireQuasiSteadyOrificeValveScalarsV2(
   }
   const pressureGradientMmHg =
     upstreamPressureMmHg - downstreamPressureMmHg;
-  const target = openingTarget(pressureGradientMmHg, params);
-  const openingDriveMmHg = pressureGradientMmHg -
-    params.openingDriveDeadbandMmHg -
-    params.openingPressureOffsetMmHg;
-  const widthMmHg = params.openingDriveSmoothingMmHg;
-  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0
-    ? 0
-    : openingDriveMmHg >= widthMmHg
-      ? 1
-      : openingDriveMmHg / widthMmHg;
-  const dTargetDPressureGradientPerMmHg =
-    params.openingGainPerMmHg * (1 - target)
-    * dPositiveOpeningDriveDPressureGradient;
+  const targetAndTangent = evaluateMainWireValveOpeningTargetAndTangentV2(
+    pressureGradientMmHg,
+    params,
+  );
+  const target = targetAndTangent.openingTarget01;
   const tau = target > previousLeafletOpeningFraction01
     ? params.openingTimeConstantSec
     : params.closingTimeConstantSec;
@@ -275,7 +272,7 @@ export function stepMainWireQuasiSteadyOrificeValveScalarsV2(
       || unclampedLeafletOpeningFraction01 >= 1
       ? 0
       : dtSec / (tau + dtSec)
-        * dTargetDPressureGradientPerMmHg;
+        * targetAndTangent.dOpeningTargetDPressureGradientPerMmHg;
   return evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
     previousLeafletOpeningFraction01,
     dtSec,
@@ -354,7 +351,10 @@ function evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
     upstreamPressureMmHg - downstreamPressureMmHg;
   const activeDirection = directionFromGradient(pressureGradientMmHg);
   const openingTarget01 = validatedOpeningTarget01
-    ?? openingTarget(pressureGradientMmHg, params);
+    ?? evaluateMainWireValveOpeningTargetAndTangentV2(
+      pressureGradientMmHg,
+      params,
+    ).openingTarget01;
   const openingTau = openingTarget01 > previousLeafletOpeningFraction01
     ? params.openingTimeConstantSec
     : params.closingTimeConstantSec;
@@ -382,7 +382,7 @@ function evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
     : idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2);
   const flowMlPerSec = activeEoaCm2 === 0
     ? 0
-    : solveExactSignedQAbsQRoot(
+    : solveExactSignedLinearQuadraticValveFlowV2(
       pressureGradientMmHg,
       resistanceMmHgSecPerMl,
       bernoulliMmHgSec2PerMl2,
@@ -501,10 +501,10 @@ function evaluateMainWireQuasiSteadyOrificeValveScalarsValidatedV2(
   });
 }
 
-function openingTarget(
+export function evaluateMainWireValveOpeningTargetAndTangentV2(
   pressureGradientMmHg: number,
   params: MainWireQuasiSteadyOrificeValveParamsV2,
-): number {
+): MainWireValveOpeningTargetAndTangentV2 {
   const openingDriveMmHg = pressureGradientMmHg -
     params.openingDriveDeadbandMmHg -
     params.openingPressureOffsetMmHg;
@@ -512,11 +512,23 @@ function openingTarget(
     openingDriveMmHg,
     params.openingDriveSmoothingMmHg,
   );
-  return 1 - Math.exp(-params.openingGainPerMmHg * positiveOpeningDriveMmHg);
+  const openingTarget01 =
+    1 - Math.exp(-params.openingGainPerMmHg * positiveOpeningDriveMmHg);
+  const dPositiveOpeningDriveDPressureGradient = openingDriveMmHg <= 0
+    ? 0
+    : openingDriveMmHg >= params.openingDriveSmoothingMmHg
+      ? 1
+      : openingDriveMmHg / params.openingDriveSmoothingMmHg;
+  return Object.freeze({
+    openingTarget01,
+    dOpeningTargetDPressureGradientPerMmHg:
+      params.openingGainPerMmHg * (1 - openingTarget01)
+      * dPositiveOpeningDriveDPressureGradient,
+  });
 }
 
 /** Stable closed-form root of delta-p = R q + B q |q|. */
-function solveExactSignedQAbsQRoot(
+export function solveExactSignedLinearQuadraticValveFlowV2(
   pressureGradientMmHg: number,
   resistanceMmHgSecPerMl: number,
   bernoulliMmHgSec2PerMl2: number,

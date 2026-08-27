@@ -77,6 +77,11 @@ import type {
   MainWireFourValveDiseaseBracketIdV1,
   MainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import {
+  resolveMainWireAorticValveResearchProfileV1,
+  type MainWireAorticValveResearchProfileIdV1,
+  type MainWireAorticValveResearchProfileV1,
+} from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
@@ -212,6 +217,26 @@ export type MainWireNormalAdultFiveWallMacroPhysiologyResearchOptionsV1 =
     dtSec: number;
     maximumBeatCount?: number;
   }>;
+
+export type MainWireNormalAdultFiveWallAorticValveResearchOptionsV1 =
+  Readonly<{
+    dtSec: number;
+    maximumBeatCount?: number;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticValveResearchRunV1 = Readonly<{
+  configurationRole: "fixed-aortic-valve-research-profile";
+  profile: MainWireAorticValveResearchProfileV1;
+  periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+  claim: Readonly<{
+    sourceResearchRunnerOnly: true;
+    independentCanonicalColdStart: true;
+    warmStartApplied: false;
+    genericParameterPatchAccepted: false;
+    valveDiseaseBracketApplied: false;
+    exactRuntimeIdentityIncludesProfile: true;
+  }>;
+}>;
 
 export type MainWireNormalAdultFiveWallMacroPhysiologyResearchRunV1 = Readonly<{
   configurationRole: "fixed-research-point";
@@ -370,6 +395,48 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     options,
     runtime,
   );
+}
+
+/** Fixed-ID-only AoV constitutive ablation from an independent cold start. */
+export function runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
+  options: MainWireNormalAdultFiveWallAorticValveResearchOptionsV1,
+  profileId: MainWireAorticValveResearchProfileIdV1,
+): MainWireNormalAdultFiveWallAorticValveResearchRunV1 {
+  assertExactAorticValveResearchOptions(options);
+  const profile = resolveMainWireAorticValveResearchProfileV1(profileId);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    aorticValveResearchProfile: profile,
+  });
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  return Object.freeze({
+    configurationRole: "fixed-aortic-valve-research-profile" as const,
+    profile,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      exactRuntimeIdentityIncludesProfile: true as const,
+    }),
+  });
 }
 
 /**
@@ -694,6 +761,22 @@ function assertExactCirculatoryLoadResearchOptions(
     if (!allowed.has(key)) {
       throw new Error(
         `circulatory load research options reject unsupported field: ${key}`,
+      );
+    }
+  }
+}
+
+function assertExactAorticValveResearchOptions(
+  options: MainWireNormalAdultFiveWallAorticValveResearchOptionsV1,
+): void {
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error("aortic-valve research options must be an object");
+  }
+  const allowed = new Set(["dtSec", "maximumBeatCount"]);
+  for (const key of Object.keys(options)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `aortic-valve research options reject unsupported field: ${key}`,
       );
     }
   }

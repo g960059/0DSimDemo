@@ -27,9 +27,14 @@ import {
 import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   stepMainWireQuasiSteadyOrificeValveScalarsV2,
-  type MainWireQuasiSteadyOrificeValveEvaluationV2,
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
+import {
+  stepMainWireAorticValvePressureRecoveryAblationScalarsV1,
+  validateMainWireAorticValveResearchProfileV1,
+  type MainWireAorticValveResearchProfileV1,
+  type MainWireValveEvaluationWithAorticResearchV1,
+} from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
   stressedVolumeFromPtm,
   type VascularPvLaw,
@@ -120,6 +125,8 @@ export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   valveAcceptedMemory: "leaflet-opening-fraction-only" as const,
   valveFlow: "algebraic-candidate-readback" as const,
   valveLocalBulkInertance: "omitted-from-canonical" as const,
+  aorticValveResearchVariant:
+    "fixed-profile-opt-in-never-active-in-canonical-runtime" as const,
   semilunarRootInertanceOwners: Object.freeze({
     AoV: "Ao_SA" as const,
     PV: "PA_PArt" as const,
@@ -221,6 +228,8 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   respiratory: RespiratoryPressureParameterViewV1;
   /** Explicit even for normal, so numeric identity and provenance cannot diverge. */
   valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
+  /** Fixed-profile source research only; omission preserves canonical V2. */
+  aorticValveResearchProfile?: MainWireAorticValveResearchProfileV1;
 }>;
 
 /**
@@ -529,7 +538,7 @@ export type NonCoronaryCirculationTrialSuccessV1<
   candidateValveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
-  valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
+  valveEvaluations: ValveRecord<MainWireValveEvaluationWithAorticResearchV1>;
   candidateMechanicsEvaluation: TEvaluation;
   /** Present when a device configuration was supplied, including all-off. */
   mechanicalSupport?: MechanicalSupportHydraulicEvaluationV1;
@@ -664,7 +673,7 @@ export type NonCoronaryPreparedCandidateBorrowV1<TEvaluation> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  valveEvaluations: readonly MainWireValveEvaluationWithAorticResearchV1[];
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
     DynamicMechanicalSupportHydraulicEvaluationV1 | null;
@@ -716,7 +725,7 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  valveEvaluations: readonly MainWireValveEvaluationWithAorticResearchV1[];
   candidateMechanicsEvaluation: TEvaluation;
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
@@ -749,7 +758,7 @@ type MutableCandidateNumericalPageV1 = {
   readonly edgeFlowsMlPerSec: Float64Array;
   readonly dynamicEdgeFlowsMlPerSec: Float64Array;
   readonly valveStates: MainWireQuasiSteadyOrificeValveStateV2[];
-  readonly valveEvaluations: MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  readonly valveEvaluations: MainWireValveEvaluationWithAorticResearchV1[];
   readonly nodeVolumeRatesMlPerSec: Float64Array;
   readonly continuityResidualMlByNode: Float64Array;
   readonly scaledIndependentResidual: Float64Array;
@@ -983,7 +992,7 @@ MutableCandidateNumericalPageV1 {
       NON_CORONARY_VALVE_NAMES_V1.length,
     ),
     valveEvaluations:
-      Array<MainWireQuasiSteadyOrificeValveEvaluationV2>(
+      Array<MainWireValveEvaluationWithAorticResearchV1>(
         NON_CORONARY_VALVE_NAMES_V1.length,
       ),
     nodeVolumeRatesMlPerSec:
@@ -2667,15 +2676,26 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     if (edge.kind === "valve") {
       const valveName = name as NonCoronaryValveNameV1;
       const valveIndex = NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName];
-      const evaluation = stepMainWireQuasiSteadyOrificeValveScalarsV2(
-        previous.valveOpeningFractions01[
-          NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
-        ]!,
-        input.dtSec,
-        upstreamPressure,
-        downstreamPressure,
-        valveResearchInput.valves[valveName],
-      );
+      const previousOpening01 = previous.valveOpeningFractions01[
+        NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
+      ]!;
+      const evaluation = valveName === "AoV"
+          && input.runtime.aorticValveResearchProfile !== undefined
+        ? stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
+          previousOpening01,
+          input.dtSec,
+          upstreamPressure,
+          downstreamPressure,
+          valveResearchInput.valves.AoV,
+          input.runtime.aorticValveResearchProfile,
+        )
+        : stepMainWireQuasiSteadyOrificeValveScalarsV2(
+          previousOpening01,
+          input.dtSec,
+          upstreamPressure,
+          downstreamPressure,
+          valveResearchInput.valves[valveName],
+        );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
@@ -4484,6 +4504,28 @@ function validateRuntimeOnceV1(
   );
   if (valveIssues.length > 0) {
     throw new Error(`invalid valveResearchInput: ${valveIssues.join("; ")}`);
+  }
+  if (runtime.aorticValveResearchProfile !== undefined) {
+    const profileIssues = validateMainWireAorticValveResearchProfileV1(
+      runtime.aorticValveResearchProfile,
+    );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        `invalid aorticValveResearchProfile: ${profileIssues.join("; ")}`,
+      );
+    }
+    if (
+      runtime.aorticValveResearchProfile.forwardConvectivePressureMode
+        === "garcia-energy-loss-plus-downstream-kinetic-flux"
+      && !(
+        runtime.aorticValveResearchProfile.ascendingAorticAreaCm2!
+        > runtime.valveResearchInput.valves.AoV.maximumForwardEoaCm2
+      )
+    ) {
+      throw new Error(
+        "aorticValveResearchProfile ascending-aortic area must exceed AoV maximum forward EOA",
+      );
+    }
   }
 }
 

@@ -6,8 +6,16 @@ import {
 } from "@/engine/integrity/stableHash";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  runMainWireNormalAdultFiveWallAorticValveResearchProfileV1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1,
+} from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
+import {
+  compareMainWireAorticValveAblationV1,
+  type MainWireAorticValveAblationArmInputV1,
+} from "@/analysis/methods/mainWire/MainWireAorticValveAblationComparisonV1";
 
 describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
   it("runs one canonical coarse beat without overstating periodic closure", () => {
@@ -125,6 +133,45 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.protocolIdentityHash).toBe(stableHash(sanitizeForStableHash(
       result.protocolIdentity,
     )));
+  }, 60_000);
+
+  it("runs every fixed AoV research profile with a distinct exact runtime identity", () => {
+    const baseline = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+    });
+    const inputs: MainWireAorticValveAblationArmInputV1[] = [{
+      armId: "canonical",
+      periodicResult: baseline,
+    }];
+    for (const profileId of MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1) {
+      const run = runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
+        { dtSec: 0.02, maximumBeatCount: 1 },
+        profileId,
+      );
+      expect(run.configurationRole)
+        .toBe("fixed-aortic-valve-research-profile");
+      expect(run.profile.profileId).toBe(profileId);
+      expect(run.claim.genericParameterPatchAccepted).toBe(false);
+      expect(run.periodicResult.integrationCompletedWithoutFailure).toBe(true);
+      expect(run.periodicResult.protocolComponentHashes.circulationRuntimeStableHash)
+        .not.toBe(
+          baseline.protocolComponentHashes.circulationRuntimeStableHash,
+        );
+      expect(run.periodicResult.protocolIdentityHash)
+        .not.toBe(baseline.protocolIdentityHash);
+      inputs.push({ armId: profileId, periodicResult: run.periodicResult });
+    }
+    const comparison = compareMainWireAorticValveAblationV1(inputs);
+    expect(comparison.arms).toHaveLength(4);
+    expect(comparison.claim.gradientKindsAreNotInterchangeable).toBe(true);
+    for (const arm of comparison.arms) {
+      expect(arm.sampleCount).toBe(50);
+      expect(arm.aorticMaximumFlowMlPerSec).toBeGreaterThan(0);
+      expect(arm.aorticFlowAcEnergyFraction10To50Hz).toBeGreaterThanOrEqual(0);
+      expect(arm.aorticFlowAcEnergyFraction10To50Hz).toBeLessThanOrEqual(1);
+      expect(Number.isFinite(arm.peakVenaContractaGradientMmHg)).toBe(true);
+    }
   }, 60_000);
 
   it("rebases a compatible cycle-boundary warm start and permits pericardium-only continuation", () => {

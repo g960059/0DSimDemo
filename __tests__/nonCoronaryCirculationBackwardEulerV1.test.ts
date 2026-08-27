@@ -42,6 +42,10 @@ import {
 import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
   "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
+  MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_V1_ID,
+  resolveMainWireAorticValveResearchProfileV1,
+} from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
+import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   composeMainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
@@ -81,6 +85,8 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       .toBe("leaflet-opening-fraction-only");
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveFlow)
       .toBe("algebraic-candidate-readback");
+    expect(NON_CORONARY_CIRCULATION_SCOPE_V1.aorticValveResearchVariant)
+      .toBe("fixed-profile-opt-in-never-active-in-canonical-runtime");
     expect(NON_CORONARY_CIRCULATION_UNITS_V1.edgeFlow).toBe("mL/s");
     expect(NON_CORONARY_CIRCULATION_UNITS_V1.inertance)
       .toBe("mmHg*s^2/mL");
@@ -430,6 +436,39 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
         expect(trial.valveEvaluations[name].competentReverseClosureActive)
           .toBe(true);
       }
+    }
+  });
+
+  it("routes only AoV through an explicit fixed pressure-recovery research profile", () => {
+    const fixture = steadyStateFixture();
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      aorticValveResearchProfile: resolveMainWireAorticValveResearchProfileV1(
+        "pressure-recovery-aa-d3p0cm",
+      ),
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime,
+      evaluateCandidateMechanics: () => Object.freeze({
+        absolutePressuresMmHg: Object.freeze({
+          LA: 10,
+          LV: 30,
+          RA: 10,
+          RV: 15,
+        }),
+        evaluation: null,
+      }),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(trial.valveEvaluations.AoV.modelId)
+      .toBe(MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_V1_ID);
+    expect(trial.edgeFlowsMlPerSec.AoV).toBeGreaterThan(0);
+    for (const valveId of ["MV", "TV", "PV"] as const) {
+      expect(trial.valveEvaluations[valveId].modelId)
+        .toBe("main-wire-quasi-steady-orifice-valve-v2");
     }
   });
 
