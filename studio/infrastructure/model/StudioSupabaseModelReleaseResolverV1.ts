@@ -1,13 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
-import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
-import type {
-  StudioSimulationAnalysisExecutionPlanResolverV2,
-} from "@/studio/contracts/v2/simulation";
 import {
   assertPortableStudioJsonObjectV2,
 } from "@/studio/contracts/v2/model";
@@ -20,7 +12,6 @@ import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
   assertStudioReleaseStageV1,
-  composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import type {
@@ -41,14 +32,9 @@ import {
 } from "@/studio/infrastructure/model/StudioSupabaseModelSurfaceResolverV1";
 
 export type StudioResolvedModelReleaseV1 = Readonly<{
-  contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
-  analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
   stage: StudioReleaseStageV1;
   ticket: StudioModelWorkerReleaseTicketV2;
-  surfaceReleaseId: string;
-  surfaceSeriesId: string;
   surfaceStage: StudioReleaseStageV1;
   activeBundleVersion?: number;
 }>;
@@ -280,15 +266,6 @@ export class StudioSupabaseModelReleaseResolverV1 {
     ) {
       throw new Error("Pinned Model Surface belongs to another series");
     }
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
-      surface.manifest,
-      [...kernel.primitiveSignalCatalog, ...kernel.modelMetricCatalog],
-    );
-    const composed = composeStandardModelContractV1(
-      kernel,
-      surface.manifest,
-      analysisMethods.capabilities,
-    );
     const ticket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId,
@@ -299,14 +276,9 @@ export class StudioSupabaseModelReleaseResolverV1 {
       artifactUrl,
     });
     return Object.freeze({
-      contract: composed.contract,
       defaultFixture,
-      analysisExecutionPlan: analysisMethods.resolveExecutionPlan,
-      periodicPvaDerivation: analysisMethods.periodicPvaDerivation,
       stage: row.stage,
       ticket,
-      surfaceReleaseId: composed.surface.surfaceReleaseId,
-      surfaceSeriesId: surface.manifest.surfaceSeriesId,
       surfaceStage: surface.stage,
       ...(activeBundleVersion === undefined
         ? {}

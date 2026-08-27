@@ -170,7 +170,7 @@ const html = `<!doctype html>
 </head>
 <body><main>
   <h1>Main-wire normal adult five-wall q-off review</h1>
-  <div class="subtitle">HR 60 · raw accepted 2 ms steps · main-wire-derived noncoronary experimental transaction (not ModelCore runtime) · Land active + equilibrium passive + one parallel SLS · TriSeg membrane only · no AVPD/q, no LAA+body, no smoothing.</div>
+  <div class="subtitle">HR 60 · raw accepted 2 ms steps · main-wire-derived noncoronary experiment outside the browser runtime · Land active + equilibrium passive + one parallel SLS · TriSeg membrane only · no AVPD/q, no LAA+body, no smoothing.</div>
   <div class="cards">
     ${card("completed beats", String(result.completedBeatCount))}
     ${card("period-1 closure", format(lastClosure(result, "period1MaximumRelativeStateDifference"), 4))}

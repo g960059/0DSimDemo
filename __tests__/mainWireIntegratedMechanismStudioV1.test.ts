@@ -7,7 +7,8 @@ import {
   applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from
+  "@/domain/model/MainWireStandardIdentityV1";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 import {
   MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1,
@@ -18,7 +19,7 @@ import {
   createMainWireCoronaryDiseaseInputV2,
 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
 
-describe("Standard-63 mechanism research controls", () => {
+describe("Current Standard mechanism research controls", () => {
   it("maps pericardial and coronary authoring axes into kernel parameters", () => {
     const pericardium = createMainWireCommonPericardiumWithResearchInputsV1({
       ...MAIN_WIRE_COMMON_PERICARDIUM_DEFAULT_RESEARCH_INPUTS_V1,

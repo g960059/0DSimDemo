@@ -15,15 +15,16 @@ import type {
   StudioSimulationAnalysisV2,
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
+import type { StudioJsonObjectV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioSimulationWorkerScenarioStateV2,
 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import type {
   WorkbenchParallelScenarioSeedV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,
@@ -60,7 +61,9 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       status: "playing",
       activeScenarioId: "scenario/two",
       scenarioIds: ["scenario/two"],
-      committedControlValues: {},
+      fixtureByScenario: {
+        "scenario/two": { offset: 1 },
+      },
     });
     expect(controller.sampleStore.getScenarioSnapshot("scenario/one"))
       .toEqual([]);
@@ -190,9 +193,9 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(controller.getSnapshot()).toMatchObject({
       status: "playing",
       pendingControlInstanceId: null,
-      committedControlValues: {
-        "scenario/one": { "control/svr": 44 },
-        "scenario/two": { "control/svr": 44 },
+      fixtureByScenario: {
+        "scenario/one": { offset: 0, "control/svr": 44 },
+        "scenario/two": { offset: 1, "control/svr": 44 },
       },
     });
     expect(controller.sampleStore.getScenarioSnapshot("scenario/two").at(-1))
@@ -405,7 +408,7 @@ describe("ArticleReaderLiveRuntimeV3", () => {
     expect(harness.requestAnalysis).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps a rejected control recoverable and restores the prior play intent", async () => {
+  it("fails closed when a dispatched single-Scenario control rejects", async () => {
     const snapshot = snapshotV3();
     const harness = runtimeHarnessV3(snapshot, {
       applyControlError: new Error("control failed"),
@@ -422,17 +425,42 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       value: 44,
     })).rejects.toThrow("control failed");
 
-    expect(Object.keys(controller.getSnapshot().committedControlValues))
-      .toEqual([]);
-    expect(controller.getSnapshot()).toMatchObject({
-      status: "playing",
-      pendingControlInstanceId: null,
-      controlErrorByInstanceId: {
-        "pane/control\u001fcontrol/svr": "control failed",
-      },
+    expect(controller.getSnapshot().fixtureByScenario).toEqual({
+      "scenario/one": { offset: 0 },
+      "scenario/two": { offset: 1 },
     });
-    expect(harness.playAll).toHaveBeenCalledTimes(2);
-    expect(harness.terminate).not.toHaveBeenCalled();
+    expect(controller.getSnapshot()).toMatchObject({
+      status: "failed",
+      pendingControlInstanceId: null,
+    });
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
+    expect(harness.terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails closed when exact fixture capture fails after control acceptance", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot, {
+      captureScenarioError: new Error("capture failed"),
+    });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+    });
+    await controller.start();
+
+    await expect(controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
+      controlId: "control/svr",
+      scenarioIds: ["scenario/one"],
+      value: 44,
+    })).rejects.toThrow("capture failed");
+
+    expect(harness.applyControl).toHaveBeenCalledTimes(1);
+    expect(controller.getSnapshot()).toMatchObject({
+      status: "failed",
+      pendingControlInstanceId: null,
+    });
+    expect(harness.terminate).toHaveBeenCalledTimes(1);
+    expect(harness.playAll).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when a multi-Scenario control can partially commit", async () => {
@@ -459,7 +487,10 @@ describe("ArticleReaderLiveRuntimeV3", () => {
       status: "failed",
       pendingControlInstanceId: null,
     });
-    expect(controller.getSnapshot().committedControlValues).toEqual({});
+    expect(controller.getSnapshot().fixtureByScenario).toEqual({
+      "scenario/one": { offset: 0 },
+      "scenario/two": { offset: 1 },
+    });
     expect(harness.terminate).toHaveBeenCalledTimes(1);
     expect(harness.playAll).toHaveBeenCalledTimes(1);
   });
@@ -708,6 +739,7 @@ function runtimeHarnessV3(
     advanceOnPause?: boolean;
     applyControlError?: Error;
     applyControlErrorByScenarioId?: Readonly<Record<string, Error>>;
+    captureScenarioError?: Error;
   }> = {},
 ) {
   let dependencies: ArticleReaderParallelRuntimeFactoryInputV3 | undefined;
@@ -720,6 +752,12 @@ function runtimeHarnessV3(
     scenario.scenarioId,
     frameV3(scenario.scenarioId, 1, (index + 1) * 10),
   ]));
+  const fixtures = new Map<string, StudioJsonObjectV2>(
+    snapshot.content.scenarios.map((scenario) => [
+      scenario.scenarioId,
+      scenario.capture.fixture as StudioJsonObjectV2,
+    ]),
+  );
   const playAll = vi.fn();
   const applyControl = vi.fn(async (input: Readonly<{
     scenarioId: string;
@@ -742,7 +780,30 @@ function runtimeHarnessV3(
       current.inputEpoch + 1,
     );
     frames.set(input.scenarioId, next);
+    fixtures.set(input.scenarioId, Object.freeze({
+      ...(fixtures.get(input.scenarioId) ?? {}),
+      [input.controlId]: input.value,
+    }));
     return next;
+  });
+  const captureScenario = vi.fn(async (scenarioId: string) => {
+    if (gates.captureScenarioError !== undefined) {
+      throw gates.captureScenarioError;
+    }
+    const source = snapshot.content.scenarios.find(
+      (scenario) => scenario.scenarioId === scenarioId,
+    );
+    const fixture = fixtures.get(scenarioId);
+    if (source === undefined || fixture === undefined) {
+      throw new Error("missing test Scenario capture");
+    }
+    return Object.freeze({
+      ...source,
+      capture: Object.freeze({
+        ...source.capture,
+        fixture,
+      }),
+    });
   });
   const requestAnalysis = vi.fn(async (input: Readonly<{
     scenarioId: string;
@@ -805,6 +866,7 @@ function runtimeHarnessV3(
           ?? workerStateV3(snapshot, activeScenarioId);
       },
       applyControl,
+      captureScenario,
       requestAnalysis,
       latestFrame(scenarioId) {
         const frame = frames.get(scenarioId);
@@ -837,6 +899,7 @@ function runtimeHarnessV3(
     },
     playAll,
     applyControl,
+    captureScenario,
     requestAnalysis,
     pauseAll,
     pauseScenario,

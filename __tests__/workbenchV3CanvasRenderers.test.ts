@@ -42,8 +42,8 @@ import {
   workbenchPresentationOutputSelectionV3,
   type WorkbenchPvPointV3,
   type WorkbenchScalarSampleV3,
-} from "@/components/workbench/v3";
-import type { MainWireIntegratedModelStructuralReturnOrientationV3 } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/components/workbench/presentation";
+import type { MainWireIntegratedModelStructuralReturnOrientationV3 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import type {
   ExperimentSurfaceGraphPaneV2,
   ExperimentSurfaceV2,

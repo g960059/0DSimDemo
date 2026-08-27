@@ -7,7 +7,7 @@ import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { buildNodes } from "@/engine/core/topology";
-import { MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -19,7 +19,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
 import type {
@@ -49,21 +49,27 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioStandardRuntimeHostV1,
+  applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1,
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
-  buildMainWireIntegratedModelPeriodicPvaV1,
-  resolveMainWireIntegratedStudioAnalysisExecutionPlanV3,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAnalysisExecutionV3";
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+} from
+  "@/domain/model/MainWireStandardIdentityV1";
+import { resolveRegisteredExactModelFixtureProjectionV1 } from
+  "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
+import { resolveExactModelControlValueV1 } from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  resolveStudioAnalysisMethodsForSurfaceV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  buildMainWirePeriodicPvaMethodV8,
+  resolveMainWireStructuralAnalysisExecutionPlanV1,
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
+import {
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
-import mainWireIntegratedStudioHistoricalSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v1.json";
-import mainWireIntegratedStudioPreviousSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-v2.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -81,6 +87,86 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
+  it("resolves controls only for the current exact model and fixture ABI", () => {
+    const projection = resolveRegisteredExactModelFixtureProjectionV1(
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId:
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
+      },
+    );
+    const controls = createCircleHeartExactModelReleaseV1()
+      .manifest.primitiveControlCatalog;
+
+    expect(controls).toHaveLength(57);
+    for (const definition of controls) {
+      const increased = definition.defaultValue + definition.step;
+      const value = increased <= definition.maximum
+        ? increased
+        : definition.defaultValue - definition.step;
+      expect(value).toBeGreaterThanOrEqual(definition.minimum);
+      expect(value).not.toBe(definition.defaultValue);
+      const fixture =
+        applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+          [{ controlId: definition.controlId, value }],
+        );
+      expect(
+        projection.controlValue(fixture, definition.controlId),
+        definition.controlId,
+      ).toEqual({ status: "value", value });
+    }
+
+    expect(projection.controlValue({
+      hemodynamicResearchInputs: {
+        heartRateBpm: 72,
+        totalBloodVolumeMl: 5_100,
+      },
+    }, "rhythm.heart-rate-bpm")).toEqual({ status: "value", value: 72 });
+    expect(projection.controlValue({
+      hemodynamicResearchInputs: { heartRateBpm: 72 },
+    }, "unknown-control")).toEqual({ status: "unsupported" });
+
+    const divergentWalls =
+      applyMainWireIntegratedStudioStandardAbsoluteControlAssignmentsV1(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+        [{
+          controlId: "myocardium.active-tension-scale.LVFW",
+          value: 1.2,
+        }],
+      );
+    expect(projection.controlValue(
+      divergentWalls,
+      "myocardium.contractility",
+    )).toEqual({ status: "mixed" });
+
+    const aggregateContractility = controls.find(
+      ({ controlId }) => controlId === "myocardium.contractility",
+    );
+    expect(aggregateContractility).toBeDefined();
+    expect(() => resolveExactModelControlValueV1(
+      aggregateContractility!,
+      { ventricularContractilityScale: 1.35 },
+      projection,
+    )).toThrow(/cannot project registered control/);
+
+    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
+      {
+        modelId: "model/retired",
+        fixtureSchemaId:
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
+      },
+    )).toThrow(/No exact fixture projection is registered/);
+    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId: "fixture/retired-v1",
+      },
+    )).toThrow(/No exact fixture projection is registered/);
+  });
+
   it("keeps the exact current frame identical to the accepted batch boundary", async () => {
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-current-frame-repeatability";
@@ -380,14 +466,19 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
-        defaultModelId:
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        surfaceReleaseId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-        surfaceSeriesId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-        workerReleaseTicket: {
-          moduleAbi: "circleheart-exact-model-esm-v1",
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          workerReleaseTicket: {
+            moduleAbi: "circleheart-exact-model-esm-v1",
+          },
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
         },
       });
       await expect(
@@ -396,12 +487,17 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
         ),
       ).resolves.toMatchObject({
-        defaultModelId:
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        surfaceReleaseId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-        surfaceSeriesId:
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
       });
       await expect(
         composition.loadStudioExperimentClientCompositionV2(
@@ -430,10 +526,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       artifactUrl: "https://registry.example/model-releases/standard.mjs",
     });
     expect(ticket.moduleAbi).toBe("circleheart-exact-model-esm-v1");
-    expect(validateStudioModelWorkerReleaseTicketV2({
+    expect(() => validateStudioModelWorkerReleaseTicketV2({
       ...ticket,
-      analysisProfileId: "legacy-profile-ignored-at-current-boundary",
-    })).not.toHaveProperty("analysisProfileId");
+      analysisProfileId: "retired-profile",
+    })).toThrow(/optional keys are none/);
     expect(() =>
       validateStudioModelWorkerReleaseTicketV2({
         ...ticket,
@@ -504,13 +600,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     });
     const loaded = await first;
     expect(loaded.contract.outputCatalog.some(({ outputId }) =>
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.some(
+      MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.some(
         (analysisOutputId) => analysisOutputId === outputId,
       ))).toBe(true);
     expect(loaded.contract.graphCatalog.length).toBeGreaterThan(0);
     expect(loaded.exactContract.graphCatalog).toHaveLength(0);
     expect(loaded.exactContract.outputCatalog.some(({ outputId }) =>
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.some(
+      MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.some(
         (analysisOutputId) => analysisOutputId === outputId,
       ))).toBe(false);
     const coldMeasured = await coldMeasuredPromise;
@@ -821,7 +917,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
   }, 120_000);
 
   it("composes the complete Workbench catalog and emits beat metrics", async () => {
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     const composed = composeStandardModelContractV1(
@@ -838,7 +934,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       composed.contract.outputCatalog.map(({ outputId }) => outputId),
     ).toEqual([
       ...MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3,
-      ...MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+      ...MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     ]);
     expect(
       composed.contract.graphCatalog.map(({ graphId }) => graphId),
@@ -1056,10 +1152,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
   }, 120_000);
 
   it("connects Standard PV analyses to their bidirectional plans", async () => {
-    const legacyPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+    const legacyPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
     );
-    const formalPlan = resolveMainWireIntegratedStudioAnalysisExecutionPlanV3(
+    const formalPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     );
     expect(legacyPlan?.partitions).toEqual([
@@ -1131,28 +1227,25 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     host.closeSession(runtimeSessionId);
   }, 120_000);
 
-  it("starts a new Surface series when adding analysis-owned output semantics", () => {
-    assertModelSurfaceReleaseManifestV1(
-      mainWireIntegratedStudioHistoricalSurfaceV1,
-    );
-    assertModelSurfaceReleaseManifestV1(
-      mainWireIntegratedStudioPreviousSurfaceV1,
-    );
+  it("owns analysis output semantics in the current Surface series", () => {
     assertModelSurfaceReleaseManifestV1(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
-    assertAdditiveModelSurfaceUpgradeV1(
-      mainWireIntegratedStudioHistoricalSurfaceV1,
-      mainWireIntegratedStudioPreviousSurfaceV1,
-    );
+    const implicitExposure = structuredClone(
+      mainWireIntegratedStudioStandardSurfaceV1,
+    ) as Record<string, unknown>;
+    delete implicitExposure.exposedExactOutputIds;
+    expect(() => assertModelSurfaceReleaseManifestV1(
+      implicitExposure,
+    )).toThrow(/exposedExactOutputIds/);
     expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId).toBe(
       "circleheart.main-wire.surface.workbench-analysis-v1",
     );
     expect(
       mainWireIntegratedStudioStandardSurfaceV1.predecessorSurfaceReleaseId,
     ).toBeNull();
-    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId).not.toBe(
-      mainWireIntegratedStudioPreviousSurfaceV1.surfaceSeriesId,
+    expect(mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId).toBe(
+      "circleheart.main-wire.surface.workbench-analysis",
     );
   });
 
@@ -1163,29 +1256,28 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       ...exact.modelMetricCatalog,
     ].map(({ outputId }) => outputId));
     for (const outputId of
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
+      MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
       expect(exactOutputIds.has(outputId)).toBe(false);
     }
     expect(exact.capabilities.some((capability) =>
       capability.startsWith("derivation/"))).toBe(false);
 
-    const methods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
       mainWireIntegratedStudioStandardSurfaceV1,
-      [...exact.primitiveSignalCatalog, ...exact.modelMetricCatalog],
     );
     expect(methods.capabilities).toContain(
       derivationCapabilityV1(
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+        MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
       ),
     );
     expect(methods.resolveExecutionPlan(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     )).not.toBeNull();
     expect(methods.periodicPvaDerivation?.methodId).toBe(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
+      MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
     );
     expect(methods.periodicPvaDerivation?.build).toBe(
-      buildMainWireIntegratedModelPeriodicPvaV1,
+      buildMainWirePeriodicPvaMethodV8,
     );
     const composition = composeStandardModelContractV1(
       exact,
@@ -1195,10 +1287,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(composition.contract.modelId).toBe(exact.modelId);
     expect(composition.contract.outputCatalog
       .filter(({ outputId }) =>
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1
+        MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1
           .some((analysisOutputId) => analysisOutputId === outputId))
       .map(({ outputId }) => outputId)).toEqual(
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+      MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     );
 
     const unsupported = structuredClone(
@@ -1215,48 +1307,19 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       }),
     );
     assertModelSurfaceReleaseManifestV1(unsupported);
-    const unsupportedMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    expect(() => resolveMainWireAnalysisMethodsForSurfaceV1(
       unsupported,
-    );
-    const degraded = composeStandardModelContractV1(
-      exact,
-      unsupported,
-      unsupportedMethods.capabilities,
-    );
-    expect(degraded.surface.derivedOutputCatalog).toHaveLength(0);
-    expect(degraded.contract.graphCatalog.length).toBeGreaterThan(0);
-    expect(unsupportedMethods.periodicPvaDerivation).toBeNull();
+    )).toThrow(/Client does not support analysis derivation/);
 
     const wrongUnit = structuredClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
     wrongUnit.derivedOutputCatalog[0]!.unit = "kJ";
     assertModelSurfaceReleaseManifestV1(wrongUnit);
-    const wrongUnitMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+    expect(() => resolveMainWireAnalysisMethodsForSurfaceV1(
       wrongUnit,
-    );
-    expect(wrongUnitMethods.periodicPvaDerivation).toBeNull();
-    expect(wrongUnitMethods.capabilities).not.toContain(
-      derivationCapabilityV1(
-        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_METHOD_V1_ID,
-      ),
-    );
-    const wrongUnitComposition = composeStandardModelContractV1(
-      exact,
-      wrongUnit,
-      wrongUnitMethods.capabilities,
-    );
-    expect(wrongUnitComposition.surface.derivedOutputCatalog).toHaveLength(0);
+    )).toThrow(/incompatible with Surface/);
 
-    const legacyMethods = resolveStudioAnalysisMethodsForSurfaceV1(
-      mainWireIntegratedStudioPreviousSurfaceV1,
-      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1.map(
-        (outputId) => ({ outputId }),
-      ),
-    );
-    expect(legacyMethods.periodicPvaDerivation?.build).toBe(
-      buildMainWireIntegratedModelPeriodicPvaV1,
-    );
   });
 
   it("lets Surface explicitly expose exact outputs without leaking later primitives", () => {
@@ -1280,12 +1343,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     futureExact.capabilities.push(outputCapabilityV1(futureOutputId));
     assertExactModelKernelManifestV3(futureExact);
 
-    const methods = resolveStudioAnalysisMethodsForSurfaceV1(
+    const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
       mainWireIntegratedStudioStandardSurfaceV1,
-      [
-        ...futureExact.primitiveSignalCatalog,
-        ...futureExact.modelMetricCatalog,
-      ],
     );
     const composition = composeStandardModelContractV1(
       futureExact,
@@ -1302,6 +1361,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     expect(composition.contract.displayName).toBe(
       mainWireIntegratedStudioStandardSurfaceV1.displayName,
     );
+
+    const incompatibleExactExposure = structuredClone(
+      mainWireIntegratedStudioStandardSurfaceV1,
+    );
+    incompatibleExactExposure.exposedExactOutputIds.push(
+      "research.unsupported-exact-output",
+    );
+    expect(() => composeStandardModelContractV1(
+      exact,
+      incompatibleExactExposure,
+      methods.capabilities,
+    )).toThrow(/unsupported by the pinned exact model/);
 
     const validatedCurrentSurface: unknown =
       mainWireIntegratedStudioStandardSurfaceV1;
@@ -1326,7 +1397,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const composition = composeStandardModelContractV1(
       mainWireIntegratedStudioStandardClientV1.manifest,
       mainWireIntegratedStudioStandardSurfaceV1,
-      resolveStudioAnalysisMethodsForSurfaceV1(
+      resolveMainWireAnalysisMethodsForSurfaceV1(
         mainWireIntegratedStudioStandardSurfaceV1,
       ).capabilities,
     );

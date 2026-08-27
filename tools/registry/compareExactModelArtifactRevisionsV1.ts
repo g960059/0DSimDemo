@@ -11,9 +11,9 @@ import type { RegisteredModelExecutableBundleV2 } from "@/studio/contracts/v2/ex
 import type { ExactModelKernelManifestV3 } from "@/studio/contracts/v2/modelSurface";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioSimulationScenarioInputV2 } from "@/studio/contracts/v2/simulation";
-import { studioCanonicalJsonStringify } from "@/studio/infrastructure/json/StudioCanonicalJson";
+import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
-import { resolveStudioAnalysisMethodsForSurfaceV1 } from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+import { resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -243,7 +243,7 @@ async function captureV1(
   const model = composeStandardModelContractV1(
     release.manifest,
     standardSurfaceReleaseV1,
-    resolveStudioAnalysisMethodsForSurfaceV1(
+    resolveMainWireAnalysisMethodsForSurfaceV1(
       standardSurfaceReleaseV1,
     ).capabilities,
   ).exactContract;

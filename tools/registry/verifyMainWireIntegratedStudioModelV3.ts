@@ -10,8 +10,8 @@ import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
 } from "@/studio/contracts/v2/simulation";
@@ -32,7 +32,7 @@ import {
 } from "@/studio/infrastructure/model/ExactModelExecutableValidationV1";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   importExactExecutableArtifactModuleV2,
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
@@ -293,7 +293,7 @@ async function assertArtifactAdmission(
     fail("artifact kernel manifest differs from the source release");
   }
   const sourceRelease = createCircleHeartExactModelReleaseV1();
-  const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
+  const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
     mainWireIntegratedStandardSurfaceV1,
   );
   const composed = composeStandardModelContractV1(

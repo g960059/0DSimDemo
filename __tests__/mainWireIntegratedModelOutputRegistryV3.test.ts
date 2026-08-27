@@ -14,8 +14,8 @@ import {
   projectMainWireIntegratedModelSelectedValuesV3,
 } from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PRESENTATION_COVERAGE_V3,
   MainWireIntegratedModelSessionV3,
@@ -248,7 +248,7 @@ describe("Main Wire Integrated Model V3 output registry", () => {
       sourceKind: "completed-beat",
       scope: "beat",
     });
-    for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
+    for (const outputId of MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
       expect(
         MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3.find(
           (definition) => String(definition.outputId) === outputId,
@@ -438,7 +438,7 @@ describe("Main Wire Integrated Model V3 output registry", () => {
         ([, { availability }]) => availability === "available",
       ),
     ).toBe(true);
-    for (const outputId of MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
+    for (const outputId of MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1) {
       expect(Object.hasOwn(boundaryFrame.values, outputId)).toBe(false);
     }
     expect(

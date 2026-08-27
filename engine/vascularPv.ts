@@ -100,8 +100,8 @@ export function complianceFromPtm(law: VascularPvLaw, Ptm: number): number {
 /**
  * Invert the main-wire vascular PV law in stressed-volume coordinates.
  *
- * Arterial and venous domains intentionally preserve ModelCore's shipped
- * saturation semantics. Changing these bounds is a main-wire model change,
+ * Arterial and venous domains intentionally preserve the admitted saturation
+ * semantics. Changing these bounds is a main-wire model change,
  * not a private inverse-solver option.
  */
 export function ptmFromStressedVolume(

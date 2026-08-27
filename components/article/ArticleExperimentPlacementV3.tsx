@@ -42,7 +42,7 @@ import {
   resolveWorkbenchAutomaticGraphColorV3,
   workbenchDefaultScenarioColorV3,
 } from
-  "@/components/workbench/v3/WorkbenchGraphColorV3";
+  "@/components/workbench/presentation/WorkbenchGraphColorV3";
 import {
   articleBriefingPresentationV3,
   defaultArticleBriefingV3,
@@ -50,7 +50,7 @@ import {
   materializeSurfaceOutputPaneBindingV3,
   resolveArticlePlacementBriefingV3,
   resolveArticlePlacementTitleV3,
-} from "./ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
 
 export type ArticleExperimentPlacementV3Props = Readonly<{
   block: StudioArticleExperimentBlockV2;

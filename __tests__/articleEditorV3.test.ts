@@ -19,7 +19,7 @@ import {
   resolveArticleEditorRouteDraftV3,
   splitArticleTextSelectionV3,
   synchronizeRemoteArticlePublicationV3,
-} from "@/components/ArticleEditorV3Page";
+} from "@/components/article/editor/ArticleEditorPolicy";
 import {
   ArticleBriefingEditorV3,
   ArticleExperimentPlacementV3,
@@ -36,9 +36,9 @@ import {
   articleBriefingPresentationV3,
   createArticleExperimentBlockV3,
   defaultArticleBriefingV3,
-  portableEditorIdV3,
   resolveArticlePlacementBriefingV3,
-} from "@/components/article/ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
+import { portableArticleEditorIdV3 } from "@/components/article/editor/ArticleEditorIdentityV3";
 import {
   STUDIO_ARTICLE_DRAFT_V2_SCHEMA_ID,
   type StudioArticleDraftV2,
@@ -325,10 +325,10 @@ describe("Article Editor V3 briefing", () => {
 
   it("renders a two-graph Editor placement as the same compact Peek anchor", () => {
     const snapshot = twoGraphSnapshotV3();
-    const block = createArticleExperimentBlockV3(
+    const block = createArticleExperimentBlockV3({
       snapshot,
-      (kind) => `${kind}/editor-peek`,
-    );
+      createId: (kind) => `${kind}/editor-peek`,
+    });
     const html = renderToStaticMarkup(React.createElement(
       ArticleExperimentPlacementV3,
       {
@@ -797,10 +797,10 @@ describe("Article Editor V3 briefing", () => {
       visibility: "draft",
       locale: "ja",
       title: "AS briefing",
-      blocks: [createArticleExperimentBlockV3(
+      blocks: [createArticleExperimentBlockV3({
         snapshot,
-        (kind) => `${kind}/initial-save-race`,
-      )],
+        createId: (kind) => `${kind}/initial-save-race`,
+      })],
     } satisfies StudioArticleDraftV2;
     const resolution = resolveArticleEditorRouteDraftV3({
       currentDraft: authored,
@@ -849,8 +849,8 @@ describe("Article Editor V3 briefing", () => {
     const snapshot = snapshotV3();
     let sequence = 0;
     const createId = (kind: "block" | "placement") => `${kind}/${++sequence}`;
-    const first = createArticleExperimentBlockV3(snapshot, createId);
-    const second = createArticleExperimentBlockV3(snapshot, createId);
+    const first = createArticleExperimentBlockV3({ snapshot, createId });
+    const second = createArticleExperimentBlockV3({ snapshot, createId });
 
     expect(first.placement.snapshotId).toBe(snapshot.snapshotId);
     expect(first.blockId).not.toBe(second.blockId);
@@ -924,11 +924,11 @@ describe("Article Editor V3 briefing", () => {
     };
 
     expect(resolveArticlePlacementBriefingV3(placement, emptySnapshot)).toEqual(emptyRoles);
-    expect(createArticleExperimentBlockV3(
-      emptySnapshot,
-      emptyRoles,
-      (kind) => `${kind}/empty-briefing`,
-    ).placement).toEqual({
+    expect(createArticleExperimentBlockV3({
+      snapshot: emptySnapshot,
+      briefing: emptyRoles,
+      createId: (kind) => `${kind}/empty-briefing`,
+    }).placement).toEqual({
       schemaId: STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
       placementId: "placement/empty-briefing",
       snapshotId: emptySnapshot.snapshotId,
@@ -939,12 +939,16 @@ describe("Article Editor V3 briefing", () => {
   });
 
   it("keeps generated Article IDs URL-safe", () => {
-    expect(portableEditorIdV3("article")).toMatch(/^article-[A-Za-z0-9-]+$/);
+    expect(portableArticleEditorIdV3("article"))
+      .toMatch(/^article-[A-Za-z0-9-]+$/);
   });
 
   it("builds the same default projection through the dedicated helper", () => {
     const snapshot = snapshotV3();
-    expect(createArticleExperimentBlockV3(snapshot).placement.briefing)
+    expect(createArticleExperimentBlockV3({
+      snapshot,
+      createId: (kind) => `${kind}/default-projection`,
+    }).placement.briefing)
       .toEqual(defaultArticleBriefingV3(snapshot));
   });
 
@@ -1014,10 +1018,10 @@ describe("Article Editor V3 briefing", () => {
       "pane/controls",
       "pane/controls-duplicate",
     ]);
-    expect(createArticleExperimentBlockV3(
+    expect(createArticleExperimentBlockV3({
       snapshot,
-      (kind) => `${kind}/deduplicated-default`,
-    ).placement.snapshotId).toEqual(snapshot.snapshotId);
+      createId: (kind) => `${kind}/deduplicated-default`,
+    }).placement.snapshotId).toEqual(snapshot.snapshotId);
   });
 
   it("captures a Surface custom-button presentation by value", () => {

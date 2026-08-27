@@ -1,32 +1,230 @@
-/**
- * Read-only presentation projection from the exact Main Wire V3 fixture into
- * registered Studio controls. Numerical mutation remains owned by the model
- * package; Workbench and Reader share only this initial-value lookup.
- */
-const MAIN_WIRE_INPUT_KEY_BY_CONTROL_ID_V3: Readonly<Record<string, string>> =
-  Object.freeze({
-    "hemodynamics.systemic-resistance": "systemicResistance",
-    "hemodynamics.pulmonary-resistance": "pulmonaryResistance",
-    "hemodynamics.venous-tone": "venousTone",
-    "hemodynamics.arterial-stiffness": "arterialStiffness",
-    "rhythm.heart-rate-bpm": "heartRateBpm",
-    "hemodynamics.total-blood-volume-ml": "totalBloodVolumeMl",
-    "ventilation.peep-cm-h2o": "peepCmH2O",
-  });
+import type {
+  ExactModelFixtureProjectionV1,
+  ExactModelProjectedControlValueV1,
+} from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
 
+const MIXED_CONTROL_VALUE_V3 = Object.freeze({ status: "mixed" as const });
+const UNSUPPORTED_CONTROL_VALUE_V3 = Object.freeze({
+  status: "unsupported" as const,
+});
+
+const DIRECT_FIXTURE_PATH_BY_CONTROL_ID_V3: Readonly<
+  Record<string, readonly string[]>
+> = Object.freeze({
+  "hemodynamics.systemic-resistance": [
+    "hemodynamicResearchInputs", "systemicResistance",
+  ],
+  "hemodynamics.pulmonary-resistance": [
+    "hemodynamicResearchInputs", "pulmonaryResistance",
+  ],
+  "hemodynamics.venous-tone": [
+    "hemodynamicResearchInputs", "venousTone",
+  ],
+  "hemodynamics.arterial-stiffness": [
+    "hemodynamicResearchInputs", "arterialStiffness",
+  ],
+  "rhythm.heart-rate-bpm": [
+    "hemodynamicResearchInputs", "heartRateBpm",
+  ],
+  "hemodynamics.total-blood-volume-ml": [
+    "hemodynamicResearchInputs", "totalBloodVolumeMl",
+  ],
+  "ventilation.peep-cm-h2o": [
+    "hemodynamicResearchInputs", "peepCmH2O",
+  ],
+  "oxygen.hemoglobin-g-per-dl": [
+    "mechanismResearchInputs", "oxygenTransport", "hemoglobinGPerDl",
+  ],
+  "oxygen.inspired-oxygen-fraction": [
+    "mechanismResearchInputs", "oxygenTransport", "inspiredOxygenFraction01",
+  ],
+  "oxygen.arterial-carbon-dioxide-pressure-mm-hg": [
+    "mechanismResearchInputs", "oxygenTransport",
+    "arterialCarbonDioxidePressureMmHg",
+  ],
+  "oxygen.respiratory-exchange-ratio": [
+    "mechanismResearchInputs", "oxygenTransport", "respiratoryExchangeRatio",
+  ],
+  "oxygen.barometric-pressure-mm-hg": [
+    "mechanismResearchInputs", "oxygenTransport", "barometricPressureMmHg",
+  ],
+  "oxygen.true-shunt-fraction": [
+    "mechanismResearchInputs", "oxygenTransport", "trueShuntFraction01",
+  ],
+  "oxygen.target-consumption-ml-per-min": [
+    "mechanismResearchInputs", "oxygenTransport",
+    "targetOxygenConsumptionMlPerMin",
+  ],
+  "pericardium.reference-capacity-scale": [
+    "mechanismResearchInputs", "pericardium", "referenceCapacityScale",
+  ],
+  "pericardium.pressure-scale": [
+    "mechanismResearchInputs", "pericardium", "pressureScale",
+  ],
+  "pericardium.exponential-stiffness-scale": [
+    "mechanismResearchInputs", "pericardium", "exponentialStiffnessScale",
+  ],
+  "pericardium.prescribed-fluid-volume-ml": [
+    "mechanismResearchInputs", "pericardium", "prescribedFluidVolumeMl",
+  ],
+});
+
+const MECHANICS_FIXTURE_FIELD_BY_CONTROL_PREFIX_V3 = Object.freeze({
+  "myocardium.active-tension-scale.": "activeTensionScaleByWall",
+  "myocardium.passive-stiffness-scale.": "passiveStiffnessScaleByWall",
+  "myocardium.calcium-decay-time-scale.": "calciumDecayTimeScaleByWall",
+} as const);
+
+const VALVE_FIXTURE_FIELD_BY_CONTROL_PREFIX_V3 = Object.freeze({
+  "valve.maximum-forward-eoa-cm2.": "maximumForwardEoaCm2",
+  "valve.closed-reverse-eroa-cm2.": "closedReverseEroaCm2",
+} as const);
+
+const MAIN_WIRE_WALL_IDS_V3 = new Set(["LA", "LVFW", "SEP", "RVFW", "RA"]);
+const MAIN_WIRE_VALVE_IDS_V3 = new Set(["MV", "AoV", "TV", "PV"]);
+const MAIN_WIRE_CORONARY_TERRITORY_IDS_V3 = new Set(["LAD", "LCx", "RCA"]);
+const MAIN_WIRE_CORONARY_LAYER_IDS_V3 = new Set([
+  "subepicardial",
+  "subendocardial",
+]);
+
+/**
+ * Projection for the currently admitted immutable artifact and fixture ABI.
+ * Its test applies and reads every registered control, so a future exact
+ * control addition cannot silently become a presentation default.
+ */
 export function mainWireIntegratedStudioControlValueFromFixtureV3(
   fixture: unknown,
   controlId: string,
+): ExactModelProjectedControlValueV1 {
+  const directPath = DIRECT_FIXTURE_PATH_BY_CONTROL_ID_V3[controlId];
+  if (directPath !== undefined) {
+    return projectedFiniteNumberAtPathV3(fixture, directPath);
+  }
+
+  if (controlId === "myocardium.contractility") {
+    const values = ["LVFW", "SEP", "RVFW"].map((wallId) =>
+      finiteNumberAtPathV3(fixture, [
+        "mechanismResearchInputs",
+        "chamberMechanics",
+        "activeTensionScaleByWall",
+        wallId,
+      ]),
+    );
+    const common = values[0];
+    if (common === null || values.some((value) => value === null)) {
+      return UNSUPPORTED_CONTROL_VALUE_V3;
+    }
+    return values.every((value) => value === common)
+      ? projectedControlValueV3(common)
+      : MIXED_CONTROL_VALUE_V3;
+  }
+
+  for (const [prefix, fixtureField] of Object.entries(
+    MECHANICS_FIXTURE_FIELD_BY_CONTROL_PREFIX_V3,
+  )) {
+    if (!controlId.startsWith(prefix)) continue;
+    const wallId = controlId.slice(prefix.length);
+    if (!MAIN_WIRE_WALL_IDS_V3.has(wallId)) {
+      return UNSUPPORTED_CONTROL_VALUE_V3;
+    }
+    return projectedFiniteNumberAtPathV3(fixture, [
+      "mechanismResearchInputs",
+      "chamberMechanics",
+      fixtureField,
+      wallId,
+    ]);
+  }
+
+  for (const [prefix, fixtureField] of Object.entries(
+    VALVE_FIXTURE_FIELD_BY_CONTROL_PREFIX_V3,
+  )) {
+    if (!controlId.startsWith(prefix)) continue;
+    const valveId = controlId.slice(prefix.length);
+    if (!MAIN_WIRE_VALVE_IDS_V3.has(valveId)) {
+      return UNSUPPORTED_CONTROL_VALUE_V3;
+    }
+    return projectedFiniteNumberAtPathV3(fixture, [
+      "mechanismResearchInputs",
+      "valveAreas",
+      valveId,
+      fixtureField,
+    ]);
+  }
+
+  const focalPrefix = "coronary.focal-diameter-loss-fraction.";
+  if (controlId.startsWith(focalPrefix)) {
+    const territoryId = controlId.slice(focalPrefix.length);
+    if (!MAIN_WIRE_CORONARY_TERRITORY_IDS_V3.has(territoryId)) {
+      return UNSUPPORTED_CONTROL_VALUE_V3;
+    }
+    return projectedFiniteNumberAtPathV3(fixture, [
+      "mechanismResearchInputs",
+      "coronaryDisease",
+      "focalDiameterLossFraction01ByTerritory",
+      territoryId,
+    ]);
+  }
+
+  const structural = /^coronary\.structural-(r1|rm)-resistance-scale\.([^.]+)\.([^.]+)$/
+    .exec(controlId);
+  if (structural !== null) {
+    const [, resistanceKind, territoryId, layerId] = structural;
+    if (
+      territoryId === undefined || layerId === undefined ||
+      !MAIN_WIRE_CORONARY_TERRITORY_IDS_V3.has(territoryId) ||
+      !MAIN_WIRE_CORONARY_LAYER_IDS_V3.has(layerId)
+    ) {
+      return UNSUPPORTED_CONTROL_VALUE_V3;
+    }
+    return projectedFiniteNumberAtPathV3(fixture, [
+      "mechanismResearchInputs",
+      "coronaryDisease",
+      resistanceKind === "r1"
+        ? "structuralR1ResistanceScaleByTerritoryLayer"
+        : "structuralRmResistanceScaleByTerritoryLayer",
+      territoryId,
+      layerId,
+    ]);
+  }
+
+  return UNSUPPORTED_CONTROL_VALUE_V3;
+}
+
+export const mainWireIntegratedStudioFixtureProjectionV3:
+ExactModelFixtureProjectionV1 = Object.freeze({
+  controlValue: mainWireIntegratedStudioControlValueFromFixtureV3,
+});
+
+function projectedFiniteNumberAtPathV3(
+  value: unknown,
+  path: readonly string[],
+): ExactModelProjectedControlValueV1 {
+  const projected = finiteNumberAtPathV3(value, path);
+  return projected === null
+    ? UNSUPPORTED_CONTROL_VALUE_V3
+    : projectedControlValueV3(projected);
+}
+
+function projectedControlValueV3(
+  value: number,
+): ExactModelProjectedControlValueV1 {
+  return Object.freeze({ status: "value", value });
+}
+
+function finiteNumberAtPathV3(
+  value: unknown,
+  path: readonly string[],
 ): number | null {
-  if (fixture === null || typeof fixture !== "object" || Array.isArray(fixture)) {
-    return null;
+  let current = value;
+  for (const key of path) {
+    if (current === null || typeof current !== "object" || Array.isArray(current)) {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
   }
-  const inputs = (fixture as Record<string, unknown>).hemodynamicResearchInputs;
-  if (inputs === null || typeof inputs !== "object" || Array.isArray(inputs)) {
-    return null;
-  }
-  const inputKey = MAIN_WIRE_INPUT_KEY_BY_CONTROL_ID_V3[controlId];
-  if (inputKey === undefined) return null;
-  const value = (inputs as Record<string, unknown>)[inputKey];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+  return typeof current === "number" && Number.isFinite(current)
+    ? current
+    : null;
 }

@@ -18,7 +18,7 @@ import {
   articleBriefingPresentationV3,
   resolveArticlePlacementBriefingV3,
   resolveArticlePlacementTitleV3,
-} from "@/components/article/ArticleEditorStateV3";
+} from "@/studio/application/article/ArticleExperimentPlacementV3";
 import {
   isWorkbenchGraphTraceExcludedV3,
   resolveWorkbenchGraphScenarioIdsV3,
@@ -38,16 +38,16 @@ import {
   useWorkbenchOptionalSampledGraphPresentationSamplesV3,
   useWorkbenchScenarioPresentationSamplesV3,
   type WorkbenchPressureVolumeTraceV3,
-} from "@/components/workbench/v3";
-import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/components/workbench/presentation";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
-  type MainWireIntegratedModelPeriodicPvaV1,
-} from "@/engine/myocardium/analysis/MainWireIntegratedModelPeriodicPvaV1";
+  type MainWirePeriodicPvaV1,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+  type MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -65,7 +65,13 @@ import type {
   StructuralReturnGraphDefinitionV2,
   SweepGraphDefinitionV2,
 } from "@/studio/contracts/v2/model";
-import { mainWireIntegratedStudioControlValueFromFixtureV3 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
+import {
+  resolveExactModelControlValueV1,
+  type ExactModelResolvedControlValueV1,
+} from
+  "@/studio/application/model/ExactModelControlValuesV1";
 import {
   articleReaderAnalysisKeyV3,
   type ArticleReaderStructuralAnalysisRequestV3,
@@ -95,7 +101,7 @@ export type ArticleReaderExperimentV3Props = Readonly<{
 
 type ArticleReaderPresentationV3 = "inflow" | "peek" | "fullscreen";
 const ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3 = new Set<string>(
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
 );
 export type ArticleReaderExpandedPresentationV3 = Exclude<
   ArticleReaderPresentationV3,
@@ -1222,8 +1228,8 @@ function pressureVolumeRelationSideV3(
 function periodicPvaFromPayloadV3(
   payload: unknown,
   side: "left" | "right",
-  derivation: StudioPeriodicPvaDerivationV1 | null,
-): MainWireIntegratedModelPeriodicPvaV1 | undefined {
+  derivation: MainWirePeriodicPvaDerivationV1 | null,
+): MainWirePeriodicPvaV1 | undefined {
   if (derivation === null) return undefined;
   const orientation = structuralReturnOrientationFromPayloadV3(payload, side);
   if (orientation === null) return undefined;
@@ -1535,7 +1541,7 @@ export function ArticleReaderOutputsV3({
 }
 
 function articleReaderPeriodicPvaScalarV3(
-  periodicPva: MainWireIntegratedModelPeriodicPvaV1 | undefined,
+  periodicPva: MainWirePeriodicPvaV1 | undefined,
   outputId: string,
 ): number | null {
   const projection =
@@ -1546,19 +1552,19 @@ function articleReaderPeriodicPvaScalarV3(
         : null;
   if (projection === null) return null;
   switch (outputId) {
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.potentialEnergyMilliJoule:
       return projection.potentialEnergy?.joule === undefined
         ? null
         : projection.potentialEnergy.joule * 1e3;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule:
       return projection.pva?.joule === undefined
         ? null
         : projection.pva.joule * 1e3;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerBeatPer100G:
       return projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerBeatPer100G
         : null;
-    case MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
+    case MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.estimatedMvo2PerMinPer100G:
       return projection.estimatedMvo2?.status === "available"
         ? projection.estimatedMvo2.oxygenDemand.totalMlO2PerMinPer100G
         : null;
@@ -1628,35 +1634,58 @@ export function ArticleReaderControlV3({
   );
   const primaryTargetId =
     targetIds[0] ?? briefing.scenarioScope.initialFocusScenarioId;
-  const targetValues = targetIds.map(
-    (scenarioId) =>
-      runtime.state.committedControlValues[scenarioId]?.[control.controlId] ??
-      readerControlInitialValueV3(snapshot, scenarioId, definition),
+  const targetValues = targetIds.map((scenarioId) =>
+    readerControlInitialValueV3(
+      snapshot,
+      scenarioId,
+      definition,
+      runtime.fixtureProjection,
+      runtime.state.fixtureByScenario[scenarioId],
+    ));
+  const initialProjected = readerControlInitialValueV3(
+    snapshot,
+    primaryTargetId,
+    definition,
+    runtime.fixtureProjection,
+    runtime.state.fixtureByScenario[primaryTargetId],
   );
-  const committedRuntimeValue =
-    runtime.state.committedControlValues[primaryTargetId]?.[control.controlId];
-  const initialValue =
-    committedRuntimeValue ??
-    readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+  const initialValue = initialProjected.status === "value"
+    ? initialProjected.value
+    : definition.defaultValue;
   const [value, setValue] = React.useState(initialValue);
   const [error, setError] = React.useState<string | null>(null);
   const committedRef = React.useRef(initialValue);
   const commitInFlightRef = React.useRef(false);
   const controlInstanceId = articleReaderControlInstanceIdV3(control);
-  const mixed =
-    targetValues.length > 1 &&
-    targetValues.some((candidate) => candidate !== targetValues[0]);
+  const mixed = targetValues.some((candidate) =>
+    candidate.status === "mixed" ||
+    (candidate.status === "value" && candidate.value !== initialValue));
 
   React.useEffect(() => {
-    const next =
-      committedRuntimeValue ??
-      readerControlInitialValueV3(snapshot, primaryTargetId, definition);
+    const nextProjected = readerControlInitialValueV3(
+      snapshot,
+      primaryTargetId,
+      definition,
+      runtime.fixtureProjection,
+      runtime.state.fixtureByScenario[primaryTargetId],
+    );
+    const next = nextProjected.status === "value"
+      ? nextProjected.value
+      : definition.defaultValue;
     setValue(next);
     committedRef.current = next;
-  }, [committedRuntimeValue, definition, primaryTargetId, snapshot]);
+  }, [
+    definition,
+    primaryTargetId,
+    runtime.fixtureProjection,
+    runtime.state.fixtureByScenario,
+    snapshot,
+  ]);
 
   const commit = async (next: number) => {
-    if (next === committedRef.current || commitInFlightRef.current) return;
+    if (
+      (!mixed && next === committedRef.current) || commitInFlightRef.current
+    ) return;
     commitInFlightRef.current = true;
     setError(null);
     try {
@@ -2112,16 +2141,13 @@ function readerControlInitialValueV3(
   snapshot: ExperimentSnapshotV2,
   scenarioId: string,
   definition: ControlDefinitionV2,
-): number {
-  const fixture = snapshot.content.scenarios.find(
+  projection: ExactModelFixtureProjectionV1,
+  currentFixture?: unknown,
+): ExactModelResolvedControlValueV1 {
+  const fixture = currentFixture ?? snapshot.content.scenarios.find(
     (scenario) => scenario.scenarioId === scenarioId,
   )?.capture.fixture;
-  return (
-    mainWireIntegratedStudioControlValueFromFixtureV3(
-      fixture,
-      definition.controlId,
-    ) ?? definition.defaultValue
-  );
+  return resolveExactModelControlValueV1(definition, fixture, projection);
 }
 
 export function selectedSweepOutputIdsV3(
@@ -2165,9 +2191,14 @@ function readerErrorMessageV3(cause: unknown): string {
 function requiredArticleReaderRuntimeCompositionV3(
   composition: StudioClientCompositionV2 | null,
 ): Readonly<{
-  releaseTicket: StudioClientCompositionV2["workerReleaseTicket"];
-  resolveAnalysisExecutionPlan: StudioClientCompositionV2["analysisExecutionPlan"];
-  periodicPvaDerivation: StudioClientCompositionV2["periodicPvaDerivation"];
+  releaseTicket:
+    StudioClientCompositionV2["exactModel"]["workerReleaseTicket"];
+  fixtureProjection:
+    StudioClientCompositionV2["exactModel"]["fixtureProjection"];
+  resolveAnalysisExecutionPlan:
+    StudioClientCompositionV2["modelSurface"]["analysis"]["resolveExecutionPlan"];
+  periodicPvaDerivation:
+    StudioClientCompositionV2["modelSurface"]["analysis"]["periodicPvaDerivation"];
 }> {
   if (composition === null) {
     throw new Error(
@@ -2175,9 +2206,10 @@ function requiredArticleReaderRuntimeCompositionV3(
     );
   }
   return Object.freeze({
-    releaseTicket: composition.workerReleaseTicket,
-    resolveAnalysisExecutionPlan: composition.analysisExecutionPlan,
-    periodicPvaDerivation: composition.periodicPvaDerivation,
+    releaseTicket: composition.exactModel.workerReleaseTicket,
+    fixtureProjection: composition.exactModel.fixtureProjection,
+    resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
+    periodicPvaDerivation: composition.modelSurface.analysis.periodicPvaDerivation,
   });
 }
 

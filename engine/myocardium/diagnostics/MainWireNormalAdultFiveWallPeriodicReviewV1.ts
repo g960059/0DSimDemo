@@ -44,7 +44,6 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1 =
     physiologyGateAdded: false as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
     timeStepRobustnessAssessedBySingleReview: false as const,
-    currentModelCoreRuntimeAdoptionClaimed: false as const,
     pulmonaryVenousSignal:
       "aggregate-PVein-to-LA-edge-not-separate-vein-measurements" as const,
     mitralVti:
@@ -308,7 +307,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
   <section class="boundary" aria-labelledby="claim-boundaries">
     <h2 id="claim-boundaries">Claim boundaries</h2>
     <ul>
-      <li>This is the main-wire-derived noncoronary experimental sidecar, not a claim of current ModelCore/browser-runtime adoption.</li>
+      <li>This main-wire-derived noncoronary experiment is not part of the browser runtime.</li>
       <li>Physiology and PV morphology are interpretable only after period-1 closure; the page remains useful as a numerical settling diagnostic before then.</li>
       <li>Period-1 closure applies only to the displayed dt. A separate dt comparison is required before claiming time-step robustness.</li>
       <li>PV panels use intracavitary absolute pressure. Wall-work and constitutive diagnostics use transmural pressure, so common pericardial work is not counted twice.</li>

@@ -5,10 +5,11 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 97;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 46;
+export const FAST_SUITE_FILE_BUDGET = 78;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
+  "__tests__/analysisMethodRegistryV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/coupledHemodynamicsSolverV1.test.ts",
   "__tests__/articleReaderV3.test.tsx",
@@ -42,10 +43,10 @@ export const fastTests = [
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
-  "__tests__/mainWireIntegratedModelPeriodicPvaV1.test.ts",
+  "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
-  "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
+  "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireNormalAdultBloodVolumeOperatingPointV1.test.ts",
@@ -65,8 +66,8 @@ export const fastTests = [
   "__tests__/oxygenTransportV1.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
   "__tests__/studioContractsBoundaryV2.test.ts",
-  "__tests__/studioBrowserContentStoreV3.test.ts",
-  "__tests__/studioBrowserExperimentResourceV3.test.ts",
+  "__tests__/browserContentStore.test.ts",
+  "__tests__/browserExperimentResource.test.ts",
   "__tests__/studioAuthoringCliV1.test.ts",
   "__tests__/studioAuthoringCommandV1.test.ts",
   "__tests__/studioExperimentAuthoringV2.test.ts",
@@ -84,13 +85,8 @@ export const fastTests = [
   "__tests__/workbenchV3Dockview.test.tsx",
   "__tests__/workbenchV3CanvasRenderers.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
-  "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/chambers.test.ts",
   "engine/__tests__/circulationGraphKernelV1.test.ts",
-  "engine/__tests__/flowIntegrals.test.ts",
-  "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
-  "engine/__tests__/starlingFit.test.ts",
-  "engine/__tests__/valveTiming.test.ts",
 ] as const;
 
 /**
@@ -119,9 +115,9 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedTypedAuthoritySessionV1.test.ts",
   "__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
-  "__tests__/mainWireIntegratedModelPeriodicPvaV1.test.ts",
+  "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedModelTransactionV3.test.ts",
-  "__tests__/mainWireIntegratedStudioAnalysisExecutionV3.test.ts",
+  "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
@@ -130,8 +126,8 @@ export const prSmokeTests = [
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
   "__tests__/studioContractsBoundaryV2.test.ts",
-  "__tests__/studioBrowserContentStoreV3.test.ts",
-  "__tests__/studioBrowserExperimentResourceV3.test.ts",
+  "__tests__/browserContentStore.test.ts",
+  "__tests__/browserExperimentResource.test.ts",
   "__tests__/studioExperimentAuthoringV2.test.ts",
   "__tests__/studioExperimentDataV2.test.ts",
   "__tests__/studioFixtureReducerV2.test.ts",
@@ -183,30 +179,6 @@ export const regressionTests = [
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",
   "__tests__/recoveryConcealmentAvGateCheckpointV2.test.ts",
-  "engine/__tests__/transitionSteadyProtocol.test.ts",
-  "engine/__tests__/atrialPhysiologyBridgeV2.test.ts",
-  "engine/__tests__/baseline.test.ts",
-  "engine/__tests__/chambersElastanceShape.test.ts",
-  "engine/__tests__/chambersOperatingPoint.test.ts",
-  "engine/__tests__/chambersReservoirBehavior.test.ts",
-  "engine/__tests__/chambersReservoirGates.test.ts",
-  "engine/__tests__/coronary.test.ts",
-  "engine/__tests__/guytonStarling.test.ts",
-  "engine/__tests__/guytonVascular.test.ts",
-  "engine/__tests__/health.test.ts",
-  "engine/__tests__/hemorrhage.test.ts",
-  "engine/__tests__/interactionMechanics.test.ts",
-  "engine/__tests__/modelCoreAtrialPressureDecomposition.test.ts",
-  "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
-  "engine/__tests__/observables.test.ts",
-  "engine/__tests__/runtimeParameterSanitation.test.ts",
-  "engine/__tests__/settling.test.ts",
-  "engine/__tests__/stateContract.test.ts",
-  "engine/__tests__/steadyCrossCheck.test.ts",
-  "engine/__tests__/steadyJob.test.ts",
-  "engine/__tests__/transitionSteadyWorker.test.ts",
-  "engine/__tests__/valveFlowMetrics.test.ts",
-  "engine/__tests__/verification.test.ts",
 ] as const;
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */

@@ -3,10 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import type {
   StudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublishedArticleV1";
+import type {
+  StudioPublicArticleSummaryV1,
+  StudioPublicExperimentSummaryV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   StudioSupabaseContentRepositoryV1,
-  type StudioPublicArticleSummaryV1,
-  type StudioPublicExperimentSummaryV1,
   type StudioSummaryPageRequestV1,
   type StudioSummaryPageV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";

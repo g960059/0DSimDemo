@@ -15,6 +15,10 @@ import {
   type StudioPublishedArticleV1,
   validateStudioPublishedArticleV1,
 } from "@/studio/application/publication/StudioPublishedArticleV1";
+import type {
+  StudioPublicArticleSummaryV1,
+  StudioPublicExperimentSummaryV1,
+} from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
   STUDIO_EXPERIMENT_V2_SCHEMA_ID,
   type ExperimentContentV2,
@@ -23,7 +27,7 @@ import {
 } from "@/studio/contracts/v2/content";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import {
   assertStudioAdmittedSnapshotCommitV1,
   type StudioAdmittedSnapshotCommitV1,
@@ -101,25 +105,6 @@ export type StudioRemoteArticleSummaryV1 = Readonly<{
   createdAt: string;
   updatedAt: string;
   publicSlug: string | null;
-}>;
-
-export type StudioPublicExperimentSummaryV1 = Readonly<{
-  experimentId: string;
-  title: string;
-  publicSlug: string;
-  publishedAt: string;
-  snapshotId: string;
-  modelId: string;
-  scenarioCount: number;
-}>;
-
-export type StudioPublicArticleSummaryV1 = Readonly<{
-  articleId: string;
-  locale: string;
-  title: string;
-  excerpt: string | null;
-  publicSlug: string;
-  publishedAt: string;
 }>;
 
 export function createStudioSupabaseContentRepositoryV1():
@@ -465,30 +450,6 @@ export class StudioSupabaseContentRepositoryV1 {
       p_operation_id: operationId,
     });
     return parseAuthoringOperationReceiptV1(data);
-  }
-
-  async claimMyAuthoringCommand(input: Readonly<{
-    commandId: string;
-    action: string;
-    commandDigest: string;
-  }>): Promise<StudioAuthoringOperationReceiptV1 | null> {
-    if (!isUuidV1(input.commandId)) {
-      throw new Error("Authoring command ID must be a UUID");
-    }
-    if (!/^[a-z][a-z0-9.-]{0,79}$/.test(input.action)) {
-      throw new Error("Authoring command action is invalid");
-    }
-    if (!/^[0-9a-f]{64}$/.test(input.commandDigest)) {
-      throw new Error("Authoring command digest must be lowercase SHA-256");
-    }
-    return parseAuthoringOperationReceiptV1(await this.#rpc(
-      "claim_my_authoring_command_v1",
-      {
-        p_command_id: input.commandId,
-        p_command_action: input.action,
-        p_command_digest: input.commandDigest,
-      },
-    ));
   }
 
   async listPublicExperiments(

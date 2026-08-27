@@ -7,6 +7,7 @@ import {
 import {
   STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID,
   STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1,
+  type StudioPublicArticleSummaryV1,
   validateStudioPublicHomeBootstrapV1,
 } from "@/studio/application/publication/StudioPublicHomeBootstrapV1";
 import {
@@ -19,7 +20,6 @@ import {
   localeFromCookieHeader,
 } from "@/localeRouting";
 import type {
-  StudioPublicArticleSummaryV1,
   StudioSummaryCursorV1,
 } from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
 import type {

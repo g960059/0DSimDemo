@@ -77,7 +77,6 @@ describe("coronary V1 topology and normal-adult prior", () => {
       acceptedToneStateCount: 3,
       inertanceIncluded: false,
       totalBloodVolumeLedgerRequired: true,
-      legacyModelCoreCoronaryHeuristicsUsed: false,
     });
     expect(coronaryColdSeedBloodVolumeMlV1()).toBeCloseTo(17.556, 12);
     expect(coronaryColdSeedBloodVolumeMlV1()).toBeCloseTo(

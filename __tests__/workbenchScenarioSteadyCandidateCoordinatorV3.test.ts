@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   WorkbenchBackgroundWorkerPoolV3,
-} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+} from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import {
   WorkbenchScenarioSteadyCandidateCoordinatorV3,
-} from "@/components/workbench/v3/WorkbenchScenarioSteadyCandidateCoordinatorV3";
+} from "@/components/workbench/runtime/WorkbenchScenarioSteadyCandidateCoordinatorV3";
 import type { StudioSimulationFrameV2 } from
   "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerClientV2 } from

@@ -1,8 +1,112 @@
 begin;
 
+-- Every Surface, including a series root, must explicitly pin the exact
+-- outputs it presents. Missing JSON keys evaluate to SQL NULL, so use
+-- IS DISTINCT FROM instead of ordinary inequality at this boundary.
+create or replace function studio.assert_model_surface_exact_output_exposure_v1(
+  p_manifest jsonb
+)
+returns void
+language plpgsql immutable
+set search_path to ''
+as $$
+begin
+  if pg_catalog.jsonb_typeof(
+    p_manifest -> 'exposedExactOutputIds'
+  ) is distinct from 'array'
+  then
+    raise exception 'model surface exact-output exposure must be an array'
+      using errcode = '22023';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(
+      p_manifest -> 'exposedExactOutputIds'
+    ) as output(value)
+    where pg_catalog.jsonb_typeof(output.value) <> 'string'
+      or nullif(pg_catalog.btrim(output.value #>> '{}'), '') is null
+  ) or exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(
+      p_manifest -> 'exposedExactOutputIds'
+    ) as output(value)
+    group by output.value
+    having count(*) > 1
+  ) then
+    raise exception
+      'model surface exact-output exposure contains invalid or duplicate IDs'
+      using errcode = '22023';
+  end if;
+end;
+$$;
+
+alter function studio.assert_model_surface_exact_output_exposure_v1(jsonb)
+  owner to postgres;
+
+create or replace function studio.assert_model_surface_registration_manifest_v1(
+  p_manifest jsonb
+)
+returns void
+language plpgsql immutable
+set search_path to ''
+as $$
+declare
+  catalog_name text;
+  catalog_id_key text;
+begin
+  perform studio.assert_model_surface_exact_output_exposure_v1(p_manifest);
+
+  foreach catalog_name in array array[
+    'controlCatalog',
+    'derivedOutputCatalog',
+    'graphCatalog',
+    'knobCatalog',
+    'protocolCatalog'
+  ]
+  loop
+    catalog_id_key := case catalog_name
+      when 'controlCatalog' then 'controlId'
+      when 'derivedOutputCatalog' then 'outputId'
+      when 'graphCatalog' then 'graphId'
+      when 'knobCatalog' then 'knobId'
+      when 'protocolCatalog' then 'protocolId'
+    end;
+    if pg_catalog.jsonb_typeof(
+      p_manifest -> catalog_name
+    ) is distinct from 'array'
+    then
+      raise exception 'model surface % must be an array', catalog_name
+        using errcode = '22023';
+    end if;
+    if exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        p_manifest -> catalog_name
+      ) as item(value)
+      where pg_catalog.jsonb_typeof(item.value) <> 'object'
+        or nullif(pg_catalog.btrim(item.value ->> catalog_id_key), '') is null
+    ) or exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        p_manifest -> catalog_name
+      ) as item(value)
+      group by item.value ->> catalog_id_key
+      having count(*) > 1
+    ) then
+      raise exception 'model surface % contains invalid or duplicate item IDs',
+        catalog_name using errcode = '22023';
+    end if;
+  end loop;
+end;
+$$;
+
+alter function studio.assert_model_surface_registration_manifest_v1(jsonb)
+  owner to postgres;
+
 -- Keep the database boundary aligned with the TypeScript Surface validator.
 -- An additive release may expose more exact outputs, but it cannot silently
--- switch exposure policy or hide an output already exposed by its series.
+-- hide an output already exposed by its series.
 create or replace function studio.assert_additive_model_surface_upgrade_v1(
   p_previous_manifest jsonb,
   p_next_manifest jsonb
@@ -14,11 +118,14 @@ as $$
 declare
   catalog_name text;
   catalog_id_key text;
-  previous_has_exact_exposure boolean :=
-    p_previous_manifest ? 'exposedExactOutputIds';
-  next_has_exact_exposure boolean :=
-    p_next_manifest ? 'exposedExactOutputIds';
 begin
+  perform studio.assert_model_surface_registration_manifest_v1(
+    p_previous_manifest
+  );
+  perform studio.assert_model_surface_registration_manifest_v1(
+    p_next_manifest
+  );
+
   foreach catalog_name in array array[
     'controlCatalog',
     'derivedOutputCatalog',
@@ -37,24 +144,6 @@ begin
     if exists (
       select 1
       from pg_catalog.jsonb_array_elements(
-        p_next_manifest -> catalog_name
-      ) as next_item(value)
-      where pg_catalog.jsonb_typeof(next_item.value) <> 'object'
-        or nullif(pg_catalog.btrim(next_item.value ->> catalog_id_key), '') is null
-    ) or exists (
-      select 1
-      from pg_catalog.jsonb_array_elements(
-        p_next_manifest -> catalog_name
-      ) as next_item(value)
-      group by next_item.value ->> catalog_id_key
-      having count(*) > 1
-    ) then
-      raise exception 'model surface % contains invalid or duplicate item IDs',
-        catalog_name using errcode = '22023';
-    end if;
-    if exists (
-      select 1
-      from pg_catalog.jsonb_array_elements(
         p_previous_manifest -> catalog_name
       ) as previous_item(value)
       where not exists (
@@ -70,66 +159,46 @@ begin
     end if;
   end loop;
 
-  if previous_has_exact_exposure <> next_has_exact_exposure then
-    raise exception
-      'legacy and explicit exact-output exposure require different model surface series'
-      using errcode = '22023';
-  end if;
-
-  if next_has_exact_exposure then
-    if pg_catalog.jsonb_typeof(
+  if exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(
       p_previous_manifest -> 'exposedExactOutputIds'
-    ) <> 'array'
-      or pg_catalog.jsonb_typeof(
-        p_next_manifest -> 'exposedExactOutputIds'
-      ) <> 'array'
-    then
-      raise exception 'model surface exact-output exposure must be an array'
-        using errcode = '22023';
-    end if;
-
-    if exists (
+    ) as previous_output(value)
+    where not exists (
       select 1
       from pg_catalog.jsonb_array_elements(
         p_next_manifest -> 'exposedExactOutputIds'
       ) as next_output(value)
-      where pg_catalog.jsonb_typeof(next_output.value) <> 'string'
-        or nullif(pg_catalog.btrim(next_output.value #>> '{}'), '') is null
-    ) or exists (
-      select 1
-      from pg_catalog.jsonb_array_elements(
-        p_next_manifest -> 'exposedExactOutputIds'
-      ) as next_output(value)
-      group by next_output.value
-      having count(*) > 1
-    ) then
-      raise exception
-        'model surface exact-output exposure contains invalid or duplicate IDs'
-        using errcode = '22023';
-    end if;
-
-    if exists (
-      select 1
-      from pg_catalog.jsonb_array_elements(
-        p_previous_manifest -> 'exposedExactOutputIds'
-      ) as previous_output(value)
-      where not exists (
-        select 1
-        from pg_catalog.jsonb_array_elements(
-          p_next_manifest -> 'exposedExactOutputIds'
-        ) as next_output(value)
-        where next_output.value = previous_output.value
-      )
-    ) then
-      raise exception 'model surface upgrade cannot hide an exact output'
-        using errcode = '22023';
-    end if;
+      where next_output.value = previous_output.value
+    )
+  ) then
+    raise exception 'model surface upgrade cannot hide an exact output'
+      using errcode = '22023';
   end if;
 end;
 $$;
 
 alter function studio.assert_additive_model_surface_upgrade_v1(jsonb, jsonb)
   owner to postgres;
+
+create or replace function studio.guard_model_surface_registration_manifest_v1()
+returns trigger
+language plpgsql
+set search_path to ''
+as $$
+begin
+  perform studio.assert_model_surface_registration_manifest_v1(new.manifest);
+  return new;
+end;
+$$;
+
+alter function studio.guard_model_surface_registration_manifest_v1()
+  owner to postgres;
+
+create trigger model_surface_registration_manifest_is_valid
+before insert on studio.model_surface_releases
+for each row execute function
+  studio.guard_model_surface_registration_manifest_v1();
 
 -- The default fixture affects only a newly launched Session. Saved content
 -- already owns its fixture/checkpoint, and visible naming belongs to the
@@ -153,8 +222,8 @@ revoke all on table studio.model_launch_defaults from public;
 grant select on table studio.model_launch_defaults to service_role;
 
 -- Analysis methods are selected by immutable method IDs in the Model Surface.
--- The legacy model column remains stored for old readers, but current publish
--- and read APIs neither accept nor expose it as a third selector.
+-- The old model column remains only as physical migration storage. Current
+-- tickets and APIs neither accept nor expose it as a third selector.
 create function public.register_model_release_v3(
   p_model_id text,
   p_model_family_id text,
@@ -363,8 +432,8 @@ grant all on function public.set_model_launch_default_fixture_v1(
   text, jsonb
 ) to service_role;
 
--- Legacy registration remains callable by the postgres-owned V3 wrapper but
--- cannot be used by current publishers to create another analysis selector.
+-- V2 registration is an internal storage adapter for the postgres-owned V3
+-- wrapper and cannot be called by current publishers.
 revoke all on function public.register_model_release_v2(
   text, text, text, jsonb, text, text, text, text, jsonb, text, text, text
 ) from service_role;

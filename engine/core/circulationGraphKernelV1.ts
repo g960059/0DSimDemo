@@ -18,7 +18,7 @@ import {
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
  * vascular PV laws, respiratory external pressure, non-coronary losses,
  * collapsible-tube chi, and incidence continuity. Coronary compression and
- * stenosis remain ModelCore-owned until they are extracted with their
+ * stenosis are owned by the coronary transaction modules with their
  * myocardial inputs.
  */
 export const CIRCULATION_GRAPH_KERNEL_V1_BOUNDARY = {
@@ -113,16 +113,14 @@ export function physicalColdSeedVolumeFromNodeV1(
 /**
  * Shared main-wire volume-to-pressure map with an explicit numerical policy.
  *
- * ModelCore's shipped fixed-iteration and arterial-clamp semantics differ from
- * the experimental backward-Euler solver's adaptive-stop inverse. Callers
- * must name that policy so the extraction preserves both accepted trajectories
- * without hiding the remaining numerical migration boundary.
+ * The admitted fixed-iteration and arterial-clamp semantics differ from the
+ * adaptive-stop inverse. Callers must name the numerical policy explicitly.
  */
 export type VascularPressureInversePolicyV1 =
-  | "model-core-compatible-fixed32"
+  | "fixed-32-iterations"
   | "adaptive-volume-tolerance";
 
-const MODEL_CORE_COMPATIBLE_FIXED32_INVERSE_OPTIONS_V1 = Object.freeze({
+const FIXED32_INVERSE_OPTIONS_V1 = Object.freeze({
   maxIterations: 32,
   termination: "fixed-iterations" as const,
 });
@@ -166,19 +164,19 @@ export function vascularTransmuralPressureFromLawV1(
   return ptmFromStressedVolume(
     law,
     stressedVolumeMl,
-    MODEL_CORE_COMPATIBLE_FIXED32_INVERSE_OPTIONS_V1,
+    FIXED32_INVERSE_OPTIONS_V1,
   );
 }
 
 export type VascularPressureVolumeTangentBranchV1 =
   | PtmFromStressedVolumeTangentBranch
-  | "model-core-arterial-lower-saturation"
-  | "model-core-arterial-interior"
-  | "model-core-arterial-upper-saturation"
-  | "model-core-linear"
-  | "model-core-venous-lower-saturation"
-  | "model-core-venous-interior"
-  | "model-core-venous-upper-saturation";
+  | "fixed32-arterial-lower-saturation"
+  | "fixed32-arterial-interior"
+  | "fixed32-arterial-upper-saturation"
+  | "fixed32-linear"
+  | "fixed32-venous-lower-saturation"
+  | "fixed32-venous-interior"
+  | "fixed32-venous-upper-saturation";
 
 export type VascularTransmuralPressureAndVolumeTangentV1 = Readonly<{
   /** Exactly the corresponding scalar API's primal pressure. */
@@ -234,21 +232,21 @@ export function vascularTransmuralPressureAndVolumeTangentFromLawV1(
       return Object.freeze({
         transmuralPressureMmHg,
         dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
-        branch: "model-core-arterial-lower-saturation" as const,
+        branch: "fixed32-arterial-lower-saturation" as const,
       });
     }
     if (logStrain >= 5) {
       return Object.freeze({
         transmuralPressureMmHg,
         dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
-        branch: "model-core-arterial-upper-saturation" as const,
+        branch: "fixed32-arterial-upper-saturation" as const,
       });
     }
     return Object.freeze({
       transmuralPressureMmHg,
       dTransmuralPressureDPhysicalVolumeMmHgPerMl:
         (law.P0 + transmuralPressureMmHg) / volumeScaleMl,
-      branch: "model-core-arterial-interior" as const,
+      branch: "fixed32-arterial-interior" as const,
     });
   }
   if (law.kind === "linear") {
@@ -256,7 +254,7 @@ export function vascularTransmuralPressureAndVolumeTangentFromLawV1(
       transmuralPressureMmHg,
       dTransmuralPressureDPhysicalVolumeMmHgPerMl:
         1 / Math.max(law.C, 1e-6),
-      branch: "model-core-linear" as const,
+      branch: "fixed32-linear" as const,
     });
   }
   const lowerVolumeMl = stressedVolumeFromPtm(law, -20);
@@ -264,7 +262,7 @@ export function vascularTransmuralPressureAndVolumeTangentFromLawV1(
     return Object.freeze({
       transmuralPressureMmHg,
       dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
-      branch: "model-core-venous-lower-saturation" as const,
+      branch: "fixed32-venous-lower-saturation" as const,
     });
   }
   const upperVolumeMl = stressedVolumeFromPtm(law, 45);
@@ -272,14 +270,14 @@ export function vascularTransmuralPressureAndVolumeTangentFromLawV1(
     return Object.freeze({
       transmuralPressureMmHg,
       dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
-      branch: "model-core-venous-upper-saturation" as const,
+      branch: "fixed32-venous-upper-saturation" as const,
     });
   }
   return Object.freeze({
     transmuralPressureMmHg,
     dTransmuralPressureDPhysicalVolumeMmHgPerMl:
       1 / complianceFromPtm(law, transmuralPressureMmHg),
-    branch: "model-core-venous-interior" as const,
+    branch: "fixed32-venous-interior" as const,
   });
 }
 
@@ -397,7 +395,7 @@ export type NonValveEdgeLossV1 = {
 };
 
 /**
- * Resolve the same base R/B scaling used by ModelCore for non-valve edges.
+ * Resolve the admitted base R/B scaling for non-valve edges.
  *
  * Valve R/B/EOA has exactly one owner: MainWireQuasiSteadyOrificeValveV2. This function
  * therefore rejects valves as well as coronary edges, and reports (but does
@@ -425,7 +423,7 @@ export function baseNonValveEdgeLossV1(
 }
 
 /**
- * Resolve the complete non-coronary, non-valve loss law used by ModelCore.
+ * Resolve the complete admitted non-coronary, non-valve loss law.
  *
  * The chi coordinate intentionally uses the raw upstream/downstream absolute
  * pressures. The downstream waterfall pressure is a separate flow-gradient

@@ -8,7 +8,7 @@ import {
 } from "@/studio/contracts/v2/article";
 import {
   cloneAndFreezeStudioJson,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 export const STUDIO_PUBLISHED_ARTICLE_V1_SCHEMA_ID =
   "circleheart-studio-published-article-v1" as const;

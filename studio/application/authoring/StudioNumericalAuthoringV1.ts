@@ -42,7 +42,7 @@ import type {
 } from "@/studio/contracts/v2/simulation";
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 
 export const STUDIO_EXPERIMENT_APPLY_PLAN_V1_SCHEMA_ID =
   "circleheart-studio-experiment-apply-plan-v1" as const;

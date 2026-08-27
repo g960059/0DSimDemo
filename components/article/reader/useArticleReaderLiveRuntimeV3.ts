@@ -9,11 +9,13 @@ import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
 import type {
-  StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MainWirePeriodicPvaDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   ArticleReaderLiveRuntimeV3,
   type ArticleReaderLiveRuntimeStateV3,
@@ -24,7 +26,8 @@ import {
 export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   state: ArticleReaderLiveRuntimeStateV3;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+  fixtureProjection: ExactModelFixtureProjectionV1;
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -50,7 +53,8 @@ export function useArticleReaderLiveRuntimeV3(
   snapshot: ExperimentSnapshotV2,
   exactModel: Readonly<{
     releaseTicket: StudioModelWorkerReleaseTicketV2;
-    periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
+    fixtureProjection: ExactModelFixtureProjectionV1;
+    periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,
@@ -175,6 +179,7 @@ export function useArticleReaderLiveRuntimeV3(
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
+    fixtureProjection: exactModel.fixtureProjection,
     periodicPvaDerivation: exactModel.periodicPvaDerivation,
     applyControl,
     play,
@@ -184,6 +189,7 @@ export function useArticleReaderLiveRuntimeV3(
     selectScenario,
   }), [
     applyControl,
+    exactModel.fixtureProjection,
     exactModel.periodicPvaDerivation,
     pause,
     play,
@@ -213,9 +219,12 @@ function initialStateV3(
     activeScenarioId,
     pendingControlInstanceId: null,
     pendingAnalysisKeys: Object.freeze([]),
-    committedControlValues: Object.freeze(Object.create(null)) as Readonly<
-      Record<string, Readonly<Record<string, number>>>
-    >,
+    fixtureByScenario: Object.freeze(Object.fromEntries(
+      snapshot.content.scenarios.flatMap((scenario) =>
+        visibleScenarioIds.includes(scenario.scenarioId)
+          ? [[scenario.scenarioId, scenario.capture.fixture] as const]
+          : []),
+    )),
     analysisByKey: Object.freeze(Object.create(null)) as Readonly<
       Record<string, never>
     >,

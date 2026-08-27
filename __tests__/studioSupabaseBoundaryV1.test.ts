@@ -25,8 +25,6 @@ import {
 import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
-import { composeStandardModelContractV1 } from
-  "@/studio/contracts/v2/modelSurface";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
@@ -207,7 +205,6 @@ describe("Studio Supabase boundary V1", () => {
     )).toBe(first);
     const resolved = await first;
     expect(resolved).toMatchObject({
-      contract: { modelId: standardClientDescriptorV1.manifest.modelId },
       defaultFixture: standardClientDescriptorV1.defaultFixture,
       stage: "stable",
       ticket: {
@@ -262,16 +259,13 @@ describe("Studio Supabase boundary V1", () => {
 
     expect(resolved).toMatchObject({
       activeBundleVersion: 7,
-      contract: {
-        modelId: standardClientDescriptorV1.manifest.modelId,
-        modelFamilyId: standardClientDescriptorV1.manifest.modelFamilyId,
-      },
       stage: "stable",
-      surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
-      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceStage: "stable",
       ticket: {
         modelId: standardClientDescriptorV1.manifest.modelId,
+        manifest: {
+          modelFamilyId: standardClientDescriptorV1.manifest.modelFamilyId,
+        },
         surfaceRelease: {
           surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
         },
@@ -325,7 +319,7 @@ describe("Studio Supabase boundary V1", () => {
       pin,
     );
 
-    expect(first.contract.modelId).toBe(next.contract.modelId);
+    expect(first.ticket.modelId).toBe(next.ticket.modelId);
     expect(first.ticket.artifactRevisionId).toBe("a".repeat(64));
     expect(next.ticket.artifactRevisionId).toBe("b".repeat(64));
     expect(next.ticket.artifactUrl).toContain("b".repeat(64));
@@ -400,21 +394,21 @@ describe("Studio Supabase boundary V1", () => {
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
     });
-    expect((await resolver.resolveActiveBundle()).contract.modelId)
+    expect((await resolver.resolveActiveBundle()).ticket.modelId)
       .toBe(modelB);
     bundleRow = activeRow(row(
       modelC,
       manifestC,
       "circleheart-exact-model-esm-v1",
     ), 1);
-    expect((await resolver.resolveActiveBundle()).contract.modelId)
+    expect((await resolver.resolveActiveBundle()).ticket.modelId)
       .toBe(modelC);
     await expect(resolver.resolveExactModel(modelA, {
       kind: "release",
       surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
       surfaceReleaseId: standardSurfaceReleaseV1.surfaceReleaseId,
     })).resolves.toBe(exactA);
-    expect(exactA.contract.modelId).toBe(modelA);
+    expect(exactA.ticket.modelId).toBe(modelA);
   });
 
   it("reports an unavailable exact release without substituting the active model", async () => {
@@ -441,18 +435,16 @@ describe("Studio Supabase boundary V1", () => {
     );
   });
 
-  it("resolves a Surface separately and rejects a family mismatch", async () => {
-    const model = composeStandardModelContractV1(
-      standardClientDescriptorV1.manifest,
-      standardSurfaceReleaseV1,
-    ).contract;
+  it("resolves a Surface manifest separately and rejects a family mismatch", async () => {
+    const modelFamilyId = standardClientDescriptorV1.manifest.modelFamilyId;
     const manifest = {
       schemaId: STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
       surfaceReleaseId: "surface/main-wire-v1",
       surfaceSeriesId: "surface-series/main-wire",
       predecessorSurfaceReleaseId: null,
-      modelFamilyId: model.modelFamilyId,
+      modelFamilyId,
       displayName: "Main Wire Surface",
+      exposedExactOutputIds: [],
       controlCatalog: [],
       derivedOutputCatalog: [],
       graphCatalog: [],
@@ -466,28 +458,20 @@ describe("Studio Supabase boundary V1", () => {
     const resolver = new StudioSupabaseModelSurfaceResolverV1({ rpc: { call } });
 
     await expect(
-      resolver.resolveExactSurface(manifest.surfaceReleaseId, model),
+      resolver.resolveExactSurfaceManifest(
+        manifest.surfaceReleaseId,
+        modelFamilyId,
+      ),
     ).resolves.toEqual({
       manifest,
-      materialized: {
-        surfaceReleaseId: manifest.surfaceReleaseId,
-        modelFamilyId: manifest.modelFamilyId,
-        exposedExactOutputIds: model.outputCatalog.map(({ outputId }) => outputId),
-        controlCatalog: [],
-        derivedOutputCatalog: [],
-        graphCatalog: [],
-        knobCatalog: [],
-        protocolCatalog: [],
-      },
       stage: "dev",
     });
-    const resolvedSurface = await resolver.resolveExactSurface(
+    const resolvedSurface = await resolver.resolveExactSurfaceManifest(
       manifest.surfaceReleaseId,
-      model,
+      modelFamilyId,
     );
     expect(Object.isFrozen(resolvedSurface.manifest)).toBe(true);
     expect(Object.isFrozen(resolvedSurface.manifest.controlCatalog)).toBe(true);
-    expect(Object.isFrozen(resolvedSurface.materialized)).toBe(true);
     expect(call).toHaveBeenCalledWith(
       "get_model_surface_release_v1",
       {
@@ -504,37 +488,11 @@ describe("Studio Supabase boundary V1", () => {
       data: [{ manifest: wrongFamily, stage: "stable" }],
       error: null,
     });
-    await expect(resolver.resolveExactSurface(wrongFamily.surfaceReleaseId, model))
-      .rejects.toThrow(/must match model family/);
-
-    const newerSurface = {
-      ...manifest,
-      surfaceReleaseId: "surface/main-wire-v2",
-      predecessorSurfaceReleaseId: manifest.surfaceReleaseId,
-      graphCatalog: [{
-        graphId: "graph.future-signal",
-        renderer: "sweep",
-        seriesCatalog: [{
-          kind: "scalar",
-          seriesId: "future-signal",
-          outputId: "signal/future",
-        }],
-        defaultSeriesIds: ["future-signal"],
-        requiredCapabilities: ["output/signal/future"],
-      }],
-    } as const;
-    call.mockResolvedValueOnce({
-      data: [{ manifest: newerSurface, stage: "stable" }],
-      error: null,
-    });
-    const historicalModelSurface = await resolver.resolveExactSurface(
-      newerSurface.surfaceReleaseId,
-      model,
-    );
-    expect(historicalModelSurface.manifest.surfaceReleaseId)
-      .toBe(newerSurface.surfaceReleaseId);
-    expect(historicalModelSurface.manifest.graphCatalog).toHaveLength(1);
-    expect(historicalModelSurface.materialized.graphCatalog).toEqual([]);
+    await expect(resolver.resolveExactSurfaceManifest(
+      wrongFamily.surfaceReleaseId,
+      modelFamilyId,
+    ))
+      .rejects.toThrow(/another model family/);
   });
 
   it("reopens a mutable Standard Experiment on the latest additive Surface while a Snapshot stays exact", async () => {
@@ -602,15 +560,17 @@ describe("Studio Supabase boundary V1", () => {
       standardClientDescriptorV1.manifest.modelId,
       seriesPin,
     );
-    expect(firstOpen.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
+    expect(firstOpen.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV1.surfaceReleaseId);
 
     latestSurface = surfaceV2;
     const reopened = await createResolver().resolveExactModel(
       standardClientDescriptorV1.manifest.modelId,
       seriesPin,
     );
-    expect(reopened.surfaceReleaseId).toBe(surfaceV2.surfaceReleaseId);
-    expect(reopened.contract.graphCatalog.some((graph) =>
+    expect(reopened.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV2.surfaceReleaseId);
+    expect(reopened.ticket.surfaceRelease.graphCatalog.some((graph) =>
       graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(true);
     expect(surfaceCall).toHaveBeenCalledWith(
@@ -629,8 +589,9 @@ describe("Studio Supabase boundary V1", () => {
         surfaceReleaseId: surfaceV1.surfaceReleaseId,
       },
     );
-    expect(frozenSnapshot.surfaceReleaseId).toBe(surfaceV1.surfaceReleaseId);
-    expect(frozenSnapshot.contract.graphCatalog.some((graph) =>
+    expect(frozenSnapshot.ticket.surfaceRelease.surfaceReleaseId)
+      .toBe(surfaceV1.surfaceReleaseId);
+    expect(frozenSnapshot.ticket.surfaceRelease.graphCatalog.some((graph) =>
       graph.graphId === "hemodynamics.pressure.aortic-focus"))
       .toBe(false);
   });
@@ -963,26 +924,6 @@ describe("Studio Supabase boundary V1", () => {
     );
   });
 
-  it("claims one canonical AI command before replaying its operation receipt", async () => {
-    const commandId = "45454545-4545-4545-8545-454545454545";
-    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
-    const client = { rpc } as unknown as SupabaseClient;
-
-    await expect(new StudioSupabaseContentRepositoryV1(client)
-      .claimMyAuthoringCommand({
-        commandId,
-        action: "experiment.apply",
-        commandDigest: "a".repeat(64),
-      })).resolves.toBeNull();
-    expect(rpc).toHaveBeenCalledWith(
-      "claim_my_authoring_command_v1",
-      {
-        p_command_id: commandId,
-        p_command_action: "experiment.apply",
-        p_command_digest: "a".repeat(64),
-      },
-    );
-  });
 });
 
 function experimentContentV1(): ExperimentContentV2 {

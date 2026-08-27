@@ -37,6 +37,54 @@ describe("Studio V2 dependency boundary", () => {
         : [])).toEqual([]);
   });
 
+  it("keeps domain, analysis, and application dependencies pointed inward", () => {
+    const checks = [
+      {
+        directory: "domain",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:analysis|components|engine|runtime|server|studio|supabase)\//,
+        reason: "imports an outer layer",
+      },
+      {
+        directory: "analysis/contracts",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:analysis\/methods|components|engine|runtime|server|supabase|studio\/(?:application|analysis|composition|infrastructure|integrations|presentation|workers))\//,
+        reason: "imports a model family or implementation",
+      },
+      {
+        directory: "analysis/methods",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:components|server|supabase|studio\/(?:application|composition|infrastructure|integrations|presentation|workers))\//,
+        reason: "imports UI or concrete infrastructure",
+      },
+      {
+        directory: "analysis/runtime",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:components|server|supabase|studio\/(?:application|composition|infrastructure|integrations|presentation|workers))\//,
+        reason: "imports UI or concrete infrastructure",
+      },
+      {
+        directory: "studio/infrastructure/model",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:analysis\/methods|studio\/integrations)\//,
+        reason: "imports a concrete model family",
+      },
+      {
+        directory: "studio/application",
+        forbidden:
+          /(?:from|import\()\s*["'][^"']*@\/(?:components|server|supabase|studio\/(?:infrastructure|integrations|presentation))\//,
+        reason: "imports UI or concrete infrastructure",
+      },
+    ] as const;
+    const problems = checks.flatMap(({ directory, forbidden, reason }) =>
+      typescriptFiles(path.resolve(process.cwd(), directory)).flatMap((file) =>
+        forbidden.test(readFileSync(file, "utf8"))
+          ? [`${relative(file)} ${reason}`]
+          : []));
+
+    expect(problems).toEqual([]);
+  });
+
   it("does not retain the superseded Studio V1 implementation tree", () => {
     const sources = typescriptFiles(path.resolve(process.cwd(), "studio"))
       .map(relative);

@@ -1,13 +1,27 @@
-import type {
-  StudioPublicArticleSummaryV1,
-  StudioPublicExperimentSummaryV1,
-} from "@/studio/infrastructure/supabase/StudioSupabaseContentRepositoryV1";
-
 export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID =
   "circleheart-public-home-bootstrap-v1";
 export const STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_ELEMENT_ID =
   "circleheart-public-home-bootstrap-v1";
 export const STUDIO_PUBLIC_HOME_DISCOVERY_LIMIT_V1 = 7;
+
+export type StudioPublicExperimentSummaryV1 = Readonly<{
+  experimentId: string;
+  title: string;
+  publicSlug: string;
+  publishedAt: string;
+  snapshotId: string;
+  modelId: string;
+  scenarioCount: number;
+}>;
+
+export type StudioPublicArticleSummaryV1 = Readonly<{
+  articleId: string;
+  locale: string;
+  title: string;
+  excerpt: string | null;
+  publicSlug: string;
+  publishedAt: string;
+}>;
 
 export type StudioPublicHomeBootstrapV1 = Readonly<{
   schemaId: typeof STUDIO_PUBLIC_HOME_BOOTSTRAP_V1_SCHEMA_ID;

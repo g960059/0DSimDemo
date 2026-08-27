@@ -4,13 +4,13 @@ import {
   guytonStarlingAxisLabelsV3,
   guytonStarlingPlotDomainV3,
   structuralReturnOrientationFromPayloadV3,
-} from "@/components/workbench/v3/GuytonStarlingOrientationCanvasV3";
+} from "@/components/workbench/presentation/GuytonStarlingOrientationCanvasV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,
   MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3,
   buildMainWireIntegratedModelGuytonStarlingOrientationV3,
-} from "@/engine/myocardium/MainWireIntegratedModelGuytonStarlingOrientationV3";
+} from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   MainWireIntegratedModelSessionV3,
   mainWireIntegratedModelPresentationTargetTimeSecV3,
@@ -19,7 +19,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3,
   mainWireIntegratedModelStarlingDescendingLimbV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
-} from "@/engine/myocardium/MainWireIntegratedModelResponsiveStarlingProtocolV3";
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 
 describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
   it("confirms a high-volume descending limb only after two sustained drops", () => {

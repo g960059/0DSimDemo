@@ -1,6 +1,6 @@
 import {
   studioCanonicalJsonStringify,
-} from "@/studio/infrastructure/json/StudioCanonicalJson";
+} from "@/domain/json/CanonicalJson";
 import type {
   ExperimentPlacementBriefingV2,
 } from "@/studio/contracts/v2/content";

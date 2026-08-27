@@ -17,7 +17,7 @@ import {
   WorkbenchParallelAuthoringCoordinatorV3,
   type WorkbenchParallelAuthoringInputV3,
   type WorkbenchParallelSnapshotAuthoringInputV3,
-} from "@/components/workbench/v3/WorkbenchParallelAuthoringCoordinatorV3";
+} from "@/components/workbench/runtime/WorkbenchParallelAuthoringCoordinatorV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,

@@ -66,9 +66,9 @@ describe('application theme', () => {
 
   it('uses the same semantic grid and axis tokens in every Canvas renderer', () => {
     const sources = [
-      'components/workbench/v3/SweepingWaveformCanvasV3.tsx',
-      'components/workbench/v3/PressureVolumeLoopCanvasV3.tsx',
-      'components/workbench/v3/GuytonStarlingOrientationCanvasV3.tsx',
+      'components/workbench/presentation/SweepingWaveformCanvasV3.tsx',
+      'components/workbench/presentation/PressureVolumeLoopCanvasV3.tsx',
+      'components/workbench/presentation/GuytonStarlingOrientationCanvasV3.tsx',
     ].map((path) => readFileSync(path, 'utf8'));
 
     sources.forEach((source) => {
@@ -124,7 +124,7 @@ describe('application theme', () => {
   });
 
   it('keeps every tool region on one plane above the graph workspace', () => {
-    const workbench = readFileSync('components/WorkbenchV3Page.tsx', 'utf8');
+    const workbench = readFileSync('components/workbench/WorkbenchSession.tsx', 'utf8');
     const scenarios = readFileSync(
       'components/workbench/WorkbenchScenarioManagerV3.tsx',
       'utf8',

@@ -1,4 +1,4 @@
-import type { ExperimentSnapshotV2 } from
+import type { ExperimentScenarioV2, ExperimentSnapshotV2 } from
   "@/studio/contracts/v2/content";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -12,23 +12,23 @@ import type {
 import {
   WorkbenchParallelScenarioRuntimeV3,
   type WorkbenchParallelScenarioSeedV3,
-} from "@/components/workbench/v3/WorkbenchParallelScenarioRuntimeV3";
+} from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
 import type {
   WorkbenchGroupPlaybackRateStateV3,
-} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+} from "@/components/workbench/runtime/WorkbenchGroupTimeConductorV3";
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
-} from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   WorkbenchBackgroundWorkerPoolV3,
   type WorkbenchBackgroundWorkerPoolPortV3,
-} from "@/components/workbench/v3/WorkbenchBackgroundWorkerPoolV3";
+} from "@/components/workbench/runtime/WorkbenchBackgroundWorkerPoolV3";
 import {
   recordWorkbenchPerformanceDurationV3,
   recordWorkbenchPerformanceValueV3,
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
-} from "@/components/workbench/v3/WorkbenchPerformanceDiagnosticsV3";
+} from "@/components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
@@ -46,8 +46,8 @@ export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   /** Composite Briefing identity (`sourcePaneId` + `controlId`). */
   pendingControlInstanceId: string | null;
   pendingAnalysisKeys: readonly string[];
-  committedControlValues: Readonly<
-    Record<string, Readonly<Record<string, number>>>
+  fixtureByScenario: Readonly<
+    Record<string, ExperimentScenarioV2["capture"]["fixture"]>
   >;
   analysisByKey: Readonly<Record<string, StudioSimulationAnalysisV2>>;
   analysisHistoryByKey: Readonly<
@@ -68,6 +68,7 @@ export type ArticleReaderParallelRuntimeV3 = Pick<
   WorkbenchParallelScenarioRuntimeV3,
   | "dispose"
   | "applyControl"
+  | "captureScenario"
   | "initialize"
   | "latestFrame"
   | "pauseAll"
@@ -193,7 +194,10 @@ export class ArticleReaderLiveRuntimeV3 {
       activeScenarioId,
       pendingControlInstanceId: null,
       pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
-      committedControlValues: EMPTY_ARTICLE_READER_CONTROL_VALUES_V3,
+      fixtureByScenario: articleReaderFixtureByScenarioV3(
+        snapshot,
+        scenarioIds,
+      ),
       analysisByKey: EMPTY_ARTICLE_READER_ANALYSES_V3,
       analysisHistoryByKey: EMPTY_ARTICLE_READER_ANALYSIS_HISTORY_V3,
       analysisErrorByKey: EMPTY_ARTICLE_READER_ANALYSIS_ERRORS_V3,
@@ -562,6 +566,7 @@ export class ArticleReaderLiveRuntimeV3 {
       ),
       error: null,
     });
+    let mutationDispatched = false;
     try {
       await runtime.pauseAll();
       if (this.#runtime !== runtime) return;
@@ -576,6 +581,7 @@ export class ArticleReaderLiveRuntimeV3 {
           .filter((analysis): analysis is StudioSimulationAnalysisV2 =>
             analysis !== undefined
             && analysis.inputEpoch === frame.inputEpoch));
+      mutationDispatched = true;
       const frames = await Promise.all(input.scenarioIds.map((scenarioId) => {
         const current = runtime.latestFrame(scenarioId);
         return runtime.applyControl({
@@ -591,12 +597,17 @@ export class ArticleReaderLiveRuntimeV3 {
         this.sampleStore,
         this.#presentationOutputIds,
       );
-      const committedControlValues = withArticleReaderCommittedControlValueV3(
-        this.#state.committedControlValues,
-        input.scenarioIds,
-        input.controlId,
-        input.value,
+      const acceptedScenarios = await Promise.all(
+        input.scenarioIds.map((scenarioId) =>
+          runtime.captureScenario(scenarioId)),
       );
+      const fixtureByScenario = Object.freeze({
+        ...this.#state.fixtureByScenario,
+        ...Object.fromEntries(acceptedScenarios.map((scenario) => [
+          scenario.scenarioId,
+          scenario.capture.fixture,
+        ])),
+      });
       const analysisHistoryByKey = archiveArticleReaderAnalysesV3(
         clearZeroDepthArticleReaderAnalysisHistoryV3(
           this.#state.analysisHistoryByKey,
@@ -611,7 +622,7 @@ export class ArticleReaderLiveRuntimeV3 {
           articleReaderAnalysisKeyV3(scenarioId, analysisId)));
       this.#resumeAfterExclusiveOperationV3(runtime, {
         pendingControlInstanceId: null,
-        committedControlValues,
+        fixtureByScenario,
         analysisByKey: withoutArticleReaderRecordKeysV3(
           this.#state.analysisByKey,
           clearedAnalysisKeys,
@@ -630,11 +641,11 @@ export class ArticleReaderLiveRuntimeV3 {
     } catch (error) {
       const normalized = errorAsErrorV3(error);
       if (this.#runtime === runtime) {
-        if (input.scenarioIds.length > 1) {
-          // Worker lanes have independent accepted-state transactions. Once a
-          // multi-target Promise rejects, a sibling may already have committed;
-          // without a cross-lane rollback protocol the only safe authority is
-          // fail-closed rather than a misleading resumed comparison.
+        if (mutationDispatched) {
+          // Dispatch is the mutation boundary. An apply or the following exact
+          // fixture capture may fail after accepted state has already changed,
+          // even for one lane. Without rollback, the controller must discard
+          // the numerical authority rather than resume stale projected state.
           this.#fail(normalized, runtime);
         } else {
           this.#resumeAfterExclusiveOperationV3(runtime, {
@@ -701,14 +712,16 @@ export class ArticleReaderLiveRuntimeV3 {
     this.#runtime = null;
     try {
       authority.terminate();
-    } finally {
-      this.#publish({
-        status: "failed",
-        pendingControlInstanceId: null,
-        pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
-        error,
-      });
+    } catch {
+      // Numerical authority was already revoked above. Cleanup failure must
+      // not replace the causal error or make the failed runtime observable.
     }
+    this.#publish({
+      status: "failed",
+      pendingControlInstanceId: null,
+      pendingAnalysisKeys: EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3,
+      error,
+    });
   }
 
   #publish(
@@ -719,9 +732,6 @@ export class ArticleReaderLiveRuntimeV3 {
   }
 }
 
-const EMPTY_ARTICLE_READER_CONTROL_VALUES_V3 = Object.freeze(
-  Object.create(null),
-) as Readonly<Record<string, Readonly<Record<string, number>>>>;
 const EMPTY_ARTICLE_READER_ANALYSIS_KEYS_V3 = Object.freeze([]) as
   readonly string[];
 const EMPTY_ARTICLE_READER_ANALYSES_V3 = Object.freeze(
@@ -890,22 +900,17 @@ export function validatedArticleReaderVisibleScenarioIdsV3(
     requested.has(scenarioId)));
 }
 
-function withArticleReaderCommittedControlValueV3(
-  current: ArticleReaderLiveRuntimeStateV3["committedControlValues"],
+function articleReaderFixtureByScenarioV3(
+  snapshot: ExperimentSnapshotV2,
   scenarioIds: readonly string[],
-  controlId: string,
-  value: number,
-): ArticleReaderLiveRuntimeStateV3["committedControlValues"] {
-  const next: Record<string, Readonly<Record<string, number>>> = {
-    ...current,
-  };
-  for (const scenarioId of scenarioIds) {
-    next[scenarioId] = Object.freeze({
-      ...(current[scenarioId] ?? {}),
-      [controlId]: value,
-    });
-  }
-  return Object.freeze(next);
+): ArticleReaderLiveRuntimeStateV3["fixtureByScenario"] {
+  const visibleScenarioIds = new Set(scenarioIds);
+  return Object.freeze(Object.fromEntries(
+    snapshot.content.scenarios.flatMap((scenario) =>
+      visibleScenarioIds.has(scenario.scenarioId)
+        ? [[scenario.scenarioId, scenario.capture.fixture] as const]
+        : []),
+  ));
 }
 
 export function appendArticleReaderFramesV3(

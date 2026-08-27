@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { SiteHeaderV3 } from "@/components/site/SiteHeaderV3";
 import { WorkbenchPerformanceReportV3 } from
-  "@/components/workbench/v3/WorkbenchPerformanceReportV3";
+  "@/components/workbench/runtime/WorkbenchPerformanceReportV3";
 import {
   localeFromPathname,
   setPreferredLocale,

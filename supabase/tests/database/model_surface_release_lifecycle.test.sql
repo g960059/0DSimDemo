@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(28);
+select plan(30);
 
 select lives_ok(
   $$
@@ -71,6 +71,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -94,6 +95,68 @@ select is(
   'Surface release starts as dev'
 );
 
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-missing-exposure-v1',
+      'surface-series/lifecycle-missing-exposure',
+      null,
+      'model/lifecycle-test',
+      'Missing exposure surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-missing-exposure-v1",
+        "surfaceSeriesId":"surface-series/lifecycle-missing-exposure",
+        "predecessorSurfaceReleaseId":null,
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Missing exposure surface",
+        "controlCatalog":[],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  '22023',
+  'model surface exact-output exposure must be an array',
+  'Root Surface registration requires explicit exact-output exposure'
+);
+
+select throws_ok(
+  $$
+    select public.register_model_surface_release_v1(
+      'surface/lifecycle-duplicate-root-v1',
+      'surface-series/lifecycle-duplicate-root',
+      null,
+      'model/lifecycle-test',
+      'Duplicate root surface',
+      '{
+        "schemaId":"circleheart-studio-model-surface-release-v1",
+        "surfaceReleaseId":"surface/lifecycle-duplicate-root-v1",
+        "surfaceSeriesId":"surface-series/lifecycle-duplicate-root",
+        "predecessorSurfaceReleaseId":null,
+        "modelFamilyId":"model/lifecycle-test",
+        "displayName":"Duplicate root surface",
+        "exposedExactOutputIds":[],
+        "controlCatalog":[
+          {"controlId":"control/duplicate","requiredCapabilities":[]},
+          {"controlId":"control/duplicate","requiredCapabilities":[]}
+        ],
+        "derivedOutputCatalog":[],
+        "graphCatalog":[],
+        "knobCatalog":[],
+        "protocolCatalog":[]
+      }'::jsonb,
+      'lifecycle-test'
+    )
+  $$,
+  '22023',
+  'model surface controlCatalog contains invalid or duplicate item IDs',
+  'Root Surface registration rejects duplicate catalog IDs'
+);
+
 select lives_ok(
   $$
     select public.register_model_surface_release_v1(
@@ -109,6 +172,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":null,
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -151,6 +215,7 @@ select throws_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Invalid shrinking surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[],
         "derivedOutputCatalog":[],
         "graphCatalog":[],
@@ -180,6 +245,7 @@ select throws_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Invalid redefined surface",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -214,6 +280,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v1",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface v2",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",
@@ -251,6 +318,7 @@ select lives_ok(
         "predecessorSurfaceReleaseId":"surface/lifecycle-test-v2",
         "modelFamilyId":"model/lifecycle-test",
         "displayName":"Lifecycle surface v3",
+        "exposedExactOutputIds":[],
         "controlCatalog":[{
           "controlId":"control/tbv",
           "preferredPresentation":"slider",

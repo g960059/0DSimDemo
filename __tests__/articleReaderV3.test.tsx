@@ -19,7 +19,7 @@ import {
 import {
   articleReaderPeekFractionForPointerV3,
   clampArticleReaderPeekFractionV3,
-} from "@/components/ArticleReaderV3Page";
+} from "@/components/article/ArticleReaderPage";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import {
   STUDIO_EXPERIMENT_PLACEMENT_V2_SCHEMA_ID,
@@ -36,7 +36,7 @@ import type { StudioSimulationAnalysisV2 } from "@/studio/contracts/v2/simulatio
 import type { UseArticleReaderLiveRuntimeResultV3 } from "@/components/article/reader/useArticleReaderLiveRuntimeV3";
 import { articleReaderAnalysisKeyV3 } from "@/components/article/reader/ArticleReaderLiveRuntimeV3";
 import { articleReaderPresentationOutputSelectionV3 } from "@/components/article/reader/ArticleReaderPresentationOutputSelectionV3";
-import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/v3/WorkbenchPresentationSampleStoreV3";
+import { WorkbenchScenarioPresentationSampleStoreV3 } from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
 import {
   STANDARD_TEST_RELEASE_TICKET_V1,
   STANDARD_TEST_SURFACE_RELEASE_ID_V1,
@@ -44,10 +44,10 @@ import {
 } from "@/__tests__/helpers/standardReleaseTicketV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-} from "@/engine/myocardium/MainWireIntegratedModelAnalysisContractV3";
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 const NOOP = () => {};
 
@@ -165,16 +165,42 @@ function contractV3(): ModelContractV2 {
 function runtimeCompositionV3(): StudioClientCompositionV2 {
   const contract = contractV3();
   return Object.freeze({
-    defaultModelId: contract.modelId,
-    releaseStage: "stable",
-    defaultFixture: Object.freeze({}),
-    contract,
-    analysisExecutionPlan: () => null,
-    periodicPvaDerivation: null,
-    workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
-    surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
-    surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
-    surfaceStage: "stable",
+    exactModel: Object.freeze({
+      modelId: contract.modelId,
+      stage: "stable" as const,
+      defaultFixture: Object.freeze({}),
+      fixtureProjection: Object.freeze({
+        controlValue: () => Object.freeze({
+          status: "value" as const,
+          value: 1,
+        }),
+      }),
+      workerReleaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+    }),
+    modelSurface: Object.freeze({
+      identity: Object.freeze({
+        modelFamilyId: contract.modelFamilyId,
+        surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+        surfaceSeriesId: STANDARD_TEST_SURFACE_SERIES_ID_V1,
+        stage: "stable" as const,
+      }),
+      contract,
+      catalog: Object.freeze({
+        surfaceReleaseId: STANDARD_TEST_SURFACE_RELEASE_ID_V1,
+        modelFamilyId: contract.modelFamilyId,
+        exposedExactOutputIds: Object.freeze([]),
+        controlCatalog: Object.freeze([]),
+        derivedOutputCatalog: Object.freeze([]),
+        graphCatalog: Object.freeze([]),
+        knobCatalog: Object.freeze([]),
+        protocolCatalog: Object.freeze([]),
+      }),
+      analysis: Object.freeze({
+        capabilities: Object.freeze([]),
+        periodicPvaDerivation: null,
+        resolveExecutionPlan: () => null,
+      }),
+    }),
   });
 }
 
@@ -321,7 +347,7 @@ function readerRuntimeStubV3(
       activeScenarioId: "scenario/baseline",
       pendingControlInstanceId: null,
       pendingAnalysisKeys: Object.freeze([]),
-      committedControlValues: Object.freeze({}),
+      fixtureByScenario: Object.freeze({}),
       analysisByKey: Object.freeze({}),
       analysisHistoryByKey: Object.freeze({}),
       analysisErrorByKey: Object.freeze({}),
@@ -337,6 +363,12 @@ function readerRuntimeStubV3(
       ...stateOverrides,
     }),
     sampleStore,
+    fixtureProjection: Object.freeze({
+      controlValue: () => Object.freeze({
+        status: "value" as const,
+        value: 1,
+      }),
+    }),
     periodicPvaDerivation: null,
     play: NOOP,
     pause: async () => undefined,
@@ -822,7 +854,7 @@ describe("Article Reader V3 experiment anchor", () => {
         {
           sourcePaneId: "pane/outputs",
           outputId:
-            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
+            MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1.pressureVolumeAreaMilliJoule,
           scenarioId: "scenario/comparison",
           label: "PVA",
           order: 0,

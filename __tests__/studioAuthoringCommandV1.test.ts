@@ -98,19 +98,12 @@ describe("Studio authoring command V1", () => {
     });
     const apply = description.actions.find(({ action }) =>
       action === "experiment.apply");
-    const applyResultBranches = (
-      apply?.resultSchema as { oneOf?: Array<Record<string, any>> } | undefined
-    )?.oneOf;
-    expect(applyResultBranches).toHaveLength(2);
-    const replayResult = applyResultBranches?.find((branch) => (
-      (branch.properties as Record<string, any> | undefined)?.replayed?.const
-      === true
-    ));
-    expect(replayResult).toBeDefined();
-    expect((
-      (replayResult?.properties as Record<string, any>).receipt.properties
-        .status.const
-    )).toBe("committed");
+    expect(apply?.resultSchema).toMatchObject({
+      properties: {
+        observations: { type: "array" },
+        savedExperiment: { type: "object" },
+      },
+    });
     const list = description.actions.find(({ action }) =>
       action === "experiment.list");
     expect(list?.inputSchema).toMatchObject({
@@ -297,9 +290,9 @@ describe("Studio authoring command V1", () => {
     }]);
   });
 
-  it("returns a committed receipt before repeating an expensive mutation", async () => {
+  it("routes mutations to authority instead of trusting a coarse receipt", async () => {
     const repository = repositoryV1();
-    vi.mocked(repository.claimMyAuthoringCommand).mockResolvedValue({
+    vi.mocked(repository.readMyAuthoringOperationReceipt).mockResolvedValue({
       operationId: "66666666-6666-4666-8666-666666666666",
       operationKind: "save-experiment-v1",
       status: "committed",
@@ -307,28 +300,13 @@ describe("Studio authoring command V1", () => {
       createdAt: "2026-08-11T00:00:00.000Z",
       completedAt: "2026-08-11T00:00:01.000Z",
     });
-    await expect(executeStudioAuthoringCommandV1(repository, modelsV1(), {
-      schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
-      commandId: "66666666-6666-4666-8666-666666666666",
-      action: "experiment.presentation.save",
-      input: {
-        experimentId: "experiment/pv-loop",
-        expectedVersion: 3,
-        surfaceReleaseId: "surface-release/example",
-        title: "Baseline",
-        surface: contentV1().surface,
-      },
-    })).resolves.toMatchObject({
-      replayed: true,
-      receipt: { status: "committed" },
-    });
-    expect(repository.readMyExperiment).not.toHaveBeenCalled();
-    expect(repository.saveExperiment).not.toHaveBeenCalled();
-    expect(repository.claimMyAuthoringCommand).toHaveBeenCalledWith({
-      commandId: "66666666-6666-4666-8666-666666666666",
-      action: "experiment.presentation.save",
-      commandDigest: expect.stringMatching(/^[0-9a-f]{64}$/),
-    });
+    await expect(executeStudioAuthoringCommandV1(
+      repository,
+      modelsV1(),
+      articleSaveCommandV1(),
+    )).resolves.toMatchObject({ articleId: "article/pv-loop" });
+    expect(repository.readMyAuthoringOperationReceipt).not.toHaveBeenCalled();
+    expect(repository.saveArticle).toHaveBeenCalledOnce();
   });
 
   it("patches selected Article blocks without replacing the whole draft", async () => {
@@ -613,7 +591,6 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
     readSnapshot: vi.fn().mockResolvedValue(null),
     readArticle: vi.fn().mockResolvedValue(null),
     readMyAuthoringOperationReceipt: vi.fn().mockResolvedValue(null),
-    claimMyAuthoringCommand: vi.fn().mockResolvedValue(null),
     saveExperiment: vi.fn(),
     commitSnapshot: vi.fn(),
     publishExperiment: vi.fn().mockResolvedValue(undefined),

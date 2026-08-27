@@ -7,7 +7,7 @@ import {
   WORKBENCH_MINIMUM_PLAYBACK_RATE_V3,
   WORKBENCH_PLAYBACK_RATE_STEP_V3,
   type WorkbenchGroupPlaybackRateStateV3,
-} from "@/components/workbench/v3/WorkbenchGroupTimeConductorV3";
+} from "@/components/workbench/runtime/WorkbenchGroupTimeConductorV3";
 
 export function WorkbenchPlaybackControlV3({
   disabled,

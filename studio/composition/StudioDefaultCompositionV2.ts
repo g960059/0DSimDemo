@@ -1,5 +1,3 @@
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
-import type { StudioReleaseStageV1 } from "@/studio/contracts/v2/modelSurface";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import type {
   StudioModelWorkerReleaseTicketV2,
@@ -8,13 +6,9 @@ import {
   STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
   validateStudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
-import type {
-  StudioSimulationAnalysisExecutionPlanResolverV2,
-} from "@/studio/contracts/v2/simulation";
 import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
-  composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   invalidateStudioSupabaseModelReleaseResolverCacheV1,
@@ -22,15 +16,24 @@ import {
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import type {
   StudioModelSurfacePinV1,
+  StudioResolvedModelReleaseV1,
 } from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
 import {
-  resolveStudioAnalysisMethodsForSurfaceV1,
-  type StudioPeriodicPvaDerivationV1,
-} from "@/studio/analysis/StudioAnalysisMethodRegistryV1";
+  composeModelSurfacePresentationBundleV1,
+  type ModelSurfacePresentationBundleV1,
+} from "@/studio/application/modelSurface/ModelSurfacePresentationBundleV1";
+import {
+  resolveRegisteredAnalysisMethodsV1,
+  type RegisteredAnalysisMethodsV1,
+} from "@/analysis/registry/RegisteredAnalysisMethodsV1";
+import type { ExactModelFixtureProjectionV1 } from
+  "@/studio/application/model/ExactModelFixtureProjectionV1";
+import { resolveRegisteredExactModelFixtureProjectionV1 } from
+  "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+  "@/domain/model/MainWireStandardIdentityV1";
 import standardClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import standardSurfaceReleaseV1 from
@@ -43,16 +46,14 @@ typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 =
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
-  defaultModelId: string;
-  releaseStage: StudioReleaseStageV1;
-  defaultFixture: StudioJsonValueV2;
-  contract: ModelContractV2;
-  analysisExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
-  periodicPvaDerivation: StudioPeriodicPvaDerivationV1 | null;
-  workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
-  surfaceReleaseId: string;
-  surfaceSeriesId: string;
-  surfaceStage: StudioReleaseStageV1;
+  exactModel: Readonly<{
+    modelId: string;
+    stage: "dev" | "stable" | "retired";
+    defaultFixture: StudioJsonValueV2;
+    fixtureProjection: ExactModelFixtureProjectionV1;
+    workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
+  }>;
+  modelSurface: ModelSurfacePresentationBundleV1<RegisteredAnalysisMethodsV1>;
   activeBundleVersion?: number;
 }>;
 
@@ -116,21 +117,7 @@ async function createRegistryClientCompositionV2(
   const release = modelId === undefined
     ? await resolver.resolveActiveBundle()
     : await resolver.resolveExactModel(modelId, surfacePin!);
-  return Object.freeze({
-    defaultModelId: release.contract.modelId,
-    releaseStage: release.stage,
-    defaultFixture: release.defaultFixture,
-    contract: release.contract,
-    analysisExecutionPlan: release.analysisExecutionPlan,
-    periodicPvaDerivation: release.periodicPvaDerivation,
-    workerReleaseTicket: release.ticket,
-    surfaceReleaseId: release.surfaceReleaseId,
-    surfaceSeriesId: release.surfaceSeriesId,
-    surfaceStage: release.surfaceStage,
-    ...(release.activeBundleVersion === undefined
-      ? {}
-      : { activeBundleVersion: release.activeBundleVersion }),
-  });
+  return composeStudioClientCompositionV2(release);
 }
 
 /**
@@ -152,22 +139,10 @@ Promise<StudioClientCompositionV2> {
     }
     assertExactModelKernelManifestV3(standardClientDescriptorV1.manifest);
     assertModelSurfaceReleaseManifestV1(standardSurfaceReleaseV1);
-    const analysisMethods = resolveStudioAnalysisMethodsForSurfaceV1(
-      standardSurfaceReleaseV1,
-      [
-        ...standardClientDescriptorV1.manifest.primitiveSignalCatalog,
-        ...standardClientDescriptorV1.manifest.modelMetricCatalog,
-      ],
-    );
-    const composed = composeStandardModelContractV1(
-      standardClientDescriptorV1.manifest,
-      standardSurfaceReleaseV1,
-      analysisMethods.capabilities,
-    );
     const artifactUrl = localStandardArtifactUrlV1();
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
-      modelId: composed.contract.modelId,
+      modelId: standardClientDescriptorV1.manifest.modelId,
       artifactRevisionId:
         standardRegistryAdmissionLockV1.artifactRevisionId,
       manifest: standardClientDescriptorV1.manifest,
@@ -175,18 +150,12 @@ Promise<StudioClientCompositionV2> {
       moduleAbi: "circleheart-exact-model-esm-v1",
       artifactUrl,
     });
-    return Object.freeze({
-      defaultModelId: composed.contract.modelId,
-      releaseStage: "dev" as const,
+    return composeStudioClientCompositionV2(Object.freeze({
       defaultFixture: standardClientDescriptorV1.defaultFixture,
-      contract: composed.contract,
-      analysisExecutionPlan: analysisMethods.resolveExecutionPlan,
-      periodicPvaDerivation: analysisMethods.periodicPvaDerivation,
-      workerReleaseTicket,
-      surfaceReleaseId: composed.surface.surfaceReleaseId,
-      surfaceSeriesId: standardSurfaceReleaseV1.surfaceSeriesId,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
       surfaceStage: "dev" as const,
-    });
+    }));
   });
   browserLocalStandardModelLabCompositionPromiseV1 = pending;
   void pending.catch(() => {
@@ -258,8 +227,8 @@ export function loadStudioExperimentClientCompositionV2(
     surfaceSeriesId,
   }).then((composition) => {
     if (
-      composition.contract.modelId !== modelId
-      || composition.surfaceSeriesId !== surfaceSeriesId
+      composition.exactModel.modelId !== modelId
+      || composition.modelSurface.identity.surfaceSeriesId !== surfaceSeriesId
     ) {
       throw new Error("Experiment Surface series resolution changed identity");
     }
@@ -289,9 +258,9 @@ export function loadStudioSnapshotClientCompositionV2(
     surfaceReleaseId,
   }).then((composition) => {
     if (
-      composition.contract.modelId !== modelId
-      || composition.surfaceSeriesId !== surfaceSeriesId
-      || composition.surfaceReleaseId !== surfaceReleaseId
+      composition.exactModel.modelId !== modelId
+      || composition.modelSurface.identity.surfaceSeriesId !== surfaceSeriesId
+      || composition.modelSurface.identity.surfaceReleaseId !== surfaceReleaseId
     ) {
       throw new Error("Snapshot exact Surface resolution changed identity");
     }
@@ -304,4 +273,40 @@ export function loadStudioSnapshotClientCompositionV2(
     }
   });
   return pending;
+}
+
+function composeStudioClientCompositionV2(
+  release: StudioResolvedModelReleaseV1,
+): StudioClientCompositionV2 {
+  const analysis = resolveRegisteredAnalysisMethodsV1(
+    release.ticket.surfaceRelease,
+  );
+  const modelSurface = composeModelSurfacePresentationBundleV1({
+    kernel: release.ticket.manifest,
+    surfaceRelease: release.ticket.surfaceRelease,
+    stage: release.surfaceStage,
+    analysis,
+  });
+  if (modelSurface.contract.modelId !== release.ticket.modelId) {
+    throw new Error("Client exact model and Model Surface identities differ");
+  }
+  return Object.freeze({
+    exactModel: Object.freeze({
+      modelId: release.ticket.modelId,
+      stage: release.stage,
+      defaultFixture: release.defaultFixture,
+      fixtureProjection: resolveRegisteredExactModelFixtureProjectionV1(
+        {
+          modelId: release.ticket.modelId,
+          fixtureSchemaId:
+            release.ticket.manifest.fixtureSchema.fixtureSchemaId,
+        },
+      ),
+      workerReleaseTicket: release.ticket,
+    }),
+    modelSurface,
+    ...(release.activeBundleVersion === undefined
+      ? {}
+      : { activeBundleVersion: release.activeBundleVersion }),
+  });
 }

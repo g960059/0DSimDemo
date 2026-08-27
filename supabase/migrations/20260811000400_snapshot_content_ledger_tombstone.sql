@@ -1,0 +1,2 @@
+-- Version retained because it was applied to the prerelease remote database.
+-- Fresh databases receive the surviving Snapshot behavior in 20260811000200.

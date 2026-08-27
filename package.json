@@ -40,7 +40,7 @@
     "inspect:kernel:accepted-state-identity": "vite-node --script tools/performance/inspectMainWireAcceptedStateIdentityV1.ts",
     "inspect:kernel:typed-owner-coverage": "vite-node --script tools/performance/inspectMainWireTypedOwnerCoverageV1.ts",
     "verify:workbench:performance": "CIRCLEHEART_PERF_ENFORCE=1 npm run benchmark:workbench:live",
-    "test:supabase": "supabase test db --local supabase/tests/database",
+    "test:supabase": "supabase test db --local supabase/tests/database && node tools/testing/verifyAuthoringRetryMigrationUpgrade.mjs",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
     "test:suites:audit": "vitest run --config vitest.fast.config.ts __tests__/testSuiteManifest.test.ts",
     "test:regression": "vitest run --config vitest.regression.config.ts",
@@ -60,7 +60,6 @@
     "characterize:coronary:v3-lesion-structural-cmd-directional:v1": "vite-node --script tools/scientific/runCoronaryV3LesionStructuralCmdDirectionalCharacterizationV1.ts --output artifacts/coronary-v3/lesion-structural-cmd-directional-v1.json",
     "characterize:coronary:v3-structural-cmd-active-reserve:v2": "vite-node --script tools/scientific/runCoronaryV3StructuralCmdActiveReserveCharacterizationV2.ts --output artifacts/coronary-v3/structural-cmd-active-reserve-v2.json",
     "render:coronary:v3-reduced-pressure-step-diagnostic:v1": "vite-node --script tools/scientific/renderCoronaryV3ReducedPressureStepArtifactsSvgV1.ts --v1-input artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json --v2-input artifacts/coronary-v3/reduced-pressure-step-numerical-v2.json --output artifacts/coronary-v3/reduced-pressure-step-raw-diagnostic-v1.svg",
-    "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "validate:mechanical-support:v1": "vite-node --script tools/devices/generateMechanicalSupportValidationV1.ts"
   },
   "dependencies": {

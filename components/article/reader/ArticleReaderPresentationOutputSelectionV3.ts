@@ -5,7 +5,7 @@ import type {
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   workbenchModelCyclePhaseOutputIdV3,
-} from "@/components/workbench/v3/WorkbenchPresentationOutputSelectionV3";
+} from "@/components/workbench/presentation/WorkbenchPresentationOutputSelectionV3";
 
 /**
  * Selects the scalar history needed by one Article Placement. Intermediate
