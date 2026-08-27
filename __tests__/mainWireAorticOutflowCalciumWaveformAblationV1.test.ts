@@ -5,10 +5,23 @@ import {
   type MainWireAorticOutflowCalciumWaveformArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
 import {
+  compareMainWireAorticOutflowCalciumDelayedMixtureV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumDelayedMixtureComparisonV1";
+import {
+  measurePeriodicAorticPressureFlowCouplingV1,
+} from "@/analysis/methods/mainWire/MainWireAorticPressureFlowCouplingV1";
+import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
   evaluateFiveWallNormalCalciumDriveV1,
   measurePeriodicBiexponentialCalciumPulseShapeV1,
+  measurePeriodicBiexponentialDelayedMixtureShapeV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1,
+  resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
+  validateMainWireVentricularCalciumDelayedMixtureProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
 import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_WAVEFORM_ABLATION_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_WAVEFORM_PROFILE_IDS_V1,
@@ -18,10 +31,60 @@ import {
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 describe("main-wire aortic outflow calcium waveform ablation V1", () => {
+  it("classifies an unsmoothed pressure-flow derivative proxy by sign", () => {
+    const phases = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875];
+    const pressures = [80, 80, 82, 86, 87, 84, 80, 80];
+    const rootFlows = [0, 0, 20, 50, 40, 20, 0, 0];
+    const valveFlows = [0, 0, 100, 200, 150, 100, 0, 0];
+    const measured = measurePeriodicAorticPressureFlowCouplingV1(
+      phases.map((cyclePhase01, index) => ({
+        cyclePhase01,
+        aorticRootAbsolutePressureMmHg: pressures[index]!,
+        aorticRootFlowMlPerSec: rootFlows[index]!,
+        aorticValveFlowMlPerSec: valveFlows[index]!,
+      })),
+      0.1,
+      {
+        aorticRootAbsolutePressureMmHg: 80,
+        aorticRootFlowMlPerSec: 0,
+      },
+    );
+
+    expect(measured.ejectionEpisode.durationSec).toBeCloseTo(0.4, 14);
+    expect(measured.ejectionEpisode.aorticValveFlowPeakPhase01).toBe(0.375);
+    expect(measured.ejectionEpisode
+      .signedAorticRootFlowPeakLagFromAorticValveFlowPeakSec).toBe(0);
+    const proxy = measured.pressureFlowCouplingProxy;
+    expect(proxy.maximumCompressionLikeIntensityMmHgMlPerSec3)
+      .toBeCloseTo(12_000, 12);
+    expect(proxy.compressionLikePeakPhase01).toBe(0.375);
+    expect(proxy.compressionLikeEjectionIntegralMmHgMlPerSec2)
+      .toBeCloseTo(1_600, 12);
+    expect(proxy.maximumDecompressionLikeIntensityMmHgMlPerSec3)
+      .toBeCloseTo(6_000, 12);
+    expect(proxy.decompressionLikePeakPhase01).toBe(0.625);
+    expect(proxy.decompressionLikeEjectionIntegralMmHgMlPerSec2)
+      .toBeCloseTo(600, 12);
+    expect(proxy.mismatchMagnitudeEjectionIntegralMmHgMlPerSec2)
+      .toBeCloseTo(100, 12);
+    expect(proxy.absoluteEjectionIntegralMmHgMlPerSec2)
+      .toBeCloseTo(2_300, 12);
+    expect(
+      proxy.compressionLikeFractionOfAbsoluteEjectionIntegral01
+      + proxy.decompressionLikeFractionOfAbsoluteEjectionIntegral01
+      + proxy.mismatchFractionOfAbsoluteEjectionIntegral01,
+    ).toBeCloseTo(1, 14);
+    expect(measured.aorticRootStorage.flowAtAorticValveFlowPeakMlPerSec)
+      .toBe(150);
+    expect(measured.aorticRootStorage
+      .positiveAccumulationVolumeDuringEjectionMl).toBeCloseTo(42, 12);
+  });
+
   it("matches the periodic pulse peak and cycle integral analytically", () => {
     const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
     const shapes = [
@@ -122,6 +185,60 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       });
   });
 
+  it("seals a single-peaked exposure-preserving delayed mixture", () => {
+    const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    const profile =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1;
+    const params = resolveMainWireVentricularCalciumDelayedMixtureParamsV1();
+    const measured = measurePeriodicBiexponentialDelayedMixtureShapeV1(
+      prior.cycleLengthSec,
+      prior.ventricular.riseTimeConstantSec,
+      prior.ventricular.decayTimeConstantSec,
+      profile.delayedWeight01,
+      profile.delaySec,
+    );
+    expect(profile.delayedWeight01).toBe(0.25);
+    expect(profile.delaySec).toBe(prior.ventricular.riseTimeConstantSec);
+    expect(profile.unnormalizedMixturePeak01)
+      .toBe(measured.unnormalizedMixturePeak01);
+    expect(profile.ventricularSupradiastolicCalciumCycleExposureScaleFromPrior)
+      .toBeCloseTo(1, 14);
+    expect(validateMainWireVentricularCalciumDelayedMixtureProfileV1(profile))
+      .toEqual([]);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1)
+      .toMatchObject({
+        calciumOrMechanicsStateAdded: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+        parameterSearchOrFitting: false,
+        hemodynamicOutcomeUsedToDeriveProfile: false,
+      });
+
+    const sampleCount = 20_000;
+    const pulses = Array.from({ length: sampleCount }, (_, index) =>
+      evaluateFiveWallNormalCalciumDriveV1(
+        (index + 0.5) / sampleCount,
+        params,
+      ).ventricularNormalizedPulse01);
+    const numericalIntegral = pulses.reduce((sum, value) => sum + value, 0)
+      / sampleCount;
+    expect(numericalIntegral)
+      .toBeCloseTo(measured.normalizedMixtureCycleIntegralSec, 8);
+    expect(Math.max(...pulses)).toBeCloseTo(1, 7);
+    expect(countStrictCyclicLocalMaxima(pulses, 0.05)).toBe(1);
+    const base = measurePeriodicBiexponentialCalciumPulseShapeV1(
+      prior.cycleLengthSec,
+      prior.ventricular.riseTimeConstantSec,
+      prior.ventricular.decayTimeConstantSec,
+    );
+    expect(
+      params.ventricular.peakAmplitudeUM * numericalIntegral,
+    ).toBeCloseTo(
+      prior.ventricular.peakAmplitudeUM
+        * base.normalizedPulseCycleIntegralSec,
+      8,
+    );
+  });
+
   it("preserves the canonical run exactly and changes only calcium identity", () => {
     const canonical = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
       dtSec: 0.02,
@@ -201,6 +318,15 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       expect(arm.aorticFlowPeakCountAboveFivePercent).toBeGreaterThanOrEqual(1);
       expect(arm.aorticFlowAcEnergyFraction10To50Hz).toBeGreaterThanOrEqual(0);
       expect(arm.aorticFlowAcEnergyFraction10To50Hz).toBeLessThanOrEqual(1);
+      const coupling = arm.aorticPressureFlowCoupling.summary
+        .pressureFlowCouplingProxy;
+      expect(
+        coupling.compressionLikeFractionOfAbsoluteEjectionIntegral01
+        + coupling.decompressionLikeFractionOfAbsoluteEjectionIntegral01
+        + coupling.mismatchFractionOfAbsoluteEjectionIntegral01,
+      ).toBeCloseTo(1, 12);
+      expect(arm.aorticPressureFlowCoupling.claim.clinicalWaveIntensityAnalysis)
+        .toBe(false);
       expect(arm.configuredSupradiastolicCalciumCycleExposureUMSec)
         .toBeCloseTo(
           comparison.arms[0]!
@@ -221,7 +347,56 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       inputs[0]!,
     ])).toThrow("duplicate ventricular calcium arm");
   }, 60_000);
+
+  it("runs the delayed mixture without changing canonical topology", () => {
+    const canonical =
+      runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1(
+        { dtSec: 0.02, maximumBeatCount: 2 },
+        "canonical",
+      );
+    const delayed =
+      runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
+        { dtSec: 0.02, maximumBeatCount: 2 },
+      );
+    expect(delayed.periodicResult.protocolIdentityHash)
+      .not.toBe(canonical.periodicResult.protocolIdentityHash);
+    const withoutCalciumHash = (
+      hashes: typeof canonical.periodicResult.protocolComponentHashes,
+    ) => {
+      const { calciumDriveFixedParamsStableHash: _, ...rest } = hashes;
+      return rest;
+    };
+    expect(withoutCalciumHash(delayed.periodicResult.protocolComponentHashes))
+      .toEqual(withoutCalciumHash(
+        canonical.periodicResult.protocolComponentHashes,
+      ));
+    expect(delayed.claim).toMatchObject({
+      circulationRuntimeChanged: false,
+      mechanicsProviderChanged: false,
+      calciumOrMechanicsStateAdded: false,
+      acceptedStateOrCheckpointTopologyChanged: false,
+    });
+    const comparison = compareMainWireAorticOutflowCalciumDelayedMixtureV1(
+      canonical.periodicResult,
+      delayed.periodicResult,
+    );
+    expect(comparison.delayedMixture
+      .ventricularCalciumStrictLocalPeakCountAboveFivePercent).toBe(1);
+    expect(comparison.delayedMixture
+      .lvfwActiveStressStrictLocalPeakCountAboveFivePercent).toBeGreaterThan(0);
+    expect(allNumbersFiniteOrNull(comparison)).toBe(true);
+  }, 60_000);
 });
+
+function countStrictCyclicLocalMaxima(
+  values: readonly number[],
+  threshold: number,
+): number {
+  return values.filter((value, index) =>
+    value >= threshold
+    && value > values[(index - 1 + values.length) % values.length]!
+    && value > values[(index + 1) % values.length]!).length;
+}
 
 function allNumbersFiniteOrNull(value: unknown): boolean {
   if (typeof value === "number") return Number.isFinite(value);

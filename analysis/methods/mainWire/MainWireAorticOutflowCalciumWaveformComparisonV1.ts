@@ -3,7 +3,13 @@ import {
   mainWirePeriodicSpectralEnergyFractionV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveAblationComparisonV1";
 import {
+  measureMainWireAorticPressureFlowCouplingV1,
+  type MainWireAorticPressureFlowCouplingV1,
+} from "@/analysis/methods/mainWire/MainWireAorticPressureFlowCouplingV1";
+import {
   measurePeriodicBiexponentialCalciumPulseShapeV1,
+  measurePeriodicBiexponentialDelayedMixtureShapeV1,
+  type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_WAVEFORM_PROFILE_IDS_V1,
@@ -91,6 +97,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_COMPARISON_CLAIM_V1 =
       "first-accepted-endpoint-at-or-below-post-peak-fraction-no-interpolation" as const,
     aorticRootStorageFlow:
       "accepted-AoV-flow-minus-graph-owned-Ao-SA-flow" as const,
+    pressureFlowCoupling:
+      "Ao-pressure-and-Ao-SA-flow-backward-difference-product-not-clinical-WIA" as const,
     flowPeakCounting: "strict-unsmoothed-local-maxima" as const,
     spectralBandHz: Object.freeze([10, 50] as const),
     factorialContrast:
@@ -152,6 +160,7 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
   maximumSystemicArterialPressureMmHg: number;
   peakAorticRootToSystemicArterialGradientMmHg: number;
   rmsAorticRootStorageFlowMlPerSec: number;
+  aorticPressureFlowCoupling: MainWireAorticPressureFlowCouplingV1;
   peakLeftVentricularPressureMmHg: number;
   peakLeftVentricularPressurePhase01: number;
   maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec: number;
@@ -193,6 +202,22 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
     referenceNormalizedCandidate: boolean;
   }>;
 }>;
+
+export type MainWireAorticOutflowCalciumWaveformCycleMetricsV1 = Omit<
+  MainWireAorticOutflowCalciumWaveformArmMetricsV1,
+  | "profileId"
+  | "riseTimeFactor"
+  | "decayTimeFactor"
+  | "ventricularRiseTimeScaleFromPrior"
+  | "ventricularPeakAmplitudeScaleFromPrior"
+  | "ventricularDecayTimeScaleFromPrior"
+  | "candidateScreen"
+>;
+
+export type MainWireAorticOutflowCalciumCandidateScreenResultV1 =
+  NonNullable<
+    MainWireAorticOutflowCalciumWaveformArmMetricsV1["candidateScreen"]
+  >;
 
 export type MainWireAorticOutflowCalciumWaveformFactorialMetricIdV1 =
   | "aortic-maximum-flow"
@@ -262,7 +287,7 @@ export function compareMainWireAorticOutflowCalciumWaveformV1(
     ...arm,
     candidateScreen: arm.profileId === "canonical"
       ? null
-      : screenCandidate(arm, rawCanonical),
+      : screenMainWireAorticOutflowCalciumCandidateV1(arm, rawCanonical),
   })));
   const canonical = arms[0]!;
   const rise = arms[1]!;
@@ -324,27 +349,49 @@ function measureArm(
   profileId: MainWireVentricularCalciumWaveformProfileIdV1,
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
 ): Omit<MainWireAorticOutflowCalciumWaveformArmMetricsV1, "candidateScreen"> {
-  const beat = result.retainedCompleteBeats.at(-1);
-  if (beat === undefined || beat.samples.length === 0) {
-    throw new Error(`${profileId} requires a retained complete beat`);
-  }
   const profile = resolveMainWireVentricularCalciumWaveformProfileV1(profileId);
   const calciumParams =
     resolveMainWireVentricularCalciumWaveformParamsV1(profileId);
+  const cycle = measureMainWireAorticOutflowCalciumWaveformCycleV1(
+    result,
+    calciumParams,
+    profileId,
+  );
+  return Object.freeze({
+    profileId,
+    riseTimeFactor: profile.riseTimeFactor,
+    decayTimeFactor: profile.decayTimeFactor,
+    ventricularRiseTimeScaleFromPrior:
+      profile.ventricularRiseTimeScaleFromPrior,
+    ventricularPeakAmplitudeScaleFromPrior:
+      profile.ventricularPeakAmplitudeScaleFromPrior,
+    ventricularDecayTimeScaleFromPrior:
+      profile.ventricularDecayTimeScaleFromPrior,
+    ...cycle,
+  });
+}
+
+export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+  calciumParams: FiveWallNormalCalciumDriveParamsV1,
+  sourceLabel = "calcium waveform run",
+): MainWireAorticOutflowCalciumWaveformCycleMetricsV1 {
+  const beat = result.retainedCompleteBeats.at(-1);
+  if (beat === undefined || beat.samples.length === 0) {
+    throw new Error(`${sourceLabel} requires a retained complete beat`);
+  }
   if (
     result.protocolIdentity.calciumDrive.parameterSetId
       !== calciumParams.parameterSetId
   ) {
-    throw new Error(`${profileId} calcium protocol identity mismatch`);
+    throw new Error(`${sourceLabel} calcium protocol identity mismatch`);
   }
-  const pulseShape = measurePeriodicBiexponentialCalciumPulseShapeV1(
-    calciumParams.cycleLengthSec,
-    calciumParams.ventricular.riseTimeConstantSec,
-    calciumParams.ventricular.decayTimeConstantSec,
-  );
+  const pulseShape = configuredVentricularPulseShape(calciumParams);
   const valveMetrics = measureMainWireValveDiseaseCycleMetricsV1(result)
     .valves.AoV;
   const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
+  const aorticPressureFlowCoupling =
+    measureMainWireAorticPressureFlowCouplingV1(result);
   const samples = beat.samples;
   const flows = samples.map((sample) =>
     Math.max(0, sample.circulationEdgeFlowMlPerSec.AoV));
@@ -357,7 +404,9 @@ function measureArm(
       (index - 1 + thresholdActive.length) % thresholdActive.length
     ]);
   if (onsetIndex < 0 || valveMetrics.forwardEpisodeCount !== 1) {
-    throw new Error(`${profileId} requires one thresholded aortic flow episode`);
+    throw new Error(
+      `${sourceLabel} requires one thresholded aortic flow episode`,
+    );
   }
   const activeSampleCount = thresholdActive.filter(Boolean).length;
   const lastThresholdActiveIndex =
@@ -445,18 +494,9 @@ function measureArm(
     ) / calciumParams.cycleLengthSec,
   );
   return Object.freeze({
-    profileId,
     protocolIdentityHash: result.protocolIdentityHash,
     calciumDriveStableHash:
       result.protocolComponentHashes.calciumDriveFixedParamsStableHash,
-    riseTimeFactor: profile.riseTimeFactor,
-    decayTimeFactor: profile.decayTimeFactor,
-    ventricularRiseTimeScaleFromPrior:
-      profile.ventricularRiseTimeScaleFromPrior,
-    ventricularPeakAmplitudeScaleFromPrior:
-      profile.ventricularPeakAmplitudeScaleFromPrior,
-    ventricularDecayTimeScaleFromPrior:
-      profile.ventricularDecayTimeScaleFromPrior,
     configuredCalciumPulseTimeToPeakSec: pulseShape.timeToPeakSec,
     configuredCalciumPulsePeakPhase01,
     configuredSupradiastolicCalciumCycleExposureUMSec:
@@ -511,6 +551,7 @@ function measureArm(
     peakAorticRootToSystemicArterialGradientMmHg:
       maximum(aorticRootToSystemicArterialGradients),
     rmsAorticRootStorageFlowMlPerSec: rootMeanSquare(aorticRootStorageFlows),
+    aorticPressureFlowCoupling,
     peakLeftVentricularPressureMmHg: maximum(lvPressures),
     peakLeftVentricularPressurePhase01:
       samples[peakLvPressureIndex]!.cyclePhase01,
@@ -540,16 +581,10 @@ function measureArm(
   });
 }
 
-function screenCandidate(
-  candidate: Omit<
-    MainWireAorticOutflowCalciumWaveformArmMetricsV1,
-    "candidateScreen"
-  >,
-  canonical: Omit<
-    MainWireAorticOutflowCalciumWaveformArmMetricsV1,
-    "candidateScreen"
-  >,
-): NonNullable<MainWireAorticOutflowCalciumWaveformArmMetricsV1["candidateScreen"]> {
+export function screenMainWireAorticOutflowCalciumCandidateV1(
+  candidate: MainWireAorticOutflowCalciumWaveformCycleMetricsV1,
+  canonical: MainWireAorticOutflowCalciumWaveformCycleMetricsV1,
+): MainWireAorticOutflowCalciumCandidateScreenResultV1 {
   const definition = MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_SCREEN_V1;
   const period1AndIntegrationPassed =
     candidate.periodicSteadyStateClaimed
@@ -630,6 +665,45 @@ function screenCandidate(
     ejectionTimeWithinReferenceContext,
     referenceNormalizedCandidate:
       retainedDirectionalCandidate && ejectionTimeWithinReferenceContext,
+  });
+}
+
+function configuredVentricularPulseShape(
+  calciumParams: FiveWallNormalCalciumDriveParamsV1,
+): Readonly<{
+  timeToPeakSec: number;
+  normalizedPulseCycleIntegralSec: number;
+}> {
+  const ventricular = calciumParams.ventricular;
+  const mixture = calciumParams.ventricularDelayedMixture;
+  if (mixture === undefined) {
+    return measurePeriodicBiexponentialCalciumPulseShapeV1(
+      calciumParams.cycleLengthSec,
+      ventricular.riseTimeConstantSec,
+      ventricular.decayTimeConstantSec,
+    );
+  }
+  const measured = measurePeriodicBiexponentialDelayedMixtureShapeV1(
+    calciumParams.cycleLengthSec,
+    ventricular.riseTimeConstantSec,
+    ventricular.decayTimeConstantSec,
+    mixture.delayedWeight01,
+    mixture.delaySec,
+  );
+  if (
+    Math.abs(
+      measured.unnormalizedMixturePeak01
+      - mixture.unnormalizedMixturePeak01,
+    ) > 1e-14
+  ) {
+    throw new Error(
+      "configured delayed-mixture normalization differs from analytic peak",
+    );
+  }
+  return Object.freeze({
+    timeToPeakSec: measured.timeToPeakSec,
+    normalizedPulseCycleIntegralSec:
+      measured.normalizedMixtureCycleIntegralSec,
   });
 }
 

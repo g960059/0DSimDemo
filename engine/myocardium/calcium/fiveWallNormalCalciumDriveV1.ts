@@ -17,12 +17,22 @@ export type PeriodicBiexponentialCalciumClassV1 = Readonly<{
   electricalToCalciumDelaySec: number;
 }>;
 
+export type PeriodicBiexponentialDelayedMixtureV1 = Readonly<{
+  shape: "delayed-convex-mixture-v1";
+  delayedWeight01: number;
+  delaySec: number;
+  /** Exact profile-owned divisor that restores a unit waveform peak. */
+  unnormalizedMixturePeak01: number;
+}>;
+
 export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   parameterSetId: string;
   cycleLengthSec: number;
   atrioventricularDelaySec: number;
   atrial: PeriodicBiexponentialCalciumClassV1;
   ventricular: PeriodicBiexponentialCalciumClassV1;
+  /** Optional fixed low-order redistribution; it adds no calcium state. */
+  ventricularDelayedMixture?: PeriodicBiexponentialDelayedMixtureV1;
   /** Optional mechanistic activation perturbation for research case construction. */
   peakAmplitudeScaleByWall?: Readonly<
     Partial<Record<keyof FiveWallCalciumValuesV1, number>>
@@ -44,6 +54,8 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
     "ventricular-shared",
   ] as const),
   optionalWallSpecificDecayTimeScale: true as const,
+  optionalVentricularDelayedConvexMixture: true as const,
+  delayedMixtureAddsState: false as const,
   genericLusitropyClaimed: false as const,
   volumeInput: false as const,
   pressureInput: false as const,
@@ -109,6 +121,17 @@ export type PeriodicBiexponentialCalciumPulseShapeV1 = Readonly<{
   normalizedPulseCycleIntegralSec: number;
 }>;
 
+export type PeriodicBiexponentialDelayedMixtureShapeV1 = Readonly<{
+  cycleLengthSec: number;
+  riseTimeConstantSec: number;
+  decayTimeConstantSec: number;
+  delayedWeight01: number;
+  delaySec: number;
+  timeToPeakSec: number;
+  unnormalizedMixturePeak01: number;
+  normalizedMixtureCycleIntegralSec: number;
+}>;
+
 /**
  * Exact shape moments of the normalized periodic pulse owned by this model.
  * The integral is analytic; no sampled waveform or analysis approximation is
@@ -166,6 +189,105 @@ export function measurePeriodicBiexponentialCalciumPulseShapeV1(
   });
 }
 
+/**
+ * Exact extrema and cycle integral for a convex sum of one periodic pulse and
+ * one delayed copy. Each smooth delay interval remains a two-exponential
+ * function, so its sole stationary point and both interval boundaries exhaust
+ * the peak candidates; no time grid or haemodynamic outcome enters the shape.
+ */
+export function measurePeriodicBiexponentialDelayedMixtureShapeV1(
+  cycleLengthSec: number,
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+  delayedWeight01: number,
+  delaySec: number,
+): PeriodicBiexponentialDelayedMixtureShapeV1 {
+  const base = measurePeriodicBiexponentialCalciumPulseShapeV1(
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+  );
+  if (
+    !(delayedWeight01 > 0 && delayedWeight01 < 1)
+    || !Number.isFinite(delayedWeight01)
+  ) {
+    throw new Error("delayed mixture weight must be finite and in (0, 1)");
+  }
+  if (
+    !(delaySec > 0 && delaySec < cycleLengthSec)
+    || !Number.isFinite(delaySec)
+  ) {
+    throw new Error("delayed mixture delay must be finite and within the cycle");
+  }
+  const decayCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
+  const riseCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / riseTimeConstantSec));
+  const stationaryPoint = (shiftSec: number): number => {
+    const decayCoefficient = decayCarry * (
+      1 - delayedWeight01
+      + delayedWeight01 * Math.exp(-shiftSec / decayTimeConstantSec)
+    );
+    const riseCoefficient = riseCarry * (
+      1 - delayedWeight01
+      + delayedWeight01 * Math.exp(-shiftSec / riseTimeConstantSec)
+    );
+    return Math.log(
+      (riseCoefficient / riseTimeConstantSec)
+      / (decayCoefficient / decayTimeConstantSec),
+    ) / (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
+  };
+  const firstStationary = stationaryPoint(cycleLengthSec - delaySec);
+  const secondStationary = stationaryPoint(-delaySec);
+  const candidateTimes = [0, delaySec];
+  if (firstStationary > 0 && firstStationary < delaySec) {
+    candidateTimes.push(firstStationary);
+  }
+  if (secondStationary > delaySec && secondStationary < cycleLengthSec) {
+    candidateTimes.push(secondStationary);
+  }
+  const mixtureAt = (timeSec: number): number =>
+    (1 - delayedWeight01) * normalizedPeriodicBiexponential(
+      positiveModulo(timeSec, cycleLengthSec),
+      cycleLengthSec,
+      riseTimeConstantSec,
+      decayTimeConstantSec,
+    )
+    + delayedWeight01 * normalizedPeriodicBiexponential(
+      positiveModulo(timeSec - delaySec, cycleLengthSec),
+      cycleLengthSec,
+      riseTimeConstantSec,
+      decayTimeConstantSec,
+    );
+  let timeToPeakSec = candidateTimes[0]!;
+  let unnormalizedMixturePeak01 = mixtureAt(timeToPeakSec);
+  for (const candidateTime of candidateTimes.slice(1)) {
+    const candidate = mixtureAt(candidateTime);
+    if (candidate > unnormalizedMixturePeak01) {
+      timeToPeakSec = candidateTime;
+      unnormalizedMixturePeak01 = candidate;
+    }
+  }
+  if (
+    !(unnormalizedMixturePeak01 > 0 && unnormalizedMixturePeak01 <= 1 + 1e-12)
+    || !Number.isFinite(unnormalizedMixturePeak01)
+  ) {
+    throw new Error("delayed mixture has no finite positive peak in (0, 1]");
+  }
+  unnormalizedMixturePeak01 = Math.min(1, unnormalizedMixturePeak01);
+  return Object.freeze({
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+    delayedWeight01,
+    delaySec,
+    timeToPeakSec,
+    unnormalizedMixturePeak01,
+    normalizedMixtureCycleIntegralSec:
+      base.normalizedPulseCycleIntegralSec / unnormalizedMixturePeak01,
+  });
+}
+
 export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
   driveId: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID;
   parameterSetId: string;
@@ -202,11 +324,9 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     cycle,
   );
   const atrialTime = positiveModulo(timeSec - atrialOnsetPhaseSec, cycle);
-  const ventricularPulse = normalizedPeriodicBiexponential(
+  const ventricularPulse = normalizedVentricularPulse(
     ventricularTime,
-    cycle,
-    params.ventricular.riseTimeConstantSec,
-    params.ventricular.decayTimeConstantSec,
+    params,
   );
   const atrialPulse = normalizedPeriodicBiexponential(
     atrialTime,
@@ -227,24 +347,32 @@ export function evaluateFiveWallNormalCalciumDriveV1(
       params.atrial.riseTimeConstantSec,
       params.atrial.decayTimeConstantSec * decayTimeScale(params, "RA"),
     ),
-    LVFW: normalizedPeriodicBiexponential(
-      ventricularTime,
-      cycle,
-      params.ventricular.riseTimeConstantSec,
-      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "LVFW"),
-    ),
-    SEP: normalizedPeriodicBiexponential(
-      ventricularTime,
-      cycle,
-      params.ventricular.riseTimeConstantSec,
-      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "SEP"),
-    ),
-    RVFW: normalizedPeriodicBiexponential(
-      ventricularTime,
-      cycle,
-      params.ventricular.riseTimeConstantSec,
-      params.ventricular.decayTimeConstantSec * decayTimeScale(params, "RVFW"),
-    ),
+    LVFW: params.ventricularDelayedMixture === undefined
+      ? normalizedPeriodicBiexponential(
+        ventricularTime,
+        cycle,
+        params.ventricular.riseTimeConstantSec,
+        params.ventricular.decayTimeConstantSec
+          * decayTimeScale(params, "LVFW"),
+      )
+      : ventricularPulse,
+    SEP: params.ventricularDelayedMixture === undefined
+      ? normalizedPeriodicBiexponential(
+        ventricularTime,
+        cycle,
+        params.ventricular.riseTimeConstantSec,
+        params.ventricular.decayTimeConstantSec * decayTimeScale(params, "SEP"),
+      )
+      : ventricularPulse,
+    RVFW: params.ventricularDelayedMixture === undefined
+      ? normalizedPeriodicBiexponential(
+        ventricularTime,
+        cycle,
+        params.ventricular.riseTimeConstantSec,
+        params.ventricular.decayTimeConstantSec
+          * decayTimeScale(params, "RVFW"),
+      )
+      : ventricularPulse,
   });
   const freeCalciumUMByWall = Object.freeze({
     LA:
@@ -324,6 +452,39 @@ function normalizedPeriodicBiexponential(
   return Math.min(1, Math.max(0, normalized));
 }
 
+function normalizedVentricularPulse(
+  ventricularTimeSec: number,
+  params: FiveWallNormalCalciumDriveParamsV1,
+): number {
+  const tissue = params.ventricular;
+  const mixture = params.ventricularDelayedMixture;
+  const base = normalizedPeriodicBiexponential(
+    ventricularTimeSec,
+    params.cycleLengthSec,
+    tissue.riseTimeConstantSec,
+    tissue.decayTimeConstantSec,
+  );
+  if (mixture === undefined) return base;
+  const delayed = normalizedPeriodicBiexponential(
+    positiveModulo(
+      ventricularTimeSec - mixture.delaySec,
+      params.cycleLengthSec,
+    ),
+    params.cycleLengthSec,
+    tissue.riseTimeConstantSec,
+    tissue.decayTimeConstantSec,
+  );
+  const normalized = (
+    (1 - mixture.delayedWeight01) * base
+    + mixture.delayedWeight01 * delayed
+  ) / mixture.unnormalizedMixturePeak01;
+  const tolerance = 1e-12;
+  if (normalized < -tolerance || normalized > 1 + tolerance) {
+    throw new Error("normalized delayed ventricular mixture left [0,1]");
+  }
+  return Math.min(1, Math.max(0, normalized));
+}
+
 function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
   if (
     typeof params.parameterSetId !== "string" ||
@@ -340,6 +501,38 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
   }
   validateClass(params.atrial, "atrial", params.cycleLengthSec);
   validateClass(params.ventricular, "ventricular", params.cycleLengthSec);
+  if (params.ventricularDelayedMixture !== undefined) {
+    const mixture = params.ventricularDelayedMixture;
+    if (mixture.shape !== "delayed-convex-mixture-v1") {
+      throw new Error("ventricular delayed mixture shape must be supported");
+    }
+    if (
+      !(mixture.delayedWeight01 > 0 && mixture.delayedWeight01 < 1)
+      || !Number.isFinite(mixture.delayedWeight01)
+    ) {
+      throw new Error("ventricular delayed mixture weight must be in (0, 1)");
+    }
+    if (
+      !(mixture.delaySec > 0 && mixture.delaySec < params.cycleLengthSec)
+      || !Number.isFinite(mixture.delaySec)
+    ) {
+      throw new Error("ventricular delayed mixture delay must be within cycle");
+    }
+    if (
+      !(mixture.unnormalizedMixturePeak01 > 0
+        && mixture.unnormalizedMixturePeak01 <= 1)
+      || !Number.isFinite(mixture.unnormalizedMixturePeak01)
+    ) {
+      throw new Error("ventricular delayed mixture peak must be in (0, 1]");
+    }
+    for (const wall of ["LVFW", "SEP", "RVFW"] as const) {
+      if ((params.decayTimeScaleByWall?.[wall] ?? 1) !== 1) {
+        throw new Error(
+          "ventricular delayed mixture cannot combine with wall-specific ventricular decay scaling",
+        );
+      }
+    }
+  }
   if (params.peakAmplitudeScaleByWall !== undefined) {
     for (const wall of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
       const scale = params.peakAmplitudeScaleByWall[wall];

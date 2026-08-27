@@ -33,6 +33,11 @@ import {
   type MainWireVentricularCalciumWaveformProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1,
+  resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
+  type MainWireVentricularCalciumDelayedMixtureProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
+import {
   classifyMainWireFiveWallPeriodicityV1,
   compareMainWireFiveWallAcceptedStatesV1,
   MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
@@ -315,6 +320,27 @@ export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchRunV1 =
     configurationRole:
       "fixed-ventricular-calcium-waveform-research-profile";
     profile: MainWireVentricularCalciumWaveformProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-delayed-mixture-research-profile";
+    profile: MainWireVentricularCalciumDelayedMixtureProfileV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
     claim: Readonly<{
@@ -646,6 +672,60 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearch
   return Object.freeze({
     configurationRole:
       "fixed-ventricular-calcium-waveform-research-profile" as const,
+    profile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/** Fixed delayed-mixture calcium arm from an independent canonical cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+): MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile = MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumDelayedMixtureParamsV1();
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-delayed-mixture-research-profile" as const,
     profile,
     calciumDriveParams,
     periodicResult,
