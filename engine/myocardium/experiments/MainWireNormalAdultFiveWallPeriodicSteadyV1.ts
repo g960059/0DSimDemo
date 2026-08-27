@@ -24,7 +24,14 @@ import {
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  resolveMainWireVentricularCalciumWaveformParamsV1,
+  resolveMainWireVentricularCalciumWaveformProfileV1,
+  type MainWireVentricularCalciumWaveformProfileIdV1,
+  type MainWireVentricularCalciumWaveformProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
   classifyMainWireFiveWallPeriodicityV1,
   compareMainWireFiveWallAcceptedStatesV1,
@@ -243,6 +250,12 @@ export type MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1 =
     maximumBeatCount?: number;
   }>;
 
+export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1 =
+  Readonly<{
+    dtSec: number;
+    maximumBeatCount?: number;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticValveResearchRunV1 = Readonly<{
   configurationRole: "fixed-aortic-valve-research-profile";
   profile: MainWireAorticValveResearchProfileV1;
@@ -294,6 +307,27 @@ export type MainWireNormalAdultFiveWallAorticValveLocalInertanceResearchRunV1 =
       externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true;
       canonicalAcceptedStateOrCheckpointChanged: false;
       standardWarmStartEmitted: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-waveform-research-profile";
+    profile: MainWireVentricularCalciumWaveformProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumParams: true;
     }>;
   }>;
 
@@ -451,6 +485,7 @@ type ResolvedPeriodicAssemblyV1 = Readonly<{
   provider: MainWireNormalAdultFiveWallProviderV1;
   bloodVolumeOperatingPoint:
     MainWireNormalAdultBloodVolumeOperatingPointResolvedV1;
+  calciumDriveParams?: FiveWallNormalCalciumDriveParamsV1;
 }>;
 
 const CYCLE_LENGTH_SEC = 1;
@@ -570,6 +605,61 @@ export function runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1(
       aorticValveConstitutiveLawChanged: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactRuntimeIdentityIncludesRootProfileWhenActive: true as const,
+    }),
+  });
+}
+
+/** Fixed common-ventricular calcium waveform arm from a canonical cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  profileId: MainWireVentricularCalciumWaveformProfileIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile = resolveMainWireVentricularCalciumWaveformProfileV1(profileId);
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumWaveformParamsV1(profileId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-waveform-research-profile" as const,
+    profile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumParams: true as const,
     }),
   });
 }
@@ -750,11 +840,14 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
   const bloodVolumeOperatingPoint =
     resolvedAssembly?.bloodVolumeOperatingPoint
     ?? resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const calciumDriveParams = resolvedAssembly?.calciumDriveParams
+    ?? FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     runtime,
     pericardium,
     bloodVolumeOperatingPoint.identity,
+    calciumDriveParams,
   );
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
@@ -766,7 +859,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
   const canonicalCold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
-    calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    calciumDriveParams,
     pericardium,
     circulationInitial: initialStateInput(canonicalCirculation),
   });
@@ -777,7 +870,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
       : initializeMainWireFiveWallNonCoronaryV1({
         provider,
         runtime,
-        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        calciumDriveParams,
         pericardium,
         circulationInitial: pulmonaryRedistributionInitialState(
           canonicalCirculation,
@@ -826,7 +919,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
       const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
         dtSec: resolved.dtSec,
         runtime,
-        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        calciumDriveParams,
         pericardium,
         ...(localAorticValveAcceptedFlowMlPerSec === null
           ? {}
@@ -1044,6 +1137,26 @@ function assertExactAorticOutflowResearchOptions(
   }
 }
 
+function assertExactVentricularCalciumWaveformResearchOptions(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+): void {
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error(
+      "ventricular calcium waveform research options must be an object",
+    );
+  }
+  const allowed = new Set(["dtSec", "maximumBeatCount"]);
+  for (const key of Object.keys(options)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        "ventricular calcium waveform research options reject unsupported field: "
+        + key,
+      );
+    }
+  }
+}
+
 function assertExactMacroPhysiologyResearchOptions(
   options: MainWireNormalAdultFiveWallMacroPhysiologyResearchOptionsV1,
 ): void {
@@ -1066,6 +1179,7 @@ function buildPeriodicProtocolIdentity(
   pericardium: MainWireCommonPericardiumBindingV1,
   bloodVolumeOperatingPoint:
     MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
+  calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -1096,7 +1210,7 @@ function buildPeriodicProtocolIdentity(
   const componentHashes = Object.freeze({
     mechanicsProviderMetadataStableHash: hashProtocolValue(mechanicsProvider),
     calciumDriveFixedParamsStableHash:
-      hashProtocolValue(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1),
+      hashProtocolValue(calciumDriveParams),
     circulationTopologyGraphStableHash:
       hashProtocolValue(topologyGraphSnapshot),
     circulationRuntimeStableHash: hashProtocolValue(runtime),
@@ -1112,7 +1226,7 @@ function buildPeriodicProtocolIdentity(
     mechanicsProvider,
     calciumDrive: {
       driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
-      parameterSetId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+      parameterSetId: calciumDriveParams.parameterSetId,
       fixedParamsStableHash:
         componentHashes.calciumDriveFixedParamsStableHash,
     },

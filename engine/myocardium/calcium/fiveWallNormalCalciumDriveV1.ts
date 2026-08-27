@@ -101,6 +101,71 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1 = Object.freeze({
   pvLoopMorphologyFitUsed: false as const,
 });
 
+export type PeriodicBiexponentialCalciumPulseShapeV1 = Readonly<{
+  cycleLengthSec: number;
+  riseTimeConstantSec: number;
+  decayTimeConstantSec: number;
+  timeToPeakSec: number;
+  normalizedPulseCycleIntegralSec: number;
+}>;
+
+/**
+ * Exact shape moments of the normalized periodic pulse owned by this model.
+ * The integral is analytic; no sampled waveform or analysis approximation is
+ * used. Amplitude and diastolic calcium are intentionally outside its scope.
+ */
+export function measurePeriodicBiexponentialCalciumPulseShapeV1(
+  cycleLengthSec: number,
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+): PeriodicBiexponentialCalciumPulseShapeV1 {
+  requirePositive(cycleLengthSec, "cycleLengthSec");
+  requirePositive(riseTimeConstantSec, "riseTimeConstantSec");
+  requirePositive(decayTimeConstantSec, "decayTimeConstantSec");
+  if (!(decayTimeConstantSec > riseTimeConstantSec)) {
+    throw new Error("decay time constant must exceed rise time constant");
+  }
+  const decayCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
+  const riseCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / riseTimeConstantSec));
+  const raw = (timeSec: number): number =>
+    decayCarry * Math.exp(-timeSec / decayTimeConstantSec)
+    - riseCarry * Math.exp(-timeSec / riseTimeConstantSec);
+  const unboundedPeakTimeSec =
+    Math.log(
+      riseCarry / riseTimeConstantSec
+      / (decayCarry / decayTimeConstantSec),
+    )
+    / (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
+  const timeToPeakSec = Math.min(
+    cycleLengthSec,
+    Math.max(0, unboundedPeakTimeSec),
+  );
+  const minimum = raw(0);
+  const normalizationAmplitude = raw(timeToPeakSec) - minimum;
+  if (!(normalizationAmplitude > 0) || !Number.isFinite(normalizationAmplitude)) {
+    throw new Error("periodic biexponential pulse has no positive amplitude");
+  }
+  const normalizedPulseCycleIntegralSec = (
+    decayTimeConstantSec - riseTimeConstantSec
+    - cycleLengthSec * minimum
+  ) / normalizationAmplitude;
+  if (
+    !(normalizedPulseCycleIntegralSec > 0)
+    || !Number.isFinite(normalizedPulseCycleIntegralSec)
+  ) {
+    throw new Error("periodic biexponential pulse has no positive cycle integral");
+  }
+  return Object.freeze({
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+    timeToPeakSec,
+    normalizedPulseCycleIntegralSec,
+  });
+}
+
 export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
   driveId: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID;
   parameterSetId: string;

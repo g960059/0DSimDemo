@@ -54,6 +54,7 @@
     "verify:scientific:valve-research-bracket-numerical-envelope": "vite-node --script tools/scientific/runMainWireValveResearchBracketNumericalRobustnessEnvelopeV1.ts",
     "characterize:scientific:aortic-valve-pressure-recovery-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticValvePressureRecoveryAblationV1.ts",
     "characterize:scientific:aortic-outflow-driver-root-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowDriverRootAblationV1.ts",
+    "characterize:scientific:aortic-outflow-calcium-waveform-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumWaveformAblationV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",
