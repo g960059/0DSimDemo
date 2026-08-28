@@ -68,6 +68,7 @@
     "characterize:scientific:aortic-outflow-length-velocity-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLengthVelocityFactorialV1.ts",
     "characterize:scientific:aortic-outflow-length-mechanism-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLengthMechanismFactorialV1.ts",
     "characterize:scientific:aortic-outflow-distortion-transient-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowDistortionTransientFactorialV1.ts",
+    "characterize:scientific:aortic-outflow-mechanism-candidate-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1.ts",
     "characterize:scientific:aortic-outflow-velocity-stiffness-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowVelocityStiffnessFactorialV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",

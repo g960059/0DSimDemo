@@ -7,6 +7,10 @@ import {
   compareMainWireAorticOutflowLengthMechanismFactorialV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowLengthMechanismFactorialV1";
 import {
+  measureMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1,
+  measureMainWireAorticOutflowMechanismStressPeaksV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowMechanismCandidateLoadEnvelopeV1";
+import {
   compareMainWireAorticOutflowDriverRootAblationV1,
   type MainWireAorticOutflowDriverRootArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDriverRootComparisonV1";
@@ -63,6 +67,11 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_LENGTH_MECHANISM_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthMechanismAblationV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_LOAD_CLAIM_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowMechanismCandidateLoadEnvelopeV1";
+import {
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_ARM_IDS_V1,
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
@@ -84,6 +93,7 @@ import {
   runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchArmV1,
+  runMainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1,
@@ -620,6 +630,82 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
       })),
     )).toThrow("missing length-mechanism arm");
   }, 60_000);
+
+  it("pairs the two retained mechanisms against canonical over five load contexts", () => {
+    const runs = MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1
+      .flatMap((contextId) =>
+        MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_IDS_V1.map(
+          (candidateId) =>
+            runMainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              candidateId,
+              contextId,
+            ),
+        ));
+    const envelope =
+      measureMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1(
+        runs.map((run) => ({
+          candidateId: run.candidate.candidateId,
+          contextId: run.context.contextId,
+          periodicResult: run.periodicResult,
+        })),
+      );
+    expect(envelope.arms).toHaveLength(15);
+    expect(envelope.candidateSummaries).toHaveLength(2);
+    expect(envelope.allProtocolIdentitiesDistinct).toBe(true);
+    expect(envelope.nextCalibrationCandidateDecision).toMatchObject({
+      eligibleCandidateIds: [],
+      preferredForSourceCalibrationCandidateId: null,
+      canonicalAdoptionEstablished: false,
+    });
+    expect(envelope.arms.map((arm) => arm.context.contextId))
+      .toEqual(MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1
+        .flatMap((contextId) => [contextId, contextId, contextId]));
+    expect(envelope.arms.map((arm) => arm.candidate.candidateId))
+      .toEqual(MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1
+        .flatMap(() => MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_IDS_V1));
+    for (const run of runs) {
+      expect(run.claim).toMatchObject({
+        independentCanonicalColdStart: true,
+        aorticValveConstitutiveLawChanged: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+        exactProtocolIdentityIncludesCandidateLoadAndBloodVolume: true,
+      });
+    }
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_LOAD_CLAIM_V1)
+      .toMatchObject({
+        oneLoadAxisAtATime: true,
+        canonicalComparatorAtEveryContext: true,
+        numericParameterSearchOrFitting: false,
+      });
+    expect(allNumbersFinite(envelope)).toBe(true);
+    expect(() =>
+      measureMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1(
+        runs.slice(1).map((run) => ({
+          candidateId: run.candidate.candidateId,
+          contextId: run.context.contextId,
+          periodicResult: run.periodicResult,
+        })),
+      )).toThrow("missing candidate-load arm");
+  }, 60_000);
+
+  it("does not classify a sub-resolution stress-plateau ripple as a distinct peak", () => {
+    const plateauRipple =
+      measureMainWireAorticOutflowMechanismStressPeaksV1(
+        [0, 10, 9.999, 9.9995, 0],
+        [0, 0.1, 0.2, 0.3, 0.4],
+      );
+    expect(plateauRipple).toHaveLength(2);
+    expect(plateauRipple.map((peak) => peak.distinctAtFixedProminence))
+      .toEqual([true, false]);
+    const separatedPeaks =
+      measureMainWireAorticOutflowMechanismStressPeaksV1(
+        [0, 10, 5, 9, 0],
+        [0, 0.1, 0.2, 0.3, 0.4],
+      );
+    expect(separatedPeaks.map((peak) => peak.distinctAtFixedProminence))
+      .toEqual([true, true]);
+  });
 
   it("brackets the exact global arterial PV stiffness without adding state", () => {
     const inputs =

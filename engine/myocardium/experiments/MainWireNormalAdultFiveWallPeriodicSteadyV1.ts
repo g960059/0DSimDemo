@@ -97,6 +97,14 @@ import {
   type MainWireAorticOutflowLengthMechanismArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthMechanismAblationV1";
 import {
+  resolveMainWireAorticOutflowMechanismCandidateV1,
+  resolveMainWireAorticOutflowMechanismLoadContextV1,
+  type MainWireAorticOutflowMechanismCandidateIdV1,
+  type MainWireAorticOutflowMechanismCandidateV1,
+  type MainWireAorticOutflowMechanismLoadContextIdV1,
+  type MainWireAorticOutflowMechanismLoadContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowMechanismCandidateLoadEnvelopeV1";
+import {
   resolveMainWireAorticOutflowDriverRootAblationArmV1,
   type MainWireAorticOutflowDriverRootAblationArmIdV1,
   type MainWireAorticOutflowDriverRootAblationArmV1,
@@ -448,6 +456,30 @@ export type MainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchRunV1
       calciumDriveChanged: false;
       aorticValveConstitutiveLawChanged: false;
       acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-mechanism-candidate-load-envelope-run";
+    candidate: MainWireAorticOutflowMechanismCandidateV1;
+    context: MainWireAorticOutflowMechanismLoadContextV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCandidateLoadAndBloodVolume: true;
     }>;
   }>;
 
@@ -1175,6 +1207,75 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResear
       calciumDriveChanged: false as const,
       aorticValveConstitutiveLawChanged: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
+/** Fixed candidate-by-load context from an independent canonical cold start. */
+export function runMainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  candidateId: MainWireAorticOutflowMechanismCandidateIdV1,
+  contextId: MainWireAorticOutflowMechanismLoadContextIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const candidate = resolveMainWireAorticOutflowMechanismCandidateV1(candidateId);
+  const context = resolveMainWireAorticOutflowMechanismLoadContextV1(contextId);
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    context.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      context.circulatoryLoadPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    context.stressedVenousVolumePointId,
+  );
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    candidate.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      candidate.ventricularMaterialPointId,
+    );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-mechanism-candidate-load-envelope-run" as const,
+    candidate,
+    context,
+    materialPoint,
+    circulatoryLoadPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCandidateLoadAndBloodVolume: true as const,
     }),
   });
 }
