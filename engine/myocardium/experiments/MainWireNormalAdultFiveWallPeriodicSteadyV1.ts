@@ -12,6 +12,10 @@ import {
   type MainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import {
+  resolveMainWireAorticRootResistanceResearchProfileV1,
+  type MainWireAorticRootResistanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootResistanceResearchProfileV1";
+import {
   resolveMainWireAorticCompliancePartitionCapacitySnapshotV1,
   resolveMainWireAorticCompliancePartitionResearchProfileV1,
   type MainWireAorticCompliancePartitionCapacitySnapshotV1,
@@ -88,6 +92,21 @@ import {
   type MainWireAorticOutflowDriverRootAblationArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
 import {
+  resolveMainWireAorticOutflowLengthDependenceRootResistanceArmV1,
+  type MainWireAorticOutflowLengthDependenceRootResistanceArmIdV1,
+  type MainWireAorticOutflowLengthDependenceRootResistanceArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthDependenceRootResistanceAblationV1";
+import {
+  resolveMainWireAorticOutflowLengthVelocityArmV1,
+  type MainWireAorticOutflowLengthVelocityArmIdV1,
+  type MainWireAorticOutflowLengthVelocityArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthVelocityAblationV1";
+import {
+  resolveMainWireAorticOutflowVelocityStiffnessArmV1,
+  type MainWireAorticOutflowVelocityStiffnessArmIdV1,
+  type MainWireAorticOutflowVelocityStiffnessArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowVelocityStiffnessAblationV1";
+import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/integrity/stableHash";
@@ -101,6 +120,7 @@ import {
   resolveMainWireNormalAdultVentricularMaterialResearchPointV1,
   type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
+  type MainWireNormalAdultVentricularMaterialResearchPointIdV1,
   type MainWireNormalAdultVentricularMaterialResearchPointV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
@@ -272,6 +292,16 @@ export type MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1 =
     maximumBeatCount?: number;
   }>;
 
+export type MainWireNormalAdultVentricularLengthDependenceResearchPointIdV1 =
+  Extract<
+    MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+    | "baseline"
+    | "ventricular-length-dependence-low"
+    | "ventricular-length-dependence-half"
+    | "ventricular-length-dependence-quarter"
+    | "ventricular-length-dependence-exact-off"
+  >;
+
 export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1 =
   Readonly<{
     dtSec: number;
@@ -310,6 +340,86 @@ export type MainWireNormalAdultFiveWallAorticOutflowResearchRunV1 = Readonly<{
     exactRuntimeIdentityIncludesRootProfileWhenActive: true;
   }>;
 }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-length-dependence-root-resistance-ablation-arm";
+    arm: MainWireAorticOutflowLengthDependenceRootResistanceArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    aorticRootResistanceProfile:
+      MainWireAorticRootResistanceResearchProfileV1 | null;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactRuntimeIdentityIncludesRootProfileWhenActive: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularLengthDependenceResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-land-length-dependence-research-point";
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchRunV1 =
+  Readonly<{
+    configurationRole: "fixed-aortic-outflow-length-velocity-ablation-arm";
+    arm: MainWireAorticOutflowLengthVelocityArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchRunV1 =
+  Readonly<{
+    configurationRole: "fixed-aortic-outflow-velocity-stiffness-ablation-arm";
+    arm: MainWireAorticOutflowVelocityStiffnessArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactRuntimeIdentityIncludesLoadPoint: true;
+    }>;
+  }>;
 
 export type MainWireNormalAdultFiveWallAorticCompliancePartitionResearchRunV1 =
   Readonly<{
@@ -739,6 +849,236 @@ export function runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1(
       aorticValveConstitutiveLawChanged: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactRuntimeIdentityIncludesRootProfileWhenActive: true as const,
+    }),
+  });
+}
+
+/** Fixed 2x2 Land-length-dependence/Ao_SA-resistance arm from a cold start. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowLengthDependenceRootResistanceArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm =
+    resolveMainWireAorticOutflowLengthDependenceRootResistanceArmV1(armId);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const aorticRootResistanceProfile =
+    arm.aorticRootResistanceProfileId === null
+      ? null
+      : resolveMainWireAorticRootResistanceResearchProfileV1(
+        arm.aorticRootResistanceProfileId,
+      );
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 =
+    aorticRootResistanceProfile === null
+      ? baselineRuntime
+      : Object.freeze({
+        ...baselineRuntime,
+        aorticRootResistanceResearchProfile: aorticRootResistanceProfile,
+      });
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-length-dependence-root-resistance-ablation-arm" as const,
+    arm,
+    materialPoint,
+    aorticRootResistanceProfile,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesRootProfileWhenActive: true as const,
+    }),
+  });
+}
+
+/** Fixed Land beta0/beta1 envelope point from a canonical cold start. */
+export function runMainWireNormalAdultFiveWallVentricularLengthDependenceResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  pointId: MainWireNormalAdultVentricularLengthDependenceResearchPointIdV1,
+): MainWireNormalAdultFiveWallVentricularLengthDependenceResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    pointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(pointId);
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-land-length-dependence-research-point" as const,
+    materialPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
+/** Fixed 2x2 Land length/velocity-dependence arm from a canonical cold start. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowLengthVelocityArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowLengthVelocityArmV1(armId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-length-velocity-ablation-arm" as const,
+    arm,
+    materialPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
+/** Fixed 2x2 Land velocity-distortion/arterial-stiffness research arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowVelocityStiffnessArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowVelocityStiffnessArmV1(armId);
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    arm.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      arm.circulatoryLoadPointId,
+    );
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-velocity-stiffness-ablation-arm" as const,
+    arm,
+    materialPoint,
+    circulatoryLoadPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesLoadPoint: true as const,
     }),
   });
 }

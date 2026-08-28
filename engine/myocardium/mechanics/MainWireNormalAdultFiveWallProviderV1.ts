@@ -139,6 +139,12 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
     "ventricular-passive-high",
     "ventricular-tref-low",
     "ventricular-tref-high",
+    "ventricular-length-dependence-low",
+    "ventricular-length-dependence-half",
+    "ventricular-length-dependence-quarter",
+    "ventricular-length-dependence-exact-off",
+    "ventricular-velocity-distortion-high",
+    "ventricular-length-dependence-low-plus-velocity-distortion-high",
   ] as const);
 
 export type MainWireNormalAdultVentricularMaterialResearchPointIdV1 =
@@ -149,7 +155,12 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
   ventricularEquilibriumPassiveScaleFromBaseline: number;
   ventricularSlsModulusScaleFromBaseline: number;
   ventricularLandTrefScaleFromBaseline: number;
+  ventricularLandLengthDependenceScaleFromBaseline: number;
+  ventricularLandVelocityDistortionScaleFromBaseline: number;
   resolvedVentricularLandTrefPa: number;
+  resolvedVentricularLandBeta0: number;
+  resolvedVentricularLandBeta1UM: number;
+  resolvedVentricularLandAeff: number;
   wallScope: readonly ["LVFW", "SEP", "RVFW"];
   claim: Readonly<{
     sourceResearchOnly: true;
@@ -158,6 +169,9 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
     equilibriumEnergyStressAndTangentScaledTogether: true;
     septumSharedByBothVentricles: true;
     independentLvAndRvEdpvrClaimed: false;
+    landBeta0AndBeta1ScaledTogether: boolean;
+    landAeffScaledWithDerivedAwAndAs: boolean;
+    referenceLengthIsometricLandValuesUnchanged: boolean;
   }>;
 }>;
 
@@ -287,6 +301,13 @@ export function resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
 ): MainWireNormalAdultVentricularMaterialResearchPointV1 {
   return resolveVentricularMaterialProfile(pointId).point;
+}
+
+/** Fixed-ID material readback for offline constitutive audits only. */
+export function resolveMainWireNormalAdultVentricularWallMaterialResearchV1(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+): LandSlsWallMaterialParamsV1 {
+  return resolveVentricularMaterialProfile(pointId).wallMaterial;
 }
 
 type ResolvedVentricularMaterialProfileV1 = Readonly<{
@@ -621,6 +642,24 @@ function resolveVentricularMaterialProfile(
       : pointId === "ventricular-tref-high"
         ? 4 / 3
         : 1;
+  const lengthDependenceScale =
+    pointId === "ventricular-length-dependence-low"
+        || pointId
+          === "ventricular-length-dependence-low-plus-velocity-distortion-high"
+      ? 0.75
+      : pointId === "ventricular-length-dependence-half"
+        ? 0.5
+        : pointId === "ventricular-length-dependence-quarter"
+          ? 0.25
+          : pointId === "ventricular-length-dependence-exact-off"
+            ? 0
+            : 1;
+  const velocityDistortionScale =
+    pointId === "ventricular-velocity-distortion-high"
+        || pointId
+          === "ventricular-length-dependence-low-plus-velocity-distortion-high"
+      ? 4 / 3
+      : 1;
   const baselinePassive = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular;
   const baselineMaterial =
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
@@ -643,7 +682,13 @@ function resolveVentricularMaterialProfile(
   const landEquationParameters =
     pointId === "ventricular-tref-low" || pointId === "ventricular-tref-high"
       ? scaledVentricularLandTref(pointId, trefScale)
-      : baselineMaterial.landEquationParameters;
+      : lengthDependenceScale !== 1 || velocityDistortionScale !== 1
+        ? scaledVentricularLandKinematicDependence(
+          pointId,
+          lengthDependenceScale,
+          velocityDistortionScale,
+        )
+        : baselineMaterial.landEquationParameters;
   const sls =
     passiveScale === 1
       ? baselineMaterial.sls
@@ -653,7 +698,10 @@ function resolveVentricularMaterialProfile(
           branchModulusPa: baselineMaterial.sls.branchModulusPa * passiveScale,
         });
   const wallMaterial =
-    passiveScale === 1 && trefScale === 1
+    passiveScale === 1
+        && trefScale === 1
+        && lengthDependenceScale === 1
+        && velocityDistortionScale === 1
       ? baselineMaterial
       : Object.freeze({
           ...baselineMaterial,
@@ -666,7 +714,14 @@ function resolveVentricularMaterialProfile(
     ventricularEquilibriumPassiveScaleFromBaseline: passiveScale,
     ventricularSlsModulusScaleFromBaseline: passiveScale,
     ventricularLandTrefScaleFromBaseline: trefScale,
+    ventricularLandLengthDependenceScaleFromBaseline:
+      lengthDependenceScale,
+    ventricularLandVelocityDistortionScaleFromBaseline:
+      velocityDistortionScale,
     resolvedVentricularLandTrefPa: landEquationParameters.values.Tref,
+    resolvedVentricularLandBeta0: landEquationParameters.values.beta0,
+    resolvedVentricularLandBeta1UM: landEquationParameters.values.beta1,
+    resolvedVentricularLandAeff: landEquationParameters.values.Aeff,
     wallScope: Object.freeze(["LVFW", "SEP", "RVFW"] as const),
     claim: Object.freeze({
       sourceResearchOnly: true as const,
@@ -675,9 +730,81 @@ function resolveVentricularMaterialProfile(
       equilibriumEnergyStressAndTangentScaledTogether: true as const,
       septumSharedByBothVentricles: true as const,
       independentLvAndRvEdpvrClaimed: false as const,
+      landBeta0AndBeta1ScaledTogether:
+        lengthDependenceScale !== 1,
+      landAeffScaledWithDerivedAwAndAs:
+        velocityDistortionScale !== 1,
+      referenceLengthIsometricLandValuesUnchanged:
+        (lengthDependenceScale !== 1 || velocityDistortionScale !== 1)
+        && passiveScale === 1
+        && trefScale === 1,
     }),
   });
   return Object.freeze({ point, equilibriumPassive, wallMaterial });
+}
+
+function scaledVentricularLandKinematicDependence(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+  lengthDependenceScale: number,
+  velocityDistortionScale: number,
+): Land2017SourceParameterSet {
+  const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
+  const values = Object.freeze({
+    ...baseline.values,
+    Aeff: baseline.values.Aeff * velocityDistortionScale,
+    beta0: lengthDependenceScale === 0
+      ? 0
+      : baseline.values.beta0 * lengthDependenceScale,
+    beta1: lengthDependenceScale === 0
+      ? 0
+      : baseline.values.beta1 * lengthDependenceScale,
+  });
+  const lengthProvenance =
+    `fixed loaded-length-dependence research scale ${lengthDependenceScale}`;
+  const velocityProvenance =
+    `fixed velocity-distortion research scale ${velocityDistortionScale}`;
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> =
+    {
+      parameterSetId: `${baseline.parameterSetId}-${pointId}`,
+      sourceId: baseline.sourceId,
+      doi: baseline.doi,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+      sourceParameters: Object.freeze(
+        baseline.sourceParameters.map((entry) => {
+          const scaledValue = entry.parameter === "Aeff"
+            ? values.Aeff
+            : entry.parameter === "beta0"
+              ? values.beta0
+              : entry.parameter === "beta1"
+                ? values.beta1
+                : null;
+          const provenanceLabel = entry.parameter === "Aeff"
+            ? velocityProvenance
+            : lengthProvenance;
+          return Object.freeze({
+            ...entry,
+            ...(scaledValue === null
+              ? {}
+              : {
+                location: `${entry.location}; ${provenanceLabel}`,
+              }),
+            original: Object.freeze({ ...entry.original }),
+            runtime: Object.freeze({
+              ...entry.runtime,
+              ...(scaledValue === null ? {} : { value: scaledValue }),
+            }),
+          });
+        }),
+      ),
+      derivedParameters: Object.freeze(
+        baseline.derivedParameters.map((entry) => Object.freeze({ ...entry })),
+      ),
+    };
+  return Object.freeze({
+    ...hashInput,
+    parameterSetStableHash: stableLandParameterHash(hashInput),
+  });
 }
 
 function scaledVentricularLandTref(

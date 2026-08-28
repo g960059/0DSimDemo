@@ -22,6 +22,10 @@ import {
   type MainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import {
+  validateMainWireAorticRootResistanceResearchProfileV1,
+  type MainWireAorticRootResistanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootResistanceResearchProfileV1";
+import {
   validateMainWireAorticCompliancePartitionResearchProfileV1,
 } from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
 import {
@@ -252,6 +256,9 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   /** Scales graph-owned Ao_SA L without adding or moving a flow state. */
   aorticRootInertanceResearchProfile?:
     MainWireAorticRootInertanceResearchProfileV1;
+  /** Scales graph-owned Ao_SA R without adding a serial pressure-loss element. */
+  aorticRootResistanceResearchProfile?:
+    MainWireAorticRootResistanceResearchProfileV1;
 }>;
 
 /**
@@ -2762,7 +2769,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       downstreamPressureMmHg: downstreamPressure,
       edgeExternalPressureMmHg,
       }),
-      protocolResistanceScaleForEdge(input, name),
+      admittedResistanceScaleForEdgeV1(input, name),
     );
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
@@ -3108,7 +3115,7 @@ function analyticEdgeFlowPressureDerivativesV1<
         downstreamPressureMmHg,
         edgeExternalPressureMmHg,
       }),
-      protocolResistanceScaleForEdge(input, edgeName),
+      admittedResistanceScaleForEdgeV1(input, edgeName),
     );
     const flowMlPerSec = current.edgeFlowsMlPerSec[edgeIndex]!;
     const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
@@ -4620,6 +4627,18 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  if (runtime.aorticRootResistanceResearchProfile !== undefined) {
+    const profileIssues =
+      validateMainWireAorticRootResistanceResearchProfileV1(
+        runtime.aorticRootResistanceResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticRootResistanceResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+  }
 }
 
 function validateMechanicalSupportInput(
@@ -5033,11 +5052,17 @@ function validateConservativeCompanionAdapter<TEvaluation, TCompanionTrial>(
   }
 }
 
-function protocolResistanceScaleForEdge<TEvaluation, TCompanionTrial>(
+function admittedResistanceScaleForEdgeV1<TEvaluation, TCompanionTrial>(
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   edgeName: NonCoronaryEdgeNameV1,
 ): number {
-  return input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;
+  const protocolScale = input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;
+  const profile = input.runtime.aorticRootResistanceResearchProfile;
+  const researchScale = profile !== undefined
+      && edgeName === profile.dynamicEdgeId
+    ? profile.resistanceScaleFromTopology
+    : 1;
+  return protocolScale * researchScale;
 }
 
 function dynamicEdgeInertanceResearchScaleV1(

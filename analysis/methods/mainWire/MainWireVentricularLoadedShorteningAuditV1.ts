@@ -39,7 +39,7 @@ export const MAIN_WIRE_VENTRICULAR_LOADED_SHORTENING_AUDIT_CLAIM_V1 =
     fixedAtEjectionOnsetReplay:
       "same-calcium-with-length-fixed-at-aortic-flow-onset" as const,
     distortionSuppressedReplayIsProposedModel: false as const,
-    lengthDependenceRetainedInBothReplays: true as const,
+    suppliedLengthDependenceHeldIdenticalAcrossReplays: true as const,
     activeStressConversion:
       "land-stretch-times-orientation-times-viability-times-source-nominal-stress" as const,
     aorticEjectionEpisode:
@@ -128,6 +128,8 @@ export type MainWireVentricularLoadedShorteningAuditV1 = Readonly<{
     periodicSteadyStateClaimed: boolean;
     calciumDriveParameterSetId: string;
     mechanicsProviderParameterIdentityHash: string;
+    wallMaterialParameterSetId: string;
+    landEquationParameterSetStableHash: string;
   }>;
   aorticEjectionEpisode: Readonly<{
     flowThresholdMlPerSec: number;
@@ -153,9 +155,15 @@ const MINIMUM_REPLAY_CYCLES = 2;
 const MAXIMUM_REPLAY_CYCLES = 20;
 const REPLAY_P1_TOLERANCE = 1e-9;
 
+export type MainWireVentricularLoadedShorteningAuditMaterialV1 = Readonly<{
+  wallMaterialParams: LandSlsWallMaterialParamsV1;
+  expectedMechanicsProviderParameterIdentityHash: string;
+}>;
+
 export function measureMainWireVentricularLoadedShorteningAuditV1(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
+  suppliedMaterial?: MainWireVentricularLoadedShorteningAuditMaterialV1,
 ): MainWireVentricularLoadedShorteningAuditV1 {
   const beat = result.retainedCompleteBeats.at(-1);
   if (beat === undefined || beat.samples.length < 3) {
@@ -169,12 +177,17 @@ export function measureMainWireVentricularLoadedShorteningAuditV1(
   }
   const canonicalProvider =
     createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const material = suppliedMaterial?.wallMaterialParams
+    ?? NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+  const expectedMechanicsProviderParameterIdentityHash = suppliedMaterial
+    ?.expectedMechanicsProviderParameterIdentityHash
+    ?? canonicalProvider.parameterIdentityHash;
   if (
     result.protocolIdentity.mechanicsProvider.parameterIdentityHash
-    !== canonicalProvider.parameterIdentityHash
+    !== expectedMechanicsProviderParameterIdentityHash
   ) {
     throw new Error(
-      "loaded shortening audit V1 requires the canonical mechanics provider",
+      "loaded shortening audit mechanics provider identity mismatch",
     );
   }
   const samples = beat.samples;
@@ -193,8 +206,6 @@ export function measureMainWireVentricularLoadedShorteningAuditV1(
     samples.length,
   );
   const peakFlowIndex = indexOfMaximum(flows);
-  const material =
-    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
   const walls = wallRecord((wallId) => {
     const fiberLogStrains = samples.map((sample) =>
       sample.wallFiberLogStrain[wallId]);
@@ -333,6 +344,9 @@ export function measureMainWireVentricularLoadedShorteningAuditV1(
       calciumDriveParameterSetId: calciumDriveParams.parameterSetId,
       mechanicsProviderParameterIdentityHash:
         result.protocolIdentity.mechanicsProvider.parameterIdentityHash,
+      wallMaterialParameterSetId: material.parameterSetId,
+      landEquationParameterSetStableHash:
+        material.landEquationParameters.parameterSetStableHash,
     }),
     aorticEjectionEpisode: Object.freeze({
       flowThresholdMlPerSec: valve.episodeFlowThresholdMlPerSec,

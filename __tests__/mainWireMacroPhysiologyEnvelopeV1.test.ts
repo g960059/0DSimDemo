@@ -77,6 +77,147 @@ describe("main-wire fixed macro physiology envelope V1", () => {
     expect(high.resolvedVentricularLandTrefPa).toBe(160_000);
     expect(low.wallScope).toEqual(["LVFW", "SEP", "RVFW"]);
     expect(low.claim.independentLvAndRvEdpvrClaimed).toBe(false);
+
+    const lengthDependence =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-length-dependence-low",
+      );
+    expect(lengthDependence
+      .ventricularLandLengthDependenceScaleFromBaseline).toBe(0.75);
+    expect(lengthDependence.resolvedVentricularLandBeta0).toBeCloseTo(1.725);
+    expect(lengthDependence.resolvedVentricularLandBeta1UM).toBeCloseTo(-1.8);
+    expect(lengthDependence.resolvedVentricularLandTrefPa).toBe(120_000);
+    expect(lengthDependence.claim.landBeta0AndBeta1ScaledTogether).toBe(true);
+    expect(lengthDependence.claim.referenceLengthIsometricLandValuesUnchanged)
+      .toBe(true);
+    const halfLengthDependence =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-length-dependence-half",
+      );
+    expect(halfLengthDependence
+      .ventricularLandLengthDependenceScaleFromBaseline).toBe(0.5);
+    expect(halfLengthDependence.resolvedVentricularLandBeta0).toBeCloseTo(1.15);
+    expect(halfLengthDependence.resolvedVentricularLandBeta1UM).toBeCloseTo(-1.2);
+    const quarterLengthDependence =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-length-dependence-quarter",
+      );
+    expect(quarterLengthDependence
+      .ventricularLandLengthDependenceScaleFromBaseline).toBe(0.25);
+    expect(quarterLengthDependence.resolvedVentricularLandBeta0)
+      .toBeCloseTo(0.575);
+    expect(quarterLengthDependence.resolvedVentricularLandBeta1UM)
+      .toBeCloseTo(-0.6);
+    const lengthDependenceOff =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-length-dependence-exact-off",
+      );
+    expect(lengthDependenceOff
+      .ventricularLandLengthDependenceScaleFromBaseline).toBe(0);
+    expect(lengthDependenceOff.resolvedVentricularLandBeta0).toBe(0);
+    expect(lengthDependenceOff.resolvedVentricularLandBeta1UM).toBe(0);
+    expect(lengthDependenceOff.resolvedVentricularLandTrefPa).toBe(120_000);
+    const velocityDistortion =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-velocity-distortion-high",
+      );
+    expect(velocityDistortion
+      .ventricularLandVelocityDistortionScaleFromBaseline).toBe(4 / 3);
+    expect(velocityDistortion.resolvedVentricularLandAeff)
+      .toBeCloseTo(100 / 3);
+    expect(velocityDistortion.resolvedVentricularLandBeta0).toBe(2.3);
+    expect(velocityDistortion.claim.landAeffScaledWithDerivedAwAndAs)
+      .toBe(true);
+    const combinedKinematics =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-length-dependence-low-plus-velocity-distortion-high",
+      );
+    expect(combinedKinematics.resolvedVentricularLandBeta0)
+      .toBeCloseTo(1.725);
+    expect(combinedKinematics.resolvedVentricularLandAeff)
+      .toBeCloseTo(100 / 3);
+  });
+
+  it("preserves fixed-length Land values at lambda one when beta0 and beta1 are scaled together", () => {
+    const baseline =
+      createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+        "baseline",
+      ).LVFW;
+    const lowLengthDependence =
+      createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+        "ventricular-length-dependence-low",
+      ).LVFW;
+    const noLengthDependence =
+      createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+        "ventricular-length-dependence-exact-off",
+      ).LVFW;
+    const highVelocityDistortion =
+      createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+        "ventricular-velocity-distortion-high",
+      ).LVFW;
+    const combinedKinematics =
+      createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+        "ventricular-length-dependence-low-plus-velocity-distortion-high",
+      ).LVFW;
+    const fixedInput = Object.freeze({
+      fiberLogStrain: 0,
+      freeCalciumUM: 0.1,
+    });
+    const baselineCold = baseline.initializeColdAtFixedInput(fixedInput);
+    const lowCold = lowLengthDependence.initializeColdAtFixedInput(fixedInput);
+    const offCold = noLengthDependence.initializeColdAtFixedInput(fixedInput);
+    const velocityCold =
+      highVelocityDistortion.initializeColdAtFixedInput(fixedInput);
+    const combinedCold = combinedKinematics.initializeColdAtFixedInput(
+      fixedInput,
+    );
+    expect(lowCold.state.landState).toEqual(baselineCold.state.landState);
+    expect(offCold.state.landState).toEqual(baselineCold.state.landState);
+    expect(velocityCold.state.landState).toEqual(baselineCold.state.landState);
+    expect(combinedCold.state.landState).toEqual(baselineCold.state.landState);
+    expect(lowCold.activeFiberKirchhoffStressPa)
+      .toBe(baselineCold.activeFiberKirchhoffStressPa);
+    const trialInput = Object.freeze({
+      candidateFiberLogStrain: 0,
+      candidateFreeCalciumUM: 0.7,
+      stepDtSec: 0.002,
+    });
+    const baselineTrial = baseline.evaluateTrialFromAccepted({
+      ...trialInput,
+      previousAcceptedState: baselineCold.state,
+    });
+    const lowTrial = lowLengthDependence.evaluateTrialFromAccepted({
+      ...trialInput,
+      previousAcceptedState: lowCold.state,
+    });
+    const offTrial = noLengthDependence.evaluateTrialFromAccepted({
+      ...trialInput,
+      previousAcceptedState: offCold.state,
+    });
+    const velocityTrial = highVelocityDistortion.evaluateTrialFromAccepted({
+      ...trialInput,
+      previousAcceptedState: velocityCold.state,
+    });
+    const combinedTrial = combinedKinematics.evaluateTrialFromAccepted({
+      ...trialInput,
+      previousAcceptedState: combinedCold.state,
+    });
+    expect(lowTrial.state.landState).toEqual(baselineTrial.state.landState);
+    expect(offTrial.state.landState).toEqual(baselineTrial.state.landState);
+    expect(velocityTrial.state.landState).toEqual(baselineTrial.state.landState);
+    expect(combinedTrial.state.landState).toEqual(baselineTrial.state.landState);
+    expect(lowTrial.activeFiberKirchhoffStressPa)
+      .toBe(baselineTrial.activeFiberKirchhoffStressPa);
+    expect(lowTrial.fiberKirchhoffStressPa)
+      .toBe(baselineTrial.fiberKirchhoffStressPa);
+    expect(offTrial.activeFiberKirchhoffStressPa)
+      .toBe(baselineTrial.activeFiberKirchhoffStressPa);
+    expect(offTrial.fiberKirchhoffStressPa)
+      .toBe(baselineTrial.fiberKirchhoffStressPa);
+    expect(velocityTrial.fiberKirchhoffStressPa)
+      .toBe(baselineTrial.fiberKirchhoffStressPa);
+    expect(combinedTrial.fiberKirchhoffStressPa)
+      .toBe(baselineTrial.fiberKirchhoffStressPa);
   });
 
   it("hard-orders passive energy, stress, tangent, and Land Tref stress at fixed input", () => {

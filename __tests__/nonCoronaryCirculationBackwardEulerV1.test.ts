@@ -49,6 +49,11 @@ import {
   resolveMainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import {
+  MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_CLAIM_V1,
+  resolveMainWireAorticRootResistanceResearchProfileV1,
+  validateMainWireAorticRootResistanceResearchProfileV1,
+} from "@/engine/core/MainWireAorticRootResistanceResearchProfileV1";
+import {
   MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_ABLATION_V1_ID,
   MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
 } from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
@@ -781,6 +786,68 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       * profile.inertanceScaleFromTopology;
     const residual = effectiveInertance * (flow - previousFlow) / dtSec
       + losses.resistanceMmHgSecPerMl * flow
+      + losses.quadraticLossMmHgSec2PerMl2 * flow * Math.abs(flow)
+      - gradient;
+    expect(Math.abs(residual)).toBeLessThan(1e-9);
+    expect(Object.keys(analytic.candidateDynamicEdgeFlowsMlPerSec))
+      .toEqual(["Ao_SA", "PA_PArt"]);
+  });
+
+  it("applies the fixed Ao_SA resistance profile consistently in the primal and tangent", () => {
+    const profile = resolveMainWireAorticRootResistanceResearchProfileV1(
+      "aortic-root-resistance-high",
+    );
+    expect(validateMainWireAorticRootResistanceResearchProfileV1(profile))
+      .toEqual([]);
+    expect(validateMainWireAorticRootResistanceResearchProfileV1({
+      ...profile,
+      resistanceScaleFromTopology: 2,
+    })).toContain(
+      "aortic-root resistance research profile resistanceScaleFromTopology differs from its fixed value",
+    );
+    expect(MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_CLAIM_V1)
+      .toMatchObject({
+        topologyOwnedResistanceScaled: true,
+        serialResistanceElementAdded: false,
+        dynamicFlowStateOwnerChanged: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+      });
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      aorticRootResistanceResearchProfile: profile,
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const dtSec = 0.001;
+    const analytic = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec,
+      runtime,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics: coupledElasticMechanicsCallback(initial, true),
+    });
+    expect(analytic.converged).toBe(true);
+    if (analytic.converged === false) throw new Error(analytic.message);
+    expect(analytic.diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(analytic.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference).not.toBeNull();
+    expect(analytic.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference!).toBeLessThan(2e-5);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    const edge = graph.edges[graph.edgeIndex.get("Ao_SA")!];
+    const losses = baseNonValveEdgeLossV1(edge, runtime.losses);
+    const flow = analytic.candidateDynamicEdgeFlowsMlPerSec.Ao_SA;
+    const previousFlow = initial.dynamicEdgeFlowsMlPerSec.Ao_SA;
+    const gradient = analytic.nodeAbsolutePressuresMmHg.Ao
+      - analytic.nodeAbsolutePressuresMmHg.SA;
+    const effectiveResistance = losses.resistanceMmHgSecPerMl
+      * profile.resistanceScaleFromTopology;
+    const residual = edge.L! * (flow - previousFlow) / dtSec
+      + effectiveResistance * flow
       + losses.quadraticLossMmHgSec2PerMl2 * flow * Math.abs(flow)
       - gradient;
     expect(Math.abs(residual)).toBeLessThan(1e-9);
