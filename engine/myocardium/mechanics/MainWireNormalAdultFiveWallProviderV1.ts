@@ -132,6 +132,9 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1 =
     defaultValue: 1,
   });
 
+export const MAIN_WIRE_NORMAL_ADULT_FIXED_VENTRICULAR_DISTORTION_TRANSIENT_SCALE_V1 =
+  4 / 3;
+
 export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
   Object.freeze([
     "baseline",
@@ -241,6 +244,28 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularContract
 export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
   requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
+  return createProviderWithMechanicsResearchInputsV1(requestedInputs, 1);
+}
+
+/**
+ * Fixed post-Pareto composition seam. It reuses the existing Land distortion
+ * state and scales Aeff and phi proportionally in LVFW, SEP, and RVFW. Thus the
+ * constant-strain-rate zeta gain Aeff/phi is unchanged while its transient
+ * response is faster; no valve state, inertance, or mechanics state is added.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsAndFixedVentricularDistortionTransientV1(
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  return createProviderWithMechanicsResearchInputsV1(
+    requestedInputs,
+    MAIN_WIRE_NORMAL_ADULT_FIXED_VENTRICULAR_DISTORTION_TRANSIENT_SCALE_V1,
+  );
+}
+
+function createProviderWithMechanicsResearchInputsV1(
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+  commonVentricularDistortionTransientScale: number,
+): MainWireNormalAdultFiveWallProviderV1 {
   const inputs =
     validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs);
   const materialChanged = (
@@ -248,7 +273,8 @@ export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchIn
       ...Object.values(inputs.activeTensionScaleByWall),
       ...Object.values(inputs.passiveStiffnessScaleByWall),
     ] as number[]
-  ).some((scale) => scale !== 1);
+  ).some((scale) => scale !== 1)
+    || commonVentricularDistortionTransientScale !== 1;
   if (!materialChanged)
     return createCanonicalMainWireNormalAdultFiveWallProviderV1();
   const identity = stableHash(
@@ -256,12 +282,16 @@ export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchIn
       Object.freeze({
         activeTensionScaleByWall: inputs.activeTensionScaleByWall,
         passiveStiffnessScaleByWall: inputs.passiveStiffnessScaleByWall,
+        commonVentricularDistortionTransientScale,
       }),
     ),
   );
   return createNormalAdultProviderFromKernels(
     "on",
-    createMaterialKernelsWithMechanicsResearchInputsV1(inputs),
+    createMaterialKernelsWithMechanicsResearchInputsV1(
+      inputs,
+      commonVentricularDistortionTransientScale,
+    ),
     `-wall-mechanics-${identity}`,
   );
 }
@@ -415,6 +445,7 @@ function createMaterialKernelsFromMaterial(
 
 function createMaterialKernelsWithMechanicsResearchInputsV1(
   inputs: MainWireFiveWallMechanicsResearchInputsV1,
+  commonVentricularDistortionTransientScale: number,
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
@@ -424,6 +455,9 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
     const activeScale = inputs.activeTensionScaleByWall[wallId];
     const passiveScale = inputs.passiveStiffnessScaleByWall[wallId];
     const isAtrium = wallId === "LA" || wallId === "RA";
+    const distortionTransientScale = isAtrium
+      ? 1
+      : commonVentricularDistortionTransientScale;
     const basePassive = isAtrium
       ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
       : createKlotzPassiveEvaluator(prior.passive.ventricular.compiled);
@@ -433,21 +467,31 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
         : scaledPassiveEvaluatorV1(basePassive, passiveScale, wallId);
     const baseline = prior.active.wallMaterialByWall[wallId];
     const materialParams =
-      activeScale === 1 && passiveScale === 1
+      activeScale === 1
+        && passiveScale === 1
+        && distortionTransientScale === 1
         ? baseline
         : Object.freeze({
             ...baseline,
             parameterSetId:
               `${baseline.parameterSetId}-wall-${wallId}` +
               `-active-${canonicalScaleIdentityV1(activeScale)}` +
-              `-passive-${canonicalScaleIdentityV1(passiveScale)}`,
+              `-passive-${canonicalScaleIdentityV1(passiveScale)}` +
+              `-distortion-transient-${
+                canonicalScaleIdentityV1(distortionTransientScale)
+              }`,
             landEquationParameters:
-              activeScale === 1
+              activeScale === 1 && distortionTransientScale === 1
                 ? baseline.landEquationParameters
-                : scaledWallLandTrefForScaleV1(
+                : scaledWallLandResearchForScalesV1(
                     baseline.landEquationParameters,
-                    `wall-${wallId}-active-${canonicalScaleIdentityV1(activeScale)}`,
+                    `wall-${wallId}` +
+                      `-active-${canonicalScaleIdentityV1(activeScale)}` +
+                      `-distortion-transient-${
+                        canonicalScaleIdentityV1(distortionTransientScale)
+                      }`,
                     activeScale,
+                    distortionTransientScale,
                     `bounded ${wallId} active-tension research control`,
                   ),
             sls:
@@ -924,6 +968,72 @@ function scaledVentricularLandTrefForScale(
     scale,
     provenanceLabel,
   );
+}
+
+function scaledWallLandResearchForScalesV1(
+  baseline: Land2017SourceParameterSet,
+  identitySuffix: string,
+  activeTensionScale: number,
+  distortionTransientScale: number,
+  activeTensionProvenanceLabel: string,
+): Land2017SourceParameterSet {
+  if (distortionTransientScale === 1) {
+    return scaledWallLandTrefForScaleV1(
+      baseline,
+      identitySuffix,
+      activeTensionScale,
+      activeTensionProvenanceLabel,
+    );
+  }
+  const values = Object.freeze({
+    ...baseline.values,
+    Tref: baseline.values.Tref * activeTensionScale,
+    Aeff: baseline.values.Aeff * distortionTransientScale,
+    phi: baseline.values.phi * distortionTransientScale,
+  });
+  const distortionProvenanceLabel =
+    "fixed common-ventricular proportional Land distortion transient";
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> =
+    {
+      parameterSetId: `${baseline.parameterSetId}-${identitySuffix}`,
+      sourceId: baseline.sourceId,
+      doi: baseline.doi,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+      sourceParameters: Object.freeze(
+        baseline.sourceParameters.map((entry) => {
+          const scaledValue = entry.parameter === "Tref"
+            && activeTensionScale !== 1
+            ? values.Tref
+            : entry.parameter === "Aeff"
+              ? values.Aeff
+              : entry.parameter === "phi"
+                ? values.phi
+                : null;
+          const provenanceLabel = entry.parameter === "Tref"
+            ? `${activeTensionProvenanceLabel} scale ${activeTensionScale}`
+            : `${distortionProvenanceLabel} scale ${distortionTransientScale}`;
+          return Object.freeze({
+            ...entry,
+            ...(scaledValue === null
+              ? {}
+              : { location: `${entry.location}; ${provenanceLabel}` }),
+            original: Object.freeze({ ...entry.original }),
+            runtime: Object.freeze({
+              ...entry.runtime,
+              ...(scaledValue === null ? {} : { value: scaledValue }),
+            }),
+          });
+        }),
+      ),
+      derivedParameters: Object.freeze(
+        baseline.derivedParameters.map((entry) => Object.freeze({ ...entry })),
+      ),
+    };
+  return Object.freeze({
+    ...hashInput,
+    parameterSetStableHash: stableLandParameterHash(hashInput),
+  });
 }
 
 function scaledWallLandTrefForScaleV1(

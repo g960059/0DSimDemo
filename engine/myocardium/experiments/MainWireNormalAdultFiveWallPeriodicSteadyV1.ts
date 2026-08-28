@@ -108,6 +108,17 @@ import {
   type MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateV1,
 } from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitRecalibrationCandidatesV1";
 import {
+  resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveMechanicsInputV1,
+  resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveProfileV1,
+  type MainWireVentricularCalciumSourceTraceFitTrefPassiveProfileIdV1,
+  type MainWireVentricularCalciumSourceTraceFitTrefPassiveProfileV1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveGridV1";
+import {
+  resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateV1,
+  type MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateIdV1,
+  type MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateV1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1";
+import {
   resolveMainWireAorticOutflowDistortionTransientArmV1,
   type MainWireAorticOutflowDistortionTransientArmIdV1,
   type MainWireAorticOutflowDistortionTransientArmV1,
@@ -156,12 +167,15 @@ import {
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createFixedResearchMainWireNormalAdultFiveWallProviderV1,
+  createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsAndFixedVentricularDistortionTransientV1,
+  createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1,
   resolveMainWireNormalAdultVentricularMaterialResearchPointV1,
   type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultVentricularMaterialResearchPointIdV1,
   type MainWireNormalAdultVentricularMaterialResearchPointV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import type { MainWireFiveWallMechanicsResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
   createMainWireNormalAdultCommonPericardiumV1,
   type MainWireNormalAdultCommonPericardiumCaseV1,
@@ -722,6 +736,76 @@ export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibra
       ventricularCalciumProfileHeldFixedAcrossCandidates: true;
       aorticValveAreaOrLawChanged: false;
       vascularUnstressedVolumesChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllResolvedOwners: true;
+      numericTargetOptimizationApplied: false;
+      patientFitOrCanonicalAdoption: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-tref-passive-profile";
+    profile: MainWireVentricularCalciumSourceTraceFitTrefPassiveProfileV1;
+    mechanicsResearchInput: MainWireFiveWallMechanicsResearchInputsV1;
+    calciumProfile: MainWireVentricularCalciumSourceTraceFitProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    resolvedProviderIdentity: Readonly<{
+      providerId: string;
+      parameterSetId: string;
+      parameterIdentityHash: string;
+      stateSchemaVersion: number;
+    }>;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      fixedFactorialProfileOnly: true;
+      ventricularCalciumProfileHeldFixedAcrossProfiles: true;
+      circulationRuntimeChanged: false;
+      fixedTotalBloodVolumeChanged: false;
+      aorticValveAreaOrLawChanged: false;
+      vascularUnstressedVolumesChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllResolvedOwners: true;
+      numericTargetOptimizationApplied: false;
+      patientFitOrCanonicalAdoption: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-tref-passive-distortion-candidate";
+    candidate:
+      MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateV1;
+    mechanicsResearchInput: MainWireFiveWallMechanicsResearchInputsV1;
+    calciumProfile: MainWireVentricularCalciumSourceTraceFitProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    resolvedProviderIdentity: Readonly<{
+      providerId: string;
+      parameterSetId: string;
+      parameterIdentityHash: string;
+      stateSchemaVersion: number;
+    }>;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      fixedPostParetoCandidateOnly: true;
+      pairedBaselineChangesOnlyExistingLandDistortionTransient: true;
+      ventricularCalciumProfileHeldFixedAcrossCandidates: true;
+      circulationRuntimeChanged: false;
+      fixedTotalBloodVolumeChanged: false;
+      aorticValveAreaOrLawChanged: false;
+      vascularUnstressedVolumesChanged: false;
+      calciumOrMechanicsStateAdded: false;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactProtocolIdentityIncludesAllResolvedOwners: true;
       numericTargetOptimizationApplied: false;
@@ -1983,6 +2067,217 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRe
       ventricularCalciumProfileHeldFixedAcrossCandidates: true as const,
       aorticValveAreaOrLawChanged: false as const,
       vascularUnstressedVolumesChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllResolvedOwners: true as const,
+      numericTargetOptimizationApplied: false as const,
+      patientFitOrCanonicalAdoption: false as const,
+    }),
+  });
+}
+
+/**
+ * One member of the fixed source-calcium Tref/passive factorial. The mechanics
+ * input is resolved from the named profile before assembly; callers cannot pass
+ * a free-form material patch or alter circulation, TBV, or valve ownership.
+ */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  profileId:
+    MainWireVentricularCalciumSourceTraceFitTrefPassiveProfileIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile =
+    resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveProfileV1(
+      profileId,
+    );
+  const mechanicsResearchInput =
+    resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveMechanicsInputV1(
+      profileId,
+    );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+      mechanicsResearchInput,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const calciumProfile =
+    MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceTraceFitParamsV1();
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  const resolvedProviderIdentity = Object.freeze({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  const protocol = periodicResult.protocolIdentity;
+  if (
+    protocol.mechanicsProvider.providerId
+      !== resolvedProviderIdentity.providerId
+    || protocol.mechanicsProvider.parameterSetId
+      !== resolvedProviderIdentity.parameterSetId
+    || protocol.mechanicsProvider.parameterIdentityHash
+      !== resolvedProviderIdentity.parameterIdentityHash
+    || protocol.mechanicsProvider.stateSchemaVersion
+      !== resolvedProviderIdentity.stateSchemaVersion
+    || protocol.bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl
+      !== bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl
+    || protocol.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || protocol.calciumDrive.fixedParamsStableHash
+      !== hashProtocolValue(calciumDriveParams)
+  ) {
+    throw new Error(
+      "source-calcium Tref/passive assembly drifted from protocol identity",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-tref-passive-profile" as const,
+    profile,
+    mechanicsResearchInput,
+    calciumProfile,
+    calciumDriveParams,
+    resolvedProviderIdentity,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedFactorialProfileOnly: true as const,
+      ventricularCalciumProfileHeldFixedAcrossProfiles: true as const,
+      circulationRuntimeChanged: false as const,
+      fixedTotalBloodVolumeChanged: false as const,
+      aorticValveAreaOrLawChanged: false as const,
+      vascularUnstressedVolumesChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllResolvedOwners: true as const,
+      numericTargetOptimizationApplied: false as const,
+      patientFitOrCanonicalAdoption: false as const,
+    }),
+  });
+}
+
+/** Fixed existing-Land distortion transient on one post-Pareto mechanics arm. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  candidateId:
+    MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const candidate =
+    resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateV1(
+      candidateId,
+    );
+  const mechanicsResearchInput =
+    resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveMechanicsInputV1(
+      candidate.pairedBaselineProfileId,
+    );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsAndFixedVentricularDistortionTransientV1(
+      mechanicsResearchInput,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const calciumProfile =
+    MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceTraceFitParamsV1();
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  const resolvedProviderIdentity = Object.freeze({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  const protocol = periodicResult.protocolIdentity;
+  if (
+    protocol.mechanicsProvider.providerId
+      !== resolvedProviderIdentity.providerId
+    || protocol.mechanicsProvider.parameterSetId
+      !== resolvedProviderIdentity.parameterSetId
+    || protocol.mechanicsProvider.parameterIdentityHash
+      !== resolvedProviderIdentity.parameterIdentityHash
+    || protocol.mechanicsProvider.stateSchemaVersion
+      !== resolvedProviderIdentity.stateSchemaVersion
+    || protocol.bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl
+      !== bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl
+    || protocol.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || protocol.calciumDrive.fixedParamsStableHash
+      !== hashProtocolValue(calciumDriveParams)
+  ) {
+    throw new Error(
+      "source-calcium Tref/passive distortion assembly drifted from protocol identity",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-tref-passive-distortion-candidate" as const,
+    candidate,
+    mechanicsResearchInput,
+    calciumProfile,
+    calciumDriveParams,
+    resolvedProviderIdentity,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedPostParetoCandidateOnly: true as const,
+      pairedBaselineChangesOnlyExistingLandDistortionTransient: true as const,
+      ventricularCalciumProfileHeldFixedAcrossCandidates: true as const,
+      circulationRuntimeChanged: false as const,
+      fixedTotalBloodVolumeChanged: false as const,
+      aorticValveAreaOrLawChanged: false as const,
+      vascularUnstressedVolumesChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesAllResolvedOwners: true as const,
       numericTargetOptimizationApplied: false as const,

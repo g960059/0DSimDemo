@@ -69,6 +69,8 @@
     "characterize:scientific:ventricular-calcium-source-trace-fit-dt:v1": "vite-node --script tools/scientific/runMainWireVentricularCalciumSourceTraceFitDtComparisonV1.ts",
     "characterize:scientific:ventricular-calcium-source-trace-fit-recalibration-sensitivity:v1": "vite-node --script tools/scientific/runMainWireVentricularCalciumSourceTraceFitRecalibrationSensitivityV1.ts",
     "characterize:scientific:ventricular-calcium-source-trace-fit-recalibration-candidates:v1": "vite-node --script tools/scientific/runMainWireVentricularCalciumSourceTraceFitRecalibrationCandidatesV1.ts",
+    "characterize:scientific:ventricular-calcium-source-trace-fit-tref-passive-pareto:v1": "vite-node --script tools/scientific/runMainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1.ts",
+    "characterize:scientific:ventricular-calcium-source-trace-fit-tref-passive-distortion:v1": "vite-node --script tools/scientific/runMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionComparisonV1.ts",
     "characterize:scientific:aortic-outflow-calcium-peak-locked-tail:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumPeakLockedTailAblationV1.ts",
     "characterize:scientific:aortic-outflow-length-dependence-root-resistance-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLengthDependenceRootResistanceFactorialV1.ts",
     "characterize:scientific:aortic-outflow-length-dependence-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLengthDependenceEnvelopeV1.ts",

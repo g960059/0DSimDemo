@@ -7,6 +7,12 @@ import {
 import {
   compareMainWireVentricularCalciumSourceTraceFitRecalibrationCandidatesV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateComparisonV1";
+import {
+  analyzeMainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1";
+import {
+  compareMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionComparisonV1";
 import type {
   MainWireAorticValveObservationGeometryV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
@@ -19,10 +25,21 @@ import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_RECALIBRATION_CANDIDATE_IDS_V1,
 } from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitRecalibrationCandidatesV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PASSIVE_LEVELS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_LEVELS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_PROFILES_V1,
+  resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveMechanicsInputV1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveGridV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_DISTORTION_CANDIDATES_V1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1";
+import {
   runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationCandidateResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 const GEOMETRY = Object.freeze({
@@ -189,5 +206,182 @@ describe("main-wire source-trace calcium recalibration sensitivity V1", () => {
         }],
         GEOMETRY,
       )).toThrow("requires 3 candidates");
+  }, 60_000);
+
+  it("defines a complete fixed ventricular Tref/passive factorial", () => {
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_PROFILES_V1)
+      .toHaveLength(
+        MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_LEVELS_V1.length
+        * MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PASSIVE_LEVELS_V1.length,
+      );
+    expect(new Set(
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_PROFILES_V1
+        .map((profile) => `${profile.ventricularLandTrefScaleFromBaseline}/${
+          profile.ventricularEquilibriumPassiveScaleFromBaseline}`),
+    ).size).toBe(12);
+    for (const profile of
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_PROFILES_V1) {
+      const input =
+        resolveMainWireVentricularCalciumSourceTraceFitTrefPassiveMechanicsInputV1(
+          profile.profileId,
+        );
+      expect(Object.isFrozen(profile)).toBe(true);
+      expect(Object.isFrozen(input)).toBe(true);
+      expect(input.activeTensionScaleByWall).toMatchObject({
+        LA: 1,
+        RA: 1,
+        LVFW: profile.ventricularLandTrefScaleFromBaseline,
+        SEP: profile.ventricularLandTrefScaleFromBaseline,
+        RVFW: profile.ventricularLandTrefScaleFromBaseline,
+      });
+      expect(input.passiveStiffnessScaleByWall).toMatchObject({
+        LA: 1,
+        RA: 1,
+        LVFW: profile.ventricularEquilibriumPassiveScaleFromBaseline,
+        SEP: profile.ventricularEquilibriumPassiveScaleFromBaseline,
+        RVFW: profile.ventricularEquilibriumPassiveScaleFromBaseline,
+      });
+      expect(Object.values(input.calciumDecayTimeScaleByWall)
+        .every((scale) => scale === 1)).toBe(true);
+      expect(profile.claim).toMatchObject({
+        fixedProfileNotGenericPatch: true,
+        ventricularCalciumDriveChanged: false,
+        fixedTotalBloodVolumeChanged: false,
+        aorticValveAreaOrLawChanged: false,
+      });
+    }
+  });
+
+  it("measures the fixed factorial as three separate Pareto objectives", () => {
+    const options = { dtSec: 0.02, maximumBeatCount: 1 } as const;
+    const canonical =
+      runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1(
+        options,
+        "canonical",
+      );
+    const runs =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_PROFILES_V1
+        .map((profile) =>
+          runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchV1(
+            options,
+            profile.profileId,
+          ));
+    const inputs = runs.map((run) => ({
+      profileId: run.profile.profileId,
+      periodicResult: run.periodicResult,
+    }));
+    const measured =
+      analyzeMainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1(
+        canonical.periodicResult,
+        inputs,
+        GEOMETRY,
+      );
+
+    expect(measured.arms).toHaveLength(12);
+    expect(measured.sourceGridArmsShareCalciumDriveIdentity).toBe(true);
+    expect(measured.canonicalAndSourceCalciumDriveIdentitiesAreDistinct)
+      .toBe(true);
+    expect(measured.allRunsPeriod1AndIntegrated).toBe(false);
+    expect(measured.interpretationEligible).toBe(false);
+    expect(measured.paretoProfileIds.length).toBeGreaterThan(0);
+    expect(measured.rankByMacroRestorationDistance).toHaveLength(12);
+    expect(measured.rankByFillingPressureDistance).toHaveLength(12);
+    expect(measured.rankByOutflowShapeDistance).toHaveLength(12);
+    expect(measured.arms.every((arm) =>
+      Object.values(arm.objectives).every(Number.isFinite)
+      && Number.isFinite(arm.ejectionConcentrationIndex)
+      && arm.readback.observationStations.timeMeanGradientMmHg
+        .simplifiedDoppler
+        > arm.readback.observationStations.timeMeanGradientMmHg
+          .proximalVelocityCorrectedDoppler)).toBe(true);
+    expect(runs.every((run) =>
+      run.claim.genericParameterPatchAccepted === false
+      && run.claim.fixedTotalBloodVolumeChanged === false
+      && run.claim.aorticValveAreaOrLawChanged === false)).toBe(true);
+    expect(() =>
+      analyzeMainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1(
+        canonical.periodicResult,
+        inputs.slice(1),
+        GEOMETRY,
+      )).toThrow("requires 12 arms");
+    expect(() =>
+      analyzeMainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1(
+        canonical.periodicResult,
+        [inputs[0]!, ...inputs.slice(0, -1)],
+        GEOMETRY,
+      )).toThrow("duplicate");
+  }, 60_000);
+
+  it("pairs each post-Pareto arm with only the existing Land distortion transient", () => {
+    const options = { dtSec: 0.02, maximumBeatCount: 1 } as const;
+    const canonical =
+      runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1(
+        options,
+        "canonical",
+      );
+    const pairs =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_DISTORTION_CANDIDATES_V1
+        .map((candidate) => ({
+          candidate,
+          baseline:
+            runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchV1(
+              options,
+              candidate.pairedBaselineProfileId,
+            ),
+          distortion:
+            runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchV1(
+              options,
+              candidate.candidateId,
+            ),
+        }));
+    const measured =
+      compareMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1(
+        canonical.periodicResult,
+        pairs.map((pair) => ({
+          candidateId: pair.candidate.candidateId,
+          pairedBaselineResult: pair.baseline.periodicResult,
+          distortionResult: pair.distortion.periodicResult,
+        })),
+        GEOMETRY,
+      );
+
+    expect(measured.arms).toHaveLength(6);
+    expect(measured.allSourceRunsShareCalciumDriveIdentity).toBe(true);
+    expect(measured.allPairsHaveDistinctMechanicsProviderIdentity).toBe(true);
+    expect(measured.allPairsShareNonMechanicsProtocolComponents).toBe(true);
+    expect(measured.allRunsPeriod1AndIntegrated).toBe(false);
+    expect(measured.interpretationEligible).toBe(false);
+    expect(measured.rankByDistortionEqualWeightThreeObjectiveDistance)
+      .toHaveLength(6);
+    expect(pairs.every((pair) =>
+      pair.candidate.commonVentricularLandAeffScaleFromBaseline === 4 / 3
+      && pair.candidate.commonVentricularLandPhiScaleFromBaseline === 4 / 3
+      && pair.distortion.claim.genericParameterPatchAccepted === false
+      && pair.distortion.claim.calciumOrMechanicsStateAdded === false
+      && pair.baseline.periodicResult.protocolIdentity.mechanicsProvider
+        .stateSchemaVersion
+        === pair.distortion.periodicResult.protocolIdentity.mechanicsProvider
+          .stateSchemaVersion)).toBe(true);
+    expect(measured.arms.every((arm) =>
+      Object.values(arm.objectiveAbsoluteDeltaFromPairedBaseline)
+        .every(Number.isFinite)
+      && arm.distortionEvaluation.ejectionConcentrationIndex
+        < arm.pairedBaselineEvaluation.ejectionConcentrationIndex)).toBe(true);
+    expect(measured.claim).toMatchObject({
+      existingLandDistortionStateReused: true,
+      newValveStateOrLocalInertanceAdded: false,
+      parameterOptimizationOrFitApplied: false,
+      candidateAdoptionEstablished: false,
+    });
+    expect(() =>
+      compareMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1(
+        canonical.periodicResult,
+        pairs.slice(1).map((pair) => ({
+          candidateId: pair.candidate.candidateId,
+          pairedBaselineResult: pair.baseline.periodicResult,
+          distortionResult: pair.distortion.periodicResult,
+        })),
+        GEOMETRY,
+      )).toThrow("requires 6 candidates");
   }, 60_000);
 });
