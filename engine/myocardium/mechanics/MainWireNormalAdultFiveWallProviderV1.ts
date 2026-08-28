@@ -144,6 +144,10 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
     "ventricular-length-dependence-quarter",
     "ventricular-length-dependence-exact-off",
     "ventricular-velocity-distortion-high",
+    "ventricular-distortion-recovery-high",
+    "ventricular-velocity-distortion-high-plus-recovery-high",
+    "ventricular-distortion-transient-twofold",
+    "ventricular-distortion-transient-fourfold",
     "ventricular-length-dependence-low-plus-velocity-distortion-high",
   ] as const);
 
@@ -157,10 +161,12 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
   ventricularLandTrefScaleFromBaseline: number;
   ventricularLandLengthDependenceScaleFromBaseline: number;
   ventricularLandVelocityDistortionScaleFromBaseline: number;
+  ventricularLandDistortionRecoveryScaleFromBaseline: number;
   resolvedVentricularLandTrefPa: number;
   resolvedVentricularLandBeta0: number;
   resolvedVentricularLandBeta1UM: number;
   resolvedVentricularLandAeff: number;
+  resolvedVentricularLandPhi: number;
   wallScope: readonly ["LVFW", "SEP", "RVFW"];
   claim: Readonly<{
     sourceResearchOnly: true;
@@ -171,6 +177,7 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
     independentLvAndRvEdpvrClaimed: false;
     landBeta0AndBeta1ScaledTogether: boolean;
     landAeffScaledWithDerivedAwAndAs: boolean;
+    landPhiScaledWithDerivedCwAndCs: boolean;
     referenceLengthIsometricLandValuesUnchanged: boolean;
   }>;
 }>;
@@ -655,11 +662,27 @@ function resolveVentricularMaterialProfile(
             ? 0
             : 1;
   const velocityDistortionScale =
-    pointId === "ventricular-velocity-distortion-high"
+    pointId === "ventricular-distortion-transient-twofold"
+      ? 2
+      : pointId === "ventricular-distortion-transient-fourfold"
+        ? 4
+        : pointId === "ventricular-velocity-distortion-high"
+        || pointId
+          === "ventricular-velocity-distortion-high-plus-recovery-high"
         || pointId
           === "ventricular-length-dependence-low-plus-velocity-distortion-high"
-      ? 4 / 3
-      : 1;
+          ? 4 / 3
+          : 1;
+  const distortionRecoveryScale =
+    pointId === "ventricular-distortion-transient-twofold"
+      ? 2
+      : pointId === "ventricular-distortion-transient-fourfold"
+        ? 4
+        : pointId === "ventricular-distortion-recovery-high"
+        || pointId
+          === "ventricular-velocity-distortion-high-plus-recovery-high"
+          ? 4 / 3
+          : 1;
   const baselinePassive = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular;
   const baselineMaterial =
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
@@ -682,11 +705,14 @@ function resolveVentricularMaterialProfile(
   const landEquationParameters =
     pointId === "ventricular-tref-low" || pointId === "ventricular-tref-high"
       ? scaledVentricularLandTref(pointId, trefScale)
-      : lengthDependenceScale !== 1 || velocityDistortionScale !== 1
+      : lengthDependenceScale !== 1
+          || velocityDistortionScale !== 1
+          || distortionRecoveryScale !== 1
         ? scaledVentricularLandKinematicDependence(
           pointId,
           lengthDependenceScale,
           velocityDistortionScale,
+          distortionRecoveryScale,
         )
         : baselineMaterial.landEquationParameters;
   const sls =
@@ -702,6 +728,7 @@ function resolveVentricularMaterialProfile(
         && trefScale === 1
         && lengthDependenceScale === 1
         && velocityDistortionScale === 1
+        && distortionRecoveryScale === 1
       ? baselineMaterial
       : Object.freeze({
           ...baselineMaterial,
@@ -718,10 +745,13 @@ function resolveVentricularMaterialProfile(
       lengthDependenceScale,
     ventricularLandVelocityDistortionScaleFromBaseline:
       velocityDistortionScale,
+    ventricularLandDistortionRecoveryScaleFromBaseline:
+      distortionRecoveryScale,
     resolvedVentricularLandTrefPa: landEquationParameters.values.Tref,
     resolvedVentricularLandBeta0: landEquationParameters.values.beta0,
     resolvedVentricularLandBeta1UM: landEquationParameters.values.beta1,
     resolvedVentricularLandAeff: landEquationParameters.values.Aeff,
+    resolvedVentricularLandPhi: landEquationParameters.values.phi,
     wallScope: Object.freeze(["LVFW", "SEP", "RVFW"] as const),
     claim: Object.freeze({
       sourceResearchOnly: true as const,
@@ -734,8 +764,14 @@ function resolveVentricularMaterialProfile(
         lengthDependenceScale !== 1,
       landAeffScaledWithDerivedAwAndAs:
         velocityDistortionScale !== 1,
+      landPhiScaledWithDerivedCwAndCs:
+        distortionRecoveryScale !== 1,
       referenceLengthIsometricLandValuesUnchanged:
-        (lengthDependenceScale !== 1 || velocityDistortionScale !== 1)
+        (
+          lengthDependenceScale !== 1
+          || velocityDistortionScale !== 1
+          || distortionRecoveryScale !== 1
+        )
         && passiveScale === 1
         && trefScale === 1,
     }),
@@ -747,11 +783,13 @@ function scaledVentricularLandKinematicDependence(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
   lengthDependenceScale: number,
   velocityDistortionScale: number,
+  distortionRecoveryScale: number,
 ): Land2017SourceParameterSet {
   const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
   const values = Object.freeze({
     ...baseline.values,
     Aeff: baseline.values.Aeff * velocityDistortionScale,
+    phi: baseline.values.phi * distortionRecoveryScale,
     beta0: lengthDependenceScale === 0
       ? 0
       : baseline.values.beta0 * lengthDependenceScale,
@@ -763,6 +801,8 @@ function scaledVentricularLandKinematicDependence(
     `fixed loaded-length-dependence research scale ${lengthDependenceScale}`;
   const velocityProvenance =
     `fixed velocity-distortion research scale ${velocityDistortionScale}`;
+  const recoveryProvenance =
+    `fixed distortion-recovery research scale ${distortionRecoveryScale}`;
   const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> =
     {
       parameterSetId: `${baseline.parameterSetId}-${pointId}`,
@@ -774,6 +814,8 @@ function scaledVentricularLandKinematicDependence(
         baseline.sourceParameters.map((entry) => {
           const scaledValue = entry.parameter === "Aeff"
             ? values.Aeff
+            : entry.parameter === "phi"
+              ? values.phi
             : entry.parameter === "beta0"
               ? values.beta0
               : entry.parameter === "beta1"
@@ -781,6 +823,8 @@ function scaledVentricularLandKinematicDependence(
                 : null;
           const provenanceLabel = entry.parameter === "Aeff"
             ? velocityProvenance
+            : entry.parameter === "phi"
+              ? recoveryProvenance
             : lengthProvenance;
           return Object.freeze({
             ...entry,

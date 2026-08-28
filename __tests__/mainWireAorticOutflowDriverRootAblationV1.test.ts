@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compareMainWireAorticOutflowDistortionTransientFactorialV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowDistortionTransientFactorialV1";
+import {
   compareMainWireAorticOutflowDriverRootAblationV1,
   type MainWireAorticOutflowDriverRootArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDriverRootComparisonV1";
@@ -49,6 +52,10 @@ import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_DISTORTION_TRANSIENT_ARM_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_DISTORTION_TRANSIENT_CLAIM_V1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowDistortionTransientAblationV1";
+import {
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_ARM_IDS_V1,
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
@@ -68,6 +75,7 @@ import {
   runMainWireNormalAdultFiveWallAorticValveLocalInertanceResearchV1,
   runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1,
+  runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1,
@@ -495,6 +503,71 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         periodicResult: run.periodicResult,
       })),
     )).toThrow("missing velocity/stiffness arm");
+  }, 60_000);
+
+  it("separates Land distortion amplitude from recovery and seals the proportional envelope", () => {
+    const runs = MAIN_WIRE_AORTIC_OUTFLOW_DISTORTION_TRANSIENT_ARM_IDS_V1.map(
+      (armId) =>
+        runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchArmV1(
+          { dtSec: 0.01, maximumBeatCount: 1 },
+          armId,
+        ),
+    );
+    const factorial =
+      compareMainWireAorticOutflowDistortionTransientFactorialV1(
+        runs.map((run) => ({
+          armId: run.arm.armId,
+          periodicResult: run.periodicResult,
+        })),
+      );
+    expect(factorial.arms).toHaveLength(6);
+    expect(factorial.factorialContrasts).toHaveLength(15);
+    expect(factorial.arms.map((arm) => arm.materialPoint
+      .ventricularLandVelocityDistortionScaleFromBaseline))
+      .toEqual([1, 4 / 3, 1, 4 / 3, 2, 4]);
+    expect(factorial.arms.map((arm) => arm.materialPoint
+      .ventricularLandDistortionRecoveryScaleFromBaseline))
+      .toEqual([1, 1, 4 / 3, 4 / 3, 2, 4]);
+    expect(factorial.referenceLengthIsometricInvariance).toEqual({
+      maximumAbsoluteActiveTwitchMetricDifference: 0,
+      exactAtFloatingPointAcrossFactorial: true,
+    });
+    expect(factorial.combinedConstantRateSteadyGainPreservation)
+      .toMatchObject({
+        preservedWithinFloatingPointTolerance: true,
+        weakRecoveryTimeConstantScaleFromCanonical: 0.75,
+        strongRecoveryTimeConstantScaleFromCanonical: 0.75,
+      });
+    expect(factorial.proportionalTransientEnvelope.points.map((point) =>
+      point.commonAeffAndPhiScaleFromCanonical)).toEqual([1, 4 / 3, 2, 4]);
+    expect(factorial.proportionalDistortionProtocolAudit)
+      .toMatchObject({
+        quickEndRampStressFractionStrictlyDecreasesWithFasterTransient: true,
+      });
+    expect(factorial.proportionalDistortionProtocolAudit
+      .maximumAbsoluteConstantVelocityEndRampStressFractionDifference)
+      .toBeLessThan(0.001);
+    expect(factorial.proportionalDistortionProtocolAudit
+      .maximumAbsoluteQuickRecoveryEndHoldStressFractionDifference)
+      .toBeLessThan(0.005);
+    expect(factorial.arms.every((arm) =>
+      arm.cycle.integrationCompletedWithoutFailure)).toBe(true);
+    expect(new Set(factorial.arms.map((arm) =>
+      arm.protocolIdentityHash)).size).toBe(6);
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_DISTORTION_TRANSIENT_CLAIM_V1)
+      .toMatchObject({
+        combinedZetaSteadyGainPreservedAtFixedStrainRate: true,
+        quickStretchResponsePreserved: false,
+        existingLandStateCountChanged: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+      });
+    expect(allNumbersFinite(factorial)).toBe(true);
+    expect(() => compareMainWireAorticOutflowDistortionTransientFactorialV1(
+      runs.slice(0, 5).map((run) => ({
+        armId: run.arm.armId,
+        periodicResult: run.periodicResult,
+      })),
+    )).toThrow("missing distortion-transient arm");
   }, 60_000);
 
   it("brackets the exact global arterial PV stiffness without adding state", () => {

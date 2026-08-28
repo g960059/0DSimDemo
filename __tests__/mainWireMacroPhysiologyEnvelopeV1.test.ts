@@ -128,6 +128,27 @@ describe("main-wire fixed macro physiology envelope V1", () => {
     expect(velocityDistortion.resolvedVentricularLandBeta0).toBe(2.3);
     expect(velocityDistortion.claim.landAeffScaledWithDerivedAwAndAs)
       .toBe(true);
+    const distortionRecovery =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-distortion-recovery-high",
+      );
+    expect(distortionRecovery
+      .ventricularLandDistortionRecoveryScaleFromBaseline).toBe(4 / 3);
+    expect(distortionRecovery.resolvedVentricularLandPhi)
+      .toBeCloseTo(2.23 * 4 / 3);
+    expect(distortionRecovery.resolvedVentricularLandAeff).toBe(25);
+    expect(distortionRecovery.claim.landPhiScaledWithDerivedCwAndCs)
+      .toBe(true);
+    const fastDistortionTransient =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-distortion-transient-twofold",
+      );
+    expect(fastDistortionTransient
+      .ventricularLandVelocityDistortionScaleFromBaseline).toBe(2);
+    expect(fastDistortionTransient
+      .ventricularLandDistortionRecoveryScaleFromBaseline).toBe(2);
+    expect(fastDistortionTransient.resolvedVentricularLandAeff).toBe(50);
+    expect(fastDistortionTransient.resolvedVentricularLandPhi).toBe(4.46);
     const combinedKinematics =
       resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
         "ventricular-length-dependence-low-plus-velocity-distortion-high",
