@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  PERIODIC_BIEXPONENTIAL_ALPHA_LIMIT_RELATIVE_SEPARATION_V1,
+  evaluateNormalizedPeriodicBiexponentialCalciumPulseV1,
   evaluateFiveWallNormalCalciumDriveV1,
+  measurePeriodicBiexponentialCalciumPulseShapeV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 
 describe("five-wall normal prescribed calcium drive V1", () => {
@@ -73,5 +76,73 @@ describe("five-wall normal prescribed calcium drive V1", () => {
       expect(output.freeCalciumUMByWall.RA).toBe(p.atrial.diastolicCalciumUM);
       expect(output.claim.exactZeroPulseAmplitudeAllowed).toBe(true);
     }
+  });
+
+  it("uses a finite periodic alpha limit for equal and nearly equal time constants", () => {
+    const cycleLengthSec = 1;
+    const timeConstantSec = 0.1235;
+    const equalShape = measurePeriodicBiexponentialCalciumPulseShapeV1(
+      cycleLengthSec,
+      timeConstantSec,
+      timeConstantSec,
+    );
+    const nearShape = measurePeriodicBiexponentialCalciumPulseShapeV1(
+      cycleLengthSec,
+      timeConstantSec,
+      timeConstantSec * (
+        1 + 0.5
+          * PERIODIC_BIEXPONENTIAL_ALPHA_LIMIT_RELATIVE_SEPARATION_V1
+      ),
+    );
+    expect(equalShape.shapeRegime).toBe("alpha-limit");
+    expect(nearShape.shapeRegime).toBe("alpha-limit");
+    expect(equalShape.timeToPeakSec).toBeGreaterThan(0.12);
+    expect(equalShape.timeToPeakSec).toBeLessThan(0.124);
+    expect(equalShape.normalizedPulseCycleIntegralSec).toBeGreaterThan(0);
+
+    for (const timeSec of [0, 0.02, 0.08, 0.123, 0.25, 0.75, 1]) {
+      const equal = evaluateNormalizedPeriodicBiexponentialCalciumPulseV1(
+        timeSec,
+        cycleLengthSec,
+        timeConstantSec,
+        timeConstantSec,
+      );
+      const near = evaluateNormalizedPeriodicBiexponentialCalciumPulseV1(
+        timeSec,
+        cycleLengthSec,
+        timeConstantSec,
+        timeConstantSec * (
+          1 + 0.5
+            * PERIODIC_BIEXPONENTIAL_ALPHA_LIMIT_RELATIVE_SEPARATION_V1
+        ),
+      );
+      expect(Number.isFinite(equal)).toBe(true);
+      expect(equal).toBeGreaterThanOrEqual(0);
+      expect(equal).toBeLessThanOrEqual(1);
+      expect(near).toBeCloseTo(equal, 5);
+    }
+  });
+
+  it("accepts an alpha-limit ventricular profile without adding state", () => {
+    const baseline = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    const alphaParams = Object.freeze({
+      ...baseline,
+      parameterSetId: "five-wall-alpha-limit-calcium-test-v1",
+      ventricular: Object.freeze({
+        ...baseline.ventricular,
+        riseTimeConstantSec: 0.1235,
+        decayTimeConstantSec: 0.1235,
+      }),
+    });
+    const onset = alphaParams.ventricular.electricalToCalciumDelaySec;
+    const evaluation = evaluateFiveWallNormalCalciumDriveV1(
+      onset + 0.123,
+      alphaParams,
+    );
+    expect(evaluation.ventricularNormalizedPulse01).toBeGreaterThan(0.99);
+    expect(evaluation.freeCalciumUMByWall.LVFW)
+      .toBe(evaluation.freeCalciumUMByWall.SEP);
+    expect(evaluation.claim.waveform)
+      .toBe("periodic-analytically-normalized-biexponential");
   });
 });

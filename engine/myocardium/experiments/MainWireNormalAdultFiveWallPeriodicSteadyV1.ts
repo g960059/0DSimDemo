@@ -50,6 +50,11 @@ import {
   type MainWireVentricularCalciumSourceConstrainedProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceConstrainedPriorV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1,
+  resolveMainWireVentricularCalciumSourceTraceFitParamsV1,
+  type MainWireVentricularCalciumSourceTraceFitProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceTraceFitPriorV1";
+import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1_ID,
   resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
   resolveMainWireVentricularCalciumDelayedMixtureProfileV1,
@@ -92,6 +97,16 @@ import {
   type MainWireNormalAdultFiveWallMacroPhysiologyPointIdV1,
   type MainWireNormalAdultFiveWallMacroPhysiologyPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallMacroPhysiologyPointsV1";
+import {
+  resolveMainWireVentricularCalciumSourceTraceFitRecalibrationPointV1,
+  type MainWireVentricularCalciumSourceTraceFitRecalibrationPointIdV1,
+  type MainWireVentricularCalciumSourceTraceFitRecalibrationPointV1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitRecalibrationPointsV1";
+import {
+  resolveMainWireVentricularCalciumSourceTraceFitRecalibrationCandidateV1,
+  type MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateIdV1,
+  type MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateV1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitRecalibrationCandidatesV1";
 import {
   resolveMainWireAorticOutflowDistortionTransientArmV1,
   type MainWireAorticOutflowDistortionTransientArmIdV1,
@@ -616,6 +631,101 @@ export type MainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResear
       calciumOrMechanicsStateAdded: false;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-research-profile";
+    profile: MainWireVentricularCalciumSourceTraceFitProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-recalibration-point";
+    point: MainWireVentricularCalciumSourceTraceFitRecalibrationPointV1;
+    calciumProfile: MainWireVentricularCalciumSourceTraceFitProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    ventricularMaterialPoint:
+      MainWireNormalAdultVentricularMaterialResearchPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    resolvedProviderIdentity: Readonly<{
+      providerId: string;
+      parameterSetId: string;
+      parameterIdentityHash: string;
+      stateSchemaVersion: number;
+    }>;
+    resolvedBloodVolumeIdentity:
+      MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      oneFactorAtATime: true;
+      ventricularCalciumProfileHeldFixedAcrossPoints: true;
+      aorticValveAreaOrLawChanged: false;
+      vascularUnstressedVolumesChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllResolvedOwners: true;
+      parameterOptimizationOrPatientFit: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationCandidateResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-recalibration-candidate";
+    candidate:
+      MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateV1;
+    calciumProfile: MainWireVentricularCalciumSourceTraceFitProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    ventricularMaterialPoint:
+      MainWireNormalAdultVentricularMaterialResearchPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    resolvedProviderIdentity: Readonly<{
+      providerId: string;
+      parameterSetId: string;
+      parameterIdentityHash: string;
+      stateSchemaVersion: number;
+    }>;
+    resolvedBloodVolumeIdentity:
+      MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      fixedCandidateOnly: true;
+      ventricularCalciumProfileHeldFixedAcrossCandidates: true;
+      aorticValveAreaOrLawChanged: false;
+      vascularUnstressedVolumesChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllResolvedOwners: true;
+      numericTargetOptimizationApplied: false;
+      patientFitOrCanonicalAdoption: false;
     }>;
   }>;
 
@@ -1612,6 +1722,271 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumSourceConstraine
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/** Fixed whole-trace source fit from an independent canonical cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile = MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceTraceFitParamsV1();
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-research-profile" as const,
+    profile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/**
+ * Fixed one-factor recalibration point with the whole-trace calcium profile.
+ * Every semantic owner is resolved before an independent canonical cold start;
+ * arbitrary runtime, material, blood-volume, or calcium patches are absent.
+ */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  pointId:
+    MainWireVentricularCalciumSourceTraceFitRecalibrationPointIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const point =
+    resolveMainWireVentricularCalciumSourceTraceFitRecalibrationPointV1(
+      pointId,
+    );
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    point.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      point.circulatoryLoadPointId,
+    );
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    point.ventricularMaterialPointId,
+  );
+  const ventricularMaterialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      point.ventricularMaterialPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    point.stressedVenousVolumePointId,
+  );
+  const calciumProfile =
+    MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceTraceFitParamsV1();
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  const resolvedProviderIdentity = Object.freeze({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  if (
+    periodicResult.protocolIdentity.mechanicsProvider.providerId
+      !== resolvedProviderIdentity.providerId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterSetId
+      !== resolvedProviderIdentity.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== resolvedProviderIdentity.parameterIdentityHash
+    || periodicResult.protocolIdentity.bloodVolumeOperatingPoint
+      .fixedTotalBloodVolumeMl
+      !== bloodVolume.operatingPoint.fixedTotalBloodVolumeMl
+  ) {
+    throw new Error(
+      "calcium source-trace recalibration assembly drifted from protocol identity",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-recalibration-point" as const,
+    point,
+    calciumProfile,
+    calciumDriveParams,
+    circulatoryLoadPoint,
+    ventricularMaterialPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    resolvedProviderIdentity,
+    resolvedBloodVolumeIdentity: bloodVolume.operatingPoint.identity,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      oneFactorAtATime: true as const,
+      ventricularCalciumProfileHeldFixedAcrossPoints: true as const,
+      aorticValveAreaOrLawChanged: false as const,
+      vascularUnstressedVolumesChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllResolvedOwners: true as const,
+      parameterOptimizationOrPatientFit: false as const,
+    }),
+  });
+}
+
+/** Three fixed, bounded post-SVD corner probes; no continuous fit surface. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationCandidateResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  candidateId:
+    MainWireVentricularCalciumSourceTraceFitRecalibrationCandidateIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationCandidateResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const candidate =
+    resolveMainWireVentricularCalciumSourceTraceFitRecalibrationCandidateV1(
+      candidateId,
+    );
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    candidate.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      candidate.circulatoryLoadPointId,
+    );
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    candidate.ventricularMaterialPointId,
+  );
+  const ventricularMaterialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      candidate.ventricularMaterialPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    candidate.stressedVenousVolumePointId,
+  );
+  const calciumProfile =
+    MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceTraceFitParamsV1();
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  const resolvedProviderIdentity = Object.freeze({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  if (
+    periodicResult.protocolIdentity.mechanicsProvider.providerId
+      !== resolvedProviderIdentity.providerId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterSetId
+      !== resolvedProviderIdentity.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== resolvedProviderIdentity.parameterIdentityHash
+    || periodicResult.protocolIdentity.bloodVolumeOperatingPoint
+      .fixedTotalBloodVolumeMl
+      !== bloodVolume.operatingPoint.fixedTotalBloodVolumeMl
+  ) {
+    throw new Error(
+      "calcium source-trace recalibration candidate drifted from protocol identity",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-trace-fit-recalibration-candidate" as const,
+    candidate,
+    calciumProfile,
+    calciumDriveParams,
+    circulatoryLoadPoint,
+    ventricularMaterialPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    resolvedProviderIdentity,
+    resolvedBloodVolumeIdentity: bloodVolume.operatingPoint.identity,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedCandidateOnly: true as const,
+      ventricularCalciumProfileHeldFixedAcrossCandidates: true as const,
+      aorticValveAreaOrLawChanged: false as const,
+      vascularUnstressedVolumesChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllResolvedOwners: true as const,
+      numericTargetOptimizationApplied: false as const,
+      patientFitOrCanonicalAdoption: false as const,
     }),
   });
 }

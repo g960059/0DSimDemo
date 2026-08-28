@@ -139,6 +139,7 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
     "ventricular-passive-high",
     "ventricular-tref-low",
     "ventricular-tref-high",
+    "ventricular-tref-high-plus-passive-low",
     "ventricular-length-dependence-low",
     "ventricular-length-dependence-half",
     "ventricular-length-dependence-quarter",
@@ -648,6 +649,7 @@ function resolveVentricularMaterialProfile(
   }
   const passiveScale =
     pointId === "ventricular-passive-low"
+      || pointId === "ventricular-tref-high-plus-passive-low"
       ? 0.75
       : pointId === "ventricular-passive-high"
         ? 4 / 3
@@ -656,6 +658,7 @@ function resolveVentricularMaterialProfile(
     pointId === "ventricular-tref-low"
       ? 0.75
       : pointId === "ventricular-tref-high"
+        || pointId === "ventricular-tref-high-plus-passive-low"
         ? 4 / 3
         : 1;
   const lengthDependenceScale =
@@ -724,7 +727,9 @@ function resolveVentricularMaterialProfile(
           }),
         );
   const landEquationParameters =
-    pointId === "ventricular-tref-low" || pointId === "ventricular-tref-high"
+    pointId === "ventricular-tref-low"
+      || pointId === "ventricular-tref-high"
+      || pointId === "ventricular-tref-high-plus-passive-low"
       ? scaledVentricularLandTref(pointId, trefScale)
       : peakTensionLengthDependenceScale !== 1
           || calciumSensitivityLengthDependenceScale !== 1
@@ -894,7 +899,10 @@ function scaledVentricularLandKinematicDependence(
 }
 
 function scaledVentricularLandTref(
-  pointId: "ventricular-tref-low" | "ventricular-tref-high",
+  pointId:
+    | "ventricular-tref-low"
+    | "ventricular-tref-high"
+    | "ventricular-tref-high-plus-passive-low",
   scale: number,
 ): Land2017SourceParameterSet {
   return scaledVentricularLandTrefForScale(

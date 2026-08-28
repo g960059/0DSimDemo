@@ -121,12 +121,21 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1 = Object.freeze({
 });
 
 export type PeriodicBiexponentialCalciumPulseShapeV1 = Readonly<{
+  shapeRegime: "biexponential" | "alpha-limit";
   cycleLengthSec: number;
   riseTimeConstantSec: number;
   decayTimeConstantSec: number;
   timeToPeakSec: number;
   normalizedPulseCycleIntegralSec: number;
 }>;
+
+/**
+ * Below this relative time-constant separation the subtraction of two nearly
+ * equal periodic exponentials is replaced by its analytic alpha-function
+ * limit. Existing canonical profiles remain on the original branch.
+ */
+export const PERIODIC_BIEXPONENTIAL_ALPHA_LIMIT_RELATIVE_SEPARATION_V1 =
+  1e-5 as const;
 
 export type PeriodicBiexponentialDelayedMixtureShapeV1 = Readonly<{
   cycleLengthSec: number;
@@ -152,8 +161,23 @@ export function measurePeriodicBiexponentialCalciumPulseShapeV1(
   requirePositive(cycleLengthSec, "cycleLengthSec");
   requirePositive(riseTimeConstantSec, "riseTimeConstantSec");
   requirePositive(decayTimeConstantSec, "decayTimeConstantSec");
-  if (!(decayTimeConstantSec > riseTimeConstantSec)) {
-    throw new Error("decay time constant must exceed rise time constant");
+  if (!(decayTimeConstantSec >= riseTimeConstantSec)) {
+    throw new Error("decay time constant must not be shorter than rise time constant");
+  }
+  if (usesPeriodicAlphaLimit(riseTimeConstantSec, decayTimeConstantSec)) {
+    const alpha = periodicAlphaLimitShape(
+      cycleLengthSec,
+      0.5 * (riseTimeConstantSec + decayTimeConstantSec),
+    );
+    return Object.freeze({
+      shapeRegime: "alpha-limit" as const,
+      cycleLengthSec,
+      riseTimeConstantSec,
+      decayTimeConstantSec,
+      timeToPeakSec: alpha.timeToPeakSec,
+      normalizedPulseCycleIntegralSec:
+        alpha.normalizedPulseCycleIntegralSec,
+    });
   }
   const decayCarry =
     1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
@@ -188,6 +212,7 @@ export function measurePeriodicBiexponentialCalciumPulseShapeV1(
     throw new Error("periodic biexponential pulse has no positive cycle integral");
   }
   return Object.freeze({
+    shapeRegime: "biexponential" as const,
     cycleLengthSec,
     riseTimeConstantSec,
     decayTimeConstantSec,
@@ -214,6 +239,11 @@ export function measurePeriodicBiexponentialDelayedMixtureShapeV1(
     riseTimeConstantSec,
     decayTimeConstantSec,
   );
+  if (base.shapeRegime === "alpha-limit") {
+    throw new Error(
+      "delayed-mixture shape does not admit the alpha-limit time-constant branch",
+    );
+  }
   if (
     !(delayedWeight01 > 0 && delayedWeight01 < 1)
     || !Number.isFinite(delayedWeight01)
@@ -426,14 +456,29 @@ export function evaluateFiveWallNormalCalciumDriveV1(
   });
 }
 
-function normalizedPeriodicBiexponential(
+export function evaluateNormalizedPeriodicBiexponentialCalciumPulseV1(
   timeSinceOnsetSec: number,
   cycleLengthSec: number,
   riseTimeConstantSec: number,
   decayTimeConstantSec: number,
 ): number {
-  if (!(decayTimeConstantSec > riseTimeConstantSec)) {
-    throw new Error("decay time constant must exceed rise time constant");
+  requireFinite(timeSinceOnsetSec, "timeSinceOnsetSec");
+  requirePositive(cycleLengthSec, "cycleLengthSec");
+  requirePositive(riseTimeConstantSec, "riseTimeConstantSec");
+  requirePositive(decayTimeConstantSec, "decayTimeConstantSec");
+  if (!(decayTimeConstantSec >= riseTimeConstantSec)) {
+    throw new Error("decay time constant must not be shorter than rise time constant");
+  }
+  if (usesPeriodicAlphaLimit(riseTimeConstantSec, decayTimeConstantSec)) {
+    const alpha = periodicAlphaLimitShape(
+      cycleLengthSec,
+      0.5 * (riseTimeConstantSec + decayTimeConstantSec),
+    );
+    return normalizedPulseFromRaw(
+      alpha.raw(positiveModulo(timeSinceOnsetSec, cycleLengthSec)),
+      alpha.minimum,
+      alpha.amplitude,
+    );
   }
   const decayCarry = 1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
   const riseCarry = 1 / (1 - Math.exp(-cycleLengthSec / riseTimeConstantSec));
@@ -451,12 +496,89 @@ function normalizedPeriodicBiexponential(
   if (!(amplitude > 0) || !Number.isFinite(amplitude)) {
     throw new Error("periodic biexponential pulse has no positive amplitude");
   }
-  const normalized = (raw(timeSinceOnsetSec) - minimum) / amplitude;
+  return normalizedPulseFromRaw(
+    raw(positiveModulo(timeSinceOnsetSec, cycleLengthSec)),
+    minimum,
+    amplitude,
+  );
+}
+
+function normalizedPeriodicBiexponential(
+  timeSinceOnsetSec: number,
+  cycleLengthSec: number,
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+): number {
+  return evaluateNormalizedPeriodicBiexponentialCalciumPulseV1(
+    timeSinceOnsetSec,
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+  );
+}
+
+function normalizedPulseFromRaw(
+  raw: number,
+  minimum: number,
+  amplitude: number,
+): number {
+  const normalized = (raw - minimum) / amplitude;
   const tolerance = 1e-12;
   if (normalized < -tolerance || normalized > 1 + tolerance) {
     throw new Error("normalized periodic biexponential pulse left [0,1]");
   }
   return Math.min(1, Math.max(0, normalized));
+}
+
+function usesPeriodicAlphaLimit(
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+): boolean {
+  return (decayTimeConstantSec - riseTimeConstantSec)
+    / Math.max(riseTimeConstantSec, decayTimeConstantSec)
+    <= PERIODIC_BIEXPONENTIAL_ALPHA_LIMIT_RELATIVE_SEPARATION_V1;
+}
+
+function periodicAlphaLimitShape(
+  cycleLengthSec: number,
+  timeConstantSec: number,
+): Readonly<{
+  timeToPeakSec: number;
+  normalizedPulseCycleIntegralSec: number;
+  minimum: number;
+  amplitude: number;
+  raw: (timeSec: number) => number;
+}> {
+  const carry = Math.exp(-cycleLengthSec / timeConstantSec);
+  const periodicAgeOffsetSec = cycleLengthSec * carry / (1 - carry);
+  const raw = (timeSec: number): number =>
+    (timeSec + periodicAgeOffsetSec) * Math.exp(-timeSec / timeConstantSec);
+  const timeToPeakSec = Math.min(
+    cycleLengthSec,
+    Math.max(0, timeConstantSec - periodicAgeOffsetSec),
+  );
+  const minimum = raw(0);
+  const amplitude = raw(timeToPeakSec) - minimum;
+  const rawCycleIntegralSec2 =
+    timeConstantSec ** 2 * (1 - carry);
+  const normalizedPulseCycleIntegralSec = (
+    rawCycleIntegralSec2 - cycleLengthSec * minimum
+  ) / amplitude;
+  if (
+    !(amplitude > 0)
+    || !(normalizedPulseCycleIntegralSec > 0)
+    || !Number.isFinite(amplitude)
+    || !Number.isFinite(normalizedPulseCycleIntegralSec)
+  ) {
+    throw new Error("periodic alpha-limit pulse has no finite positive shape");
+  }
+  return Object.freeze({
+    timeToPeakSec,
+    normalizedPulseCycleIntegralSec,
+    minimum,
+    amplitude,
+    raw,
+  });
 }
 
 function normalizedVentricularPulse(
@@ -554,8 +676,8 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
       requirePositive(scale, `${wall} decay-time scale`);
       const tissue =
         wall === "LA" || wall === "RA" ? params.atrial : params.ventricular;
-      if (!(tissue.decayTimeConstantSec * scale > tissue.riseTimeConstantSec)) {
-        throw new Error(`${wall} scaled decay time must exceed rise time`);
+      if (!(tissue.decayTimeConstantSec * scale >= tissue.riseTimeConstantSec)) {
+        throw new Error(`${wall} scaled decay time must not be shorter than rise time`);
       }
     }
   }
@@ -588,9 +710,9 @@ function validateClass(
     value.electricalToCalciumDelaySec,
     `${label}.electricalToCalciumDelaySec`,
   );
-  if (!(value.decayTimeConstantSec > value.riseTimeConstantSec)) {
+  if (!(value.decayTimeConstantSec >= value.riseTimeConstantSec)) {
     throw new Error(
-      `${label}.decayTimeConstantSec must exceed riseTimeConstantSec`,
+      `${label}.decayTimeConstantSec must not be shorter than riseTimeConstantSec`,
     );
   }
   if (!(value.electricalToCalciumDelaySec < cycleLengthSec)) {

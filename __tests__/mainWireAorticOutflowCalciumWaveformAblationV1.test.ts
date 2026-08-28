@@ -40,6 +40,12 @@ import {
   resolveMainWireVentricularCalciumSourceProtocolV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceProtocolsV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_CLAIM_V1,
+  fitMainWireVentricularCalciumSourceTraceUnconstrainedAmplitudeSensitivityV1,
+  fitMainWireVentricularCalciumSourceTraceV1,
+  measureMainWireVentricularCalciumParamsAgainstSourceTraceV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitV1";
+import {
   MAIN_WIRE_VENTRICULAR_LOADED_SHORTENING_AUDIT_CLAIM_V1,
   measureMainWireVentricularLoadedShorteningAuditV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularLoadedShorteningAuditV1";
@@ -71,6 +77,11 @@ import {
   resolveMainWireVentricularCalciumSourceConstrainedProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceConstrainedPriorV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PARAMS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PRIOR_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceTraceFitPriorV1";
+import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_ABLATION_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_PROFILE_IDS_V1,
   resolveMainWireVentricularCalciumPeakLockedTailParamsV1,
@@ -86,6 +97,7 @@ import {
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
   MAIN_WIRE_AORTIC_VALVE_AREA_CONTROL_CLAIM_V1,
@@ -309,6 +321,96 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       });
   });
 
+  it("reproduces the fixed whole-trace alpha fit without using hemodynamics", () => {
+    const fit = fitMainWireVentricularCalciumSourceTraceV1();
+    const unconstrained =
+      fitMainWireVentricularCalciumSourceTraceUnconstrainedAmplitudeSensitivityV1();
+    const scalarMatched =
+      resolveMainWireVentricularCalciumSourceConstrainedParamsV1(
+        "land2017-figure6-source-constrained-biexponential",
+      );
+    const scalarMatchedApproximation =
+      measureMainWireVentricularCalciumParamsAgainstSourceTraceV1(
+        scalarMatched,
+      );
+    const profile =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PROFILE_V1;
+
+    expect(fit.parameters).toEqual({
+      diastolicCalciumUM: profile.ventricularDiastolicCalciumUM,
+      peakAmplitudeUM:
+        profile.ventricularPeakCalciumUM
+        - profile.ventricularDiastolicCalciumUM,
+      riseTimeConstantSec: profile.ventricularRiseTimeConstantSec,
+      decayTimeConstantSec: profile.ventricularDecayTimeConstantSec,
+      sourceTraceOnsetOffsetSec: profile.sourceTraceOnsetOffsetSec,
+    });
+    expect(fit.shape.shapeRegime).toBe("alpha-limit");
+    expect(fit.parameters.riseTimeConstantSec)
+      .toBe(fit.parameters.decayTimeConstantSec);
+    expect(fit.approximation.normalizedRootMeanSquareErrorBySourceAmplitude)
+      .toBeLessThan(
+        scalarMatchedApproximation
+          .normalizedRootMeanSquareErrorBySourceAmplitude,
+      );
+    expect(Math.abs(fit.approximation.relativeExposureError))
+      .toBeLessThan(0.005);
+    expect(unconstrained.approximation
+      .normalizedRootMeanSquareErrorBySourceAmplitude)
+      .toBeLessThan(
+        fit.approximation.normalizedRootMeanSquareErrorBySourceAmplitude,
+      );
+    expect(unconstrained.approximation.analyticMinimumCalciumUM)
+      .toBeLessThan(unconstrained.approximation.sourceMinimumCalciumUM);
+    expect(unconstrained.approximation.analyticMaximumCalciumUM)
+      .toBeGreaterThan(unconstrained.approximation.sourceMaximumCalciumUM);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PARAMS_V1
+      .ventricular.riseTimeConstantSec)
+      .toBe(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PARAMS_V1
+        .ventricular.decayTimeConstantSec);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_CLAIM_V1)
+      .toMatchObject({
+        hemodynamicOutcomeUsed: false,
+        landTensionOutcomeUsed: false,
+        smoothingApplied: false,
+      });
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_PRIOR_CLAIM_V1)
+      .toMatchObject({
+        sourceOnsetOffsetIsElectricalDelay: false,
+        calciumOrMechanicsStateAdded: false,
+        canonicalParamsChanged: false,
+      });
+  });
+
+  it("smoke-wires the whole-trace alpha fit as an identity-owned calcium profile", () => {
+    const run =
+      runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchV1({
+        dtSec: 0.02,
+        maximumBeatCount: 1,
+      });
+    const audit = measureMainWireVentricularLandIsometricTwitchAuditV1(
+      run.calciumDriveParams,
+      { dtSec: 0.002, fixedLandStretch: 1 },
+    );
+
+    expect(run.profile.profileId)
+      .toBe("land2017-figure6-whole-trace-alpha-fit");
+    expect(run.periodicResult.protocolIdentity.calciumDrive.parameterSetId)
+      .toBe(run.calciumDriveParams.parameterSetId);
+    expect(run.periodicResult.protocolComponentHashes
+      .calciumDriveFixedParamsStableHash)
+      .not.toBe("");
+    expect(run.claim).toMatchObject({
+      circulationRuntimeChanged: false,
+      mechanicsProviderChanged: false,
+      calciumOrMechanicsStateAdded: false,
+      exactProtocolIdentityIncludesCalciumParams: true,
+    });
+    expect(audit.periodicClosure.converged).toBe(true);
+    expect(audit.calcium.localPeakCountAboveFivePercentAmplitude).toBe(1);
+    expect(audit.activeTwitch.localPeakCountAboveFivePercentAmplitude).toBe(1);
+  });
+
   it("smoke-wires the source-constrained prior as a calcium-only protocol", () => {
     const runs =
       MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_CONSTRAINED_PROFILE_IDS_V1.map(
@@ -486,7 +588,7 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       expect(peakValue).toBeCloseTo(1, 7);
     }
     expect(() => measurePeriodicBiexponentialCalciumPulseShapeV1(1, 0.2, 0.1))
-      .toThrow("decay time constant must exceed rise time constant");
+      .toThrow("decay time constant must not be shorter than rise time constant");
   });
 
   it("seals an exposure-preserving fixed rise-by-decay factorial", () => {
