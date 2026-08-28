@@ -2,6 +2,22 @@ import type {
   MainWireAorticValveObservationGeometryV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
 import {
+  evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1,
+  MAIN_WIRE_AORTIC_OUTFLOW_EXTERNAL_REFERENCE_CONTEXT_V1,
+  type MainWireAorticOutflowExternalReferenceCompatibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowExternalReferenceCompatibilityV1";
+import {
+  measureMainWireAorticOutflowKinematicFloorV1,
+  type MainWireAorticOutflowKinematicFloorV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowKinematicFloorV1";
+import {
+  evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1,
+  type MainWireAorticOutflowPreservedMacroFeasibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowPreservedMacroFeasibilityV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_SCREEN_V1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
+import {
   measureMainWireVentricularCalciumSourceTraceFitRecalibrationReadbackV1,
   type MainWireVentricularCalciumSourceTraceFitRecalibrationReadbackV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitRecalibrationSensitivityV1";
@@ -78,6 +94,14 @@ export const MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_ENVEL
     loadCoordinatesAreRobustnessAxesNotCalibrationKnobs: true as const,
     gradientsExcludedFromObjectivesToAvoidDuplicateFixedEoaFlowWeighting:
       true as const,
+    canonicalRelativeThreeObjectiveRankingRole:
+      "retrospective-readback-not-physiological-selection" as const,
+    externalReferenceRescoringAppliedToRestingBaselineOnly: true as const,
+    peakFlowExcludedFromExternalReferenceScore: true as const,
+    meanGradientExcludedFromExternalReferenceScoreBecauseItDuplicatesVelocityAtFixedEoa:
+      true as const,
+    macroComparisonToCanonicalRole:
+      "retention-regularizer-not-physiological-truth" as const,
     smoothingApplied: false as const,
     interpolationApplied: false as const,
     parameterOptimizationOrFitApplied: false as const,
@@ -184,6 +208,9 @@ export type MainWireVentricularCalciumSourceTraceFitShortlistLoadArmV1 =
       aortic: MainWireVentricularCalciumSourceTraceFitShortlistValveAreaV1;
       pulmonary: MainWireVentricularCalciumSourceTraceFitShortlistValveAreaV1;
     }>;
+    aorticOutflowKinematicFloor: MainWireAorticOutflowKinematicFloorV1;
+    preservedMacroFeasibility:
+      MainWireAorticOutflowPreservedMacroFeasibilityV1;
     cycleWork:
       MainWireVentricularCalciumSourceTraceFitShortlistCycleWorkV1 | null;
   }>;
@@ -225,6 +252,52 @@ export type MainWireVentricularCalciumSourceTraceFitShortlistGradientEnvelopeV1 
     peakLowerAtEveryContext: boolean;
   }>;
 
+export type MainWireVentricularCalciumSourceTraceFitShortlistMacroGuardrailV1 =
+  Readonly<{
+    period1AndIntegrationPassed: boolean;
+    aorticStrokeVolumePreserved: boolean;
+    cardiacOutputPreserved: boolean;
+    meanAorticPressurePreserved: boolean;
+    leftVentricularEjectionFractionPreserved: boolean;
+    rightVentricularEjectionFractionPreserved: boolean;
+    peakLeftVentricularPressurePreserved: boolean;
+    leftVentricularEndDiastolicVolumePreserved: boolean;
+    singleAorticFlowPeakPreserved: boolean;
+    allGuardrailsPassed: boolean;
+    maximumThresholdNormalizedContinuousDeviation: number;
+  }>;
+
+export type MainWireVentricularCalciumSourceTraceFitShortlistExternalReferenceBaselineArmV1 =
+  Readonly<{
+    armId: MainWireVentricularCalciumSourceTraceFitShortlistArmIdV1;
+    externalReferenceCompatibility:
+      MainWireAorticOutflowExternalReferenceCompatibilityV1;
+    macroGuardrailRelativeToCanonical:
+      MainWireVentricularCalciumSourceTraceFitShortlistMacroGuardrailV1;
+    externalReferenceAndMacroGuardrailPassed: boolean;
+  }>;
+
+export type MainWireVentricularCalciumSourceTraceFitShortlistExternalReferenceRescoringV1 =
+  Readonly<{
+    scope: "resting-baseline-arms-only";
+    referenceContext:
+      typeof MAIN_WIRE_AORTIC_OUTFLOW_EXTERNAL_REFERENCE_CONTEXT_V1;
+    baselineArms:
+      readonly MainWireVentricularCalciumSourceTraceFitShortlistExternalReferenceBaselineArmV1[];
+    candidateRankByExternalReferenceBandDistanceThenMacroGuardrail:
+      readonly MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1[];
+    previousCandidateRankByCanonicalRelativeThreeObjectiveDistance:
+      readonly MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1[];
+    rankingChanged: boolean;
+    bestExternalReferenceCandidateId:
+      MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1;
+    anyCandidateMatchesAllPrimaryReferenceIntervals: boolean;
+    anyCandidatePassesExternalReferenceAndMacroGuardrail: boolean;
+    selectionStatus:
+      | "reference-compatible-candidate-retained"
+      | "no-reference-compatible-shortlist-candidate";
+  }>;
+
 export type MainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1 =
   Readonly<{
     methodId:
@@ -236,6 +309,8 @@ export type MainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1 =
       readonly MainWireVentricularCalciumSourceTraceFitShortlistCandidateLoadSummaryV1[];
     rankAtBaselineByEqualWeightThreeObjectiveDistance:
       readonly MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1[];
+    externalReferenceRescoring:
+      MainWireVentricularCalciumSourceTraceFitShortlistExternalReferenceRescoringV1;
     allProtocolIdentitiesDistinct: boolean;
     allRunsPeriod1AndIntegrated: boolean;
     allDiastolicFlowReadbacksAvailable: boolean;
@@ -329,6 +404,18 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
         input.periodicResult.dtSec,
         summary,
       );
+      const aorticOutflowKinematicFloor =
+        measureMainWireAorticOutflowKinematicFloorV1(input.periodicResult);
+      const preservedMacroFeasibility =
+        evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1({
+          forwardVolumeMl: aorticOutflowKinematicFloor.source.forwardVolumeMl,
+          forwardFlowTimeSec:
+            aorticOutflowKinematicFloor.source.forwardFlowTimeSec,
+          maximumForwardFlowMlPerSec:
+            aorticOutflowKinematicFloor.source.maximumForwardFlowMlPerSec,
+          configuredMaximumForwardEoaCm2:
+            aorticOutflowKinematicFloor.source.configuredMaximumForwardEoaCm2,
+        });
       arms.push(Object.freeze({
         arm,
         context,
@@ -363,6 +450,8 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
               .valveResearchInputSnapshot.valves.PV.maximumForwardEoaCm2,
           ),
         }),
+        aorticOutflowKinematicFloor,
+        preservedMacroFeasibility,
         cycleWork: summary.cyclePhysiology === null
           ? null
           : measureCycleWork(summary.cyclePhysiology),
@@ -380,6 +469,10 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
       left.baselineEqualWeightThreeObjectiveDistanceToCanonical
       - right.baselineEqualWeightThreeObjectiveDistanceToCanonical)
     .map(({ candidateId }) => candidateId));
+  const externalReferenceRescoring = rescoreBaselineAgainstExternalReference(
+    frozenArms,
+    rankAtBaseline,
+  );
   const allRunsPeriod1AndIntegrated = frozenArms.every((arm) =>
     arm.periodicSteadyStateClaimed
     && arm.integrationCompletedWithoutFailure);
@@ -394,6 +487,7 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
     arms: frozenArms,
     candidateSummaries,
     rankAtBaselineByEqualWeightThreeObjectiveDistance: rankAtBaseline,
+    externalReferenceRescoring,
     allProtocolIdentitiesDistinct,
     allRunsPeriod1AndIntegrated,
     allDiastolicFlowReadbacksAvailable,
@@ -412,6 +506,174 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
     claim:
       MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_ENVELOPE_ANALYSIS_CLAIM_V1,
   });
+}
+
+function rescoreBaselineAgainstExternalReference(
+  arms: readonly MainWireVentricularCalciumSourceTraceFitShortlistLoadArmV1[],
+  previousRank:
+    readonly MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1[],
+): MainWireVentricularCalciumSourceTraceFitShortlistExternalReferenceRescoringV1 {
+  const canonical = requiredArm(arms, "baseline", "canonical");
+  const baselineArms = Object.freeze(
+    MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_ARM_IDS_V1.map(
+      (armId) => {
+        const arm = requiredArm(arms, "baseline", armId);
+        const compatibility =
+          evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1({
+            aorticEjectionTimeProxySec:
+              arm.readback.cycle.aorticEjectionTimeProxySec,
+            aorticAccelerationTimeProxySec:
+              arm.readback.cycle.timeFromAorticFlowOnsetToPeakSec,
+            peakVenaContractaVelocityMPerSec:
+              arm.readback.observationStations.forwardFlow
+                .peakVenaContractaVelocityMPerSec,
+            timeMeanSimplifiedDopplerGradientMmHg:
+              arm.readback.observationStations.timeMeanGradientMmHg
+                .simplifiedDoppler,
+            configuredMaximumForwardEoaCm2:
+              arm.valveArea.aortic.maximumForwardEoaCm2,
+          });
+        const macroGuardrail = macroGuardrailRelativeToCanonical(
+          arm,
+          canonical,
+        );
+        return Object.freeze({
+          armId,
+          externalReferenceCompatibility: compatibility,
+          macroGuardrailRelativeToCanonical: macroGuardrail,
+          externalReferenceAndMacroGuardrailPassed:
+            compatibility.allPrimaryComparisonIntervalsMatched
+            && macroGuardrail.allGuardrailsPassed,
+        });
+      },
+    ),
+  );
+  const candidates = baselineArms.filter((arm): arm is typeof arm & Readonly<{
+    armId: MainWireVentricularCalciumSourceTraceFitShortlistCandidateIdV1;
+  }> => arm.armId !== "canonical");
+  const rank = Object.freeze([...candidates]
+    .sort((left, right) => {
+      const externalDifference = left.externalReferenceCompatibility
+        .primaryReferenceBandDistanceRms
+        - right.externalReferenceCompatibility.primaryReferenceBandDistanceRms;
+      return externalDifference !== 0
+        ? externalDifference
+        : left.macroGuardrailRelativeToCanonical
+          .maximumThresholdNormalizedContinuousDeviation
+          - right.macroGuardrailRelativeToCanonical
+            .maximumThresholdNormalizedContinuousDeviation;
+    })
+    .map(({ armId }) => armId));
+  const anyCandidateMatchesAllPrimaryReferenceIntervals = candidates.some(
+    (arm) => arm.externalReferenceCompatibility
+      .allPrimaryComparisonIntervalsMatched,
+  );
+  const anyCandidatePassesExternalReferenceAndMacroGuardrail = candidates.some(
+    (arm) => arm.externalReferenceAndMacroGuardrailPassed,
+  );
+  return Object.freeze({
+    scope: "resting-baseline-arms-only" as const,
+    referenceContext: MAIN_WIRE_AORTIC_OUTFLOW_EXTERNAL_REFERENCE_CONTEXT_V1,
+    baselineArms,
+    candidateRankByExternalReferenceBandDistanceThenMacroGuardrail: rank,
+    previousCandidateRankByCanonicalRelativeThreeObjectiveDistance:
+      Object.freeze([...previousRank]),
+    rankingChanged: rank.some((candidateId, index) =>
+      candidateId !== previousRank[index]),
+    bestExternalReferenceCandidateId: rank[0]!,
+    anyCandidateMatchesAllPrimaryReferenceIntervals,
+    anyCandidatePassesExternalReferenceAndMacroGuardrail,
+    selectionStatus: anyCandidatePassesExternalReferenceAndMacroGuardrail
+      ? "reference-compatible-candidate-retained" as const
+      : "no-reference-compatible-shortlist-candidate" as const,
+  });
+}
+
+function macroGuardrailRelativeToCanonical(
+  arm: MainWireVentricularCalciumSourceTraceFitShortlistLoadArmV1,
+  canonical: MainWireVentricularCalciumSourceTraceFitShortlistLoadArmV1,
+): MainWireVentricularCalciumSourceTraceFitShortlistMacroGuardrailV1 {
+  const candidate = arm.readback.cycle;
+  const baseline = canonical.readback.cycle;
+  const screen = MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_SCREEN_V1;
+  const normalizedContinuousDeviations = [
+    relativeAbsoluteDifference(
+      candidate.aorticForwardVolumeMl,
+      baseline.aorticForwardVolumeMl,
+    ) / screen.maximumRelativeAorticStrokeVolumeChange,
+    relativeAbsoluteDifference(
+      candidate.netAorticCardiacOutputLPerMin,
+      baseline.netAorticCardiacOutputLPerMin,
+    ) / screen.maximumRelativeCardiacOutputChange,
+    relativeAbsoluteDifference(
+      candidate.meanAorticAbsolutePressureMmHg,
+      baseline.meanAorticAbsolutePressureMmHg,
+    ) / screen.maximumRelativeMeanAorticPressureChange,
+    Math.abs(
+      candidate.leftVentricularEjectionFraction01
+        - baseline.leftVentricularEjectionFraction01,
+    ) / screen.maximumAbsoluteLeftVentricularEjectionFractionChange,
+    Math.abs(
+      candidate.rightVentricularEjectionFraction01
+        - baseline.rightVentricularEjectionFraction01,
+    ) / screen.maximumAbsoluteRightVentricularEjectionFractionChange,
+    relativeAbsoluteDifference(
+      candidate.peakLeftVentricularPressureMmHg,
+      baseline.peakLeftVentricularPressureMmHg,
+    ) / screen.maximumRelativePeakLeftVentricularPressureChange,
+    relativeAbsoluteDifference(
+      candidate.maximumLeftVentricularVolumeMl,
+      baseline.maximumLeftVentricularVolumeMl,
+    ) / screen.maximumRelativeLeftVentricularEndDiastolicVolumeChange,
+  ];
+  const period1AndIntegrationPassed = arm.periodicSteadyStateClaimed
+    && arm.integrationCompletedWithoutFailure;
+  const aorticStrokeVolumePreserved =
+    normalizedContinuousDeviations[0]! <= 1;
+  const cardiacOutputPreserved = normalizedContinuousDeviations[1]! <= 1;
+  const meanAorticPressurePreserved = normalizedContinuousDeviations[2]! <= 1;
+  const leftVentricularEjectionFractionPreserved =
+    normalizedContinuousDeviations[3]! <= 1;
+  const rightVentricularEjectionFractionPreserved =
+    normalizedContinuousDeviations[4]! <= 1;
+  const peakLeftVentricularPressurePreserved =
+    normalizedContinuousDeviations[5]! <= 1;
+  const leftVentricularEndDiastolicVolumePreserved =
+    normalizedContinuousDeviations[6]! <= 1;
+  const singleAorticFlowPeakPreserved =
+    candidate.aorticFlowPeakCountAboveFivePercent === 1;
+  const checks = [
+    period1AndIntegrationPassed,
+    aorticStrokeVolumePreserved,
+    cardiacOutputPreserved,
+    meanAorticPressurePreserved,
+    leftVentricularEjectionFractionPreserved,
+    rightVentricularEjectionFractionPreserved,
+    peakLeftVentricularPressurePreserved,
+    leftVentricularEndDiastolicVolumePreserved,
+    singleAorticFlowPeakPreserved,
+  ];
+  return Object.freeze({
+    period1AndIntegrationPassed,
+    aorticStrokeVolumePreserved,
+    cardiacOutputPreserved,
+    meanAorticPressurePreserved,
+    leftVentricularEjectionFractionPreserved,
+    rightVentricularEjectionFractionPreserved,
+    peakLeftVentricularPressurePreserved,
+    leftVentricularEndDiastolicVolumePreserved,
+    singleAorticFlowPeakPreserved,
+    allGuardrailsPassed: checks.every(Boolean),
+    maximumThresholdNormalizedContinuousDeviation:
+      Math.max(...normalizedContinuousDeviations),
+  });
+}
+
+function relativeAbsoluteDifference(value: number, reference: number): number {
+  if (!Number.isFinite(value) || !Number.isFinite(reference) || reference === 0) {
+    throw new Error("macro guardrail requires finite values and nonzero reference");
+  }
+  return Math.abs(value / reference - 1);
 }
 
 function measureDiastolicFlow(

@@ -150,6 +150,11 @@ import {
   type MainWireAorticOutflowDriverRootAblationArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
 import {
+  resolveMainWireAorticValveLocalInertancePressureRecoveryArmV1,
+  type MainWireAorticValveLocalInertancePressureRecoveryArmIdV1,
+  type MainWireAorticValveLocalInertancePressureRecoveryArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticValveLocalInertancePressureRecoveryFactorialV1";
+import {
   resolveMainWireAorticOutflowLengthDependenceRootResistanceArmV1,
   type MainWireAorticOutflowLengthDependenceRootResistanceArmIdV1,
   type MainWireAorticOutflowLengthDependenceRootResistanceArmV1,
@@ -211,6 +216,7 @@ import {
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
   MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
+  resolveMainWireAorticValveLocalInertanceProfileV1,
   type MainWireAorticValveLocalInertanceProfileV1,
 } from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
 
@@ -611,6 +617,32 @@ export type MainWireNormalAdultFiveWallAorticValveLocalInertanceResearchRunV1 =
       externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true;
       canonicalAcceptedStateOrCheckpointChanged: false;
       standardWarmStartEmitted: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticValveLocalInertancePressureRecoveryRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-valve-local-inertance-pressure-recovery-factorial-arm";
+    arm: MainWireAorticValveLocalInertancePressureRecoveryArmV1;
+    localInertanceProfile: MainWireAorticValveLocalInertanceProfileV1 | null;
+    pressureRecoveryProfile: MainWireAorticValveResearchProfileV1 | null;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    externalFlowStateAudit: MainWireNormalAdultFiveWallPeriodicResultV1[
+      "aorticValveLocalInertanceResearchAudit"
+    ] | null;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      openingModeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStepWhenApplicable: true;
+      canonicalAcceptedStateOrCheckpointChanged: false;
+      standardWarmStartEmittedWhenLocalInertanceOn: false;
+      exactRuntimeIdentityIncludesBothFactorProfiles: true;
     }>;
   }>;
 
@@ -2756,6 +2788,81 @@ export function runMainWireNormalAdultFiveWallAorticValveLocalInertanceResearchV
       externalFlowPromotedOnlyAfterSuccessfulCoupledStep: true as const,
       canonicalAcceptedStateOrCheckpointChanged: false as const,
       standardWarmStartEmitted: false as const,
+    }),
+  });
+}
+
+/** Fixed upper-physical-L x pressure-recovery 2x2 from independent cold starts. */
+export function runMainWireNormalAdultFiveWallAorticValveLocalInertancePressureRecoveryArmV1(
+  options: MainWireNormalAdultFiveWallAorticValveResearchOptionsV1,
+  armId: MainWireAorticValveLocalInertancePressureRecoveryArmIdV1,
+): MainWireNormalAdultFiveWallAorticValveLocalInertancePressureRecoveryRunV1 {
+  assertExactAorticValveResearchOptions(options);
+  const arm =
+    resolveMainWireAorticValveLocalInertancePressureRecoveryArmV1(armId);
+  const localInertanceProfile = arm.localInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticValveLocalInertanceProfileV1(
+      arm.localInertanceProfileId,
+    );
+  const pressureRecoveryProfile = arm.pressureRecoveryProfileId === null
+    ? null
+    : resolveMainWireAorticValveResearchProfileV1(
+      arm.pressureRecoveryProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    ...(localInertanceProfile === null
+      ? {}
+      : { aorticValveLocalInertanceResearchProfile: localInertanceProfile }),
+    ...(pressureRecoveryProfile === null
+      ? {}
+      : { aorticValveResearchProfile: pressureRecoveryProfile }),
+  });
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  const audit = periodicResult.aorticValveLocalInertanceResearchAudit ?? null;
+  if (localInertanceProfile !== null && audit === null) {
+    throw new Error("AoV L x pressure-recovery arm omitted external q audit");
+  }
+  if (localInertanceProfile === null && audit !== null) {
+    throw new Error("AoV L-off arm unexpectedly emitted external q audit");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-valve-local-inertance-pressure-recovery-factorial-arm" as const,
+    arm,
+    localInertanceProfile,
+    pressureRecoveryProfile,
+    periodicResult,
+    externalFlowStateAudit: audit,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      openingModeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStepWhenApplicable:
+        true as const,
+      canonicalAcceptedStateOrCheckpointChanged: false as const,
+      standardWarmStartEmittedWhenLocalInertanceOn: false as const,
+      exactRuntimeIdentityIncludesBothFactorProfiles: true as const,
     }),
   });
 }

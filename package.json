@@ -53,6 +53,8 @@
     "run:coronary:v2-periodic": "vite-node --script tools/coronary/runMainWireFiveWallCoronaryPeriodicSteadyV2.ts",
     "verify:scientific:valve-research-bracket-numerical-envelope": "vite-node --script tools/scientific/runMainWireValveResearchBracketNumericalRobustnessEnvelopeV1.ts",
     "characterize:scientific:aortic-valve-pressure-recovery-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticValvePressureRecoveryAblationV1.ts",
+    "characterize:scientific:aortic-valve-local-inertance-pressure-recovery-factorial:v1": "vite-node --script tools/scientific/runMainWireAorticValveLocalInertancePressureRecoveryFactorialV1.ts",
+    "characterize:scientific:aortic-valve-local-inertance-pressure-recovery-dt:v1": "vite-node --script tools/scientific/runMainWireAorticValveLocalInertancePressureRecoveryDtComparisonV1.ts",
     "characterize:scientific:aortic-valve-area-control:v1": "vite-node --script tools/scientific/runMainWireAorticValveAreaControlV1.ts",
     "characterize:scientific:aortic-outflow-calcium-source-constrained:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumSourceConstrainedV1.ts",
     "characterize:scientific:aortic-outflow-driver-root-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowDriverRootAblationV1.ts",

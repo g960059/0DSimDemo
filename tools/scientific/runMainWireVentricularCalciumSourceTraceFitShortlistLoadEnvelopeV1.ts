@@ -112,6 +112,7 @@ if (outputPath === null) {
       envelope.allDiastolicFlowReadbacksAvailable,
     rankAtBaselineByEqualWeightThreeObjectiveDistance:
       envelope.rankAtBaselineByEqualWeightThreeObjectiveDistance,
+    externalReferenceRescoring: envelope.externalReferenceRescoring,
     candidateSummaries: envelope.candidateSummaries,
     baselineArms: envelope.arms
       .filter((arm) => arm.context.contextId === "baseline")
@@ -142,6 +143,10 @@ function compactArm(arm: typeof envelope.arms[number]) {
         .leftVentricularEndDiastolicAbsolutePressureMmHg,
     gradients: arm.readback.observationStations,
     objectives: arm.objectiveEvaluation?.objectives ?? null,
+    externalReferenceRescoring: arm.context.contextId === "baseline"
+      ? envelope.externalReferenceRescoring.baselineArms.find((candidate) =>
+        candidate.armId === arm.arm.armId) ?? null
+      : null,
     diastolicFlow: arm.diastolicFlow,
     valveArea: arm.valveArea,
     cycleWork: arm.cycleWork,

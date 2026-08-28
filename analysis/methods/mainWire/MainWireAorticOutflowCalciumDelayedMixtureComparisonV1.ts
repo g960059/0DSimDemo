@@ -5,6 +5,18 @@ import {
   type MainWireAorticOutflowCalciumWaveformCycleMetricsV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
 import {
+  evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1,
+  type MainWireAorticOutflowExternalReferenceCompatibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowExternalReferenceCompatibilityV1";
+import {
+  measureMainWireAorticOutflowKinematicFloorV1,
+  type MainWireAorticOutflowKinematicFloorV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowKinematicFloorV1";
+import {
+  evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1,
+  type MainWireAorticOutflowPreservedMacroFeasibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowPreservedMacroFeasibilityV1";
+import {
   countMainWireStrictLocalMaximaV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveAblationComparisonV1";
 import {
@@ -42,6 +54,10 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_COMPARISON_CLAIM_V
     aorticValveConstitutiveLawChanged: false as const,
     smoothingApplied: false as const,
     interpolationApplied: false as const,
+    externalReferenceRole:
+      "descriptive-falsification-screen-not-clinical-target-fit" as const,
+    preservedMacroFeasibilityRole:
+      "necessary-fixed-EOA-kinematic-screen-not-sufficient-acceptance" as const,
     parameterSearchOrFitting: false as const,
     clinicalValidationClaimed: false as const,
     canonicalAdoptionEstablished: false as const,
@@ -58,6 +74,11 @@ export type MainWireAorticOutflowCalciumDelayedMixtureArmV1 = Readonly<{
   cycle: MainWireAorticOutflowCalciumWaveformCycleMetricsV1;
   ventricularCalciumStrictLocalPeakCountAboveFivePercent: number;
   lvfwActiveStressStrictLocalPeakCountAboveFivePercent: number;
+  externalReferenceCompatibility:
+    MainWireAorticOutflowExternalReferenceCompatibilityV1;
+  kinematicFloor: MainWireAorticOutflowKinematicFloorV1;
+  preservedMacroFeasibility:
+    MainWireAorticOutflowPreservedMacroFeasibilityV1;
   candidateScreen: MainWireAorticOutflowCalciumCandidateScreenResultV1 | null;
   morphologyScreen: null | Readonly<{
     singleVentricularCalciumPeakPreserved: boolean;
@@ -103,6 +124,19 @@ export type MainWireAorticOutflowCalciumDelayedMixtureComparisonV1 = Readonly<{
     readonly MainWireAorticOutflowCalciumDelayedMixtureArmV1[];
   factorialContrasts:
     readonly MainWireAorticOutflowCalciumDelayedMixtureFactorialContrastV1[];
+  externalReferenceSelection: Readonly<{
+    morphologySafeCandidateRank:
+      readonly MainWireVentricularCalciumDelayedMixtureProfileIdV1[];
+    bestMorphologySafeCandidateId:
+      MainWireVentricularCalciumDelayedMixtureProfileIdV1 | null;
+    bestMorphologySafeCandidateImprovesCanonical: boolean;
+    anyMorphologySafeCandidateMatchesAllPrimaryReferenceIntervals: boolean;
+    anyMorphologySafeCandidatePassesPreservedOutputFixedEoaUpperBand: boolean;
+    nextStepDecision:
+      | "stop-delayed-mixture-waveform-axis"
+      | "extend-unimodal-temporal-redistribution-with-fixed-bracket"
+      | "proceed-to-dt-and-load-refinement";
+  }>;
   claim:
     typeof MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_COMPARISON_CLAIM_V1;
 }>;
@@ -233,12 +267,46 @@ export function compareMainWireAorticOutflowCalciumDelayedMixtureV1(
       arm.cycle.aorticPressureFlowCoupling.summary.aorticRootStorage
         .flowAtAorticValveFlowPeakMlPerSec),
   ]);
+  const morphologySafe = delayedMixtures.filter((arm) =>
+    arm.morphologyScreen!.morphologyPreserved);
+  const morphologySafeRank = Object.freeze([...morphologySafe]
+    .sort((left, right) =>
+      left.externalReferenceCompatibility.primaryReferenceBandDistanceRms
+      - right.externalReferenceCompatibility.primaryReferenceBandDistanceRms)
+    .map((arm) => arm.profile!.profileId));
+  const best = morphologySafeRank.length === 0
+    ? null
+    : delayedMixtures.find((arm) =>
+      arm.profile!.profileId === morphologySafeRank[0])!;
+  const bestImprovesCanonical = best !== null
+    && best.externalReferenceCompatibility.primaryReferenceBandDistanceRms
+      < canonical.externalReferenceCompatibility.primaryReferenceBandDistanceRms;
+  const anyMatchesAll = morphologySafe.some((arm) =>
+    arm.externalReferenceCompatibility.allPrimaryComparisonIntervalsMatched);
+  const anyPassesPreservedOutput = morphologySafe.some((arm) =>
+    arm.preservedMacroFeasibility
+      .preservedOutputFixedEoaUpperBandFeasibleAtCurrentWaveform);
+  const nextStepDecision = !bestImprovesCanonical
+    ? "stop-delayed-mixture-waveform-axis" as const
+    : anyMatchesAll && anyPassesPreservedOutput
+      ? "proceed-to-dt-and-load-refinement" as const
+      : "extend-unimodal-temporal-redistribution-with-fixed-bracket" as const;
   return Object.freeze({
     methodId:
       MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_COMPARISON_V1_ID,
     canonical,
     delayedMixtures,
     factorialContrasts,
+    externalReferenceSelection: Object.freeze({
+      morphologySafeCandidateRank: morphologySafeRank,
+      bestMorphologySafeCandidateId: best?.profile!.profileId ?? null,
+      bestMorphologySafeCandidateImprovesCanonical: bestImprovesCanonical,
+      anyMorphologySafeCandidateMatchesAllPrimaryReferenceIntervals:
+        anyMatchesAll,
+      anyMorphologySafeCandidatePassesPreservedOutputFixedEoaUpperBand:
+        anyPassesPreservedOutput,
+      nextStepDecision,
+    }),
     claim:
       MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_DELAYED_MIXTURE_COMPARISON_CLAIM_V1,
   });
@@ -262,6 +330,28 @@ function measureArm(
     calciumParams,
     profile?.profileId ?? role,
   );
+  const kinematicFloor = measureMainWireAorticOutflowKinematicFloorV1(result);
+  const externalReferenceCompatibility =
+    evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1({
+      aorticEjectionTimeProxySec: cycle.aorticEjectionTimeProxySec,
+      aorticAccelerationTimeProxySec:
+        cycle.timeFromAorticFlowOnsetToPeakSec,
+      peakVenaContractaVelocityMPerSec:
+        cycle.peakVenaContractaVelocityMPerSec,
+      timeMeanSimplifiedDopplerGradientMmHg:
+        cycle.meanDopplerGradientMmHg,
+      configuredMaximumForwardEoaCm2:
+        kinematicFloor.source.configuredMaximumForwardEoaCm2,
+    });
+  const preservedMacroFeasibility =
+    evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1({
+      forwardVolumeMl: kinematicFloor.source.forwardVolumeMl,
+      forwardFlowTimeSec: kinematicFloor.source.forwardFlowTimeSec,
+      maximumForwardFlowMlPerSec:
+        kinematicFloor.source.maximumForwardFlowMlPerSec,
+      configuredMaximumForwardEoaCm2:
+        kinematicFloor.source.configuredMaximumForwardEoaCm2,
+    });
   const ventricularCalcium = beat.samples.map((sample) => Math.max(
     0,
     sample.freeCalciumUM.LVFW
@@ -283,6 +373,9 @@ function measureArm(
         lvfwActiveStress,
         0.05 * maximum(lvfwActiveStress),
       ),
+    externalReferenceCompatibility,
+    kinematicFloor,
+    preservedMacroFeasibility,
   });
 }
 

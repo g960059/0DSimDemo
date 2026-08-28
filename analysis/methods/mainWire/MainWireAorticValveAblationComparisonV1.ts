@@ -7,6 +7,9 @@ import {
 import type {
   MainWireAorticValveResearchProfileIdV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
+import type {
+  MainWireAorticValveLocalInertancePressureRecoveryArmIdV1,
+} from "@/engine/myocardium/experiments/MainWireAorticValveLocalInertancePressureRecoveryFactorialV1";
 
 export const MAIN_WIRE_AORTIC_VALVE_ABLATION_COMPARISON_V1_ID =
   "main-wire-aortic-valve-ablation-comparison-v1" as const;
@@ -14,7 +17,8 @@ export const MAIN_WIRE_AORTIC_VALVE_ABLATION_COMPARISON_V1_ID =
 export type MainWireAorticValveAblationArmIdV1 =
   | "canonical"
   | "historical-topology-local-inertance"
-  | MainWireAorticValveResearchProfileIdV1;
+  | MainWireAorticValveResearchProfileIdV1
+  | MainWireAorticValveLocalInertancePressureRecoveryArmIdV1;
 
 export const MAIN_WIRE_AORTIC_VALVE_ABLATION_COMPARISON_CLAIM_V1 =
   Object.freeze({

@@ -8,6 +8,26 @@ import {
   validateMainWireAorticValveResearchProfileV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
+  MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_IDS_V1,
+  resolveMainWireAorticValveLocalInertanceProfileV1,
+  stepMainWireAorticValveLocalInertanceScalarsV1,
+} from "@/engine/valves/MainWireAorticValveLocalInertanceAblationV1";
+import {
+  MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PRESSURE_RECOVERY_ARM_IDS_V1,
+} from "@/engine/myocardium/experiments/MainWireAorticValveLocalInertancePressureRecoveryFactorialV1";
+import {
+  runMainWireNormalAdultFiveWallAorticValveLocalInertancePressureRecoveryArmV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  compareMainWireAorticValveLocalInertancePressureRecoveryFactorialV1,
+} from "@/analysis/methods/mainWire/MainWireAorticValveLocalInertancePressureRecoveryFactorialV1";
+import {
+  evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowPreservedMacroFeasibilityV1";
+import type {
+  MainWireAorticValveObservationGeometryV1,
+} from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
+import {
   idealBernoulliLossFromEffectiveOrificeAreaV2,
   stepMainWireQuasiSteadyOrificeValveScalarsV2,
   type MainWireQuasiSteadyOrificeValveParamsV2,
@@ -27,7 +47,89 @@ const AOV = Object.freeze({
   closingTimeConstantSec: 0.008,
 } satisfies MainWireQuasiSteadyOrificeValveParamsV2);
 
+const GEOMETRY = Object.freeze({
+  geometryId: "fixed-lvot-d2p3cm-aa-d3p0cm-v1",
+  provenance: "fixed-research-bracket" as const,
+  lvotCrossSectionalAreaCm2: Math.PI * (2.3 / 2) ** 2,
+  ascendingAorticCrossSectionalAreaCm2: Math.PI * (3 / 2) ** 2,
+}) satisfies MainWireAorticValveObservationGeometryV1;
+
 describe("MainWireAorticValvePressureRecoveryAblationV1", () => {
+  it("separates the fixed-EOA waveform requirement from output reduction", () => {
+    const feasibility =
+      evaluateMainWireAorticOutflowPreservedMacroFeasibilityV1({
+        forwardVolumeMl: 88.5,
+        forwardFlowTimeSec: 0.19,
+        maximumForwardFlowMlPerSec: 696,
+        configuredMaximumForwardEoaCm2: 3.5,
+      });
+    expect(feasibility.currentUniformFullOpenMeanGradientFloorMmHg)
+      .toBeCloseTo(7.084, 3);
+    expect(feasibility.meanGradientConstraints.comparisonBandUpper
+      .necessaryMinimumForwardFlowTimeSecAtPreservedVolume)
+      .toBeCloseTo(0.226, 3);
+    expect(feasibility.meanGradientConstraints.comparisonBandUpper
+      .bestCaseMinimumForwardVolumeReductionFractionAtObservedDuration)
+      .toBeGreaterThan(0.15);
+    expect(feasibility.peakVelocityConstraints.comparisonBandUpper
+      .maximumPeakFlowMlPerSecAtFixedEoa).toBeCloseTo(556.5, 10);
+    expect(feasibility.configuredMaximumEoaWithinPooledAvaComparisonInterval)
+      .toBe(true);
+    expect(feasibility.decision)
+      .toBe("current-waveform-infeasible-at-preserved-output-under-fixed-eoa");
+    expect(feasibility.claim.necessaryNotSufficient).toBe(true);
+  });
+
+  it("defines a non-fitted upper physical local-inertance bracket", () => {
+    expect(MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_IDS_V1).toEqual([
+      "historical-topology-local-inertance",
+      "fixed-lvot-d2p3cm-column-l7cm-local-inertance",
+    ]);
+    const profile = resolveMainWireAorticValveLocalInertanceProfileV1(
+      "fixed-lvot-d2p3cm-column-l7cm-local-inertance",
+    );
+    expect(profile.inertanceSource).toBe("rho-length-over-fixed-LVOT-area");
+    expect(profile.fixedLocalInertanceMmHgSec2PerMl)
+      .toBeCloseTo(0.00134, 5);
+    expect(profile.parameterSearchOrFitting).toBe(false);
+  });
+
+  it("combines local momentum storage with recovery without adding opening state", () => {
+    const localProfile = resolveMainWireAorticValveLocalInertanceProfileV1(
+      "fixed-lvot-d2p3cm-column-l7cm-local-inertance",
+    );
+    const recoveryProfile = resolveMainWireAorticValveResearchProfileV1(
+      "pressure-recovery-aa-d3p0cm",
+    );
+    const evaluate = (gradient: number) =>
+      stepMainWireAorticValveLocalInertanceScalarsV1(
+        0.8,
+        500,
+        0.001,
+        90 + gradient,
+        90,
+        AOV,
+        localProfile.fixedLocalInertanceMmHgSec2PerMl!,
+        localProfile,
+        recoveryProfile,
+      );
+    const output = evaluate(10);
+    expect(output.pressureRecoveryApplied).toBe(true);
+    expect(output.pressureRecoveryResearchProfileId)
+      .toBe("pressure-recovery-aa-d3p0cm");
+    expect(Object.keys(output.state)).toEqual(["leafletOpeningFraction01"]);
+    expect(output.downstreamKineticPowerMmHgMlPerSec).toBeGreaterThan(0);
+    expect(Math.abs(output.openOrificeResidualMmHg)).toBeLessThan(1e-10);
+    expect(Math.abs(output.powerBalanceResidualMmHgMlPerSec))
+      .toBeLessThan(1e-8);
+    const h = 1e-5;
+    const finiteDifference = (
+      evaluate(10 + h).flowMlPerSec - evaluate(10 - h).flowMlPerSec
+    ) / (2 * h);
+    expect(output.dFlowDPressureGradientMlPerSecPerMmHg)
+      .toBeCloseTo(finiteDifference, 5);
+  });
+
   it("owns only fixed, non-fitting research profiles", () => {
     expect(MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1).toEqual([
       "pressure-recovery-aa-d3p0cm",
@@ -230,4 +332,40 @@ describe("MainWireAorticValvePressureRecoveryAblationV1", () => {
     expect(output.valid).toBe(false);
     expect(output.issues.join(" ")).toMatch(/area greater than maximum forward EOA/);
   });
+
+  it("runs and measures the fixed local-L by recovery factorial", () => {
+    const runs =
+      MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PRESSURE_RECOVERY_ARM_IDS_V1.map(
+        (armId) =>
+          runMainWireNormalAdultFiveWallAorticValveLocalInertancePressureRecoveryArmV1(
+            { dtSec: 0.02, maximumBeatCount: 2 },
+            armId,
+          ),
+      );
+    expect(runs).toHaveLength(4);
+    expect(new Set(runs.map((run) =>
+      run.periodicResult.protocolIdentityHash)).size).toBe(4);
+    expect(runs.map((run) => run.externalFlowStateAudit !== null))
+      .toEqual([false, false, true, true]);
+    const comparison =
+      compareMainWireAorticValveLocalInertancePressureRecoveryFactorialV1(
+        runs.map((run) => ({
+          armId: run.arm.armId,
+          periodicResult: run.periodicResult,
+        })),
+        GEOMETRY,
+      );
+    expect(comparison.arms).toHaveLength(4);
+    expect(comparison.factorialContrasts).toHaveLength(12);
+    expect(comparison.exactProtocolIdentitiesDistinct).toBe(true);
+    expect(comparison.numericalGate.maximumOpenMomentumResidualMmHg)
+      .toBeLessThan(1e-7);
+    expect(comparison.claim.negativeGradientForwardFlow)
+      .toBe("physically-allowed-inertial-carry-through-not-reverse-flow");
+    expect(comparison.arms.every((arm) =>
+      arm.kinematicFloor.currentDuration.cauchySchwarzFloorSatisfied)).toBe(true);
+    expect(comparison.arms.every((arm) =>
+      arm.preservedMacroFeasibility.claim.parameterOptimizationOrFitApplied
+        === false)).toBe(true);
+  }, 60_000);
 });

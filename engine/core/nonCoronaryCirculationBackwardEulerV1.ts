@@ -47,6 +47,7 @@ import {
   type MainWireValveEvaluationWithAorticResearchV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
+  resolveMainWireAorticValveLocalInertanceValueV1,
   stepMainWireAorticValveLocalInertanceScalarsV1,
   validateMainWireAorticValveLocalInertanceProfileV1,
   type MainWireAorticValveLocalInertanceEvaluationV1,
@@ -2723,8 +2724,12 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
           upstreamPressure,
           downstreamPressure,
           valveResearchInput.valves.AoV,
-          requirePositive(edge.L ?? 0, "AoV topology local inertance"),
+          resolveMainWireAorticValveLocalInertanceValueV1(
+            input.runtime.aorticValveLocalInertanceResearchProfile,
+            requirePositive(edge.L ?? 0, "AoV topology local inertance"),
+          ),
           input.runtime.aorticValveLocalInertanceResearchProfile,
+          input.runtime.aorticValveResearchProfile,
         )
         : valveName === "AoV"
             && input.runtime.aorticValveResearchProfile !== undefined
@@ -4604,9 +4609,17 @@ function validateRuntimeOnceV1(
           + profileIssues.join("; "),
       );
     }
-    if (runtime.aorticValveResearchProfile !== undefined) {
+    if (
+      runtime.aorticValveResearchProfile !== undefined
+      && (
+        runtime.aorticValveResearchProfile.openingMode
+          !== "bounded-backward-euler-memory"
+        || runtime.aorticValveResearchProfile.forwardConvectivePressureMode
+          !== "garcia-energy-loss-plus-downstream-kinetic-flux"
+      )
+    ) {
       throw new Error(
-        "aortic valve pressure-recovery and local-inertance profiles are mutually exclusive",
+        "AoV local inertance combines only with bounded-memory Garcia pressure recovery",
       );
     }
     if (runtime.valveResearchInput.valves.AoV.closedReverseEroaCm2 !== 0) {

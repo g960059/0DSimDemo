@@ -16,6 +16,9 @@ import {
 import {
   measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1";
+import {
+  evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowExternalReferenceCompatibilityV1";
 import type {
   MainWireAorticValveObservationGeometryV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
@@ -60,6 +63,35 @@ const GEOMETRY = Object.freeze({
 }) satisfies MainWireAorticValveObservationGeometryV1;
 
 describe("main-wire source-trace calcium recalibration sensitivity V1", () => {
+  it("scores only non-duplicated baseline outflow proxies against external context", () => {
+    const centered =
+      evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1({
+        aorticEjectionTimeProxySec: 0.292,
+        aorticAccelerationTimeProxySec: 0.093,
+        peakVenaContractaVelocityMPerSec: 1.21,
+        timeMeanSimplifiedDopplerGradientMmHg: 3.05,
+        configuredMaximumForwardEoaCm2: 2.91,
+      });
+    expect(centered.primaryReferenceBandDistanceRms).toBe(0);
+    expect(centered.allPrimaryComparisonIntervalsMatched).toBe(true);
+    expect(centered.claim.peakFlowTargetExcluded).toBe(true);
+    expect(centered.claim
+      .meanGradientExcludedFromScoreBecauseItDuplicatesVelocityAtFixedEoa)
+      .toBe(true);
+
+    const outside =
+      evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1({
+        aorticEjectionTimeProxySec: 0.19,
+        aorticAccelerationTimeProxySec: 0.026,
+        peakVenaContractaVelocityMPerSec: 2.05,
+        timeMeanSimplifiedDopplerGradientMmHg: 8.7,
+        configuredMaximumForwardEoaCm2: 3.5,
+      });
+    expect(outside.primaryReferenceBandDistanceRms).toBeGreaterThan(0);
+    expect(outside.allPrimaryComparisonIntervalsMatched).toBe(false);
+    expect(outside.configuredMaximumEoaIntervalMatched).toBe(true);
+  });
+
   it("defines a bounded reciprocal one-factor grid without valve or Ca axes", () => {
     expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_RECALIBRATION_POINTS_V1)
       .toHaveLength(13);
@@ -433,6 +465,20 @@ describe("main-wire source-trace calcium recalibration sensitivity V1", () => {
     expect(runs).toHaveLength(20);
     expect(measured.arms).toHaveLength(20);
     expect(measured.candidateSummaries).toHaveLength(3);
+    expect(measured.externalReferenceRescoring.baselineArms).toHaveLength(4);
+    expect(measured.externalReferenceRescoring
+      .candidateRankByExternalReferenceBandDistanceThenMacroGuardrail)
+      .toHaveLength(3);
+    expect(measured.externalReferenceRescoring.referenceContext
+      .waseHealthyAdultAorticValve.doi).toBe("10.1093/ehjci/jeac220");
+    expect(measured.claim.peakFlowExcludedFromExternalReferenceScore)
+      .toBe(true);
+    expect(measured.arms.every((arm) =>
+      arm.aorticOutflowKinematicFloor.currentDuration
+        .cauchySchwarzFloorSatisfied)).toBe(true);
+    expect(measured.arms.every((arm) =>
+      arm.preservedMacroFeasibility.claim.parameterOptimizationOrFitApplied
+        === false)).toBe(true);
     expect(measured.allProtocolIdentitiesDistinct).toBe(true);
     expect(measured.allRunsPeriod1AndIntegrated).toBe(false);
     expect(measured.interpretationEligible).toBe(false);

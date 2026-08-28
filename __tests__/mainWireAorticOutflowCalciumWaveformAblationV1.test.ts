@@ -953,6 +953,14 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
     );
     expect(comparison.delayedMixtures).toHaveLength(4);
     expect(comparison.factorialContrasts).toHaveLength(12);
+    expect(comparison.externalReferenceSelection
+      .morphologySafeCandidateRank).toHaveLength(2);
+    expect(comparison.delayedMixtures.every((arm) =>
+      arm.kinematicFloor.currentDuration.cauchySchwarzFloorSatisfied))
+      .toBe(true);
+    expect(comparison.delayedMixtures.every((arm) =>
+      arm.preservedMacroFeasibility.claim.necessaryNotSufficient))
+      .toBe(true);
     expect(comparison.delayedMixtures.map((arm) =>
       arm.ventricularCalciumStrictLocalPeakCountAboveFivePercent))
       .toEqual([1, 1, 2, 2]);

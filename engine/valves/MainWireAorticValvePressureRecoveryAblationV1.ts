@@ -203,6 +203,96 @@ export function validateMainWireAorticValveResearchProfileV1(
   return Object.freeze(issues);
 }
 
+export type MainWireAorticValveForwardConvectiveCoefficientsV1 = Readonly<{
+  pressureRecoveryApplied: boolean;
+  ascendingAorticAreaCm2: number | null;
+  energyLossCoefficientAreaCm2: number;
+  venaContractaBernoulliMmHgSec2PerMl2: number;
+  irreversibleBernoulliMmHgSec2PerMl2: number;
+  downstreamKineticMmHgSec2PerMl2: number;
+  portConvectivePressureMmHgSec2PerMl2: number;
+  pressureRecoveryFraction01: number;
+}>;
+
+/**
+ * Shared algebraic coefficient map for pressure-recovery-only and
+ * local-inertance-plus-pressure-recovery research arms. It owns no state and
+ * does not solve flow.
+ */
+export function evaluateMainWireAorticValveForwardConvectiveCoefficientsV1(
+  activeEoaCm2: number,
+  researchProfile: MainWireAorticValveResearchProfileV1,
+  favorableFlow: boolean,
+): MainWireAorticValveForwardConvectiveCoefficientsV1 {
+  const issues = [
+    ...validateMainWireAorticValveResearchProfileV1(researchProfile),
+  ];
+  if (!(activeEoaCm2 >= 0) || !Number.isFinite(activeEoaCm2)) {
+    issues.push("active AoV EOA must be finite and nonnegative");
+  }
+  const pressureRecoveryApplied = activeEoaCm2 > 0
+    && favorableFlow
+    && researchProfile.forwardConvectivePressureMode
+      === "garcia-energy-loss-plus-downstream-kinetic-flux";
+  const ascendingAorticAreaCm2 = researchProfile.ascendingAorticAreaCm2;
+  if (
+    pressureRecoveryApplied
+    && (
+      ascendingAorticAreaCm2 === null
+      || !(ascendingAorticAreaCm2 > activeEoaCm2)
+      || !Number.isFinite(ascendingAorticAreaCm2)
+    )
+  ) {
+    issues.push(
+      "pressure recovery requires fixed ascending-aortic area greater than active EOA",
+    );
+  }
+  if (issues.length > 0) {
+    throw new Error(`invalid AoV convective coefficient map: ${issues.join("; ")}`);
+  }
+  if (activeEoaCm2 === 0) {
+    return Object.freeze({
+      pressureRecoveryApplied: false,
+      ascendingAorticAreaCm2,
+      energyLossCoefficientAreaCm2: 0,
+      venaContractaBernoulliMmHgSec2PerMl2: 0,
+      irreversibleBernoulliMmHgSec2PerMl2: 0,
+      downstreamKineticMmHgSec2PerMl2: 0,
+      portConvectivePressureMmHgSec2PerMl2: 0,
+      pressureRecoveryFraction01: 0,
+    });
+  }
+  const venaContractaBernoulliMmHgSec2PerMl2 =
+    idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2);
+  const energyLossCoefficientAreaCm2 = pressureRecoveryApplied
+    ? activeEoaCm2 * ascendingAorticAreaCm2!
+      / (ascendingAorticAreaCm2! - activeEoaCm2)
+    : activeEoaCm2;
+  const irreversibleBernoulliMmHgSec2PerMl2 =
+    idealBernoulliLossFromEffectiveOrificeAreaV2(
+      energyLossCoefficientAreaCm2,
+    );
+  const downstreamKineticMmHgSec2PerMl2 = pressureRecoveryApplied
+    ? idealBernoulliLossFromEffectiveOrificeAreaV2(ascendingAorticAreaCm2!)
+    : 0;
+  const portConvectivePressureMmHgSec2PerMl2 =
+    irreversibleBernoulliMmHgSec2PerMl2
+    + downstreamKineticMmHgSec2PerMl2;
+  return Object.freeze({
+    pressureRecoveryApplied,
+    ascendingAorticAreaCm2,
+    energyLossCoefficientAreaCm2,
+    venaContractaBernoulliMmHgSec2PerMl2,
+    irreversibleBernoulliMmHgSec2PerMl2,
+    downstreamKineticMmHgSec2PerMl2,
+    portConvectivePressureMmHgSec2PerMl2,
+    pressureRecoveryFraction01: pressureRecoveryApplied
+      ? 1 - portConvectivePressureMmHgSec2PerMl2
+        / venaContractaBernoulliMmHgSec2PerMl2
+      : 0,
+  });
+}
+
 /**
  * Fixed-profile AoV research port. It changes neither flow-state topology nor
  * root inertance ownership. For favorable flow, the chamber-to-static-root
@@ -323,34 +413,25 @@ export function stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
   const resistanceMmHgSecPerMl = activeEoaCm2 === 0
     ? 0
     : params.backgroundLinearResistanceMmHgSecPerMl;
-  const venaContractaBernoulliMmHgSec2PerMl2 = activeEoaCm2 === 0
-    ? 0
-    : idealBernoulliLossFromEffectiveOrificeAreaV2(activeEoaCm2);
-  const pressureRecoveryApplied =
-    activeEoaCm2 > 0
-    && activeDirection !== "reverse"
-    && researchProfile.forwardConvectivePressureMode
-      === "garcia-energy-loss-plus-downstream-kinetic-flux";
-  const energyLossCoefficientAreaCm2 = activeEoaCm2 === 0
-    ? 0
-    : pressureRecoveryApplied
-      ? activeEoaCm2 * ascendingAorticAreaCm2!
-        / (ascendingAorticAreaCm2! - activeEoaCm2)
-      : activeEoaCm2;
+  const convective =
+    evaluateMainWireAorticValveForwardConvectiveCoefficientsV1(
+      activeEoaCm2,
+      researchProfile,
+      activeDirection !== "reverse",
+    );
+  const pressureRecoveryApplied = convective.pressureRecoveryApplied;
+  const energyLossCoefficientAreaCm2 =
+    convective.energyLossCoefficientAreaCm2;
+  const venaContractaBernoulliMmHgSec2PerMl2 =
+    convective.venaContractaBernoulliMmHgSec2PerMl2;
   // This field remains the irreversible convective-loss coefficient so the
   // existing dissipated-energy analysis keeps its exact meaning.
-  const bernoulliMmHgSec2PerMl2 = activeEoaCm2 === 0
-    ? 0
-    : idealBernoulliLossFromEffectiveOrificeAreaV2(
-      energyLossCoefficientAreaCm2,
-    );
-  const downstreamKineticMmHgSec2PerMl2 = pressureRecoveryApplied
-    ? idealBernoulliLossFromEffectiveOrificeAreaV2(
-      ascendingAorticAreaCm2!,
-    )
-    : 0;
+  const bernoulliMmHgSec2PerMl2 =
+    convective.irreversibleBernoulliMmHgSec2PerMl2;
+  const downstreamKineticMmHgSec2PerMl2 =
+    convective.downstreamKineticMmHgSec2PerMl2;
   const portConvectivePressureMmHgSec2PerMl2 =
-    bernoulliMmHgSec2PerMl2 + downstreamKineticMmHgSec2PerMl2;
+    convective.portConvectivePressureMmHgSec2PerMl2;
   const flowMlPerSec = activeEoaCm2 === 0
     ? 0
     : solveExactSignedLinearQuadraticValveFlowV2(
@@ -413,11 +494,7 @@ export function stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
     ? venaContractaBernoulliPressureMmHg
       - netStaticConvectivePressureMmHg
     : 0;
-  const pressureRecoveryFraction01 =
-    venaContractaBernoulliMmHgSec2PerMl2 > 0 && pressureRecoveryApplied
-      ? 1 - portConvectivePressureMmHgSec2PerMl2
-        / venaContractaBernoulliMmHgSec2PerMl2
-      : 0;
+  const pressureRecoveryFraction01 = convective.pressureRecoveryFraction01;
   const openOrificeResidualMmHg =
     pressureGradientMmHg
     - dissipativePressureMmHg
