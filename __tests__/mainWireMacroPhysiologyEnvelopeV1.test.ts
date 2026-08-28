@@ -117,6 +117,50 @@ describe("main-wire fixed macro physiology envelope V1", () => {
     expect(lengthDependenceOff.resolvedVentricularLandBeta0).toBe(0);
     expect(lengthDependenceOff.resolvedVentricularLandBeta1UM).toBe(0);
     expect(lengthDependenceOff.resolvedVentricularLandTrefPa).toBe(120_000);
+    const peakTensionLength =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-peak-tension-length-dependence-low",
+      );
+    expect(peakTensionLength
+      .ventricularLandPeakTensionLengthDependenceScaleFromBaseline)
+      .toBe(0.75);
+    expect(peakTensionLength
+      .ventricularLandCalciumSensitivityLengthDependenceScaleFromBaseline)
+      .toBe(1);
+    expect(peakTensionLength.claim).toMatchObject({
+      landBeta0Scaled: true,
+      landBeta1Scaled: false,
+      landBeta0AndBeta1ScaledTogether: false,
+    });
+    const calciumSensitivityLength =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-calcium-sensitivity-length-dependence-low",
+      );
+    expect(calciumSensitivityLength
+      .ventricularLandPeakTensionLengthDependenceScaleFromBaseline)
+      .toBe(1);
+    expect(calciumSensitivityLength
+      .ventricularLandCalciumSensitivityLengthDependenceScaleFromBaseline)
+      .toBe(0.75);
+    expect(calciumSensitivityLength.claim).toMatchObject({
+      landBeta0Scaled: false,
+      landBeta1Scaled: true,
+      landBeta0AndBeta1ScaledTogether: false,
+    });
+    const peakTensionLengthHalf =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-peak-tension-length-dependence-half",
+      );
+    expect(peakTensionLengthHalf.resolvedVentricularLandBeta0)
+      .toBeCloseTo(1.15);
+    expect(peakTensionLengthHalf.resolvedVentricularLandBeta1UM).toBe(-2.4);
+    const calciumSensitivityLengthHalf =
+      resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+        "ventricular-calcium-sensitivity-length-dependence-half",
+      );
+    expect(calciumSensitivityLengthHalf.resolvedVentricularLandBeta0).toBe(2.3);
+    expect(calciumSensitivityLengthHalf.resolvedVentricularLandBeta1UM)
+      .toBeCloseTo(-1.2);
     const velocityDistortion =
       resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
         "ventricular-velocity-distortion-high",

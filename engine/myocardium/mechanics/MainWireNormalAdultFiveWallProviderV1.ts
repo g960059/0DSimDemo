@@ -143,6 +143,10 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
     "ventricular-length-dependence-half",
     "ventricular-length-dependence-quarter",
     "ventricular-length-dependence-exact-off",
+    "ventricular-peak-tension-length-dependence-low",
+    "ventricular-calcium-sensitivity-length-dependence-low",
+    "ventricular-peak-tension-length-dependence-half",
+    "ventricular-calcium-sensitivity-length-dependence-half",
     "ventricular-velocity-distortion-high",
     "ventricular-distortion-recovery-high",
     "ventricular-velocity-distortion-high-plus-recovery-high",
@@ -159,7 +163,10 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
   ventricularEquilibriumPassiveScaleFromBaseline: number;
   ventricularSlsModulusScaleFromBaseline: number;
   ventricularLandTrefScaleFromBaseline: number;
+  /** Common scale applied to both beta0 and beta1; one for split-axis points. */
   ventricularLandLengthDependenceScaleFromBaseline: number;
+  ventricularLandPeakTensionLengthDependenceScaleFromBaseline: number;
+  ventricularLandCalciumSensitivityLengthDependenceScaleFromBaseline: number;
   ventricularLandVelocityDistortionScaleFromBaseline: number;
   ventricularLandDistortionRecoveryScaleFromBaseline: number;
   resolvedVentricularLandTrefPa: number;
@@ -175,6 +182,8 @@ export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
     equilibriumEnergyStressAndTangentScaledTogether: true;
     septumSharedByBothVentricles: true;
     independentLvAndRvEdpvrClaimed: false;
+    landBeta0Scaled: boolean;
+    landBeta1Scaled: boolean;
     landBeta0AndBeta1ScaledTogether: boolean;
     landAeffScaledWithDerivedAwAndAs: boolean;
     landPhiScaledWithDerivedCwAndCs: boolean;
@@ -661,6 +670,18 @@ function resolveVentricularMaterialProfile(
           : pointId === "ventricular-length-dependence-exact-off"
             ? 0
             : 1;
+  const peakTensionLengthDependenceScale =
+    pointId === "ventricular-peak-tension-length-dependence-half"
+      ? 0.5
+      : pointId === "ventricular-peak-tension-length-dependence-low"
+      ? 0.75
+      : lengthDependenceScale;
+  const calciumSensitivityLengthDependenceScale =
+    pointId === "ventricular-calcium-sensitivity-length-dependence-half"
+      ? 0.5
+      : pointId === "ventricular-calcium-sensitivity-length-dependence-low"
+      ? 0.75
+      : lengthDependenceScale;
   const velocityDistortionScale =
     pointId === "ventricular-distortion-transient-twofold"
       ? 2
@@ -705,12 +726,14 @@ function resolveVentricularMaterialProfile(
   const landEquationParameters =
     pointId === "ventricular-tref-low" || pointId === "ventricular-tref-high"
       ? scaledVentricularLandTref(pointId, trefScale)
-      : lengthDependenceScale !== 1
+      : peakTensionLengthDependenceScale !== 1
+          || calciumSensitivityLengthDependenceScale !== 1
           || velocityDistortionScale !== 1
           || distortionRecoveryScale !== 1
         ? scaledVentricularLandKinematicDependence(
           pointId,
-          lengthDependenceScale,
+          peakTensionLengthDependenceScale,
+          calciumSensitivityLengthDependenceScale,
           velocityDistortionScale,
           distortionRecoveryScale,
         )
@@ -726,7 +749,8 @@ function resolveVentricularMaterialProfile(
   const wallMaterial =
     passiveScale === 1
         && trefScale === 1
-        && lengthDependenceScale === 1
+        && peakTensionLengthDependenceScale === 1
+        && calciumSensitivityLengthDependenceScale === 1
         && velocityDistortionScale === 1
         && distortionRecoveryScale === 1
       ? baselineMaterial
@@ -743,6 +767,10 @@ function resolveVentricularMaterialProfile(
     ventricularLandTrefScaleFromBaseline: trefScale,
     ventricularLandLengthDependenceScaleFromBaseline:
       lengthDependenceScale,
+    ventricularLandPeakTensionLengthDependenceScaleFromBaseline:
+      peakTensionLengthDependenceScale,
+    ventricularLandCalciumSensitivityLengthDependenceScaleFromBaseline:
+      calciumSensitivityLengthDependenceScale,
     ventricularLandVelocityDistortionScaleFromBaseline:
       velocityDistortionScale,
     ventricularLandDistortionRecoveryScaleFromBaseline:
@@ -760,15 +788,20 @@ function resolveVentricularMaterialProfile(
       equilibriumEnergyStressAndTangentScaledTogether: true as const,
       septumSharedByBothVentricles: true as const,
       independentLvAndRvEdpvrClaimed: false as const,
+      landBeta0Scaled: peakTensionLengthDependenceScale !== 1,
+      landBeta1Scaled: calciumSensitivityLengthDependenceScale !== 1,
       landBeta0AndBeta1ScaledTogether:
-        lengthDependenceScale !== 1,
+        peakTensionLengthDependenceScale !== 1
+        && peakTensionLengthDependenceScale
+          === calciumSensitivityLengthDependenceScale,
       landAeffScaledWithDerivedAwAndAs:
         velocityDistortionScale !== 1,
       landPhiScaledWithDerivedCwAndCs:
         distortionRecoveryScale !== 1,
       referenceLengthIsometricLandValuesUnchanged:
         (
-          lengthDependenceScale !== 1
+          peakTensionLengthDependenceScale !== 1
+          || calciumSensitivityLengthDependenceScale !== 1
           || velocityDistortionScale !== 1
           || distortionRecoveryScale !== 1
         )
@@ -781,7 +814,8 @@ function resolveVentricularMaterialProfile(
 
 function scaledVentricularLandKinematicDependence(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
-  lengthDependenceScale: number,
+  peakTensionLengthDependenceScale: number,
+  calciumSensitivityLengthDependenceScale: number,
   velocityDistortionScale: number,
   distortionRecoveryScale: number,
 ): Land2017SourceParameterSet {
@@ -790,15 +824,21 @@ function scaledVentricularLandKinematicDependence(
     ...baseline.values,
     Aeff: baseline.values.Aeff * velocityDistortionScale,
     phi: baseline.values.phi * distortionRecoveryScale,
-    beta0: lengthDependenceScale === 0
+    beta0: peakTensionLengthDependenceScale === 0
       ? 0
-      : baseline.values.beta0 * lengthDependenceScale,
-    beta1: lengthDependenceScale === 0
+      : baseline.values.beta0 * peakTensionLengthDependenceScale,
+    beta1: calciumSensitivityLengthDependenceScale === 0
       ? 0
-      : baseline.values.beta1 * lengthDependenceScale,
+      : baseline.values.beta1 * calciumSensitivityLengthDependenceScale,
   });
-  const lengthProvenance =
-    `fixed loaded-length-dependence research scale ${lengthDependenceScale}`;
+  const peakTensionLengthProvenance =
+    `fixed peak-tension length-dependence research scale ${
+      peakTensionLengthDependenceScale
+    }`;
+  const calciumSensitivityLengthProvenance =
+    `fixed calcium-sensitivity length-dependence research scale ${
+      calciumSensitivityLengthDependenceScale
+    }`;
   const velocityProvenance =
     `fixed velocity-distortion research scale ${velocityDistortionScale}`;
   const recoveryProvenance =
@@ -825,7 +865,9 @@ function scaledVentricularLandKinematicDependence(
             ? velocityProvenance
             : entry.parameter === "phi"
               ? recoveryProvenance
-            : lengthProvenance;
+            : entry.parameter === "beta0"
+              ? peakTensionLengthProvenance
+              : calciumSensitivityLengthProvenance;
           return Object.freeze({
             ...entry,
             ...(scaledValue === null

@@ -4,6 +4,9 @@ import {
   compareMainWireAorticOutflowDistortionTransientFactorialV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDistortionTransientFactorialV1";
 import {
+  compareMainWireAorticOutflowLengthMechanismFactorialV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowLengthMechanismFactorialV1";
+import {
   compareMainWireAorticOutflowDriverRootAblationV1,
   type MainWireAorticOutflowDriverRootArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDriverRootComparisonV1";
@@ -56,6 +59,10 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_DISTORTION_TRANSIENT_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDistortionTransientAblationV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_LENGTH_MECHANISM_ARM_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_LENGTH_MECHANISM_CLAIM_V1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthMechanismAblationV1";
+import {
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_ARM_IDS_V1,
   MAIN_WIRE_AORTIC_OUTFLOW_DRIVER_ROOT_ABLATION_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
@@ -76,6 +83,7 @@ import {
   runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchArmV1,
+  runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1,
@@ -568,6 +576,49 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         periodicResult: run.periodicResult,
       })),
     )).toThrow("missing distortion-transient arm");
+  }, 60_000);
+
+  it("separates Land peak-tension and calcium-sensitivity length effects", () => {
+    const runs = MAIN_WIRE_AORTIC_OUTFLOW_LENGTH_MECHANISM_ARM_IDS_V1.map(
+      (armId) =>
+        runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchArmV1(
+          { dtSec: 0.01, maximumBeatCount: 1 },
+          armId,
+        ),
+    );
+    const factorial = compareMainWireAorticOutflowLengthMechanismFactorialV1(
+      runs.map((run) => ({
+        armId: run.arm.armId,
+        periodicResult: run.periodicResult,
+      })),
+    );
+    expect(factorial.arms).toHaveLength(7);
+    expect(factorial.factorialContrasts).toHaveLength(15);
+    expect(factorial.arms.map((arm) => arm.materialPoint
+      .ventricularLandPeakTensionLengthDependenceScaleFromBaseline))
+      .toEqual([1, 0.75, 1, 0.75, 0.5, 1, 0.5]);
+    expect(factorial.arms.map((arm) => arm.materialPoint
+      .ventricularLandCalciumSensitivityLengthDependenceScaleFromBaseline))
+      .toEqual([1, 1, 0.75, 0.75, 1, 0.5, 0.5]);
+    expect(factorial.referenceLengthIsometricInvariance).toEqual({
+      maximumAbsoluteActiveTwitchMetricDifference: 0,
+      exactAtFloatingPointAcrossFactorial: true,
+    });
+    expect(new Set(factorial.arms.map((arm) =>
+      arm.protocolIdentityHash)).size).toBe(7);
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_LENGTH_MECHANISM_CLAIM_V1)
+      .toMatchObject({
+        sourceLengthDependenceCalibrationPreserved: false,
+        existingLandStateCountChanged: false,
+        acceptedStateOrCheckpointTopologyChanged: false,
+      });
+    expect(allNumbersFinite(factorial)).toBe(true);
+    expect(() => compareMainWireAorticOutflowLengthMechanismFactorialV1(
+      runs.slice(1).map((run) => ({
+        armId: run.arm.armId,
+        periodicResult: run.periodicResult,
+      })),
+    )).toThrow("missing length-mechanism arm");
   }, 60_000);
 
   it("brackets the exact global arterial PV stiffness without adding state", () => {

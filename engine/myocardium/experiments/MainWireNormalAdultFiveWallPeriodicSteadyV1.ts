@@ -92,6 +92,11 @@ import {
   type MainWireAorticOutflowDistortionTransientArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDistortionTransientAblationV1";
 import {
+  resolveMainWireAorticOutflowLengthMechanismArmV1,
+  type MainWireAorticOutflowLengthMechanismArmIdV1,
+  type MainWireAorticOutflowLengthMechanismArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowLengthMechanismAblationV1";
+import {
   resolveMainWireAorticOutflowDriverRootAblationArmV1,
   type MainWireAorticOutflowDriverRootAblationArmIdV1,
   type MainWireAorticOutflowDriverRootAblationArmV1,
@@ -411,6 +416,26 @@ export type MainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchR
     configurationRole:
       "fixed-aortic-outflow-distortion-transient-ablation-arm";
     arm: MainWireAorticOutflowDistortionTransientArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-length-mechanism-ablation-arm";
+    arm: MainWireAorticOutflowLengthMechanismArmV1;
     materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
     periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
     claim: Readonly<{
@@ -1084,6 +1109,59 @@ export function runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientRe
   return Object.freeze({
     configurationRole:
       "fixed-aortic-outflow-distortion-transient-ablation-arm" as const,
+    arm,
+    materialPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
+/** Fixed 2x2 Land beta0/beta1 length-mechanism research arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowLengthMechanismArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowLengthMechanismArmV1(armId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-length-mechanism-ablation-arm" as const,
     arm,
     materialPoint,
     periodicResult,
