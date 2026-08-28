@@ -16,6 +16,14 @@ import {
   measurePeriodicAorticPressureFlowCouplingV1,
 } from "@/analysis/methods/mainWire/MainWireAorticPressureFlowCouplingV1";
 import {
+  MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_CLAIM_V1,
+  measureMainWireVentricularLandIsometricTwitchAuditV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularLandIsometricTwitchAuditV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LOADED_SHORTENING_AUDIT_CLAIM_V1,
+  measureMainWireVentricularLoadedShorteningAuditV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularLoadedShorteningAuditV1";
+import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
   evaluateFiveWallNormalCalciumDriveV1,
   measurePeriodicBiexponentialCalciumPulseShapeV1,
@@ -37,14 +45,67 @@ import {
   validateMainWireVentricularCalciumWaveformProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_ABLATION_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_PROFILE_IDS_V1,
+  resolveMainWireVentricularCalciumPeakLockedTailParamsV1,
+  resolveMainWireVentricularCalciumPeakLockedTailProfileV1,
+  validateMainWireVentricularCalciumPeakLockedTailProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumPeakLockedTailAblationV1";
+import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
   runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumPeakLockedTailResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 describe("main-wire aortic outflow calcium waveform ablation V1", () => {
+  it("audits the prescribed calcium-to-Land isometric twitch at periodic closure", () => {
+    const audit = measureMainWireVentricularLandIsometricTwitchAuditV1(
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      { dtSec: 0.002, fixedLandStretch: 1 },
+    );
+
+    expect(audit.periodicClosure).toMatchObject({
+      coldFixedInputConverged: true,
+      converged: true,
+    });
+    expect(audit.periodicClosure.maximumLandStateClosureResidual)
+      .toBeLessThanOrEqual(audit.protocol.p1StateClosureTolerance);
+    expect(audit.protocol.sampleCount).toBe(500);
+    expect(audit.protocol.fixedLandStretch).toBe(1);
+    expect(audit.calcium.localPeakCountAboveFivePercentAmplitude).toBe(1);
+    expect(audit.activeTwitch.localPeakCountAboveFivePercentAmplitude).toBe(1);
+    expect(audit.activeTwitch.peakKPa)
+      .toBeGreaterThan(audit.activeTwitch.minimumKPa);
+    expect(audit.activeTwitch.relaxationTime50Sec).not.toBeNull();
+    expect(audit.activeTwitch.relaxationTime95Sec).not.toBeNull();
+    expect(audit.numericalHealth.maximumAbsoluteParallelSlsOverstressPa)
+      .toBe(0);
+    expect(audit.sourceContext).toMatchObject({
+      sourceRestingExtensionRatio: 1,
+      currentCalciumInputIsDigitizedSourceTrace: false,
+      publishedFinalModel: {
+        timeToPeakSec: 0.175,
+        relaxationTime50Sec: 0.121,
+        relaxationTime95Sec: 0.281,
+      },
+    });
+    expect(audit.sourceContext.directionalScreenOnly)
+      .toMatchObject({
+        fixedStretchMatchesSourceRestingExtensionRatio: true,
+        eligibleForSourceTraceReproductionClaim: false,
+      });
+    expect(MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_CLAIM_V1)
+      .toMatchObject({
+        exactModelStateOrCheckpointChanged: false,
+        aorticValveOrCirculationUsed: false,
+        sourceTraceReproductionClaimed: false,
+        parameterSearchOrFitting: false,
+      });
+  });
+
   it("classifies an unsmoothed pressure-flow derivative proxy by sign", () => {
     const phases = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875];
     const pressures = [80, 80, 82, 86, 87, 84, 80, 80];
@@ -194,6 +255,53 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       });
   });
 
+  it("locks calcium peak time while redistributing exposure into the tail", () => {
+    const profiles =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_PROFILE_IDS_V1.map(
+        resolveMainWireVentricularCalciumPeakLockedTailProfileV1,
+      );
+    const params = profiles.map((profile) =>
+      resolveMainWireVentricularCalciumPeakLockedTailParamsV1(
+        profile.profileId,
+      ));
+    expect(params[0]).toBe(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1);
+    expect(profiles[1]!.ventricularDecayTimeScaleFromPrior)
+      .toBeCloseTo(4 / 3, 14);
+    expect(profiles[1]!.ventricularRiseTimeScaleFromPrior).toBeLessThan(1);
+    expect(Math.abs(profiles[1]!.ventricularPulseTimeToPeakResidualSec))
+      .toBeLessThanOrEqual(1e-14);
+    expect(profiles[1]!
+      .ventricularSupradiastolicCalciumCycleExposureScaleFromPrior)
+      .toBeCloseTo(1, 14);
+    expect(profiles[1]!.ventricularPeakAmplitudeScaleFromPrior).toBeLessThan(1);
+    expect(validateMainWireVentricularCalciumPeakLockedTailProfileV1(
+      profiles[1]!,
+    )).toEqual([]);
+    const shapes = params.map((value) =>
+      measurePeriodicBiexponentialCalciumPulseShapeV1(
+        value.cycleLengthSec,
+        value.ventricular.riseTimeConstantSec,
+        value.ventricular.decayTimeConstantSec,
+      ));
+    expect(shapes[1]!.timeToPeakSec).toBeCloseTo(shapes[0]!.timeToPeakSec, 14);
+    expect(
+      params[1]!.ventricular.peakAmplitudeUM
+      * shapes[1]!.normalizedPulseCycleIntegralSec,
+    ).toBeCloseTo(
+      params[0]!.ventricular.peakAmplitudeUM
+      * shapes[0]!.normalizedPulseCycleIntegralSec,
+      14,
+    );
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_ABLATION_CLAIM_V1)
+      .toMatchObject({
+        everyProfilePreservesCalciumPulsePeakTime: true,
+        everyProfilePreservesVentricularCalciumCycleExposure: true,
+        calciumOrMechanicsStateAdded: false,
+        parameterSearchOrFitting: false,
+        hemodynamicOutcomeUsedToDeriveProfile: false,
+      });
+  });
+
   it("seals and morphology-classifies an exposure-preserving delayed-mixture factorial", () => {
     const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
     const profiles =
@@ -290,11 +398,54 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
         { dtSec: 0.02, maximumBeatCount: 1 },
         "ventricular-calcium-rise-decay-high-exposure-preserving",
       );
+    const peakLockedTail =
+      runMainWireNormalAdultFiveWallVentricularCalciumPeakLockedTailResearchV1(
+        { dtSec: 0.02, maximumBeatCount: 1 },
+        "ventricular-calcium-peak-locked-tail-high-exposure-preserving",
+      );
     expect(resolveMainWireVentricularCalciumWaveformParamsV1("canonical"))
       .toBe(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1);
     expect(baseline.periodicResult).toEqual(canonical);
+    const loadedShortening =
+      measureMainWireVentricularLoadedShorteningAuditV1(
+        baseline.periodicResult,
+        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      );
+    expect(Object.keys(loadedShortening.walls))
+      .toEqual(["LVFW", "SEP", "RVFW"]);
+    for (const wall of Object.values(loadedShortening.walls)) {
+      expect(wall.fullKinematicsReplay.converged).toBe(true);
+      expect(wall.distortionSuppressedReplay.converged).toBe(true);
+      expect(wall.fixedAtEjectionOnsetReplay.converged).toBe(true);
+      expect(wall.distortionSuppressedReplay.minimumZetaW).toBe(0);
+      expect(wall.distortionSuppressedReplay.maximumZetaW).toBe(0);
+      expect(wall.distortionSuppressedReplay.minimumZetaS).toBe(0);
+      expect(wall.distortionSuppressedReplay.maximumZetaS).toBe(0);
+      expect(wall.fixedAtEjectionOnsetReplay.minimumZetaW).toBe(0);
+      expect(wall.fixedAtEjectionOnsetReplay.maximumZetaW).toBe(0);
+      expect(wall.fixedAtEjectionOnsetReplay.minimumZetaS).toBe(0);
+      expect(wall.fixedAtEjectionOnsetReplay.maximumZetaS).toBe(0);
+      expect(wall.strainHistory.maximumLandStretch)
+        .toBeGreaterThan(wall.strainHistory.minimumLandStretch);
+      expect(wall.recordedWholeHeart.peakActiveStressKPa).toBeGreaterThan(0);
+    }
+    expect(MAIN_WIRE_VENTRICULAR_LOADED_SHORTENING_AUDIT_CLAIM_V1)
+      .toMatchObject({
+        exactModelStateOrCheckpointChanged: false,
+        replayFeedsBackIntoMechanicsOrCirculation: false,
+        distortionSuppressedReplayIsProposedModel: false,
+        parameterSearchOrFitting: false,
+      });
     expect(broadened.periodicResult.protocolIdentityHash)
       .not.toBe(baseline.periodicResult.protocolIdentityHash);
+    expect(peakLockedTail.periodicResult.protocolIdentityHash)
+      .not.toBe(baseline.periodicResult.protocolIdentityHash);
+    expect(peakLockedTail.claim).toMatchObject({
+      circulationRuntimeChanged: false,
+      mechanicsProviderChanged: false,
+      calciumOrMechanicsStateAdded: false,
+      acceptedStateOrCheckpointTopologyChanged: false,
+    });
     expect(broadened.periodicResult.protocolComponentHashes
       .calciumDriveFixedParamsStableHash).not.toBe(
         baseline.periodicResult.protocolComponentHashes
