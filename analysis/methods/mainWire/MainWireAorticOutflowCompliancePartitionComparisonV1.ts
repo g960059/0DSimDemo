@@ -65,7 +65,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_COMPARISON_CLAIM_V1 =
     smoothingApplied: false as const,
     interpolationApplied: false as const,
     parameterSearchOrFitting: false as const,
-    hemodynamicOutcomeUsedToDeriveBracket: false as const,
+    lowerBracketExpansionInformedByObservedRootStorage: true as const,
+    numericHemodynamicTargetFitApplied: false as const,
     anatomicalSupportLengthIdentified: false as const,
     clinicalValidationClaimed: false as const,
     canonicalAdoptionEstablished: false as const,
@@ -138,7 +139,11 @@ export function compareMainWireAorticOutflowCompliancePartitionV1(
   if (
     byId.size !== MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_ARM_IDS_V1.length
   ) {
-    throw new Error("aortic compliance partition accepts exactly three arms");
+    throw new Error(
+      `aortic compliance partition accepts exactly ${
+        MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_ARM_IDS_V1.length
+      } arms`,
+    );
   }
   const canonicalResult = byId.get("canonical")!;
   const rawArms = MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_ARM_IDS_V1.map(
@@ -155,10 +160,8 @@ export function compareMainWireAorticOutflowCompliancePartitionV1(
       ),
   })));
   const canonical = arms[0]!;
-  const low = arms[1]!;
-  const high = arms[2]!;
   const contrast = (
-    arm: typeof low | typeof high,
+    arm: MainWireAorticOutflowCompliancePartitionArmV1,
   ): MainWireAorticOutflowCompliancePartitionContrastV1 => Object.freeze({
     armId: arm.armId as MainWireAorticCompliancePartitionResearchProfileIdV1,
     aorticRootVsChangeMl:
@@ -201,35 +204,41 @@ export function compareMainWireAorticOutflowCompliancePartitionV1(
       - canonical.compliance.summedAorticRootAndSystemicArtery
         .arithmeticMeanMlPerMmHg,
   });
+  const noncanonical = arms.slice(1);
+  const capacityOrdered = [...arms].sort((left, right) =>
+    left.capacity.resolvedAorticRootVsMl
+      - right.capacity.resolvedAorticRootVsMl);
   return Object.freeze({
     methodId: MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_COMPARISON_V1_ID,
     arms,
-    contrastsFromCanonical: Object.freeze([contrast(low), contrast(high)]),
+    contrastsFromCanonical: Object.freeze(noncanonical.map(contrast)),
     allRunsPeriod1AndIntegrated: arms.every((arm) =>
       arm.cycle.periodicSteadyStateClaimed
       && arm.cycle.integrationCompletedWithoutFailure),
     peakFlowStrictlyIncreasesWithAorticRootCapacity:
-      low.cycle.aorticMaximumFlowMlPerSec
-        < canonical.cycle.aorticMaximumFlowMlPerSec
-      && canonical.cycle.aorticMaximumFlowMlPerSec
-        < high.cycle.aorticMaximumFlowMlPerSec,
+      strictlyIncreases(capacityOrdered.map((arm) =>
+        arm.cycle.aorticMaximumFlowMlPerSec)),
     meanDopplerGradientStrictlyIncreasesWithAorticRootCapacity:
-      low.cycle.meanDopplerGradientMmHg
-        < canonical.cycle.meanDopplerGradientMmHg
-      && canonical.cycle.meanDopplerGradientMmHg
-        < high.cycle.meanDopplerGradientMmHg,
+      strictlyIncreases(capacityOrdered.map((arm) =>
+        arm.cycle.meanDopplerGradientMmHg)),
     peakDopplerGradientStrictlyIncreasesWithAorticRootCapacity:
-      low.cycle.peakDopplerGradientMmHg
-        < canonical.cycle.peakDopplerGradientMmHg
-      && canonical.cycle.peakDopplerGradientMmHg
-        < high.cycle.peakDopplerGradientMmHg,
+      strictlyIncreases(capacityOrdered.map((arm) =>
+        arm.cycle.peakDopplerGradientMmHg)),
     ejectionTimeStrictlyDecreasesWithAorticRootCapacity:
-      low.cycle.aorticEjectionTimeProxySec
-        > canonical.cycle.aorticEjectionTimeProxySec
-      && canonical.cycle.aorticEjectionTimeProxySec
-        > high.cycle.aorticEjectionTimeProxySec,
+      strictlyDecreases(capacityOrdered.map((arm) =>
+        arm.cycle.aorticEjectionTimeProxySec)),
     claim: MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_COMPARISON_CLAIM_V1,
   });
+}
+
+function strictlyIncreases(values: readonly number[]): boolean {
+  return values.every((value, index) =>
+    index === 0 || value > values[index - 1]!);
+}
+
+function strictlyDecreases(values: readonly number[]): boolean {
+  return values.every((value, index) =>
+    index === 0 || value < values[index - 1]!);
 }
 
 function measureArm(

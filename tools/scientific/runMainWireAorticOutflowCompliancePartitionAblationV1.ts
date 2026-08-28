@@ -58,7 +58,8 @@ const report = Object.freeze({
     armOrder: MAIN_WIRE_AORTIC_OUTFLOW_COMPLIANCE_PARTITION_ARM_IDS_V1,
     independentCanonicalColdStartPerArm: true as const,
     parameterSearchOrFitting: false as const,
-    hemodynamicOutcomeUsedToDeriveBracket: false as const,
+    lowerBracketExpansionInformedByObservedRootStorage: true as const,
+    numericHemodynamicTargetFitApplied: false as const,
   }),
   exactIdentities: Object.freeze(inputs.map((input) => Object.freeze({
     armId: input.armId,

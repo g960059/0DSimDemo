@@ -16,6 +16,7 @@ import {
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
+  MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1,
   MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1,
   resolveMainWireAorticCompliancePartitionCapacitySnapshotV1,
   resolveMainWireAorticCompliancePartitionResearchProfileV1,
@@ -155,10 +156,8 @@ describe("circulation graph kernel V1", () => {
     const baselineAo = vascularPvLawFromNodeV1(ao, baselineParams);
     const baselineSa = vascularPvLawFromNodeV1(sa, baselineParams);
     const baselineArt = vascularPvLawFromNodeV1(art, baselineParams);
-    for (const profileId of [
-      "aortic-root-exponential-pv-capacity-low",
-      "aortic-root-exponential-pv-capacity-high",
-    ] as const) {
+    for (const profileId of
+      MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1) {
       const profile =
         resolveMainWireAorticCompliancePartitionResearchProfileV1(profileId);
       const capacity =

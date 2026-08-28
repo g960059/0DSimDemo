@@ -5,6 +5,7 @@ export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_V1_ID =
 
 export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1 =
   Object.freeze([
+    "aortic-root-exponential-pv-capacity-half",
     "aortic-root-exponential-pv-capacity-low",
     "aortic-root-exponential-pv-capacity-high",
   ] as const);
@@ -33,6 +34,13 @@ if (SOURCE_AO.P0 !== SOURCE_SA.P0) {
 
 export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILES_V1 =
   Object.freeze({
+    "aortic-root-exponential-pv-capacity-half": Object.freeze({
+      profileId: "aortic-root-exponential-pv-capacity-half" as const,
+      aorticRootCapacityScaleFromTopology: 0.5,
+      compensationRule:
+        "equal-and-opposite-Vs-transfer-from-Ao-to-SA" as const,
+      parameterSearchOrFitting: false as const,
+    }),
     "aortic-root-exponential-pv-capacity-low": Object.freeze({
       profileId: "aortic-root-exponential-pv-capacity-low" as const,
       aorticRootCapacityScaleFromTopology: 0.75,
@@ -57,7 +65,8 @@ export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1 =
     role: "fixed-profile-source-research-ablation" as const,
     affectedNodes: Object.freeze(["Ao", "SA"] as const),
     topologyOwnedExponentialPvCapacityRedistributed: true as const,
-    aorticRootCapacityScaleAxis: Object.freeze([0.75, 4 / 3] as const),
+    aorticRootCapacityScaleAxis:
+      Object.freeze([0.5, 0.75, 4 / 3] as const),
     aorticRootPlusSystemicArteryVsSumPreservedExactly: true as const,
     aorticRootAndSystemicArteryP0Equal: true as const,
     equalPressureCombinedTangentCompliancePreservedExactly: true as const,
@@ -66,7 +75,8 @@ export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1 =
     arterialResistanceOrInertanceChanged: false as const,
     acceptedStateOrCheckpointTopologyChanged: false as const,
     parameterSearchOrFitting: false as const,
-    hemodynamicOutcomeUsedToDeriveProfiles: false as const,
+    lowerBracketExpansionInformedByObservedRootStorage: true as const,
+    numericHemodynamicTargetFitApplied: false as const,
     anatomicalSupportLengthIdentified: false as const,
     clinicalValidationClaimed: false as const,
   });

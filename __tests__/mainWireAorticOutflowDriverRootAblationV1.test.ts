@@ -635,13 +635,15 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
       })),
     ]);
     expect(comparison.arms.map((arm) =>
-      arm.capacity.resolvedAorticRootVsMl)).toEqual([150, 112.5, 200]);
+      arm.capacity.resolvedAorticRootVsMl))
+      .toEqual([150, 75, 112.5, 200]);
     expect(comparison.arms.map((arm) =>
-      arm.capacity.resolvedAoSaTotalVsMl)).toEqual([550, 550, 550]);
+      arm.capacity.resolvedAoSaTotalVsMl))
+      .toEqual([550, 550, 550, 550]);
     expect(comparison.arms.every((arm) =>
       arm.capacity.totalVsResidualMl === 0)).toBe(true);
     expect(new Set(comparison.arms.map((arm) =>
-      arm.cycle.protocolIdentityHash)).size).toBe(3);
+      arm.cycle.protocolIdentityHash)).size).toBe(4);
     expect(comparison.claim.globalArterialStiffnessChanged).toBe(false);
     expect(comparison.claim.acceptedStateOrCheckpointTopologyChanged)
       .toBe(false);
