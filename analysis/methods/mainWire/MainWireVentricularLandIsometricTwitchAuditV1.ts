@@ -13,6 +13,9 @@ import {
 import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
+import type {
+  MainWireVentricularLandIsometricCalciumInputV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceProtocolsV1";
 
 export const MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_V1_ID =
   "main-wire-ventricular-land-isometric-twitch-audit-v1" as const;
@@ -72,7 +75,8 @@ export type MainWireIsometricTransientMetricsV1 = Readonly<{
 export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
   methodId: typeof MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_V1_ID;
   identities: Readonly<{
-    calciumDriveParameterSetId: string;
+    calciumInputId: string;
+    calciumDriveParameterSetId: string | null;
     wallMaterialParameterSetId: string;
     landEquationParameterSetId: string;
     landEquationParameterSetStableHash: string;
@@ -83,7 +87,7 @@ export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
     sampleCount: number;
     fixedLandStretch: number;
     fixedFiberLogStrain: number;
-    ventricularElectricalToCalciumDelaySec: number;
+    ventricularElectricalToCalciumDelaySec: number | null;
     minimumCycleCount: number;
     maximumCycleCount: number;
     p1StateClosureTolerance: number;
@@ -94,6 +98,16 @@ export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
     simulatedCycleCount: number;
     maximumLandStateClosureResidual: number;
     converged: boolean;
+  }>;
+  calciumInput: Readonly<{
+    inputId: string;
+    kind: MainWireVentricularLandIsometricCalciumInputV1["calciumInputKind"];
+    sourceDoi: string;
+    sourceDescription: string;
+    originalNumericSourceTraceUsed: boolean;
+    figureDigitizationUsed: boolean;
+    smoothingApplied: boolean;
+    fittingApplied: boolean;
   }>;
   calcium: MainWireIsometricTransientMetricsV1;
   activeTwitch: MainWireIsometricTransientMetricsV1 & Readonly<{
@@ -113,7 +127,13 @@ export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
     doi: string;
     sourceCalciumInput: string;
     sourceRestingExtensionRatio: number;
-    currentCalciumInputIsDigitizedSourceTrace: false;
+    currentCalciumInputIsDigitizedSourceTrace: boolean;
+    currentCalciumInputUsesOriginalNumericSourceTrace: boolean;
+    timeToPeakComparisonBoundary: Readonly<{
+      auditPeakTimeOrigin: "cycle-phase-zero";
+      publishedTptTimeOriginExplicitlyDefinedInSource: false;
+      directComparisonEstablished: false;
+    }>;
     targetTimeToPeakRangeSec: readonly [number, number];
     targetRelaxationTime50RangeSec: readonly [number, number];
     targetRelaxationTime95RangeSec: readonly [number, number];
@@ -126,11 +146,13 @@ export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
     }>;
     directionalScreenOnly: Readonly<{
       fixedStretchMatchesSourceRestingExtensionRatio: boolean;
-      timeToPeakWithinTargetRange: boolean;
+      cyclePhasePeakWithinUnalignedPublishedTptRange: boolean;
+      timeToPeakDirectComparisonEstablished: false;
       relaxationTime50WithinTargetRange: boolean;
       relaxationTime95WithinTargetRange: boolean;
       peakTensionAtLeastSourceCostFloor: boolean;
-      everyTimingTargetMet: boolean;
+      everyDirectlyComparableRelaxationTargetMet: boolean;
+      everyTimingTargetMet: false;
       eligibleForSourceTraceReproductionClaim: false;
     }>;
   }>;
@@ -158,8 +180,44 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
   wallMaterialParams: LandSlsWallMaterialParamsV1 =
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial,
 ): MainWireVentricularLandIsometricTwitchAuditV1 {
+  const provenance = FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1
+    .ventricularTimingSource;
+  return measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1(
+    Object.freeze({
+      calciumInputId: calciumDriveParams.parameterSetId,
+      calciumInputKind: "current-analytic-reconstruction" as const,
+      cycleLengthSec: calciumDriveParams.cycleLengthSec,
+      diastolicCalciumUM:
+        calciumDriveParams.ventricular.diastolicCalciumUM,
+      electricalToCalciumDelaySec:
+        calciumDriveParams.ventricular.electricalToCalciumDelaySec,
+      sourceDoi: provenance.doi,
+      sourceDescription:
+        "current periodic analytically normalized biexponential reconstruction",
+      originalNumericSourceTraceUsed: false,
+      figureDigitizationUsed: false,
+      smoothingApplied: false,
+      fittingApplied: false,
+      evaluateFreeCalciumUM: (timeSec: number) =>
+        evaluateFiveWallNormalCalciumDriveV1(
+          timeSec,
+          calciumDriveParams,
+        ).freeCalciumUMByWall.LVFW,
+    }),
+    policy,
+    wallMaterialParams,
+  );
+}
+
+export function measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1(
+  calciumInput: MainWireVentricularLandIsometricCalciumInputV1,
+  policy: Partial<MainWireVentricularLandIsometricTwitchAuditPolicyV1> = {},
+  wallMaterialParams: LandSlsWallMaterialParamsV1 =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial,
+): MainWireVentricularLandIsometricTwitchAuditV1 {
+  validateCalciumInput(calciumInput);
   const resolvedPolicy = resolvePolicy(policy);
-  const cycleLengthSec = calciumDriveParams.cycleLengthSec;
+  const cycleLengthSec = calciumInput.cycleLengthSec;
   const stepCountFloat = cycleLengthSec / resolvedPolicy.dtSec;
   const stepCount = Math.round(stepCountFloat);
   if (
@@ -171,7 +229,7 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
   const fixedFiberLogStrain = Math.log(
     resolvedPolicy.fixedLandStretch / wallMaterialParams.landSlackStretch,
   );
-  const diastolicCalciumUM = calciumDriveParams.ventricular.diastolicCalciumUM;
+  const diastolicCalciumUM = calciumInput.diastolicCalciumUM;
   const cold = initializeLandSlsWallAtFixedInputV1(
     fixedFiberLogStrain,
     diastolicCalciumUM,
@@ -207,10 +265,10 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
       const timeSec = stepIndex === stepCount
         ? cycleLengthSec
         : stepIndex * resolvedPolicy.dtSec;
-      const calciumUM = evaluateFiveWallNormalCalciumDriveV1(
-        timeSec,
-        calciumDriveParams,
-      ).freeCalciumUMByWall.LVFW;
+      const calciumUM = calciumInput.evaluateFreeCalciumUM(timeSec);
+      if (!(calciumUM > 0) || !Number.isFinite(calciumUM)) {
+        throw new Error("isometric twitch calcium input must stay positive");
+      }
       const trial = trialLandSlsWallMaterialV1(
         state,
         {
@@ -285,7 +343,10 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
   const rt95Range = millisecondsRangeToSeconds(
     provenance.targetRelaxationTime95RangeMs,
   );
-  const tptWithin = withinRange(active.timeToPeakSec, tptRange);
+  const cyclePhasePeakWithinUnalignedTptRange = withinRange(
+    active.timeToPeakSec,
+    tptRange,
+  );
   const rt50Within = active.relaxationTime50Sec !== null
     && withinRange(active.relaxationTime50Sec, rt50Range);
   const rt95Within = active.relaxationTime95Sec !== null
@@ -295,7 +356,11 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
   return Object.freeze({
     methodId: MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_V1_ID,
     identities: Object.freeze({
-      calciumDriveParameterSetId: calciumDriveParams.parameterSetId,
+      calciumInputId: calciumInput.calciumInputId,
+      calciumDriveParameterSetId:
+        calciumInput.calciumInputKind === "current-analytic-reconstruction"
+          ? calciumInput.calciumInputId
+          : null,
       wallMaterialParameterSetId: wallMaterialParams.parameterSetId,
       landEquationParameterSetId:
         wallMaterialParams.landEquationParameters.parameterSetId,
@@ -309,7 +374,7 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
       fixedLandStretch: resolvedPolicy.fixedLandStretch,
       fixedFiberLogStrain,
       ventricularElectricalToCalciumDelaySec:
-        calciumDriveParams.ventricular.electricalToCalciumDelaySec,
+        calciumInput.electricalToCalciumDelaySec,
       minimumCycleCount: resolvedPolicy.minimumCycleCount,
       maximumCycleCount: resolvedPolicy.maximumCycleCount,
       p1StateClosureTolerance: resolvedPolicy.p1StateClosureTolerance,
@@ -320,6 +385,17 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
       simulatedCycleCount,
       maximumLandStateClosureResidual: closureResidual,
       converged: closureResidual <= resolvedPolicy.p1StateClosureTolerance,
+    }),
+    calciumInput: Object.freeze({
+      inputId: calciumInput.calciumInputId,
+      kind: calciumInput.calciumInputKind,
+      sourceDoi: calciumInput.sourceDoi,
+      sourceDescription: calciumInput.sourceDescription,
+      originalNumericSourceTraceUsed:
+        calciumInput.originalNumericSourceTraceUsed,
+      figureDigitizationUsed: calciumInput.figureDigitizationUsed,
+      smoothingApplied: calciumInput.smoothingApplied,
+      fittingApplied: calciumInput.fittingApplied,
     }),
     calcium,
     activeTwitch: Object.freeze({
@@ -340,7 +416,15 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
       doi: provenance.doi,
       sourceCalciumInput: provenance.sourceCalciumInput,
       sourceRestingExtensionRatio: provenance.sourceRestingExtensionRatio,
-      currentCalciumInputIsDigitizedSourceTrace: false as const,
+      currentCalciumInputIsDigitizedSourceTrace:
+        calciumInput.figureDigitizationUsed,
+      currentCalciumInputUsesOriginalNumericSourceTrace:
+        calciumInput.originalNumericSourceTraceUsed,
+      timeToPeakComparisonBoundary: Object.freeze({
+        auditPeakTimeOrigin: "cycle-phase-zero" as const,
+        publishedTptTimeOriginExplicitlyDefinedInSource: false as const,
+        directComparisonEstablished: false as const,
+      }),
       targetTimeToPeakRangeSec: tptRange,
       targetRelaxationTime50RangeSec: rt50Range,
       targetRelaxationTime95RangeSec: rt95Range,
@@ -357,16 +441,39 @@ export function measureMainWireVentricularLandIsometricTwitchAuditV1(
         fixedStretchMatchesSourceRestingExtensionRatio:
           resolvedPolicy.fixedLandStretch
           === provenance.sourceRestingExtensionRatio,
-        timeToPeakWithinTargetRange: tptWithin,
+        cyclePhasePeakWithinUnalignedPublishedTptRange:
+          cyclePhasePeakWithinUnalignedTptRange,
+        timeToPeakDirectComparisonEstablished: false as const,
         relaxationTime50WithinTargetRange: rt50Within,
         relaxationTime95WithinTargetRange: rt95Within,
         peakTensionAtLeastSourceCostFloor,
-        everyTimingTargetMet: tptWithin && rt50Within && rt95Within,
+        everyDirectlyComparableRelaxationTargetMet:
+          rt50Within && rt95Within,
+        everyTimingTargetMet: false as const,
         eligibleForSourceTraceReproductionClaim: false as const,
       }),
     }),
     claim: MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_CLAIM_V1,
   });
+}
+
+function validateCalciumInput(
+  input: MainWireVentricularLandIsometricCalciumInputV1,
+): void {
+  if (input.calciumInputId.length === 0) {
+    throw new Error("isometric twitch calcium input requires an id");
+  }
+  requirePositive(input.cycleLengthSec, "calciumInput.cycleLengthSec");
+  requirePositive(input.diastolicCalciumUM, "calciumInput.diastolicCalciumUM");
+  if (
+    input.electricalToCalciumDelaySec !== null
+    && (!(input.electricalToCalciumDelaySec >= 0)
+      || !Number.isFinite(input.electricalToCalciumDelaySec))
+  ) throw new Error("calcium input delay must be null or finite and nonnegative");
+  if (
+    input.originalNumericSourceTraceUsed
+    && input.figureDigitizationUsed
+  ) throw new Error("figure digitization is not an original numeric source trace");
 }
 
 function resolvePolicy(

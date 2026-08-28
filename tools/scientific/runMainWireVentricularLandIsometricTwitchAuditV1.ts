@@ -78,7 +78,8 @@ const report = Object.freeze({
   }),
   arms,
   interpretationBoundary: Object.freeze({
-    sourceUsesCoppiniCalciumTrace: true as const,
+    Land2017ReferenceUsesCoppiniCalciumTrace: true as const,
+    thisExperimentUsesOriginalNumericCoppiniTrace: false as const,
     currentInputsAreAnalyticReconstructionsNotDigitizedSourceTrace:
       true as const,
     sourceMetricScreensAreDirectionalOnly: true as const,

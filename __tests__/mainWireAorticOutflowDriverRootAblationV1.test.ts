@@ -631,7 +631,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     )).toThrow("missing length-mechanism arm");
   }, 60_000);
 
-  it("pairs the two retained mechanisms against canonical over five load contexts", () => {
+  it("smoke-wires the paired load envelope without making a calibration decision", () => {
     const runs = MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1
       .flatMap((contextId) =>
         MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_CANDIDATE_IDS_V1.map(
@@ -653,11 +653,11 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     expect(envelope.arms).toHaveLength(15);
     expect(envelope.candidateSummaries).toHaveLength(2);
     expect(envelope.allProtocolIdentitiesDistinct).toBe(true);
-    expect(envelope.nextCalibrationCandidateDecision).toMatchObject({
-      eligibleCandidateIds: [],
-      preferredForSourceCalibrationCandidateId: null,
-      canonicalAdoptionEstablished: false,
-    });
+    expect(envelope.allRunsPeriod1AndIntegrated).toBe(false);
+    expect(envelope.arms.every((arm) =>
+      !arm.cycle.periodicSteadyStateClaimed)).toBe(true);
+    expect(envelope.nextCalibrationCandidateDecision
+      .canonicalAdoptionEstablished).toBe(false);
     expect(envelope.arms.map((arm) => arm.context.contextId))
       .toEqual(MAIN_WIRE_AORTIC_OUTFLOW_MECHANISM_LOAD_CONTEXT_IDS_V1
         .flatMap((contextId) => [contextId, contextId, contextId]));

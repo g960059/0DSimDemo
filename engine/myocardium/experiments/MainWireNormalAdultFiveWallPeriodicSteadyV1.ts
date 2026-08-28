@@ -44,6 +44,12 @@ import {
   type MainWireVentricularCalciumWaveformProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
+  resolveMainWireVentricularCalciumSourceConstrainedParamsV1,
+  resolveMainWireVentricularCalciumSourceConstrainedProfileV1,
+  type MainWireVentricularCalciumSourceConstrainedProfileIdV1,
+  type MainWireVentricularCalciumSourceConstrainedProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceConstrainedPriorV1";
+import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1_ID,
   resolveMainWireVentricularCalciumDelayedMixtureParamsV1,
   resolveMainWireVentricularCalciumDelayedMixtureProfileV1,
@@ -149,10 +155,18 @@ import type {
   MainWireCommonPericardiumBindingV1,
   MainWireCommonPericardiumModeV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
-import type {
+import {
+  MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+  createMainWireFourValveContinuousAreaResearchInputV1,
+  type MainWireFourValveAreaInputsV1,
   MainWireFourValveDiseaseBracketIdV1,
-  MainWireFourValveDiseaseResearchInputV1,
+  type MainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import {
+  resolveMainWireAorticValveAreaControlPointV1,
+  type MainWireAorticValveAreaControlPointIdV1,
+  type MainWireAorticValveAreaControlPointV1,
+} from "@/engine/valves/MainWireAorticValveAreaControlV1";
 import {
   resolveMainWireAorticValveResearchProfileV1,
   type MainWireAorticValveResearchProfileIdV1,
@@ -337,6 +351,23 @@ export type MainWireNormalAdultFiveWallAorticValveResearchRunV1 = Readonly<{
     genericParameterPatchAccepted: false;
     valveDiseaseBracketApplied: false;
     exactRuntimeIdentityIncludesProfile: true;
+  }>;
+}>;
+
+export type MainWireNormalAdultFiveWallAorticValveAreaControlRunV1 = Readonly<{
+  configurationRole: "fixed-aortic-valve-area-identifiability-control";
+  point: MainWireAorticValveAreaControlPointV1;
+  periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+  claim: Readonly<{
+    sourceResearchRunnerOnly: true;
+    independentCanonicalColdStart: true;
+    warmStartApplied: false;
+    genericParameterPatchAccepted: false;
+    continuousValveAreaResearchInputUsed: true;
+    onlyAorticMaximumForwardEoaChangedAcrossPoints: true;
+    aorticValveConstitutiveLawChanged: false;
+    acceptedStateOrCheckpointTopologyChanged: false;
+    exactRuntimeIdentityIncludesAreaInput: true;
   }>;
 }>;
 
@@ -551,6 +582,27 @@ export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchRunV1 =
     configurationRole:
       "fixed-ventricular-calcium-waveform-research-profile";
     profile: MainWireVentricularCalciumWaveformProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-source-constrained-research-profile";
+    profile: MainWireVentricularCalciumSourceConstrainedProfileV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
     claim: Readonly<{
@@ -866,6 +918,65 @@ export function runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
       genericParameterPatchAccepted: false as const,
       valveDiseaseBracketApplied: false as const,
       exactRuntimeIdentityIncludesProfile: true as const,
+    }),
+  });
+}
+
+/** Fixed AoV-area identifiability control from an independent cold start. */
+export function runMainWireNormalAdultFiveWallAorticValveAreaControlV1(
+  options: MainWireNormalAdultFiveWallAorticValveResearchOptionsV1,
+  pointId: MainWireAorticValveAreaControlPointIdV1,
+): MainWireNormalAdultFiveWallAorticValveAreaControlRunV1 {
+  assertExactAorticValveResearchOptions(options);
+  const point = resolveMainWireAorticValveAreaControlPointV1(pointId);
+  const areaInputs = Object.freeze({
+    ...MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+    AoV: Object.freeze({
+      ...MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1.AoV,
+      maximumForwardEoaCm2: point.maximumForwardEoaCm2,
+    }),
+  }) satisfies MainWireFourValveAreaInputsV1;
+  const valveResearchInput =
+    createMainWireFourValveContinuousAreaResearchInputV1(areaInputs);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    valveResearchInput,
+  });
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  if (
+    periodicResult.valveResearchInput.parameterIdentityHash
+      !== valveResearchInput.parameterIdentityHash
+  ) throw new Error("AoV area control drifted from periodic protocol identity");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-valve-area-identifiability-control" as const,
+    point,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      continuousValveAreaResearchInputUsed: true as const,
+      onlyAorticMaximumForwardEoaChangedAcrossPoints: true as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesAreaInput: true as const,
     }),
   });
 }
@@ -1431,6 +1542,62 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearch
   return Object.freeze({
     configurationRole:
       "fixed-ventricular-calcium-waveform-research-profile" as const,
+    profile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/** Fixed source-constrained ventricular calcium prior from a canonical cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  profileId: MainWireVentricularCalciumSourceConstrainedProfileIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const profile =
+    resolveMainWireVentricularCalciumSourceConstrainedProfileV1(profileId);
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceConstrainedParamsV1(profileId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-source-constrained-research-profile" as const,
     profile,
     calciumDriveParams,
     periodicResult,

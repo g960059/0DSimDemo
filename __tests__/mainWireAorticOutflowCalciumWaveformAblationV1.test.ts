@@ -5,6 +5,12 @@ import {
   type MainWireAorticOutflowCalciumWaveformArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
 import {
+  compareMainWireAorticOutflowCalciumSourceConstrainedV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumSourceConstrainedComparisonV1";
+import {
+  compareMainWireAorticValveAreaControlV1,
+} from "@/analysis/methods/mainWire/MainWireAorticValveAreaControlComparisonV1";
+import {
   compareMainWireAorticOutflowCalciumDelayedMixtureV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumDelayedMixtureComparisonV1";
 import {
@@ -18,7 +24,21 @@ import {
 import {
   MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_CLAIM_V1,
   measureMainWireVentricularLandIsometricTwitchAuditV1,
+  measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularLandIsometricTwitchAuditV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_CALCIUM_SOURCE_INPUT_IDS_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_CALCIUM_SOURCE_STRETCH_CONTEXTS_V1,
+  compareMainWireVentricularLandCalciumSourcesV1,
+  type MainWireVentricularLandCalciumSourceArmInputV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularLandCalciumSourceComparisonV1";
+import {
+  LAND2015_COPPINI_HUNTER_CONSTRUCTION_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_PROTOCOLS_CLAIM_V1,
+  createMainWireVentricularCalciumSourceAuditInputV1,
+  evaluateMainWireVentricularCalciumSourceProtocolV1,
+  resolveMainWireVentricularCalciumSourceProtocolV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceProtocolsV1";
 import {
   MAIN_WIRE_VENTRICULAR_LOADED_SHORTENING_AUDIT_CLAIM_V1,
   measureMainWireVentricularLoadedShorteningAuditV1,
@@ -45,6 +65,12 @@ import {
   validateMainWireVentricularCalciumWaveformProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumWaveformAblationV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_CONSTRAINED_PRIOR_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_CONSTRAINED_PROFILE_IDS_V1,
+  resolveMainWireVentricularCalciumSourceConstrainedParamsV1,
+  resolveMainWireVentricularCalciumSourceConstrainedProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceConstrainedPriorV1";
+import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_ABLATION_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_PEAK_LOCKED_TAIL_PROFILE_IDS_V1,
   resolveMainWireVentricularCalciumPeakLockedTailParamsV1,
@@ -53,12 +79,18 @@ import {
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumPeakLockedTailAblationV1";
 import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  runMainWireNormalAdultFiveWallAorticValveAreaControlV1,
   runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumPeakLockedTailResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  MAIN_WIRE_AORTIC_VALVE_AREA_CONTROL_CLAIM_V1,
+  MAIN_WIRE_AORTIC_VALVE_AREA_CONTROL_POINT_IDS_V1,
+} from "@/engine/valves/MainWireAorticValveAreaControlV1";
 
 describe("main-wire aortic outflow calcium waveform ablation V1", () => {
   it("audits the prescribed calcium-to-Land isometric twitch at periodic closure", () => {
@@ -86,6 +118,9 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
     expect(audit.sourceContext).toMatchObject({
       sourceRestingExtensionRatio: 1,
       currentCalciumInputIsDigitizedSourceTrace: false,
+      timeToPeakComparisonBoundary: {
+        directComparisonEstablished: false,
+      },
       publishedFinalModel: {
         timeToPeakSec: 0.175,
         relaxationTime50Sec: 0.121,
@@ -95,6 +130,8 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
     expect(audit.sourceContext.directionalScreenOnly)
       .toMatchObject({
         fixedStretchMatchesSourceRestingExtensionRatio: true,
+        timeToPeakDirectComparisonEstablished: false,
+        everyTimingTargetMet: false,
         eligibleForSourceTraceReproductionClaim: false,
       });
     expect(MAIN_WIRE_VENTRICULAR_LAND_ISOMETRIC_TWITCH_AUDIT_CLAIM_V1)
@@ -104,6 +141,246 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
         sourceTraceReproductionClaimed: false,
         parameterSearchOrFitting: false,
       });
+  });
+
+  it("keeps the two Coppini-derived source protocols distinct and explicit", () => {
+    const hunter = resolveMainWireVentricularCalciumSourceProtocolV1(
+      "land2015-coppini-metric-hunter-construction",
+    );
+    const figure = resolveMainWireVentricularCalciumSourceProtocolV1(
+      "land2017-figure6-coppini-digitized",
+    );
+
+    expect(hunter).toMatchObject({
+      calciumInputKind: "published-analytic-source-construction",
+      originalNumericSourceTraceUsed: false,
+      figureDigitizationUsed: false,
+      smoothingApplied: false,
+      fittingApplied: false,
+    });
+    expect(figure).toMatchObject({
+      calciumInputKind: "figure-digitized-source-trace",
+      originalNumericSourceTraceUsed: false,
+      figureDigitizationUsed: true,
+      smoothingApplied: false,
+      fittingApplied: false,
+    });
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      0,
+      hunter.protocolId,
+    )).toBe(LAND2015_COPPINI_HUNTER_CONSTRUCTION_V1.diastolicCalciumUM);
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      LAND2015_COPPINI_HUNTER_CONSTRUCTION_V1.timeToPeakSec,
+      hunter.protocolId,
+    )).toBeCloseTo(0.483, 12);
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      LAND2015_COPPINI_HUNTER_CONSTRUCTION_V1
+        .reportedTimeTo50PercentRelaxationSec,
+      hunter.protocolId,
+    )).toBeCloseTo(0.1399 + 0.5 * 0.3431, 12);
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      LAND2015_COPPINI_HUNTER_CONSTRUCTION_V1
+        .reportedTimeTo90PercentRelaxationSec,
+      hunter.protocolId,
+    )).toBeCloseTo(0.1399 + 0.1 * 0.3431, 12);
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      0.13,
+      figure.protocolId,
+    )).toBeCloseTo(0.592586, 6);
+    expect(evaluateMainWireVentricularCalciumSourceProtocolV1(
+      1,
+      figure.protocolId,
+    )).toBeCloseTo(0.166285, 6);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_PROTOCOLS_CLAIM_V1)
+      .toMatchObject({
+        exactModelStateOrCheckpointChanged: false,
+        sourceProtocolsUsedByCanonicalModel: false,
+        sourceMeasurementUncertaintyAvailable: false,
+      });
+  });
+
+  it("compares current and source calcium inputs under common Land conditions", () => {
+    const arms: MainWireVentricularLandCalciumSourceArmInputV1[] = [];
+    for (const inputId of
+      MAIN_WIRE_VENTRICULAR_LAND_CALCIUM_SOURCE_INPUT_IDS_V1) {
+      for (const stretch of
+        MAIN_WIRE_VENTRICULAR_LAND_CALCIUM_SOURCE_STRETCH_CONTEXTS_V1) {
+        const audit = inputId === "current-analytic-biexponential"
+          ? measureMainWireVentricularLandIsometricTwitchAuditV1(
+            FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+            { dtSec: 0.002, fixedLandStretch: stretch.fixedLandStretch },
+          )
+          : measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1(
+            createMainWireVentricularCalciumSourceAuditInputV1(inputId),
+            { dtSec: 0.002, fixedLandStretch: stretch.fixedLandStretch },
+          );
+        arms.push({
+          inputId,
+          stretchContextId: stretch.contextId,
+          audit,
+        });
+      }
+    }
+
+    const comparison = compareMainWireVentricularLandCalciumSourcesV1(arms);
+    const resting = comparison.arms.filter((arm) =>
+      arm.stretchContextId === "Land-source-resting-extension-ratio");
+    const current = resting.find((arm) =>
+      arm.inputId === "current-analytic-biexponential")!;
+    const hunter = resting.find((arm) =>
+      arm.inputId === "land2015-coppini-metric-hunter-construction")!;
+    const figure = resting.find((arm) =>
+      arm.inputId === "land2017-figure6-coppini-digitized")!;
+
+    expect(comparison.allArmsPeriodicallyClosed).toBe(true);
+    expect(comparison.allProtocolIdentitiesDistinct).toBe(true);
+    expect(current.calciumPeakUM).toBeCloseTo(1, 3);
+    expect(hunter.calciumPeakUM).toBeCloseTo(0.483, 3);
+    expect(figure.calciumPeakUM).toBeCloseTo(0.592586, 5);
+    expect(figure.activeTwitchPeakKPa)
+      .toBeLessThan(current.activeTwitchPeakKPa);
+    expect(hunter.activeTwitchPeakKPa)
+      .toBeLessThan(current.activeTwitchPeakKPa);
+    expect(figure.calciumLocalPeakCountAboveFivePercentAmplitude)
+      .toBeGreaterThan(1);
+    expect(figure.activeTwitchLocalPeakCountAboveFivePercentAmplitude)
+      .toBe(1);
+    expect(arms.find((arm) =>
+      arm.inputId === "land2017-figure6-coppini-digitized")!.audit
+      .sourceContext).toMatchObject({
+        currentCalciumInputIsDigitizedSourceTrace: true,
+        currentCalciumInputUsesOriginalNumericSourceTrace: false,
+      });
+    expect(comparison.claim).toMatchObject({
+      currentExactModelChanged: false,
+      parameterSearchOrFitting: false,
+      canonicalAdoptionEstablished: false,
+    });
+  });
+
+  it("constructs a low-order Figure 6 prior without a hemodynamic fit", () => {
+    const profile =
+      resolveMainWireVentricularCalciumSourceConstrainedProfileV1(
+        "land2017-figure6-source-constrained-biexponential",
+      );
+    const params = resolveMainWireVentricularCalciumSourceConstrainedParamsV1(
+      profile.profileId,
+    );
+    const pulseShape = measurePeriodicBiexponentialCalciumPulseShapeV1(
+      params.cycleLengthSec,
+      params.ventricular.riseTimeConstantSec,
+      params.ventricular.decayTimeConstantSec,
+    );
+    const onset = params.ventricular.electricalToCalciumDelaySec;
+
+    expect(profile).toMatchObject({
+      ventricularDiastolicCalciumUM: 0.164321,
+      ventricularPeakCalciumUM: 0.592586,
+      ventricularRiseToDecayTimeConstantRatioHeld: true,
+      wholeTraceCurveFittingUsed: false,
+      hemodynamicOutcomeUsedToDeriveProfile: false,
+    });
+    expect(profile.ventricularPulseTimeToPeakSec).toBeCloseTo(0.13, 14);
+    expect(pulseShape.timeToPeakSec).toBeCloseTo(0.13, 14);
+    expect(
+      params.ventricular.decayTimeConstantSec
+      / params.ventricular.riseTimeConstantSec,
+    ).toBeCloseTo(
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
+        .decayTimeConstantSec
+      / FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
+        .riseTimeConstantSec,
+      14,
+    );
+    expect(evaluateFiveWallNormalCalciumDriveV1(
+      onset,
+      params,
+    ).freeCalciumUMByWall.LVFW).toBeCloseTo(0.164321, 12);
+    expect(evaluateFiveWallNormalCalciumDriveV1(
+      onset + pulseShape.timeToPeakSec,
+      params,
+    ).freeCalciumUMByWall.LVFW).toBeCloseTo(0.592586, 12);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_CONSTRAINED_PRIOR_CLAIM_V1)
+      .toMatchObject({
+        wholeTraceLeastSquaresFitApplied: false,
+        sourceMetricMatchingUsesHemodynamics: false,
+        calciumOrMechanicsStateAdded: false,
+        canonicalParamsChanged: false,
+      });
+  });
+
+  it("smoke-wires the source-constrained prior as a calcium-only protocol", () => {
+    const runs =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_CONSTRAINED_PROFILE_IDS_V1.map(
+        (profileId) =>
+          runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1(
+            { dtSec: 0.02, maximumBeatCount: 1 },
+            profileId,
+          ),
+      );
+    const comparison =
+      compareMainWireAorticOutflowCalciumSourceConstrainedV1(runs.map(
+        (run) => ({
+          profileId: run.profile.profileId,
+          periodicResult: run.periodicResult,
+        }),
+      ));
+
+    expect(comparison.nonCalciumProtocolComponentsCommon).toBe(true);
+    expect(comparison.arms).toHaveLength(2);
+    expect(comparison.sourceApproximation)
+      .toMatchObject({
+        alignment: "source-phase-zero-to-analytic-calcium-onset",
+        sampleIntervalSec: 0.001,
+        sampleCount: 1000,
+      });
+    expect(comparison.sourceApproximation
+      .normalizedRootMeanSquareErrorBySourceAmplitude).toBeGreaterThan(0);
+    expect(comparison.sourceApproximation.relativeExposureError)
+      .toBeGreaterThan(0);
+    expect(comparison.arms[0]!.cycle.calciumDriveStableHash)
+      .not.toBe(comparison.arms[1]!.cycle.calciumDriveStableHash);
+    expect(comparison.candidateScreen.period1AndIntegrationPassed).toBe(false);
+    expect(runs.every((run) =>
+      run.claim.exactProtocolIdentityIncludesCalciumParams)).toBe(true);
+  });
+
+  it("smoke-wires the fixed AoV-area identifiability control", () => {
+    const runs = MAIN_WIRE_AORTIC_VALVE_AREA_CONTROL_POINT_IDS_V1.map(
+      (pointId) => runMainWireNormalAdultFiveWallAorticValveAreaControlV1(
+        { dtSec: 0.02, maximumBeatCount: 1 },
+        pointId,
+      ),
+    );
+    const comparison = compareMainWireAorticValveAreaControlV1(runs.map(
+      (run) => ({
+        pointId: run.point.pointId,
+        periodicResult: run.periodicResult,
+      }),
+    ));
+
+    expect(comparison.arms.map((arm) => arm.maximumForwardEoaCm2))
+      .toEqual([3, 3.5, 4]);
+    expect(comparison.allProtocolIdentitiesDistinct).toBe(true);
+    expect(comparison.allArmsPeriod1AndIntegrated).toBe(false);
+    expect(runs.every((run) =>
+      run.periodicResult.valveResearchInput.claim.researchInputRole
+        === "continuous-effective-area-research-not-clinical-diagnosis"))
+      .toBe(true);
+    expect(runs.every((run) =>
+      run.claim.onlyAorticMaximumForwardEoaChangedAcrossPoints)).toBe(true);
+    expect(MAIN_WIRE_AORTIC_VALVE_AREA_CONTROL_CLAIM_V1).toMatchObject({
+      aorticValveConstitutiveLawChanged: false,
+      openingKineticsChanged: false,
+      circulationLoadOrDriverChanged: false,
+      parameterSearchOrFitting: false,
+    });
+    expect(() => compareMainWireAorticValveAreaControlV1([
+      {
+        pointId: runs[0]!.point.pointId,
+        periodicResult: runs[0]!.periodicResult,
+      },
+    ])).toThrow("missing AoV area control point");
   });
 
   it("classifies an unsmoothed pressure-flow derivative proxy by sign", () => {
