@@ -57,6 +57,7 @@
     "characterize:scientific:aortic-outflow-calcium-waveform-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumWaveformAblationV1.ts",
     "characterize:scientific:aortic-outflow-calcium-delayed-mixture-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumDelayedMixtureAblationV1.ts",
     "characterize:scientific:aortic-outflow-calcium-delayed-mixture-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumDelayedMixtureLoadEnvelopeV1.ts",
+    "characterize:scientific:aortic-outflow-arterial-stiffness-ablation:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowArterialStiffnessAblationV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",

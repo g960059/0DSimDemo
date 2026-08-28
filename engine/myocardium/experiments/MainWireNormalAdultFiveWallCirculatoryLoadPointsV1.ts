@@ -15,6 +15,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CIRCULATORY_LOAD_POINT_IDS_V1 =
     "systemic-resistance-high",
     "pulmonary-resistance-low",
     "pulmonary-resistance-high",
+    "arterial-stiffness-low",
+    "arterial-stiffness-high",
   ] as const);
 
 export type MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 =
@@ -23,7 +25,8 @@ export type MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 =
 export type MainWireNormalAdultFiveWallCirculatoryLoadAxisV1 =
   | "baseline"
   | "systemic-resistance"
-  | "pulmonary-resistance";
+  | "pulmonary-resistance"
+  | "arterial-stiffness";
 
 export type MainWireNormalAdultFiveWallCirculatoryLoadLevelV1 =
   | "baseline"
@@ -36,6 +39,7 @@ export type MainWireNormalAdultFiveWallCirculatoryLoadPointV1 = Readonly<{
   level: MainWireNormalAdultFiveWallCirculatoryLoadLevelV1;
   systemicResistanceScaleFromBaseline: number;
   pulmonaryResistanceScaleFromBaseline: number;
+  arterialStiffnessScaleFromBaseline: number;
   design: Readonly<{
     lowScale: 0.75;
     highScale: 1.3333333333333333;
@@ -55,25 +59,57 @@ const DESIGN = Object.freeze({
 
 /**
  * A deliberately small, log-symmetric, one-factor-at-a-time research grid.
- * These five points are a structural load-response probe, not a parameter
+ * These points are a structural load-response probe, not a parameter
  * search space and not a set of user controls.
  */
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CIRCULATORY_LOAD_POINTS_V1 =
   Object.freeze([
-    point("baseline", "baseline", "baseline", 1, 1),
-    point("systemic-resistance-low", "systemic-resistance", "low", 0.75, 1),
+    point("baseline", "baseline", "baseline", 1, 1, 1),
+    point(
+      "systemic-resistance-low",
+      "systemic-resistance",
+      "low",
+      0.75,
+      1,
+      1,
+    ),
     point(
       "systemic-resistance-high",
       "systemic-resistance",
       "high",
       1.3333333333333333,
       1,
+      1,
     ),
-    point("pulmonary-resistance-low", "pulmonary-resistance", "low", 1, 0.75),
+    point(
+      "pulmonary-resistance-low",
+      "pulmonary-resistance",
+      "low",
+      1,
+      0.75,
+      1,
+    ),
     point(
       "pulmonary-resistance-high",
       "pulmonary-resistance",
       "high",
+      1,
+      1.3333333333333333,
+      1,
+    ),
+    point(
+      "arterial-stiffness-low",
+      "arterial-stiffness",
+      "low",
+      1,
+      1,
+      0.75,
+    ),
+    point(
+      "arterial-stiffness-high",
+      "arterial-stiffness",
+      "high",
+      1,
       1,
       1.3333333333333333,
     ),
@@ -97,7 +133,11 @@ export function resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
     resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(pointId);
   const baseline = normalAdultMainWireRuntimeV1();
   return Object.freeze({
-    vascular: baseline.vascular,
+    vascular: Object.freeze({
+      ...baseline.vascular,
+      arterialStiffness: baseline.vascular.arterialStiffness
+        * definition.arterialStiffnessScaleFromBaseline,
+    }),
     losses: Object.freeze({
       systemicResistance: baseline.losses.systemicResistance
         * definition.systemicResistanceScaleFromBaseline,
@@ -115,6 +155,7 @@ function point(
   level: MainWireNormalAdultFiveWallCirculatoryLoadLevelV1,
   systemicResistanceScaleFromBaseline: number,
   pulmonaryResistanceScaleFromBaseline: number,
+  arterialStiffnessScaleFromBaseline: number,
 ): MainWireNormalAdultFiveWallCirculatoryLoadPointV1 {
   return Object.freeze({
     pointId,
@@ -122,6 +163,7 @@ function point(
     level,
     systemicResistanceScaleFromBaseline,
     pulmonaryResistanceScaleFromBaseline,
+    arterialStiffnessScaleFromBaseline,
     design: DESIGN,
   });
 }

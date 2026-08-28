@@ -5,6 +5,10 @@ import {
   type MainWireAorticOutflowDriverRootArmInputV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDriverRootComparisonV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_ARTERIAL_STIFFNESS_POINT_IDS_V1,
+  measureMainWireAorticOutflowArterialStiffnessAblationV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowArterialStiffnessAblationV1";
+import {
   replayMainWireAorticValveLocalInertanceV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveLocalInertanceReplayV1";
 import {
@@ -27,6 +31,7 @@ import {
 import {
   runMainWireNormalAdultFiveWallAorticValveLocalInertanceResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1,
+  runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
@@ -254,6 +259,45 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     expect(() => compareMainWireAorticOutflowDriverRootAblationV1(
       inputs.slice(0, 3),
     )).toThrow("missing aortic-outflow ablation arm");
+  }, 60_000);
+
+  it("brackets the exact global arterial PV stiffness without adding state", () => {
+    const inputs =
+      MAIN_WIRE_AORTIC_OUTFLOW_ARTERIAL_STIFFNESS_POINT_IDS_V1.map(
+        (pointId) => ({
+          pointId,
+          periodicResult:
+            runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              pointId,
+            ),
+        }),
+      );
+    const ablation =
+      measureMainWireAorticOutflowArterialStiffnessAblationV1(inputs);
+    expect(ablation.arms.map((arm) => arm.arterialStiffness))
+      .toEqual([0.5625, 0.75, 1]);
+    expect(ablation.arms.map((arm) => arm.point.axis))
+      .toEqual(["arterial-stiffness", "baseline", "arterial-stiffness"]);
+    expect(ablation.arms[0]!.summedArterialNodeTangentCompliance
+      .arithmeticMeanMlPerMmHg).toBeGreaterThan(
+        ablation.arms[1]!.summedArterialNodeTangentCompliance
+          .arithmeticMeanMlPerMmHg,
+      );
+    expect(ablation.arms[1]!.summedArterialNodeTangentCompliance
+      .arithmeticMeanMlPerMmHg).toBeGreaterThan(
+        ablation.arms[2]!.summedArterialNodeTangentCompliance
+          .arithmeticMeanMlPerMmHg,
+      );
+    expect(new Set(inputs.map((input) => input.periodicResult
+      .protocolComponentHashes.circulationRuntimeStableHash)).size).toBe(3);
+    expect(ablation.claim.proximalAorticComplianceIsolated).toBe(false);
+    expect(ablation.claim
+      .localAreaComplianceComparisonRequiresAnatomicalSupportLength).toBe(true);
+    expect(allNumbersFinite(ablation)).toBe(true);
+    expect(() => measureMainWireAorticOutflowArterialStiffnessAblationV1(
+      inputs.slice(1),
+    )).toThrow("missing arterial-stiffness point");
   }, 60_000);
 
   it("rejects generic parameter patches on the research runner", () => {
