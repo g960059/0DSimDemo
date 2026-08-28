@@ -13,6 +13,9 @@ import {
 import {
   compareMainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1,
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionComparisonV1";
+import {
+  measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1";
 import type {
   MainWireAorticValveObservationGeometryV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
@@ -34,12 +37,19 @@ import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_TREF_PASSIVE_DISTORTION_CANDIDATES_V1,
 } from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_ARM_IDS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_CANDIDATE_IDS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_CONTEXT_IDS_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_ENVELOPE_CLAIM_V1,
+} from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1";
+import {
   runMainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationCandidateResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitRecalibrationResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveDistortionResearchV1,
   runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitTrefPassiveResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitShortlistLoadResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 const GEOMETRY = Object.freeze({
@@ -383,5 +393,86 @@ describe("main-wire source-trace calcium recalibration sensitivity V1", () => {
         })),
         GEOMETRY,
       )).toThrow("requires 6 candidates");
+  }, 60_000);
+
+  it("keeps the three-candidate shortlist paired across fixed preload and afterload contexts", () => {
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_CANDIDATE_IDS_V1)
+      .toEqual([
+        "tref-1p10-passive-0p750-plus-distortion-transient-high",
+        "tref-1p20-passive-0p750-plus-distortion-transient-high",
+        "tref-1p30-passive-0p750-plus-distortion-transient-high",
+      ]);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_ENVELOPE_CLAIM_V1)
+      .toMatchObject({
+        oneLoadAxisAtATime: true,
+        loadAxesAreRobustnessCoordinatesNotCalibrationKnobs: true,
+        aorticValveAreaOrLawChanged: false,
+        pulmonaryValveAreaOrLawChanged: false,
+        numericParameterSearchOrFitting: false,
+      });
+    const runs =
+      MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_LOAD_CONTEXT_IDS_V1
+        .flatMap((contextId) =>
+          MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_TRACE_FIT_SHORTLIST_ARM_IDS_V1
+            .map((armId) =>
+              runMainWireNormalAdultFiveWallVentricularCalciumSourceTraceFitShortlistLoadResearchV1(
+                { dtSec: 0.02, maximumBeatCount: 1 },
+                armId,
+                contextId,
+              )));
+    const measured =
+      measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1(
+        runs.map((run) => ({
+          armId: run.arm.armId,
+          contextId: run.context.contextId,
+          periodicResult: run.periodicResult,
+        })),
+        GEOMETRY,
+      );
+
+    expect(runs).toHaveLength(20);
+    expect(measured.arms).toHaveLength(20);
+    expect(measured.candidateSummaries).toHaveLength(3);
+    expect(measured.allProtocolIdentitiesDistinct).toBe(true);
+    expect(measured.allRunsPeriod1AndIntegrated).toBe(false);
+    expect(measured.interpretationEligible).toBe(false);
+    expect(measured.pressureVolumeAreaBoundary).toEqual({
+      formalPvaStatus: "not-computed",
+      availableEnergeticReadback:
+        "accepted-step-single-beat-transmural-stroke-work",
+      nextRequirement:
+        "qualified-settled-multi-point-preload-family-with-common-protocol-semantics",
+    });
+    expect(measured.candidateSummaries.every((summary) =>
+      summary.configuredAorticForwardEoaInvariantAcrossEnvelopeAndComparator
+      && summary.configuredPulmonaryForwardEoaInvariantAcrossEnvelopeAndComparator
+      && Object.values(summary.aorticGradientRelativeToContextCanonical)
+        .every((gradient) => [
+          ...gradient.timeMeanRelativeDifferenceRange,
+          ...gradient.peakRelativeDifferenceRange,
+        ].every(Number.isFinite))))
+      .toBe(true);
+    expect(measured.arms.every((arm) =>
+      arm.valveArea.aortic.maximumForwardEoaCm2 === 3.5
+      && arm.valveArea.pulmonary.maximumForwardEoaCm2 === 4
+      && arm.valveArea.aortic.forwardActiveEoaOverCycleRangeCm2[0]
+        <= arm.valveArea.aortic.forwardActiveEoaOverCycleRangeCm2[1]
+      && arm.valveArea.pulmonary.forwardActiveEoaOverCycleRangeCm2[0]
+        <= arm.valveArea.pulmonary.forwardActiveEoaOverCycleRangeCm2[1]
+      && ((arm.cycleWork === null)
+        === (arm.diastolicFlow === null)))).toBe(true);
+    expect(runs.every((run) =>
+      run.claim.loadContextIsRobustnessCoordinateNotCalibrationKnob
+      && run.claim.genericParameterPatchAccepted === false
+      && run.claim.calciumOrMechanicsStateAdded === false)).toBe(true);
+    expect(() =>
+      measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnvelopeV1(
+        runs.slice(1).map((run) => ({
+          armId: run.arm.armId,
+          contextId: run.context.contextId,
+          periodicResult: run.periodicResult,
+        })),
+        GEOMETRY,
+      )).toThrow("requires 20 arms");
   }, 60_000);
 });
