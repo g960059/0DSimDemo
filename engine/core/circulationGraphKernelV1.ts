@@ -6,6 +6,10 @@ import {
   type NodeSpec,
 } from "@/engine/core/topology";
 import {
+  resolveMainWireAorticCompliancePartitionNodeVsV1,
+  type MainWireAorticCompliancePartitionResearchProfileV1,
+} from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
+import {
   complianceFromPtm,
   ptmAndVolumeTangentFromStressedVolume,
   ptmFromStressedVolume,
@@ -51,6 +55,9 @@ export function buildAuthoritativeCirculationGraphV1(): AuthoritativeCirculation
 export type VascularPvRuntimeParameterViewV1 = {
   readonly venousTone: number;
   readonly arterialStiffness: number;
+  /** Fixed source-research redistribution; omission is canonical. */
+  readonly aorticCompliancePartitionResearchProfile?:
+    MainWireAorticCompliancePartitionResearchProfileV1;
 };
 
 export function effectiveUnstressedVolumeFromNodeV1(
@@ -66,11 +73,21 @@ export function vascularPvLawFromNodeV1(
 ): VascularPvLaw {
   const Vu = effectiveUnstressedVolumeFromNodeV1(node, params);
   if (node.kind === "arterial") {
+    const topologyVs = params.aorticCompliancePartitionResearchProfile
+      === undefined
+      ? node.Vs ?? 100
+      : resolveMainWireAorticCompliancePartitionNodeVsV1(
+        node,
+        params.aorticCompliancePartitionResearchProfile,
+      );
     return {
       kind: "arterial",
       Vu,
       P0: node.P0 ?? 50,
-      VsEff: Math.max((node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25), 1),
+      VsEff: Math.max(
+        topologyVs / Math.max(params.arterialStiffness, 0.25),
+        1,
+      ),
     };
   }
   if (node.kind === "linear") {

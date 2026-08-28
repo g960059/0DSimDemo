@@ -5,6 +5,7 @@ import {
 import {
   buildAuthoritativeCirculationGraphV1,
   vascularPvLawFromNodeV1,
+  type VascularPvRuntimeParameterViewV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
@@ -62,12 +63,23 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_ARTERIAL_STIFFNESS_ABLATION_CLAIM_V1 =
     canonicalAdoptionEstablished: false as const,
   });
 
-type ArterialNodeId = "Ao" | "SA" | "Art";
+export type MainWireArterialComplianceNodeIdV1 = "Ao" | "SA" | "Art";
 
-type ComplianceSummary = Readonly<{
+export type MainWireArterialTangentComplianceSummaryV1 = Readonly<{
   minimumMlPerMmHg: number;
   arithmeticMeanMlPerMmHg: number;
   maximumMlPerMmHg: number;
+}>;
+
+export type MainWireArterialTangentComplianceReadbackV1 = Readonly<{
+  byNode: Readonly<Record<
+    MainWireArterialComplianceNodeIdV1,
+    MainWireArterialTangentComplianceSummaryV1
+  >>;
+  summedAorticRootAndSystemicArtery:
+    MainWireArterialTangentComplianceSummaryV1;
+  summedAllThreeArterialNodes:
+    MainWireArterialTangentComplianceSummaryV1;
 }>;
 
 export type MainWireAorticOutflowArterialStiffnessInputV1 = Readonly<{
@@ -81,10 +93,11 @@ export type MainWireAorticOutflowArterialStiffnessArmV1 = Readonly<{
   cycle: MainWireAorticOutflowCalciumWaveformCycleMetricsV1;
   aorticPulsePressureMmHg: number;
   tangentComplianceByNode: Readonly<Record<
-    ArterialNodeId,
-    ComplianceSummary
+    MainWireArterialComplianceNodeIdV1,
+    MainWireArterialTangentComplianceSummaryV1
   >>;
-  summedArterialNodeTangentCompliance: ComplianceSummary;
+  summedArterialNodeTangentCompliance:
+    MainWireArterialTangentComplianceSummaryV1;
 }>;
 
 export type MainWireAorticOutflowArterialStiffnessContrastV1 = Readonly<{
@@ -256,27 +269,10 @@ function measureArm(
   ) {
     throw new Error(`${pointId} result does not match its fixed runtime`);
   }
-  const graph = buildAuthoritativeCirculationGraphV1();
-  const nodeLaws = Object.freeze(Object.fromEntries(
-    (["Ao", "SA", "Art"] as const).map((nodeId) => {
-      const node = graph.nodes[graph.nodeIndex.get(nodeId)!]!;
-      return [nodeId, vascularPvLawFromNodeV1(node, runtime.vascular)];
-    }),
-  )) as Readonly<Record<ArterialNodeId, VascularPvLaw>>;
-  const complianceSeriesFor = (nodeId: ArterialNodeId) =>
-    beat.samples.map((sample) => complianceFromPtm(
-      nodeLaws[nodeId],
-      sample.circulationNodeAbsolutePressureMmHg[nodeId],
-    ));
-  const complianceSeries = Object.freeze({
-    Ao: complianceSeriesFor("Ao"),
-    SA: complianceSeriesFor("SA"),
-    Art: complianceSeriesFor("Art"),
-  });
-  const summed = beat.samples.map((_, index) =>
-    complianceSeries.Ao[index]!
-    + complianceSeries.SA[index]!
-    + complianceSeries.Art[index]!);
+  const compliance = measureMainWireArterialTangentComplianceReadbackV1(
+    periodicResult,
+    runtime.vascular,
+  );
   const cycle = measureMainWireAorticOutflowCalciumWaveformCycleV1(
     periodicResult,
     FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
@@ -289,16 +285,55 @@ function measureArm(
     aorticPulsePressureMmHg:
       cycle.maximumAorticRootPressureMmHg
       - cycle.minimumAorticRootPressureMmHg,
-    tangentComplianceByNode: Object.freeze({
+    tangentComplianceByNode: compliance.byNode,
+    summedArterialNodeTangentCompliance:
+      compliance.summedAllThreeArterialNodes,
+  });
+}
+
+export function measureMainWireArterialTangentComplianceReadbackV1(
+  periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1,
+  vascular: VascularPvRuntimeParameterViewV1,
+): MainWireArterialTangentComplianceReadbackV1 {
+  const beat = periodicResult.retainedCompleteBeats.at(-1);
+  if (beat === undefined || beat.samples.length === 0) {
+    throw new Error("arterial tangent compliance readback requires a beat");
+  }
+  const graph = buildAuthoritativeCirculationGraphV1();
+  const nodeLaws = Object.freeze(Object.fromEntries(
+    (["Ao", "SA", "Art"] as const).map((nodeId) => {
+      const node = graph.nodes[graph.nodeIndex.get(nodeId)!]!;
+      return [nodeId, vascularPvLawFromNodeV1(node, vascular)];
+    }),
+  )) as Readonly<Record<MainWireArterialComplianceNodeIdV1, VascularPvLaw>>;
+  const complianceSeriesFor = (nodeId: MainWireArterialComplianceNodeIdV1) =>
+    beat.samples.map((sample) => complianceFromPtm(
+      nodeLaws[nodeId],
+      sample.circulationNodeAbsolutePressureMmHg[nodeId],
+    ));
+  const complianceSeries = Object.freeze({
+    Ao: complianceSeriesFor("Ao"),
+    SA: complianceSeriesFor("SA"),
+    Art: complianceSeriesFor("Art"),
+  });
+  const summedAoSa = beat.samples.map((_, index) =>
+    complianceSeries.Ao[index]! + complianceSeries.SA[index]!);
+  const summedAll = beat.samples.map((_, index) =>
+    summedAoSa[index]! + complianceSeries.Art[index]!);
+  return Object.freeze({
+    byNode: Object.freeze({
       Ao: summarize(complianceSeries.Ao),
       SA: summarize(complianceSeries.SA),
       Art: summarize(complianceSeries.Art),
     }),
-    summedArterialNodeTangentCompliance: summarize(summed),
+    summedAorticRootAndSystemicArtery: summarize(summedAoSa),
+    summedAllThreeArterialNodes: summarize(summedAll),
   });
 }
 
-function summarize(values: readonly number[]): ComplianceSummary {
+function summarize(
+  values: readonly number[],
+): MainWireArterialTangentComplianceSummaryV1 {
   if (values.length === 0) throw new Error("compliance series is empty");
   let minimum = Number.POSITIVE_INFINITY;
   let maximum = Number.NEGATIVE_INFINITY;

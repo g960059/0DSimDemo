@@ -9,6 +9,14 @@ import {
   measureMainWireAorticOutflowArterialStiffnessAblationV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowArterialStiffnessAblationV1";
 import {
+  compareMainWireAorticOutflowCompliancePartitionV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCompliancePartitionComparisonV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_CALCIUM_PROFILE_ID_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_PARTITION_PROFILE_ID_V1,
+  compareMainWireAorticOutflowCalciumComplianceFactorialV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumComplianceFactorialV1";
+import {
   replayMainWireAorticValveLocalInertanceV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveLocalInertanceReplayV1";
 import {
@@ -16,6 +24,9 @@ import {
   resolveMainWireAorticRootInertanceResearchProfileV1,
   validateMainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
+import {
+  MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1,
+} from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
 import {
   MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
   stepMainWireAorticValveLocalInertanceScalarsV1,
@@ -30,9 +41,12 @@ import {
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDriverRootAblationV1";
 import {
   runMainWireNormalAdultFiveWallAorticValveLocalInertanceResearchV1,
+  runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1,
   runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureCompliancePartitionResearchV1,
+  runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 describe("main-wire aortic outflow driver/root ablation V1", () => {
@@ -298,6 +312,129 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     expect(() => measureMainWireAorticOutflowArterialStiffnessAblationV1(
       inputs.slice(1),
     )).toThrow("missing arterial-stiffness point");
+  }, 60_000);
+
+  it("isolates root compliance placement while preserving Ao-plus-SA capacity", () => {
+    const canonical = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+      laSlsMode: "on",
+      pericardiumMode: "on",
+      pericardiumCase: "healthy-slack",
+      initialization: "canonical",
+      valveDiseaseBracketIds: Object.freeze([]),
+    });
+    const profileRuns =
+      MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1.map(
+        (profileId) =>
+          runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1(
+            { dtSec: 0.02, maximumBeatCount: 1 },
+            profileId,
+          ),
+      );
+    const comparison = compareMainWireAorticOutflowCompliancePartitionV1([
+      { armId: "canonical", periodicResult: canonical },
+      ...profileRuns.map((run) => ({
+        armId: run.profile.profileId,
+        periodicResult: run.periodicResult,
+      })),
+    ]);
+    expect(comparison.arms.map((arm) =>
+      arm.capacity.resolvedAorticRootVsMl)).toEqual([150, 112.5, 200]);
+    expect(comparison.arms.map((arm) =>
+      arm.capacity.resolvedAoSaTotalVsMl)).toEqual([550, 550, 550]);
+    expect(comparison.arms.every((arm) =>
+      arm.capacity.totalVsResidualMl === 0)).toBe(true);
+    expect(new Set(comparison.arms.map((arm) =>
+      arm.cycle.protocolIdentityHash)).size).toBe(3);
+    expect(comparison.claim.globalArterialStiffnessChanged).toBe(false);
+    expect(comparison.claim.acceptedStateOrCheckpointTopologyChanged)
+      .toBe(false);
+    expect(comparison.claim.anatomicalSupportLengthIdentified).toBe(false);
+    expect(allNumbersFinite(comparison)).toBe(true);
+    expect(() => compareMainWireAorticOutflowCompliancePartitionV1([
+      { armId: "canonical", periodicResult: canonical },
+      {
+        armId: profileRuns[0]!.profile.profileId,
+        periodicResult: profileRuns[0]!.periodicResult,
+      },
+    ])).toThrow("missing aortic compliance partition arm");
+  }, 60_000);
+
+  it("measures the fixed delayed-calcium by root-capacity factorial", () => {
+    const options = { dtSec: 0.02, maximumBeatCount: 1 } as const;
+    const canonical = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...options,
+      laSlsMode: "on",
+      pericardiumMode: "on",
+      pericardiumCase: "healthy-slack",
+      initialization: "canonical",
+      valveDiseaseBracketIds: Object.freeze([]),
+    });
+    const calcium =
+      runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureResearchV1(
+        options,
+        MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_CALCIUM_PROFILE_ID_V1,
+      );
+    const capacity =
+      runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1(
+        options,
+        MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_PARTITION_PROFILE_ID_V1,
+      );
+    const combined =
+      runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureCompliancePartitionResearchV1(
+        options,
+        MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_CALCIUM_PROFILE_ID_V1,
+        MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_COMPLIANCE_PARTITION_PROFILE_ID_V1,
+      );
+    const inputs = [
+      { armId: "canonical" as const, periodicResult: canonical },
+      {
+        armId: "delayed-calcium-only" as const,
+        periodicResult: calcium.periodicResult,
+      },
+      {
+        armId: "low-root-capacity-only" as const,
+        periodicResult: capacity.periodicResult,
+      },
+      {
+        armId: "delayed-calcium-plus-low-root-capacity" as const,
+        periodicResult: combined.periodicResult,
+      },
+    ];
+    const factorial =
+      compareMainWireAorticOutflowCalciumComplianceFactorialV1(inputs);
+    expect(factorial.arms).toHaveLength(4);
+    expect(factorial.factorialContrasts).toHaveLength(13);
+    expect(factorial.allRunsPeriod1AndIntegrated).toBe(false);
+    expect(factorial.arms.every((arm) =>
+      arm.cycle.integrationCompletedWithoutFailure)).toBe(true);
+    expect(factorial.morphologyPreservedAcrossFactorial).toBe(true);
+    expect(new Set(factorial.arms.map((arm) =>
+      arm.cycle.protocolIdentityHash)).size).toBe(4);
+    expect(factorial.arms[0]!.morphologySafeDirectionalCandidate).toBe(false);
+    expect(factorial.arms[3]!.capacity.resolvedAoSaTotalVsMl).toBe(550);
+    for (const arm of factorial.arms) {
+      expect(arm.kinematicFloor.currentDuration
+        .cauchySchwarzFloorSatisfied).toBe(true);
+      expect(arm.kinematicFloor.currentDuration
+        .timeVaryingAreaFloorSatisfied).toBe(true);
+      expect(Math.abs(arm.kinematicFloor.currentDuration
+        .multiplicativeReconstructionResidualMmHg)).toBeLessThan(1e-10);
+      expect(arm.kinematicFloor.healthyLvetContext
+        .modelForwardFlowDurationGapToLower95PiSec).toBeGreaterThan(0);
+      expect(arm.kinematicFloor.healthyLvetContext.projections[0]!
+        .meanAndPeakGradientFloorMmHg).toBeLessThan(
+          arm.kinematicFloor.currentDuration.meanAndPeakGradientFloorMmHg,
+        );
+    }
+    expect(factorial.claim.aorticValveConstitutiveLawChanged).toBe(false);
+    expect(factorial.claim.acceptedStateOrCheckpointTopologyChanged)
+      .toBe(false);
+    expect(allNumbersFinite(factorial)).toBe(true);
+    expect(() => compareMainWireAorticOutflowCalciumComplianceFactorialV1(
+      inputs.slice(0, 3),
+    )).toThrow("missing calcium-compliance arm");
   }, 60_000);
 
   it("rejects generic parameter patches on the research runner", () => {

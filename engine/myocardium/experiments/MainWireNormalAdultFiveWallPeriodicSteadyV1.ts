@@ -11,6 +11,13 @@ import {
   resolveMainWireAorticRootInertanceResearchProfileV1,
   type MainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
+import {
+  resolveMainWireAorticCompliancePartitionCapacitySnapshotV1,
+  resolveMainWireAorticCompliancePartitionResearchProfileV1,
+  type MainWireAorticCompliancePartitionCapacitySnapshotV1,
+  type MainWireAorticCompliancePartitionResearchProfileIdV1,
+  type MainWireAorticCompliancePartitionResearchProfileV1,
+} from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   checkpointMainWireFiveWallNonCoronaryV1,
@@ -298,6 +305,28 @@ export type MainWireNormalAdultFiveWallAorticOutflowResearchRunV1 = Readonly<{
   }>;
 }>;
 
+export type MainWireNormalAdultFiveWallAorticCompliancePartitionResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-compliance-partition-research-profile";
+    profile: MainWireAorticCompliancePartitionResearchProfileV1;
+    capacitySnapshot:
+      MainWireAorticCompliancePartitionCapacitySnapshotV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      aorticValveConstitutiveLawChanged: false;
+      globalArterialStiffnessChanged: false;
+      aorticRootPlusSystemicArteryVsSumPreservedExactly: true;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactRuntimeIdentityIncludesPartitionProfile: true;
+    }>;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticValveLocalInertanceResearchRunV1 =
   Readonly<{
     configurationRole: "fixed-aortic-valve-local-inertance-research-profile";
@@ -379,6 +408,33 @@ export type MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLoadResea
       calciumOrMechanicsStateAdded: false;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactProtocolIdentityIncludesCalciumAndLoadParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureCompliancePartitionResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-delayed-mixture-compliance-partition-research-arm";
+    calciumProfile: MainWireVentricularCalciumDelayedMixtureProfileV1;
+    compliancePartitionProfile:
+      MainWireAorticCompliancePartitionResearchProfileV1;
+    capacitySnapshot:
+      MainWireAorticCompliancePartitionCapacitySnapshotV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      mechanicsProviderChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      aorticValveConstitutiveLawChanged: false;
+      globalArterialStiffnessChanged: false;
+      aorticRootPlusSystemicArteryVsSumPreservedExactly: true;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumAndPartitionProfiles: true;
     }>;
   }>;
 
@@ -660,6 +716,60 @@ export function runMainWireNormalAdultFiveWallAorticOutflowResearchArmV1(
   });
 }
 
+/** Fixed Ao-to-SA exponential-PV capacity redistribution from a cold start. */
+export function runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  profileId: MainWireAorticCompliancePartitionResearchProfileIdV1,
+): MainWireNormalAdultFiveWallAorticCompliancePartitionResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const profile =
+    resolveMainWireAorticCompliancePartitionResearchProfileV1(profileId);
+  const capacitySnapshot =
+    resolveMainWireAorticCompliancePartitionCapacitySnapshotV1(profile);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      aorticCompliancePartitionResearchProfile: profile,
+    }),
+  });
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-compliance-partition-research-profile" as const,
+    profile,
+    capacitySnapshot,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      globalArterialStiffnessChanged: false as const,
+      aorticRootPlusSystemicArteryVsSumPreservedExactly: true as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesPartitionProfile: true as const,
+    }),
+  });
+}
+
 /** Fixed common-ventricular calcium waveform arm from a canonical cold start. */
 export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1(
   options:
@@ -828,6 +938,83 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureLo
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesCalciumAndLoadParams: true as const,
+    }),
+  });
+}
+
+/** Fixed delayed-mixture × Ao-to-SA capacity redistribution from a cold start. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureCompliancePartitionResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  calciumProfileId: MainWireVentricularCalciumDelayedMixtureProfileIdV1,
+  compliancePartitionProfileId:
+    MainWireAorticCompliancePartitionResearchProfileIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumDelayedMixtureCompliancePartitionResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const calciumProfile =
+    resolveMainWireVentricularCalciumDelayedMixtureProfileV1(calciumProfileId);
+  const compliancePartitionProfile =
+    resolveMainWireAorticCompliancePartitionResearchProfileV1(
+      compliancePartitionProfileId,
+    );
+  const capacitySnapshot =
+    resolveMainWireAorticCompliancePartitionCapacitySnapshotV1(
+      compliancePartitionProfile,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumDelayedMixtureParamsV1(calciumProfileId);
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      aorticCompliancePartitionResearchProfile: compliancePartitionProfile,
+    }),
+  });
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-delayed-mixture-compliance-partition-research-arm" as const,
+    calciumProfile,
+    compliancePartitionProfile,
+    capacitySnapshot,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      mechanicsProviderChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      globalArterialStiffnessChanged: false as const,
+      aorticRootPlusSystemicArteryVsSumPreservedExactly: true as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumAndPartitionProfiles: true as const,
     }),
   });
 }

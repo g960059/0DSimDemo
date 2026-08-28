@@ -15,7 +15,17 @@ import {
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
-import { ptmFromStressedVolume, stressedVolumeFromPtm } from "@/engine/vascularPv";
+import {
+  MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1,
+  resolveMainWireAorticCompliancePartitionCapacitySnapshotV1,
+  resolveMainWireAorticCompliancePartitionResearchProfileV1,
+  validateMainWireAorticCompliancePartitionResearchProfileV1,
+} from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
+import {
+  complianceFromPtm,
+  ptmFromStressedVolume,
+  stressedVolumeFromPtm,
+} from "@/engine/vascularPv";
 
 describe("circulation graph kernel V1", () => {
   it("takes the shipped buildNodes/buildEdges graph as its authoritative topology", () => {
@@ -134,6 +144,59 @@ describe("circulation graph kernel V1", () => {
     expect(() => vascularPvLawFromNodeV1(graph.nodes[graph.nodeIndex.get("LV")!]!, params)).toThrow(
       "has no vascular PV law",
     );
+  });
+
+  it("redistributes Ao-to-SA exponential PV capacity without changing its sum", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const ao = graph.nodes[graph.nodeIndex.get("Ao")]!;
+    const sa = graph.nodes[graph.nodeIndex.get("SA")]!;
+    const art = graph.nodes[graph.nodeIndex.get("Art")]!;
+    const baselineParams = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const baselineAo = vascularPvLawFromNodeV1(ao, baselineParams);
+    const baselineSa = vascularPvLawFromNodeV1(sa, baselineParams);
+    const baselineArt = vascularPvLawFromNodeV1(art, baselineParams);
+    for (const profileId of [
+      "aortic-root-exponential-pv-capacity-low",
+      "aortic-root-exponential-pv-capacity-high",
+    ] as const) {
+      const profile =
+        resolveMainWireAorticCompliancePartitionResearchProfileV1(profileId);
+      const capacity =
+        resolveMainWireAorticCompliancePartitionCapacitySnapshotV1(profile);
+      expect(capacity.totalVsResidualMl).toBe(0);
+      const params = {
+        ...baselineParams,
+        aorticCompliancePartitionResearchProfile: profile,
+      };
+      const resolvedAo = vascularPvLawFromNodeV1(ao, params);
+      const resolvedSa = vascularPvLawFromNodeV1(sa, params);
+      const resolvedArt = vascularPvLawFromNodeV1(art, params);
+      if (
+        baselineAo.kind !== "arterial"
+        || baselineSa.kind !== "arterial"
+        || resolvedAo.kind !== "arterial"
+        || resolvedSa.kind !== "arterial"
+      ) throw new Error("Ao and SA must be arterial");
+      expect(resolvedAo.VsEff + resolvedSa.VsEff)
+        .toBe(baselineAo.VsEff + baselineSa.VsEff);
+      expect(
+        complianceFromPtm(resolvedAo, 90)
+        + complianceFromPtm(resolvedSa, 90),
+      ).toBe(
+        complianceFromPtm(baselineAo, 90)
+        + complianceFromPtm(baselineSa, 90),
+      );
+      expect(resolvedArt).toEqual(baselineArt);
+      expect(validateMainWireAorticCompliancePartitionResearchProfileV1(
+        profile,
+      )).toEqual([]);
+    }
+    expect(MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1)
+      .toMatchObject({
+        aorticRootPlusSystemicArteryVsSumPreservedExactly: true,
+        acceptedStateOrCheckpointTopologyChanged: false,
+        anatomicalSupportLengthIdentified: false,
+      });
   });
 
   it("round-trips inside and saturates outside the authoritative main-wire PV domains", () => {

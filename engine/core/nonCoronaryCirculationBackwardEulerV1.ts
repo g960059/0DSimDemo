@@ -22,6 +22,9 @@ import {
   type MainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import {
+  validateMainWireAorticCompliancePartitionResearchProfileV1,
+} from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
+import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
@@ -4529,6 +4532,20 @@ function validateRuntimeOnceV1(
 ): void {
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
+  if (
+    runtime.vascular.aorticCompliancePartitionResearchProfile !== undefined
+  ) {
+    const profileIssues =
+      validateMainWireAorticCompliancePartitionResearchProfileV1(
+        runtime.vascular.aorticCompliancePartitionResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticCompliancePartitionResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
