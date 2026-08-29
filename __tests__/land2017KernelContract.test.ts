@@ -181,6 +181,46 @@ describe("Land 2017 kernel contract", () => {
     expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
   });
 
+  it("keeps the octic deactivation gate bounded, monotone, and analytically differentiable", () => {
+    const maximumRatePerSec = 30;
+    const parameterSet = strongBridgeDeactivationExitParameterSet(
+      maximumRatePerSec,
+      "none",
+      "positive-excess-over-zero-distortion-equilibrium",
+      "unbound",
+      8,
+    );
+    const calciumTroponinValues = [0.1, 0.3, 0.55, 0.8];
+    const epsilon = 1e-6;
+    const rates = calciumTroponinValues.map((calciumTroponin) => {
+      const rate = land2017StrongBridgeDeactivationExitRatePerSec(
+        calciumTroponin,
+        parameterSet,
+      );
+      const analytic =
+        land2017StrongBridgeDeactivationExitRateDerivativePerSec(
+          calciumTroponin,
+          parameterSet,
+        );
+      const finiteDifference = (
+        land2017StrongBridgeDeactivationExitRatePerSec(
+          calciumTroponin + epsilon,
+          parameterSet,
+        )
+        - land2017StrongBridgeDeactivationExitRatePerSec(
+          calciumTroponin - epsilon,
+          parameterSet,
+        )
+      ) / (2 * epsilon);
+      expect(rate).toBeGreaterThanOrEqual(0);
+      expect(rate).toBeLessThanOrEqual(maximumRatePerSec);
+      expect(analytic).toBeLessThan(0);
+      expect(analytic).toBeCloseTo(finiteDifference, 7);
+      return rate;
+    });
+    expect(rates).toEqual([...rates].sort((left, right) => right - left));
+  });
+
   it("keeps the directional deactivation gate exact across state and strain derivatives", () => {
     const parameterSet = strongBridgeDeactivationExitParameterSet(
       40,
@@ -680,10 +720,12 @@ function strongBridgeDeactivationExitParameterSet(
     | "none"
     | "positive-excess-over-zero-distortion-equilibrium" = "none",
   exitDestination: "blocked" | "unbound" = "blocked",
+  cooperativeGatePower: 1 | 2 | 4 | 8 = 1,
 ): Land2017SourceParameterSet {
   const source = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
-    parameterSetId: `${source.parameterSetId}-strong-to-blocked-${maximumRatePerSec}`,
+    parameterSetId:
+      `${source.parameterSetId}-strong-to-blocked-${maximumRatePerSec}-gate-${cooperativeGatePower}`,
     sourceId: source.sourceId,
     doi: source.doi,
     values: source.values,
@@ -695,7 +737,7 @@ function strongBridgeDeactivationExitParameterSet(
       maximumRatePerSec,
       calciumTroponinGate:
         "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
-      cooperativeGatePower: 1,
+      cooperativeGatePower,
       deactivationDirectionGate,
       strongPopulationGate,
       exitDestination,

@@ -11,9 +11,9 @@ import {
   MAIN_WIRE_ATRIOVENTRICULAR_DELAY_PROFILE_IDS_V1,
 } from "@/engine/myocardium/calcium/MainWireAtrioventricularDelayBracketV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV9";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -69,7 +69,7 @@ const report = Object.freeze({
     fixedAorticOutflowCandidateExceptBracketedAtrioventricularDelayAxis:
       CANDIDATE,
     fixedAorticOutflowCandidateClaimExceptBracketedAtrioventricularDelayAxis:
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM,
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_CLAIM,
     independentCanonicalColdStartPerArm: true as const,
     parameterOptimizationOrFitApplied: false as const,
   }),

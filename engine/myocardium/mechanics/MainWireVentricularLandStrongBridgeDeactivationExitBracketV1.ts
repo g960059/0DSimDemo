@@ -63,6 +63,9 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_
     "strong-to-unbound-deactivation-twenty-per-sec-quartic-equilibrium-excess-gate",
     "strong-to-unbound-deactivation-twenty-five-per-sec-quartic-equilibrium-excess-gate",
     "strong-to-unbound-deactivation-thirty-per-sec-quartic-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-thirty-per-sec-octic-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-forty-per-sec-octic-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-fifty-per-sec-octic-equilibrium-excess-gate",
   ] as const);
 
 export type MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
@@ -73,7 +76,7 @@ export type MainWireVentricularLandStrongBridgeDeactivationExitProfileV1 =
     profileId:
       MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
     maximumRatePerSec: 0 | 5 | 10 | 15 | 20 | 25 | 30 | 40 | 50 | 60;
-    cooperativeGatePower: 1 | 2 | 4;
+    cooperativeGatePower: 1 | 2 | 4 | 8;
     deactivationDirectionGate:
       | "none"
       | "relative-CaTRPN-relaxation-excess";
@@ -98,7 +101,7 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_CLAIM_V1
     sourceIdentityClaimedForNonzeroProfiles: false as const,
     calciumTroponinGate:
       "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" as const,
-    cooperativeGatePowersCompared: Object.freeze([1, 2, 4] as const),
+    cooperativeGatePowersCompared: Object.freeze([1, 2, 4, 8] as const),
     directionalGate:
       "positive-relative-CaTRPN-relaxation-excess-without-an-additional-scale-parameter" as const,
     strongPopulationGate:
@@ -401,6 +404,36 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILES
         "positive-excess-over-zero-distortion-equilibrium",
         "unbound",
       ),
+    "strong-to-unbound-deactivation-thirty-per-sec-octic-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-thirty-per-sec-octic-equilibrium-excess-gate",
+        30,
+        1,
+        8,
+        "none",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-forty-per-sec-octic-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-forty-per-sec-octic-equilibrium-excess-gate",
+        40,
+        1,
+        8,
+        "none",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-fifty-per-sec-octic-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-fifty-per-sec-octic-equilibrium-excess-gate",
+        50,
+        1,
+        8,
+        "none",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
   } satisfies Readonly<Record<
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
     MainWireVentricularLandStrongBridgeDeactivationExitProfileV1
@@ -511,7 +544,7 @@ function profile(
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
   maximumRatePerSec: 0 | 5 | 10 | 15 | 20 | 25 | 30 | 40 | 50 | 60,
   trefScaleFromUncompensatedBase = 1,
-  cooperativeGatePower: 1 | 2 | 4 = 1,
+  cooperativeGatePower: 1 | 2 | 4 | 8 = 1,
   deactivationDirectionGate:
     | "none"
     | "relative-CaTRPN-relaxation-excess" = "none",

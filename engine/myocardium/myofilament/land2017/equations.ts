@@ -335,9 +335,10 @@ function evaluateStrongBridgeDeactivationExitRateTerms(
     extension.cooperativeGatePower !== 1
     && extension.cooperativeGatePower !== 2
     && extension.cooperativeGatePower !== 4
+    && extension.cooperativeGatePower !== 8
   ) {
     throw new Error(
-      "Land 2017 strong-bridge deactivation-exit cooperative gate power must be one, two, or four",
+      "Land 2017 strong-bridge deactivation-exit cooperative gate power must be one, two, four, or eight",
     );
   }
   if (

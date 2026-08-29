@@ -17,8 +17,8 @@ import {
   evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV9";
 import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";

@@ -15,8 +15,8 @@ import {
   type MainWireAorticOutflowCharacteristicResistanceDampingContextIdV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCharacteristicResistanceDampingV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV9";
 import {
   normalAdultMainWireRuntimeV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -211,7 +211,7 @@ export function measureMainWireAorticOutflowCharacteristicResistanceDampingV1(
 function measureArm(
   input: MainWireAorticOutflowCharacteristicResistanceDampingInputV1,
 ): MainWireAorticOutflowCharacteristicResistanceDampingArmV1 {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9;
   const context =
     resolveMainWireAorticOutflowCharacteristicResistanceDampingContextV1(
       input.contextId,

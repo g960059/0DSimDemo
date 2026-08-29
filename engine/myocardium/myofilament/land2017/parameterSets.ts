@@ -74,7 +74,7 @@ export type Land2017StrongBridgeDeactivationExitExtensionV1 = Readonly<{
   readonly maximumRatePerSec: number;
   readonly calciumTroponinGate:
     "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power";
-  readonly cooperativeGatePower: 1 | 2 | 4;
+  readonly cooperativeGatePower: 1 | 2 | 4 | 8;
   readonly deactivationDirectionGate:
     | "none"
     | "relative-CaTRPN-relaxation-excess";

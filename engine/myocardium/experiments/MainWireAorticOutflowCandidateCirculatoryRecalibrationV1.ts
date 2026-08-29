@@ -5,8 +5,8 @@ import type {
   MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCirculatoryLoadPointsV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV9";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_V1_ID =
   "main-wire-aortic-outflow-candidate-circulatory-recalibration-v1" as const;
@@ -54,7 +54,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CLAIM_
   Object.freeze({
     role:
       "fixed-three-by-three-pulmonary-resistance-by-stressed-volume-factorial" as const,
-    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8,
+    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9,
     pulmonaryResistanceScales: Object.freeze([0.75, 1, 4 / 3] as const),
     canonicalAdditionalStressedVenousVolumeScales:
       Object.freeze([0.75, 1, 4 / 3] as const),

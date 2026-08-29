@@ -30,10 +30,10 @@ import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v8" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v9" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV8<
+export type MainWireAorticOutflowCandidateProtocolV9<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -60,14 +60,14 @@ export type MainWireAorticOutflowCandidateProtocolV8<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV8 =
-  MainWireAorticOutflowCandidateProtocolV8<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID
+export type MainWireAorticOutflowPhysiologyCandidateV9 =
+  MainWireAorticOutflowCandidateProtocolV9<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -79,7 +79,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 =
     trefForceLoadProfileId: "tref-force-load-baseline" as const,
     sourceVelocityDistortionProfileId: "source-Aeff-canonical" as const,
     strongBridgeDeactivationExitProfileId:
-      "strong-to-unbound-deactivation-twenty-per-sec-quartic-equilibrium-excess-gate" as const,
+      "strong-to-unbound-deactivation-thirty-per-sec-octic-equilibrium-excess-gate" as const,
     atrioventricularDelayProfileId:
       "coppini-source-atrioventricular-delay-120ms" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
@@ -87,9 +87,9 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 =
       "Land2017-characteristic-impedance-matched" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV8;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV9;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
@@ -110,8 +110,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM =
       true as const,
     trefCompensationChangesStressScaleNotCrossbridgeStateKinetics:
       true as const,
-    strongBridgeDeactivationExitMaximumRatePerSec: 20 as const,
-    strongBridgeDeactivationExitCooperativeGatePower: 4 as const,
+    strongBridgeDeactivationExitMaximumRatePerSec: 30 as const,
+    strongBridgeDeactivationExitCooperativeGatePower: 8 as const,
     strongBridgeDeactivationExitDestination: "unbound" as const,
     strongBridgeDeactivationExitUsesCaTRPNDirectionGate: false as const,
     strongBridgeDeactivationExitUsesPopulationDisequilibriumGate:
@@ -119,6 +119,18 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM =
     strongBridgeDeactivationExitAddsContinuousState: false as const,
     strongBridgeDeactivationExitAddsOneContinuousRateParameter: true as const,
     strongBridgeDeactivationExitUsesOneDiscreteGateShapeChoice: true as const,
+    strongBridgeDeactivationExitContinuousParameterCountChangedFromV8:
+      false as const,
+    strongBridgeDeactivationExitStateCountChangedFromV8: false as const,
+    deactivationGateRefinementMechanism:
+      "octic-CaTRPN-gate-suppresses-mid-activation-exit-while-thirty-per-sec-ceiling-accelerates-low-activation-exit" as const,
+    deactivationGateRefinementSelectionStage:
+      "fixed-thirty-forty-fifty-per-sec-octic-bracket-after-V8-aortic-damping-fixed" as const,
+    deactivationGateRefinementSelectionCriterion:
+      "reduce-IVRT-Tei-and-negative-dP-dt-without-losing-ET-envelope-or-single-peak-aortic-flow" as const,
+    deactivationGateRefinementContinuousOptimizerApplied: false as const,
+    deactivationGateIsReducedOrderHypothesisNotLand2017SourceEquation:
+      true as const,
     sourceVelocityDistortionAeffScaleFromIntactSource: 1 as const,
     effectiveSystemicArterialTangentStiffnessScaleFromCanonical: 2 as const,
     systemicArterialTopologyDesignPressurePreservedAtGlobalLawReferenceVolume:
