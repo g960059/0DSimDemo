@@ -1,13 +1,11 @@
 import {
   evaluateLand2017AlgebraicTerms,
+  evaluateLand2017StrongBridgeDeactivationExitTerms,
   land2017CaTRPNUnblockingFactor,
   land2017CaTRPNUnblockingFactorDerivative,
   land2017GammaSu,
   land2017GammaWu,
   land2017GammaWuDerivative,
-  land2017StrongToBlockedDeactivationRateDerivativePerSec,
-  land2017StrongToBlockedDeactivationRatePerSec,
-  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
@@ -88,33 +86,15 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
   const weakLossRate =
     d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
-  const strongToBlockedRate =
-    land2017StrongToBlockedDeactivationRatePerSec(
-      CaTRPN,
-      parameterSet,
-      {
-        freeCalciumUM: input.freeCalciumUM,
-        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
-      },
-    );
-  const strongToBlockedRateDerivative =
-    land2017StrongToBlockedDeactivationRateDerivativePerSec(
-      CaTRPN,
-      parameterSet,
-      {
-        freeCalciumUM: input.freeCalciumUM,
-        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
-      },
-    );
-  const strongToBlockedRateStrainDerivative =
-    land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
-      CaTRPN,
-      parameterSet,
-      {
-        freeCalciumUM: input.freeCalciumUM,
-        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
-      },
-    );
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    solvedNextState,
+    parameterSet,
+    {
+      freeCalciumUM: input.freeCalciumUM,
+      fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+    },
+  );
+  const exitsToBlocked = deactivationExit.exitDestination === "blocked";
   const dBResidualDCaTRPN = -dt * (
     d.kb
       * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
@@ -123,27 +103,44 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
       * nTmHalf
       * Math.pow(CaTRPN, nTmHalf - 1)
       * B
-    + strongToBlockedRateDerivative * S
+    + (exitsToBlocked ? deactivationExit.derivativeByCaTRPNPerSec : 0)
   );
   const dWResidualDZetaW =
     dt * W * land2017GammaWuDerivative(zetaW, p);
   const dSResidualDZetaS =
     dt * S * centralSemismoothGammaSuDerivative(zetaS, p.gammaS);
   const dSResidualDCaTRPN =
-    dt * strongToBlockedRateDerivative * S;
+    dt * deactivationExit.derivativeByCaTRPNPerSec;
   const dBResidualDStrain =
-    -dt * strongToBlockedRateStrainDerivative * S;
+    exitsToBlocked
+      ? -dt * deactivationExit.derivativeByFiberEngineeringStrainPerSec
+      : 0;
   const dSResidualDStrain =
-    dt * strongToBlockedRateStrainDerivative * S;
+    dt * deactivationExit.derivativeByFiberEngineeringStrainPerSec;
   const populationDerivative = solveLand2017PopulationBlock(
     1 + dt * (bindingRate + unbindingRate),
-    dt * bindingRate,
-    dt * (bindingRate - strongToBlockedRate),
+    dt * (
+      bindingRate
+      - (exitsToBlocked
+        ? deactivationExit.derivativeByWeakPopulationPerSec
+        : 0)
+    ),
+    dt * (
+      bindingRate
+      - (exitsToBlocked
+        ? deactivationExit.derivativeByStrongPopulationPerSec
+        : 0)
+    ),
     dt * p.kuw,
     1 + dt * (p.kuw + weakLossRate),
     dt * p.kuw,
-    -dt * p.kws,
-    1 + dt * (strongLossRate + strongToBlockedRate),
+    -dt * (
+      p.kws - deactivationExit.derivativeByWeakPopulationPerSec
+    ),
+    1 + dt * (
+      strongLossRate
+      + deactivationExit.derivativeByStrongPopulationPerSec
+    ),
     -dBResidualDCaTRPN * dCaTRPNDStrain - dBResidualDStrain,
     -dWResidualDZetaW * dZetaWDStrain,
     -dSResidualDCaTRPN * dCaTRPNDStrain
@@ -202,18 +199,12 @@ export function computeLand2017SteadyStateTangentPaFromSolvedState(
   const bindingRate =
     d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p);
   const unbindingRate = p.ku * Math.pow(CaTRPN, nTmHalf);
-  const strongToBlockedRate =
-    land2017StrongToBlockedDeactivationRatePerSec(
-      CaTRPN,
-      parameterSet,
-      { freeCalciumUM, fiberEngineeringStrain },
-    );
-  const strongToBlockedRateDerivative =
-    land2017StrongToBlockedDeactivationRateDerivativePerSec(
-      CaTRPN,
-      parameterSet,
-      { freeCalciumUM, fiberEngineeringStrain },
-    );
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    solvedState,
+    parameterSet,
+    { freeCalciumUM, fiberEngineeringStrain },
+  );
+  const exitsToBlocked = deactivationExit.exitDestination === "blocked";
   const dPopulationResidualDCaTRPN = -(
     d.kb
       * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
@@ -222,19 +213,25 @@ export function computeLand2017SteadyStateTangentPaFromSolvedState(
       * nTmHalf
       * Math.pow(CaTRPN, nTmHalf - 1)
       * B
-    + strongToBlockedRateDerivative * S
+    + (exitsToBlocked ? deactivationExit.derivativeByCaTRPNPerSec : 0)
   );
   const dStrongPopulationResidualDCaTRPN =
-    strongToBlockedRateDerivative * S;
+    deactivationExit.derivativeByCaTRPNPerSec;
   const populationDerivative = solveLand2017PopulationBlock(
     bindingRate + unbindingRate,
-    bindingRate,
-    bindingRate - strongToBlockedRate,
+    bindingRate
+      - (exitsToBlocked
+        ? deactivationExit.derivativeByWeakPopulationPerSec
+        : 0),
+    bindingRate
+      - (exitsToBlocked
+        ? deactivationExit.derivativeByStrongPopulationPerSec
+        : 0),
     p.kuw,
     p.kuw + d.kwu + p.kws,
     p.kuw,
-    -p.kws,
-    d.ksu + strongToBlockedRate,
+    -(p.kws - deactivationExit.derivativeByWeakPopulationPerSec),
+    d.ksu + deactivationExit.derivativeByStrongPopulationPerSec,
     -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
     0,
     -dStrongPopulationResidualDCaTRPN * dCaTRPNDStrain,

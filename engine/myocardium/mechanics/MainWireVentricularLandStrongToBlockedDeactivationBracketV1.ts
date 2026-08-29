@@ -47,6 +47,15 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_I
     "strong-to-blocked-deactivation-forty-per-sec-directional-squared-gate",
     "strong-to-blocked-deactivation-fifty-per-sec-directional-squared-gate",
     "strong-to-blocked-deactivation-sixty-per-sec-directional-squared-gate",
+    "strong-to-blocked-deactivation-thirty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-blocked-deactivation-forty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-blocked-deactivation-fifty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-twenty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-thirty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-forty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-fifty-per-sec-directional-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-forty-per-sec-directional-squared-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-fifty-per-sec-directional-squared-equilibrium-excess-gate",
   ] as const);
 
 export type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1 =
@@ -61,6 +70,10 @@ export type MainWireVentricularLandStrongToBlockedDeactivationProfileV1 =
     deactivationDirectionGate:
       | "none"
       | "relative-CaTRPN-relaxation-excess";
+    strongPopulationGate:
+      | "none"
+      | "positive-excess-over-zero-distortion-equilibrium";
+    exitDestination: "blocked" | "unbound";
     trefScaleFromUncompensatedBase: number;
     sourceIsometricPeakCompensationApplied: boolean;
     sourceIdentityClaimed: boolean;
@@ -81,6 +94,9 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_CLAIM_V1 
     cooperativeGatePowersCompared: Object.freeze([1, 2] as const),
     directionalGate:
       "positive-relative-CaTRPN-relaxation-excess-without-an-additional-scale-parameter" as const,
+    strongPopulationGate:
+      "positive-S-excess-over-source-zero-distortion-equilibrium-S-to-W-ratio-without-an-additional-scale-parameter" as const,
+    exitDestinationsCompared: Object.freeze(["blocked", "unbound"] as const),
     oneAdditionalMaximumRateParameter: true as const,
     isometricPeakCompensationUsesExistingTrefScaleOnly: true as const,
     isometricPeakCompensationAddsIndependentFreeParameter: false as const,
@@ -221,6 +237,93 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILES_
         2,
         "relative-CaTRPN-relaxation-excess",
       ),
+    "strong-to-blocked-deactivation-thirty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-blocked-deactivation-thirty-per-sec-directional-equilibrium-excess-gate",
+        30,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+      ),
+    "strong-to-blocked-deactivation-forty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-blocked-deactivation-forty-per-sec-directional-equilibrium-excess-gate",
+        40,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+      ),
+    "strong-to-blocked-deactivation-fifty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-blocked-deactivation-fifty-per-sec-directional-equilibrium-excess-gate",
+        50,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+      ),
+    "strong-to-unbound-deactivation-thirty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-thirty-per-sec-directional-equilibrium-excess-gate",
+        30,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-twenty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-twenty-per-sec-directional-equilibrium-excess-gate",
+        20,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-forty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-forty-per-sec-directional-equilibrium-excess-gate",
+        40,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-fifty-per-sec-directional-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-fifty-per-sec-directional-equilibrium-excess-gate",
+        50,
+        1,
+        1,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-forty-per-sec-directional-squared-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-forty-per-sec-directional-squared-equilibrium-excess-gate",
+        40,
+        1,
+        2,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-fifty-per-sec-directional-squared-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-fifty-per-sec-directional-squared-equilibrium-excess-gate",
+        50,
+        1,
+        2,
+        "relative-CaTRPN-relaxation-excess",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
   } satisfies Readonly<Record<
     MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
     MainWireVentricularLandStrongToBlockedDeactivationProfileV1
@@ -279,6 +382,8 @@ export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMat
         "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
       cooperativeGatePower: profileValue.cooperativeGatePower,
       deactivationDirectionGate: profileValue.deactivationDirectionGate,
+      strongPopulationGate: profileValue.strongPopulationGate,
+      exitDestination: profileValue.exitDestination,
       sourceIdentityClaimed: false,
     });
   const values = profileValue.trefScaleFromUncompensatedBase === 1
@@ -333,12 +438,18 @@ function profile(
   deactivationDirectionGate:
     | "none"
     | "relative-CaTRPN-relaxation-excess" = "none",
+  strongPopulationGate:
+    | "none"
+    | "positive-excess-over-zero-distortion-equilibrium" = "none",
+  exitDestination: "blocked" | "unbound" = "blocked",
 ): MainWireVentricularLandStrongToBlockedDeactivationProfileV1 {
   return Object.freeze({
     profileId,
     maximumRatePerSec,
     cooperativeGatePower,
     deactivationDirectionGate,
+    strongPopulationGate,
+    exitDestination,
     trefScaleFromUncompensatedBase,
     sourceIsometricPeakCompensationApplied:
       trefScaleFromUncompensatedBase !== 1,

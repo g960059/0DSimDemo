@@ -33,6 +33,8 @@ export const MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATE_IDS_V1
     "source-twitch-retention-kws-three-quarters-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-thirteen-twentieths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-three-fifths-ntm-four-fifths-peak-compensated",
+    "source-twitch-retention-kws-twenty-three-fortieths-ntm-four-fifths-peak-compensated",
+    "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-rw-three-quarters-peak-compensated",
     "source-twitch-retention-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-ntm-three-fifths-peak-compensated",
@@ -315,6 +317,32 @@ const CANDIDATES = Object.freeze({
         fivePercentRiseToPeakMs: 170.14282933082833,
         relaxationTime50Ms: 145.78127755639733,
         relaxationTime95Ms: 377.848946037451,
+      },
+      "bounded-ET-completion-after-load-envelope",
+    ),
+  "source-twitch-retention-kws-twenty-three-fortieths-ntm-four-fifths-peak-compensated":
+    candidate(
+      "source-twitch-retention-kws-twenty-three-fortieths-ntm-four-fifths-peak-compensated",
+      { kws: 0.575, nTm: 0.8 },
+      1.1127721582894403,
+      {
+        uncompensatedPeakStressKPa: 45.83148456769218,
+        fivePercentRiseToPeakMs: 172.80623420210497,
+        relaxationTime50Ms: 146.54625304457883,
+        relaxationTime95Ms: 386.3768990874433,
+      },
+      "bounded-ET-completion-after-load-envelope",
+    ),
+  "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated":
+    candidate(
+      "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated",
+      { kws: 0.55, nTm: 0.8 },
+      1.1284686835504154,
+      {
+        uncompensatedPeakStressKPa: 45.193987873498244,
+        fivePercentRiseToPeakMs: 174.45376150382974,
+        relaxationTime50Ms: 148.61034342120008,
+        relaxationTime95Ms: 396.8656840240429,
       },
       "bounded-ET-completion-after-load-envelope",
     ),

@@ -1,12 +1,10 @@
 import {
   evaluateLand2017AlgebraicTerms,
+  evaluateLand2017StrongBridgeDeactivationExitTerms,
   land2017CaTRPNUnblockingFactor,
   land2017CaTRPNUnblockingFactorDerivative,
   land2017GammaSuDerivative,
   land2017GammaWuDerivative,
-  land2017StrongToBlockedDeactivationRateDerivativePerSec,
-  land2017StrongToBlockedDeactivationRatePerSec,
-  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
   validateLand2017ContinuousInput,
   validateLand2017EquationState,
   type Land2017EquationParameters,
@@ -60,7 +58,6 @@ export function writeLand2017BackwardEulerResidualStageStrainDerivative(
   outDerivative.fill(0);
   const terms = evaluateLand2017AlgebraicTerms(next, rhsInput, parameterSet);
   const CaTRPN = next[LAND2017_STATE_INDEX.CaTRPN];
-  const S = next[LAND2017_STATE_INDEX.S];
   const calciumDrive = Math.pow(
     input.freeCalciumUM / terms.CaT50,
     p.nTRPN,
@@ -72,16 +69,19 @@ export function writeLand2017BackwardEulerResidualStageStrainDerivative(
     * p.kTRPN
     * dCalciumDriveDStageStrain
     * (1 - CaTRPN);
-  const strongToBlockedRateStrainDerivative =
-    land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
-      CaTRPN,
-      parameterSet,
-      rhsInput,
-    );
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    next,
+    parameterSet,
+    rhsInput,
+  );
   outDerivative[LAND2017_STATE_INDEX.B] =
-    -input.dtSec * strongToBlockedRateStrainDerivative * S;
+    deactivationExit.exitDestination === "blocked"
+      ? -input.dtSec
+        * deactivationExit.derivativeByFiberEngineeringStrainPerSec
+      : 0;
   outDerivative[LAND2017_STATE_INDEX.S] =
-    input.dtSec * strongToBlockedRateStrainDerivative * S;
+    input.dtSec
+    * deactivationExit.derivativeByFiberEngineeringStrainPerSec;
 
   if (input.stageZetaDriveFiberEngineeringStrainRatePerSec === undefined) {
     outDerivative[LAND2017_STATE_INDEX.zetaW] = -d.Aw;
@@ -130,18 +130,12 @@ export function writeLand2017BackwardEulerResidualJacobian(
   const nTmHalf = p.nTm / 2;
   const CaTRPNUnblockingFactor = land2017CaTRPNUnblockingFactor(CaTRPN, p);
   const CaTRPNPosHalf = Math.pow(CaTRPN, nTmHalf);
-  const strongToBlockedRate =
-    land2017StrongToBlockedDeactivationRatePerSec(
-      CaTRPN,
-      parameterSet,
-      rhsInput,
-    );
-  const strongToBlockedRateDerivative =
-    land2017StrongToBlockedDeactivationRateDerivativePerSec(
-      CaTRPN,
-      parameterSet,
-      rhsInput,
-    );
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    next,
+    parameterSet,
+    rhsInput,
+  );
+  const exitsToBlocked = deactivationExit.exitDestination === "blocked";
 
   // Eq 47.
   const caDrive = Math.pow(input.freeCalciumUM / terms.CaT50, p.nTRPN);
@@ -151,7 +145,7 @@ export function writeLand2017BackwardEulerResidualJacobian(
   const dBCaTRPN =
     d.kb * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p) * terms.U -
     p.ku * nTmHalf * Math.pow(CaTRPN, nTmHalf - 1) * B
-    + strongToBlockedRateDerivative * S;
+    + (exitsToBlocked ? deactivationExit.derivativeByCaTRPNPerSec : 0);
   subtractRhsDerivative(outJacobian, LAND2017_STATE_INDEX.B, LAND2017_STATE_INDEX.CaTRPN, dt, dBCaTRPN);
   subtractRhsDerivative(
     outJacobian,
@@ -165,14 +159,20 @@ export function writeLand2017BackwardEulerResidualJacobian(
     LAND2017_STATE_INDEX.B,
     LAND2017_STATE_INDEX.W,
     dt,
-    -d.kb * CaTRPNUnblockingFactor,
+    -d.kb * CaTRPNUnblockingFactor
+      + (exitsToBlocked
+        ? deactivationExit.derivativeByWeakPopulationPerSec
+        : 0),
   );
   subtractRhsDerivative(
     outJacobian,
     LAND2017_STATE_INDEX.B,
     LAND2017_STATE_INDEX.S,
     dt,
-    -d.kb * CaTRPNUnblockingFactor + strongToBlockedRate,
+    -d.kb * CaTRPNUnblockingFactor
+      + (exitsToBlocked
+        ? deactivationExit.derivativeByStrongPopulationPerSec
+        : 0),
   );
 
   // Eq 49.
@@ -194,20 +194,27 @@ export function writeLand2017BackwardEulerResidualJacobian(
   );
 
   // Eq 50.
-  subtractRhsDerivative(outJacobian, LAND2017_STATE_INDEX.S, LAND2017_STATE_INDEX.W, dt, p.kws);
+  subtractRhsDerivative(
+    outJacobian,
+    LAND2017_STATE_INDEX.S,
+    LAND2017_STATE_INDEX.W,
+    dt,
+    p.kws - deactivationExit.derivativeByWeakPopulationPerSec,
+  );
   subtractRhsDerivative(
     outJacobian,
     LAND2017_STATE_INDEX.S,
     LAND2017_STATE_INDEX.CaTRPN,
     dt,
-    -strongToBlockedRateDerivative * S,
+    -deactivationExit.derivativeByCaTRPNPerSec,
   );
   subtractRhsDerivative(
     outJacobian,
     LAND2017_STATE_INDEX.S,
     LAND2017_STATE_INDEX.S,
     dt,
-    -d.ksu - terms.gammasu - strongToBlockedRate,
+    -d.ksu - terms.gammasu
+      - deactivationExit.derivativeByStrongPopulationPerSec,
   );
   subtractRhsDerivative(
     outJacobian,

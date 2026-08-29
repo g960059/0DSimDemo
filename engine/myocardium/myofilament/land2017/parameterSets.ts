@@ -78,6 +78,10 @@ export type Land2017StrongToBlockedDeactivationExtensionV1 = Readonly<{
   readonly deactivationDirectionGate:
     | "none"
     | "relative-CaTRPN-relaxation-excess";
+  readonly strongPopulationGate:
+    | "none"
+    | "positive-excess-over-zero-distortion-equilibrium";
+  readonly exitDestination: "blocked" | "unbound";
   readonly sourceIdentityClaimed: false;
 }>;
 

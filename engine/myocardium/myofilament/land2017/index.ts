@@ -33,6 +33,7 @@ export {
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 export {
   evaluateLand2017AlgebraicTerms,
+  evaluateLand2017StrongBridgeDeactivationExitTerms,
   LAND2017_EQ48_CA_TRPN_UNBLOCKING_FACTOR_LIMIT,
   land2017CaTRPNUnblockingFactor,
   land2017CaTRPNUnblockingFactorDerivative,
@@ -52,6 +53,7 @@ export {
   validateLand2017EquationState,
   writeLand2017Rhs,
   type Land2017AlgebraicTerms,
+  type Land2017StrongBridgeDeactivationExitTerms,
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 export { writeLand2017BackwardEulerResidual } from "@/engine/myocardium/myofilament/land2017/residual";

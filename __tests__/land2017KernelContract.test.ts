@@ -12,6 +12,7 @@ import {
   computeLand2017AlgorithmicTangentPa,
   computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
   deriveLand2017DerivedParameters,
+  evaluateLand2017StrongBridgeDeactivationExitTerms,
   evaluateLand2017StepOutput,
   land2017StrongToBlockedDeactivationRateDerivativePerSec,
   land2017StrongToBlockedDeactivationRatePerSec,
@@ -269,6 +270,136 @@ describe("Land 2017 kernel contract", () => {
       parameterSet,
     );
     expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
+  });
+
+  it("activates the strong-population excess gate on the exact affine branch", () => {
+    const activeState = Float64Array.from([
+      0.4,
+      0.2,
+      0.04,
+      0.12,
+      0.01,
+      -0.1,
+    ]);
+    const inactiveState = Float64Array.from([
+      0.4,
+      0.2,
+      0.12,
+      0.04,
+      0.01,
+      -0.1,
+    ]);
+    const input: LandStepInput = {
+      freeCalciumUM: 0.2,
+      previousFiberEngineeringStrain: 0.015,
+      stageFiberEngineeringStrain: 0.02,
+      dtSec: 0.0002,
+      stage: { scheme: "BE", stageIndex: 0 },
+    };
+    const continuousInput = {
+      freeCalciumUM: input.freeCalciumUM,
+      fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+      fiberEngineeringStrainRatePerSec: 25,
+    };
+
+    for (const exitDestination of ["blocked", "unbound"] as const) {
+      const parameterSet = strongToBlockedParameterSet(
+        40,
+        "none",
+        "positive-excess-over-zero-distortion-equilibrium",
+        exitDestination,
+      );
+      const active = evaluateLand2017StrongBridgeDeactivationExitTerms(
+        activeState,
+        parameterSet,
+        continuousInput,
+      );
+      const inactive = evaluateLand2017StrongBridgeDeactivationExitTerms(
+        inactiveState,
+        parameterSet,
+        continuousInput,
+      );
+      expect(active.strongPopulationGateActive).toBe(true);
+      expect(active.equilibriumStrongToWeakRatio).toBeCloseTo(2 / 3, 14);
+      expect(active.populationExcess).toBeCloseTo(0.12 - (2 / 3) * 0.04, 14);
+      expect(active.populationFluxPerSec).toBeGreaterThan(0);
+      expect(inactive).toMatchObject({
+        strongPopulationGateActive: false,
+        populationExcess: 0,
+        populationFluxPerSec: 0,
+      });
+
+      const sourceRhs = writeLand2017Rhs(
+        activeState,
+        continuousInput,
+        LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+      );
+      const extendedRhs = writeLand2017Rhs(
+        activeState,
+        continuousInput,
+        parameterSet,
+      );
+      const blockedChange = extendedRhs[1]! - sourceRhs[1]!;
+      const strongChange = extendedRhs[3]! - sourceRhs[3]!;
+      expect(strongChange).toBeCloseTo(-active.populationFluxPerSec, 13);
+      expect(blockedChange).toBeCloseTo(
+        exitDestination === "blocked" ? active.populationFluxPerSec : 0,
+        13,
+      );
+
+      const epsilon = 1e-6;
+      const analytic = writeLand2017BackwardEulerResidualJacobian(
+        activeState,
+        input,
+        parameterSet,
+      );
+      for (let column = 0; column < LAND2017_STATE_SIZE; column += 1) {
+        const plus = Float64Array.from(activeState);
+        const minus = Float64Array.from(activeState);
+        plus[column] += epsilon;
+        minus[column] -= epsilon;
+        const plusResidual = writeLand2017BackwardEulerResidual(
+          plus,
+          inactiveState,
+          input,
+          parameterSet,
+        );
+        const minusResidual = writeLand2017BackwardEulerResidual(
+          minus,
+          inactiveState,
+          input,
+          parameterSet,
+        );
+        for (let row = 0; row < LAND2017_STATE_SIZE; row += 1) {
+          expect(analytic[row * LAND2017_STATE_SIZE + column])
+            .toBeCloseTo(
+              (plusResidual[row]! - minusResidual[row]!) / (2 * epsilon),
+              5,
+            );
+        }
+      }
+
+      const solved = solveLand2017BackwardEulerStep(
+        activeState,
+        input,
+        { residualTolerance: 1e-12 },
+        parameterSet,
+      );
+      expect(solved.ok, solved.failureMessage).toBe(true);
+      const consistent =
+        computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+          solved.nextState,
+          input,
+          parameterSet,
+        );
+      const shadow = computeLand2017AlgorithmicTangentPa(
+        activeState,
+        input,
+        { epsilonStrain: 1e-6, residualTolerance: 1e-12 },
+        parameterSet,
+      );
+      expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
+    }
   });
 
   it("reports invalid domains without silently projecting or clamping", () => {
@@ -545,6 +676,10 @@ function strongToBlockedParameterSet(
   deactivationDirectionGate:
     | "none"
     | "relative-CaTRPN-relaxation-excess" = "none",
+  strongPopulationGate:
+    | "none"
+    | "positive-excess-over-zero-distortion-equilibrium" = "none",
+  exitDestination: "blocked" | "unbound" = "blocked",
 ): Land2017SourceParameterSet {
   const source = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
   const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
@@ -562,6 +697,8 @@ function strongToBlockedParameterSet(
         "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
       cooperativeGatePower: 1,
       deactivationDirectionGate,
+      strongPopulationGate,
+      exitDestination,
       sourceIdentityClaimed: false,
     }),
   };

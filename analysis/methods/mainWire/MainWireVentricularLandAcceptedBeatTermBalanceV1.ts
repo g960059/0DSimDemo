@@ -11,6 +11,7 @@ import {
 import {
   LAND2017_STATE_INDEX,
   evaluateLand2017AlgebraicTerms,
+  evaluateLand2017StrongBridgeDeactivationExitTerms,
   land2017GammaSu,
   land2017GammaWu,
   land2017StrongToBlockedDeactivationRatePerSec,
@@ -55,6 +56,9 @@ export type MainWireVentricularLandAcceptedBeatTermReadbackV1 = Readonly<{
   weakDistortionLossRatePerSec: number;
   strongDistortionLossRatePerSec: number;
   strongToBlockedDeactivationRatePerSec: number;
+  strongBridgeDeactivationExitPopulationExcess: number;
+  strongBridgeDeactivationExitPopulationFluxPerSec: number;
+  strongBridgeDeactivationPopulationGateActive: boolean;
   undistortedStrongStateTerm: number;
   strongDistortionStateTerm: number;
   weakDistortionStateTerm: number;
@@ -253,8 +257,8 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
         * readback.strongPopulationS * result.dtSec, 0);
   const integratedStrongToBlockedDeactivationPopulation =
     postEjectionReadbacks.reduce((sum, readback) =>
-      sum + readback.strongToBlockedDeactivationRatePerSec
-        * readback.strongPopulationS * result.dtSec, 0);
+      sum + readback.strongBridgeDeactivationExitPopulationFluxPerSec
+        * result.dtSec, 0);
   return Object.freeze({
     methodId: MAIN_WIRE_VENTRICULAR_LAND_ACCEPTED_BEAT_TERM_BALANCE_V1_ID,
     source: Object.freeze({
@@ -521,6 +525,14 @@ function readback(
     * material.orientationFraction01
     * material.viableActiveFraction01
     * terms.h * p.Tref / p.rs / 1000;
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    state,
+    material.landEquationParameters,
+    {
+      freeCalciumUM,
+      fiberEngineeringStrain: landStretch - 1,
+    },
+  );
   return Object.freeze({
     phase01,
     landStretch,
@@ -545,6 +557,12 @@ function readback(
           fiberEngineeringStrain: landStretch - 1,
         },
       ),
+    strongBridgeDeactivationExitPopulationExcess:
+      deactivationExit.populationExcess,
+    strongBridgeDeactivationExitPopulationFluxPerSec:
+      deactivationExit.populationFluxPerSec,
+    strongBridgeDeactivationPopulationGateActive:
+      deactivationExit.strongPopulationGateActive,
     undistortedStrongStateTerm,
     strongDistortionStateTerm,
     weakDistortionStateTerm,

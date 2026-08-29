@@ -378,18 +378,15 @@ export function solveLand2017AffineStage(
       parameterSet,
       continuousInput,
     );
-  const population = solveLand2017PopulationBlock(
-    1 + implicitDtSec * (bindingRate + unbindingRate),
-    implicitDtSec * bindingRate,
-    implicitDtSec * (bindingRate - strongToBlockedRate),
-    implicitDtSec * p.kuw,
-    1 + implicitDtSec * (p.kuw + weakLossRate),
-    implicitDtSec * p.kuw,
-    -implicitDtSec * p.kws,
-    1 + implicitDtSec * (strongLossRate + strongToBlockedRate),
-    base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
-    base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
-    base[LAND2017_STATE_INDEX.S],
+  const population = solveLand2017PopulationStageWithDeactivationExit(
+    base,
+    implicitDtSec,
+    bindingRate,
+    unbindingRate,
+    weakLossRate,
+    strongLossRate,
+    strongToBlockedRate,
+    parameterSet,
   );
   const next = new Float64Array(LAND2017_STATE_SIZE);
   next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
@@ -400,6 +397,70 @@ export function solveLand2017AffineStage(
   next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
+}
+
+function solveLand2017PopulationStageWithDeactivationExit(
+  base: ArrayLike<number>,
+  implicitDtSec: number,
+  bindingRate: number,
+  unbindingRate: number,
+  weakLossRate: number,
+  strongLossRate: number,
+  deactivationRatePerSec: number,
+  parameterSet: Land2017EquationParameters,
+): readonly [number, number, number] {
+  const p = parameterSet.values;
+  const extension = parameterSet.strongToBlockedDeactivation;
+  const solveBranch = (
+    branchRatePerSec: number,
+    equilibriumStrongToWeakRatio: number,
+  ) => {
+    const exitsToBlocked = extension?.exitDestination === "blocked";
+    return solveLand2017PopulationBlock(
+      1 + implicitDtSec * (bindingRate + unbindingRate),
+      implicitDtSec * (
+        bindingRate
+        + (exitsToBlocked
+          ? branchRatePerSec * equilibriumStrongToWeakRatio
+          : 0)
+      ),
+      implicitDtSec * (
+        bindingRate - (exitsToBlocked ? branchRatePerSec : 0)
+      ),
+      implicitDtSec * p.kuw,
+      1 + implicitDtSec * (p.kuw + weakLossRate),
+      implicitDtSec * p.kuw,
+      -implicitDtSec * (
+        p.kws + branchRatePerSec * equilibriumStrongToWeakRatio
+      ),
+      1 + implicitDtSec * (strongLossRate + branchRatePerSec),
+      base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
+      base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
+      base[LAND2017_STATE_INDEX.S],
+    );
+  };
+  if (
+    extension === undefined
+    || extension.strongPopulationGate === "none"
+  ) {
+    return solveBranch(deactivationRatePerSec, 0);
+  }
+  const equilibriumStrongToWeakRatio = p.kws / parameterSet.derived.ksu;
+  const inactive = solveBranch(0, equilibriumStrongToWeakRatio);
+  const inactiveExcess = inactive[2]
+    - equilibriumStrongToWeakRatio * inactive[1];
+  const branchTolerance = 128 * Number.EPSILON;
+  if (inactiveExcess <= branchTolerance) return inactive;
+  const active = solveBranch(
+    deactivationRatePerSec,
+    equilibriumStrongToWeakRatio,
+  );
+  const activeExcess = active[2]
+    - equilibriumStrongToWeakRatio * active[1];
+  if (activeExcess >= -branchTolerance) return active;
+  throw new Error(
+    "Land 2017 deactivation population gate has no consistent affine branch",
+  );
 }
 
 /**

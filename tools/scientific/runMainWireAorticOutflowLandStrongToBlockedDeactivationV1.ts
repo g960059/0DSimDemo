@@ -231,6 +231,8 @@ if (outputPath === null) {
       maximumRatePerSec: arm.profile.maximumRatePerSec,
       cooperativeGatePower: arm.profile.cooperativeGatePower,
       deactivationDirectionGate: arm.profile.deactivationDirectionGate,
+      strongPopulationGate: arm.profile.strongPopulationGate,
+      exitDestination: arm.profile.exitDestination,
       trefScaleFromUncompensatedBase:
         arm.profile.trefScaleFromUncompensatedBase,
       terminationReason: arm.cycle.terminationReason,
@@ -268,6 +270,9 @@ if (outputPath === null) {
       closureDeactivationRatePerSec:
         arm.landTermBalance.atAorticValveClosure
           .strongToBlockedDeactivationRatePerSec,
+      closureDeactivationPopulationFluxPerSec:
+        arm.landTermBalance.atAorticValveClosure
+          .strongBridgeDeactivationExitPopulationFluxPerSec,
       integratedPostEjectionDeactivationPopulation:
         arm.landTermBalance.postEjectionIsovolumicRelaxation
           .integratedStrongToBlockedDeactivationPopulation,

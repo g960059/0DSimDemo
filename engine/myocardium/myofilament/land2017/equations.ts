@@ -50,12 +50,11 @@ export function writeLand2017Rhs(
     ?? input.fiberEngineeringStrainRatePerSec;
   const terms = evaluateLand2017AlgebraicTerms(state, input, parameterSet);
   const nTmHalf = p.nTm / 2;
-  const strongToBlockedRate =
-    land2017StrongToBlockedDeactivationRatePerSec(
-      CaTRPN,
-      parameterSet,
-      input,
-    );
+  const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTerms(
+    state,
+    parameterSet,
+    input,
+  );
 
   // Eq 47.
   const caDrive = Math.pow(input.freeCalciumUM / terms.CaT50, p.nTRPN);
@@ -65,7 +64,9 @@ export function writeLand2017Rhs(
   out[LAND2017_STATE_INDEX.B] =
     d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p) * terms.U
     - p.ku * Math.pow(CaTRPN, nTmHalf) * B
-    + strongToBlockedRate * S;
+    + (deactivationExit.exitDestination === "blocked"
+      ? deactivationExit.populationFluxPerSec
+      : 0);
 
   // Eq 49.
   out[LAND2017_STATE_INDEX.W] =
@@ -74,7 +75,7 @@ export function writeLand2017Rhs(
   // Eq 50.
   out[LAND2017_STATE_INDEX.S] =
     p.kws * W - d.ksu * S - terms.gammasu * S
-    - strongToBlockedRate * S;
+    - deactivationExit.populationFluxPerSec;
 
   // Eq 51.
   out[LAND2017_STATE_INDEX.zetaW] = d.Aw * lambdaDot - d.cw * zetaW;
@@ -212,6 +213,95 @@ export function land2017StrongToBlockedDeactivationRateStageStrainDerivativePerS
   ).derivativeByFiberEngineeringStrainPerSec;
 }
 
+export type Land2017StrongBridgeDeactivationExitTerms = Readonly<{
+  baseRatePerSec: number;
+  populationExcess: number;
+  populationFluxPerSec: number;
+  derivativeByCaTRPNPerSec: number;
+  derivativeByFiberEngineeringStrainPerSec: number;
+  derivativeByWeakPopulationPerSec: number;
+  derivativeByStrongPopulationPerSec: number;
+  strongPopulationGateActive: boolean;
+  equilibriumStrongToWeakRatio: number;
+  exitDestination: "blocked" | "unbound" | "none";
+}>;
+
+/**
+ * Reduced-order deactivation exit. The optional population gate retains only
+ * strong bridges in excess of the source model's zero-distortion S/W
+ * equilibrium ratio, so the added exit is inactive during ordinary strong
+ * bridge recruitment and active only while S lags thin-filament deactivation.
+ */
+export function evaluateLand2017StrongBridgeDeactivationExitTerms(
+  state: ArrayLike<number>,
+  parameterSet: Land2017EquationParameters,
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): Land2017StrongBridgeDeactivationExitTerms {
+  assertLand2017StateVectorLength(
+    state,
+    "Land 2017 deactivation strong-bridge exit state",
+  );
+  const extension = parameterSet.strongToBlockedDeactivation;
+  if (extension === undefined) {
+    return Object.freeze({
+      baseRatePerSec: 0,
+      populationExcess: 0,
+      populationFluxPerSec: 0,
+      derivativeByCaTRPNPerSec: 0,
+      derivativeByFiberEngineeringStrainPerSec: 0,
+      derivativeByWeakPopulationPerSec: 0,
+      derivativeByStrongPopulationPerSec: 0,
+      strongPopulationGateActive: false,
+      equilibriumStrongToWeakRatio: 0,
+      exitDestination: "none" as const,
+    });
+  }
+  const CaTRPN = state[LAND2017_STATE_INDEX.CaTRPN];
+  const W = state[LAND2017_STATE_INDEX.W];
+  const S = state[LAND2017_STATE_INDEX.S];
+  const rateTerms = evaluateStrongToBlockedDeactivationRateTerms(
+    CaTRPN,
+    parameterSet,
+    input,
+  );
+  const equilibriumStrongToWeakRatio =
+    parameterSet.values.kws / parameterSet.derived.ksu;
+  const rawPopulationExcess = extension.strongPopulationGate === "none"
+    ? S
+    : S - equilibriumStrongToWeakRatio * W;
+  const strongPopulationGateActive = rawPopulationExcess
+    > 64 * Number.EPSILON;
+  const populationExcess = strongPopulationGateActive
+    ? rawPopulationExcess
+    : 0;
+  const derivativeByWeakPopulation =
+    strongPopulationGateActive
+      && extension.strongPopulationGate
+        === "positive-excess-over-zero-distortion-equilibrium"
+      ? -equilibriumStrongToWeakRatio
+      : 0;
+  const derivativeByStrongPopulation = strongPopulationGateActive ? 1 : 0;
+  return Object.freeze({
+    baseRatePerSec: rateTerms.ratePerSec,
+    populationExcess,
+    populationFluxPerSec: rateTerms.ratePerSec * populationExcess,
+    derivativeByCaTRPNPerSec:
+      rateTerms.derivativeByCaTRPNPerSec * populationExcess,
+    derivativeByFiberEngineeringStrainPerSec:
+      rateTerms.derivativeByFiberEngineeringStrainPerSec * populationExcess,
+    derivativeByWeakPopulationPerSec:
+      rateTerms.ratePerSec * derivativeByWeakPopulation,
+    derivativeByStrongPopulationPerSec:
+      rateTerms.ratePerSec * derivativeByStrongPopulation,
+    strongPopulationGateActive,
+    equilibriumStrongToWeakRatio,
+    exitDestination: extension.exitDestination,
+  });
+}
+
 function evaluateStrongToBlockedDeactivationRateTerms(
   CaTRPN: number,
   parameterSet: Land2017EquationParameters,
@@ -248,6 +338,21 @@ function evaluateStrongToBlockedDeactivationRateTerms(
     throw new Error(
       "Land 2017 strong-to-blocked cooperative gate power must be one or two",
     );
+  }
+  if (
+    extension.strongPopulationGate !== "none"
+    && extension.strongPopulationGate
+      !== "positive-excess-over-zero-distortion-equilibrium"
+  ) {
+    throw new Error(
+      "Land 2017 deactivation strong-population gate is unsupported",
+    );
+  }
+  if (
+    extension.exitDestination !== "blocked"
+    && extension.exitDestination !== "unbound"
+  ) {
+    throw new Error("Land 2017 deactivation exit destination is unsupported");
   }
   if (!(CaTRPN > 0) || !Number.isFinite(CaTRPN)) {
     throw new Error(
