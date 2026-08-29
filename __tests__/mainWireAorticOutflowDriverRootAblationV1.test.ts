@@ -73,9 +73,9 @@ import {
   deriveLand2017DerivedParameters,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
 import {
   MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CLAIM_V1,
   MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CONTEXT_IDS_V1,
@@ -89,6 +89,12 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_CLAIM_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_CLAIM_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_CONTEXT_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_PLACEMENT_PROFILE_IDS_V1,
+  resolveMainWireAorticOutflowCharacteristicResistanceDampingContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowCharacteristicResistanceDampingV1";
 import {
   MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATES_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_LAND_TREF_FORCE_LOAD_CLAIM_V1,
@@ -339,8 +345,41 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     )).toEqual([]);
   });
 
+  it("defines a fixed loss-placement damping bracket at the limiting stiff-load contexts", () => {
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_PLACEMENT_PROFILE_IDS_V1,
+    ).toEqual([
+      "all-Ao-SA-resistance-upstream-of-root-compliance",
+      "Land2017-characteristic-impedance-matched",
+      "half-Ao-SA-resistance-upstream-of-root-compliance",
+    ]);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_CONTEXT_IDS_V1,
+    ).toHaveLength(5);
+    for (const contextId of
+      MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_CONTEXT_IDS_V1) {
+      const context =
+        resolveMainWireAorticOutflowCharacteristicResistanceDampingContextV1(
+          contextId,
+        );
+      expect(context.complianceProfileId)
+        .toBe("arterial-stiffness-eight-thirds");
+      expect(Object.isFrozen(context)).toBe(true);
+    }
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_CHARACTERISTIC_RESISTANCE_DAMPING_CLAIM_V1)
+      .toMatchObject({
+        sourceAoSaLinearResistanceSumPreservedAcrossPlacements: true,
+        allUpstreamPlacementLeavesZeroDirectAoSaSeriesResistance: true,
+        Land2017PlacementLeavesPositiveDirectAoSaSeriesResistance: true,
+        aorticValveAreaOrOpeningLawChanged: false,
+        rootInertanceChanged: false,
+        newContinuousStateAdded: false,
+        parameterSearchOrFitting: false,
+      });
+  });
+
   it("seals the ET-relaxation candidate as a bounded effective-rate calibration", () => {
-    const exact = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
+    const exact = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8;
     expect(exact.atrioventricularDelayProfileId)
       .toBe("coppini-source-atrioventricular-delay-120ms");
     const selected =
@@ -479,7 +518,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         exitDestination: "unbound",
         sourceIdentityClaimed: false,
       });
-    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM)
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM)
       .toMatchObject({
         sourceLandIdentityClaimed: false,
         numericOptimizerApplied: false,
@@ -528,7 +567,16 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
           true,
         arterialStiffnessCoordinateExistedInPriorLoadEnvelope: true,
         fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:
-          true,
+          false,
+        arterialCharacteristicImpedanceMatchedToLand2017Source: true,
+        selectedProximalCharacteristicResistanceMmHgSecPerMl: 0.035,
+        selectedResidualAoSaResistanceMmHgSecPerMl: 0.0115088,
+        totalAoSaLinearResistancePreservedExactly: true,
+        residualAoSaResistanceRestoresDirectInertialBranchDamping: true,
+        allResistanceUpstreamHighStiffnessExchangeModeObserved: true,
+        characteristicResistancePlacementContinuousOptimizerApplied: false,
+        characteristicResistancePlacementChangesTotalLinearResistance: false,
+        characteristicResistancePlacementAddsState: false,
         proximalCharacteristicImpedanceSeparatedFromValveLossInAnalysis:
           true,
         aorticValveAreaOrOpeningLawChanged: false,
@@ -561,7 +609,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
       const changedOwnerCount = [
         context.circulatoryLoadPointId !== "baseline",
         context.complianceProfileId
-          !== MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7
+          !== MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8
             .complianceProfileId,
         context.stressedVenousVolumePointId !== "baseline",
         context.trefForceLoadProfileId !== "tref-force-load-baseline",
@@ -569,12 +617,12 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
       expect(changedOwnerCount).toBe(contextId === "baseline" ? 0 : 1);
       expect(Object.isFrozen(context)).toBe(true);
     }
-    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7)
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8)
       .toMatchObject({
         aorticMaximumForwardEoaCm2: 3.5,
         complianceProfileId: "arterial-stiffness-twofold",
         characteristicResistancePlacementProfileId:
-          "all-Ao-SA-resistance-upstream-of-root-compliance",
+          "Land2017-characteristic-impedance-matched",
         rootInertanceProfileId: "aortic-root-inertance-two-fifths",
       });
   });
@@ -662,7 +710,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
   });
 
   it("binds every load-envelope arm to the exact candidate identity", () => {
-    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
+    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8;
     const inputs =
       MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1.map(
         (contextId) => {
@@ -737,7 +785,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         baselineRun.placementProfile!,
       );
     expect(proximalDecomposition.proximalCharacteristicResistanceMmHgSecPerMl)
-      .toBeCloseTo(0.0465088, 14);
+      .toBeCloseTo(0.035, 14);
     expect(
       proximalDecomposition.meanValveOnlyPressureGradientMmHg
       + proximalDecomposition.meanProximalCharacteristicPressureMmHg,
@@ -757,7 +805,7 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
   }, 60_000);
 
   it("decomposes all 16 simultaneous load corners without changing the fixed candidate", () => {
-    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
+    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8;
     expect(
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
     ).toHaveLength(16);

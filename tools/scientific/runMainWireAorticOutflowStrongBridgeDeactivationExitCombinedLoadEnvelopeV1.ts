@@ -9,8 +9,8 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";

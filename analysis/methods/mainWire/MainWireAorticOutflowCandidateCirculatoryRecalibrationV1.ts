@@ -22,8 +22,8 @@ import {
   type MainWireAorticOutflowCandidateCirculatoryRecalibrationLevelV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -412,7 +412,7 @@ function assertRunMatchesContext(
       input.contextId,
     );
   const run = input.run;
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8;
   const actual = Object.freeze({
     kuwProfileId: run.kuwProfile.profileId,
     complianceProfileId: run.complianceProfile.profileId,

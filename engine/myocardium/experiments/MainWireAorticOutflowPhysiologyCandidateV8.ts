@@ -30,10 +30,10 @@ import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v7" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v8" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV7<
+export type MainWireAorticOutflowCandidateProtocolV8<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -60,14 +60,14 @@ export type MainWireAorticOutflowCandidateProtocolV7<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV7 =
-  MainWireAorticOutflowCandidateProtocolV7<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID
+export type MainWireAorticOutflowPhysiologyCandidateV8 =
+  MainWireAorticOutflowCandidateProtocolV8<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -84,12 +84,12 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 =
       "coppini-source-atrioventricular-delay-120ms" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
-      "all-Ao-SA-resistance-upstream-of-root-compliance" as const,
+      "Land2017-characteristic-impedance-matched" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV7;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV8;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
@@ -168,10 +168,28 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM =
       true as const,
     ejectionTimeEnvelopePreservedAsPrimaryConstraint: true as const,
     sourceLandIdentityClaimed: false as const,
-    arterialCharacteristicImpedanceMatchedToLand2017Source: false as const,
+    arterialCharacteristicImpedanceMatchedToLand2017Source: true as const,
     fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:
-      true as const,
+      false as const,
     sourceAoSaResistanceMmHgSecPerMl: 0.0465088 as const,
+    selectedProximalCharacteristicResistanceMmHgSecPerMl: 0.035 as const,
+    selectedResidualAoSaResistanceMmHgSecPerMl: 0.0115088 as const,
+    sourceCharacteristicImpedanceDoi:
+      "10.1016/j.yjmcc.2017.03.008" as const,
+    totalAoSaLinearResistancePreservedExactly: true as const,
+    residualAoSaResistanceRestoresDirectInertialBranchDamping: true as const,
+    allResistanceUpstreamHighStiffnessExchangeModeObserved: true as const,
+    exchangeModeMechanism:
+      "near-ten-hz-Ao-SA-inertance-between-two-arterial-compliances-with-zero-direct-series-resistance" as const,
+    characteristicResistancePlacementSelectionStage:
+      "fixed-source-derived-placement-bracket-after-ET-ICT-relaxation-candidate-fixed" as const,
+    characteristicResistancePlacementSelectionCriterion:
+      "remove-high-stiffness-secondary-aortic-flow-peak-at-half-millisecond-readback-while-preserving-ET-gradient-SV-and-performance-timing" as const,
+    characteristicResistancePlacementContinuousOptimizerApplied:
+      false as const,
+    characteristicResistancePlacementChangesTotalLinearResistance:
+      false as const,
+    characteristicResistancePlacementAddsState: false as const,
     healthyHumanAscendingAorticCharacteristicImpedanceContextMmHgSecPerMl:
       Object.freeze({ mean: 0.065, standardDeviation: 0.019 } as const),
     healthyHumanCharacteristicImpedanceContextDoi:

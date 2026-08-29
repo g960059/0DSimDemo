@@ -17,9 +17,9 @@ import {
   measureMainWireValveDiseaseCycleMetricsV1,
 } from "@/engine/myocardium/diagnostics/MainWireValveDiseaseCycleMetricsV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV8";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
@@ -80,7 +80,7 @@ const report = Object.freeze({
     maximumBeatCount,
     independentCanonicalColdStartPerArm: true as const,
     candidate: CANDIDATE,
-    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM,
+    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V8_CLAIM,
     parameterSearchOrFitting: false as const,
   }),
   arms,
