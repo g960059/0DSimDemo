@@ -7,6 +7,9 @@ import {
   measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
 import {
+  measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
+import {
   measureMainWireAorticProximalCharacteristicImpedanceDecompositionV1,
 } from "@/analysis/methods/mainWire/MainWireAorticProximalCharacteristicImpedanceDecompositionV1";
 import {
@@ -69,6 +72,10 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1,
   resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_CLAIM_V1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
   MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATES_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_LAND_TREF_FORCE_LOAD_CLAIM_V1,
@@ -585,6 +592,81 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
       measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
         inputs.slice(1),
       )).toThrow("missing source-twitch load context: baseline");
+  }, 60_000);
+
+  it("decomposes all 16 simultaneous load corners without changing the fixed candidate", () => {
+    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
+    ).toHaveLength(16);
+    expect(new Set(
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1
+        .map((context) => context.contextId),
+    ).size).toBe(16);
+    const inputs =
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1
+        .map((context) => Object.freeze({
+          contextId: context.contextId,
+          run:
+            runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              candidate.kuwProfileId,
+              context.complianceProfileId,
+              candidate.characteristicResistancePlacementProfileId,
+              candidate.rootInertanceProfileId,
+              candidate.sarcomereReferenceProfileId,
+              candidate.calciumSensitivityLengthProfileId,
+              candidate.twitchRetentionCandidateId,
+              context.circulatoryLoadPointId,
+              context.stressedVenousVolumePointId,
+              context.trefForceLoadProfileId,
+              candidate.sourceVelocityDistortionProfileId,
+            ),
+        }));
+    const envelope =
+      measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1(
+        inputs,
+      );
+
+    expect(envelope.arms).toHaveLength(16);
+    expect(envelope.factorialTerms).toHaveLength(15);
+    expect(envelope.factorialTerms.filter((term) => term.order === 1))
+      .toHaveLength(4);
+    expect(envelope.allProtocolIdentitiesDistinct).toBe(true);
+    expect(envelope.arms.every((arm) =>
+      arm.cycle.integrationCompletedWithoutFailure)).toBe(true);
+    expect(Math.max(...Object.values(
+      envelope.maximumAbsoluteFactorialReconstructionResidual,
+    ))).toBeLessThan(1e-12);
+    const systemicResistanceMainEffect = envelope.factorialTerms.find(
+      (term) => term.termId === "systemic-resistance",
+    )!;
+    const highValues = envelope.arms
+      .filter((arm) =>
+        arm.context.levels["systemic-resistance"] === "high")
+      .map((arm) => arm.coreMetrics.ejectionTimeSec);
+    const lowValues = envelope.arms
+      .filter((arm) =>
+        arm.context.levels["systemic-resistance"] === "low")
+      .map((arm) => arm.coreMetrics.ejectionTimeSec);
+    const highMean = highValues.reduce((sum, value) => sum + value, 0)
+      / highValues.length;
+    const lowMean = lowValues.reduce((sum, value) => sum + value, 0)
+      / lowValues.length;
+    expect(
+      systemicResistanceMainEffect.metrics.ejectionTimeSec.orthogonalEffect,
+    ).toBeCloseTo(highMean - lowMean, 14);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_CLAIM_V1,
+    ).toMatchObject({
+      fullFactorialCornerCount: 16,
+      valveAreaOrOpeningLawChanged: false,
+      parameterSearchOrFitting: false,
+    });
+    expect(() =>
+      measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1(
+        inputs.slice(1),
+      )).toThrow("missing combined-load context");
   }, 60_000);
 
   it("uses an energy-consistent unilateral BE law for the isolated AoV local L", () => {

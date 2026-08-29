@@ -115,6 +115,7 @@
     "characterize:scientific:aortic-outflow-late-tension-diastolic-tradeoff:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLateTensionDiastolicTradeoffV1.ts",
     "characterize:scientific:ventricular-land-source-velocity-protocol-audit:v2": "vite-node --script tools/scientific/runMainWireVentricularLandSourceVelocityProtocolAuditV2.ts",
     "characterize:scientific:aortic-outflow-source-twitch-retention-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1.ts",
+    "characterize:scientific:aortic-outflow-physiology-candidate-combined-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1.ts",
     "characterize:scientific:aortic-outflow-source-twitch-retention-dt:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowSourceTwitchRetentionDtV1.ts",
     "characterize:scientific:aortic-outflow-physiology-candidate-system-readback:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowPhysiologyCandidateSystemReadbackV1.ts",
     "characterize:scientific:aortic-outflow-candidate-circulatory-recalibration:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCandidateCirculatoryRecalibrationV1.ts",
