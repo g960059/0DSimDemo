@@ -205,6 +205,74 @@ export function countMainWireStrictLocalMaximaV1(
   return count;
 }
 
+export type MainWireLocalMaximumProminenceV1 = Readonly<{
+  sampleIndex: number;
+  value: number;
+  prominence: number;
+  prominenceFractionOfGlobalMaximum: number;
+}>;
+
+/**
+ * Measures every interior local-maximum plateau above a fixed height and its
+ * unsmoothed topographic prominence. A plateau is represented by its midpoint.
+ * This keeps sample-level shoulders visible while allowing a caller to
+ * distinguish them from independent flow peaks without making exact ties a
+ * time-step-dependent failure.
+ */
+export function measureMainWireLocalMaximumProminencesV1(
+  values: readonly number[],
+  threshold: number,
+): readonly MainWireLocalMaximumProminenceV1[] {
+  if (values.length < 3 || !(threshold >= 0) || !Number.isFinite(threshold)) {
+    return Object.freeze([]);
+  }
+  if (values.some((value) => !Number.isFinite(value))) {
+    throw new Error("local-maximum prominence signal must be finite");
+  }
+  const globalMaximum = Math.max(...values);
+  if (!(globalMaximum > 0)) return Object.freeze([]);
+  const peaks: MainWireLocalMaximumProminenceV1[] = [];
+  for (let index = 1; index < values.length - 1; index += 1) {
+    const plateauStart = index;
+    const peak = values[plateauStart]!;
+    let plateauEnd = plateauStart;
+    while (
+      plateauEnd + 1 < values.length
+      && values[plateauEnd + 1] === peak
+    ) plateauEnd += 1;
+    if (
+      peak < threshold
+      || peak <= values[plateauStart - 1]!
+      || plateauEnd >= values.length - 1
+      || peak <= values[plateauEnd + 1]!
+    ) {
+      index = plateauEnd;
+      continue;
+    }
+    let leftMinimum = peak;
+    for (let left = plateauStart - 1; left >= 0; left -= 1) {
+      const value = values[left]!;
+      if (value > peak) break;
+      leftMinimum = Math.min(leftMinimum, value);
+    }
+    let rightMinimum = peak;
+    for (let right = plateauEnd + 1; right < values.length; right += 1) {
+      const value = values[right]!;
+      if (value > peak) break;
+      rightMinimum = Math.min(rightMinimum, value);
+    }
+    const prominence = peak - Math.max(leftMinimum, rightMinimum);
+    peaks.push(Object.freeze({
+      sampleIndex: Math.floor((plateauStart + plateauEnd) / 2),
+      value: peak,
+      prominence,
+      prominenceFractionOfGlobalMaximum: prominence / globalMaximum,
+    }));
+    index = plateauEnd;
+  }
+  return Object.freeze(peaks);
+}
+
 export function mainWirePeriodicSpectralEnergyFractionV1(
   values: readonly number[],
   dtSec: number,

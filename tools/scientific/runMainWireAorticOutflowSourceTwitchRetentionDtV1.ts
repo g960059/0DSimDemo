@@ -8,9 +8,9 @@ import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_DT_V1_ID =
   "main-wire-aortic-outflow-source-twitch-retention-dt-v1" as const;
@@ -56,7 +56,7 @@ const report = Object.freeze({
     independentCanonicalColdStartPerRun: true as const,
     candidateFixedBeforeDtComparison: true as const,
     candidate: CANDIDATE,
-    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
+    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
     parameterSearchOrFitting: false as const,
   }),
   arms: Object.freeze(arms.map((arm) => Object.freeze({
@@ -83,12 +83,34 @@ const report = Object.freeze({
       meanAorticPressureMmHg:
         arm.cycle.meanAorticAbsolutePressureMmHg
         - reference.cycle.meanAorticAbsolutePressureMmHg,
+      isovolumicContractionTimeSec: nullableDifference(
+        arm.cycle.leftVentricularIsovolumicContractionTimeSec,
+        reference.cycle.leftVentricularIsovolumicContractionTimeSec,
+      ),
+      leftVentricularTeiIndex: nullableDifference(
+        arm.cycle.leftVentricularTeiIndex,
+        reference.cycle.leftVentricularTeiIndex,
+      ),
+      maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+        nullableDifference(
+          arm.cycle.maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+          reference.cycle
+            .maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+        ),
+      maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+        nullableDifference(
+          arm.cycle
+            .maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
+          reference.cycle
+            .maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
+        ),
     }),
   }))),
   interpretationBoundary: Object.freeze({
     finestDtIsExactContinuumSolutionClaimed: false as const,
     acceptedStepThresholdMetricsHaveDtQuantization: true as const,
-    allArmsMustRemainPeriod1AndSinglePeak: true as const,
+    allArmsMustRemainPeriod1AndOneProminentFlowPeak: true as const,
+    strictSampleLocalMaximumCountRetainedAsDiagnostic: true as const,
     clinicalValidationEstablished: false as const,
     canonicalAdoptionEstablished: false as const,
   }),
@@ -126,9 +148,31 @@ if (outputPath === null) {
         arm.cycle.aorticMeanDopplerExcessOverFullyOpenUniformFlowFactor,
       meanAorticPressureMmHg: arm.cycle.meanAorticAbsolutePressureMmHg,
       flowPeakCount: arm.cycle.aorticFlowPeakCountAboveFivePercent,
+      distinctFlowPeakCount:
+        arm.cycle.aorticFlowDistinctPeakCountAboveFivePercent,
+      maximumSecondaryFlowPeakProminenceFractionOfGlobalMaximum:
+        arm.cycle
+          .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
+      isovolumicContractionTimeMs:
+        arm.cycle.leftVentricularIsovolumicContractionTimeSec === null
+          ? null
+          : arm.cycle.leftVentricularIsovolumicContractionTimeSec * 1000,
+      leftVentricularTeiIndex: arm.cycle.leftVentricularTeiIndex,
+      maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+        arm.cycle.maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+      maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+        arm.cycle
+          .maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
       differenceFromFinest: arm.differenceFromFinest,
     })),
   })}\n`);
+}
+
+function nullableDifference(
+  value: number | null,
+  reference: number | null,
+): number | null {
+  return value === null || reference === null ? null : value - reference;
 }
 
 function optionalArgument(name: string): string | null {

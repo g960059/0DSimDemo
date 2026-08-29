@@ -57,6 +57,7 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_
     "strong-to-unbound-deactivation-forty-per-sec-directional-squared-equilibrium-excess-gate",
     "strong-to-unbound-deactivation-fifty-per-sec-directional-squared-equilibrium-excess-gate",
     "strong-to-unbound-deactivation-five-per-sec-squared-equilibrium-excess-gate",
+    "strong-to-unbound-deactivation-ten-per-sec-squared-equilibrium-excess-gate",
   ] as const);
 
 export type MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
@@ -329,6 +330,16 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILES
       profile(
         "strong-to-unbound-deactivation-five-per-sec-squared-equilibrium-excess-gate",
         5,
+        1,
+        2,
+        "none",
+        "positive-excess-over-zero-distortion-equilibrium",
+        "unbound",
+      ),
+    "strong-to-unbound-deactivation-ten-per-sec-squared-equilibrium-excess-gate":
+      profile(
+        "strong-to-unbound-deactivation-ten-per-sec-squared-equilibrium-excess-gate",
+        10,
         1,
         2,
         "none",

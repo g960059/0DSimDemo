@@ -11,9 +11,9 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_V1_ID,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -60,7 +60,7 @@ const report = Object.freeze({
     analysisClaim:
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_ANALYSIS_CLAIM_V1,
     candidate: CANDIDATE,
-    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
+    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
   }),
   exactIdentities: Object.freeze(runs.map(({ contextId, run }) =>
     Object.freeze({
@@ -110,6 +110,13 @@ if (outputPath === null) {
     allRunsPeriod1AndIntegrated: envelope.allRunsPeriod1AndIntegrated,
     morphologyPreservedAcrossEnvelope:
       envelope.morphologyPreservedAcrossEnvelope,
+    strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope:
+      envelope.strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope,
+    distinctPeakMorphologyPreservedAcrossEnvelope:
+      envelope.distinctPeakMorphologyPreservedAcrossEnvelope,
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      envelope
+        .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
     allDiastolicFlowReadbacksAvailable:
       envelope.allDiastolicFlowReadbacksAvailable,
     allProtocolIdentitiesDistinct: envelope.allProtocolIdentitiesDistinct,
@@ -139,6 +146,11 @@ if (outputPath === null) {
       leftVentricularEjectionFraction01:
         arm.coreMetrics.leftVentricularEjectionFraction01,
       flowPeakCount: arm.cycle.aorticFlowPeakCountAboveFivePercent,
+      distinctFlowPeakCount:
+        arm.cycle.aorticFlowDistinctPeakCountAboveFivePercent,
+      maximumSecondaryFlowPeakProminenceFractionOfGlobalMaximum:
+        arm.cycle
+          .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
       strictExternalIntervalFailures:
         arm.strictExternalIntervalFailures,
       diastolicMetrics: arm.diastolicMetrics,

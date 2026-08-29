@@ -1,6 +1,7 @@
 import {
   countMainWireStrictLocalMaximaV1,
   mainWirePeriodicSpectralEnergyFractionV1,
+  measureMainWireLocalMaximumProminencesV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveAblationComparisonV1";
 import {
   measureMainWireAorticPressureFlowCouplingV1,
@@ -29,6 +30,9 @@ import {
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_COMPARISON_V1_ID =
   "main-wire-aortic-outflow-calcium-waveform-comparison-v1" as const;
+
+export const MAIN_WIRE_AORTIC_FLOW_DISTINCT_PEAK_MINIMUM_PROMINENCE_FRACTION_V1 =
+  0.01 as const;
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_REFERENCE_CONTEXT_V1 =
   Object.freeze({
@@ -109,6 +113,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_COMPARISON_CLAIM_V1 =
     pressureFlowCoupling:
       "Ao-pressure-and-Ao-SA-flow-backward-difference-product-not-clinical-WIA" as const,
     flowPeakCounting: "strict-unsmoothed-local-maxima" as const,
+    distinctFlowPeakCounting:
+      "unsmoothed-local-maximum-plateaus-above-five-percent-with-one-percent-global-maximum-prominence" as const,
     spectralBandHz: Object.freeze([10, 50] as const),
     factorialContrast:
       "one-sided-two-by-two-difference-of-differences" as const,
@@ -164,6 +170,8 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
   aorticJetVelocityWaveformNonuniformityFactor: number;
   aorticMeanDopplerExcessOverFullyOpenUniformFlowFactor: number;
   aorticFlowPeakCountAboveFivePercent: number;
+  aorticFlowDistinctPeakCountAboveFivePercent: number;
+  maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum: number;
   aorticFlowAcEnergyFraction10To50Hz: number;
   meanDopplerGradientMmHg: number;
   peakDopplerGradientMmHg: number;
@@ -455,6 +463,15 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
   );
   const leftVentricularPerformance =
     summary.cyclePhysiology?.leftVentricularPerformance ?? null;
+  const aorticFlowPeaks = measureMainWireLocalMaximumProminencesV1(
+    flows,
+    0.05 * maximumFlow,
+  );
+  const primaryFlowPeakArrayIndex = aorticFlowPeaks.length === 0
+    ? -1
+    : indexOfMaximum(aorticFlowPeaks.map((peak) => peak.value));
+  const secondaryFlowPeaks = aorticFlowPeaks.filter((_, index) =>
+    index !== primaryFlowPeakArrayIndex);
   const sampledCalciumExposure = samples.reduce((sum, sample) =>
     sum + Math.max(
       0,
@@ -575,6 +592,16 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
       valveMetrics.meanDopplerExcessOverFullyOpenUniformFlowFactor,
     aorticFlowPeakCountAboveFivePercent:
       countMainWireStrictLocalMaximaV1(flows, 0.05 * maximumFlow),
+    aorticFlowDistinctPeakCountAboveFivePercent:
+      aorticFlowPeaks.filter((peak) =>
+        peak.prominenceFractionOfGlobalMaximum
+          >= MAIN_WIRE_AORTIC_FLOW_DISTINCT_PEAK_MINIMUM_PROMINENCE_FRACTION_V1)
+        .length,
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      secondaryFlowPeaks.length === 0
+        ? 0
+        : maximum(secondaryFlowPeaks.map((peak) =>
+          peak.prominenceFractionOfGlobalMaximum)),
     aorticFlowAcEnergyFraction10To50Hz:
       mainWirePeriodicSpectralEnergyFractionV1(
         flows,

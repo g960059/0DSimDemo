@@ -27,10 +27,10 @@ import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v3" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v4" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV3<
+export type MainWireAorticOutflowCandidateProtocolV4<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -55,14 +55,14 @@ export type MainWireAorticOutflowCandidateProtocolV3<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV3 =
-  MainWireAorticOutflowCandidateProtocolV3<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_ID
+export type MainWireAorticOutflowPhysiologyCandidateV4 =
+  MainWireAorticOutflowCandidateProtocolV4<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -70,26 +70,26 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 =
       "land-sarcomere-reference-plus-5-percent" as const,
     calciumSensitivityLengthProfileId: "land-beta1-canonical" as const,
     twitchRetentionCandidateId:
-      "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated" as const,
+      "source-twitch-retention-kws-two-fifths-ntm-four-fifths-peak-compensated" as const,
     trefForceLoadProfileId: "tref-force-load-baseline" as const,
     sourceVelocityDistortionProfileId: "source-Aeff-canonical" as const,
     strongBridgeDeactivationExitProfileId:
-      "strong-to-unbound-deactivation-five-per-sec-squared-equilibrium-excess-gate" as const,
+      "strong-to-unbound-deactivation-ten-per-sec-squared-equilibrium-excess-gate" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
       "all-Ao-SA-resistance-upstream-of-root-compliance" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV3;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV4;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
     landKuwWholeOrganScaleUsesPublishedIsometricIndistinguishableRange:
       true as const,
     landSarcomereReferenceCouplingChanged: true as const,
-    effectiveWholeOrganKwsScaleFromIntactSource: 0.5 as const,
+    effectiveWholeOrganKwsScaleFromIntactSource: 0.4 as const,
     effectiveThinFilamentCooperativityScaleFromIntactSource: 0.8 as const,
     isometricPeakTrefCompensationApplied: true as const,
     kwsAxisInterpretation:
@@ -103,7 +103,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM =
       true as const,
     trefCompensationChangesStressScaleNotCrossbridgeStateKinetics:
       true as const,
-    strongBridgeDeactivationExitMaximumRatePerSec: 5 as const,
+    strongBridgeDeactivationExitMaximumRatePerSec: 10 as const,
     strongBridgeDeactivationExitCooperativeGatePower: 2 as const,
     strongBridgeDeactivationExitDestination: "unbound" as const,
     strongBridgeDeactivationExitUsesCaTRPNDirectionGate: false as const,
@@ -119,9 +119,12 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM =
     arterialStiffnessSelectionStage:
       "side-effect-reduction-after-fixed-load-envelope" as const,
     kineticScaleSelectionStage:
-      "bounded-ET-completion-after-source-isometric-screen-and-structure-factorial" as const,
+      "bounded-ET-relaxation-balance-after-source-isometric-screen-and-combined-load-envelope" as const,
     numericOptimizerApplied: false as const,
     ejectionTimingUsedToSelectBoundedCandidate: true as const,
+    relaxationMetricsUsedToSelectBoundedCandidate: true as const,
+    selectedRelaxationMetrics:
+      Object.freeze(["IVRT", "Tei-index", "LV-negative-dP-dt"] as const),
     sourceLandIdentityClaimed: false as const,
     arterialCharacteristicImpedanceMatchedToLand2017Source: false as const,
     fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:

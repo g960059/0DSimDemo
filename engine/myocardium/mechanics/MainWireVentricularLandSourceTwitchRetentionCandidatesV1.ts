@@ -36,6 +36,8 @@ export const MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATE_IDS_V1
     "source-twitch-retention-kws-twenty-three-fortieths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated",
+    "source-twitch-retention-kws-nine-twentieths-ntm-four-fifths-peak-compensated",
+    "source-twitch-retention-kws-two-fifths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-rw-three-quarters-peak-compensated",
     "source-twitch-retention-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-ntm-three-fifths-peak-compensated",
@@ -122,7 +124,8 @@ export type MainWireVentricularLandSourceTwitchRetentionCandidateV1 =
     }>;
     selectionStage:
       | "source-isometric-only"
-      | "bounded-ET-completion-after-load-envelope";
+      | "bounded-ET-completion-after-load-envelope"
+      | "bounded-ET-relaxation-balance-after-load-envelope";
     loadedOrHemodynamicOutcomeUsedToDeriveCandidate: boolean;
   }>;
 
@@ -169,7 +172,7 @@ function candidate(
     }),
     selectionStage,
     loadedOrHemodynamicOutcomeUsedToDeriveCandidate:
-      selectionStage === "bounded-ET-completion-after-load-envelope",
+      selectionStage !== "source-isometric-only",
   });
 }
 
@@ -359,6 +362,32 @@ const CANDIDATES = Object.freeze({
         relaxationTime95Ms: 421.0664715876057,
       },
       "bounded-ET-completion-after-load-envelope",
+    ),
+  "source-twitch-retention-kws-nine-twentieths-ntm-four-fifths-peak-compensated":
+    candidate(
+      "source-twitch-retention-kws-nine-twentieths-ntm-four-fifths-peak-compensated",
+      { kws: 0.45, nTm: 0.8 },
+      1.2098757701059648,
+      {
+        uncompensatedPeakStressKPa: 42.153088160062296,
+        fivePercentRiseToPeakMs: 181.8111782820641,
+        relaxationTime50Ms: 159.6871973153216,
+        relaxationTime95Ms: 449.07015860249663,
+      },
+      "bounded-ET-relaxation-balance-after-load-envelope",
+    ),
+  "source-twitch-retention-kws-two-fifths-ntm-four-fifths-peak-compensated":
+    candidate(
+      "source-twitch-retention-kws-two-fifths-ntm-four-fifths-peak-compensated",
+      { kws: 0.4, nTm: 0.8 },
+      1.2662656854178413,
+      {
+        uncompensatedPeakStressKPa: 40.27590780300665,
+        fivePercentRiseToPeakMs: 186.8070928752386,
+        relaxationTime50Ms: 166.7993001176425,
+        relaxationTime95Ms: 481.2622692849078,
+      },
+      "bounded-ET-relaxation-balance-after-load-envelope",
     ),
   "source-twitch-retention-rw-three-quarters-peak-compensated": candidate(
     "source-twitch-retention-rw-three-quarters-peak-compensated",

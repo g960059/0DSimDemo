@@ -1,4 +1,5 @@
 import {
+  MAIN_WIRE_AORTIC_FLOW_DISTINCT_PEAK_MINIMUM_PROMINENCE_FRACTION_V1,
   measureMainWireAorticOutflowCalciumWaveformCycleV1,
   type MainWireAorticOutflowCalciumWaveformCycleMetricsV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
@@ -18,8 +19,8 @@ import {
   type MainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
 import type {
   MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
@@ -45,6 +46,15 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOP
       "standard-two-level-factorial-interaction-contrast" as const,
     factorialDecompositionIsExactAcrossEvaluatedCorners: true as const,
     externalIntervalsAreDescriptiveFalsificationScreens: true as const,
+    strictFlowPeakCounting: "strict-unsmoothed-local-maxima" as const,
+    distinctFlowPeakCounting:
+      "unsmoothed-local-maximum-plateaus-above-five-percent-with-one-percent-global-maximum-prominence" as const,
+    distinctFlowPeakMinimumProminenceFractionOfGlobalMaximum:
+      MAIN_WIRE_AORTIC_FLOW_DISTINCT_PEAK_MINIMUM_PROMINENCE_FRACTION_V1,
+    morphologyPreservedAcrossEnvelopeDefinition:
+      "legacy-strict-sample-local-maximum-count-equals-one" as const,
+    distinctPeakMorphologyPreservedAcrossEnvelopeDefinition:
+      "one-prominent-aortic-flow-peak-per-arm" as const,
     exactFrameMutation: false as const,
     smoothingApplied: false as const,
     interpolationApplied: false as const,
@@ -170,6 +180,9 @@ export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 =
     strictFailureContextIds: readonly string[];
     allRunsPeriod1AndIntegrated: boolean;
     morphologyPreservedAcrossEnvelope: boolean;
+    strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope: boolean;
+    distinctPeakMorphologyPreservedAcrossEnvelope: boolean;
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum: number;
     allDiastolicFlowReadbacksAvailable: boolean;
     allProtocolIdentitiesDistinct: boolean;
     allGradientAndVelocityIntervalsMatched: boolean;
@@ -208,14 +221,14 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1[],
   expectedTwitchRetentionCandidateId:
     MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4
         .twitchRetentionCandidateId,
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4
         .strongBridgeDeactivationExitProfileId,
 ): MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4;
   const byId = new Map<string,
     MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1>();
   for (const input of inputs) {
@@ -379,6 +392,15 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
       && arm.cycle.integrationCompletedWithoutFailure),
     morphologyPreservedAcrossEnvelope: arms.every((arm) =>
       arm.cycle.aorticFlowPeakCountAboveFivePercent === 1),
+    strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope:
+      arms.every((arm) =>
+        arm.cycle.aorticFlowPeakCountAboveFivePercent === 1),
+    distinctPeakMorphologyPreservedAcrossEnvelope: arms.every((arm) =>
+      arm.cycle.aorticFlowDistinctPeakCountAboveFivePercent === 1),
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      Math.max(...arms.map((arm) =>
+        arm.cycle
+          .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum)),
     allDiastolicFlowReadbacksAvailable: arms.every((arm) =>
       arm.diastolicFlow.value !== null),
     allProtocolIdentitiesDistinct:
@@ -401,7 +423,7 @@ function assertRunMatchesContext(
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
 ): void {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4;
   const expected =
     resolveMainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1(
       input.contextId,

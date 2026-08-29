@@ -51,7 +51,7 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
   it("cold-equilibrates the bounded slow-transition candidate without truncating its relaxation", () => {
     const material =
       resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
-        "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated",
+        "source-twitch-retention-kws-two-fifths-ntm-four-fifths-peak-compensated",
         "land-sarcomere-reference-canonical",
         "land-whole-organ-kuw-nu7",
       );

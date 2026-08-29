@@ -11,8 +11,8 @@ import type {
   MainWireVentricularLandTrefForceLoadProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_ENVELOPE_V1_ID =
   "main-wire-aortic-outflow-source-twitch-retention-load-envelope-v1" as const;
@@ -64,7 +64,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_ENVELOPE_CLAI
   Object.freeze({
     role:
       "fixed-one-factor-load-envelope-around-source-isometric-retention-candidate" as const,
-    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3,
+    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
     loadAxes: Object.freeze([
       "systemic-resistance",
       "pulmonary-resistance",
@@ -101,7 +101,7 @@ function context(
       "tref-force-load-baseline",
   complianceProfileId:
     MainWireArterialCompliancePhysiologyProfileIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3.complianceProfileId,
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4.complianceProfileId,
 ): MainWireAorticOutflowSourceTwitchRetentionLoadContextV1 {
   return Object.freeze({
     contextId,
