@@ -14,8 +14,8 @@ import {
   deriveLand2017DerivedParameters,
   evaluateLand2017StrongBridgeDeactivationExitTerms,
   evaluateLand2017StepOutput,
-  land2017StrongToBlockedDeactivationRateDerivativePerSec,
-  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongBridgeDeactivationExitRateDerivativePerSec,
+  land2017StrongBridgeDeactivationExitRatePerSec,
   solveLand2017BackwardEulerStep,
   writeLand2017BackwardEulerResidual,
   writeLand2017BackwardEulerResidualJacobian,
@@ -70,7 +70,7 @@ describe("Land 2017 kernel contract", () => {
   });
 
   it("keeps the deactivation-specific S-to-B extension conservative and differentiable", () => {
-    const parameterSet = strongToBlockedParameterSet(15);
+    const parameterSet = strongBridgeDeactivationExitParameterSet(15);
     const state = representativeState();
     const previous = Float64Array.from([
       0.52,
@@ -101,7 +101,7 @@ describe("Land 2017 kernel contract", () => {
     const transferIntoBlocked = extendedRhs[1]! - sourceRhs[1]!;
     const transferOutOfStrong = extendedRhs[3]! - sourceRhs[3]!;
     const expectedTransfer =
-      land2017StrongToBlockedDeactivationRatePerSec(state[0]!, parameterSet)
+      land2017StrongBridgeDeactivationExitRatePerSec(state[0]!, parameterSet)
       * state[3]!;
     expect(transferIntoBlocked).toBeCloseTo(expectedTransfer, 13);
     expect(transferOutOfStrong).toBeCloseTo(-expectedTransfer, 13);
@@ -110,16 +110,16 @@ describe("Land 2017 kernel contract", () => {
 
     const epsilon = 1e-6;
     const analyticRateDerivative =
-      land2017StrongToBlockedDeactivationRateDerivativePerSec(
+      land2017StrongBridgeDeactivationExitRateDerivativePerSec(
         state[0]!,
         parameterSet,
       );
     const finiteDifferenceRateDerivative = (
-      land2017StrongToBlockedDeactivationRatePerSec(
+      land2017StrongBridgeDeactivationExitRatePerSec(
         state[0]! + epsilon,
         parameterSet,
       )
-      - land2017StrongToBlockedDeactivationRatePerSec(
+      - land2017StrongBridgeDeactivationExitRatePerSec(
         state[0]! - epsilon,
         parameterSet,
       )
@@ -182,7 +182,7 @@ describe("Land 2017 kernel contract", () => {
   });
 
   it("keeps the directional deactivation gate exact across state and strain derivatives", () => {
-    const parameterSet = strongToBlockedParameterSet(
+    const parameterSet = strongBridgeDeactivationExitParameterSet(
       40,
       "relative-CaTRPN-relaxation-excess",
     );
@@ -303,7 +303,7 @@ describe("Land 2017 kernel contract", () => {
     };
 
     for (const exitDestination of ["blocked", "unbound"] as const) {
-      const parameterSet = strongToBlockedParameterSet(
+      const parameterSet = strongBridgeDeactivationExitParameterSet(
         40,
         "none",
         "positive-excess-over-zero-distortion-equilibrium",
@@ -671,7 +671,7 @@ function representativeStepInput(): LandStepInput {
   };
 }
 
-function strongToBlockedParameterSet(
+function strongBridgeDeactivationExitParameterSet(
   maximumRatePerSec: number,
   deactivationDirectionGate:
     | "none"
@@ -690,8 +690,8 @@ function strongToBlockedParameterSet(
     derived: source.derived,
     sourceParameters: source.sourceParameters,
     derivedParameters: source.derivedParameters,
-    strongToBlockedDeactivation: Object.freeze({
-      extensionId: "land2017-strong-to-blocked-deactivation-v1",
+    strongBridgeDeactivationExit: Object.freeze({
+      extensionId: "land2017-strong-bridge-deactivation-exit-v1",
       maximumRatePerSec,
       calciumTroponinGate:
         "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",

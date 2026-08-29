@@ -29,7 +29,7 @@ export {
   type Land2017RuntimeParameters,
   type Land2017SourceParameterProvenance,
   type Land2017SourceParameterSet,
-  type Land2017StrongToBlockedDeactivationExtensionV1,
+  type Land2017StrongBridgeDeactivationExitExtensionV1,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 export {
   evaluateLand2017AlgebraicTerms,
@@ -44,9 +44,9 @@ export {
   land2017GammaWu,
   land2017GammaWuDerivative,
   land2017LengthFactor,
-  land2017StrongToBlockedDeactivationRateDerivativePerSec,
-  land2017StrongToBlockedDeactivationRatePerSec,
-  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
+  land2017StrongBridgeDeactivationExitRateDerivativePerSec,
+  land2017StrongBridgeDeactivationExitRatePerSec,
+  land2017StrongBridgeDeactivationExitRateStageStrainDerivativePerSec,
   land2017StateConservationResidual,
   land2017StateMinimumPopulation,
   validateLand2017ContinuousInput,

@@ -51,6 +51,7 @@ const candidateReports =
                   context.stressedVenousVolumePointId,
                   context.trefForceLoadProfileId,
                   candidate.sourceVelocityDistortionProfileId,
+                  candidate.strongBridgeDeactivationExitProfileId,
                 ),
             });
           },

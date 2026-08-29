@@ -54,6 +54,7 @@ const arms = Object.freeze(profiles.map((profileId) => {
       "baseline",
       CANDIDATE.trefForceLoadProfileId,
       profileId,
+      CANDIDATE.strongBridgeDeactivationExitProfileId,
     );
   const material =
     resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1(

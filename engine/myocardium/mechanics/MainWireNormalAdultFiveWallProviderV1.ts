@@ -79,9 +79,9 @@ import {
   type MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
 import {
-  resolveMainWireVentricularLandStrongToBlockedDeactivationWallMaterialV1,
-  type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
-} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongToBlockedDeactivationBracketV1";
+  resolveMainWireVentricularLandStrongBridgeDeactivationExitWallMaterialV1,
+  type MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongBridgeDeactivationExitBracketV1";
 import {
   MAIN_WIRE_VENTRICULAR_LAND_ACTIVATION_COHORT_CLAIM_V1,
   resolveMainWireVentricularLandActivationCohortProfileV1,
@@ -636,10 +636,10 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSour
   );
 }
 
-/** Research-only calcium-deactivation S-to-B exit composed last. */
-export function createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongToBlockedDeactivationV1(
+/** Research-only calcium-deactivation strong-bridge exit composed last. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongBridgeDeactivationExitV1(
   deactivationProfileId:
-    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
   velocityDistortionProfileId:
     MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
   candidateId:
@@ -661,7 +661,7 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularLandStro
   return createNormalAdultProviderFromMaterial(
     "on",
     NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
-    resolveMainWireVentricularLandStrongToBlockedDeactivationWallMaterialV1(
+    resolveMainWireVentricularLandStrongBridgeDeactivationExitWallMaterialV1(
       deactivationProfileId,
       velocityDistortionProfileId,
       candidateId,

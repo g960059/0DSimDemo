@@ -9,28 +9,28 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV1";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_IDS_V1,
-  MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_CLAIM_V1,
-  resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1,
-  type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
-} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongToBlockedDeactivationBracketV1";
+  MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_IDS_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_CLAIM_V1,
+  resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1,
+  type MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongBridgeDeactivationExitBracketV1";
 import {
   MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATE_IDS_V1,
   type MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_STRONG_TO_BLOCKED_DEACTIVATION_COMBINED_LOAD_ENVELOPE_V1_ID =
-  "main-wire-aortic-outflow-strong-to-blocked-deactivation-combined-load-envelope-v1" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_STRONG_BRIDGE_DEACTIVATION_EXIT_COMBINED_LOAD_ENVELOPE_V1_ID =
+  "main-wire-aortic-outflow-strong-bridge-deactivation-exit-combined-load-envelope-v1" as const;
 
 const deactivationProfileId = deactivationProfileArgument();
 const deactivationProfile =
-  resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1(
+  resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1(
     deactivationProfileId,
   );
 const dtSec = numericArgument("--dt", 0.002);
@@ -67,7 +67,7 @@ const envelope =
 const report = Object.freeze({
   artifactSchemaVersion: 1 as const,
   experimentId:
-    MAIN_WIRE_AORTIC_OUTFLOW_STRONG_TO_BLOCKED_DEACTIVATION_COMBINED_LOAD_ENVELOPE_V1_ID,
+    MAIN_WIRE_AORTIC_OUTFLOW_STRONG_BRIDGE_DEACTIVATION_EXIT_COMBINED_LOAD_ENVELOPE_V1_ID,
   design: Object.freeze({
     dtSec,
     maximumBeatCount,
@@ -77,7 +77,7 @@ const report = Object.freeze({
     }),
     deactivationProfile,
     deactivationClaim:
-      MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_CLAIM_V1,
+      MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_CLAIM_V1,
     analysisClaim:
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_ANALYSIS_CLAIM_V1,
     independentCanonicalColdStartPerArm: true as const,
@@ -178,11 +178,11 @@ function integerArgument(name: string, fallback: number): number {
 }
 
 function deactivationProfileArgument():
-  MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1 {
+  MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 {
   const value = optionalArgument("--profile")
     ?? "strong-to-blocked-deactivation-thirty-per-sec-directional-gate";
   const resolved =
-    MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_IDS_V1
+    MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_IDS_V1
       .find((profileId) => profileId === value);
   if (resolved === undefined) {
     throw new Error(`unsupported --profile: ${value}`);

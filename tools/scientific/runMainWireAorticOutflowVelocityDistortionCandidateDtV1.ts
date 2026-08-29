@@ -36,6 +36,7 @@ const rawArms = dtValuesSec.map((dtSec) => {
       "baseline",
       CANDIDATE.trefForceLoadProfileId,
       CANDIDATE.sourceVelocityDistortionProfileId,
+      CANDIDATE.strongBridgeDeactivationExitProfileId,
     );
   return Object.freeze({
     dtSec,

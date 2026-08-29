@@ -18,16 +18,19 @@ import type {
   MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
 import type {
+  MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongBridgeDeactivationExitBracketV1";
+import type {
   MainWireVentricularLandWholeOrganKuwProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandWholeOrganKuwBracketV1";
 import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v1" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v2" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV1<
+export type MainWireAorticOutflowCandidateProtocolV2<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -43,6 +46,8 @@ export type MainWireAorticOutflowCandidateProtocolV1<
   trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1;
   sourceVelocityDistortionProfileId:
     MainWireVentricularLandSourceVelocityDistortionProfileIdV1;
+  strongBridgeDeactivationExitProfileId:
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
   complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1;
   characteristicResistancePlacementProfileId:
     MainWireAorticCharacteristicResistancePlacementProfileIdV1;
@@ -50,14 +55,14 @@ export type MainWireAorticOutflowCandidateProtocolV1<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV1 =
-  MainWireAorticOutflowCandidateProtocolV1<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_ID
+export type MainWireAorticOutflowPhysiologyCandidateV2 =
+  MainWireAorticOutflowCandidateProtocolV2<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -65,24 +70,26 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1 =
       "land-sarcomere-reference-plus-5-percent" as const,
     calciumSensitivityLengthProfileId: "land-beta1-canonical" as const,
     twitchRetentionCandidateId:
-      "source-twitch-retention-kws-thirteen-twentieths-ntm-four-fifths-peak-compensated" as const,
+      "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated" as const,
     trefForceLoadProfileId: "tref-force-load-baseline" as const,
     sourceVelocityDistortionProfileId: "source-Aeff-canonical" as const,
+    strongBridgeDeactivationExitProfileId:
+      "strong-to-unbound-deactivation-forty-per-sec-directional-squared-equilibrium-excess-gate" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
       "all-Ao-SA-resistance-upstream-of-root-compliance" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV1;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV2;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
     landKuwWholeOrganScaleUsesPublishedIsometricIndistinguishableRange:
       true as const,
     landSarcomereReferenceCouplingChanged: true as const,
-    effectiveWholeOrganKwsScaleFromIntactSource: 0.65 as const,
+    effectiveWholeOrganKwsScaleFromIntactSource: 0.55 as const,
     effectiveThinFilamentCooperativityScaleFromIntactSource: 0.8 as const,
     isometricPeakTrefCompensationApplied: true as const,
     kwsAxisInterpretation:
@@ -96,6 +103,14 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_CLAIM =
       true as const,
     trefCompensationChangesStressScaleNotCrossbridgeStateKinetics:
       true as const,
+    strongBridgeDeactivationExitMaximumRatePerSec: 40 as const,
+    strongBridgeDeactivationExitCooperativeGatePower: 2 as const,
+    strongBridgeDeactivationExitDestination: "unbound" as const,
+    strongBridgeDeactivationExitUsesCaTRPNDirectionGate: true as const,
+    strongBridgeDeactivationExitUsesPopulationDisequilibriumGate:
+      true as const,
+    strongBridgeDeactivationExitAddsContinuousState: false as const,
+    strongBridgeDeactivationExitAddsOneContinuousRateParameter: true as const,
     sourceVelocityDistortionAeffScaleFromIntactSource: 1 as const,
     effectiveSystemicArterialTangentStiffnessScaleFromCanonical: 2 as const,
     systemicArterialTopologyDesignPressurePreservedAtGlobalLawReferenceVolume:

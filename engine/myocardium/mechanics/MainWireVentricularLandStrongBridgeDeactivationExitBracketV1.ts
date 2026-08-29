@@ -18,13 +18,13 @@ import type {
 import {
   stableHash as stableLandParameterHash,
   type Land2017SourceParameterSet,
-  type Land2017StrongToBlockedDeactivationExtensionV1,
+  type Land2017StrongBridgeDeactivationExitExtensionV1,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 
-export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_BRACKET_V1_ID =
-  "main-wire-ventricular-land-strong-to-blocked-deactivation-bracket-v1" as const;
+export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_BRACKET_V1_ID =
+  "main-wire-ventricular-land-strong-bridge-deactivation-exit-bracket-v1" as const;
 
-export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_IDS_V1 =
+export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_IDS_V1 =
   Object.freeze([
     "strong-to-blocked-deactivation-off",
     "strong-to-blocked-deactivation-five-per-sec",
@@ -58,13 +58,13 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_I
     "strong-to-unbound-deactivation-fifty-per-sec-directional-squared-equilibrium-excess-gate",
   ] as const);
 
-export type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1 =
-  (typeof MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILE_IDS_V1)[number];
+export type MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
+  (typeof MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILE_IDS_V1)[number];
 
-export type MainWireVentricularLandStrongToBlockedDeactivationProfileV1 =
+export type MainWireVentricularLandStrongBridgeDeactivationExitProfileV1 =
   Readonly<{
     profileId:
-      MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1;
+      MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
     maximumRatePerSec: 0 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60;
     cooperativeGatePower: 1 | 2;
     deactivationDirectionGate:
@@ -81,12 +81,12 @@ export type MainWireVentricularLandStrongToBlockedDeactivationProfileV1 =
     hemodynamicOutcomeUsedToSetProfile: false;
   }>;
 
-export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_CLAIM_V1 =
+export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_CLAIM_V1 =
   Object.freeze({
     role:
       "fixed-reduced-order-calcium-deactivation-strong-bridge-exit-bracket" as const,
     mechanisticInterpretation:
-      "mean-field-S-to-B-exit-when-calcium-troponin-is-below-TRPN50" as const,
+      "mean-field-strong-bridge-exit-during-thin-filament-deactivation" as const,
     sourceLandEquationExtension: true as const,
     sourceIdentityClaimedForNonzeroProfiles: false as const,
     calciumTroponinGate:
@@ -110,7 +110,7 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_CLAIM_V1 
     clinicalValidationClaimed: false as const,
   });
 
-export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILES_V1 =
+export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILES_V1 =
   Object.freeze({
     "strong-to-blocked-deactivation-off": profile(
       "strong-to-blocked-deactivation-off",
@@ -325,29 +325,29 @@ export const MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILES_
         "unbound",
       ),
   } satisfies Readonly<Record<
-    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
-    MainWireVentricularLandStrongToBlockedDeactivationProfileV1
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileV1
   >>);
 
-export function resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1(
+export function resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1(
   profileId:
-    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
-): MainWireVentricularLandStrongToBlockedDeactivationProfileV1 {
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+): MainWireVentricularLandStrongBridgeDeactivationExitProfileV1 {
   const resolved =
-    MAIN_WIRE_VENTRICULAR_LAND_STRONG_TO_BLOCKED_DEACTIVATION_PROFILES_V1[
+    MAIN_WIRE_VENTRICULAR_LAND_STRONG_BRIDGE_DEACTIVATION_EXIT_PROFILES_V1[
       profileId
     ];
   if (resolved === undefined) {
     throw new Error(
-      `unsupported strong-to-blocked deactivation profile: ${String(profileId)}`,
+      `unsupported strong-bridge deactivation-exit profile: ${String(profileId)}`,
     );
   }
   return resolved;
 }
 
-export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMaterialV1(
+export function resolveMainWireVentricularLandStrongBridgeDeactivationExitWallMaterialV1(
   profileId:
-    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
   velocityDistortionProfileId:
     MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
   sourceTwitchRetentionCandidateId:
@@ -358,7 +358,7 @@ export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMat
   kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
 ): LandSlsWallMaterialParamsV1 {
   const profileValue =
-    resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1(
+    resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1(
       profileId,
     );
   const base =
@@ -371,12 +371,12 @@ export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMat
     );
   if (profileValue.maximumRatePerSec === 0) return base;
   const source = base.landEquationParameters;
-  if (source.strongToBlockedDeactivation !== undefined) {
-    throw new Error("strong-to-blocked deactivation extension already exists");
+  if (source.strongBridgeDeactivationExit !== undefined) {
+    throw new Error("strong-bridge deactivation-exit extension already exists");
   }
-  const extension: Land2017StrongToBlockedDeactivationExtensionV1 =
+  const extension: Land2017StrongBridgeDeactivationExitExtensionV1 =
     Object.freeze({
-      extensionId: "land2017-strong-to-blocked-deactivation-v1",
+      extensionId: "land2017-strong-bridge-deactivation-exit-v1",
       maximumRatePerSec: profileValue.maximumRatePerSec,
       calciumTroponinGate:
         "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
@@ -416,7 +416,7 @@ export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMat
             runtime: Object.freeze({ ...entry.runtime }),
           }))),
     derivedParameters: source.derivedParameters,
-    strongToBlockedDeactivation: extension,
+    strongBridgeDeactivationExit: extension,
   };
   const parameterSet: Land2017SourceParameterSet = Object.freeze({
     ...hashInput,
@@ -431,7 +431,7 @@ export function resolveMainWireVentricularLandStrongToBlockedDeactivationWallMat
 
 function profile(
   profileId:
-    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
   maximumRatePerSec: 0 | 5 | 10 | 15 | 20 | 30 | 40 | 50 | 60,
   trefScaleFromUncompensatedBase = 1,
   cooperativeGatePower: 1 | 2 = 1,
@@ -442,7 +442,7 @@ function profile(
     | "none"
     | "positive-excess-over-zero-distortion-equilibrium" = "none",
   exitDestination: "blocked" | "unbound" = "blocked",
-): MainWireVentricularLandStrongToBlockedDeactivationProfileV1 {
+): MainWireVentricularLandStrongBridgeDeactivationExitProfileV1 {
   return Object.freeze({
     profileId,
     maximumRatePerSec,

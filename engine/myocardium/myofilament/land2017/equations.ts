@@ -168,7 +168,7 @@ export function land2017GammaSuDerivative(zetaS: number, p: Land2017RuntimeParam
   return 0;
 }
 
-export function land2017StrongToBlockedDeactivationRatePerSec(
+export function land2017StrongBridgeDeactivationExitRatePerSec(
   CaTRPN: number,
   parameterSet: Land2017EquationParameters,
   input?: Pick<
@@ -176,14 +176,14 @@ export function land2017StrongToBlockedDeactivationRatePerSec(
     "freeCalciumUM" | "fiberEngineeringStrain"
   >,
 ): number {
-  return evaluateStrongToBlockedDeactivationRateTerms(
+  return evaluateStrongBridgeDeactivationExitRateTerms(
     CaTRPN,
     parameterSet,
     input,
   ).ratePerSec;
 }
 
-export function land2017StrongToBlockedDeactivationRateDerivativePerSec(
+export function land2017StrongBridgeDeactivationExitRateDerivativePerSec(
   CaTRPN: number,
   parameterSet: Land2017EquationParameters,
   input?: Pick<
@@ -191,14 +191,14 @@ export function land2017StrongToBlockedDeactivationRateDerivativePerSec(
     "freeCalciumUM" | "fiberEngineeringStrain"
   >,
 ): number {
-  return evaluateStrongToBlockedDeactivationRateTerms(
+  return evaluateStrongBridgeDeactivationExitRateTerms(
     CaTRPN,
     parameterSet,
     input,
   ).derivativeByCaTRPNPerSec;
 }
 
-export function land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
+export function land2017StrongBridgeDeactivationExitRateStageStrainDerivativePerSec(
   CaTRPN: number,
   parameterSet: Land2017EquationParameters,
   input?: Pick<
@@ -206,7 +206,7 @@ export function land2017StrongToBlockedDeactivationRateStageStrainDerivativePerS
     "freeCalciumUM" | "fiberEngineeringStrain"
   >,
 ): number {
-  return evaluateStrongToBlockedDeactivationRateTerms(
+  return evaluateStrongBridgeDeactivationExitRateTerms(
     CaTRPN,
     parameterSet,
     input,
@@ -244,7 +244,7 @@ export function evaluateLand2017StrongBridgeDeactivationExitTerms(
     state,
     "Land 2017 deactivation strong-bridge exit state",
   );
-  const extension = parameterSet.strongToBlockedDeactivation;
+  const extension = parameterSet.strongBridgeDeactivationExit;
   if (extension === undefined) {
     return Object.freeze({
       baseRatePerSec: 0,
@@ -262,7 +262,7 @@ export function evaluateLand2017StrongBridgeDeactivationExitTerms(
   const CaTRPN = state[LAND2017_STATE_INDEX.CaTRPN];
   const W = state[LAND2017_STATE_INDEX.W];
   const S = state[LAND2017_STATE_INDEX.S];
-  const rateTerms = evaluateStrongToBlockedDeactivationRateTerms(
+  const rateTerms = evaluateStrongBridgeDeactivationExitRateTerms(
     CaTRPN,
     parameterSet,
     input,
@@ -302,7 +302,7 @@ export function evaluateLand2017StrongBridgeDeactivationExitTerms(
   });
 }
 
-function evaluateStrongToBlockedDeactivationRateTerms(
+function evaluateStrongBridgeDeactivationExitRateTerms(
   CaTRPN: number,
   parameterSet: Land2017EquationParameters,
   input?: Pick<
@@ -314,7 +314,7 @@ function evaluateStrongToBlockedDeactivationRateTerms(
   derivativeByCaTRPNPerSec: number;
   derivativeByFiberEngineeringStrainPerSec: number;
 }> {
-  const extension = parameterSet.strongToBlockedDeactivation;
+  const extension = parameterSet.strongBridgeDeactivationExit;
   if (extension === undefined) {
     return Object.freeze({
       ratePerSec: 0,
@@ -324,11 +324,11 @@ function evaluateStrongToBlockedDeactivationRateTerms(
   }
   const maximumRatePerSec = requireFiniteNumber(
     extension.maximumRatePerSec,
-    "Land 2017 strong-to-blocked deactivation maximum rate",
+    "Land 2017 strong-bridge deactivation-exit maximum rate",
   );
   if (maximumRatePerSec < 0) {
     throw new Error(
-      "Land 2017 strong-to-blocked deactivation maximum rate must be non-negative",
+      "Land 2017 strong-bridge deactivation-exit maximum rate must be non-negative",
     );
   }
   if (
@@ -336,7 +336,7 @@ function evaluateStrongToBlockedDeactivationRateTerms(
     && extension.cooperativeGatePower !== 2
   ) {
     throw new Error(
-      "Land 2017 strong-to-blocked cooperative gate power must be one or two",
+      "Land 2017 strong-bridge deactivation-exit cooperative gate power must be one or two",
     );
   }
   if (
@@ -356,7 +356,7 @@ function evaluateStrongToBlockedDeactivationRateTerms(
   }
   if (!(CaTRPN > 0) || !Number.isFinite(CaTRPN)) {
     throw new Error(
-      "Land 2017 strong-to-blocked deactivation requires positive finite CaTRPN",
+      "Land 2017 strong-bridge deactivation exit requires positive finite CaTRPN",
     );
   }
   const exponent = parameterSet.values.nTm;

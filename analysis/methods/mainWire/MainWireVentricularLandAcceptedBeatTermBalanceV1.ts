@@ -14,7 +14,7 @@ import {
   evaluateLand2017StrongBridgeDeactivationExitTerms,
   land2017GammaSu,
   land2017GammaWu,
-  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongBridgeDeactivationExitRatePerSec,
   solveLand2017BackwardEulerStep,
 } from "@/engine/myocardium/myofilament/land2017";
 
@@ -55,7 +55,7 @@ export type MainWireVentricularLandAcceptedBeatTermReadbackV1 = Readonly<{
   lengthFactorH: number;
   weakDistortionLossRatePerSec: number;
   strongDistortionLossRatePerSec: number;
-  strongToBlockedDeactivationRatePerSec: number;
+  strongBridgeDeactivationExitRatePerSec: number;
   strongBridgeDeactivationExitPopulationExcess: number;
   strongBridgeDeactivationExitPopulationFluxPerSec: number;
   strongBridgeDeactivationPopulationGateActive: boolean;
@@ -97,7 +97,7 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     strongConstantRateDistortionGainSec: number;
     gammaWPerSec: number;
     gammaSPerSec: number;
-    maximumStrongToBlockedDeactivationRatePerSec: number;
+    maximumStrongBridgeDeactivationExitRatePerSec: number;
   }>;
   replay: Readonly<{
     simulatedCycleCount: number;
@@ -135,7 +135,7 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     integratedStrongDistortionLossExposure: number;
     integratedBaselineStrongDetachmentPopulation: number;
     integratedDistortionStrongDetachmentPopulation: number;
-    integratedStrongToBlockedDeactivationPopulation: number;
+    integratedStrongBridgeDeactivationExitPopulation: number;
     integratedTotalStrongExitPopulation: number;
     distortionToBaselineStrongDetachmentRatio: number;
     deactivationToBaselineStrongDetachmentRatio: number;
@@ -255,7 +255,7 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
     postEjectionReadbacks.reduce((sum, readback) =>
       sum + readback.strongDistortionLossRatePerSec
         * readback.strongPopulationS * result.dtSec, 0);
-  const integratedStrongToBlockedDeactivationPopulation =
+  const integratedStrongBridgeDeactivationExitPopulation =
     postEjectionReadbacks.reduce((sum, readback) =>
       sum + readback.strongBridgeDeactivationExitPopulationFluxPerSec
         * result.dtSec, 0);
@@ -288,8 +288,8 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
       strongConstantRateDistortionGainSec: d.As / d.cs,
       gammaWPerSec: p.gammaW,
       gammaSPerSec: p.gammaS,
-      maximumStrongToBlockedDeactivationRatePerSec:
-        material.landEquationParameters.strongToBlockedDeactivation
+      maximumStrongBridgeDeactivationExitRatePerSec:
+        material.landEquationParameters.strongBridgeDeactivationExit
           ?.maximumRatePerSec ?? 0,
     }),
     replay: Object.freeze({
@@ -371,16 +371,16 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
           sum + readback.strongDistortionLossRatePerSec * result.dtSec, 0),
       integratedBaselineStrongDetachmentPopulation,
       integratedDistortionStrongDetachmentPopulation,
-      integratedStrongToBlockedDeactivationPopulation,
+      integratedStrongBridgeDeactivationExitPopulation,
       integratedTotalStrongExitPopulation:
         integratedBaselineStrongDetachmentPopulation
         + integratedDistortionStrongDetachmentPopulation
-        + integratedStrongToBlockedDeactivationPopulation,
+        + integratedStrongBridgeDeactivationExitPopulation,
       distortionToBaselineStrongDetachmentRatio:
         integratedDistortionStrongDetachmentPopulation
         / Math.max(integratedBaselineStrongDetachmentPopulation, 1e-12),
       deactivationToBaselineStrongDetachmentRatio:
-        integratedStrongToBlockedDeactivationPopulation
+        integratedStrongBridgeDeactivationExitPopulation
         / Math.max(integratedBaselineStrongDetachmentPopulation, 1e-12),
       strongPopulationChange:
         atMitralValveOpening.strongPopulationS
@@ -548,8 +548,8 @@ function readback(
     lengthFactorH: terms.h,
     weakDistortionLossRatePerSec: land2017GammaWu(zetaW, p),
     strongDistortionLossRatePerSec: land2017GammaSu(zetaS, p),
-    strongToBlockedDeactivationRatePerSec:
-      land2017StrongToBlockedDeactivationRatePerSec(
+    strongBridgeDeactivationExitRatePerSec:
+      land2017StrongBridgeDeactivationExitRatePerSec(
         CaTRPN,
         material.landEquationParameters,
         {

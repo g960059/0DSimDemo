@@ -3,7 +3,7 @@ import {
   land2017CaTRPNUnblockingFactor,
   land2017GammaSu,
   land2017GammaWu,
-  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongBridgeDeactivationExitRatePerSec,
   validateLand2017ContinuousInput,
   validateLand2017EquationState,
   writeLand2017Rhs,
@@ -372,8 +372,8 @@ export function solveLand2017AffineStage(
   const weakLossRate =
     d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
-  const strongToBlockedRate =
-    land2017StrongToBlockedDeactivationRatePerSec(
+  const strongBridgeDeactivationExitRate =
+    land2017StrongBridgeDeactivationExitRatePerSec(
       caTRPN,
       parameterSet,
       continuousInput,
@@ -385,7 +385,7 @@ export function solveLand2017AffineStage(
     unbindingRate,
     weakLossRate,
     strongLossRate,
-    strongToBlockedRate,
+    strongBridgeDeactivationExitRate,
     parameterSet,
   );
   const next = new Float64Array(LAND2017_STATE_SIZE);
@@ -410,7 +410,7 @@ function solveLand2017PopulationStageWithDeactivationExit(
   parameterSet: Land2017EquationParameters,
 ): readonly [number, number, number] {
   const p = parameterSet.values;
-  const extension = parameterSet.strongToBlockedDeactivation;
+  const extension = parameterSet.strongBridgeDeactivationExit;
   const solveBranch = (
     branchRatePerSec: number,
     equilibriumStrongToWeakRatio: number,

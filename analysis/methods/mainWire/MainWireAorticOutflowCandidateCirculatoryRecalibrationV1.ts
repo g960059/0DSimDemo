@@ -22,8 +22,8 @@ import {
   type MainWireAorticOutflowCandidateCirculatoryRecalibrationLevelV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV1";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -390,7 +390,7 @@ function assertRunMatchesContext(
       input.contextId,
     );
   const run = input.run;
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2;
   const actual = Object.freeze({
     kuwProfileId: run.kuwProfile.profileId,
     complianceProfileId: run.complianceProfile.profileId,
@@ -405,6 +405,8 @@ function assertRunMatchesContext(
     trefForceLoadProfileId: run.trefForceLoadProfile.profileId,
     sourceVelocityDistortionProfileId:
       run.sourceVelocityDistortionProfile.profileId,
+    strongBridgeDeactivationExitProfileId:
+      run.strongBridgeDeactivationExitProfile.profileId,
     circulatoryLoadPointId: run.circulatoryLoadPoint.pointId,
     stressedVenousVolumePointId: run.stressedVenousVolumePoint.pointId,
   });
@@ -421,6 +423,8 @@ function assertRunMatchesContext(
     trefForceLoadProfileId: candidate.trefForceLoadProfileId,
     sourceVelocityDistortionProfileId:
       candidate.sourceVelocityDistortionProfileId,
+    strongBridgeDeactivationExitProfileId:
+      candidate.strongBridgeDeactivationExitProfileId,
     circulatoryLoadPointId: context.circulatoryLoadPointId,
     stressedVenousVolumePointId: context.stressedVenousVolumePointId,
   });

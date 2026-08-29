@@ -1,6 +1,6 @@
 import type {
-  MainWireAorticOutflowCandidateProtocolV1,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV1";
+  MainWireAorticOutflowCandidateProtocolV2,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_VELOCITY_DISTORTION_CANDIDATE_V1_ID =
   "main-wire-aortic-outflow-velocity-distortion-candidate-v1" as const;
@@ -15,7 +15,7 @@ export type MainWireAorticOutflowVelocityDistortionCandidateIdV1 =
   (typeof MAIN_WIRE_AORTIC_OUTFLOW_VELOCITY_DISTORTION_CANDIDATE_IDS_V1)[number];
 
 export type MainWireAorticOutflowVelocityDistortionCandidateV1 =
-  MainWireAorticOutflowCandidateProtocolV1<
+  MainWireAorticOutflowCandidateProtocolV2<
     MainWireAorticOutflowVelocityDistortionCandidateIdV1
   >;
 
@@ -36,6 +36,8 @@ function candidate(
       "source-twitch-retention-canonical" as const,
     trefForceLoadProfileId: "tref-force-load-baseline" as const,
     sourceVelocityDistortionProfileId,
+    strongBridgeDeactivationExitProfileId:
+      "strong-to-blocked-deactivation-off" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
       "Land2017-characteristic-impedance-matched" as const,
