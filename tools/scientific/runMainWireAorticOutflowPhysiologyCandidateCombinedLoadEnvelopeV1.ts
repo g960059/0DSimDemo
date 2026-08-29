@@ -123,6 +123,10 @@ if (outputPath === null) {
       ejectionTimeMs: arm.coreMetrics.ejectionTimeSec * 1000,
       accelerationTimeMs: arm.coreMetrics.accelerationTimeSec * 1000,
       aorticForwardVolumeMl: arm.coreMetrics.aorticForwardVolumeMl,
+      forwardFlowContinuityEquivalentEoaCm2:
+        arm.coreMetrics.forwardFlowContinuityEquivalentEoaCm2,
+      meanGradientEquivalentEoaCm2:
+        arm.coreMetrics.meanGradientEquivalentEoaCm2,
       peakVenaContractaVelocityMPerSec:
         arm.coreMetrics.peakVenaContractaVelocityMPerSec,
       meanDopplerGradientMmHg:

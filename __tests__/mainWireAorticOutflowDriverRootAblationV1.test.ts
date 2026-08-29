@@ -556,6 +556,20 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         .toBeGreaterThanOrEqual(1);
       expect(arm.cycle.aorticJetVelocityWaveformNonuniformityFactor)
         .toBeGreaterThanOrEqual(1);
+      expect(arm.cycle.aorticForwardFlowContinuityEquivalentEoaCm2)
+        .toBeCloseTo(
+          arm.cycle.aorticConfiguredMaximumForwardEoaCm2
+          / Math.sqrt(arm.cycle.aorticDynamicAreaDopplerPenaltyFactor),
+          12,
+        );
+      expect(arm.cycle.aorticMeanGradientEquivalentEoaCm2)
+        .toBeCloseTo(
+          arm.cycle.aorticConfiguredMaximumForwardEoaCm2
+          / Math.sqrt(
+            arm.cycle.aorticMeanDopplerExcessOverFullyOpenUniformFlowFactor,
+          ),
+          12,
+        );
       expect(
         arm.cycle.aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg
           * arm.cycle.aorticDynamicAreaDopplerPenaltyFactor

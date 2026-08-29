@@ -89,6 +89,10 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_COMPARISON_CLAIM_V1 =
       "one-percent-peak-flow-thresholded-forward-episode-duration" as const,
     velocityStation:
       "EOA-derived-vena-contracta-not-ascending-aorta" as const,
+    forwardFlowContinuityEquivalentEoa:
+      "forward-volume-divided-by-integrated-modeled-vena-contracta-velocity-not-imaged-anatomic-area" as const,
+    meanGradientEquivalentEoa:
+      "mean-forward-flow-divided-by-rms-modeled-vena-contracta-velocity-includes-area-and-waveform-penalties" as const,
     calciumExposure:
       "sampled-cycle-integral-above-configured-diastolic-calcium" as const,
     activeStressImpulse:
@@ -147,6 +151,9 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
   timeFromAorticFlowOnsetToPeakSec: number;
   signedTimeFromConfiguredCalciumPeakToAorticFlowOnsetSec: number;
   aorticPeakToMeanForwardFlowRatio: number;
+  aorticConfiguredMaximumForwardEoaCm2: number;
+  aorticForwardFlowContinuityEquivalentEoaCm2: number;
+  aorticMeanGradientEquivalentEoaCm2: number;
   aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg: number;
   aorticDynamicAreaDopplerPenaltyFactor: number;
   aorticJetVelocityWaveformNonuniformityFactor: number;
@@ -491,6 +498,16 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
   const forwardDuration = valveMetrics.forwardEpisodeDurationSec;
   const meanForwardFlow =
     valveMetrics.forwardVolumeMl / valveMetrics.forwardFlowTimeSec;
+  const forwardFlowContinuityEquivalentEoaCm2 =
+    valveMetrics.forwardFlowTimeMeanJetVelocityMPerSec > 0
+      ? meanForwardFlow
+        / (100 * valveMetrics.forwardFlowTimeMeanJetVelocityMPerSec)
+      : 0;
+  const meanGradientEquivalentEoaCm2 =
+    valveMetrics.forwardFlowRmsJetVelocityMPerSec > 0
+      ? meanForwardFlow
+        / (100 * valveMetrics.forwardFlowRmsJetVelocityMPerSec)
+      : 0;
   const configuredCalciumPulsePeakPhase01 = positiveModulo01(
     (
       calciumParams.ventricular.electricalToCalciumDelaySec
@@ -529,6 +546,12 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
         - configuredCalciumPulsePeakPhase01,
       ) * calciumParams.cycleLengthSec,
     aorticPeakToMeanForwardFlowRatio: maximumFlow / meanForwardFlow,
+    aorticConfiguredMaximumForwardEoaCm2:
+      valveMetrics.configuredMaximumForwardEoaCm2,
+    aorticForwardFlowContinuityEquivalentEoaCm2:
+      forwardFlowContinuityEquivalentEoaCm2,
+    aorticMeanGradientEquivalentEoaCm2:
+      meanGradientEquivalentEoaCm2,
     aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg:
       valveMetrics.fullyOpenUniformFlowDopplerGradientLowerBoundMmHg,
     aorticDynamicAreaDopplerPenaltyFactor:

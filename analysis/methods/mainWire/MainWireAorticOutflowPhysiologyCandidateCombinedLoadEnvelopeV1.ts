@@ -59,6 +59,8 @@ export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadCoreMetricsV1 =
     ejectionTimeSec: number;
     accelerationTimeSec: number;
     aorticForwardVolumeMl: number;
+    forwardFlowContinuityEquivalentEoaCm2: number;
+    meanGradientEquivalentEoaCm2: number;
     peakVenaContractaVelocityMPerSec: number;
     meanDopplerGradientMmHg: number;
     peakDopplerGradientMmHg: number;
@@ -165,6 +167,8 @@ const CORE_METRIC_KEYS = Object.freeze([
   "ejectionTimeSec",
   "accelerationTimeSec",
   "aorticForwardVolumeMl",
+  "forwardFlowContinuityEquivalentEoaCm2",
+  "meanGradientEquivalentEoaCm2",
   "peakVenaContractaVelocityMPerSec",
   "meanDopplerGradientMmHg",
   "peakDopplerGradientMmHg",
@@ -393,6 +397,10 @@ function coreMetricsFromCycle(
     ejectionTimeSec: cycle.aorticEjectionTimeProxySec,
     accelerationTimeSec: cycle.timeFromAorticFlowOnsetToPeakSec,
     aorticForwardVolumeMl: cycle.aorticForwardVolumeMl,
+    forwardFlowContinuityEquivalentEoaCm2:
+      cycle.aorticForwardFlowContinuityEquivalentEoaCm2,
+    meanGradientEquivalentEoaCm2:
+      cycle.aorticMeanGradientEquivalentEoaCm2,
     peakVenaContractaVelocityMPerSec:
       cycle.peakVenaContractaVelocityMPerSec,
     meanDopplerGradientMmHg: cycle.meanDopplerGradientMmHg,

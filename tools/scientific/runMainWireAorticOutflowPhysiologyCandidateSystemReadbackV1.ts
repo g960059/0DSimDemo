@@ -109,6 +109,12 @@ if (outputPath === null) {
       terminationReason: entry.aorticOutflow.terminationReason,
       ejectionTimeMs: entry.aorticOutflow.aorticEjectionTimeProxySec * 1000,
       aorticForwardVolumeMl: entry.aorticOutflow.aorticForwardVolumeMl,
+      aorticConfiguredMaximumForwardEoaCm2:
+        entry.aorticOutflow.aorticConfiguredMaximumForwardEoaCm2,
+      aorticForwardFlowContinuityEquivalentEoaCm2:
+        entry.aorticOutflow.aorticForwardFlowContinuityEquivalentEoaCm2,
+      aorticMeanGradientEquivalentEoaCm2:
+        entry.aorticOutflow.aorticMeanGradientEquivalentEoaCm2,
       meanDopplerGradientMmHg: entry.aorticOutflow.meanDopplerGradientMmHg,
       peakDopplerGradientMmHg: entry.aorticOutflow.peakDopplerGradientMmHg,
       aorticDynamicAreaDopplerPenaltyFactor:
