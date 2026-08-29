@@ -65,6 +65,8 @@ export type MainWireIsometricTransientMetricsV1 = Readonly<{
   maximum: number;
   amplitude: number;
   timeToPeakSec: number;
+  risingFivePercentAmplitudeCrossingTimeSec: number | null;
+  timeFromRisingFivePercentAmplitudeToPeakSec: number | null;
   relaxationTime50Sec: number | null;
   relaxationTime90Sec: number | null;
   relaxationTime95Sec: number | null;
@@ -147,6 +149,7 @@ export type MainWireVentricularLandIsometricTwitchAuditV1 = Readonly<{
     directionalScreenOnly: Readonly<{
       fixedStretchMatchesSourceRestingExtensionRatio: boolean;
       cyclePhasePeakWithinUnalignedPublishedTptRange: boolean;
+      fivePercentRiseToPeakWithinPublishedTptRange: boolean;
       timeToPeakDirectComparisonEstablished: false;
       relaxationTime50WithinTargetRange: boolean;
       relaxationTime95WithinTargetRange: boolean;
@@ -347,6 +350,12 @@ export function measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1(
     active.timeToPeakSec,
     tptRange,
   );
+  const fivePercentRiseToPeakWithinTptRange =
+    active.timeFromRisingFivePercentAmplitudeToPeakSec !== null
+    && withinRange(
+      active.timeFromRisingFivePercentAmplitudeToPeakSec,
+      tptRange,
+    );
   const rt50Within = active.relaxationTime50Sec !== null
     && withinRange(active.relaxationTime50Sec, rt50Range);
   const rt95Within = active.relaxationTime95Sec !== null
@@ -443,6 +452,8 @@ export function measureMainWireVentricularLandIsometricTwitchFromCalciumInputV1(
           === provenance.sourceRestingExtensionRatio,
         cyclePhasePeakWithinUnalignedPublishedTptRange:
           cyclePhasePeakWithinUnalignedTptRange,
+        fivePercentRiseToPeakWithinPublishedTptRange:
+          fivePercentRiseToPeakWithinTptRange,
         timeToPeakDirectComparisonEstablished: false as const,
         relaxationTime50WithinTargetRange: rt50Within,
         relaxationTime95WithinTargetRange: rt95Within,
@@ -554,6 +565,13 @@ function measureTransient(
   }
   const peakIndex = values.indexOf(maximum);
   const peakTimeSec = samples[peakIndex]!.timeSec;
+  const fivePercentThreshold = minimum + 0.05 * amplitude;
+  const risingFivePercentTime = firstRisingCrossingTime(
+    samples,
+    values,
+    peakIndex,
+    fivePercentThreshold,
+  );
   const relaxationTime = (relaxedFraction01: number): number | null => {
     const threshold = minimum + (1 - relaxedFraction01) * amplitude;
     const crossing = firstFallingCrossingTime(
@@ -578,7 +596,7 @@ function measureTransient(
     halfThreshold,
   );
   let localPeakCount = 0;
-  const peakThreshold = minimum + 0.05 * amplitude;
+  const peakThreshold = fivePercentThreshold;
   for (let index = 1; index < values.length - 1; index += 1) {
     if (
       values[index]! > values[index - 1]!
@@ -591,6 +609,9 @@ function measureTransient(
     maximum,
     amplitude,
     timeToPeakSec: peakTimeSec,
+    risingFivePercentAmplitudeCrossingTimeSec: risingFivePercentTime,
+    timeFromRisingFivePercentAmplitudeToPeakSec:
+      risingFivePercentTime === null ? null : peakTimeSec - risingFivePercentTime,
     relaxationTime50Sec: relaxationTime(0.5),
     relaxationTime90Sec: relaxationTime(0.9),
     relaxationTime95Sec: relaxationTime(0.95),

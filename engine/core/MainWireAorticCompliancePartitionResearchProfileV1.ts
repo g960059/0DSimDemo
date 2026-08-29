@@ -5,6 +5,7 @@ export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_V1_ID =
 
 export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1 =
   Object.freeze([
+    "aortic-root-exponential-pv-capacity-one-third",
     "aortic-root-exponential-pv-capacity-half",
     "aortic-root-exponential-pv-capacity-low",
     "aortic-root-exponential-pv-capacity-high",
@@ -34,6 +35,13 @@ if (SOURCE_AO.P0 !== SOURCE_SA.P0) {
 
 export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILES_V1 =
   Object.freeze({
+    "aortic-root-exponential-pv-capacity-one-third": Object.freeze({
+      profileId: "aortic-root-exponential-pv-capacity-one-third" as const,
+      aorticRootCapacityScaleFromTopology: 1 / 3,
+      compensationRule:
+        "equal-and-opposite-Vs-transfer-from-Ao-to-SA" as const,
+      parameterSearchOrFitting: false as const,
+    }),
     "aortic-root-exponential-pv-capacity-half": Object.freeze({
       profileId: "aortic-root-exponential-pv-capacity-half" as const,
       aorticRootCapacityScaleFromTopology: 0.5,
@@ -66,7 +74,7 @@ export const MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_CLAIM_V1 =
     affectedNodes: Object.freeze(["Ao", "SA"] as const),
     topologyOwnedExponentialPvCapacityRedistributed: true as const,
     aorticRootCapacityScaleAxis:
-      Object.freeze([0.5, 0.75, 4 / 3] as const),
+      Object.freeze([1 / 3, 0.5, 0.75, 4 / 3] as const),
     aorticRootPlusSystemicArteryVsSumPreservedExactly: true as const,
     aorticRootAndSystemicArteryP0Equal: true as const,
     equalPressureCombinedTangentCompliancePreservedExactly: true as const,

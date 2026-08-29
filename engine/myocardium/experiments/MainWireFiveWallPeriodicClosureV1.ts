@@ -15,6 +15,9 @@ import type {
   LandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
 import {
+  readMainWireNormalAdultParallelActivationCohortStatesV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
   LAND2017_STATE_LABELS,
   LAND2017_STATE_SIZE,
 } from "@/engine/myocardium/myofilament/land2017";
@@ -262,17 +265,48 @@ export function compareMainWireFiveWallAcceptedStatesV1(
     const referenceWall = referenceMechanics.wallStateByWall[wall];
     validateWallState(currentWall, `current.${wall}`);
     validateWallState(referenceWall, `reference.${wall}`);
-    for (let index = 0; index < LAND2017_STATE_SIZE; index += 1) {
-      const label = LAND2017_STATE_LABELS[index]!;
-      seeds.push(seed(
-        "land-state",
-        "land-state",
-        "dimensionless",
-        `mechanics.materialState.wallStateByWall.${wall}.landState.${label}`,
-        currentWall.landState[index]!,
-        referenceWall.landState[index]!,
-        scales.landState01,
-      ));
+    const currentLandCohorts =
+      readMainWireNormalAdultParallelActivationCohortStatesV1(currentWall)
+      ?? [currentWall];
+    const referenceLandCohorts =
+      readMainWireNormalAdultParallelActivationCohortStatesV1(referenceWall)
+      ?? [referenceWall];
+    if (currentLandCohorts.length !== referenceLandCohorts.length) {
+      throw new Error(`${wall} periodic activation-cohort count differs`);
+    }
+    for (
+      let cohortIndex = 0;
+      cohortIndex < currentLandCohorts.length;
+      cohortIndex += 1
+    ) {
+      const currentCohort = currentLandCohorts[cohortIndex]!;
+      const referenceCohort = referenceLandCohorts[cohortIndex]!;
+      const cohortPath = currentLandCohorts.length === 1
+        ? ""
+        : `.activationCohortStateByPoint.${cohortIndex}`;
+      for (let index = 0; index < LAND2017_STATE_SIZE; index += 1) {
+        const label = LAND2017_STATE_LABELS[index]!;
+        seeds.push(seed(
+          "land-state",
+          "land-state",
+          "dimensionless",
+          `mechanics.materialState.wallStateByWall.${wall}${cohortPath}.landState.${label}`,
+          currentCohort.landState[index]!,
+          referenceCohort.landState[index]!,
+          scales.landState01,
+        ));
+      }
+      if (currentLandCohorts.length > 1) {
+        seeds.push(seed(
+          "wall-input-history",
+          "wall-free-calcium",
+          "uM",
+          `mechanics.materialState.wallStateByWall.${wall}${cohortPath}.previousFreeCalciumUM`,
+          currentCohort.previousFreeCalciumUM,
+          referenceCohort.previousFreeCalciumUM,
+          scales.wallFreeCalciumUM,
+        ));
+      }
     }
     seeds.push(seed(
       "sls-viscous-strain",
@@ -489,11 +523,24 @@ function validateAcceptedState(
 }
 
 function validateWallState(state: LandSlsWallMaterialStateV1, label: string): void {
-  if (state.landState.length !== LAND2017_STATE_SIZE) {
-    throw new Error(`${label}.landState must contain ${LAND2017_STATE_SIZE} values`);
-  }
-  Array.from(state.landState).forEach((value, index) =>
-    requireFinite(value, `${label}.landState[${index}]`));
+  const cohorts =
+    readMainWireNormalAdultParallelActivationCohortStatesV1(state) ?? [state];
+  cohorts.forEach((cohort, cohortIndex) => {
+    const cohortLabel = cohorts.length === 1
+      ? label
+      : `${label}.activationCohortStateByPoint[${cohortIndex}]`;
+    if (cohort.landState.length !== LAND2017_STATE_SIZE) {
+      throw new Error(
+        `${cohortLabel}.landState must contain ${LAND2017_STATE_SIZE} values`,
+      );
+    }
+    Array.from(cohort.landState).forEach((value, index) =>
+      requireFinite(value, `${cohortLabel}.landState[${index}]`));
+    requireFinite(
+      cohort.previousFreeCalciumUM,
+      `${cohortLabel}.previousFreeCalciumUM`,
+    );
+  });
   requireFinite(state.slsState.viscousLogStrain, `${label}.slsState.viscousLogStrain`);
   requireFinite(state.previousFiberLogStrain, `${label}.previousFiberLogStrain`);
   requireFinite(state.previousFreeCalciumUM, `${label}.previousFreeCalciumUM`);

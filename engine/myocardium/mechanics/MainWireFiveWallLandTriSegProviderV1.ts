@@ -29,6 +29,9 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID =
 export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
   wallTopology:
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
+  optionalVentricularMaterialTopology:
+    "parallel-activation-cohort-Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
+  materialKernelOwnsConstitutiveStateTopology: true as const,
   wallCount: 5 as const,
   ventricularGeometry: "energy-conjugate-TriSeg" as const,
   ventricularGeometryMechanics: "finite-thickness-membrane-only" as const,
@@ -95,6 +98,15 @@ export type MainWireFiveWallVentricularCoronaryBoundaryTangentV1 = Readonly<{
 
 export type MainWireFiveWallFreeCalciumDriveV1 = Readonly<{
   freeCalciumUMByWall: MainWireFiveWallRecordV1<number>;
+  /**
+   * Optional local calcium values for a wall-material kernel that explicitly
+   * homogenizes unresolved parallel activation cohorts. Canonical kernels
+   * ignore this field and continue to consume `freeCalciumUMByWall` only.
+   */
+  ventricularActivationCohortFreeCalciumUMByWall?: Readonly<Record<
+    MainWireFiveWallVentricularWallIdV1,
+    readonly [number, number, number]
+  >>;
 }>;
 
 export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
@@ -130,7 +142,8 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   parameterSetId: string;
   parameterIdentityHash: string;
   topology:
-    "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
+    | "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
+    | "parallel-activation-cohort-Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
   stateCodec: WholeHeartMechanicsStateCodecV1<TWallState>;
   /**
    * A trusted kernel may consume the provider-owned accepted wall state
@@ -145,11 +158,13 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   initializeColdAtFixedInput(input: Readonly<{
     fiberLogStrain: number;
     freeCalciumUM: number;
+    freeCalciumUMByActivationCohort?: readonly number[];
   }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
   evaluateTrialFromAccepted(input: Readonly<{
     previousAcceptedState: TWallState;
     candidateFiberLogStrain: number;
     candidateFreeCalciumUM: number;
+    candidateFreeCalciumUMByActivationCohort?: readonly number[];
     stepDtSec: number;
   }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
   /**
@@ -162,6 +177,7 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
     previousAcceptedState: TWallState;
     candidateFiberLogStrain: number;
     candidateFreeCalciumUM: number;
+    candidateFreeCalciumUMByActivationCohort?: readonly number[];
     stepDtSec: number;
   }>): MainWireFiveWallMaterialEvaluationV1<TWallState>;
 }>;
@@ -1187,8 +1203,18 @@ function evaluateCandidate<TWallState>(
     const kernel = params.materialByWall[wallId];
     const fiberLogStrain = effectiveFiberLogStrainByWall[wallId];
     const freeCalciumUM = drive.freeCalciumUMByWall[wallId];
+    const freeCalciumUMByActivationCohort =
+      wallId === "LA" || wallId === "RA"
+        ? undefined
+        : drive.ventricularActivationCohortFreeCalciumUMByWall?.[wallId];
     const evaluation = mode.kind === "cold"
-      ? kernel.initializeColdAtFixedInput({ fiberLogStrain, freeCalciumUM })
+      ? kernel.initializeColdAtFixedInput({
+        fiberLogStrain,
+        freeCalciumUM,
+        ...(freeCalciumUMByActivationCohort === undefined
+          ? {}
+          : { freeCalciumUMByActivationCohort }),
+      })
       : wallId === "LA" || wallId === "RA"
         ? evaluateTrialAtrialMaterialWithReuse(
           wallId,
@@ -1214,6 +1240,10 @@ function evaluateCandidate<TWallState>(
           ),
           candidateFiberLogStrain: fiberLogStrain,
           candidateFreeCalciumUM: freeCalciumUM,
+          ...(freeCalciumUMByActivationCohort === undefined
+            ? {}
+            : { candidateFreeCalciumUMByActivationCohort:
+                freeCalciumUMByActivationCohort }),
           stepDtSec: mode.stepDtSec,
         });
     if (
@@ -2139,6 +2169,8 @@ function validateParams<TWallState>(
     if (
       material.topology
         !== "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
+      && material.topology
+        !== "parallel-activation-cohort-Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
     ) throw new Error(`${wallId} material does not satisfy the Land/SLS topology contract`);
     for (const method of ["clone", "encode", "decode"] as const) {
       if (typeof material.stateCodec[method] !== "function") {
@@ -2256,6 +2288,24 @@ function validateDrive(drive: MainWireFiveWallFreeCalciumDriveV1): void {
       drive.freeCalciumUMByWall[wallId],
       `${wallId}.freeCalciumUM`,
     );
+  }
+  const cohorts = drive.ventricularActivationCohortFreeCalciumUMByWall;
+  if (cohorts !== undefined) {
+    assertExactKeys(
+      cohorts,
+      ["LVFW", "SEP", "RVFW"],
+      "ventricularActivationCohortFreeCalciumUMByWall",
+    );
+    for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+      const values = cohorts[wallId];
+      if (values.length !== 3) {
+        throw new Error(`${wallId} activation cohorts must contain three values`);
+      }
+      values.forEach((value, index) => requireNonnegative(
+        value,
+        `${wallId}.activationCohortFreeCalciumUM[${index}]`,
+      ));
+    }
   }
 }
 

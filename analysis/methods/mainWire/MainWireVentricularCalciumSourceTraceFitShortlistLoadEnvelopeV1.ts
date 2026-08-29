@@ -158,6 +158,13 @@ export type MainWireVentricularCalciumSourceTraceFitShortlistDiastolicFlowV1 =
     }>;
   }>;
 
+export type MainWireVentricularCalciumSourceTraceFitDiastolicFlowReadbackV1 =
+  Readonly<{
+    value:
+      MainWireVentricularCalciumSourceTraceFitShortlistDiastolicFlowV1 | null;
+    reason: string | null;
+  }>;
+
 export type MainWireVentricularCalciumSourceTraceFitShortlistValveAreaV1 =
   Readonly<{
     maximumForwardEoaCm2: number;
@@ -399,11 +406,10 @@ export function measureMainWireVentricularCalciumSourceTraceFitShortlistLoadEnve
       if (selectedBeat === undefined || selectedBeat.samples.length === 0) {
         throw new Error(`${contextId}/${armId} has no retained complete beat`);
       }
-      const diastolicFlow = measureDiastolicFlow(
-        selectedBeat.samples,
-        input.periodicResult.dtSec,
-        summary,
-      );
+      const diastolicFlow =
+        measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
+          input.periodicResult,
+        );
       const aorticOutflowKinematicFloor =
         measureMainWireAorticOutflowKinematicFloorV1(input.periodicResult);
       const preservedMacroFeasibility =
@@ -676,15 +682,25 @@ function relativeAbsoluteDifference(value: number, reference: number): number {
   return Math.abs(value / reference - 1);
 }
 
+export function measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): MainWireVentricularCalciumSourceTraceFitDiastolicFlowReadbackV1 {
+  const selectedBeat = result.retainedCompleteBeats.at(-1);
+  if (selectedBeat === undefined || selectedBeat.samples.length === 0) {
+    throw new Error("diastolic flow readback requires a retained complete beat");
+  }
+  return measureDiastolicFlow(
+    selectedBeat.samples,
+    result.dtSec,
+    summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result),
+  );
+}
+
 function measureDiastolicFlow(
   samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
   dtSec: number,
   summary: MainWireNormalAdultFiveWallPeriodicSummaryV1,
-): Readonly<{
-  value:
-    MainWireVentricularCalciumSourceTraceFitShortlistDiastolicFlowV1 | null;
-  reason: string | null;
-}> {
+): MainWireVentricularCalciumSourceTraceFitDiastolicFlowReadbackV1 {
   const cycle = summary.cyclePhysiology;
   if (cycle === null) {
     const availability = summary.cyclePhysiologyAvailability;

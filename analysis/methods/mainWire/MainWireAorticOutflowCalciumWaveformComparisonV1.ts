@@ -147,6 +147,10 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
   timeFromAorticFlowOnsetToPeakSec: number;
   signedTimeFromConfiguredCalciumPeakToAorticFlowOnsetSec: number;
   aorticPeakToMeanForwardFlowRatio: number;
+  aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg: number;
+  aorticDynamicAreaDopplerPenaltyFactor: number;
+  aorticJetVelocityWaveformNonuniformityFactor: number;
+  aorticMeanDopplerExcessOverFullyOpenUniformFlowFactor: number;
   aorticFlowPeakCountAboveFivePercent: number;
   aorticFlowAcEnergyFraction10To50Hz: number;
   meanDopplerGradientMmHg: number;
@@ -525,6 +529,14 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
         - configuredCalciumPulsePeakPhase01,
       ) * calciumParams.cycleLengthSec,
     aorticPeakToMeanForwardFlowRatio: maximumFlow / meanForwardFlow,
+    aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg:
+      valveMetrics.fullyOpenUniformFlowDopplerGradientLowerBoundMmHg,
+    aorticDynamicAreaDopplerPenaltyFactor:
+      valveMetrics.dynamicAreaDopplerPenaltyFactor,
+    aorticJetVelocityWaveformNonuniformityFactor:
+      valveMetrics.jetVelocityWaveformNonuniformityFactor,
+    aorticMeanDopplerExcessOverFullyOpenUniformFlowFactor:
+      valveMetrics.meanDopplerExcessOverFullyOpenUniformFlowFactor,
     aorticFlowPeakCountAboveFivePercent:
       countMainWireStrictLocalMaximaV1(flows, 0.05 * maximumFlow),
     aorticFlowAcEnergyFraction10To50Hz:
@@ -674,6 +686,22 @@ function configuredVentricularPulseShape(
   timeToPeakSec: number;
   normalizedPulseCycleIntegralSec: number;
 }> {
+  const sampledTrace = calciumParams.ventricularSampledTrace;
+  if (sampledTrace !== undefined) {
+    const normalized = sampledTrace.samplesUM.map((calciumUM) =>
+      (calciumUM - sampledTrace.minimumCalciumUM) / sampledTrace.amplitudeUM);
+    const peakIndex = indexOfMaximum(normalized);
+    let normalizedPulseCycleIntegralSec = 0;
+    for (let index = 0; index + 1 < normalized.length; index += 1) {
+      normalizedPulseCycleIntegralSec += 0.5
+        * (normalized[index]! + normalized[index + 1]!)
+        * sampledTrace.sampleIntervalSec;
+    }
+    return Object.freeze({
+      timeToPeakSec: peakIndex * sampledTrace.sampleIntervalSec,
+      normalizedPulseCycleIntegralSec,
+    });
+  }
   const ventricular = calciumParams.ventricular;
   const mixture = calciumParams.ventricularDelayedMixture;
   if (mixture === undefined) {

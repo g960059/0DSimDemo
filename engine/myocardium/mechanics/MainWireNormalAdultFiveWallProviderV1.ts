@@ -40,6 +40,50 @@ import {
   type MainWireFiveWallMechanicsResearchInputsV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
+  resolveMainWireVentricularLandTwitchTimingWallMaterialV1,
+  type MainWireVentricularLandTwitchTimingCandidateIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandTwitchTimingCandidatesV1";
+import {
+  resolveMainWireVentricularLandEtRefinementWallMaterialV1,
+  type MainWireVentricularLandEtRefinementCandidateIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRefinementCandidatesV1";
+import {
+  resolveMainWireVentricularLandWholeOrganKuwProfileV1,
+  resolveMainWireVentricularLandWholeOrganKuwWallMaterialV1,
+  type MainWireVentricularLandWholeOrganKuwProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandWholeOrganKuwBracketV1";
+import {
+  resolveMainWireVentricularLandSarcomereReferenceProfileV1,
+  resolveMainWireVentricularLandSarcomereReferenceWallMaterialV1,
+  type MainWireVentricularLandSarcomereReferenceProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSarcomereReferenceBracketV1";
+import {
+  resolveMainWireVentricularLandCoppiniAmplitudeTrefPairV1,
+  resolveMainWireVentricularLandCoppiniAmplitudeTrefWallMaterialV1,
+  type MainWireVentricularLandCoppiniAmplitudeTrefPairIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandCoppiniAmplitudeTrefPairV1";
+import {
+  resolveMainWireVentricularLandCalciumSensitivityLengthProfileV1,
+  resolveMainWireVentricularLandCalciumSensitivityLengthWallMaterialV1,
+  type MainWireVentricularLandCalciumSensitivityLengthProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandCalciumSensitivityLengthBracketV1";
+import {
+  resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1,
+  resolveMainWireVentricularLandSourceTwitchRetentionTrefForceLoadWallMaterialV1,
+  resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1,
+  type MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  type MainWireVentricularLandTrefForceLoadProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
+import {
+  resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1,
+  type MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_ACTIVATION_COHORT_CLAIM_V1,
+  resolveMainWireVentricularLandActivationCohortProfileV1,
+  type MainWireVentricularLandActivationCohortProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandActivationCohortHomogenizationV1";
+import {
   deriveLand2017DerivedParameters,
   stableHash as stableLandParameterHash,
   type Land2017SourceParameterSet,
@@ -71,6 +115,16 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   providerTopology: "fixed-two-coordinate-TriSeg" as const,
   parameterFittingIncluded: false as const,
 });
+
+export const MAIN_WIRE_NORMAL_ADULT_ACTIVATION_COHORT_ADAPTER_V1_CLAIM =
+  Object.freeze({
+    ...MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
+    landStateCountPerWall: 18 as const,
+    parallelLandActivationCohortCount: 3 as const,
+    localCalciumAndLandParametersUnchanged: true as const,
+    homogenization:
+      MAIN_WIRE_VENTRICULAR_LAND_ACTIVATION_COHORT_CLAIM_V1,
+  });
 
 /** Mechanics-only fixture; not a circulation cold-state or periodic solution. */
 export const MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1 =
@@ -111,7 +165,9 @@ export type MainWireNormalAdultWallMaterialReadbackV1 = Readonly<{
   energyLedger: MainWireNormalAdultWallEnergyLedgerV1;
   coldFixedInputIterations: number | null;
   coldLandMaximumStateUpdate: number | null;
-  claim: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM;
+  claim:
+    | typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+    | typeof MAIN_WIRE_NORMAL_ADULT_ACTIVATION_COHORT_ADAPTER_V1_CLAIM;
 }>;
 
 export type MainWireNormalAdultFiveWallProviderV1 =
@@ -135,12 +191,99 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_CONTRACTILITY_SCALE_RANGE_V1 =
 export const MAIN_WIRE_NORMAL_ADULT_FIXED_VENTRICULAR_DISTORTION_TRANSIENT_SCALE_V1 =
   4 / 3;
 
+export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_GAMMA_W_RESEARCH_PROFILE_IDS_V1 =
+  Object.freeze([
+    "canonical",
+    "ventricular-land-gamma-w-half",
+    "ventricular-land-gamma-w-three-quarters",
+    "ventricular-land-gamma-w-four-thirds",
+    "ventricular-land-gamma-w-twofold",
+    "ventricular-land-gamma-w-fourfold",
+  ] as const);
+
+export type MainWireNormalAdultVentricularGammaWResearchProfileIdV1 =
+  (typeof MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_GAMMA_W_RESEARCH_PROFILE_IDS_V1)[number];
+
+export type MainWireNormalAdultVentricularGammaWResearchProfileV1 = Readonly<{
+  profileId: MainWireNormalAdultVentricularGammaWResearchProfileIdV1;
+  gammaWScaleFromBaseline: number;
+  resolvedGammaWPerSec: number;
+  wallScope: readonly ["LVFW", "SEP", "RVFW"];
+  parameterSearchOrFitting: false;
+  hemodynamicOutcomeUsedToDeriveProfile: false;
+}>;
+
+export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_GAMMA_W_RESEARCH_CLAIM_V1 =
+  Object.freeze({
+    role: "fixed-loaded-shortening-deactivation-causal-bracket" as const,
+    parameter:
+      "Land-2017-gammaW-common-to-LVFW-SEP-RVFW" as const,
+    fixedScaleEnvelope: Object.freeze([0.5, 0.75, 1, 4 / 3, 2, 4]),
+    fixedLengthIsometricTrajectoryExpectedInvariantAfterClosure: true as const,
+    calciumDriveChanged: false as const,
+    ventricularTrefChanged: false as const,
+    passiveOrSlsChanged: false as const,
+    circulationRuntimeChanged: false as const,
+    aorticValveConstitutiveLawChanged: false as const,
+    landStateCountChanged: false as const,
+    acceptedStateOrCheckpointTopologyChanged: false as const,
+    genericParameterPatchAccepted: false as const,
+    parameterSearchOrFitting: false as const,
+    hemodynamicOutcomeUsedToDeriveProfile: false as const,
+    clinicalValidationClaimed: false as const,
+  });
+
+function ventricularGammaWProfileV1(
+  profileId: MainWireNormalAdultVentricularGammaWResearchProfileIdV1,
+  gammaWScaleFromBaseline: number,
+): MainWireNormalAdultVentricularGammaWResearchProfileV1 {
+  return Object.freeze({
+    profileId,
+    gammaWScaleFromBaseline,
+    resolvedGammaWPerSec:
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand.values.gammaW
+      * gammaWScaleFromBaseline,
+    wallScope: Object.freeze(["LVFW", "SEP", "RVFW"] as const),
+    parameterSearchOrFitting: false as const,
+    hemodynamicOutcomeUsedToDeriveProfile: false as const,
+  });
+}
+
+export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_GAMMA_W_RESEARCH_PROFILES_V1 =
+  Object.freeze({
+    canonical: ventricularGammaWProfileV1("canonical", 1),
+    "ventricular-land-gamma-w-half": ventricularGammaWProfileV1(
+      "ventricular-land-gamma-w-half",
+      0.5,
+    ),
+    "ventricular-land-gamma-w-three-quarters": ventricularGammaWProfileV1(
+      "ventricular-land-gamma-w-three-quarters",
+      0.75,
+    ),
+    "ventricular-land-gamma-w-four-thirds": ventricularGammaWProfileV1(
+      "ventricular-land-gamma-w-four-thirds",
+      4 / 3,
+    ),
+    "ventricular-land-gamma-w-twofold": ventricularGammaWProfileV1(
+      "ventricular-land-gamma-w-twofold",
+      2,
+    ),
+    "ventricular-land-gamma-w-fourfold": ventricularGammaWProfileV1(
+      "ventricular-land-gamma-w-fourfold",
+      4,
+    ),
+  } satisfies Readonly<Record<
+    MainWireNormalAdultVentricularGammaWResearchProfileIdV1,
+    MainWireNormalAdultVentricularGammaWResearchProfileV1
+  >>);
+
 export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
   Object.freeze([
     "baseline",
     "ventricular-passive-low",
     "ventricular-passive-high",
     "ventricular-tref-low",
+    "ventricular-tref-six-fifths",
     "ventricular-tref-high",
     "ventricular-tref-high-plus-passive-low",
     "ventricular-length-dependence-low",
@@ -152,6 +295,15 @@ export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
     "ventricular-peak-tension-length-dependence-half",
     "ventricular-calcium-sensitivity-length-dependence-half",
     "ventricular-velocity-distortion-high",
+    "ventricular-velocity-distortion-twofold",
+    "ventricular-velocity-distortion-five-halves",
+    "ventricular-velocity-distortion-five-halves-plus-tref-six-fifths",
+    "ventricular-velocity-distortion-five-halves-plus-tref-high",
+    "ventricular-velocity-distortion-threefold",
+    "ventricular-velocity-distortion-threefold-plus-tref-six-fifths",
+    "ventricular-velocity-distortion-threefold-plus-tref-high",
+    "ventricular-velocity-distortion-threefold-plus-tref-three-halves",
+    "ventricular-velocity-distortion-fourfold",
     "ventricular-distortion-recovery-high",
     "ventricular-velocity-distortion-high-plus-recovery-high",
     "ventricular-distortion-transient-twofold",
@@ -216,6 +368,319 @@ export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   return createNormalAdultProvider(
     laSlsMode,
     resolveVentricularMaterialProfile("baseline"),
+  );
+}
+
+export function resolveMainWireNormalAdultVentricularGammaWResearchProfileV1(
+  profileId: MainWireNormalAdultVentricularGammaWResearchProfileIdV1,
+): MainWireNormalAdultVentricularGammaWResearchProfileV1 {
+  const profile =
+    MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_GAMMA_W_RESEARCH_PROFILES_V1[profileId];
+  if (profile === undefined) {
+    throw new Error(
+      `unsupported ventricular Land gammaW research profile: ${String(profileId)}`,
+    );
+  }
+  return profile;
+}
+
+/** Fixed-ID-only material readback for loaded-shortening causal audits. */
+export function resolveMainWireNormalAdultVentricularGammaWWallMaterialV1(
+  profileId: MainWireNormalAdultVentricularGammaWResearchProfileIdV1,
+): LandSlsWallMaterialParamsV1 {
+  const profile =
+    resolveMainWireNormalAdultVentricularGammaWResearchProfileV1(profileId);
+  const baseline =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+  if (profile.gammaWScaleFromBaseline === 1) return baseline;
+  return Object.freeze({
+    ...baseline,
+    parameterSetId: `${baseline.parameterSetId}-${profile.profileId}`,
+    landEquationParameters: scaledVentricularLandGammaWForScaleV1(
+      profile.profileId,
+      profile.gammaWScaleFromBaseline,
+    ),
+  });
+}
+
+/**
+ * Fixed-ID-only provider for separating loaded shortening deactivation from
+ * calcium timing. The existing Land state topology is retained; only gammaW
+ * changes together in the three ventricular walls.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularGammaWResearchProfileV1(
+  profileId: MainWireNormalAdultVentricularGammaWResearchProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const profile =
+    resolveMainWireNormalAdultVentricularGammaWResearchProfileV1(profileId);
+  if (profile.gammaWScaleFromBaseline === 1) {
+    return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireNormalAdultVentricularGammaWWallMaterialV1(profileId),
+    `-source-research-${profile.profileId}`,
+  );
+}
+
+/** Fixed isometric-informed Land kinetic candidate, common to all ventricular walls. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+  candidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  if (candidateId === "canonical") {
+    return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandTwitchTimingWallMaterialV1(candidateId),
+    `-source-research-${candidateId}`,
+  );
+}
+
+/** Source-explicit Land whole-organ kuw identifiability bracket. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1(
+  profileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const profile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    profileId,
+  );
+  if (profile.intactToSkinnedUnboundToWeakRateScaleNu === 7) {
+    return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandWholeOrganKuwWallMaterialV1(profileId),
+    `-source-research-${profileId}`,
+  );
+}
+
+/**
+ * Fixed research mapping from organ fiber strain to Land sarcomere stretch.
+ * It changes neither the Land equations nor passive material semantics.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSarcomereReferenceProfileV1(
+  profileId: MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const profile = resolveMainWireVentricularLandSarcomereReferenceProfileV1(
+    profileId,
+  );
+  if (
+    profile.landSlackStretchScaleFromBaseline === 1
+    && kuwProfileId === "land-whole-organ-kuw-nu7"
+  ) return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandSarcomereReferenceWallMaterialV1(
+      profileId,
+      kuwProfileId,
+    ),
+    `-source-research-${profileId}-${kuwProfileId}`,
+  );
+}
+
+/** Source-isometric amplitude/Tref pair composed with fixed organ coupling. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandCoppiniAmplitudeTrefPairV1(
+  pairId: MainWireVentricularLandCoppiniAmplitudeTrefPairIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const pair = resolveMainWireVentricularLandCoppiniAmplitudeTrefPairV1(pairId);
+  const reference = resolveMainWireVentricularLandSarcomereReferenceProfileV1(
+    sarcomereReferenceProfileId,
+  );
+  if (
+    pair.ventricularTrefScaleFromSource === 1
+    && reference.landSlackStretchScaleFromBaseline === 1
+    && kuwProfileId === "land-whole-organ-kuw-nu7"
+  ) return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandCoppiniAmplitudeTrefWallMaterialV1(
+      pairId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${pairId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/** Fixed beta1-only causal profile composed with source kuw and organ mapping. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandCalciumSensitivityLengthProfileV1(
+  profileId: MainWireVentricularLandCalciumSensitivityLengthProfileIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const profile =
+    resolveMainWireVentricularLandCalciumSensitivityLengthProfileV1(profileId);
+  const reference = resolveMainWireVentricularLandSarcomereReferenceProfileV1(
+    sarcomereReferenceProfileId,
+  );
+  if (
+    profile.beta1ScaleFromSource === 1
+    && reference.landSlackStretchScaleFromBaseline === 1
+    && kuwProfileId === "land-whole-organ-kuw-nu7"
+  ) return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandCalciumSensitivityLengthWallMaterialV1(
+      profileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${profileId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/** Source-isometric screened kinetic/Tref pair composed with organ mapping. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1(
+  candidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const candidateValue =
+    resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1(
+      candidateId,
+    );
+  if (candidateValue.changedKineticParameters.length === 0) {
+    return createMainWireNormalAdultFiveWallProviderWithVentricularLandSarcomereReferenceProfileV1(
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
+      candidateId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${candidateId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/** Fixed Tref force-scale response around a retained source-twitch candidate. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1(
+  candidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  if (trefForceLoadProfileId === "tref-force-load-baseline") {
+    return createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1(
+      candidateId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandSourceTwitchRetentionTrefForceLoadWallMaterialV1(
+      candidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${candidateId}-${trefForceLoadProfileId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/** Fixed source-referenced Aeff bracket composed with the sealed source axes. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
+  velocityDistortionProfileId:
+    MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
+  candidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  if (velocityDistortionProfileId === "source-Aeff-canonical") {
+    return createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1(
+      candidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1(
+      velocityDistortionProfileId,
+      candidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${velocityDistortionProfileId}-${candidateId}-${trefForceLoadProfileId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/**
+ * Research-only parallel-mixture closure of unresolved ventricular activation
+ * times. Each cohort retains the unmodified local calcium waveform and one
+ * independent Land/SLS material history while all cohorts share wall strain.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandActivationCohortsV1(
+  activationProfileId:
+    MainWireVentricularLandActivationCohortProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const activationProfile =
+    resolveMainWireVentricularLandActivationCohortProfileV1(
+      activationProfileId,
+    );
+  const ventricularMaterial =
+    resolveMainWireVentricularLandWholeOrganKuwWallMaterialV1(kuwProfileId);
+  const baseKernels = createMaterialKernelsFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    ventricularMaterial,
+  );
+  const materialByWall = fiveWallRecord((wallId) =>
+    wallId === "LA" || wallId === "RA"
+      ? baseKernels[wallId]
+      : createParallelActivationCohortWallKernelV1(
+        baseKernels[wallId],
+        activationProfile.profileId,
+        activationProfile.weight01,
+      ));
+  return createNormalAdultProviderFromKernels(
+    "on",
+    materialByWall,
+    `-source-research-${activationProfile.profileId}-${kuwProfileId}-independent-land-cohorts`,
+    false,
+  );
+}
+
+/** Fixed ET-refinement shortlist provider; no arbitrary material patch seam. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRefinementCandidateV1(
+  candidateId: MainWireVentricularLandEtRefinementCandidateIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  if (candidateId === "canonical") {
+    return createCanonicalMainWireNormalAdultFiveWallProviderV1();
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandEtRefinementWallMaterialV1(candidateId),
+    `-source-research-${candidateId}`,
   );
 }
 
@@ -555,6 +1020,7 @@ function createNormalAdultProviderFromKernels(
     MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
   >,
   identitySuffix: string,
+  useCanonicalSixStateFingerprint = true,
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
@@ -574,8 +1040,12 @@ function createNormalAdultProviderFromKernels(
         ),
         junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
       }),
-      fingerprintMaterialStateCanonicalV1:
-        fingerprintNormalAdultFiveWallMaterialStateCanonicalV1,
+      ...(useCanonicalSixStateFingerprint
+        ? {
+          fingerprintMaterialStateCanonicalV1:
+            fingerprintNormalAdultFiveWallMaterialStateCanonicalV1,
+        }
+        : {}),
     }),
   );
 }
@@ -701,9 +1171,22 @@ function resolveVentricularMaterialProfile(
   const trefScale =
     pointId === "ventricular-tref-low"
       ? 0.75
+      : pointId === "ventricular-tref-six-fifths"
+        || pointId
+          === "ventricular-velocity-distortion-five-halves-plus-tref-six-fifths"
+        || pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-six-fifths"
+        ? 1.2
       : pointId === "ventricular-tref-high"
         || pointId === "ventricular-tref-high-plus-passive-low"
+        || pointId
+          === "ventricular-velocity-distortion-five-halves-plus-tref-high"
+        || pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-high"
         ? 4 / 3
+      : pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-three-halves"
+        ? 1.5
         : 1;
   const lengthDependenceScale =
     pointId === "ventricular-length-dependence-low"
@@ -730,9 +1213,25 @@ function resolveVentricularMaterialProfile(
       ? 0.75
       : lengthDependenceScale;
   const velocityDistortionScale =
-    pointId === "ventricular-distortion-transient-twofold"
+    pointId === "ventricular-velocity-distortion-twofold"
+      || pointId === "ventricular-distortion-transient-twofold"
       ? 2
-      : pointId === "ventricular-distortion-transient-fourfold"
+      : pointId === "ventricular-velocity-distortion-five-halves"
+        || pointId
+          === "ventricular-velocity-distortion-five-halves-plus-tref-six-fifths"
+        || pointId
+          === "ventricular-velocity-distortion-five-halves-plus-tref-high"
+        ? 2.5
+      : pointId === "ventricular-velocity-distortion-threefold"
+        || pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-six-fifths"
+        || pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-high"
+        || pointId
+          === "ventricular-velocity-distortion-threefold-plus-tref-three-halves"
+          ? 3
+      : pointId === "ventricular-velocity-distortion-fourfold"
+        || pointId === "ventricular-distortion-transient-fourfold"
         ? 4
         : pointId === "ventricular-velocity-distortion-high"
         || pointId
@@ -772,6 +1271,7 @@ function resolveVentricularMaterialProfile(
         );
   const landEquationParameters =
     pointId === "ventricular-tref-low"
+      || pointId === "ventricular-tref-six-fifths"
       || pointId === "ventricular-tref-high"
       || pointId === "ventricular-tref-high-plus-passive-low"
       ? scaledVentricularLandTref(pointId, trefScale)
@@ -779,8 +1279,10 @@ function resolveVentricularMaterialProfile(
           || calciumSensitivityLengthDependenceScale !== 1
           || velocityDistortionScale !== 1
           || distortionRecoveryScale !== 1
+          || trefScale !== 1
         ? scaledVentricularLandKinematicDependence(
           pointId,
+          trefScale,
           peakTensionLengthDependenceScale,
           calciumSensitivityLengthDependenceScale,
           velocityDistortionScale,
@@ -863,6 +1365,7 @@ function resolveVentricularMaterialProfile(
 
 function scaledVentricularLandKinematicDependence(
   pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+  trefScale: number,
   peakTensionLengthDependenceScale: number,
   calciumSensitivityLengthDependenceScale: number,
   velocityDistortionScale: number,
@@ -871,6 +1374,7 @@ function scaledVentricularLandKinematicDependence(
   const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
   const values = Object.freeze({
     ...baseline.values,
+    Tref: baseline.values.Tref * trefScale,
     Aeff: baseline.values.Aeff * velocityDistortionScale,
     phi: baseline.values.phi * distortionRecoveryScale,
     beta0: peakTensionLengthDependenceScale === 0
@@ -905,6 +1409,8 @@ function scaledVentricularLandKinematicDependence(
             ? values.Aeff
             : entry.parameter === "phi"
               ? values.phi
+            : entry.parameter === "Tref"
+              ? values.Tref
             : entry.parameter === "beta0"
               ? values.beta0
               : entry.parameter === "beta1"
@@ -914,6 +1420,8 @@ function scaledVentricularLandKinematicDependence(
             ? velocityProvenance
             : entry.parameter === "phi"
               ? recoveryProvenance
+            : entry.parameter === "Tref"
+              ? `fixed active-tension research scale ${trefScale}`
             : entry.parameter === "beta0"
               ? peakTensionLengthProvenance
               : calciumSensitivityLengthProvenance;
@@ -945,6 +1453,7 @@ function scaledVentricularLandKinematicDependence(
 function scaledVentricularLandTref(
   pointId:
     | "ventricular-tref-low"
+    | "ventricular-tref-six-fifths"
     | "ventricular-tref-high"
     | "ventricular-tref-high-plus-passive-low",
   scale: number,
@@ -968,6 +1477,53 @@ function scaledVentricularLandTrefForScale(
     scale,
     provenanceLabel,
   );
+}
+
+function scaledVentricularLandGammaWForScaleV1(
+  identitySuffix: string,
+  scale: number,
+): Land2017SourceParameterSet {
+  const baseline = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
+  const values = Object.freeze({
+    ...baseline.values,
+    gammaW: baseline.values.gammaW * scale,
+  });
+  const provenanceLabel =
+    `fixed loaded-shortening-deactivation research scale ${scale}`;
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> =
+    {
+      parameterSetId: `${baseline.parameterSetId}-${identitySuffix}`,
+      sourceId: baseline.sourceId,
+      doi: baseline.doi,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+      sourceParameters: Object.freeze(
+        baseline.sourceParameters.map((entry) =>
+          entry.parameter === "gammaW"
+            ? Object.freeze({
+                ...entry,
+                location: `${entry.location}; ${provenanceLabel}`,
+                original: Object.freeze({ ...entry.original }),
+                runtime: Object.freeze({
+                  ...entry.runtime,
+                  value: values.gammaW,
+                }),
+              })
+            : Object.freeze({
+                ...entry,
+                original: Object.freeze({ ...entry.original }),
+                runtime: Object.freeze({ ...entry.runtime }),
+              }),
+        ),
+      ),
+      derivedParameters: Object.freeze(
+        baseline.derivedParameters.map((entry) => Object.freeze({ ...entry })),
+      ),
+    };
+  return Object.freeze({
+    ...hashInput,
+    parameterSetStableHash: stableLandParameterHash(hashInput),
+  });
 }
 
 function scaledWallLandResearchForScalesV1(
@@ -1379,6 +1935,412 @@ function scaledPassiveEvaluatorV1(
       }),
     });
   };
+}
+
+type ParallelActivationCohortWallStateV1 = LandSlsWallMaterialStateV1 &
+  Readonly<{
+    activationCohortProfileId:
+      MainWireVentricularLandActivationCohortProfileIdV1;
+    activationCohortStateByPoint: readonly [
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+    ];
+  }>;
+
+export function readMainWireNormalAdultParallelActivationCohortStatesV1(
+  state: LandSlsWallMaterialStateV1,
+): readonly LandSlsWallMaterialStateV1[] | null {
+  const candidate = state as Partial<ParallelActivationCohortWallStateV1>;
+  return Array.isArray(candidate.activationCohortStateByPoint)
+    ? candidate.activationCohortStateByPoint
+    : null;
+}
+
+function createParallelActivationCohortWallKernelV1(
+  baseKernel:
+    MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>,
+  profileId: MainWireVentricularLandActivationCohortProfileIdV1,
+  weight01: readonly [number, number, number],
+): MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1> {
+  const parameterIdentityHash = stableHash(sanitizeForStableHash({
+    modelId:
+      "main-wire-parallel-activation-cohort-land-sls-wall-material-v1",
+    sourceKernelParameterIdentityHash: baseKernel.parameterIdentityHash,
+    profileId,
+    weight01,
+    claim: MAIN_WIRE_VENTRICULAR_LAND_ACTIVATION_COHORT_CLAIM_V1,
+  }));
+  const stateCodec: WholeHeartMechanicsStateCodecV1<LandSlsWallMaterialStateV1> =
+    Object.freeze({
+      clone: (state) => aggregateActivationCohortStateV1(
+        requireActivationCohortStatesV1(state, profileId).map((cohort) =>
+          baseKernel.stateCodec.clone(cohort)) as [
+            LandSlsWallMaterialStateV1,
+            LandSlsWallMaterialStateV1,
+            LandSlsWallMaterialStateV1,
+          ],
+        profileId,
+        weight01,
+      ),
+      encode: (state) => Object.freeze({
+        schemaVersion: 1,
+        activationCohortProfileId: profileId,
+        activationCohortStateByPoint: Object.freeze(
+          requireActivationCohortStatesV1(state, profileId).map((cohort) =>
+            baseKernel.stateCodec.encode(cohort)),
+        ),
+      }),
+      decode: (encoded) => {
+        if (
+          encoded === null
+          || Array.isArray(encoded)
+          || typeof encoded !== "object"
+        ) {
+          throw new Error("encoded activation-cohort state must be a record");
+        }
+        const record = encoded as Record<
+          string,
+          WholeHeartMechanicsSerializableValueV1
+        >;
+        const keys = Object.keys(record).sort();
+        const expected = [
+          "activationCohortProfileId",
+          "activationCohortStateByPoint",
+          "schemaVersion",
+        ];
+        if (
+          keys.length !== expected.length
+          || keys.some((key, index) => key !== expected[index])
+        ) throw new Error("encoded activation-cohort state keys are invalid");
+        if (
+          record.schemaVersion !== 1
+          || record.activationCohortProfileId !== profileId
+          || !Array.isArray(record.activationCohortStateByPoint)
+          || record.activationCohortStateByPoint.length !== 3
+        ) throw new Error("encoded activation-cohort state identity is invalid");
+        const cohort = record.activationCohortStateByPoint.map((value) =>
+          baseKernel.stateCodec.decode(value)) as [
+            LandSlsWallMaterialStateV1,
+            LandSlsWallMaterialStateV1,
+            LandSlsWallMaterialStateV1,
+          ];
+        return aggregateActivationCohortStateV1(
+          cohort,
+          profileId,
+          weight01,
+        );
+      },
+    });
+  const evaluate = (
+    previous: LandSlsWallMaterialStateV1 | null,
+    fiberLogStrain: number,
+    freeCalciumUM: number,
+    freeCalciumUMByActivationCohort: readonly number[] | undefined,
+    stepDtSec: number | null,
+    numerical: boolean,
+  ): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> => {
+    const cohortCalcium = requireActivationCohortCalciumV1(
+      freeCalciumUM,
+      freeCalciumUMByActivationCohort,
+      weight01,
+    );
+    const previousCohorts = previous === null
+      ? null
+      : requireActivationCohortStatesV1(previous, profileId);
+    const evaluations = cohortCalcium.map((cohortFreeCalciumUM, index) => {
+      if (previousCohorts === null) {
+        return baseKernel.initializeColdAtFixedInput({
+          fiberLogStrain,
+          freeCalciumUM: cohortFreeCalciumUM,
+        });
+      }
+      if (stepDtSec === null) {
+        throw new Error("activation-cohort trial requires stepDtSec");
+      }
+      const evaluateTrial = numerical
+          && baseKernel.evaluateNumericalTrialFromAccepted !== undefined
+        ? baseKernel.evaluateNumericalTrialFromAccepted
+        : baseKernel.evaluateTrialFromAccepted;
+      return evaluateTrial({
+        previousAcceptedState: previousCohorts[index]!,
+        candidateFiberLogStrain: fiberLogStrain,
+        candidateFreeCalciumUM: cohortFreeCalciumUM,
+        stepDtSec,
+      });
+    }) as [
+      MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+      MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+      MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+    ];
+    return aggregateActivationCohortEvaluationV1(
+      evaluations,
+      profileId,
+      weight01,
+    );
+  };
+  return Object.freeze({
+    modelId:
+      "main-wire-parallel-activation-cohort-land-sls-wall-material-v1",
+    parameterSetId: `${baseKernel.parameterSetId}-${profileId}-independent-land-cohorts`,
+    parameterIdentityHash,
+    topology:
+      "parallel-activation-cohort-Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
+    stateCodec,
+    acceptedStateInputMode: "trusted-read-only" as const,
+    evaluationStateOwnershipMode: "exclusive-result" as const,
+    initializeColdAtFixedInput: (input) => evaluate(
+      null,
+      input.fiberLogStrain,
+      input.freeCalciumUM,
+      input.freeCalciumUMByActivationCohort,
+      null,
+      false,
+    ),
+    evaluateTrialFromAccepted: (input) => evaluate(
+      input.previousAcceptedState,
+      input.candidateFiberLogStrain,
+      input.candidateFreeCalciumUM,
+      input.candidateFreeCalciumUMByActivationCohort,
+      input.stepDtSec,
+      false,
+    ),
+    evaluateNumericalTrialFromAccepted: (input) => evaluate(
+      input.previousAcceptedState,
+      input.candidateFiberLogStrain,
+      input.candidateFreeCalciumUM,
+      input.candidateFreeCalciumUMByActivationCohort,
+      input.stepDtSec,
+      true,
+    ),
+  });
+}
+
+function requireActivationCohortStatesV1(
+  state: LandSlsWallMaterialStateV1,
+  profileId: MainWireVentricularLandActivationCohortProfileIdV1,
+): readonly [
+  LandSlsWallMaterialStateV1,
+  LandSlsWallMaterialStateV1,
+  LandSlsWallMaterialStateV1,
+] {
+  const candidate = state as Partial<ParallelActivationCohortWallStateV1>;
+  if (
+    candidate.activationCohortProfileId !== profileId
+    || !Array.isArray(candidate.activationCohortStateByPoint)
+    || candidate.activationCohortStateByPoint.length !== 3
+  ) throw new Error("activation-cohort wall state identity mismatch");
+  return candidate.activationCohortStateByPoint as readonly [
+    LandSlsWallMaterialStateV1,
+    LandSlsWallMaterialStateV1,
+    LandSlsWallMaterialStateV1,
+  ];
+}
+
+function requireActivationCohortCalciumV1(
+  aggregateFreeCalciumUM: number,
+  cohortFreeCalciumUM: readonly number[] | undefined,
+  weight01: readonly [number, number, number],
+): readonly [number, number, number] {
+  if (
+    cohortFreeCalciumUM === undefined
+    || cohortFreeCalciumUM.length !== 3
+    || !cohortFreeCalciumUM.every((value) =>
+      value >= 0 && Number.isFinite(value))
+  ) throw new Error("parallel Land cohorts require three local calcium values");
+  const weighted = weightedThreeV1(cohortFreeCalciumUM, weight01);
+  if (
+    Math.abs(weighted - aggregateFreeCalciumUM)
+      > 1e-10 * Math.max(1, Math.abs(aggregateFreeCalciumUM))
+  ) throw new Error("activation-cohort calcium does not match aggregate drive");
+  return Object.freeze([
+    cohortFreeCalciumUM[0]!,
+    cohortFreeCalciumUM[1]!,
+    cohortFreeCalciumUM[2]!,
+  ]);
+}
+
+function aggregateActivationCohortStateV1(
+  cohort: readonly [
+    LandSlsWallMaterialStateV1,
+    LandSlsWallMaterialStateV1,
+    LandSlsWallMaterialStateV1,
+  ],
+  profileId: MainWireVentricularLandActivationCohortProfileIdV1,
+  weight01: readonly [number, number, number],
+): ParallelActivationCohortWallStateV1 {
+  const landState = new Float64Array(cohort[0].landState.length);
+  for (let stateIndex = 0; stateIndex < landState.length; stateIndex += 1) {
+    landState[stateIndex] = weightedThreeV1(
+      cohort.map((state) => state.landState[stateIndex]!),
+      weight01,
+    );
+  }
+  return Object.freeze({
+    landState,
+    slsState: Object.freeze({
+      viscousLogStrain: weightedThreeV1(
+        cohort.map((state) => state.slsState.viscousLogStrain),
+        weight01,
+      ),
+    }),
+    previousFiberLogStrain: weightedThreeV1(
+      cohort.map((state) => state.previousFiberLogStrain),
+      weight01,
+    ),
+    previousFreeCalciumUM: weightedThreeV1(
+      cohort.map((state) => state.previousFreeCalciumUM),
+      weight01,
+    ),
+    activationCohortProfileId: profileId,
+    activationCohortStateByPoint: Object.freeze([...cohort]) as readonly [
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+    ],
+  });
+}
+
+function aggregateActivationCohortEvaluationV1(
+  cohort: readonly [
+    MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+    MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+    MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1>,
+  ],
+  profileId: MainWireVentricularLandActivationCohortProfileIdV1,
+  weight01: readonly [number, number, number],
+): MainWireFiveWallMaterialEvaluationV1<LandSlsWallMaterialStateV1> {
+  const state = aggregateActivationCohortStateV1(
+    cohort.map((evaluation) => evaluation.state) as [
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+      LandSlsWallMaterialStateV1,
+    ],
+    profileId,
+    weight01,
+  );
+  const readbacks = cohort.map((evaluation) => evaluation.readback);
+  const readback = readbacks.every((value) => value !== null)
+    ? aggregateActivationCohortReadbackV1(
+      readbacks as [
+        WholeHeartMechanicsSerializableValueV1,
+        WholeHeartMechanicsSerializableValueV1,
+        WholeHeartMechanicsSerializableValueV1,
+      ],
+      weight01,
+    )
+    : null;
+  return Object.freeze({
+    state,
+    fiberLogStrain: weightedThreeV1(
+      cohort.map((evaluation) => evaluation.fiberLogStrain),
+      weight01,
+    ),
+    fiberKirchhoffStressPa: weightedThreeV1(
+      cohort.map((evaluation) => evaluation.fiberKirchhoffStressPa),
+      weight01,
+    ),
+    activeFiberKirchhoffStressPa: weightedThreeV1(
+      cohort.map((evaluation) => evaluation.activeFiberKirchhoffStressPa),
+      weight01,
+    ),
+    algorithmicFiberTangentPa: weightedThreeV1(
+      cohort.map((evaluation) => evaluation.algorithmicFiberTangentPa),
+      weight01,
+    ),
+    activeFiberAlgorithmicTangentPa: weightedThreeV1(
+      cohort.map((evaluation) => evaluation.activeFiberAlgorithmicTangentPa),
+      weight01,
+    ),
+    iterationCount: Math.max(...cohort.map((evaluation) =>
+      evaluation.iterationCount)),
+    residualNorm: Math.max(...cohort.map((evaluation) =>
+      evaluation.residualNorm)),
+    finite: cohort.every((evaluation) => evaluation.finite),
+    valid: cohort.every((evaluation) => evaluation.valid),
+    errors: Object.freeze(cohort.flatMap((evaluation, index) =>
+      evaluation.errors.map((error) => `cohort-${index}:${error}`))),
+    warnings: Object.freeze(cohort.flatMap((evaluation, index) =>
+      evaluation.warnings.map((warning) => `cohort-${index}:${warning}`))),
+    readback,
+  });
+}
+
+function aggregateActivationCohortReadbackV1(
+  values: readonly [
+    WholeHeartMechanicsSerializableValueV1,
+    WholeHeartMechanicsSerializableValueV1,
+    WholeHeartMechanicsSerializableValueV1,
+  ],
+  weight01: readonly [number, number, number],
+): MainWireNormalAdultWallMaterialReadbackV1 {
+  const readbacks = values as unknown as readonly [
+    MainWireNormalAdultWallMaterialReadbackV1,
+    MainWireNormalAdultWallMaterialReadbackV1,
+    MainWireNormalAdultWallMaterialReadbackV1,
+  ];
+  const first = readbacks[0];
+  const ledger = first.energyLedger;
+  const weightedLedgerNumber = (
+    key: Exclude<
+      keyof MainWireNormalAdultWallEnergyLedgerV1,
+      | "slsPassive"
+      | "landThermodynamicStoredEnergyClaimed"
+      | "totalThermodynamicPotentialIncludingLandClaimed"
+    >,
+  ) => weightedThreeV1(readbacks.map((value) =>
+    value.energyLedger[key]) as readonly number[], weight01);
+  return Object.freeze({
+    ...first,
+    landActiveKirchhoffStressPa: weightedThreeV1(readbacks.map((value) =>
+      value.landActiveKirchhoffStressPa), weight01),
+    slsOverstressPa: weightedThreeV1(readbacks.map((value) =>
+      value.slsOverstressPa), weight01),
+    totalKirchhoffStressPa: weightedThreeV1(readbacks.map((value) =>
+      value.totalKirchhoffStressPa), weight01),
+    energyLedger: Object.freeze({
+      equilibriumPassiveStoredEnergyDensityJPerM3:
+        weightedLedgerNumber("equilibriumPassiveStoredEnergyDensityJPerM3"),
+      slsPreviousStoredEnergyDensityJPerM3:
+        weightedLedgerNumber("slsPreviousStoredEnergyDensityJPerM3"),
+      slsNextStoredEnergyDensityJPerM3:
+        weightedLedgerNumber("slsNextStoredEnergyDensityJPerM3"),
+      slsPhysicalDissipationIncrementDensityJPerM3:
+        weightedLedgerNumber("slsPhysicalDissipationIncrementDensityJPerM3"),
+      slsBackwardEulerNumericalDissipationIncrementDensityJPerM3:
+        weightedLedgerNumber(
+          "slsBackwardEulerNumericalDissipationIncrementDensityJPerM3",
+        ),
+      slsDiscreteEnergyBalanceResidualJPerM3:
+        weightedLedgerNumber("slsDiscreteEnergyBalanceResidualJPerM3"),
+      slsPassive: readbacks.every((value) => value.energyLedger.slsPassive),
+      landThermodynamicStoredEnergyClaimed: false as const,
+      totalThermodynamicPotentialIncludingLandClaimed: false as const,
+    }),
+    coldFixedInputIterations: nullableMaximumV1(readbacks.map((value) =>
+      value.coldFixedInputIterations)),
+    coldLandMaximumStateUpdate: nullableMaximumV1(readbacks.map((value) =>
+      value.coldLandMaximumStateUpdate)),
+    claim: MAIN_WIRE_NORMAL_ADULT_ACTIVATION_COHORT_ADAPTER_V1_CLAIM,
+  });
+}
+
+function nullableMaximumV1(values: readonly (number | null)[]): number | null {
+  return values.every((value) => value !== null)
+    ? Math.max(...values as readonly number[])
+    : null;
+}
+
+function weightedThreeV1(
+  values: readonly number[],
+  weights: readonly [number, number, number],
+): number {
+  if (values.length !== 3) {
+    throw new Error("activation-cohort aggregation requires three values");
+  }
+  return weights[0] * values[0]!
+    + weights[1] * values[1]!
+    + weights[2] * values[2]!;
 }
 
 function materialEvaluation(

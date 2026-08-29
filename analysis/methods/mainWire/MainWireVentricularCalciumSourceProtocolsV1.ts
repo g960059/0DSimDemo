@@ -17,7 +17,9 @@ export type MainWireVentricularLandIsometricCalciumInputV1 = Readonly<{
   calciumInputKind:
     | "current-analytic-reconstruction"
     | "published-analytic-source-construction"
-    | "figure-digitized-source-trace";
+    | "figure-digitized-source-trace"
+    | "primary-repository-numeric-source-trace"
+    | "primary-repository-shape-amplitude-bracket";
   cycleLengthSec: number;
   diastolicCalciumUM: number;
   electricalToCalciumDelaySec: number | null;

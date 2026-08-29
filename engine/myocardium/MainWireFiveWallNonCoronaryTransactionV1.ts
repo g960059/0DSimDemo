@@ -254,6 +254,13 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
   );
   const calciumDrive = Object.freeze({
     freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
+    ...(calciumEvaluation.ventricularActivationCohortFreeCalciumUMByWall
+        === undefined
+      ? {}
+      : {
+        ventricularActivationCohortFreeCalciumUMByWall:
+          calciumEvaluation.ventricularActivationCohortFreeCalciumUMByWall,
+      }),
   });
   const mechanicsCold = initializeWholeHeartMechanicsColdV1(input.provider, {
     timeSec,
@@ -316,6 +323,13 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
   );
   const calciumDrive = Object.freeze({
     freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
+    ...(calciumEvaluation.ventricularActivationCohortFreeCalciumUMByWall
+        === undefined
+      ? {}
+      : {
+        ventricularActivationCohortFreeCalciumUMByWall:
+          calciumEvaluation.ventricularActivationCohortFreeCalciumUMByWall,
+      }),
   });
   const pthMmHg = commonIntrathoracicPressureMmHg(
     candidateTimeSec,

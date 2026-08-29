@@ -4,6 +4,12 @@ import {
   compareMainWireAorticOutflowDistortionTransientFactorialV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowDistortionTransientFactorialV1";
 import {
+  measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
+import {
+  measureMainWireAorticProximalCharacteristicImpedanceDecompositionV1,
+} from "@/analysis/methods/mainWire/MainWireAorticProximalCharacteristicImpedanceDecompositionV1";
+import {
   compareMainWireAorticOutflowLengthMechanismFactorialV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowLengthMechanismFactorialV1";
 import {
@@ -47,6 +53,44 @@ import {
   resolveMainWireAorticRootInertanceResearchProfileV1,
   validateMainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
+import {
+  deriveLand2017DerivedParameters,
+} from "@/engine/myocardium/myofilament/land2017/parameterSets";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CLAIM_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CONTEXT_IDS_V1,
+  resolveMainWireAorticOutflowCandidateCirculatoryRecalibrationContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1,
+  resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATES_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_TREF_FORCE_LOAD_CLAIM_V1,
+  resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1,
+  resolveMainWireVentricularLandSourceTwitchRetentionTrefForceLoadWallMaterialV1,
+  resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_SOURCE_VELOCITY_DISTORTION_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_SOURCE_VELOCITY_DISTORTION_PROFILE_IDS_V1,
+  resolveMainWireVentricularLandSourceVelocityDistortionProfileV1,
+  resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
+import {
+  resolveMainWireVentricularLandSarcomereReferenceWallMaterialV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSarcomereReferenceBracketV1";
+import {
+  MAIN_WIRE_AORTIC_CHARACTERISTIC_RESISTANCE_PLACEMENT_CLAIM_V1,
+  resolveMainWireAorticCharacteristicResistancePlacementProfileV1,
+  resolveMainWireAorticCharacteristicResistanceValveParamsV1,
+  validateMainWireAorticCharacteristicResistancePlacementProfileV1,
+} from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 import {
   MAIN_WIRE_AORTIC_COMPLIANCE_PARTITION_RESEARCH_PROFILE_IDS_V1,
 } from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
@@ -96,6 +140,7 @@ import {
   runMainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthDependenceRootResistanceResearchArmV1,
   runMainWireNormalAdultFiveWallAorticOutflowLengthVelocityResearchArmV1,
+  runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1,
   runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
@@ -131,6 +176,416 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
         valveLocalInertanceAdded: false,
       });
   });
+
+  it("matches the moved Ao_SA resistance to the source characteristic impedance", () => {
+    const profile =
+      resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+        "Land2017-characteristic-impedance-matched",
+      );
+    const sourceAoV = MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1.valves.AoV;
+    const resolvedAoV =
+      resolveMainWireAorticCharacteristicResistanceValveParamsV1(
+        sourceAoV,
+        profile,
+      );
+    expect(profile.derivation)
+      .toBe("Land2017-source-characteristic-impedance");
+    expect(profile.upstreamValveLinearResistanceAdditionMmHgSecPerMl)
+      .toBeCloseTo(0.035, 14);
+    expect(profile.sourceCharacteristicImpedanceMmHgSecPerMl)
+      .toBe(0.035);
+    expect(
+      profile.upstreamValveLinearResistanceAdditionMmHgSecPerMl
+      + profile.sourceTopologyResistanceMmHgSecPerMl
+        * profile.downstreamDynamicEdgeResistanceScaleFromTopology,
+    ).toBeCloseTo(profile.sourceTopologyResistanceMmHgSecPerMl, 14);
+    expect(resolvedAoV.backgroundLinearResistanceMmHgSecPerMl)
+      .toBeCloseTo(
+        sourceAoV.backgroundLinearResistanceMmHgSecPerMl + 0.035,
+        14,
+      );
+    expect(validateMainWireAorticCharacteristicResistancePlacementProfileV1(
+      profile,
+    )).toEqual([]);
+    expect(validateMainWireAorticCharacteristicResistancePlacementProfileV1({
+      ...profile,
+      fractionMovedUpstreamOfAorticRootCompliance01: 1,
+    })).toContain(
+      "aortic characteristic-resistance placement fractionMovedUpstreamOfAorticRootCompliance01 differs from its fixed value",
+    );
+    expect(MAIN_WIRE_AORTIC_CHARACTERISTIC_RESISTANCE_PLACEMENT_CLAIM_V1)
+      .toMatchObject({
+        sourceTopologyLinearResistanceSumPreservedExactly: true,
+        preExistingValveLinearResistanceExcludedFromArterialImpedanceMatch:
+          true,
+        newStateAdded: false,
+        parameterSearchOrFitting: false,
+      });
+
+    const allProximal =
+      resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+        "all-Ao-SA-resistance-upstream-of-root-compliance",
+      );
+    expect(allProximal).toMatchObject({
+      derivation:
+        "source-topology-proximal-characteristic-impedance-reinterpretation",
+      fractionMovedUpstreamOfAorticRootCompliance01: 1,
+      downstreamDynamicEdgeResistanceScaleFromTopology: 0,
+      sourceCharacteristicImpedanceMmHgSecPerMl:
+        allProximal.sourceTopologyResistanceMmHgSecPerMl,
+      sourceDoi: "10.1152/ajpheart.01207.2005",
+      healthyHumanAscendingAorticCharacteristicImpedanceContext: {
+        meanMmHgSecPerMl: 0.065,
+        standardDeviationMmHgSecPerMl: 0.019,
+      },
+      hemodynamicOutcomeUsedToDeriveProfile: false,
+    });
+    expect(validateMainWireAorticCharacteristicResistancePlacementProfileV1(
+      allProximal,
+    )).toEqual([]);
+  });
+
+  it("seals the ET-completion candidate as a bounded effective-rate calibration", () => {
+    const exact = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
+    const selected =
+      resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1(
+        exact.twitchRetentionCandidateId,
+      );
+    const sourceMapped =
+      resolveMainWireVentricularLandSarcomereReferenceWallMaterialV1(
+        exact.sarcomereReferenceProfileId,
+        exact.kuwProfileId,
+      );
+    const selectedMaterial =
+      resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
+        exact.twitchRetentionCandidateId,
+        exact.sarcomereReferenceProfileId,
+        exact.kuwProfileId,
+    );
+    expect(selected).toMatchObject({
+      changedKineticParameters: ["kws", "nTm"],
+      kineticParameterScaleFromSourceByParameter: { kws: 0.65, nTm: 0.8 },
+      selectionStage: "bounded-ET-completion-after-load-envelope",
+      loadedOrHemodynamicOutcomeUsedToDeriveCandidate: true,
+    });
+    expect(selected.sourceOnlyIsometricScreen).toMatchObject({
+      fivePercentRiseToPeakMs: 166.7736920961073,
+      relaxationTime50Ms: 143.00830665601825,
+      relaxationTime95Ms: 361.3418949968062,
+      localPeakCountAboveFivePercent: 1,
+    });
+    expect(selectedMaterial.landEquationParameters.values.kws)
+      .toBeCloseTo(
+        sourceMapped.landEquationParameters.values.kws * 0.65,
+        14,
+      );
+    expect(selectedMaterial.landEquationParameters.values.nTm)
+      .toBeCloseTo(
+        sourceMapped.landEquationParameters.values.nTm * 0.8,
+        14,
+      );
+    expect(selectedMaterial.landEquationParameters.values.Tref)
+      .toBeCloseTo(
+        sourceMapped.landEquationParameters.values.Tref
+          * selected.ventricularTrefScaleFromSource,
+        10,
+      );
+    expect({
+      ...selectedMaterial.landEquationParameters.values,
+      kws: 0,
+      nTm: 0,
+      Tref: 0,
+    }).toEqual({
+      ...sourceMapped.landEquationParameters.values,
+      kws: 0,
+      nTm: 0,
+      Tref: 0,
+    });
+    expect(selectedMaterial.landEquationParameters.derived).toEqual(
+      deriveLand2017DerivedParameters(
+        selectedMaterial.landEquationParameters.values,
+      ),
+    );
+    const sourceLand = sourceMapped.landEquationParameters;
+    const selectedLand = selectedMaterial.landEquationParameters;
+    const sourceWeakAggregateExitRate =
+      sourceLand.derived.kwu + sourceLand.values.kws;
+    const selectedWeakAggregateExitRate =
+      selectedLand.derived.kwu + selectedLand.values.kws;
+    expect(selectedWeakAggregateExitRate).toBeCloseTo(
+      sourceWeakAggregateExitRate,
+      14,
+    );
+    expect(selectedLand.values.kuw / selectedWeakAggregateExitRate)
+      .toBeCloseTo(
+        sourceLand.values.kuw / sourceWeakAggregateExitRate,
+        14,
+      );
+    expect(selectedLand.values.kws / selectedLand.derived.ksu)
+      .toBeCloseTo(
+        sourceLand.values.kws / sourceLand.derived.ksu,
+        14,
+      );
+    expect(selectedLand.derived.ksu / sourceLand.derived.ksu)
+      .toBeCloseTo(0.65, 14);
+    expect(selectedLand.derived.cs / sourceLand.derived.cs)
+      .toBeCloseTo(0.65, 14);
+    expect(selectedLand.derived.cw).toBeCloseTo(sourceLand.derived.cw, 14);
+    expect(selectedLand.values.rw).toBe(sourceLand.values.rw);
+    expect(selectedLand.values.rs).toBe(sourceLand.values.rs);
+    const rwAlternative =
+      resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
+        "source-twitch-retention-rw-three-quarters-peak-compensated",
+        exact.sarcomereReferenceProfileId,
+        exact.kuwProfileId,
+      ).landEquationParameters;
+    expect(rwAlternative.values.kuw
+      / (rwAlternative.derived.kwu + rwAlternative.values.kws))
+      .not.toBeCloseTo(
+        sourceLand.values.kuw / sourceWeakAggregateExitRate,
+        12,
+      );
+    expect(rwAlternative.values.kws / rwAlternative.derived.ksu)
+      .not.toBeCloseTo(
+        sourceLand.values.kws / sourceLand.derived.ksu,
+        12,
+      );
+    const highForce =
+      resolveMainWireVentricularLandSourceTwitchRetentionTrefForceLoadWallMaterialV1(
+        exact.twitchRetentionCandidateId,
+        "tref-force-load-high",
+        exact.sarcomereReferenceProfileId,
+        exact.kuwProfileId,
+      );
+    expect(highForce.landEquationParameters.values.Tref)
+      .toBeCloseTo(
+        selectedMaterial.landEquationParameters.values.Tref * 1.1,
+        10,
+      );
+    expect({ ...highForce.landEquationParameters.values, Tref: 0 })
+      .toEqual({ ...selectedMaterial.landEquationParameters.values, Tref: 0 });
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1_CLAIM)
+      .toMatchObject({
+        sourceLandIdentityClaimed: false,
+        numericOptimizerApplied: false,
+        ejectionTimingUsedToSelectBoundedCandidate: true,
+        zeroDistortionEquilibriumPopulationRatiosPreservedByKwsScale: true,
+        weakStateAggregateZeroDistortionExitRatePreservedByDerivedKwu: true,
+        effectiveThinFilamentCooperativityScaleFromIntactSource: 0.8,
+        thinFilamentCooperativityChangesActivationShapeWithoutAddingState:
+          true,
+        effectiveSystemicArterialTangentStiffnessScaleFromCanonical: 2,
+        systemicArterialTopologyDesignPressurePreservedAtGlobalLawReferenceVolume:
+          true,
+        arterialStiffnessCoordinateExistedInPriorLoadEnvelope: true,
+        fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:
+          true,
+        proximalCharacteristicImpedanceSeparatedFromValveLossInAnalysis:
+          true,
+        aorticValveAreaOrOpeningLawChanged: false,
+        calciumOrMechanicsStateAdded: false,
+      });
+    expect(MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATES_CLAIM_V1)
+      .toMatchObject({
+        ETCompletionCandidateScalesInformedByPriorLoadEnvelope: true,
+        kwsScalingWithDerivedRateRecomputationPreservesRwRsEquilibriumCoordinates:
+          true,
+        kwsScalingPreservesZeroDistortionWeakAggregateExitRate: true,
+        numericOptimizerApplied: false,
+      });
+    expect(MAIN_WIRE_VENTRICULAR_LAND_TREF_FORCE_LOAD_CLAIM_V1)
+      .toMatchObject({
+        completePhysiologicalInotropyModelClaimed: false,
+        stateCountChanged: false,
+      });
+  });
+
+  it("defines a one-factor-at-a-time load envelope around one exact candidate", () => {
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1)
+      .toHaveLength(11);
+    for (const contextId of
+      MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1) {
+      const context =
+        resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1(
+          contextId,
+        );
+      const changedOwnerCount = [
+        context.circulatoryLoadPointId !== "baseline",
+        context.complianceProfileId
+          !== MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1
+            .complianceProfileId,
+        context.stressedVenousVolumePointId !== "baseline",
+        context.trefForceLoadProfileId !== "tref-force-load-baseline",
+      ].filter(Boolean).length;
+      expect(changedOwnerCount).toBe(contextId === "baseline" ? 0 : 1);
+      expect(Object.isFrozen(context)).toBe(true);
+    }
+    expect(MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1)
+      .toMatchObject({
+        aorticMaximumForwardEoaCm2: 3.5,
+        complianceProfileId: "arterial-stiffness-twofold",
+        characteristicResistancePlacementProfileId:
+          "all-Ao-SA-resistance-upstream-of-root-compliance",
+        rootInertanceProfileId: "aortic-root-inertance-two-fifths",
+      });
+  });
+
+  it("defines the fixed PVR-by-stressed-volume side-effect factorial", () => {
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CONTEXT_IDS_V1,
+    ).toHaveLength(9);
+    const coordinatePairs = new Set<string>();
+    for (const contextId of
+      MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CONTEXT_IDS_V1) {
+      const context =
+        resolveMainWireAorticOutflowCandidateCirculatoryRecalibrationContextV1(
+          contextId,
+        );
+      coordinatePairs.add(
+        `${context.pulmonaryResistanceLevel}/${context.stressedVenousVolumeLevel}`,
+      );
+      expect(context.pulmonaryResistanceScaleFromBaseline)
+        .toBe(context.pulmonaryResistanceLevel === "low"
+          ? 0.75
+          : context.pulmonaryResistanceLevel === "high" ? 4 / 3 : 1);
+      expect(context.canonicalAdditionalStressedVenousVolumeScale)
+        .toBe(context.stressedVenousVolumeLevel === "low"
+          ? 0.75
+          : context.stressedVenousVolumeLevel === "high" ? 4 / 3 : 1);
+      expect(Object.isFrozen(context)).toBe(true);
+    }
+    expect(coordinatePairs.size).toBe(9);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CLAIM_V1,
+    ).toMatchObject({
+      systemicResistanceHeldAtBaseline: true,
+      aorticEtMechanismHeldFixed: true,
+      fixedGridNotNumericOptimization: true,
+      calibrationTargetApplied: false,
+    });
+  });
+
+  it("seals the source-referenced Aeff bracket as one derived-identity axis", () => {
+    const profileScales =
+      MAIN_WIRE_VENTRICULAR_LAND_SOURCE_VELOCITY_DISTORTION_PROFILE_IDS_V1
+        .map((profileId) =>
+          resolveMainWireVentricularLandSourceVelocityDistortionProfileV1(
+            profileId,
+          ).aeffScaleFromIntactHumanSource);
+    expect(profileScales).toEqual([1, 1.25, 4 / 3, 1.5, 5 / 3, 2]);
+
+    const canonical =
+      resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1(
+        "source-Aeff-canonical",
+        "source-twitch-retention-canonical",
+        "tref-force-load-baseline",
+        "land-sarcomere-reference-plus-5-percent",
+        "land-whole-organ-kuw-nu4",
+      );
+    const threeHalves =
+      resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1(
+        "source-Aeff-three-halves",
+        "source-twitch-retention-canonical",
+        "tref-force-load-baseline",
+        "land-sarcomere-reference-plus-5-percent",
+        "land-whole-organ-kuw-nu4",
+      );
+    expect(threeHalves.landEquationParameters.values.Aeff)
+      .toBeCloseTo(canonical.landEquationParameters.values.Aeff * 1.5, 14);
+    expect({ ...threeHalves.landEquationParameters.values, Aeff: 0 })
+      .toEqual({ ...canonical.landEquationParameters.values, Aeff: 0 });
+    expect(threeHalves.landEquationParameters.derived).toEqual(
+      deriveLand2017DerivedParameters(
+        threeHalves.landEquationParameters.values,
+      ),
+    );
+    expect(threeHalves.landEquationParameters.parameterSetStableHash)
+      .not.toBe(canonical.landEquationParameters.parameterSetStableHash);
+    expect(MAIN_WIRE_VENTRICULAR_LAND_SOURCE_VELOCITY_DISTORTION_CLAIM_V1)
+      .toMatchObject({
+        sourceAeff: 25,
+        noncanonicalProfilesAreEffectiveWholeOrganCouplingHypotheses: true,
+        fixedLengthIsometricTrajectoryUnchangedByAeff: true,
+        passiveOrSlsChanged: false,
+        landStateCountChanged: false,
+        loadedOrHemodynamicOutcomeUsedToSetProfiles: false,
+      });
+  });
+
+  it("binds every load-envelope arm to the exact candidate identity", () => {
+    const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
+    const inputs =
+      MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_LOAD_CONTEXT_IDS_V1.map(
+        (contextId) => {
+          const context =
+            resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1(
+              contextId,
+            );
+          const run =
+            runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1(
+              { dtSec: 0.02, maximumBeatCount: 1 },
+              candidate.kuwProfileId,
+              context.complianceProfileId,
+              candidate.characteristicResistancePlacementProfileId,
+              candidate.rootInertanceProfileId,
+              candidate.sarcomereReferenceProfileId,
+              candidate.calciumSensitivityLengthProfileId,
+              candidate.twitchRetentionCandidateId,
+              context.circulatoryLoadPointId,
+              context.stressedVenousVolumePointId,
+              context.trefForceLoadProfileId,
+            );
+          return Object.freeze({ contextId, run });
+        },
+      );
+    const envelope =
+      measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(inputs);
+    expect(envelope.arms).toHaveLength(11);
+    expect(envelope.allProtocolIdentitiesDistinct).toBe(true);
+    expect(envelope.arms.every((arm) =>
+      arm.cycle.integrationCompletedWithoutFailure)).toBe(true);
+    for (const arm of envelope.arms) {
+      expect(arm.cycle.aorticDynamicAreaDopplerPenaltyFactor)
+        .toBeGreaterThanOrEqual(1);
+      expect(arm.cycle.aorticJetVelocityWaveformNonuniformityFactor)
+        .toBeGreaterThanOrEqual(1);
+      expect(
+        arm.cycle.aorticFullyOpenUniformFlowDopplerGradientLowerBoundMmHg
+          * arm.cycle.aorticDynamicAreaDopplerPenaltyFactor
+          * arm.cycle.aorticJetVelocityWaveformNonuniformityFactor,
+      ).toBeCloseTo(arm.cycle.meanDopplerGradientMmHg, 10);
+    }
+    expect(envelope.ranges.ejectionTimeSec.maximum)
+      .toBeGreaterThanOrEqual(envelope.ranges.ejectionTimeSec.minimum);
+    expect(envelope.ranges.meanDopplerGradientMmHg.minimum).toBeGreaterThan(0);
+    expect(envelope.claim.parameterOptimizationOrFitApplied).toBe(false);
+    expect(allNumbersFinite(envelope)).toBe(true);
+    const baselineRun = inputs.find((input) =>
+      input.contextId === "baseline")!.run;
+    const proximalDecomposition =
+      measureMainWireAorticProximalCharacteristicImpedanceDecompositionV1(
+        baselineRun.periodicResult,
+        baselineRun.placementProfile!,
+      );
+    expect(proximalDecomposition.proximalCharacteristicResistanceMmHgSecPerMl)
+      .toBeCloseTo(0.0465088, 14);
+    expect(
+      proximalDecomposition.meanValveOnlyPressureGradientMmHg
+      + proximalDecomposition.meanProximalCharacteristicPressureMmHg,
+    ).toBeCloseTo(
+      proximalDecomposition.meanReservoirNodeGradientMmHg,
+      12,
+    );
+    expect(proximalDecomposition.meanValveOnlyPressureGradientMmHg)
+      .toBeLessThan(proximalDecomposition.meanReservoirNodeGradientMmHg);
+    expect(
+      proximalDecomposition.maximumAbsoluteValveOnlyReconstructionResidualMmHg,
+    ).toBeLessThan(1e-9);
+    expect(() =>
+      measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
+        inputs.slice(1),
+      )).toThrow("missing source-twitch load context: baseline");
+  }, 60_000);
 
   it("uses an energy-consistent unilateral BE law for the isolated AoV local L", () => {
     const profile = MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1;
@@ -773,14 +1228,14 @@ describe("main-wire aortic outflow driver/root ablation V1", () => {
     ]);
     expect(comparison.arms.map((arm) =>
       arm.capacity.resolvedAorticRootVsMl))
-      .toEqual([150, 75, 112.5, 200]);
+      .toEqual([150, 50, 75, 112.5, 200]);
     expect(comparison.arms.map((arm) =>
       arm.capacity.resolvedAoSaTotalVsMl))
-      .toEqual([550, 550, 550, 550]);
+      .toEqual([550, 550, 550, 550, 550]);
     expect(comparison.arms.every((arm) =>
       arm.capacity.totalVsResidualMl === 0)).toBe(true);
     expect(new Set(comparison.arms.map((arm) =>
-      arm.cycle.protocolIdentityHash)).size).toBe(4);
+      arm.cycle.protocolIdentityHash)).size).toBe(5);
     expect(comparison.claim.globalArterialStiffnessChanged).toBe(false);
     expect(comparison.claim.acceptedStateOrCheckpointTopologyChanged)
       .toBe(false);

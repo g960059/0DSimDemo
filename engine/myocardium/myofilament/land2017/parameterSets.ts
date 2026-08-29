@@ -2,6 +2,8 @@ export const LAND2017_SOURCE_ID = "land2017-human-contraction";
 export const LAND2017_SOURCE_DOI = "10.1016/j.yjmcc.2017.03.008";
 export const LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID =
   "land2017-intact-human-37c-source-v1";
+export const LAND2017_SKINNED_HUMAN_37C_SOURCE_PARAMETER_SET_V1_ID =
+  "land2017-skinned-human-37c-source-v1";
 export const LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1_ID =
   "land2017-intact-human-37c-whole-organ-column-v1";
 
@@ -139,6 +141,68 @@ export const LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET: Land2017SourceParam
   ...parameterSetHashInput,
   parameterSetStableHash: stableHash(parameterSetHashInput),
 });
+
+/**
+ * Appendix-B skinned-cell column used to fit the force-calcium, quick-stretch,
+ * and constant-velocity-shortening experiments.  The historical intact source
+ * set above selects the later intact/whole-organ kinetic column while retaining
+ * the cellular Tref; keeping this separate prevents the two experimental
+ * contexts from being conflated in constitutive validation.
+ */
+const skinnedRuntimeValues: Land2017RuntimeParameters = {
+  ...runtimeValues,
+  CaT50Ref: 2.5,
+  nTm: 2.2,
+  kuw: 26,
+  kws: 4,
+  Tref: 40_500,
+};
+
+const skinnedOriginalValueOverrides: Readonly<Partial<Record<
+  Land2017SourceParameterName,
+  number
+>>> = Object.freeze({
+  CaT50Ref: 2.5,
+  nTm: 2.2,
+  kuw: 0.026,
+  kws: 0.004,
+  Tref: 40.5,
+});
+
+const skinnedSourceParameters: readonly Land2017SourceParameterProvenance[] =
+  sourceParameters.map((entry) => sourceParameter(
+    entry.parameter,
+    skinnedOriginalValueOverrides[entry.parameter] ?? entry.original.value,
+    entry.original.unit,
+    skinnedRuntimeValues[entry.parameter],
+    entry.runtime.unit,
+    entry.location
+      .replace("intact-human value", "skinned-model value")
+      .replace("cellular source value", "skinned-model value")
+      .replace(
+        "intact-human 37 C source condition",
+        "skinned-human 37 C source condition",
+      ),
+  ));
+
+const skinnedParameterSetHashInput: Omit<
+  Land2017SourceParameterSet,
+  "parameterSetStableHash"
+> = {
+  parameterSetId: LAND2017_SKINNED_HUMAN_37C_SOURCE_PARAMETER_SET_V1_ID,
+  sourceId: LAND2017_SOURCE_ID,
+  doi: LAND2017_SOURCE_DOI,
+  values: skinnedRuntimeValues,
+  derived: deriveLand2017DerivedParameters(skinnedRuntimeValues),
+  sourceParameters: skinnedSourceParameters,
+  derivedParameters,
+};
+
+export const LAND2017_SKINNED_HUMAN_37C_SOURCE_PARAMETER_SET_V1:
+  Land2017SourceParameterSet = deepFreeze({
+    ...skinnedParameterSetHashInput,
+    parameterSetStableHash: stableHash(skinnedParameterSetHashInput),
+  });
 
 /**
  * Land et al. publish distinct Tref values for the skinned-cell and whole-organ

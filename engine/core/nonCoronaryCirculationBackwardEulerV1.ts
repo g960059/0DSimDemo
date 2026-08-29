@@ -26,6 +26,13 @@ import {
   type MainWireAorticRootResistanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootResistanceResearchProfileV1";
 import {
+  resolveMainWireAorticRootFlowStateRelocationValveParamsV1,
+  stepMainWireAorticRootFlowStateRelocationScalarsV1,
+  validateMainWireAorticRootFlowStateRelocationProfileV1,
+  type MainWireAorticRootFlowStateRelocationEvaluationV1,
+  type MainWireAorticRootFlowStateRelocationProfileV1,
+} from "@/engine/core/MainWireAorticRootFlowStateRelocationResearchProfileV1";
+import {
   validateMainWireAorticCompliancePartitionResearchProfileV1,
 } from "@/engine/core/MainWireAorticCompliancePartitionResearchProfileV1";
 import {
@@ -35,6 +42,11 @@ import {
   validateMainWireFourValveDiseaseResearchInputV1,
   type MainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import {
+  resolveMainWireAorticCharacteristicResistanceValveParamsV1,
+  validateMainWireAorticCharacteristicResistancePlacementProfileV1,
+  type MainWireAorticCharacteristicResistancePlacementProfileV1,
+} from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   stepMainWireQuasiSteadyOrificeValveScalarsV2,
@@ -177,7 +189,8 @@ type DynamicEdgeRecord<T> = Readonly<Record<NonCoronaryDynamicEdgeNameV1, T>>;
 type ValveRecord<T> = Readonly<Record<NonCoronaryValveNameV1, T>>;
 type NonCoronaryValveEvaluationV1 =
   | MainWireValveEvaluationWithAorticResearchV1
-  | MainWireAorticValveLocalInertanceEvaluationV1;
+  | MainWireAorticValveLocalInertanceEvaluationV1
+  | MainWireAorticRootFlowStateRelocationEvaluationV1;
 
 export type NonCoronaryChamberVolumesMlV1 = Readonly<{
   LV: number;
@@ -260,6 +273,12 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   /** Scales graph-owned Ao_SA R without adding a serial pressure-loss element. */
   aorticRootResistanceResearchProfile?:
     MainWireAorticRootResistanceResearchProfileV1;
+  /** Moves a fixed share of Ao_SA R upstream of the Ao root compliance. */
+  aorticCharacteristicResistancePlacementResearchProfile?:
+    MainWireAorticCharacteristicResistancePlacementProfileV1;
+  /** Reuses the Ao_SA accepted-flow slot as AoV inflow; no state is added. */
+  aorticRootFlowStateRelocationResearchProfile?:
+    MainWireAorticRootFlowStateRelocationProfileV1;
 }>;
 
 /**
@@ -2694,6 +2713,8 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   const valveEvaluations = candidatePage.valveEvaluations;
   const valveStates = candidatePage.valveStates;
   const valveResearchInput = input.runtime.valveResearchInput;
+  const aorticRootFlowStateRelocation = input.runtime
+    .aorticRootFlowStateRelocationResearchProfile;
   const flows = candidatePage.edgeFlowsMlPerSec;
   const dynamicFlows = candidatePage.dynamicEdgeFlowsMlPerSec;
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
@@ -2715,15 +2736,44 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       const previousOpening01 = previous.valveOpeningFractions01[
         NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
       ]!;
+      const valveParams = valveName === "AoV"
+          && aorticRootFlowStateRelocation !== undefined
+        ? resolveMainWireAorticRootFlowStateRelocationValveParamsV1(
+          valveResearchInput.valves.AoV,
+          aorticRootFlowStateRelocation,
+        )
+        : valveName === "AoV"
+            && input.runtime
+              .aorticCharacteristicResistancePlacementResearchProfile
+              !== undefined
+          ? resolveMainWireAorticCharacteristicResistanceValveParamsV1(
+            valveResearchInput.valves.AoV,
+            input.runtime
+              .aorticCharacteristicResistancePlacementResearchProfile,
+          )
+          : valveResearchInput.valves[valveName];
       const evaluation = valveName === "AoV"
-          && input.runtime.aorticValveLocalInertanceResearchProfile !== undefined
+          && aorticRootFlowStateRelocation !== undefined
+        ? stepMainWireAorticRootFlowStateRelocationScalarsV1(
+          previousOpening01,
+          previous.dynamicEdgeFlowsMlPerSec[
+            NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1.Ao_SA
+          ]!,
+          input.dtSec,
+          upstreamPressure,
+          downstreamPressure,
+          valveParams,
+          aorticRootFlowStateRelocation,
+        )
+        : valveName === "AoV"
+            && input.runtime.aorticValveLocalInertanceResearchProfile !== undefined
         ? stepMainWireAorticValveLocalInertanceScalarsV1(
           previousOpening01,
           input.aorticValveLocalInertancePreviousAcceptedFlowMlPerSec!,
           input.dtSec,
           upstreamPressure,
           downstreamPressure,
-          valveResearchInput.valves.AoV,
+          valveParams,
           resolveMainWireAorticValveLocalInertanceValueV1(
             input.runtime.aorticValveLocalInertanceResearchProfile,
             requirePositive(edge.L ?? 0, "AoV topology local inertance"),
@@ -2738,7 +2788,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
             input.dtSec,
             upstreamPressure,
             downstreamPressure,
-            valveResearchInput.valves.AoV,
+            valveParams,
             input.runtime.aorticValveResearchProfile,
           )
           : stepMainWireQuasiSteadyOrificeValveScalarsV2(
@@ -2746,7 +2796,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
             input.dtSec,
             upstreamPressure,
             downstreamPressure,
-            valveResearchInput.valves[valveName],
+            valveParams,
           );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
@@ -2754,6 +2804,11 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       valveEvaluations[valveIndex] = evaluation;
       valveStates[valveIndex] = evaluation.state;
       flows[edgeIndex] = evaluation.flowMlPerSec;
+      if (valveName === "AoV" && aorticRootFlowStateRelocation !== undefined) {
+        dynamicFlows[
+          NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1.Ao_SA
+        ] = evaluation.flowMlPerSec;
+      }
       continue;
     }
     const edgeExternalPressureMmHg = respiratoryExternalPressureFromFrameV1(
@@ -2776,7 +2831,10 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       }),
       admittedResistanceScaleForEdgeV1(input, name),
     );
-    if (edge.kind === "dynamic") {
+    const relocatedAorticRootOutflow = edge.kind === "dynamic"
+      && name === "Ao_SA"
+      && aorticRootFlowStateRelocation !== undefined;
+    if (edge.kind === "dynamic" && !relocatedAorticRootOutflow) {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
         (edge.L ?? 0) * dynamicEdgeInertanceResearchScaleV1(
@@ -3128,7 +3186,13 @@ function analyticEdgeFlowPressureDerivativesV1<
     let dInertanceDUpstreamPressureSec2PerMl = 0;
     let dInertanceDDownstreamPressureSec2PerMl = 0;
     let previousFlowMlPerSec = flowMlPerSec;
-    if (edge.kind === "dynamic") {
+    const dynamicMomentumActive = edge.kind === "dynamic"
+      && !(
+        edgeName === "Ao_SA"
+        && input.runtime.aorticRootFlowStateRelocationResearchProfile
+          !== undefined
+      );
+    if (dynamicMomentumActive) {
       const areaDenominator = edge.useChiResistance
         ? Math.max(losses.areaRatio, 1e-6)
         : 1;
@@ -3153,13 +3217,13 @@ function analyticEdgeFlowPressureDerivativesV1<
         ];
     }
     const denominator = losses.resistanceMmHgSecPerMl
-      + (edge.kind === "dynamic"
+      + (dynamicMomentumActive
         ? inertanceMmHgSec2PerMl / input.dtSec
         : 0)
       + 2 * losses.quadraticLossMmHgSec2PerMl2
         * Math.abs(flowMlPerSec);
     requirePositive(denominator, `${edgeName} flow tangent denominator`);
-    const dynamicInertanceFactor = edge.kind === "dynamic"
+    const dynamicInertanceFactor = dynamicMomentumActive
       ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec
       : 0;
     upstreamMlPerSecPerMmHg = (
@@ -4545,6 +4609,14 @@ function validateRuntimeOnceV1(
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
   if (
+    runtime.vascular.systemicArterialStiffnessScaleFromGlobal !== undefined
+  ) {
+    requirePositive(
+      runtime.vascular.systemicArterialStiffnessScaleFromGlobal,
+      "systemicArterialStiffnessScaleFromGlobal",
+    );
+  }
+  if (
     runtime.vascular.aorticCompliancePartitionResearchProfile !== undefined
   ) {
     const profileIssues =
@@ -4649,6 +4721,60 @@ function validateRuntimeOnceV1(
       throw new Error(
         "invalid aorticRootResistanceResearchProfile: "
           + profileIssues.join("; "),
+      );
+    }
+  }
+  if (
+    runtime.aorticCharacteristicResistancePlacementResearchProfile
+      !== undefined
+  ) {
+    const profileIssues =
+      validateMainWireAorticCharacteristicResistancePlacementProfileV1(
+        runtime.aorticCharacteristicResistancePlacementResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticCharacteristicResistancePlacementResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+    if (
+      runtime.aorticRootResistanceResearchProfile !== undefined
+      || runtime.aorticValveResearchProfile !== undefined
+      || runtime.aorticValveLocalInertanceResearchProfile !== undefined
+      || runtime.aorticRootFlowStateRelocationResearchProfile !== undefined
+    ) {
+      throw new Error(
+        "aortic characteristic-resistance placement cannot combine with another AoV or Ao_SA resistance research profile",
+      );
+    }
+  }
+  if (runtime.aorticRootFlowStateRelocationResearchProfile !== undefined) {
+    const profileIssues =
+      validateMainWireAorticRootFlowStateRelocationProfileV1(
+        runtime.aorticRootFlowStateRelocationResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticRootFlowStateRelocationResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+    if (
+      runtime.aorticRootInertanceResearchProfile !== undefined
+      || runtime.aorticRootResistanceResearchProfile !== undefined
+      || runtime.aorticCharacteristicResistancePlacementResearchProfile
+        !== undefined
+      || runtime.aorticValveLocalInertanceResearchProfile !== undefined
+      || runtime.aorticValveResearchProfile !== undefined
+    ) {
+      throw new Error(
+        "aortic-root flow-state relocation cannot combine with another AoV or Ao_SA R/L research profile",
+      );
+    }
+    if (runtime.valveResearchInput.valves.AoV.closedReverseEroaCm2 !== 0) {
+      throw new Error(
+        "aorticRootFlowStateRelocationResearchProfile requires competent AoV",
       );
     }
   }
@@ -5075,7 +5201,19 @@ function admittedResistanceScaleForEdgeV1<TEvaluation, TCompanionTrial>(
       && edgeName === profile.dynamicEdgeId
     ? profile.resistanceScaleFromTopology
     : 1;
-  return protocolScale * researchScale;
+  const placement = input.runtime
+    .aorticCharacteristicResistancePlacementResearchProfile;
+  const placementScale = placement !== undefined
+      && edgeName === placement.sourceDynamicEdgeId
+    ? placement.downstreamDynamicEdgeResistanceScaleFromTopology
+    : 1;
+  const relocation = input.runtime
+    .aorticRootFlowStateRelocationResearchProfile;
+  const relocationScale = relocation !== undefined
+      && edgeName === relocation.sourceDynamicEdgeId
+    ? relocation.downstreamAlgebraicResistanceScaleFromTopology
+    : 1;
+  return protocolScale * researchScale * placementScale * relocationScale;
 }
 
 function dynamicEdgeInertanceResearchScaleV1(

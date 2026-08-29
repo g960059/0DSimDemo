@@ -55,6 +55,15 @@ export function buildAuthoritativeCirculationGraphV1(): AuthoritativeCirculation
 export type VascularPvRuntimeParameterViewV1 = {
   readonly venousTone: number;
   readonly arterialStiffness: number;
+  /**
+   * Research-only tangent-stiffness multiplier for Ao/SA/Art about each
+   * topology-design pressure.  The exponential-law intercept is translated so
+   * that pressure is preserved at its physical volume under the current global
+   * law.  The shared arterialStiffness remains the global owner, so omission is
+   * byte-for-byte canonical and a global load point can still scale both
+   * systemic and pulmonary arteries.
+   */
+  readonly systemicArterialStiffnessScaleFromGlobal?: number;
   /** Fixed source-research redistribution; omission is canonical. */
   readonly aorticCompliancePartitionResearchProfile?:
     MainWireAorticCompliancePartitionResearchProfileV1;
@@ -80,14 +89,33 @@ export function vascularPvLawFromNodeV1(
         node,
         params.aorticCompliancePartitionResearchProfile,
       );
+    const systemicArterialScale =
+      node.name === "Ao" || node.name === "SA" || node.name === "Art"
+        ? params.systemicArterialStiffnessScaleFromGlobal ?? 1
+        : 1;
+    const globalVsEff = Math.max(
+      topologyVs / Math.max(params.arterialStiffness, 0.25),
+      1,
+    );
+    const scaledVsEff = Math.max(
+      topologyVs / Math.max(
+        params.arterialStiffness * systemicArterialScale,
+        0.25,
+      ),
+      1,
+    );
+    const topologyDesignLogStrain =
+      (node.x0 - Vu) / Math.max(node.Vs ?? 100, 1);
+    const globalReferenceVolumeMl =
+      Vu + globalVsEff * topologyDesignLogStrain;
+    const anchoredVu = systemicArterialScale === 1
+      ? Vu
+      : globalReferenceVolumeMl - scaledVsEff * topologyDesignLogStrain;
     return {
       kind: "arterial",
-      Vu,
+      Vu: anchoredVu,
       P0: node.P0 ?? 50,
-      VsEff: Math.max(
-        topologyVs / Math.max(params.arterialStiffness, 0.25),
-        1,
-      ),
+      VsEff: scaledVsEff,
     };
   }
   if (node.kind === "linear") {

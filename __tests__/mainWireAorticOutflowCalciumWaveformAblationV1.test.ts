@@ -56,6 +56,11 @@ import {
   measurePeriodicBiexponentialDelayedMixtureShapeV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_V1,
+  resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniSourceTraceV1";
+import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_ABLATION_CLAIM_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_IDS_V1,
   MAIN_WIRE_VENTRICULAR_CALCIUM_DELAYED_MIXTURE_PROFILE_V1,
@@ -105,6 +110,33 @@ import {
 } from "@/engine/valves/MainWireAorticValveAreaControlV1";
 
 describe("main-wire aortic outflow calcium waveform ablation V1", () => {
+  it("replays the primary numeric Coppini trace with periodic linear interpolation", () => {
+    const params =
+      resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1();
+    const calcium = (timeSec: number) =>
+      evaluateFiveWallNormalCalciumDriveV1(timeSec, params)
+        .freeCalciumUMByWall.LVFW;
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_V1)
+      .toHaveLength(1001);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_V1[0])
+      .toBe(0.166);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_V1[1000])
+      .toBe(0.166);
+    expect(calcium(0)).toBe(0.166);
+    expect(calcium(0.008)).toBe(0.17);
+    expect(calcium(0.0085)).toBeCloseTo(0.1725, 14);
+    expect(calcium(1)).toBe(0.166);
+    expect(calcium(1.0085)).toBeCloseTo(calcium(0.0085), 14);
+    expect(MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1)
+      .toMatchObject({
+        sourceSampleCountIncludingPeriodicEndpoint: 1001,
+        interpolation:
+          "periodic-piecewise-linear-between-source-samples",
+        smoothingApplied: false,
+        fittingApplied: false,
+      });
+  });
+
   it("audits the prescribed calcium-to-Land isometric twitch at periodic closure", () => {
     const audit = measureMainWireVentricularLandIsometricTwitchAuditV1(
       FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
@@ -125,6 +157,10 @@ describe("main-wire aortic outflow calcium waveform ablation V1", () => {
       .toBeGreaterThan(audit.activeTwitch.minimumKPa);
     expect(audit.activeTwitch.relaxationTime50Sec).not.toBeNull();
     expect(audit.activeTwitch.relaxationTime95Sec).not.toBeNull();
+    expect(audit.activeTwitch.risingFivePercentAmplitudeCrossingTimeSec)
+      .not.toBeNull();
+    expect(audit.activeTwitch.timeFromRisingFivePercentAmplitudeToPeakSec)
+      .not.toBeNull();
     expect(audit.numericalHealth.maximumAbsoluteParallelSlsOverstressPa)
       .toBe(0);
     expect(audit.sourceContext).toMatchObject({

@@ -147,6 +147,67 @@ describe("circulation graph kernel V1", () => {
     );
   });
 
+  it("changes systemic arterial tangent stiffness about its topology-design pressure", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const baselineParams = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const scaledParams = {
+      ...baselineParams,
+      systemicArterialStiffnessScaleFromGlobal: 1.5,
+    };
+
+    for (const name of ["Ao", "SA", "Art"] as const) {
+      const node = graph.nodes[graph.nodeIndex.get(name)]!;
+      const baselineLaw = vascularPvLawFromNodeV1(node, baselineParams);
+      const scaledLaw = vascularPvLawFromNodeV1(node, scaledParams);
+      if (baselineLaw.kind !== "arterial" || scaledLaw.kind !== "arterial") {
+        throw new Error(`${name} must be arterial`);
+      }
+      const topologyDesignPressure =
+        vascularTransmuralPressureFromPhysicalVolumeV1(
+          node,
+          node.x0,
+          { ...baselineParams, arterialStiffness: 1 },
+          "fixed-32-iterations",
+        );
+      const globalLawReferenceVolumeMl = baselineLaw.Vu
+        + stressedVolumeFromPtm(baselineLaw, topologyDesignPressure);
+      expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+        node,
+        globalLawReferenceVolumeMl,
+        baselineParams,
+        "fixed-32-iterations",
+      )).toBeCloseTo(topologyDesignPressure, 12);
+      expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+        node,
+        globalLawReferenceVolumeMl,
+        scaledParams,
+        "fixed-32-iterations",
+      )).toBeCloseTo(topologyDesignPressure, 12);
+      expect(scaledLaw.VsEff).toBeCloseTo(baselineLaw.VsEff / 1.5, 12);
+      expect(complianceFromPtm(scaledLaw, topologyDesignPressure))
+        .toBeCloseTo(
+          complianceFromPtm(baselineLaw, topologyDesignPressure) / 1.5,
+          12,
+        );
+    }
+
+    for (const name of ["PA", "PArt"] as const) {
+      const node = graph.nodes[graph.nodeIndex.get(name)]!;
+      expect(vascularPvLawFromNodeV1(node, scaledParams))
+        .toEqual(vascularPvLawFromNodeV1(node, baselineParams));
+    }
+
+    const scaleOneParams = {
+      ...baselineParams,
+      systemicArterialStiffnessScaleFromGlobal: 1,
+    };
+    for (const name of ["Ao", "SA", "Art", "PA", "PArt"] as const) {
+      const node = graph.nodes[graph.nodeIndex.get(name)]!;
+      expect(vascularPvLawFromNodeV1(node, scaleOneParams))
+        .toEqual(vascularPvLawFromNodeV1(node, baselineParams));
+    }
+  });
+
   it("redistributes Ao-to-SA exponential PV capacity without changing its sum", () => {
     const graph = buildAuthoritativeCirculationGraphV1();
     const ao = graph.nodes[graph.nodeIndex.get("Ao")]!;
@@ -177,13 +238,14 @@ describe("circulation graph kernel V1", () => {
         || resolvedSa.kind !== "arterial"
       ) throw new Error("Ao and SA must be arterial");
       expect(resolvedAo.VsEff + resolvedSa.VsEff)
-        .toBe(baselineAo.VsEff + baselineSa.VsEff);
+        .toBeCloseTo(baselineAo.VsEff + baselineSa.VsEff, 12);
       expect(
         complianceFromPtm(resolvedAo, 90)
         + complianceFromPtm(resolvedSa, 90),
-      ).toBe(
+      ).toBeCloseTo(
         complianceFromPtm(baselineAo, 90)
-        + complianceFromPtm(baselineSa, 90),
+          + complianceFromPtm(baselineSa, 90),
+        12,
       );
       expect(resolvedArt).toEqual(baselineArt);
       expect(validateMainWireAorticCompliancePartitionResearchProfileV1(

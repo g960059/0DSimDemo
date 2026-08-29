@@ -9,12 +9,24 @@ import {
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   resolveMainWireAorticRootInertanceResearchProfileV1,
+  type MainWireAorticRootInertanceResearchProfileIdV1,
   type MainWireAorticRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootInertanceResearchProfileV1";
 import {
   resolveMainWireAorticRootResistanceResearchProfileV1,
+  type MainWireAorticRootResistanceResearchProfileIdV1,
   type MainWireAorticRootResistanceResearchProfileV1,
 } from "@/engine/core/MainWireAorticRootResistanceResearchProfileV1";
+import {
+  resolveMainWireAorticRootFlowStateRelocationProfileV1,
+  type MainWireAorticRootFlowStateRelocationProfileIdV1,
+  type MainWireAorticRootFlowStateRelocationProfileV1,
+} from "@/engine/core/MainWireAorticRootFlowStateRelocationResearchProfileV1";
+import {
+  resolveMainWireAorticCharacteristicResistancePlacementProfileV1,
+  type MainWireAorticCharacteristicResistancePlacementProfileIdV1,
+  type MainWireAorticCharacteristicResistancePlacementProfileV1,
+} from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 import {
   resolveMainWireAorticCompliancePartitionCapacitySnapshotV1,
   resolveMainWireAorticCompliancePartitionResearchProfileV1,
@@ -62,11 +74,30 @@ import {
   type MainWireVentricularCalciumDelayedMixtureProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumDelayedMixtureAblationV1";
 import {
+  resolveMainWireVentricularCalciumActivationDistributionParamsV1,
+  resolveMainWireVentricularCalciumActivationDistributionProfileV1,
+  type MainWireVentricularCalciumActivationDistributionProfileIdV1,
+  type MainWireVentricularCalciumActivationDistributionProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumActivationDistributionV1";
+import {
   resolveMainWireVentricularCalciumPeakLockedTailParamsV1,
   resolveMainWireVentricularCalciumPeakLockedTailProfileV1,
   type MainWireVentricularCalciumPeakLockedTailProfileIdV1,
   type MainWireVentricularCalciumPeakLockedTailProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumPeakLockedTailAblationV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1,
+  resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniSourceTraceV1";
+import {
+  resolveMainWireVentricularCalciumLandCoppiniAmplitudeParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniAmplitudeBracketV1";
+import {
+  resolveMainWireVentricularCalciumFixedAmplitudeDecayParamsV1,
+  resolveMainWireVentricularCalciumFixedAmplitudeDecayProfileV1,
+  type MainWireVentricularCalciumFixedAmplitudeDecayProfileIdV1,
+  type MainWireVentricularCalciumFixedAmplitudeDecayProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumFixedAmplitudeDecayAblationV1";
 import {
   classifyMainWireFiveWallPeriodicityV1,
   compareMainWireFiveWallAcceptedStatesV1,
@@ -79,6 +110,12 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  resolveMainWireArterialCompliancePhysiologyProfileV1,
+  resolveMainWireArterialCompliancePhysiologyRuntimeV1,
+  type MainWireArterialCompliancePhysiologyProfileIdV1,
+  type MainWireArterialCompliancePhysiologyProfileV1,
+} from "@/engine/myocardium/experiments/MainWireArterialCompliancePhysiologyBracketV1";
+import {
   resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1,
   resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1,
   type MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
@@ -90,6 +127,7 @@ import {
   type MainWireNormalAdultBloodVolumeOperatingPointAuditV1,
   type MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
   type MainWireNormalAdultBloodVolumeOperatingPointResolvedV1,
+  type MainWireNormalAdultStressedVenousVolumeResearchPointIdV1,
   type MainWireNormalAdultStressedVenousVolumeResearchPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
@@ -119,6 +157,39 @@ import {
   type MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidateV1,
 } from "@/engine/myocardium/experiments/MainWireVentricularCalciumSourceTraceFitTrefPassiveDistortionCandidatesV1";
 import {
+  resolveMainWireVentricularLandTwitchTimingCandidateV1,
+  type MainWireVentricularLandTwitchTimingCandidateIdV1,
+  type MainWireVentricularLandTwitchTimingCandidateV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandTwitchTimingCandidatesV1";
+import {
+  resolveMainWireVentricularLandWholeOrganKuwProfileV1,
+  type MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  type MainWireVentricularLandWholeOrganKuwProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandWholeOrganKuwBracketV1";
+import {
+  resolveMainWireVentricularLandSarcomereReferenceProfileV1,
+  type MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  type MainWireVentricularLandSarcomereReferenceProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSarcomereReferenceBracketV1";
+import {
+  resolveMainWireVentricularLandCalciumSensitivityLengthProfileV1,
+  type MainWireVentricularLandCalciumSensitivityLengthProfileIdV1,
+  type MainWireVentricularLandCalciumSensitivityLengthProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandCalciumSensitivityLengthBracketV1";
+import {
+  resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1,
+  resolveMainWireVentricularLandTrefForceLoadProfileV1,
+  type MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  type MainWireVentricularLandSourceTwitchRetentionCandidateV1,
+  type MainWireVentricularLandTrefForceLoadProfileIdV1,
+  type MainWireVentricularLandTrefForceLoadProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
+import {
+  resolveMainWireVentricularLandSourceVelocityDistortionProfileV1,
+  type MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
+  type MainWireVentricularLandSourceVelocityDistortionProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
+import {
   resolveMainWireVentricularCalciumSourceTraceFitShortlistArmV1,
   resolveMainWireVentricularCalciumSourceTraceFitShortlistLoadContextV1,
   type MainWireVentricularCalciumSourceTraceFitShortlistArmIdV1,
@@ -132,6 +203,26 @@ import {
   type MainWireAorticOutflowDistortionTransientArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowDistortionTransientAblationV1";
 import {
+  resolveMainWireAorticOutflowVelocityDistortionAmplitudeArmV1,
+  type MainWireAorticOutflowVelocityDistortionAmplitudeArmIdV1,
+  type MainWireAorticOutflowVelocityDistortionAmplitudeArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowVelocityDistortionAmplitudeAblationV1";
+import {
+  resolveMainWireAorticOutflowVelocityDistortionPreloadArmV1,
+  type MainWireAorticOutflowVelocityDistortionPreloadArmIdV1,
+  type MainWireAorticOutflowVelocityDistortionPreloadArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowVelocityDistortionPreloadFactorialV1";
+import {
+  resolveMainWireAorticOutflowVelocityDistortionTrefArmV1,
+  type MainWireAorticOutflowVelocityDistortionTrefArmIdV1,
+  type MainWireAorticOutflowVelocityDistortionTrefArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowVelocityDistortionTrefFactorialV1";
+import {
+  resolveMainWireAorticOutflowEjectionTimingArmV1,
+  type MainWireAorticOutflowEjectionTimingArmIdV1,
+  type MainWireAorticOutflowEjectionTimingArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowEjectionTimingAblationV1";
+import {
   resolveMainWireAorticOutflowLengthMechanismArmV1,
   type MainWireAorticOutflowLengthMechanismArmIdV1,
   type MainWireAorticOutflowLengthMechanismArmV1,
@@ -144,6 +235,30 @@ import {
   type MainWireAorticOutflowMechanismLoadContextIdV1,
   type MainWireAorticOutflowMechanismLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowMechanismCandidateLoadEnvelopeV1";
+import {
+  resolveMainWireAorticOutflowEjectionTimingCandidateV1,
+  resolveMainWireAorticOutflowEjectionTimingLoadContextV1,
+  type MainWireAorticOutflowEjectionTimingCandidateIdV1,
+  type MainWireAorticOutflowEjectionTimingCandidateV1,
+  type MainWireAorticOutflowEjectionTimingLoadContextIdV1,
+  type MainWireAorticOutflowEjectionTimingLoadContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowEjectionTimingCandidateLoadEnvelopeV1";
+import {
+  resolveMainWireAorticOutflowEjectionTimingRefinementContextV1,
+  type MainWireAorticOutflowEjectionTimingRefinementCandidateIdV1,
+  type MainWireAorticOutflowEjectionTimingRefinementContextIdV1,
+  type MainWireAorticOutflowEjectionTimingRefinementContextV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowEjectionTimingRefinementV1";
+import {
+  resolveMainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmV1,
+  type MainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmIdV1,
+  type MainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowEjectionTimingLocalInertanceInteractionV1";
+import {
+  resolveMainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmV1,
+  type MainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmIdV1,
+  type MainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementV1";
 import {
   resolveMainWireAorticOutflowDriverRootAblationArmV1,
   type MainWireAorticOutflowDriverRootAblationArmIdV1,
@@ -180,14 +295,42 @@ import {
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createFixedResearchMainWireNormalAdultFiveWallProviderV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRefinementCandidateV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandActivationCohortsV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandCoppiniAmplitudeTrefPairV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandCalciumSensitivityLengthProfileV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandSarcomereReferenceProfileV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularGammaWResearchProfileV1,
   createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsAndFixedVentricularDistortionTransientV1,
   createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1,
   resolveMainWireNormalAdultVentricularMaterialResearchPointV1,
+  resolveMainWireNormalAdultVentricularGammaWResearchProfileV1,
+  resolveMainWireNormalAdultVentricularGammaWWallMaterialV1,
   type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
+  type MainWireNormalAdultVentricularGammaWResearchProfileV1,
   type MainWireNormalAdultVentricularMaterialResearchPointIdV1,
   type MainWireNormalAdultVentricularMaterialResearchPointV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  resolveMainWireVentricularLandCoppiniAmplitudeTrefPairV1,
+  type MainWireVentricularLandCoppiniAmplitudeTrefPairIdV1,
+  type MainWireVentricularLandCoppiniAmplitudeTrefPairV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandCoppiniAmplitudeTrefPairV1";
+import {
+  resolveMainWireVentricularLandActivationCohortProfileV1,
+  type MainWireVentricularLandActivationCohortProfileIdV1,
+  type MainWireVentricularLandActivationCohortProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandActivationCohortHomogenizationV1";
+import {
+  resolveMainWireVentricularLandEtRefinementCandidateV1,
+  type MainWireVentricularLandEtRefinementCandidateV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRefinementCandidatesV1";
 import type { MainWireFiveWallMechanicsResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
   createMainWireNormalAdultCommonPericardiumV1,
@@ -513,6 +656,70 @@ export type MainWireNormalAdultFiveWallAorticOutflowDistortionTransientResearchR
     }>;
   }>;
 
+export type MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionAmplitudeResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-amplitude-arm";
+    arm: MainWireAorticOutflowVelocityDistortionAmplitudeArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionPreloadResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-preload-arm";
+    arm: MainWireAorticOutflowVelocityDistortionPreloadArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesMechanicsAndBloodVolume: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionTrefResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-tref-arm";
+    arm: MainWireAorticOutflowVelocityDistortionTrefArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      bloodVolumeChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+    }>;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchRunV1 =
   Readonly<{
     configurationRole:
@@ -557,6 +764,107 @@ export type MainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoadResear
     }>;
   }>;
 
+export type MainWireNormalAdultFiveWallAorticOutflowEjectionTimingCandidateLoadResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-candidate-load-envelope-run";
+    candidate: MainWireAorticOutflowEjectionTimingCandidateV1;
+    context: MainWireAorticOutflowEjectionTimingLoadContextV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCandidateLoadAndBloodVolume: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowEjectionTimingRefinementResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-refinement-run";
+    candidate: MainWireVentricularLandEtRefinementCandidateV1;
+    context: MainWireAorticOutflowEjectionTimingRefinementContextV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      bloodVolumeChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCandidateAndLoad: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowEjectionTimingLocalInertanceInteractionResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-local-inertance-interaction-arm";
+    arm: MainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    localInertanceProfile: MainWireAorticValveLocalInertanceProfileV1 | null;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    externalFlowStateAudit: MainWireNormalAdultFiveWallPeriodicResultV1[
+      "aorticValveLocalInertanceResearchAudit"
+    ] | null;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      bloodVolumeChanged: false;
+      pressureRecoveryChanged: false;
+      openingModeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStepWhenApplicable: true;
+      canonicalAcceptedStateOrCheckpointChanged: false;
+      exactProtocolIdentityIncludesMechanicsAndLocalInertance: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowEjectionTimingCharacteristicResistancePlacementResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-characteristic-resistance-placement-arm";
+    arm:
+      MainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmV1;
+    materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      calciumDriveChanged: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      aorticValveOpeningLawChanged: false;
+      aorticRootComplianceOrInertanceChanged: false;
+      sourceTopologyLinearResistanceSumPreservedExactly: true;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesMechanicsAndPlacement: true;
+    }>;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchRunV1 =
   Readonly<{
     configurationRole: "fixed-aortic-outflow-velocity-stiffness-ablation-arm";
@@ -596,6 +904,27 @@ export type MainWireNormalAdultFiveWallAorticCompliancePartitionResearchRunV1 =
       aorticRootPlusSystemicArteryVsSumPreservedExactly: true;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactRuntimeIdentityIncludesPartitionProfile: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallArterialCompliancePhysiologyResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-arterial-compliance-physiology-research-profile";
+    profile: MainWireArterialCompliancePhysiologyProfileV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      systemicOrPulmonaryResistanceChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      mechanicsOrCalciumChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactRuntimeIdentityIncludesProfile: true;
     }>;
   }>;
 
@@ -667,6 +996,53 @@ export type MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchRunV1 =
     }>;
   }>;
 
+export type MainWireNormalAdultFiveWallAorticOutflowEjectionTimingResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-causal-ablation-arm";
+    arm: MainWireAorticOutflowEjectionTimingArmV1;
+    calciumProfile:
+      MainWireVentricularCalciumFixedAmplitudeDecayProfileV1;
+    gammaWProfile: MainWireNormalAdultVentricularGammaWResearchProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      calciumAndGammaWAxesCombined: false;
+      exactProtocolIdentityIncludesCalciumAndMechanicsParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularLandTwitchTimingResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-land-twitch-timing-candidate";
+    candidate: MainWireVentricularLandTwitchTimingCandidateV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      calciumDriveChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesMechanicsParams: true;
+    }>;
+  }>;
+
 export type MainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResearchRunV1 =
   Readonly<{
     configurationRole:
@@ -685,6 +1061,340 @@ export type MainWireNormalAdultFiveWallVentricularCalciumSourceConstrainedResear
       calciumOrMechanicsStateAdded: false;
       acceptedStateOrCheckpointTopologyChanged: false;
       exactProtocolIdentityIncludesCalciumParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallVentricularCalciumLandTwitchTimingResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-ventricular-calcium-land-twitch-timing-factorial-arm";
+    calciumProfile: MainWireVentricularCalciumSourceConstrainedProfileV1;
+    twitchTimingCandidate: MainWireVentricularLandTwitchTimingCandidateV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      circulationRuntimeChanged: false;
+      aorticValveConstitutiveLawChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesCalciumAndMechanicsParams: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLowOrderMechanismCombinationResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-low-order-mechanism-combination-arm";
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    compliancePartitionProfile:
+      MainWireAorticCompliancePartitionResearchProfileV1 | null;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    twitchTimingCandidate: MainWireVentricularLandTwitchTimingCandidateV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    bloodVolumePoint: MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      calciumDriveChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllSevenFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticRootRlcDampingResearchRunV1 =
+  Readonly<{
+    configurationRole: "fixed-aortic-root-rlc-damping-research-arm";
+    compliancePartitionProfile:
+      MainWireAorticCompliancePartitionResearchProfileV1 | null;
+    rootResistanceProfile: MainWireAorticRootResistanceResearchProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    twitchTimingCandidate: MainWireVentricularLandTwitchTimingCandidateV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      calciumDriveChanged: false;
+      dynamicFlowStateOwnerChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllFourFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticRootFlowStateRelocationResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-root-flow-state-relocation-research-arm";
+    relocationProfile: MainWireAorticRootFlowStateRelocationProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    twitchTimingCandidate: MainWireVentricularLandTwitchTimingCandidateV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      calciumDriveChanged: false;
+      dynamicFlowStateSlotCountChanged: false;
+      dynamicFlowStateSlotSemanticsChanged: true;
+      canonicalCheckpointCompatible: false;
+      exactProtocolIdentityIncludesAllThreeFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-whole-organ-kuw-windkessel-arm";
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: false;
+      sourceWholeOrganTrefChanged: false;
+      calciumDriveChanged: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllFourFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-land-coppini-source-trace-windkessel-arm";
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    sourceTraceProfile:
+      typeof MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1;
+    sarcomereReferenceProfile:
+      MainWireVentricularLandSarcomereReferenceProfileV1;
+    calciumSensitivityLengthProfile:
+      MainWireVentricularLandCalciumSensitivityLengthProfileV1;
+    sourceTwitchRetentionCandidate:
+      MainWireVentricularLandSourceTwitchRetentionCandidateV1;
+    trefForceLoadProfile:
+      MainWireVentricularLandTrefForceLoadProfileV1;
+    sourceVelocityDistortionProfile:
+      MainWireVentricularLandSourceVelocityDistortionProfileV1;
+    circulatoryLoadPoint:
+      MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    stressedVenousVolumePoint:
+      MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: boolean;
+      systemicOrPulmonaryResistanceChanged: boolean;
+      arterialStiffnessLoadScaleChanged: boolean;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: boolean;
+      sourceWholeOrganTrefChanged: boolean;
+      primaryNumericSourceCalciumTraceUsed: true;
+      sourceLandParametersOutsideExplicitResearchAxesChanged: false;
+      sourceLandBeta1Changed: boolean;
+      sourceLandTwitchRetentionParametersChanged: boolean;
+      sourceLandTrefForceLoadChanged: boolean;
+      sourceLandVelocityDistortionChanged: boolean;
+      sourceTwitchRetentionCandidateDerivedFromIsometricOnly: boolean;
+      sourceTwitchRetentionCandidateInformedByPriorLoadedEnvelope: boolean;
+      referenceLengthIsometricLandValuesChanged: false;
+      referenceLengthIsometricPeakTargetChangedByTrefForceLoad: boolean;
+      landSarcomereReferenceCouplingChanged: boolean;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllExplicitFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniAmplitudeTrefWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-land-coppini-amplitude-tref-windkessel-arm";
+    amplitudeTrefPair: MainWireVentricularLandCoppiniAmplitudeTrefPairV1;
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    sarcomereReferenceProfile:
+      MainWireVentricularLandSarcomereReferenceProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceLandParametersExceptTrefChanged: false;
+      amplitudeAndTrefPairDerivedFromSourceIsometricPeakOnly: true;
+      loadedOrHemodynamicOutcomeUsedToDerivePair: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllSevenFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwCalciumWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-whole-organ-kuw-calcium-windkessel-arm";
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    calciumProfile: MainWireVentricularCalciumDelayedMixtureProfileV1 | null;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: false;
+      sourceWholeOrganTrefChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllFiveFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowActivationDistributionWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-activation-distribution-windkessel-arm";
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    activationDistributionProfile:
+      MainWireVentricularCalciumActivationDistributionProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: false;
+      sourceWholeOrganTrefChanged: false;
+      localCellCalciumPulseChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllFiveFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowIndependentActivationCohortWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-independent-activation-cohort-windkessel-arm";
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    activationCohortProfile:
+      MainWireVentricularLandActivationCohortProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: false;
+      sourceWholeOrganTrefChanged: false;
+      localCellCalciumPulseChanged: false;
+      ventricularLandStateCountPerWall: 18;
+      calciumOrMechanicsStateAdded: true;
+      acceptedStateOrCheckpointTopologyChanged: true;
+      canonicalCheckpointCompatible: false;
+      exactProtocolIdentityIncludesAllFiveFactors: true;
+    }>;
+  }>;
+
+export type MainWireNormalAdultFiveWallAorticOutflowCalciumDecayWindkesselResearchRunV1 =
+  Readonly<{
+    configurationRole:
+      "fixed-aortic-outflow-calcium-decay-windkessel-arm";
+    calciumProfile: MainWireVentricularCalciumFixedAmplitudeDecayProfileV1;
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile:
+      MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      valveDiseaseBracketApplied: false;
+      bloodVolumeChanged: false;
+      aorticMaximumForwardEoaChanged: false;
+      sourceFittedAeffChanged: false;
+      sourceWholeOrganTrefChanged: false;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      exactProtocolIdentityIncludesAllFiveFactors: true;
     }>;
   }>;
 
@@ -1545,6 +2255,176 @@ export function runMainWireNormalAdultFiveWallAorticOutflowDistortionTransientRe
   });
 }
 
+/** Fixed common-ventricular Land Aeff amplitude envelope. */
+export function runMainWireNormalAdultFiveWallAorticOutflowVelocityDistortionAmplitudeResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowVelocityDistortionAmplitudeArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionAmplitudeResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm =
+    resolveMainWireAorticOutflowVelocityDistortionAmplitudeArmV1(armId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-amplitude-arm" as const,
+    arm,
+    materialPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
+/** Fixed Aeff-by-stressed-venous-volume factorial arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowVelocityDistortionPreloadResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowVelocityDistortionPreloadArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionPreloadResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowVelocityDistortionPreloadArmV1(
+    armId,
+  );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    arm.stressedVenousVolumePointId,
+  );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-preload-arm" as const,
+    arm,
+    materialPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesMechanicsAndBloodVolume: true as const,
+    }),
+  });
+}
+
+/** Fixed Aeff-by-Tref factorial arm for ET-versus-force-scale separation. */
+export function runMainWireNormalAdultFiveWallAorticOutflowVelocityDistortionTrefResearchArmV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowVelocityDistortionTrefArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowVelocityDistortionTrefResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowVelocityDistortionTrefArmV1(armId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-velocity-distortion-tref-arm" as const,
+    arm,
+    materialPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      bloodVolumeChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+    }),
+  });
+}
+
 /** Fixed 2x2 Land beta0/beta1 length-mechanism research arm. */
 export function runMainWireNormalAdultFiveWallAorticOutflowLengthMechanismResearchArmV1(
   options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
@@ -1667,6 +2547,225 @@ export function runMainWireNormalAdultFiveWallAorticOutflowMechanismCandidateLoa
   });
 }
 
+/** ET-first candidate paired with canonical across fixed load contexts. */
+export function runMainWireNormalAdultFiveWallAorticOutflowEjectionTimingCandidateLoadResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  candidateId: MainWireAorticOutflowEjectionTimingCandidateIdV1,
+  contextId: MainWireAorticOutflowEjectionTimingLoadContextIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowEjectionTimingCandidateLoadResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const candidate = resolveMainWireAorticOutflowEjectionTimingCandidateV1(
+    candidateId,
+  );
+  const context = resolveMainWireAorticOutflowEjectionTimingLoadContextV1(
+    contextId,
+  );
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    context.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      context.circulatoryLoadPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    context.stressedVenousVolumePointId,
+  );
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    candidate.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      candidate.ventricularMaterialPointId,
+    );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+      }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-candidate-load-envelope-run" as const,
+    candidate,
+    context,
+    materialPoint,
+    circulatoryLoadPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCandidateLoadAndBloodVolume: true as const,
+    }),
+  });
+}
+
+/** Fixed ET-refinement candidate at nominal or prior worst-ET load. */
+export function runMainWireNormalAdultFiveWallAorticOutflowEjectionTimingRefinementResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  candidateId: MainWireAorticOutflowEjectionTimingRefinementCandidateIdV1,
+  contextId: MainWireAorticOutflowEjectionTimingRefinementContextIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowEjectionTimingRefinementResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const candidate = resolveMainWireVentricularLandEtRefinementCandidateV1(
+    candidateId,
+  );
+  const context = resolveMainWireAorticOutflowEjectionTimingRefinementContextV1(
+    contextId,
+  );
+  const runtime = resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+    context.circulatoryLoadPointId,
+  );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      context.circulatoryLoadPointId,
+    );
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRefinementCandidateV1(
+      candidateId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-refinement-run" as const,
+    candidate,
+    context,
+    circulatoryLoadPoint,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      bloodVolumeChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCandidateAndLoad: true as const,
+    }),
+  });
+}
+
+/** Fixed ET-mechanics by valve-local-inertance interaction arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowEjectionTimingLocalInertanceInteractionResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId:
+    MainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowEjectionTimingLocalInertanceInteractionResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm =
+    resolveMainWireAorticOutflowEjectionTimingLocalInertanceInteractionArmV1(
+      armId,
+    );
+  const localInertanceProfile = arm.localInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticValveLocalInertanceProfileV1(
+      arm.localInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    ...(localInertanceProfile === null
+      ? {}
+      : { aorticValveLocalInertanceResearchProfile: localInertanceProfile }),
+  });
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  const audit = periodicResult.aorticValveLocalInertanceResearchAudit ?? null;
+  if (localInertanceProfile !== null && audit === null) {
+    throw new Error("ET/local-inertance arm omitted external q audit");
+  }
+  if (localInertanceProfile === null && audit !== null) {
+    throw new Error("ET/local-inertance L-off arm emitted external q audit");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-local-inertance-interaction-arm" as const,
+    arm,
+    materialPoint,
+    localInertanceProfile,
+    periodicResult,
+    externalFlowStateAudit: audit,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      bloodVolumeChanged: false as const,
+      pressureRecoveryChanged: false as const,
+      openingModeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      externalFlowPromotedOnlyAfterSuccessfulCoupledStepWhenApplicable:
+        true as const,
+      canonicalAcceptedStateOrCheckpointChanged: false as const,
+      exactProtocolIdentityIncludesMechanicsAndLocalInertance: true as const,
+    }),
+  });
+}
+
 /** Fixed 2x2 Land velocity-distortion/arterial-stiffness research arm. */
 export function runMainWireNormalAdultFiveWallAorticOutflowVelocityStiffnessResearchArmV1(
   options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
@@ -1781,6 +2880,1416 @@ export function runMainWireNormalAdultFiveWallAorticCompliancePartitionResearchV
   });
 }
 
+/** Fixed global arterial-compliance physiology bracket from a cold start. */
+export function runMainWireNormalAdultFiveWallArterialCompliancePhysiologyResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  profileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+): MainWireNormalAdultFiveWallArterialCompliancePhysiologyResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const profile = resolveMainWireArterialCompliancePhysiologyProfileV1(
+    profileId,
+  );
+  const runtime = resolveMainWireArterialCompliancePhysiologyRuntimeV1(
+    profileId,
+  );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-arterial-compliance-physiology-research-profile" as const,
+    profile,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      systemicOrPulmonaryResistanceChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      mechanicsOrCalciumChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactRuntimeIdentityIncludesProfile: true as const,
+    }),
+  });
+}
+
+/** Fixed combination of the retained low-order ET mechanism axes. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLowOrderMechanismCombinationResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  twitchTimingCandidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null = null,
+  compliancePartitionProfileId:
+    MainWireAorticCompliancePartitionResearchProfileIdV1 | null = null,
+  circulatoryLoadPointId:
+    MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 = "baseline",
+  stressedVenousVolumePointId:
+    MainWireNormalAdultStressedVenousVolumeResearchPointIdV1 = "baseline",
+): MainWireNormalAdultFiveWallAorticOutflowLowOrderMechanismCombinationResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(complianceProfileId);
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const twitchTimingCandidate =
+    resolveMainWireVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const compliancePartitionProfile = compliancePartitionProfileId === null
+    ? null
+    : resolveMainWireAorticCompliancePartitionResearchProfileV1(
+      compliancePartitionProfileId,
+    );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      circulatoryLoadPointId,
+    );
+  if (circulatoryLoadPoint.arterialStiffnessScaleFromBaseline !== 1) {
+    throw new Error(
+      "low-order combination owns arterial stiffness; load point must not",
+    );
+  }
+  const loadRuntime =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+      circulatoryLoadPointId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...loadRuntime,
+    vascular: Object.freeze({
+      ...loadRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+      ...(compliancePartitionProfile === null
+        ? {}
+        : {
+        aorticCompliancePartitionResearchProfile:
+          compliancePartitionProfile,
+        }),
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const calciumDriveParams = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    stressedVenousVolumePointId,
+  );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+  ) {
+    throw new Error("low-order ET mechanism combination identity mismatch");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-low-order-mechanism-combination-arm" as const,
+    complianceProfile,
+    compliancePartitionProfile,
+    placementProfile,
+    rootInertanceProfile,
+    twitchTimingCandidate,
+    circulatoryLoadPoint,
+    bloodVolumePoint: bloodVolume.point,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      calciumDriveChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllSevenFactors: true as const,
+    }),
+  });
+}
+
+/**
+ * Fixed research arm that relocates, rather than duplicates, the existing
+ * Ao_SA accepted flow memory to the inflow side of the aortic compliance.
+ */
+export function runMainWireNormalAdultFiveWallAorticRootFlowStateRelocationResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  relocationProfileId:
+    MainWireAorticRootFlowStateRelocationProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  twitchTimingCandidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+): MainWireNormalAdultFiveWallAorticRootFlowStateRelocationResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const relocationProfile =
+    resolveMainWireAorticRootFlowStateRelocationProfileV1(
+      relocationProfileId,
+    );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const twitchTimingCandidate =
+    resolveMainWireVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    aorticRootFlowStateRelocationResearchProfile: relocationProfile,
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const calciumDriveParams = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) {
+    throw new Error("aortic-root flow-state relocation identity mismatch");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-root-flow-state-relocation-research-arm" as const,
+    relocationProfile,
+    complianceProfile,
+    twitchTimingCandidate,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      calciumDriveChanged: false as const,
+      dynamicFlowStateSlotCountChanged: false as const,
+      dynamicFlowStateSlotSemanticsChanged: true as const,
+      canonicalCheckpointCompatible: false as const,
+      exactProtocolIdentityIncludesAllThreeFactors: true as const,
+    }),
+  });
+}
+
+/**
+ * Source-explicit whole-organ kuw bracket crossed with fixed Windkessel
+ * structure. Aeff, Tref, calcium, AVA, blood volume, and state topology stay
+ * fixed so the incompletely identified crossbridge attachment axis is isolated.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+): MainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1(
+      kuwProfileId,
+    );
+  const calciumDriveParams = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("whole-organ kuw/Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-whole-organ-kuw-windkessel-arm" as const,
+    kuwProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged: false as const,
+      sourceWholeOrganTrefChanged: false as const,
+      calciumDriveChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllFourFactors: true as const,
+    }),
+  });
+}
+
+/** Primary-repository Coppini calcium trace × whole-organ kuw × Windkessel. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1 =
+      "land-sarcomere-reference-canonical",
+  calciumSensitivityLengthProfileId:
+    MainWireVentricularLandCalciumSensitivityLengthProfileIdV1 =
+      "land-beta1-canonical",
+  sourceTwitchRetentionCandidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
+      "source-twitch-retention-canonical",
+  circulatoryLoadPointId:
+    MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 = "baseline",
+  stressedVenousVolumePointId:
+    MainWireNormalAdultStressedVenousVolumeResearchPointIdV1 = "baseline",
+  trefForceLoadProfileId:
+    MainWireVentricularLandTrefForceLoadProfileIdV1 =
+      "tref-force-load-baseline",
+  sourceVelocityDistortionProfileId:
+    MainWireVentricularLandSourceVelocityDistortionProfileIdV1 =
+      "source-Aeff-canonical",
+): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const sarcomereReferenceProfile =
+    resolveMainWireVentricularLandSarcomereReferenceProfileV1(
+      sarcomereReferenceProfileId,
+    );
+  const calciumSensitivityLengthProfile =
+    resolveMainWireVentricularLandCalciumSensitivityLengthProfileV1(
+      calciumSensitivityLengthProfileId,
+    );
+  const sourceTwitchRetentionCandidate =
+    resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1(
+      sourceTwitchRetentionCandidateId,
+    );
+  const circulatoryLoadPoint =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
+      circulatoryLoadPointId,
+    );
+  const trefForceLoadProfile =
+    resolveMainWireVentricularLandTrefForceLoadProfileV1(
+      trefForceLoadProfileId,
+    );
+  const sourceVelocityDistortionProfile =
+    resolveMainWireVentricularLandSourceVelocityDistortionProfileV1(
+      sourceVelocityDistortionProfileId,
+    );
+  if (
+    calciumSensitivityLengthProfile.beta1ScaleFromSource !== 1
+    && (
+      sourceTwitchRetentionCandidate.changedKineticParameters.length !== 0
+      || trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
+      || sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1
+    )
+  ) {
+    throw new Error(
+      "Land source-trace runner does not compose beta1 with twitch-retention or Tref force-load research changes",
+    );
+  }
+  const loadRuntime =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
+      circulatoryLoadPointId,
+    );
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...loadRuntime,
+    vascular: Object.freeze({
+      ...loadRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider = sourceVelocityDistortionProfile
+      .aeffScaleFromIntactHumanSource !== 1
+    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
+      sourceVelocityDistortionProfileId,
+      sourceTwitchRetentionCandidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    )
+    : trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
+    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1(
+      sourceTwitchRetentionCandidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    )
+    : sourceTwitchRetentionCandidate.changedKineticParameters.length === 0
+    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandCalciumSensitivityLengthProfileV1(
+      calciumSensitivityLengthProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    )
+    : createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1(
+      sourceTwitchRetentionCandidateId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1();
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    stressedVenousVolumePointId,
+  );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("Land/Coppini source-trace Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-land-coppini-source-trace-windkessel-arm" as const,
+    kuwProfile,
+    sourceTraceProfile:
+      MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1,
+    sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate,
+    trefForceLoadProfile,
+    sourceVelocityDistortionProfile,
+    circulatoryLoadPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: stressedVenousVolumePointId !== "baseline",
+      systemicOrPulmonaryResistanceChanged:
+        circulatoryLoadPoint.systemicResistanceScaleFromBaseline !== 1
+        || circulatoryLoadPoint.pulmonaryResistanceScaleFromBaseline !== 1,
+      arterialStiffnessLoadScaleChanged:
+        circulatoryLoadPoint.arterialStiffnessScaleFromBaseline !== 1,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged:
+        sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,
+      sourceWholeOrganTrefChanged:
+        sourceTwitchRetentionCandidate.ventricularTrefScaleFromSource !== 1
+        || trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1,
+      primaryNumericSourceCalciumTraceUsed: true as const,
+      sourceLandParametersOutsideExplicitResearchAxesChanged: false as const,
+      sourceLandBeta1Changed:
+        calciumSensitivityLengthProfile.beta1ScaleFromSource !== 1,
+      sourceLandTwitchRetentionParametersChanged:
+        sourceTwitchRetentionCandidate.changedKineticParameters.length !== 0,
+      sourceLandTrefForceLoadChanged:
+        trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1,
+      sourceLandVelocityDistortionChanged:
+        sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,
+      sourceTwitchRetentionCandidateDerivedFromIsometricOnly:
+        !sourceTwitchRetentionCandidate
+          .loadedOrHemodynamicOutcomeUsedToDeriveCandidate,
+      sourceTwitchRetentionCandidateInformedByPriorLoadedEnvelope:
+        sourceTwitchRetentionCandidate
+          .loadedOrHemodynamicOutcomeUsedToDeriveCandidate,
+      referenceLengthIsometricLandValuesChanged: false as const,
+      referenceLengthIsometricPeakTargetChangedByTrefForceLoad:
+        trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1,
+      landSarcomereReferenceCouplingChanged:
+        sarcomereReferenceProfile.landSlackStretchScaleFromBaseline !== 1,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllExplicitFactors: true as const,
+    }),
+  });
+}
+
+/** Source-isometric calcium-amplitude/Tref pair × whole-organ coupling × RLC. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniAmplitudeTrefWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  pairId: MainWireVentricularLandCoppiniAmplitudeTrefPairIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1 =
+      "land-sarcomere-reference-canonical",
+): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniAmplitudeTrefWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const amplitudeTrefPair =
+    resolveMainWireVentricularLandCoppiniAmplitudeTrefPairV1(pairId);
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const sarcomereReferenceProfile =
+    resolveMainWireVentricularLandSarcomereReferenceProfileV1(
+      sarcomereReferenceProfileId,
+    );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandCoppiniAmplitudeTrefPairV1(
+      pairId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumLandCoppiniAmplitudeParamsV1(
+      amplitudeTrefPair.calciumAmplitudeProfileId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("Land/Coppini amplitude-Tref Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-land-coppini-amplitude-tref-windkessel-arm" as const,
+    amplitudeTrefPair,
+    kuwProfile,
+    sarcomereReferenceProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceLandParametersExceptTrefChanged: false as const,
+      amplitudeAndTrefPairDerivedFromSourceIsometricPeakOnly: true as const,
+      loadedOrHemodynamicOutcomeUsedToDerivePair: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllSevenFactors: true as const,
+    }),
+  });
+}
+
+/**
+ * Fixed interaction of the source-explicit whole-organ kuw bracket with the
+ * existing exposure-preserving delayed-calcium ablation and Windkessel
+ * structure. This is a causal interaction screen, not an activation-dispersion
+ * adoption: the delayed mixture predates and remains separately identified
+ * from any future whole-organ activation model.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwCalciumWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  calciumProfileId:
+    MainWireVentricularCalciumDelayedMixtureProfileIdV1 | null,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+): MainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwCalciumWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const calciumProfile = calciumProfileId === null
+    ? null
+    : resolveMainWireVentricularCalciumDelayedMixtureProfileV1(
+      calciumProfileId,
+    );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1(
+      kuwProfileId,
+    );
+  const calciumDriveParams = calciumProfileId === null
+    ? FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1
+    : resolveMainWireVentricularCalciumDelayedMixtureParamsV1(
+      calciumProfileId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("whole-organ kuw/calcium/Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-whole-organ-kuw-calcium-windkessel-arm" as const,
+    kuwProfile,
+    calciumProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged: false as const,
+      sourceWholeOrganTrefChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllFiveFactors: true as const,
+    }),
+  });
+}
+
+/** Fixed unresolved activation-distribution × kuw × Windkessel arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowActivationDistributionWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  activationDistributionProfileId:
+    MainWireVentricularCalciumActivationDistributionProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+): MainWireNormalAdultFiveWallAorticOutflowActivationDistributionWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const activationDistributionProfile =
+    resolveMainWireVentricularCalciumActivationDistributionProfileV1(
+      activationDistributionProfileId,
+    );
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1(
+      kuwProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumActivationDistributionParamsV1(
+      activationDistributionProfileId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("activation-distribution/Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-activation-distribution-windkessel-arm" as const,
+    kuwProfile,
+    activationDistributionProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged: false as const,
+      sourceWholeOrganTrefChanged: false as const,
+      localCellCalciumPulseChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllFiveFactors: true as const,
+    }),
+  });
+}
+
+/** Fixed independent material-cohort activation distribution × kuw × load. */
+export function runMainWireNormalAdultFiveWallAorticOutflowIndependentActivationCohortWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  activationCohortProfileId:
+    MainWireVentricularLandActivationCohortProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+): MainWireNormalAdultFiveWallAorticOutflowIndependentActivationCohortWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const activationCohortProfile =
+    resolveMainWireVentricularLandActivationCohortProfileV1(
+      activationCohortProfileId,
+    );
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandActivationCohortsV1(
+      activationCohortProfileId,
+      kuwProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumActivationDistributionParamsV1(
+      activationCohortProfileId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("independent activation-cohort/Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-independent-activation-cohort-windkessel-arm" as const,
+    kuwProfile,
+    activationCohortProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged: false as const,
+      sourceWholeOrganTrefChanged: false as const,
+      localCellCalciumPulseChanged: false as const,
+      ventricularLandStateCountPerWall: 18 as const,
+      calciumOrMechanicsStateAdded: true as const,
+      acceptedStateOrCheckpointTopologyChanged: true as const,
+      canonicalCheckpointCompatible: false as const,
+      exactProtocolIdentityIncludesAllFiveFactors: true as const,
+    }),
+  });
+}
+
+/** Fixed calcium-decay causal upper bound crossed with kuw and Windkessel. */
+export function runMainWireNormalAdultFiveWallAorticOutflowCalciumDecayWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  calciumProfileId: MainWireVentricularCalciumFixedAmplitudeDecayProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId:
+    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+): MainWireNormalAdultFiveWallAorticOutflowCalciumDecayWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const calciumProfile =
+    resolveMainWireVentricularCalciumFixedAmplitudeDecayProfileV1(
+      calciumProfileId,
+    );
+  const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
+    kuwProfileId,
+  );
+  const complianceProfile =
+    resolveMainWireArterialCompliancePhysiologyProfileV1(
+      complianceProfileId,
+    );
+  const placementProfile = placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      placementProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: Object.freeze({
+      ...baselineRuntime.vascular,
+      systemicArterialStiffnessScaleFromGlobal:
+        complianceProfile.arterialStiffnessScaleFromBaseline,
+    }),
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1(
+      kuwProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumFixedAmplitudeDecayParamsV1(
+      calciumProfileId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
+      !== hashProtocolValue(runtime)
+  ) throw new Error("calcium-decay/Windkessel identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-calcium-decay-windkessel-arm" as const,
+    calciumProfile,
+    kuwProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      sourceFittedAeffChanged: false as const,
+      sourceWholeOrganTrefChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllFiveFactors: true as const,
+    }),
+  });
+}
+
+/** Fixed root-compliance partition by existing Ao-SA R/L damping arm. */
+export function runMainWireNormalAdultFiveWallAorticRootRlcDampingResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  compliancePartitionProfileId:
+    MainWireAorticCompliancePartitionResearchProfileIdV1 | null,
+  rootResistanceProfileId:
+    MainWireAorticRootResistanceResearchProfileIdV1 | null,
+  rootInertanceProfileId:
+    MainWireAorticRootInertanceResearchProfileIdV1 | null,
+  twitchTimingCandidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+): MainWireNormalAdultFiveWallAorticRootRlcDampingResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const compliancePartitionProfile = compliancePartitionProfileId === null
+    ? null
+    : resolveMainWireAorticCompliancePartitionResearchProfileV1(
+      compliancePartitionProfileId,
+    );
+  const rootResistanceProfile = rootResistanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootResistanceResearchProfileV1(
+      rootResistanceProfileId,
+    );
+  const rootInertanceProfile = rootInertanceProfileId === null
+    ? null
+    : resolveMainWireAorticRootInertanceResearchProfileV1(
+      rootInertanceProfileId,
+    );
+  const twitchTimingCandidate =
+    resolveMainWireVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    vascular: compliancePartitionProfile === null
+      ? baselineRuntime.vascular
+      : Object.freeze({
+        ...baselineRuntime.vascular,
+        aorticCompliancePartitionResearchProfile:
+          compliancePartitionProfile,
+      }),
+    ...(rootResistanceProfile === null
+      ? {}
+      : { aorticRootResistanceResearchProfile: rootResistanceProfile }),
+    ...(rootInertanceProfile === null
+      ? {}
+      : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+  });
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const calciumDriveParams = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+  ) throw new Error("aortic-root RLC damping identity mismatch");
+  return Object.freeze({
+    configurationRole: "fixed-aortic-root-rlc-damping-research-arm" as const,
+    compliancePartitionProfile,
+    rootResistanceProfile,
+    rootInertanceProfile,
+    twitchTimingCandidate,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      calciumDriveChanged: false as const,
+      dynamicFlowStateOwnerChanged: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesAllFourFactors: true as const,
+    }),
+  });
+}
+
+/** Fixed ET mechanics by proximal characteristic-resistance placement arm. */
+export function runMainWireNormalAdultFiveWallAorticOutflowEjectionTimingCharacteristicResistancePlacementResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId:
+    MainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowEjectionTimingCharacteristicResistancePlacementResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const arm =
+    resolveMainWireAorticOutflowEjectionTimingCharacteristicResistancePlacementArmV1(
+      armId,
+    );
+  const placementProfile = arm.placementProfileId === null
+    ? null
+    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+      arm.placementProfileId,
+    );
+  const baselineRuntime = normalAdultMainWireRuntimeV1();
+  const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+    ...baselineRuntime,
+    ...(placementProfile === null
+      ? {}
+      : {
+        aorticCharacteristicResistancePlacementResearchProfile:
+          placementProfile,
+      }),
+  });
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    arm.ventricularMaterialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      arm.ventricularMaterialPointId,
+    );
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint }),
+    );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-characteristic-resistance-placement-arm" as const,
+    arm,
+    materialPoint,
+    placementProfile,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      calciumDriveChanged: false as const,
+      bloodVolumeChanged: false as const,
+      aorticMaximumForwardEoaChanged: false as const,
+      aorticValveOpeningLawChanged: false as const,
+      aorticRootComplianceOrInertanceChanged: false as const,
+      sourceTopologyLinearResistanceSumPreservedExactly: true as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesMechanicsAndPlacement: true as const,
+    }),
+  });
+}
+
 /** Fixed common-ventricular calcium waveform arm from a canonical cold start. */
 export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearchV1(
   options:
@@ -1832,6 +4341,161 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumWaveformResearch
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/**
+ * One-axis-at-a-time ET causal bracket. Each arm starts from the same canonical
+ * cold construction and changes either fixed-amplitude calcium decay or the
+ * existing Land gammaW shortening-deactivation coefficient, never both.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowEjectionTimingResearchArmV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  armId: MainWireAorticOutflowEjectionTimingArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowEjectionTimingResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const arm = resolveMainWireAorticOutflowEjectionTimingArmV1(armId);
+  const calciumProfile =
+    resolveMainWireVentricularCalciumFixedAmplitudeDecayProfileV1(
+      arm.calciumProfileId,
+    );
+  const gammaWProfile =
+    resolveMainWireNormalAdultVentricularGammaWResearchProfileV1(
+      arm.gammaWProfileId,
+    );
+  if (
+    arm.calciumProfileId !== "canonical"
+    && arm.gammaWProfileId !== "canonical"
+  ) {
+    throw new Error("ejection-timing ablation arms may change only one axis");
+  }
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumFixedAmplitudeDecayParamsV1(
+      arm.calciumProfileId,
+    );
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularGammaWResearchProfileV1(
+      arm.gammaWProfileId,
+    );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+  ) {
+    throw new Error("ejection-timing ablation protocol identity mismatch");
+  }
+  // Resolve at the runner boundary so profile and material identities cannot
+  // silently diverge even though analysis owns the material readback itself.
+  resolveMainWireNormalAdultVentricularGammaWWallMaterialV1(
+    arm.gammaWProfileId,
+  );
+  return Object.freeze({
+    configurationRole:
+      "fixed-aortic-outflow-ejection-timing-causal-ablation-arm" as const,
+    arm,
+    calciumProfile,
+    gammaWProfile,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      calciumAndGammaWAxesCombined: false as const,
+      exactProtocolIdentityIncludesCalciumAndMechanicsParams: true as const,
+    }),
+  });
+}
+
+/** Fixed isometric-informed ventricular Land kinetic candidate from cold start. */
+export function runMainWireNormalAdultFiveWallVentricularLandTwitchTimingResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  candidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+): MainWireNormalAdultFiveWallVentricularLandTwitchTimingResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const candidate =
+    resolveMainWireVentricularLandTwitchTimingCandidateV1(candidateId);
+  const calciumDriveParams = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+      candidateId,
+    );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({ provider, bloodVolumeOperatingPoint, calciumDriveParams }),
+    );
+  if (
+    periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+    || periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+  ) throw new Error("Land twitch timing candidate protocol identity mismatch");
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-land-twitch-timing-candidate" as const,
+    candidate,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      calciumDriveChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesMechanicsParams: true as const,
     }),
   });
 }
@@ -1888,6 +4552,85 @@ export function runMainWireNormalAdultFiveWallVentricularCalciumSourceConstraine
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesCalciumParams: true as const,
+    }),
+  });
+}
+
+/** Fixed source-calcium by isometric-informed Land-timing factorial arm. */
+export function runMainWireNormalAdultFiveWallVentricularCalciumLandTwitchTimingResearchV1(
+  options:
+    MainWireNormalAdultFiveWallVentricularCalciumWaveformResearchOptionsV1,
+  calciumProfileId: MainWireVentricularCalciumSourceConstrainedProfileIdV1,
+  twitchTimingCandidateId: MainWireVentricularLandTwitchTimingCandidateIdV1,
+): MainWireNormalAdultFiveWallVentricularCalciumLandTwitchTimingResearchRunV1 {
+  assertExactVentricularCalciumWaveformResearchOptions(options);
+  const calciumProfile =
+    resolveMainWireVentricularCalciumSourceConstrainedProfileV1(
+      calciumProfileId,
+    );
+  const twitchTimingCandidate =
+    resolveMainWireVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumSourceConstrainedParamsV1(
+      calciumProfileId,
+    );
+  const provider =
+    createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1(
+      twitchTimingCandidateId,
+    );
+  const runtime = normalAdultMainWireRuntimeV1();
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint,
+        calciumDriveParams,
+      }),
+    );
+  if (
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== provider.parameterIdentityHash
+  ) {
+    throw new Error(
+      "calcium by Land twitch timing factorial protocol identity mismatch",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-ventricular-calcium-land-twitch-timing-factorial-arm" as const,
+    calciumProfile,
+    twitchTimingCandidate,
+    calciumDriveParams,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      valveDiseaseBracketApplied: false as const,
+      circulationRuntimeChanged: false as const,
+      aorticValveConstitutiveLawChanged: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumAndMechanicsParams: true as const,
     }),
   });
 }

@@ -28,6 +28,10 @@ export const MAIN_WIRE_VALVE_DISEASE_CYCLE_METRICS_CLAIM_V1 = Object.freeze({
     "absolute-directional-q-divided-by-100-times-direction-selected-active-EOA" as const,
   simplifiedDopplerGradient:
     "4-times-forward-jet-velocity-squared-distinct-from-node-pressure-gradient" as const,
+  meanDopplerDecomposition:
+    "fully-open-uniform-flow-lower-bound-times-dynamic-area-penalty-times-jet-velocity-waveform-nonuniformity" as const,
+  meanDopplerDecompositionUsesSameStrictlyPositiveFlowSamples:
+    true as const,
   episodeThreshold:
     "max-of-1-mL-per-sec-and-1-percent-of-same-valve-cycle-max-absolute-flow" as const,
   episodeCounting: "cyclic-binary-runs-no-smoothing" as const,
@@ -68,6 +72,8 @@ export type MainWireValveDiseasePerValveCycleMetricsV1 = Readonly<{
   sameValveRegurgitantFraction: number | null;
   /** Duration of all samples with q > 0, used by the time mean below. */
   forwardFlowTimeSec: number;
+  /** Time mean over the same strictly-positive-flow samples. */
+  forwardFlowTimeMeanFlowMlPerSec: number;
   /** Node-to-node model gradient, not an echocardiographic Doppler gradient. */
   forwardFlowTimeMeanGradientMmHg: number;
   /** Node-to-node model gradient, flow-volume weighted. */
@@ -75,8 +81,21 @@ export type MainWireValveDiseasePerValveCycleMetricsV1 = Readonly<{
   /** Peak node-to-node model gradient. */
   peakForwardGradientMmHg: number;
   peakForwardJetVelocityMPerSec: number;
+  forwardFlowTimeMeanJetVelocityMPerSec: number;
+  forwardFlowRmsJetVelocityMPerSec: number;
   /** Time mean of the clinical simplified-Bernoulli readback 4 v^2. */
   forwardFlowTimeMeanSimplifiedDopplerGradientMmHg: number;
+  /**
+   * 4 (mean(q)/(100 Amax))^2: the fixed-volume, fixed-duration lower bound
+   * for a fully open valve with a uniform forward-flow waveform.
+   */
+  fullyOpenUniformFlowDopplerGradientLowerBoundMmHg: number;
+  /** (mean(v)/(mean(q)/(100 Amax)))^2; at least one absent roundoff. */
+  dynamicAreaDopplerPenaltyFactor: number;
+  /** mean(v^2)/mean(v)^2; the Cauchy waveform nonuniformity factor. */
+  jetVelocityWaveformNonuniformityFactor: number;
+  /** Exact product of the dynamic-area and waveform factors. */
+  meanDopplerExcessOverFullyOpenUniformFlowFactor: number;
   /** Peak clinical simplified-Bernoulli readback 4 v^2. */
   peakSimplifiedDopplerGradientMmHg: number;
   peakReverseJetVelocityMPerSec: number;
@@ -377,6 +396,7 @@ function measureValve(
   let forwardGradientSumMmHg = 0;
   let forwardFlowWeightedGradientNumeratorMmHgMl = 0;
   let forwardSimplifiedDopplerGradientSumMmHg = 0;
+  let forwardJetVelocitySumMPerSec = 0;
   let peakForwardGradientMmHg = Number.NEGATIVE_INFINITY;
   let peakForwardJetVelocityMPerSec = 0;
   let peakSimplifiedDopplerGradientMmHg = 0;
@@ -407,6 +427,7 @@ function measureValve(
         flow / (100 * valve.activeEoaCm2);
       const simplifiedDopplerGradientMmHg =
         4 * forwardJetVelocityMPerSec ** 2;
+      forwardJetVelocitySumMPerSec += forwardJetVelocityMPerSec;
       forwardSimplifiedDopplerGradientSumMmHg +=
         simplifiedDopplerGradientMmHg;
       peakForwardJetVelocityMPerSec = Math.max(
@@ -479,6 +500,41 @@ function measureValve(
     );
   }
 
+  const forwardFlowTimeSec = forwardFlowSampleCount * dtSec;
+  const forwardFlowTimeMeanFlowMlPerSec = forwardFlowSampleCount > 0
+    ? forwardVolumeMl / forwardFlowTimeSec
+    : 0;
+  const forwardFlowTimeMeanJetVelocityMPerSec = forwardFlowSampleCount > 0
+    ? forwardJetVelocitySumMPerSec / forwardFlowSampleCount
+    : 0;
+  const forwardFlowTimeMeanSimplifiedDopplerGradientMmHg =
+    forwardFlowSampleCount > 0
+      ? forwardSimplifiedDopplerGradientSumMmHg / forwardFlowSampleCount
+      : 0;
+  const forwardFlowRmsJetVelocityMPerSec =
+    Math.sqrt(forwardFlowTimeMeanSimplifiedDopplerGradientMmHg / 4);
+  const fullyOpenUniformFlowVelocityMPerSec = forwardFlowSampleCount > 0
+    ? forwardFlowTimeMeanFlowMlPerSec
+      / (100 * configuredMaximumForwardEoaCm2)
+    : 0;
+  const fullyOpenUniformFlowDopplerGradientLowerBoundMmHg =
+    4 * fullyOpenUniformFlowVelocityMPerSec ** 2;
+  const dynamicAreaDopplerPenaltyFactor =
+    fullyOpenUniformFlowVelocityMPerSec > 0
+      ? (forwardFlowTimeMeanJetVelocityMPerSec
+        / fullyOpenUniformFlowVelocityMPerSec) ** 2
+      : 1;
+  const jetVelocityWaveformNonuniformityFactor =
+    forwardFlowTimeMeanJetVelocityMPerSec > 0
+      ? (forwardFlowRmsJetVelocityMPerSec
+        / forwardFlowTimeMeanJetVelocityMPerSec) ** 2
+      : 1;
+  const meanDopplerExcessOverFullyOpenUniformFlowFactor =
+    fullyOpenUniformFlowDopplerGradientLowerBoundMmHg > 0
+      ? forwardFlowTimeMeanSimplifiedDopplerGradientMmHg
+        / fullyOpenUniformFlowDopplerGradientLowerBoundMmHg
+      : 1;
+
   return Object.freeze({
     valveId,
     configuredMaximumForwardEoaCm2,
@@ -490,7 +546,8 @@ function measureValve(
     netVolumeMl: forwardVolumeMl - reverseVolumeMl,
     sameValveRegurgitantFraction:
       forwardVolumeMl > 0 ? reverseVolumeMl / forwardVolumeMl : null,
-    forwardFlowTimeSec: forwardFlowSampleCount * dtSec,
+    forwardFlowTimeSec,
+    forwardFlowTimeMeanFlowMlPerSec,
     forwardFlowTimeMeanGradientMmHg: forwardFlowSampleCount > 0
       ? forwardGradientSumMmHg / forwardFlowSampleCount
       : 0,
@@ -501,10 +558,13 @@ function measureValve(
       ? peakForwardGradientMmHg
       : 0,
     peakForwardJetVelocityMPerSec,
-    forwardFlowTimeMeanSimplifiedDopplerGradientMmHg:
-      forwardFlowSampleCount > 0
-        ? forwardSimplifiedDopplerGradientSumMmHg / forwardFlowSampleCount
-        : 0,
+    forwardFlowTimeMeanJetVelocityMPerSec,
+    forwardFlowRmsJetVelocityMPerSec,
+    forwardFlowTimeMeanSimplifiedDopplerGradientMmHg,
+    fullyOpenUniformFlowDopplerGradientLowerBoundMmHg,
+    dynamicAreaDopplerPenaltyFactor,
+    jetVelocityWaveformNonuniformityFactor,
+    meanDopplerExcessOverFullyOpenUniformFlowFactor,
     peakSimplifiedDopplerGradientMmHg,
     peakReverseJetVelocityMPerSec,
     forwardEpisodeCount: countCyclicEpisodes(forwardEpisodeMask),

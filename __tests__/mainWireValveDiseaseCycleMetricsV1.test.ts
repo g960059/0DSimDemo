@@ -45,12 +45,32 @@ describe("MainWireValveDiseaseCycleMetricsV1", () => {
     expect(mv.netVolumeMl).toBeCloseTo(8.5, 15);
     expect(mv.sameValveRegurgitantFraction).toBeCloseTo(0.15, 15);
     expect(mv.forwardFlowTimeSec).toBeCloseTo(0.4, 15);
+    expect(mv.forwardFlowTimeMeanFlowMlPerSec).toBeCloseTo(25, 15);
     expect(mv.forwardFlowTimeMeanGradientMmHg).toBeCloseTo(2.5, 15);
     expect(mv.forwardFlowWeightedMeanGradientMmHg).toBeCloseTo(3, 15);
     expect(mv.peakForwardGradientMmHg).toBe(4);
     expect(mv.peakForwardJetVelocityMPerSec).toBeCloseTo(0.2, 15);
+    expect(mv.forwardFlowTimeMeanJetVelocityMPerSec)
+      .toBeCloseTo(0.125, 15);
+    expect(mv.forwardFlowRmsJetVelocityMPerSec)
+      .toBeCloseTo(Math.sqrt(0.01875), 15);
     expect(mv.forwardFlowTimeMeanSimplifiedDopplerGradientMmHg)
       .toBeCloseTo(0.075, 15);
+    expect(mv.fullyOpenUniformFlowDopplerGradientLowerBoundMmHg)
+      .toBeCloseTo(4 * (25 / 550) ** 2, 15);
+    expect(mv.dynamicAreaDopplerPenaltyFactor).toBeCloseTo(7.5625, 15);
+    expect(mv.jetVelocityWaveformNonuniformityFactor)
+      .toBeCloseTo(1.2, 15);
+    expect(mv.meanDopplerExcessOverFullyOpenUniformFlowFactor)
+      .toBeCloseTo(9.075, 14);
+    expect(
+      mv.fullyOpenUniformFlowDopplerGradientLowerBoundMmHg
+        * mv.dynamicAreaDopplerPenaltyFactor
+        * mv.jetVelocityWaveformNonuniformityFactor,
+    ).toBeCloseTo(
+      mv.forwardFlowTimeMeanSimplifiedDopplerGradientMmHg,
+      15,
+    );
     expect(mv.peakSimplifiedDopplerGradientMmHg).toBeCloseTo(0.16, 15);
     expect(mv.peakReverseJetVelocityMPerSec).toBeCloseTo(1, 15);
     expect(mv.forwardEpisodeCount).toBe(1);

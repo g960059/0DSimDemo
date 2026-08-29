@@ -25,6 +25,25 @@ export type PeriodicBiexponentialDelayedMixtureV1 = Readonly<{
   unnormalizedMixturePeak01: number;
 }>;
 
+export type PeriodicBiexponentialSimpsonActivationDistributionV1 = Readonly<{
+  shape: "simpson-uniform-activation-distribution-v1";
+  supportDurationSec: number;
+  delaySec: readonly [0, number, number];
+  weight01: readonly [number, number, number];
+  /** Exact fixed-profile divisor that restores a unit effective peak. */
+  unnormalizedMixturePeak01: number;
+}>;
+
+export type PeriodicSampledVentricularCalciumTraceV1 = Readonly<{
+  traceId: string;
+  sampleIntervalSec: number;
+  /** Includes both equal-valued endpoints of one complete cycle. */
+  samplesUM: readonly number[];
+  minimumCalciumUM: number;
+  amplitudeUM: number;
+  interpolation: "periodic-piecewise-linear-between-source-samples";
+}>;
+
 export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   parameterSetId: string;
   cycleLengthSec: number;
@@ -33,6 +52,14 @@ export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   ventricular: PeriodicBiexponentialCalciumClassV1;
   /** Optional fixed low-order redistribution; it adds no calcium state. */
   ventricularDelayedMixture?: PeriodicBiexponentialDelayedMixtureV1;
+  /**
+   * Optional moment-preserving closure of an unresolved uniform ventricular
+   * activation-time distribution. It changes no accepted-state topology.
+   */
+  ventricularActivationDistribution?:
+    PeriodicBiexponentialSimpsonActivationDistributionV1;
+  /** Optional primary numeric trace; mutually exclusive with composites. */
+  ventricularSampledTrace?: PeriodicSampledVentricularCalciumTraceV1;
   /** Optional mechanistic activation perturbation for research case construction. */
   peakAmplitudeScaleByWall?: Readonly<
     Partial<Record<keyof FiveWallCalciumValuesV1, number>>
@@ -55,6 +82,12 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
   ] as const),
   optionalWallSpecificDecayTimeScale: true as const,
   optionalVentricularDelayedConvexMixture: true as const,
+  optionalVentricularActivationDistributionClosure: true as const,
+  optionalPrimaryNumericVentricularTrace: true as const,
+  sampledTraceInterpolation:
+    "periodic-piecewise-linear-between-adjacent-source-samples" as const,
+  activationDistributionQuadrature:
+    "three-point-Simpson-exact-first-two-uniform-delay-moments" as const,
   delayedMixtureAddsState: false as const,
   genericLusitropyClaimed: false as const,
   volumeInput: false as const,
@@ -147,6 +180,19 @@ export type PeriodicBiexponentialDelayedMixtureShapeV1 = Readonly<{
   unnormalizedMixturePeak01: number;
   normalizedMixtureCycleIntegralSec: number;
 }>;
+
+export type PeriodicBiexponentialSimpsonActivationDistributionShapeV1 =
+  Readonly<{
+    cycleLengthSec: number;
+    riseTimeConstantSec: number;
+    decayTimeConstantSec: number;
+    supportDurationSec: number;
+    delaySec: readonly [0, number, number];
+    weight01: readonly [number, number, number];
+    timeToPeakSec: number;
+    unnormalizedMixturePeak01: number;
+    normalizedMixtureCycleIntegralSec: number;
+  }>;
 
 /**
  * Exact shape moments of the normalized periodic pulse owned by this model.
@@ -325,6 +371,117 @@ export function measurePeriodicBiexponentialDelayedMixtureShapeV1(
   });
 }
 
+/**
+ * Three-point Simpson closure of a uniform distribution of local ventricular
+ * activation delays. The fixed weights reproduce the uniform distribution's
+ * zeroth, first, and second moments exactly. Extrema are exhausted
+ * analytically: between delay events the derivative is one difference of two
+ * exponentials and therefore has at most one stationary point.
+ */
+export function measurePeriodicBiexponentialSimpsonActivationDistributionShapeV1(
+  cycleLengthSec: number,
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+  supportDurationSec: number,
+): PeriodicBiexponentialSimpsonActivationDistributionShapeV1 {
+  const base = measurePeriodicBiexponentialCalciumPulseShapeV1(
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+  );
+  if (base.shapeRegime === "alpha-limit") {
+    throw new Error(
+      "activation distribution does not admit the alpha-limit time-constant branch",
+    );
+  }
+  if (
+    !(supportDurationSec > 0 && supportDurationSec < cycleLengthSec)
+    || !Number.isFinite(supportDurationSec)
+  ) {
+    throw new Error(
+      "activation-distribution support must be finite and within the cycle",
+    );
+  }
+  const delaySec = Object.freeze([
+    0,
+    0.5 * supportDurationSec,
+    supportDurationSec,
+  ] as const);
+  const weight01 = Object.freeze([1 / 6, 2 / 3, 1 / 6] as const);
+  const boundaries = [0, delaySec[1], delaySec[2], cycleLengthSec];
+  const decayCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
+  const riseCarry =
+    1 / (1 - Math.exp(-cycleLengthSec / riseTimeConstantSec));
+  const candidateTimes = [0, delaySec[1], delaySec[2]];
+  for (let intervalIndex = 0; intervalIndex < 3; intervalIndex += 1) {
+    const lower = boundaries[intervalIndex]!;
+    const upper = boundaries[intervalIndex + 1]!;
+    const midpoint = 0.5 * (lower + upper);
+    let decayCoefficient = 0;
+    let riseCoefficient = 0;
+    for (let cohortIndex = 0; cohortIndex < delaySec.length; cohortIndex += 1) {
+      const delay = delaySec[cohortIndex]!;
+      const wrap = midpoint < delay ? cycleLengthSec : 0;
+      decayCoefficient += weight01[cohortIndex]!
+        * decayCarry
+        * Math.exp((delay - wrap) / decayTimeConstantSec);
+      riseCoefficient += weight01[cohortIndex]!
+        * riseCarry
+        * Math.exp((delay - wrap) / riseTimeConstantSec);
+    }
+    const stationary = Math.log(
+      (riseCoefficient / riseTimeConstantSec)
+      / (decayCoefficient / decayTimeConstantSec),
+    ) / (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
+    if (stationary > lower && stationary < upper) {
+      candidateTimes.push(stationary);
+    }
+  }
+  const mixtureAt = (timeSec: number): number =>
+    weight01.reduce((sum, weight, cohortIndex) =>
+      sum + weight * normalizedPeriodicBiexponential(
+        positiveModulo(
+          timeSec - delaySec[cohortIndex]!,
+          cycleLengthSec,
+        ),
+        cycleLengthSec,
+        riseTimeConstantSec,
+        decayTimeConstantSec,
+      ), 0);
+  let timeToPeakSec = candidateTimes[0]!;
+  let unnormalizedMixturePeak01 = mixtureAt(timeToPeakSec);
+  for (const candidateTime of candidateTimes.slice(1)) {
+    const candidate = mixtureAt(candidateTime);
+    if (candidate > unnormalizedMixturePeak01) {
+      timeToPeakSec = candidateTime;
+      unnormalizedMixturePeak01 = candidate;
+    }
+  }
+  if (
+    !(unnormalizedMixturePeak01 > 0
+      && unnormalizedMixturePeak01 <= 1 + 1e-12)
+    || !Number.isFinite(unnormalizedMixturePeak01)
+  ) {
+    throw new Error(
+      "activation distribution has no finite positive peak in (0, 1]",
+    );
+  }
+  unnormalizedMixturePeak01 = Math.min(1, unnormalizedMixturePeak01);
+  return Object.freeze({
+    cycleLengthSec,
+    riseTimeConstantSec,
+    decayTimeConstantSec,
+    supportDurationSec,
+    delaySec,
+    weight01,
+    timeToPeakSec,
+    unnormalizedMixturePeak01,
+    normalizedMixtureCycleIntegralSec:
+      base.normalizedPulseCycleIntegralSec / unnormalizedMixturePeak01,
+  });
+}
+
 export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
   driveId: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID;
   parameterSetId: string;
@@ -335,6 +492,10 @@ export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
   atrialNormalizedPulse01: number;
   ventricularNormalizedPulse01: number;
   freeCalciumUMByWall: FiveWallCalciumValuesV1;
+  ventricularActivationCohortFreeCalciumUMByWall?: Readonly<Record<
+    "LVFW" | "SEP" | "RVFW",
+    readonly [number, number, number]
+  >>;
   finite: true;
   claim: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1;
 }>;
@@ -365,6 +526,10 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     ventricularTime,
     params,
   );
+  const hasSharedCompositeVentricularPulse =
+    params.ventricularDelayedMixture !== undefined
+    || params.ventricularActivationDistribution !== undefined
+    || params.ventricularSampledTrace !== undefined;
   const atrialPulse = normalizedPeriodicBiexponential(
     atrialTime,
     cycle,
@@ -384,7 +549,7 @@ export function evaluateFiveWallNormalCalciumDriveV1(
       params.atrial.riseTimeConstantSec,
       params.atrial.decayTimeConstantSec * decayTimeScale(params, "RA"),
     ),
-    LVFW: params.ventricularDelayedMixture === undefined
+    LVFW: !hasSharedCompositeVentricularPulse
       ? normalizedPeriodicBiexponential(
         ventricularTime,
         cycle,
@@ -393,7 +558,7 @@ export function evaluateFiveWallNormalCalciumDriveV1(
           * decayTimeScale(params, "LVFW"),
       )
       : ventricularPulse,
-    SEP: params.ventricularDelayedMixture === undefined
+    SEP: !hasSharedCompositeVentricularPulse
       ? normalizedPeriodicBiexponential(
         ventricularTime,
         cycle,
@@ -401,7 +566,7 @@ export function evaluateFiveWallNormalCalciumDriveV1(
         params.ventricular.decayTimeConstantSec * decayTimeScale(params, "SEP"),
       )
       : ventricularPulse,
-    RVFW: params.ventricularDelayedMixture === undefined
+    RVFW: !hasSharedCompositeVentricularPulse
       ? normalizedPeriodicBiexponential(
         ventricularTime,
         cycle,
@@ -441,6 +606,13 @@ export function evaluateFiveWallNormalCalciumDriveV1(
   if (!Object.values(freeCalciumUMByWall).every(Number.isFinite)) {
     throw new Error("five-wall calcium drive produced a non-finite value");
   }
+  const ventricularActivationCohortFreeCalciumUMByWall =
+    params.ventricularActivationDistribution === undefined
+      ? undefined
+      : ventricularActivationCohortCalciumUMByWall(
+        ventricularTime,
+        params,
+      );
   return Object.freeze({
     driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
     parameterSetId: params.parameterSetId,
@@ -451,8 +623,46 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     atrialNormalizedPulse01: atrialPulse,
     ventricularNormalizedPulse01: ventricularPulse,
     freeCalciumUMByWall,
+    ...(ventricularActivationCohortFreeCalciumUMByWall === undefined
+      ? {}
+      : { ventricularActivationCohortFreeCalciumUMByWall }),
     finite: true as const,
     claim: FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1,
+  });
+}
+
+function ventricularActivationCohortCalciumUMByWall(
+  ventricularTimeSinceOnsetSec: number,
+  params: FiveWallNormalCalciumDriveParamsV1,
+): Readonly<Record<
+  "LVFW" | "SEP" | "RVFW",
+  readonly [number, number, number]
+>> {
+  const distribution = params.ventricularActivationDistribution;
+  if (distribution === undefined) {
+    throw new Error("activation-cohort calcium requires a distribution");
+  }
+  const localPeakAmplitudeUM =
+    params.ventricular.peakAmplitudeUM
+    / distribution.unnormalizedMixturePeak01;
+  const localCalcium = Object.freeze(distribution.delaySec.map((delaySec) =>
+    params.ventricular.diastolicCalciumUM
+    + localPeakAmplitudeUM * normalizedPeriodicBiexponential(
+      positiveModulo(
+        ventricularTimeSinceOnsetSec - delaySec,
+        params.cycleLengthSec,
+      ),
+      params.cycleLengthSec,
+      params.ventricular.riseTimeConstantSec,
+      params.ventricular.decayTimeConstantSec,
+    )) as [number, number, number]);
+  if (!localCalcium.every((value) => value >= 0 && Number.isFinite(value))) {
+    throw new Error("activation-cohort calcium must stay finite and nonnegative");
+  }
+  return Object.freeze({
+    LVFW: localCalcium,
+    SEP: localCalcium,
+    RVFW: localCalcium,
   });
 }
 
@@ -587,13 +797,50 @@ function normalizedVentricularPulse(
 ): number {
   const tissue = params.ventricular;
   const mixture = params.ventricularDelayedMixture;
+  const activationDistribution = params.ventricularActivationDistribution;
+  const sampledTrace = params.ventricularSampledTrace;
+  if (sampledTrace !== undefined) {
+    return normalizedPeriodicSampledTraceV1(
+      ventricularTimeSec,
+      params.cycleLengthSec,
+      sampledTrace,
+    );
+  }
   const base = normalizedPeriodicBiexponential(
     ventricularTimeSec,
     params.cycleLengthSec,
     tissue.riseTimeConstantSec,
     tissue.decayTimeConstantSec,
   );
-  if (mixture === undefined) return base;
+  if (mixture === undefined && activationDistribution === undefined) {
+    return base;
+  }
+  if (activationDistribution !== undefined) {
+    const unnormalized = activationDistribution.weight01.reduce(
+      (sum, weight, index) => sum + weight * normalizedPeriodicBiexponential(
+        positiveModulo(
+          ventricularTimeSec - activationDistribution.delaySec[index]!,
+          params.cycleLengthSec,
+        ),
+        params.cycleLengthSec,
+        tissue.riseTimeConstantSec,
+        tissue.decayTimeConstantSec,
+      ),
+      0,
+    );
+    const normalized = unnormalized
+      / activationDistribution.unnormalizedMixturePeak01;
+    const tolerance = 1e-12;
+    if (normalized < -tolerance || normalized > 1 + tolerance) {
+      throw new Error(
+        "normalized ventricular activation distribution left [0,1]",
+      );
+    }
+    return Math.min(1, Math.max(0, normalized));
+  }
+  if (mixture === undefined) {
+    throw new Error("ventricular composite calcium profile is inconsistent");
+  }
   const delayed = normalizedPeriodicBiexponential(
     positiveModulo(
       ventricularTimeSec - mixture.delaySec,
@@ -614,6 +861,30 @@ function normalizedVentricularPulse(
   return Math.min(1, Math.max(0, normalized));
 }
 
+function normalizedPeriodicSampledTraceV1(
+  timeSinceTraceStartSec: number,
+  cycleLengthSec: number,
+  trace: PeriodicSampledVentricularCalciumTraceV1,
+): number {
+  const phaseSec = positiveModulo(timeSinceTraceStartSec, cycleLengthSec);
+  const position = phaseSec / trace.sampleIntervalSec;
+  const lowerIndex = Math.min(
+    trace.samplesUM.length - 2,
+    Math.floor(position),
+  );
+  const fraction = position - lowerIndex;
+  const lower = trace.samplesUM[lowerIndex]!;
+  const upper = trace.samplesUM[lowerIndex + 1]!;
+  const calciumUM = lower + fraction * (upper - lower);
+  const normalized =
+    (calciumUM - trace.minimumCalciumUM) / trace.amplitudeUM;
+  const tolerance = 1e-12;
+  if (normalized < -tolerance || normalized > 1 + tolerance) {
+    throw new Error("normalized sampled ventricular calcium left [0,1]");
+  }
+  return Math.min(1, Math.max(0, normalized));
+}
+
 function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
   if (
     typeof params.parameterSetId !== "string" ||
@@ -630,6 +901,17 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
   }
   validateClass(params.atrial, "atrial", params.cycleLengthSec);
   validateClass(params.ventricular, "ventricular", params.cycleLengthSec);
+  if (
+    [
+      params.ventricularDelayedMixture,
+      params.ventricularActivationDistribution,
+      params.ventricularSampledTrace,
+    ].filter((value) => value !== undefined).length > 1
+  ) {
+    throw new Error(
+      "ventricular composite or sampled calcium inputs are mutually exclusive",
+    );
+  }
   if (params.ventricularDelayedMixture !== undefined) {
     const mixture = params.ventricularDelayedMixture;
     if (mixture.shape !== "delayed-convex-mixture-v1") {
@@ -658,6 +940,93 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
       if ((params.decayTimeScaleByWall?.[wall] ?? 1) !== 1) {
         throw new Error(
           "ventricular delayed mixture cannot combine with wall-specific ventricular decay scaling",
+        );
+      }
+    }
+  }
+  if (params.ventricularActivationDistribution !== undefined) {
+    const distribution = params.ventricularActivationDistribution;
+    if (distribution.shape !== "simpson-uniform-activation-distribution-v1") {
+      throw new Error("ventricular activation distribution shape must be supported");
+    }
+    if (
+      !(distribution.supportDurationSec > 0
+        && distribution.supportDurationSec < params.cycleLengthSec)
+      || !Number.isFinite(distribution.supportDurationSec)
+    ) {
+      throw new Error(
+        "ventricular activation distribution support must be within cycle",
+      );
+    }
+    if (
+      distribution.delaySec.length !== 3
+      || distribution.weight01.length !== 3
+      || distribution.delaySec[0] !== 0
+      || distribution.delaySec[1] !== 0.5 * distribution.supportDurationSec
+      || distribution.delaySec[2] !== distribution.supportDurationSec
+      || distribution.weight01[0] !== 1 / 6
+      || distribution.weight01[1] !== 2 / 3
+      || distribution.weight01[2] !== 1 / 6
+    ) {
+      throw new Error(
+        "ventricular activation distribution must use fixed Simpson nodes and weights",
+      );
+    }
+    if (
+      !(distribution.unnormalizedMixturePeak01 > 0
+        && distribution.unnormalizedMixturePeak01 <= 1)
+      || !Number.isFinite(distribution.unnormalizedMixturePeak01)
+    ) {
+      throw new Error(
+        "ventricular activation distribution peak must be in (0, 1]",
+      );
+    }
+    for (const wall of ["LVFW", "SEP", "RVFW"] as const) {
+      if ((params.decayTimeScaleByWall?.[wall] ?? 1) !== 1) {
+        throw new Error(
+          "ventricular activation distribution cannot combine with wall-specific ventricular decay scaling",
+        );
+      }
+    }
+  }
+  if (params.ventricularSampledTrace !== undefined) {
+    const trace = params.ventricularSampledTrace;
+    if (trace.traceId.trim() === "") {
+      throw new Error("ventricular sampled traceId must be non-empty");
+    }
+    requirePositive(trace.sampleIntervalSec, "sampled trace interval");
+    requireNonnegative(trace.minimumCalciumUM, "sampled trace minimum");
+    requirePositive(trace.amplitudeUM, "sampled trace amplitude");
+    if (
+      trace.interpolation
+        !== "periodic-piecewise-linear-between-source-samples"
+      || trace.samplesUM.length < 3
+      || Math.abs(
+        trace.sampleIntervalSec * (trace.samplesUM.length - 1)
+          - params.cycleLengthSec,
+      ) > 1e-12
+      || trace.samplesUM[0] !== trace.samplesUM.at(-1)
+      || !trace.samplesUM.every((value) =>
+        value >= trace.minimumCalciumUM
+        && value <= trace.minimumCalciumUM + trace.amplitudeUM
+        && Number.isFinite(value))
+      || Math.abs(
+        Math.min(...trace.samplesUM) - trace.minimumCalciumUM,
+      ) > 1e-12
+      || Math.abs(
+        Math.max(...trace.samplesUM)
+          - trace.minimumCalciumUM - trace.amplitudeUM,
+      ) > 1e-12
+      || params.ventricular.diastolicCalciumUM !== trace.minimumCalciumUM
+      || params.ventricular.peakAmplitudeUM !== trace.amplitudeUM
+    ) throw new Error("ventricular sampled trace identity or extrema are invalid");
+    for (const wall of ["LVFW", "SEP", "RVFW"] as const) {
+      if (
+        (params.decayTimeScaleByWall?.[wall] ?? 1) !== 1
+        || (params.peakAmplitudeScaleByWall?.[wall] ?? 1) !== 1
+      ) {
+        throw new Error(
+          "ventricular sampled trace cannot combine with wall-specific scaling",
         );
       }
     }

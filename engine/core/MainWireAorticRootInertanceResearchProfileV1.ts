@@ -3,6 +3,10 @@ export const MAIN_WIRE_AORTIC_ROOT_INERTANCE_RESEARCH_PROFILE_V1_ID =
 
 export const MAIN_WIRE_AORTIC_ROOT_INERTANCE_RESEARCH_PROFILE_IDS_V1 =
   Object.freeze([
+    "aortic-root-inertance-half",
+    "aortic-root-inertance-two-fifths",
+    "aortic-root-inertance-one-third",
+    "aortic-root-inertance-one-quarter",
     "aortic-root-inertance-high",
   ] as const);
 
@@ -19,6 +23,30 @@ export type MainWireAorticRootInertanceResearchProfileV1 = Readonly<{
 
 export const MAIN_WIRE_AORTIC_ROOT_INERTANCE_RESEARCH_PROFILES_V1 =
   Object.freeze({
+    "aortic-root-inertance-half": Object.freeze({
+      profileId: "aortic-root-inertance-half" as const,
+      dynamicEdgeId: "Ao_SA" as const,
+      inertanceScaleFromTopology: 0.5,
+      parameterSearchOrFitting: false as const,
+    }),
+    "aortic-root-inertance-two-fifths": Object.freeze({
+      profileId: "aortic-root-inertance-two-fifths" as const,
+      dynamicEdgeId: "Ao_SA" as const,
+      inertanceScaleFromTopology: 0.4,
+      parameterSearchOrFitting: false as const,
+    }),
+    "aortic-root-inertance-one-third": Object.freeze({
+      profileId: "aortic-root-inertance-one-third" as const,
+      dynamicEdgeId: "Ao_SA" as const,
+      inertanceScaleFromTopology: 1 / 3,
+      parameterSearchOrFitting: false as const,
+    }),
+    "aortic-root-inertance-one-quarter": Object.freeze({
+      profileId: "aortic-root-inertance-one-quarter" as const,
+      dynamicEdgeId: "Ao_SA" as const,
+      inertanceScaleFromTopology: 0.25,
+      parameterSearchOrFitting: false as const,
+    }),
     "aortic-root-inertance-high": Object.freeze({
       profileId: "aortic-root-inertance-high" as const,
       dynamicEdgeId: "Ao_SA" as const,
@@ -34,6 +62,8 @@ export const MAIN_WIRE_AORTIC_ROOT_INERTANCE_RESEARCH_CLAIM_V1 =
   Object.freeze({
     role: "fixed-profile-source-research-ablation" as const,
     dynamicEdge: "Ao_SA" as const,
+    inertanceScaleAxis:
+      Object.freeze([0.25, 1 / 3, 0.4, 0.5, 4 / 3] as const),
     topologyOwnedInertanceScaled: true as const,
     dynamicFlowStateOwnerChanged: false as const,
     acceptedStateOrCheckpointTopologyChanged: false as const,

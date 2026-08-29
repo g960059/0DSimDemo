@@ -4,6 +4,7 @@ export const MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_PROFILE_V1_ID =
 export const MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_PROFILE_IDS_V1 =
   Object.freeze([
     "aortic-root-resistance-high",
+    "aortic-root-resistance-three-halves",
   ] as const);
 
 export type MainWireAorticRootResistanceResearchProfileIdV1 =
@@ -25,6 +26,12 @@ export const MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_PROFILES_V1 =
       resistanceScaleFromTopology: 4 / 3,
       parameterSearchOrFitting: false as const,
     }),
+    "aortic-root-resistance-three-halves": Object.freeze({
+      profileId: "aortic-root-resistance-three-halves" as const,
+      dynamicEdgeId: "Ao_SA" as const,
+      resistanceScaleFromTopology: 1.5,
+      parameterSearchOrFitting: false as const,
+    }),
   } satisfies Readonly<Record<
     MainWireAorticRootResistanceResearchProfileIdV1,
     MainWireAorticRootResistanceResearchProfileV1
@@ -34,6 +41,7 @@ export const MAIN_WIRE_AORTIC_ROOT_RESISTANCE_RESEARCH_CLAIM_V1 =
   Object.freeze({
     role: "fixed-profile-source-research-ablation" as const,
     dynamicEdge: "Ao_SA" as const,
+    resistanceScaleAxis: Object.freeze([4 / 3, 1.5] as const),
     topologyOwnedResistanceScaled: true as const,
     serialResistanceElementAdded: false as const,
     topologyOwnedInertanceChanged: false as const,
