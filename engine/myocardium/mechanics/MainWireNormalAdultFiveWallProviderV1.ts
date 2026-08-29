@@ -79,6 +79,10 @@ import {
   type MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
 import {
+  resolveMainWireVentricularLandStrongToBlockedDeactivationWallMaterialV1,
+  type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongToBlockedDeactivationBracketV1";
+import {
   MAIN_WIRE_VENTRICULAR_LAND_ACTIVATION_COHORT_CLAIM_V1,
   resolveMainWireVentricularLandActivationCohortProfileV1,
   type MainWireVentricularLandActivationCohortProfileIdV1,
@@ -629,6 +633,43 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularLandSour
       kuwProfileId,
     ),
     `-source-research-${velocityDistortionProfileId}-${candidateId}-${trefForceLoadProfileId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
+  );
+}
+
+/** Research-only calcium-deactivation S-to-B exit composed last. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongToBlockedDeactivationV1(
+  deactivationProfileId:
+    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+  velocityDistortionProfileId:
+    MainWireVentricularLandSourceVelocityDistortionProfileIdV1,
+  candidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+  trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1,
+  sarcomereReferenceProfileId:
+    MainWireVentricularLandSarcomereReferenceProfileIdV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  if (deactivationProfileId === "strong-to-blocked-deactivation-off") {
+    return createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
+      velocityDistortionProfileId,
+      candidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    );
+  }
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    resolveMainWireVentricularLandStrongToBlockedDeactivationWallMaterialV1(
+      deactivationProfileId,
+      velocityDistortionProfileId,
+      candidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    ),
+    `-source-research-${deactivationProfileId}-${velocityDistortionProfileId}-${candidateId}-${trefForceLoadProfileId}-${sarcomereReferenceProfileId}-${kuwProfileId}`,
   );
 }
 

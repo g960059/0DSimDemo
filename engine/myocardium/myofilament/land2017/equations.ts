@@ -50,6 +50,12 @@ export function writeLand2017Rhs(
     ?? input.fiberEngineeringStrainRatePerSec;
   const terms = evaluateLand2017AlgebraicTerms(state, input, parameterSet);
   const nTmHalf = p.nTm / 2;
+  const strongToBlockedRate =
+    land2017StrongToBlockedDeactivationRatePerSec(
+      CaTRPN,
+      parameterSet,
+      input,
+    );
 
   // Eq 47.
   const caDrive = Math.pow(input.freeCalciumUM / terms.CaT50, p.nTRPN);
@@ -57,14 +63,18 @@ export function writeLand2017Rhs(
 
   // Eq 48. The Land 2017 numerical limit is explicit source behavior, not projection.
   out[LAND2017_STATE_INDEX.B] =
-    d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p) * terms.U - p.ku * Math.pow(CaTRPN, nTmHalf) * B;
+    d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p) * terms.U
+    - p.ku * Math.pow(CaTRPN, nTmHalf) * B
+    + strongToBlockedRate * S;
 
   // Eq 49.
   out[LAND2017_STATE_INDEX.W] =
     p.kuw * terms.U - d.kwu * W - p.kws * W - terms.gammawu * W;
 
   // Eq 50.
-  out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S;
+  out[LAND2017_STATE_INDEX.S] =
+    p.kws * W - d.ksu * S - terms.gammasu * S
+    - strongToBlockedRate * S;
 
   // Eq 51.
   out[LAND2017_STATE_INDEX.zetaW] = d.Aw * lambdaDot - d.cw * zetaW;
@@ -155,6 +165,178 @@ export function land2017GammaSuDerivative(zetaS: number, p: Land2017RuntimeParam
   if (zetaS < -1) return -p.gammaS;
   if (zetaS > 0) return p.gammaS;
   return 0;
+}
+
+export function land2017StrongToBlockedDeactivationRatePerSec(
+  CaTRPN: number,
+  parameterSet: Land2017EquationParameters,
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): number {
+  return evaluateStrongToBlockedDeactivationRateTerms(
+    CaTRPN,
+    parameterSet,
+    input,
+  ).ratePerSec;
+}
+
+export function land2017StrongToBlockedDeactivationRateDerivativePerSec(
+  CaTRPN: number,
+  parameterSet: Land2017EquationParameters,
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): number {
+  return evaluateStrongToBlockedDeactivationRateTerms(
+    CaTRPN,
+    parameterSet,
+    input,
+  ).derivativeByCaTRPNPerSec;
+}
+
+export function land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
+  CaTRPN: number,
+  parameterSet: Land2017EquationParameters,
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): number {
+  return evaluateStrongToBlockedDeactivationRateTerms(
+    CaTRPN,
+    parameterSet,
+    input,
+  ).derivativeByFiberEngineeringStrainPerSec;
+}
+
+function evaluateStrongToBlockedDeactivationRateTerms(
+  CaTRPN: number,
+  parameterSet: Land2017EquationParameters,
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): Readonly<{
+  ratePerSec: number;
+  derivativeByCaTRPNPerSec: number;
+  derivativeByFiberEngineeringStrainPerSec: number;
+}> {
+  const extension = parameterSet.strongToBlockedDeactivation;
+  if (extension === undefined) {
+    return Object.freeze({
+      ratePerSec: 0,
+      derivativeByCaTRPNPerSec: 0,
+      derivativeByFiberEngineeringStrainPerSec: 0,
+    });
+  }
+  const maximumRatePerSec = requireFiniteNumber(
+    extension.maximumRatePerSec,
+    "Land 2017 strong-to-blocked deactivation maximum rate",
+  );
+  if (maximumRatePerSec < 0) {
+    throw new Error(
+      "Land 2017 strong-to-blocked deactivation maximum rate must be non-negative",
+    );
+  }
+  if (
+    extension.cooperativeGatePower !== 1
+    && extension.cooperativeGatePower !== 2
+  ) {
+    throw new Error(
+      "Land 2017 strong-to-blocked cooperative gate power must be one or two",
+    );
+  }
+  if (!(CaTRPN > 0) || !Number.isFinite(CaTRPN)) {
+    throw new Error(
+      "Land 2017 strong-to-blocked deactivation requires positive finite CaTRPN",
+    );
+  }
+  const exponent = parameterSet.values.nTm;
+  const thresholdPower = Math.pow(parameterSet.values.TRPN50, exponent);
+  const calciumPower = Math.pow(CaTRPN, exponent);
+  const denominator = thresholdPower + calciumPower;
+  const baseGate = thresholdPower / denominator;
+  const baseGateDerivative = -thresholdPower * exponent
+    * Math.pow(CaTRPN, exponent - 1) / (denominator * denominator);
+  const levelGate = Math.pow(baseGate, extension.cooperativeGatePower);
+  const levelGateDerivative = extension.cooperativeGatePower
+    * Math.pow(baseGate, extension.cooperativeGatePower - 1)
+    * baseGateDerivative;
+  const direction = deactivationDirectionGateTerms(
+    CaTRPN,
+    parameterSet.values,
+    extension.deactivationDirectionGate,
+    input,
+  );
+  return Object.freeze({
+    ratePerSec: maximumRatePerSec * levelGate * direction.gate,
+    derivativeByCaTRPNPerSec: maximumRatePerSec * (
+      levelGateDerivative * direction.gate
+      + levelGate * direction.derivativeByCaTRPN
+    ),
+    derivativeByFiberEngineeringStrainPerSec:
+      maximumRatePerSec * levelGate
+      * direction.derivativeByFiberEngineeringStrain,
+  });
+}
+
+function deactivationDirectionGateTerms(
+  CaTRPN: number,
+  p: Land2017RuntimeParameters,
+  gateKind: "none" | "relative-CaTRPN-relaxation-excess",
+  input?: Pick<
+    LandContinuousInput,
+    "freeCalciumUM" | "fiberEngineeringStrain"
+  >,
+): Readonly<{
+  gate: number;
+  derivativeByCaTRPN: number;
+  derivativeByFiberEngineeringStrain: number;
+}> {
+  if (gateKind === "none") {
+    return Object.freeze({
+      gate: 1,
+      derivativeByCaTRPN: 0,
+      derivativeByFiberEngineeringStrain: 0,
+    });
+  }
+  if (input === undefined) {
+    throw new Error(
+      "Land 2017 directional deactivation gate requires calcium and strain",
+    );
+  }
+  const freeCalciumUM = requireFiniteNumber(
+    input.freeCalciumUM,
+    "Land 2017 directional deactivation gate free calcium",
+  );
+  const fiberEngineeringStrain = requireFiniteNumber(
+    input.fiberEngineeringStrain,
+    "Land 2017 directional deactivation gate fiber strain",
+  );
+  const lambda = 1 + fiberEngineeringStrain;
+  const CaT50 = land2017CaT50(lambda, p);
+  const calciumDrive = Math.pow(freeCalciumUM / CaT50, p.nTRPN);
+  const relativeRelaxationExcess =
+    1 - calciumDrive * (1 - CaTRPN) / CaTRPN;
+  if (relativeRelaxationExcess <= 64 * Number.EPSILON) {
+    return Object.freeze({
+      gate: 0,
+      derivativeByCaTRPN: 0,
+      derivativeByFiberEngineeringStrain: 0,
+    });
+  }
+  const dCaT50DStrain = lambda < 1.2 ? p.beta1 : 0;
+  const dCalciumDriveDStrain = calciumDrive
+    * (-p.nTRPN * dCaT50DStrain / CaT50);
+  return Object.freeze({
+    gate: Math.min(1, relativeRelaxationExcess),
+    derivativeByCaTRPN: calciumDrive / (CaTRPN * CaTRPN),
+    derivativeByFiberEngineeringStrain:
+      -(1 - CaTRPN) / CaTRPN * dCalciumDriveDStrain,
+  });
 }
 
 export function validateLand2017ContinuousInput(

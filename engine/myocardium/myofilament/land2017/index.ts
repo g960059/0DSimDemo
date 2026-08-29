@@ -29,6 +29,7 @@ export {
   type Land2017RuntimeParameters,
   type Land2017SourceParameterProvenance,
   type Land2017SourceParameterSet,
+  type Land2017StrongToBlockedDeactivationExtensionV1,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 export {
   evaluateLand2017AlgebraicTerms,
@@ -42,6 +43,9 @@ export {
   land2017GammaWu,
   land2017GammaWuDerivative,
   land2017LengthFactor,
+  land2017StrongToBlockedDeactivationRateDerivativePerSec,
+  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
   land2017StateConservationResidual,
   land2017StateMinimumPopulation,
   validateLand2017ContinuousInput,
@@ -84,6 +88,7 @@ export {
 } from "@/engine/myocardium/myofilament/land2017/stabilization";
 export {
   LAND2017_LOCAL_JACOBIAN_SIZE,
+  writeLand2017BackwardEulerResidualStageStrainDerivative,
   writeLand2017BackwardEulerResidualJacobian,
 } from "@/engine/myocardium/myofilament/land2017/jacobian";
 export {

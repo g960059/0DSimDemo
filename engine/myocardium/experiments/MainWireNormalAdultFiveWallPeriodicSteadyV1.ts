@@ -190,6 +190,11 @@ import {
   type MainWireVentricularLandSourceVelocityDistortionProfileV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceVelocityDistortionBracketV1";
 import {
+  resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1,
+  type MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1,
+  type MainWireVentricularLandStrongToBlockedDeactivationProfileV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandStrongToBlockedDeactivationBracketV1";
+import {
   resolveMainWireVentricularCalciumSourceTraceFitShortlistArmV1,
   resolveMainWireVentricularCalciumSourceTraceFitShortlistLoadContextV1,
   type MainWireVentricularCalciumSourceTraceFitShortlistArmIdV1,
@@ -302,6 +307,7 @@ import {
   createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongToBlockedDeactivationV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandSarcomereReferenceProfileV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandWholeOrganKuwProfileV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandTwitchTimingCandidateV1,
@@ -1210,6 +1216,8 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       MainWireVentricularLandTrefForceLoadProfileV1;
     sourceVelocityDistortionProfile:
       MainWireVentricularLandSourceVelocityDistortionProfileV1;
+    strongToBlockedDeactivationProfile:
+      MainWireVentricularLandStrongToBlockedDeactivationProfileV1;
     circulatoryLoadPoint:
       MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
     stressedVenousVolumePoint:
@@ -1238,6 +1246,8 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       sourceLandTwitchRetentionParametersChanged: boolean;
       sourceLandTrefForceLoadChanged: boolean;
       sourceLandVelocityDistortionChanged: boolean;
+      sourceLandStrongToBlockedDeactivationChanged: boolean;
+      sourceLandStrongToBlockedPeakCompensationChanged: boolean;
       sourceTwitchRetentionCandidateDerivedFromIsometricOnly: boolean;
       sourceTwitchRetentionCandidateInformedByPriorLoadedEnvelope: boolean;
       referenceLengthIsometricLandValuesChanged: false;
@@ -3303,6 +3313,9 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
   sourceVelocityDistortionProfileId:
     MainWireVentricularLandSourceVelocityDistortionProfileIdV1 =
       "source-Aeff-canonical",
+  strongToBlockedDeactivationProfileId:
+    MainWireVentricularLandStrongToBlockedDeactivationProfileIdV1 =
+      "strong-to-blocked-deactivation-off",
 ): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
   assertExactAorticOutflowResearchOptions(options);
   const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
@@ -3346,12 +3359,17 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     resolveMainWireVentricularLandSourceVelocityDistortionProfileV1(
       sourceVelocityDistortionProfileId,
     );
+  const strongToBlockedDeactivationProfile =
+    resolveMainWireVentricularLandStrongToBlockedDeactivationProfileV1(
+      strongToBlockedDeactivationProfileId,
+    );
   if (
     calciumSensitivityLengthProfile.beta1ScaleFromSource !== 1
     && (
       sourceTwitchRetentionCandidate.changedKineticParameters.length !== 0
       || trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
       || sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1
+      || strongToBlockedDeactivationProfile.maximumRatePerSec !== 0
     )
   ) {
     throw new Error(
@@ -3379,7 +3397,16 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       ? {}
       : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
   });
-  const provider = sourceVelocityDistortionProfile
+  const provider = strongToBlockedDeactivationProfile.maximumRatePerSec !== 0
+    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongToBlockedDeactivationV1(
+      strongToBlockedDeactivationProfileId,
+      sourceVelocityDistortionProfileId,
+      sourceTwitchRetentionCandidateId,
+      trefForceLoadProfileId,
+      sarcomereReferenceProfileId,
+      kuwProfileId,
+    )
+    : sourceVelocityDistortionProfile
       .aeffScaleFromIntactHumanSource !== 1
     ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
       sourceVelocityDistortionProfileId,
@@ -3451,6 +3478,7 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     sourceTwitchRetentionCandidate,
     trefForceLoadProfile,
     sourceVelocityDistortionProfile,
+    strongToBlockedDeactivationProfile,
     circulatoryLoadPoint,
     stressedVenousVolumePoint: bloodVolume.point,
     complianceProfile,
@@ -3475,7 +3503,9 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
         sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,
       sourceWholeOrganTrefChanged:
         sourceTwitchRetentionCandidate.ventricularTrefScaleFromSource !== 1
-        || trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1,
+        || trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
+        || strongToBlockedDeactivationProfile
+          .trefScaleFromUncompensatedBase !== 1,
       primaryNumericSourceCalciumTraceUsed: true as const,
       sourceLandParametersOutsideExplicitResearchAxesChanged: false as const,
       sourceLandBeta1Changed:
@@ -3486,6 +3516,11 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
         trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1,
       sourceLandVelocityDistortionChanged:
         sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,
+      sourceLandStrongToBlockedDeactivationChanged:
+        strongToBlockedDeactivationProfile.maximumRatePerSec !== 0,
+      sourceLandStrongToBlockedPeakCompensationChanged:
+        strongToBlockedDeactivationProfile
+          .trefScaleFromUncompensatedBase !== 1,
       sourceTwitchRetentionCandidateDerivedFromIsometricOnly:
         !sourceTwitchRetentionCandidate
           .loadedOrHemodynamicOutcomeUsedToDeriveCandidate,

@@ -64,6 +64,23 @@ export type Land2017DerivedParameterProvenance = {
   readonly runtimeUnit: string;
 };
 
+/**
+ * Research-only reduced-order exit from the strongly bound population once
+ * the thin filament is deactivated. This is not part of Land et al. (2017),
+ * so its identity and lack of source provenance are carried explicitly.
+ */
+export type Land2017StrongToBlockedDeactivationExtensionV1 = Readonly<{
+  readonly extensionId: "land2017-strong-to-blocked-deactivation-v1";
+  readonly maximumRatePerSec: number;
+  readonly calciumTroponinGate:
+    "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power";
+  readonly cooperativeGatePower: 1 | 2;
+  readonly deactivationDirectionGate:
+    | "none"
+    | "relative-CaTRPN-relaxation-excess";
+  readonly sourceIdentityClaimed: false;
+}>;
+
 export type Land2017SourceParameterSet = {
   readonly parameterSetId: string;
   readonly parameterSetStableHash: string;
@@ -73,6 +90,8 @@ export type Land2017SourceParameterSet = {
   readonly derived: Land2017DerivedParameters;
   readonly sourceParameters: readonly Land2017SourceParameterProvenance[];
   readonly derivedParameters: readonly Land2017DerivedParameterProvenance[];
+  readonly strongToBlockedDeactivation?:
+    Land2017StrongToBlockedDeactivationExtensionV1;
 };
 
 const runtimeValues: Land2017RuntimeParameters = {
@@ -285,6 +304,12 @@ export function land2017ParameterSetHashInput(parameterSet: Land2017SourceParame
     derived: parameterSet.derived,
     sourceParameters: parameterSet.sourceParameters,
     derivedParameters: parameterSet.derivedParameters,
+    ...(parameterSet.strongToBlockedDeactivation === undefined
+      ? {}
+      : {
+        strongToBlockedDeactivation:
+          parameterSet.strongToBlockedDeactivation,
+      }),
   };
 }
 

@@ -3,6 +3,7 @@ import {
   land2017CaTRPNUnblockingFactor,
   land2017GammaSu,
   land2017GammaWu,
+  land2017StrongToBlockedDeactivationRatePerSec,
   validateLand2017ContinuousInput,
   validateLand2017EquationState,
   writeLand2017Rhs,
@@ -371,15 +372,21 @@ export function solveLand2017AffineStage(
   const weakLossRate =
     d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
+  const strongToBlockedRate =
+    land2017StrongToBlockedDeactivationRatePerSec(
+      caTRPN,
+      parameterSet,
+      continuousInput,
+    );
   const population = solveLand2017PopulationBlock(
     1 + implicitDtSec * (bindingRate + unbindingRate),
     implicitDtSec * bindingRate,
-    implicitDtSec * bindingRate,
+    implicitDtSec * (bindingRate - strongToBlockedRate),
     implicitDtSec * p.kuw,
     1 + implicitDtSec * (p.kuw + weakLossRate),
     implicitDtSec * p.kuw,
     -implicitDtSec * p.kws,
-    1 + implicitDtSec * strongLossRate,
+    1 + implicitDtSec * (strongLossRate + strongToBlockedRate),
     base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
     base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
     base[LAND2017_STATE_INDEX.S],

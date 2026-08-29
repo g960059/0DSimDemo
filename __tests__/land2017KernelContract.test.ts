@@ -13,9 +13,13 @@ import {
   computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
   deriveLand2017DerivedParameters,
   evaluateLand2017StepOutput,
+  land2017StrongToBlockedDeactivationRateDerivativePerSec,
+  land2017StrongToBlockedDeactivationRatePerSec,
   solveLand2017BackwardEulerStep,
   writeLand2017BackwardEulerResidual,
   writeLand2017BackwardEulerResidualJacobian,
+  writeLand2017BackwardEulerResidualStageStrainDerivative,
+  writeLand2017Rhs,
   stableHash,
   type Land2017RuntimeParameters,
   type Land2017SourceParameterSet,
@@ -62,6 +66,209 @@ describe("Land 2017 kernel contract", () => {
         ).toBeCloseTo(finiteDifference, 5);
       }
     }
+  });
+
+  it("keeps the deactivation-specific S-to-B extension conservative and differentiable", () => {
+    const parameterSet = strongToBlockedParameterSet(15);
+    const state = representativeState();
+    const previous = Float64Array.from([
+      0.52,
+      0.105,
+      0.07,
+      0.035,
+      0.045,
+      0.09,
+    ]);
+    const input = representativeStepInput();
+    const continuousInput = {
+      freeCalciumUM: input.freeCalciumUM,
+      fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+      fiberEngineeringStrainRatePerSec:
+        (input.stageFiberEngineeringStrain
+          - input.previousFiberEngineeringStrain) / input.dtSec,
+    };
+    const sourceRhs = writeLand2017Rhs(
+      state,
+      continuousInput,
+      LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+    );
+    const extendedRhs = writeLand2017Rhs(
+      state,
+      continuousInput,
+      parameterSet,
+    );
+    const transferIntoBlocked = extendedRhs[1]! - sourceRhs[1]!;
+    const transferOutOfStrong = extendedRhs[3]! - sourceRhs[3]!;
+    const expectedTransfer =
+      land2017StrongToBlockedDeactivationRatePerSec(state[0]!, parameterSet)
+      * state[3]!;
+    expect(transferIntoBlocked).toBeCloseTo(expectedTransfer, 13);
+    expect(transferOutOfStrong).toBeCloseTo(-expectedTransfer, 13);
+    expect(transferIntoBlocked + transferOutOfStrong).toBeCloseTo(0, 13);
+    expect(extendedRhs[2]).toBe(sourceRhs[2]);
+
+    const epsilon = 1e-6;
+    const analyticRateDerivative =
+      land2017StrongToBlockedDeactivationRateDerivativePerSec(
+        state[0]!,
+        parameterSet,
+      );
+    const finiteDifferenceRateDerivative = (
+      land2017StrongToBlockedDeactivationRatePerSec(
+        state[0]! + epsilon,
+        parameterSet,
+      )
+      - land2017StrongToBlockedDeactivationRatePerSec(
+        state[0]! - epsilon,
+        parameterSet,
+      )
+    ) / (2 * epsilon);
+    expect(analyticRateDerivative).toBeCloseTo(
+      finiteDifferenceRateDerivative,
+      7,
+    );
+
+    const analytic = writeLand2017BackwardEulerResidualJacobian(
+      state,
+      input,
+      parameterSet,
+    );
+    for (let column = 0; column < LAND2017_STATE_SIZE; column += 1) {
+      const plus = Float64Array.from(state);
+      const minus = Float64Array.from(state);
+      plus[column] += epsilon;
+      minus[column] -= epsilon;
+      const residualPlus = writeLand2017BackwardEulerResidual(
+        plus,
+        previous,
+        input,
+        parameterSet,
+      );
+      const residualMinus = writeLand2017BackwardEulerResidual(
+        minus,
+        previous,
+        input,
+        parameterSet,
+      );
+      for (let row = 0; row < LAND2017_STATE_SIZE; row += 1) {
+        const finiteDifference =
+          (residualPlus[row]! - residualMinus[row]!) / (2 * epsilon);
+        expect(analytic[row * LAND2017_STATE_SIZE + column])
+          .toBeCloseTo(finiteDifference, 5);
+      }
+    }
+
+    const solved = solveLand2017BackwardEulerStep(
+      previous,
+      input,
+      { residualTolerance: 1e-12 },
+      parameterSet,
+    );
+    expect(solved.ok, solved.failureMessage).toBe(true);
+    const consistent =
+      computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+        solved.nextState,
+        input,
+        parameterSet,
+      );
+    const shadow = computeLand2017AlgorithmicTangentPa(
+      previous,
+      input,
+      { epsilonStrain: 1e-6, residualTolerance: 1e-12 },
+      parameterSet,
+    );
+    expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
+  });
+
+  it("keeps the directional deactivation gate exact across state and strain derivatives", () => {
+    const parameterSet = strongToBlockedParameterSet(
+      40,
+      "relative-CaTRPN-relaxation-excess",
+    );
+    const next = Float64Array.from([0.7, 0.12, 0.08, 0.04, 0.06, 0.12]);
+    const previous = Float64Array.from([0.72, 0.11, 0.075, 0.045, 0.05, 0.1]);
+    const input: LandStepInput = {
+      freeCalciumUM: 0.25,
+      previousFiberEngineeringStrain: 0.015,
+      stageFiberEngineeringStrain: 0.02,
+      dtSec: 0.0002,
+      stage: { scheme: "BE", stageIndex: 0 },
+    };
+    const epsilon = 1e-6;
+    const analyticJacobian = writeLand2017BackwardEulerResidualJacobian(
+      next,
+      input,
+      parameterSet,
+    );
+    for (let column = 0; column < LAND2017_STATE_SIZE; column += 1) {
+      const plus = Float64Array.from(next);
+      const minus = Float64Array.from(next);
+      plus[column] += epsilon;
+      minus[column] -= epsilon;
+      const plusResidual = writeLand2017BackwardEulerResidual(
+        plus,
+        previous,
+        input,
+        parameterSet,
+      );
+      const minusResidual = writeLand2017BackwardEulerResidual(
+        minus,
+        previous,
+        input,
+        parameterSet,
+      );
+      for (let row = 0; row < LAND2017_STATE_SIZE; row += 1) {
+        expect(analyticJacobian[row * LAND2017_STATE_SIZE + column])
+          .toBeCloseTo(
+            (plusResidual[row]! - minusResidual[row]!) / (2 * epsilon),
+            5,
+          );
+      }
+    }
+    const analyticStrainDerivative =
+      writeLand2017BackwardEulerResidualStageStrainDerivative(
+        next,
+        input,
+        parameterSet,
+      );
+    const plusResidual = writeLand2017BackwardEulerResidual(
+      next,
+      previous,
+      { ...input, stageFiberEngineeringStrain: 0.02 + epsilon },
+      parameterSet,
+    );
+    const minusResidual = writeLand2017BackwardEulerResidual(
+      next,
+      previous,
+      { ...input, stageFiberEngineeringStrain: 0.02 - epsilon },
+      parameterSet,
+    );
+    for (let row = 0; row < LAND2017_STATE_SIZE; row += 1) {
+      expect(analyticStrainDerivative[row]).toBeCloseTo(
+        (plusResidual[row]! - minusResidual[row]!) / (2 * epsilon),
+        5,
+      );
+    }
+    const solved = solveLand2017BackwardEulerStep(
+      previous,
+      input,
+      { residualTolerance: 1e-12 },
+      parameterSet,
+    );
+    expect(solved.ok, solved.failureMessage).toBe(true);
+    const consistent =
+      computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+        solved.nextState,
+        input,
+        parameterSet,
+      );
+    const shadow = computeLand2017AlgorithmicTangentPa(
+      previous,
+      input,
+      { epsilonStrain: 1e-6, residualTolerance: 1e-12 },
+      parameterSet,
+    );
+    expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
   });
 
   it("reports invalid domains without silently projecting or clamping", () => {
@@ -331,6 +538,37 @@ function representativeStepInput(): LandStepInput {
     dtSec: 0.0002,
     stage: { scheme: "BE", stageIndex: 0 },
   };
+}
+
+function strongToBlockedParameterSet(
+  maximumRatePerSec: number,
+  deactivationDirectionGate:
+    | "none"
+    | "relative-CaTRPN-relaxation-excess" = "none",
+): Land2017SourceParameterSet {
+  const source = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
+    parameterSetId: `${source.parameterSetId}-strong-to-blocked-${maximumRatePerSec}`,
+    sourceId: source.sourceId,
+    doi: source.doi,
+    values: source.values,
+    derived: source.derived,
+    sourceParameters: source.sourceParameters,
+    derivedParameters: source.derivedParameters,
+    strongToBlockedDeactivation: Object.freeze({
+      extensionId: "land2017-strong-to-blocked-deactivation-v1",
+      maximumRatePerSec,
+      calciumTroponinGate:
+        "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
+      cooperativeGatePower: 1,
+      deactivationDirectionGate,
+      sourceIdentityClaimed: false,
+    }),
+  };
+  return Object.freeze({
+    ...hashInput,
+    parameterSetStableHash: stableHash(hashInput),
+  });
 }
 
 function relativeError(left: number, right: number): number {

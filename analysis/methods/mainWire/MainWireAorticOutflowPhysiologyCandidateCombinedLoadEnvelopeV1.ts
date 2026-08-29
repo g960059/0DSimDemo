@@ -21,6 +21,9 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV1";
 import type {
+  MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
+import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
@@ -131,6 +134,8 @@ export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 =
     methodId:
       typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_ANALYSIS_V1_ID;
     candidateId: string;
+    twitchRetentionCandidateId:
+      MainWireVentricularLandSourceTwitchRetentionCandidateIdV1;
     arms:
       readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadArmV1[];
     ranges: Readonly<Record<
@@ -196,6 +201,10 @@ const DIASTOLIC_METRIC_KEYS = Object.freeze([
 export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1(
   inputs:
     readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1[],
+  expectedTwitchRetentionCandidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1
+        .twitchRetentionCandidateId,
 ): MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 {
   const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
   const byId = new Map<string,
@@ -204,7 +213,7 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     if (byId.has(input.contextId)) {
       throw new Error("duplicate combined-load context: " + input.contextId);
     }
-    assertRunMatchesContext(input);
+    assertRunMatchesContext(input, expectedTwitchRetentionCandidateId);
     byId.set(input.contextId, input);
   }
   for (const context of
@@ -315,6 +324,7 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     methodId:
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOPE_ANALYSIS_V1_ID,
     candidateId: candidate.candidateId,
+    twitchRetentionCandidateId: expectedTwitchRetentionCandidateId,
     arms,
     ranges: mapCoreMetrics((key) =>
       range(arms.map((arm) => arm.coreMetrics[key]))),
@@ -371,6 +381,8 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
 function assertRunMatchesContext(
   input:
     MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1,
+  expectedTwitchRetentionCandidateId:
+    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 ): void {
   const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V1;
   const expected =
@@ -385,7 +397,7 @@ function assertRunMatchesContext(
     || run.sarcomereReferenceProfile.profileId
       !== candidate.sarcomereReferenceProfileId
     || run.sourceTwitchRetentionCandidate.candidateId
-      !== candidate.twitchRetentionCandidateId
+      !== expectedTwitchRetentionCandidateId
     || run.sourceVelocityDistortionProfile.profileId
       !== candidate.sourceVelocityDistortionProfileId
     || run.calciumSensitivityLengthProfile.profileId

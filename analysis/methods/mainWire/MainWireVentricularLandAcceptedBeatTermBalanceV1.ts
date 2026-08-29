@@ -13,6 +13,7 @@ import {
   evaluateLand2017AlgebraicTerms,
   land2017GammaSu,
   land2017GammaWu,
+  land2017StrongToBlockedDeactivationRatePerSec,
   solveLand2017BackwardEulerStep,
 } from "@/engine/myocardium/myofilament/land2017";
 
@@ -53,6 +54,7 @@ export type MainWireVentricularLandAcceptedBeatTermReadbackV1 = Readonly<{
   lengthFactorH: number;
   weakDistortionLossRatePerSec: number;
   strongDistortionLossRatePerSec: number;
+  strongToBlockedDeactivationRatePerSec: number;
   undistortedStrongStateTerm: number;
   strongDistortionStateTerm: number;
   weakDistortionStateTerm: number;
@@ -91,6 +93,7 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     strongConstantRateDistortionGainSec: number;
     gammaWPerSec: number;
     gammaSPerSec: number;
+    maximumStrongToBlockedDeactivationRatePerSec: number;
   }>;
   replay: Readonly<{
     simulatedCycleCount: number;
@@ -119,12 +122,19 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     positiveStrongDistortionSampleFraction: number;
     maximumPositiveStrongDistortion: number;
     maximumLandLengtheningRatePerSec: number;
+    positiveLandLengtheningSampleFraction: number;
+    firstPositiveLandLengtheningPhase01: number | null;
+    timeFromAorticClosureToFirstPositiveLandLengtheningSec: number | null;
+    integratedPositiveLandLengtheningExposure: number;
     maximumStrongDistortionLossRatePerSec: number;
     meanStrongDistortionLossRatePerSec: number;
     integratedStrongDistortionLossExposure: number;
     integratedBaselineStrongDetachmentPopulation: number;
     integratedDistortionStrongDetachmentPopulation: number;
+    integratedStrongToBlockedDeactivationPopulation: number;
+    integratedTotalStrongExitPopulation: number;
     distortionToBaselineStrongDetachmentRatio: number;
+    deactivationToBaselineStrongDetachmentRatio: number;
     strongPopulationChange: number;
     strongPopulationFractionRemainingAtMitralOpening: number;
     netActiveStressFractionRemainingAtMitralOpening: number;
@@ -227,6 +237,9 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
   }
   const postEjectionReadbacks = postEjectionIndices.map((index) =>
     trace.readbacks[index]!);
+  const firstPositiveLengtheningOffset = postEjectionReadbacks.findIndex(
+    (readback) => readback.landStretchRatePerSec > 0,
+  );
   const atAorticValveClosure = trace.readbacks[aorticValveClosureIndex]!;
   const atMitralValveOpening = trace.readbacks[mitralValveOpeningIndex]!;
   const p = material.landEquationParameters.values;
@@ -237,6 +250,10 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
   const integratedDistortionStrongDetachmentPopulation =
     postEjectionReadbacks.reduce((sum, readback) =>
       sum + readback.strongDistortionLossRatePerSec
+        * readback.strongPopulationS * result.dtSec, 0);
+  const integratedStrongToBlockedDeactivationPopulation =
+    postEjectionReadbacks.reduce((sum, readback) =>
+      sum + readback.strongToBlockedDeactivationRatePerSec
         * readback.strongPopulationS * result.dtSec, 0);
   return Object.freeze({
     methodId: MAIN_WIRE_VENTRICULAR_LAND_ACCEPTED_BEAT_TERM_BALANCE_V1_ID,
@@ -267,6 +284,9 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
       strongConstantRateDistortionGainSec: d.As / d.cs,
       gammaWPerSec: p.gammaW,
       gammaSPerSec: p.gammaS,
+      maximumStrongToBlockedDeactivationRatePerSec:
+        material.landEquationParameters.strongToBlockedDeactivation
+          ?.maximumRatePerSec ?? 0,
     }),
     replay: Object.freeze({
       simulatedCycleCount: trace.simulatedCycleCount,
@@ -318,6 +338,22 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
         ...postEjectionReadbacks.map((readback) =>
           readback.landStretchRatePerSec),
       ),
+      positiveLandLengtheningSampleFraction:
+        postEjectionReadbacks.filter((readback) =>
+          readback.landStretchRatePerSec > 0).length
+        / postEjectionReadbacks.length,
+      firstPositiveLandLengtheningPhase01:
+        firstPositiveLengtheningOffset < 0
+          ? null
+          : postEjectionReadbacks[firstPositiveLengtheningOffset]!.phase01,
+      timeFromAorticClosureToFirstPositiveLandLengtheningSec:
+        firstPositiveLengtheningOffset < 0
+          ? null
+          : firstPositiveLengtheningOffset * result.dtSec,
+      integratedPositiveLandLengtheningExposure:
+        postEjectionReadbacks.reduce((sum, readback) =>
+          sum + Math.max(0, readback.landStretchRatePerSec) * result.dtSec,
+        0),
       maximumStrongDistortionLossRatePerSec: Math.max(
         ...postEjectionReadbacks.map((readback) =>
           readback.strongDistortionLossRatePerSec),
@@ -331,8 +367,16 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
           sum + readback.strongDistortionLossRatePerSec * result.dtSec, 0),
       integratedBaselineStrongDetachmentPopulation,
       integratedDistortionStrongDetachmentPopulation,
+      integratedStrongToBlockedDeactivationPopulation,
+      integratedTotalStrongExitPopulation:
+        integratedBaselineStrongDetachmentPopulation
+        + integratedDistortionStrongDetachmentPopulation
+        + integratedStrongToBlockedDeactivationPopulation,
       distortionToBaselineStrongDetachmentRatio:
         integratedDistortionStrongDetachmentPopulation
+        / Math.max(integratedBaselineStrongDetachmentPopulation, 1e-12),
+      deactivationToBaselineStrongDetachmentRatio:
+        integratedStrongToBlockedDeactivationPopulation
         / Math.max(integratedBaselineStrongDetachmentPopulation, 1e-12),
       strongPopulationChange:
         atMitralValveOpening.strongPopulationS
@@ -492,6 +536,15 @@ function readback(
     lengthFactorH: terms.h,
     weakDistortionLossRatePerSec: land2017GammaWu(zetaW, p),
     strongDistortionLossRatePerSec: land2017GammaSu(zetaS, p),
+    strongToBlockedDeactivationRatePerSec:
+      land2017StrongToBlockedDeactivationRatePerSec(
+        CaTRPN,
+        material.landEquationParameters,
+        {
+          freeCalciumUM,
+          fiberEngineeringStrain: landStretch - 1,
+        },
+      ),
     undistortedStrongStateTerm,
     strongDistortionStateTerm,
     weakDistortionStateTerm,

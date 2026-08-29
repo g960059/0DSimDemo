@@ -4,6 +4,9 @@ import {
   land2017CaTRPNUnblockingFactorDerivative,
   land2017GammaSuDerivative,
   land2017GammaWuDerivative,
+  land2017StrongToBlockedDeactivationRateDerivativePerSec,
+  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
   validateLand2017ContinuousInput,
   validateLand2017EquationState,
   type Land2017EquationParameters,
@@ -57,6 +60,7 @@ export function writeLand2017BackwardEulerResidualStageStrainDerivative(
   outDerivative.fill(0);
   const terms = evaluateLand2017AlgebraicTerms(next, rhsInput, parameterSet);
   const CaTRPN = next[LAND2017_STATE_INDEX.CaTRPN];
+  const S = next[LAND2017_STATE_INDEX.S];
   const calciumDrive = Math.pow(
     input.freeCalciumUM / terms.CaT50,
     p.nTRPN,
@@ -68,6 +72,16 @@ export function writeLand2017BackwardEulerResidualStageStrainDerivative(
     * p.kTRPN
     * dCalciumDriveDStageStrain
     * (1 - CaTRPN);
+  const strongToBlockedRateStrainDerivative =
+    land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
+      CaTRPN,
+      parameterSet,
+      rhsInput,
+    );
+  outDerivative[LAND2017_STATE_INDEX.B] =
+    -input.dtSec * strongToBlockedRateStrainDerivative * S;
+  outDerivative[LAND2017_STATE_INDEX.S] =
+    input.dtSec * strongToBlockedRateStrainDerivative * S;
 
   if (input.stageZetaDriveFiberEngineeringStrainRatePerSec === undefined) {
     outDerivative[LAND2017_STATE_INDEX.zetaW] = -d.Aw;
@@ -116,6 +130,18 @@ export function writeLand2017BackwardEulerResidualJacobian(
   const nTmHalf = p.nTm / 2;
   const CaTRPNUnblockingFactor = land2017CaTRPNUnblockingFactor(CaTRPN, p);
   const CaTRPNPosHalf = Math.pow(CaTRPN, nTmHalf);
+  const strongToBlockedRate =
+    land2017StrongToBlockedDeactivationRatePerSec(
+      CaTRPN,
+      parameterSet,
+      rhsInput,
+    );
+  const strongToBlockedRateDerivative =
+    land2017StrongToBlockedDeactivationRateDerivativePerSec(
+      CaTRPN,
+      parameterSet,
+      rhsInput,
+    );
 
   // Eq 47.
   const caDrive = Math.pow(input.freeCalciumUM / terms.CaT50, p.nTRPN);
@@ -124,7 +150,8 @@ export function writeLand2017BackwardEulerResidualJacobian(
   // Eq 48.
   const dBCaTRPN =
     d.kb * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p) * terms.U -
-    p.ku * nTmHalf * Math.pow(CaTRPN, nTmHalf - 1) * B;
+    p.ku * nTmHalf * Math.pow(CaTRPN, nTmHalf - 1) * B
+    + strongToBlockedRateDerivative * S;
   subtractRhsDerivative(outJacobian, LAND2017_STATE_INDEX.B, LAND2017_STATE_INDEX.CaTRPN, dt, dBCaTRPN);
   subtractRhsDerivative(
     outJacobian,
@@ -145,7 +172,7 @@ export function writeLand2017BackwardEulerResidualJacobian(
     LAND2017_STATE_INDEX.B,
     LAND2017_STATE_INDEX.S,
     dt,
-    -d.kb * CaTRPNUnblockingFactor,
+    -d.kb * CaTRPNUnblockingFactor + strongToBlockedRate,
   );
 
   // Eq 49.
@@ -171,9 +198,16 @@ export function writeLand2017BackwardEulerResidualJacobian(
   subtractRhsDerivative(
     outJacobian,
     LAND2017_STATE_INDEX.S,
+    LAND2017_STATE_INDEX.CaTRPN,
+    dt,
+    -strongToBlockedRateDerivative * S,
+  );
+  subtractRhsDerivative(
+    outJacobian,
+    LAND2017_STATE_INDEX.S,
     LAND2017_STATE_INDEX.S,
     dt,
-    -d.ksu - terms.gammasu,
+    -d.ksu - terms.gammasu - strongToBlockedRate,
   );
   subtractRhsDerivative(
     outJacobian,

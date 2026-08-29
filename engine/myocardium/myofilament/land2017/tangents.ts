@@ -5,6 +5,9 @@ import {
   land2017GammaSu,
   land2017GammaWu,
   land2017GammaWuDerivative,
+  land2017StrongToBlockedDeactivationRateDerivativePerSec,
+  land2017StrongToBlockedDeactivationRatePerSec,
+  land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec,
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
@@ -85,6 +88,33 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
   const weakLossRate =
     d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
+  const strongToBlockedRate =
+    land2017StrongToBlockedDeactivationRatePerSec(
+      CaTRPN,
+      parameterSet,
+      {
+        freeCalciumUM: input.freeCalciumUM,
+        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+      },
+    );
+  const strongToBlockedRateDerivative =
+    land2017StrongToBlockedDeactivationRateDerivativePerSec(
+      CaTRPN,
+      parameterSet,
+      {
+        freeCalciumUM: input.freeCalciumUM,
+        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+      },
+    );
+  const strongToBlockedRateStrainDerivative =
+    land2017StrongToBlockedDeactivationRateStageStrainDerivativePerSec(
+      CaTRPN,
+      parameterSet,
+      {
+        freeCalciumUM: input.freeCalciumUM,
+        fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+      },
+    );
   const dBResidualDCaTRPN = -dt * (
     d.kb
       * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
@@ -93,23 +123,31 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
       * nTmHalf
       * Math.pow(CaTRPN, nTmHalf - 1)
       * B
+    + strongToBlockedRateDerivative * S
   );
   const dWResidualDZetaW =
     dt * W * land2017GammaWuDerivative(zetaW, p);
   const dSResidualDZetaS =
     dt * S * centralSemismoothGammaSuDerivative(zetaS, p.gammaS);
+  const dSResidualDCaTRPN =
+    dt * strongToBlockedRateDerivative * S;
+  const dBResidualDStrain =
+    -dt * strongToBlockedRateStrainDerivative * S;
+  const dSResidualDStrain =
+    dt * strongToBlockedRateStrainDerivative * S;
   const populationDerivative = solveLand2017PopulationBlock(
     1 + dt * (bindingRate + unbindingRate),
     dt * bindingRate,
-    dt * bindingRate,
+    dt * (bindingRate - strongToBlockedRate),
     dt * p.kuw,
     1 + dt * (p.kuw + weakLossRate),
     dt * p.kuw,
     -dt * p.kws,
-    1 + dt * strongLossRate,
-    -dBResidualDCaTRPN * dCaTRPNDStrain,
+    1 + dt * (strongLossRate + strongToBlockedRate),
+    -dBResidualDCaTRPN * dCaTRPNDStrain - dBResidualDStrain,
     -dWResidualDZetaW * dZetaWDStrain,
-    -dSResidualDZetaS * dZetaSDStrain,
+    -dSResidualDCaTRPN * dCaTRPNDStrain
+      - dSResidualDZetaS * dZetaSDStrain - dSResidualDStrain,
   );
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
@@ -164,6 +202,18 @@ export function computeLand2017SteadyStateTangentPaFromSolvedState(
   const bindingRate =
     d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p);
   const unbindingRate = p.ku * Math.pow(CaTRPN, nTmHalf);
+  const strongToBlockedRate =
+    land2017StrongToBlockedDeactivationRatePerSec(
+      CaTRPN,
+      parameterSet,
+      { freeCalciumUM, fiberEngineeringStrain },
+    );
+  const strongToBlockedRateDerivative =
+    land2017StrongToBlockedDeactivationRateDerivativePerSec(
+      CaTRPN,
+      parameterSet,
+      { freeCalciumUM, fiberEngineeringStrain },
+    );
   const dPopulationResidualDCaTRPN = -(
     d.kb
       * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
@@ -172,19 +222,22 @@ export function computeLand2017SteadyStateTangentPaFromSolvedState(
       * nTmHalf
       * Math.pow(CaTRPN, nTmHalf - 1)
       * B
+    + strongToBlockedRateDerivative * S
   );
+  const dStrongPopulationResidualDCaTRPN =
+    strongToBlockedRateDerivative * S;
   const populationDerivative = solveLand2017PopulationBlock(
     bindingRate + unbindingRate,
     bindingRate,
-    bindingRate,
+    bindingRate - strongToBlockedRate,
     p.kuw,
     p.kuw + d.kwu + p.kws,
     p.kuw,
     -p.kws,
-    d.ksu,
+    d.ksu + strongToBlockedRate,
     -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
     0,
-    0,
+    -dStrongPopulationResidualDCaTRPN * dCaTRPNDStrain,
   );
   const populationDistortion = S;
   const stressScalePa = terms.h * p.Tref / p.rs;
