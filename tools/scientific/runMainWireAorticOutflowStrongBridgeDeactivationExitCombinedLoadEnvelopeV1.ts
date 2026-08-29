@@ -9,8 +9,8 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV5";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -123,6 +123,13 @@ if (outputPath === null) {
     allRunsPeriod1AndIntegrated: envelope.allRunsPeriod1AndIntegrated,
     morphologyPreservedAcrossEnvelope:
       envelope.morphologyPreservedAcrossEnvelope,
+    strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope:
+      envelope.strictSampleLocalMaximumMorphologyPreservedAcrossEnvelope,
+    distinctPeakMorphologyPreservedAcrossEnvelope:
+      envelope.distinctPeakMorphologyPreservedAcrossEnvelope,
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      envelope
+        .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
     allGradientAndVelocityIntervalsMatched:
       envelope.allGradientAndVelocityIntervalsMatched,
     arms: envelope.arms.map((arm) => ({
@@ -138,6 +145,11 @@ if (outputPath === null) {
       leftVentricularEjectionFraction01:
         arm.coreMetrics.leftVentricularEjectionFraction01,
       flowPeakCount: arm.cycle.aorticFlowPeakCountAboveFivePercent,
+      distinctFlowPeakCount:
+        arm.cycle.aorticFlowDistinctPeakCountAboveFivePercent,
+      maximumSecondaryFlowPeakProminenceFractionOfGlobalMaximum:
+        arm.cycle
+          .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
       strictExternalIntervalFailures:
         arm.strictExternalIntervalFailures,
       diastolicMetrics: arm.diastolicMetrics,

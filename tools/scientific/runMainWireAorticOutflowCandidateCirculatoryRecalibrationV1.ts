@@ -14,9 +14,9 @@ import {
   resolveMainWireAorticOutflowCandidateCirculatoryRecalibrationContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV5";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -72,7 +72,7 @@ const report = Object.freeze({
     maximumBeatCount,
     geometry: GEOMETRY,
     candidate: CANDIDATE,
-    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4_CLAIM,
+    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_CLAIM,
     experimentClaim:
       MAIN_WIRE_AORTIC_OUTFLOW_CANDIDATE_CIRCULATORY_RECALIBRATION_CLAIM_V1,
   }),
@@ -97,6 +97,11 @@ if (outputPath === null) {
     outputPath: absoluteOutputPath,
     byteLength: Buffer.byteLength(serialized),
     allRunsPeriod1AndIntegrated: analysis.allRunsPeriod1AndIntegrated,
+    allArmsHaveOneProminentAorticFlowPeak:
+      analysis.allArmsHaveOneProminentAorticFlowPeak,
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      analysis
+        .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
     rangesAcrossFactorial: analysis.rangesAcrossFactorial,
     arms: analysis.arms.map((arm) => {
       const cycle = arm.readback.cycle;
@@ -110,6 +115,15 @@ if (outputPath === null) {
           arm.context.canonicalAdditionalStressedVenousVolumeScale,
         fixedTotalBloodVolumeMl: filling.fixedTotalBloodVolumeMl,
         ejectionTimeMs: cycle.aorticEjectionTimeProxySec * 1000,
+        isovolumicContractionTimeMs:
+          cycle.leftVentricularIsovolumicContractionTimeSec === null
+            ? null
+            : cycle.leftVentricularIsovolumicContractionTimeSec * 1000,
+        leftVentricularTeiIndex: cycle.leftVentricularTeiIndex,
+        maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+          cycle.maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+        maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+          cycle.maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
         aorticForwardVolumeMl: cycle.aorticForwardVolumeMl,
         peakVenaContractaVelocityMPerSec:
           cycle.peakVenaContractaVelocityMPerSec,
@@ -134,6 +148,10 @@ if (outputPath === null) {
           : diastolic.pulmonaryVenous.atrialReversalVolumeMl,
         terminationReason: cycle.terminationReason,
         flowPeakCount: cycle.aorticFlowPeakCountAboveFivePercent,
+        distinctFlowPeakCount:
+          cycle.aorticFlowDistinctPeakCountAboveFivePercent,
+        maximumSecondaryFlowPeakProminenceFractionOfGlobalMaximum:
+          cycle.maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum,
       };
     }),
     pulmonaryResistanceContrasts: analysis.pulmonaryResistanceContrasts,

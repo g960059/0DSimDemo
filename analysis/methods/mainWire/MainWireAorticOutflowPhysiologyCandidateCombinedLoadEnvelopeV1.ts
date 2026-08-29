@@ -19,8 +19,8 @@ import {
   type MainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV5";
 import type {
   MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
@@ -221,14 +221,14 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1[],
   expectedTwitchRetentionCandidateId:
     MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5
         .twitchRetentionCandidateId,
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5
         .strongBridgeDeactivationExitProfileId,
 ): MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5;
   const byId = new Map<string,
     MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1>();
   for (const input of inputs) {
@@ -423,7 +423,7 @@ function assertRunMatchesContext(
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
 ): void {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5;
   const expected =
     resolveMainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1(
       input.contextId,

@@ -22,8 +22,8 @@ import {
   type MainWireAorticOutflowCandidateCirculatoryRecalibrationLevelV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV5";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -96,6 +96,10 @@ export type MainWireAorticOutflowCandidateCirculatoryRecalibrationArmV1 =
 
 type ContrastMetrics = Readonly<{
   ejectionTimeMs: number;
+  isovolumicContractionTimeMs: number | null;
+  leftVentricularTeiIndex: number | null;
+  maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec: number | null;
+  maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec: number | null;
   aorticForwardVolumeMl: number;
   peakVenaContractaVelocityMPerSec: number;
   meanDopplerGradientMmHg: number;
@@ -139,6 +143,8 @@ export type MainWireAorticOutflowCandidateCirculatoryRecalibrationV1 =
     stressedVenousVolumeContrasts:
       readonly MainWireAorticOutflowCandidateCirculatoryRecalibrationContrastV1[];
     allRunsPeriod1AndIntegrated: boolean;
+    allArmsHaveOneProminentAorticFlowPeak: boolean;
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum: number;
     allDiastolicReadbacksAvailable: boolean;
     allProtocolIdentitiesDistinct: boolean;
     experimentClaim:
@@ -234,6 +240,12 @@ export function measureMainWireAorticOutflowCandidateCirculatoryRecalibrationV1(
     allRunsPeriod1AndIntegrated: arms.every((arm) =>
       arm.readback.periodicSteadyStateClaimed
       && arm.readback.integrationCompletedWithoutFailure),
+    allArmsHaveOneProminentAorticFlowPeak: arms.every((arm) =>
+      arm.readback.cycle.aorticFlowDistinctPeakCountAboveFivePercent === 1),
+    maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum:
+      Math.max(...arms.map((arm) =>
+        arm.readback.cycle
+          .maximumSecondaryAorticFlowPeakProminenceFractionOfGlobalMaximum)),
     allDiastolicReadbacksAvailable: arms.every((arm) =>
       arm.diastolicFlow.value !== null),
     allProtocolIdentitiesDistinct:
@@ -292,6 +304,15 @@ function contrastMetrics(
   const diastolic = arm.diastolicFlow.value;
   return Object.freeze({
     ejectionTimeMs: cycle.aorticEjectionTimeProxySec * 1000,
+    isovolumicContractionTimeMs:
+      cycle.leftVentricularIsovolumicContractionTimeSec === null
+        ? null
+        : cycle.leftVentricularIsovolumicContractionTimeSec * 1000,
+    leftVentricularTeiIndex: cycle.leftVentricularTeiIndex,
+    maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+      cycle.maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+    maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+      cycle.maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
     aorticForwardVolumeMl: cycle.aorticForwardVolumeMl,
     peakVenaContractaVelocityMPerSec:
       cycle.peakVenaContractaVelocityMPerSec,
@@ -390,7 +411,7 @@ function assertRunMatchesContext(
       input.contextId,
     );
   const run = input.run;
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5;
   const actual = Object.freeze({
     kuwProfileId: run.kuwProfile.profileId,
     complianceProfileId: run.complianceProfile.profileId,

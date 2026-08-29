@@ -18,9 +18,9 @@ import {
   type MainWireAorticOutflowSourceTwitchRetentionLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
-  type MainWireAorticOutflowCandidateProtocolV4,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV4";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5,
+  type MainWireAorticOutflowCandidateProtocolV5,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV5";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -166,8 +166,8 @@ const AXIS_CONTEXT_PAIRS = Object.freeze([
 export function measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
   inputs:
     readonly MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeInputV1[],
-  candidate: MainWireAorticOutflowCandidateProtocolV4 =
-    MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V4,
+  candidate: MainWireAorticOutflowCandidateProtocolV5 =
+    MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5,
 ): MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1 {
   const byId = new Map<
     MainWireAorticOutflowSourceTwitchRetentionLoadContextIdV1,
@@ -378,7 +378,7 @@ export function measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
 
 function assertRunMatchesContext(
   input: MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeInputV1,
-  candidate: MainWireAorticOutflowCandidateProtocolV4,
+  candidate: MainWireAorticOutflowCandidateProtocolV5,
 ): void {
   const expected = resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1(
     input.contextId,
