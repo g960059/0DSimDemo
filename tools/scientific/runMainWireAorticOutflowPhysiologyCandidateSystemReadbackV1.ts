@@ -108,6 +108,24 @@ if (outputPath === null) {
       armId: entry.armId,
       terminationReason: entry.aorticOutflow.terminationReason,
       ejectionTimeMs: entry.aorticOutflow.aorticEjectionTimeProxySec * 1000,
+      isovolumicContractionTimeMs:
+        entry.aorticOutflow.leftVentricularIsovolumicContractionTimeSec === null
+          ? null
+          : entry.aorticOutflow.leftVentricularIsovolumicContractionTimeSec
+            * 1000,
+      isovolumicRelaxationTimeMs:
+        entry.aorticOutflow.leftVentricularIsovolumicRelaxationTimeSec === null
+          ? null
+          : entry.aorticOutflow.leftVentricularIsovolumicRelaxationTimeSec
+            * 1000,
+      leftVentricularTeiIndex:
+        entry.aorticOutflow.leftVentricularTeiIndex,
+      maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+        entry.aorticOutflow
+          .maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+      maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+        entry.aorticOutflow
+          .maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
       aorticForwardVolumeMl: entry.aorticOutflow.aorticForwardVolumeMl,
       aorticConfiguredMaximumForwardEoaCm2:
         entry.aorticOutflow.aorticConfiguredMaximumForwardEoaCm2,

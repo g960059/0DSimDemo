@@ -31,6 +31,12 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1 =
       "modeled-bulk-flow-divided-by-modeled-instantaneous-physical-EOA" as const,
     relaxationTau:
       "report-only-fixed-asymptote-log-linear-fit-over-AoV-closure-to-MVO" as const,
+    leftVentricularPerformanceTiming:
+      "same-flow-threshold-MVC-to-AVO-ICT-AVO-to-AVC-ET-and-AVC-to-MVO-IVRT" as const,
+    leftVentricularTeiIndex:
+      "direct-valve-event-analogue-(ICT-plus-IVRT)-over-ET-not-clinical-Doppler-or-TDI" as const,
+    leftVentricularPressureRate:
+      "unsmoothed-accepted-step-backward-difference-of-absolute-cavity-pressure-with-explicit-transmural-test-fallback" as const,
     landThermodynamicStoredEnergyClaimed: false as const,
     cavityWorkSign: "positive-is-work-on-wall" as const,
     pericardialWorkSign: "positive-is-work-stored-in-common-bag" as const,
@@ -65,6 +71,8 @@ export type MainWireNormalAdultFiveWallCycleSampleV1 = Readonly<{
   cyclePhase01: number;
   nodeVolumeMl: ChamberRecord<number>;
   chamberTransmuralPressureMmHg: ChamberRecord<number>;
+  /** Present on exact closed-loop samples; optional for structural fixtures. */
+  nodeAbsolutePressureMmHg?: Readonly<{ LV: number }>;
   commonPericardium: Readonly<{
     excessPressureMmHg: number;
     storedEnergyMilliJ: number;
@@ -198,6 +206,7 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
   events: Readonly<{
     mitralValveOpening: MainWireNormalAdultFiveWallCycleEventV1;
     mitralValveClosure: MainWireNormalAdultFiveWallCycleEventV1;
+    aorticValveOpening: MainWireNormalAdultFiveWallCycleEventV1;
     aorticValveClosure: MainWireNormalAdultFiveWallCycleEventV1;
     atrialCalciumOnset: MainWireNormalAdultFiveWallCycleEventV1;
     mitralEventSource: "flow-threshold";
@@ -275,6 +284,22 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
     fitR2: number | null;
     fixedAsymptoteMmHg: number | null;
     reason: "available" | "insufficient-samples" | "non-decaying-fit";
+  }>;
+  leftVentricularPerformance: Readonly<{
+    isovolumicContractionTimeSec: number;
+    ejectionTimeSec: number;
+    isovolumicRelaxationTimeSec: number;
+    totalIsovolumicTimeSec: number;
+    mitralClosureToOpeningTimeSec: number;
+    teiIndex: number;
+    teiEquivalentIntervalIdentityResidualSec: number;
+    maximumPositivePressureRateMmHgPerSec: number;
+    minimumNegativePressureRateMmHgPerSec: number;
+    maximumPressureFallRateMagnitudeMmHgPerSec: number;
+    pressureBasis:
+      | "absolute-left-ventricular-cavity-pressure"
+      | "transmural-left-ventricular-pressure-fixture-fallback";
+    pressureRateMethod: "accepted-step-backward-difference-no-smoothing";
   }>;
   workEnergy: Readonly<{
     stressWorkCoverageFraction: number;
@@ -442,6 +467,32 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
     aortic.closingIndex,
     mitral.openingIndex,
   );
+  const ictIndices = cyclicHalfOpenIndices(
+    samples.length,
+    mitral.closingIndex,
+    aortic.openingIndex,
+  );
+  const ejectionIndices = cyclicHalfOpenIndices(
+    samples.length,
+    aortic.openingIndex,
+    aortic.closingIndex,
+  );
+  const mitralClosureToOpeningIndices = cyclicHalfOpenIndices(
+    samples.length,
+    mitral.closingIndex,
+    mitral.openingIndex,
+  );
+  if (ejectionIndices.length === 0) {
+    throw new Error("left ventricular performance requires positive ET");
+  }
+  const isovolumicContractionTimeSec = ictIndices.length * input.dtSec;
+  const ejectionTimeSec = ejectionIndices.length * input.dtSec;
+  const isovolumicRelaxationTimeSec = ivrtIndices.length * input.dtSec;
+  const totalIsovolumicTimeSec =
+    isovolumicContractionTimeSec + isovolumicRelaxationTimeSec;
+  const mitralClosureToOpeningTimeSec =
+    mitralClosureToOpeningIndices.length * input.dtSec;
+  const pressureRate = measureLeftVentricularPressureRate(input);
   const tau = fitReportOnlyRelaxationTau(samples, ivrtIndices, input.dtSec);
   const workEnergy = measureWorkEnergy(input, phaseBySample);
   const boosterEmptyingMl = preAMl - minimumMl;
@@ -469,6 +520,7 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
     events: Object.freeze({
       mitralValveOpening: event(samples, mitral.openingIndex),
       mitralValveClosure: event(samples, mitral.closingIndex),
+      aorticValveOpening: event(samples, aortic.openingIndex),
       aorticValveClosure: event(samples, aortic.closingIndex),
       atrialCalciumOnset: event(samples, atrialOnsetIndex),
       mitralEventSource: "flow-threshold" as const,
@@ -557,6 +609,26 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
       fitR2: tau.r2,
       fixedAsymptoteMmHg: tau.asymptoteMmHg,
       reason: tau.reason,
+    }),
+    leftVentricularPerformance: Object.freeze({
+      isovolumicContractionTimeSec,
+      ejectionTimeSec,
+      isovolumicRelaxationTimeSec,
+      totalIsovolumicTimeSec,
+      mitralClosureToOpeningTimeSec,
+      teiIndex: totalIsovolumicTimeSec / ejectionTimeSec,
+      teiEquivalentIntervalIdentityResidualSec:
+        mitralClosureToOpeningTimeSec
+        - ejectionTimeSec - totalIsovolumicTimeSec,
+      maximumPositivePressureRateMmHgPerSec:
+        pressureRate.maximumPositiveMmHgPerSec,
+      minimumNegativePressureRateMmHgPerSec:
+        pressureRate.minimumNegativeMmHgPerSec,
+      maximumPressureFallRateMagnitudeMmHgPerSec:
+        -pressureRate.minimumNegativeMmHgPerSec,
+      pressureBasis: pressureRate.pressureBasis,
+      pressureRateMethod:
+        "accepted-step-backward-difference-no-smoothing" as const,
     }),
     workEnergy,
     claim: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1,
@@ -788,6 +860,50 @@ function freezeWallLedger(
       readbackAgreementResidualMilliJ:
         reconstructed - value.slsReportedResidual,
     }),
+  });
+}
+
+function measureLeftVentricularPressureRate(
+  input: MainWireNormalAdultFiveWallCycleDiagnosticsInputV1,
+): Readonly<{
+  maximumPositiveMmHgPerSec: number;
+  minimumNegativeMmHgPerSec: number;
+  pressureBasis:
+    | "absolute-left-ventricular-cavity-pressure"
+    | "transmural-left-ventricular-pressure-fixture-fallback";
+}> {
+  const exactAbsolutePressureAvailable = input.samples.every((sample) =>
+    sample.nodeAbsolutePressureMmHg !== undefined
+    && Number.isFinite(sample.nodeAbsolutePressureMmHg.LV))
+    && (input.precedingSample === undefined
+      || input.precedingSample === null
+      || (input.precedingSample.nodeAbsolutePressureMmHg !== undefined
+        && Number.isFinite(input.precedingSample.nodeAbsolutePressureMmHg.LV)));
+  const pressure = (sample: MainWireNormalAdultFiveWallCycleSampleV1): number =>
+    exactAbsolutePressureAvailable
+      ? sample.nodeAbsolutePressureMmHg!.LV
+      : sample.chamberTransmuralPressureMmHg.LV;
+  let previousPressure = pressure(
+    input.precedingSample ?? input.samples.at(-1)!,
+  );
+  let maximumRate = Number.NEGATIVE_INFINITY;
+  let minimumRate = Number.POSITIVE_INFINITY;
+  for (const sample of input.samples) {
+    const currentPressure = pressure(sample);
+    const rate = (currentPressure - previousPressure) / input.dtSec;
+    if (!Number.isFinite(rate)) {
+      throw new Error("left ventricular pressure rate must be finite");
+    }
+    maximumRate = Math.max(maximumRate, rate);
+    minimumRate = Math.min(minimumRate, rate);
+    previousPressure = currentPressure;
+  }
+  return Object.freeze({
+    maximumPositiveMmHgPerSec: Math.max(0, maximumRate),
+    minimumNegativeMmHgPerSec: Math.min(0, minimumRate),
+    pressureBasis: exactAbsolutePressureAvailable
+      ? "absolute-left-ventricular-cavity-pressure" as const
+      : "transmural-left-ventricular-pressure-fixture-fallback" as const,
   });
 }
 

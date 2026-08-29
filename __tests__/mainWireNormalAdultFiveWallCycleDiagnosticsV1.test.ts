@@ -43,6 +43,7 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     });
     expect(measured.events.mitralValveOpening.sampleIndex).toBe(5);
     expect(measured.events.mitralValveClosure.sampleIndex).toBe(9);
+    expect(measured.events.aorticValveOpening.sampleIndex).toBe(0);
     expect(measured.events.aorticValveClosure.sampleIndex).toBe(2);
     expect(measured.events.mitralEventSource).toBe("flow-threshold");
     expect(measured.events.aorticEventSource).toBe("flow-threshold");
@@ -104,6 +105,26 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.ivrtLike.reason).toBe("available");
     expect(measured.ivrtLike.relaxationTauSec).toBeGreaterThan(0);
     expect(measured.ivrtLike.fitR2).toBeGreaterThan(0);
+    expect(measured.leftVentricularPerformance).toMatchObject({
+      teiIndex: 2,
+      maximumPositivePressureRateMmHgPerSec: 0,
+      minimumNegativePressureRateMmHgPerSec: -400,
+      maximumPressureFallRateMagnitudeMmHgPerSec: 400,
+      pressureBasis: "absolute-left-ventricular-cavity-pressure",
+      pressureRateMethod: "accepted-step-backward-difference-no-smoothing",
+    });
+    expect(measured.leftVentricularPerformance
+      .isovolumicContractionTimeSec).toBeCloseTo(0.1, 12);
+    expect(measured.leftVentricularPerformance
+      .ejectionTimeSec).toBeCloseTo(0.2, 12);
+    expect(measured.leftVentricularPerformance
+      .isovolumicRelaxationTimeSec).toBeCloseTo(0.3, 12);
+    expect(measured.leftVentricularPerformance
+      .totalIsovolumicTimeSec).toBeCloseTo(0.4, 12);
+    expect(measured.leftVentricularPerformance
+      .mitralClosureToOpeningTimeSec).toBeCloseTo(0.6, 12);
+    expect(measured.leftVentricularPerformance
+      .teiEquivalentIntervalIdentityResidualSec).toBeCloseTo(0, 12);
 
     expect(measured.workEnergy.stressWorkCoverageFraction).toBe(1);
     // Positive p*dV is work on the wall. Here only LA volume changes:
@@ -382,6 +403,7 @@ function sample(
     timeSec: index * DT_SEC,
     cyclePhase01: index / 10,
     nodeVolumeMl: Object.freeze({ LA: laVolume, LV: 100, RA: 50, RV: 110 }),
+    nodeAbsolutePressureMmHg: Object.freeze({ LV: lvPressure + 2 }),
     chamberTransmuralPressureMmHg: Object.freeze({
       LA: laPressure,
       LV: lvPressure,

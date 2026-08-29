@@ -99,6 +99,11 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_CALCIUM_WAVEFORM_COMPARISON_CLAIM_V1 =
       "accepted-step-positive-Land-active-stress-cycle-integral" as const,
     activeStressRelaxationTiming:
       "first-accepted-endpoint-at-or-below-post-peak-fraction-no-interpolation" as const,
+    leftVentricularPerformanceTiming:
+      "shared-one-percent-flow-threshold-direct-MVC-AVO-AVC-MVO-event-analogue" as const,
+    leftVentricularTeiIndexIsClinicalMeasurement: false as const,
+    leftVentricularPressureRate:
+      "unsmoothed-accepted-step-backward-difference-of-absolute-cavity-pressure" as const,
     aorticRootStorageFlow:
       "accepted-AoV-flow-minus-graph-owned-Ao-SA-flow" as const,
     pressureFlowCoupling:
@@ -174,7 +179,13 @@ export type MainWireAorticOutflowCalciumWaveformArmMetricsV1 = Readonly<{
   aorticPressureFlowCoupling: MainWireAorticPressureFlowCouplingV1;
   peakLeftVentricularPressureMmHg: number;
   peakLeftVentricularPressurePhase01: number;
+  leftVentricularIsovolumicContractionTimeSec: number | null;
+  leftVentricularValveEventEjectionTimeSec: number | null;
+  leftVentricularIsovolumicRelaxationTimeSec: number | null;
+  leftVentricularTeiIndex: number | null;
   maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec: number;
+  minimumNegativeLeftVentricularPressureFallRateMmHgPerSec: number;
+  maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec: number;
   leftVentricularEjectionFraction01: number;
   rightVentricularEjectionFraction01: number;
   netAorticCardiacOutputLPerMin: number;
@@ -442,6 +453,8 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
     result.dtSec,
     previousLvPressure,
   );
+  const leftVentricularPerformance =
+    summary.cyclePhysiology?.leftVentricularPerformance ?? null;
   const sampledCalciumExposure = samples.reduce((sum, sample) =>
     sum + Math.max(
       0,
@@ -590,8 +603,20 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
     peakLeftVentricularPressureMmHg: maximum(lvPressures),
     peakLeftVentricularPressurePhase01:
       samples[peakLvPressureIndex]!.cyclePhase01,
+    leftVentricularIsovolumicContractionTimeSec:
+      leftVentricularPerformance?.isovolumicContractionTimeSec ?? null,
+    leftVentricularValveEventEjectionTimeSec:
+      leftVentricularPerformance?.ejectionTimeSec ?? null,
+    leftVentricularIsovolumicRelaxationTimeSec:
+      leftVentricularPerformance?.isovolumicRelaxationTimeSec ?? null,
+    leftVentricularTeiIndex:
+      leftVentricularPerformance?.teiIndex ?? null,
     maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
       Math.max(0, maximum(lvPressureDerivatives)),
+    minimumNegativeLeftVentricularPressureFallRateMmHgPerSec:
+      Math.min(0, minimum(lvPressureDerivatives)),
+    maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+      -Math.min(0, minimum(lvPressureDerivatives)),
     leftVentricularEjectionFraction01:
       summary.hemodynamics.leftVentricularEjectionFraction01,
     rightVentricularEjectionFraction01:

@@ -70,8 +70,12 @@ export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadCoreMetricsV1 =
 
 export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadDiastolicMetricsV1 =
   Readonly<{
+    isovolumicContractionTimeSec: number | null;
     ivrtLikeSec: number | null;
     relaxationTauSec: number | null;
+    leftVentricularTeiIndex: number | null;
+    maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec: number | null;
+    maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec: number | null;
   }>;
 
 export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadFactorialEffectV1 =
@@ -179,8 +183,12 @@ const CORE_METRIC_KEYS = Object.freeze([
 )[]);
 
 const DIASTOLIC_METRIC_KEYS = Object.freeze([
+  "isovolumicContractionTimeSec",
   "ivrtLikeSec",
   "relaxationTauSec",
+  "leftVentricularTeiIndex",
+  "maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec",
+  "maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec",
 ] as const satisfies readonly (
   keyof MainWireAorticOutflowPhysiologyCandidateCombinedLoadDiastolicMetricsV1
 )[]);
@@ -240,10 +248,17 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
           });
         const coreMetrics = coreMetricsFromCycle(cycle);
         const diastolicMetrics = Object.freeze({
+          isovolumicContractionTimeSec:
+            cycle.leftVentricularIsovolumicContractionTimeSec,
           ivrtLikeSec:
             diastolicFlow.value?.relaxation.ivrtLikeSec ?? null,
           relaxationTauSec:
             diastolicFlow.value?.relaxation.relaxationTauSec ?? null,
+          leftVentricularTeiIndex: cycle.leftVentricularTeiIndex,
+          maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec:
+            cycle.maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec,
+          maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec:
+            cycle.maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec,
         });
         const failures: (
           | "ejection-time"
