@@ -2,6 +2,9 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
+  summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSummaryV1";
+import {
   initializeLandSlsWallAtFixedInputV1,
   type LandSlsWallMaterialParamsV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
@@ -26,7 +29,9 @@ export const MAIN_WIRE_VENTRICULAR_LAND_ACCEPTED_BEAT_TERM_BALANCE_CLAIM_V1 =
     activeStressStateEquation:
       "h*Tref/rs-times-S-times-one-plus-zetaS-plus-W-times-zetaW" as const,
     eventSamples:
-      "one-percent-peak-aortic-flow-onset-peak-and-end-plus-LVFW-stress-peak" as const,
+      "one-percent-peak-aortic-flow-onset-peak-and-end-plus-valve-event-closure-opening-and-LVFW-stress-peak" as const,
+    postEjectionWindow:
+      "aortic-valve-closure-inclusive-to-mitral-valve-opening-exclusive" as const,
     smoothingApplied: false as const,
     interpolationApplied: false as const,
     parameterSearchOrFitting: false as const,
@@ -79,10 +84,13 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     As: number;
     cwPerSec: number;
     csPerSec: number;
+    ksuPerSec: number;
     weakDistortionRecoveryTimeSec: number;
     strongDistortionRecoveryTimeSec: number;
     weakConstantRateDistortionGainSec: number;
     strongConstantRateDistortionGainSec: number;
+    gammaWPerSec: number;
+    gammaSPerSec: number;
   }>;
   replay: Readonly<{
     simulatedCycleCount: number;
@@ -103,9 +111,31 @@ export type MainWireVentricularLandAcceptedBeatTermBalanceV1 = Readonly<{
     meanNetActiveStateTermFractionOfUndistortedStrong: number;
     meanDistortionStressFractionOfUndistortedStrongStress: number;
   }>;
+  postEjectionIsovolumicRelaxation: Readonly<{
+    aorticValveClosurePhase01: number;
+    mitralValveOpeningPhase01: number;
+    durationSec: number;
+    sampleCount: number;
+    positiveStrongDistortionSampleFraction: number;
+    maximumPositiveStrongDistortion: number;
+    maximumLandLengtheningRatePerSec: number;
+    maximumStrongDistortionLossRatePerSec: number;
+    meanStrongDistortionLossRatePerSec: number;
+    integratedStrongDistortionLossExposure: number;
+    integratedBaselineStrongDetachmentPopulation: number;
+    integratedDistortionStrongDetachmentPopulation: number;
+    distortionToBaselineStrongDetachmentRatio: number;
+    strongPopulationChange: number;
+    strongPopulationFractionRemainingAtMitralOpening: number;
+    netActiveStressFractionRemainingAtMitralOpening: number;
+  }>;
   atAorticFlowOnset: MainWireVentricularLandAcceptedBeatTermReadbackV1;
   atAorticFlowPeak: MainWireVentricularLandAcceptedBeatTermReadbackV1;
   atAorticFlowEnd: MainWireVentricularLandAcceptedBeatTermReadbackV1;
+  atAorticValveClosure:
+    MainWireVentricularLandAcceptedBeatTermReadbackV1;
+  atMitralValveOpening:
+    MainWireVentricularLandAcceptedBeatTermReadbackV1;
   atLvfwActiveStressPeak:
     MainWireVentricularLandAcceptedBeatTermReadbackV1;
   claim:
@@ -138,6 +168,11 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
     throw new Error("Land term balance requires a retained complete beat");
   }
   const samples = beat.samples;
+  const cycle = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result)
+    .cyclePhysiology;
+  if (cycle === null) {
+    throw new Error("Land term balance requires measurable valve events");
+  }
   const flows = samples.map((sample) =>
     sample.valveHydraulics.AoV.flowMlPerSec);
   const maximumFlow = Math.max(...flows);
@@ -180,8 +215,29 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
   );
   const ejectionReadbacks = ejectionIndices.map((index) =>
     trace.readbacks[index]!);
+  const aorticValveClosureIndex = cycle.events.aorticValveClosure.sampleIndex;
+  const mitralValveOpeningIndex = cycle.events.mitralValveOpening.sampleIndex;
+  const postEjectionIndices = cyclicHalfOpenIndices(
+    samples.length,
+    aorticValveClosureIndex,
+    mitralValveOpeningIndex,
+  );
+  if (postEjectionIndices.length === 0) {
+    throw new Error("Land term balance requires a post-ejection interval");
+  }
+  const postEjectionReadbacks = postEjectionIndices.map((index) =>
+    trace.readbacks[index]!);
+  const atAorticValveClosure = trace.readbacks[aorticValveClosureIndex]!;
+  const atMitralValveOpening = trace.readbacks[mitralValveOpeningIndex]!;
   const p = material.landEquationParameters.values;
   const d = material.landEquationParameters.derived;
+  const integratedBaselineStrongDetachmentPopulation =
+    postEjectionReadbacks.reduce((sum, readback) =>
+      sum + d.ksu * readback.strongPopulationS * result.dtSec, 0);
+  const integratedDistortionStrongDetachmentPopulation =
+    postEjectionReadbacks.reduce((sum, readback) =>
+      sum + readback.strongDistortionLossRatePerSec
+        * readback.strongPopulationS * result.dtSec, 0);
   return Object.freeze({
     methodId: MAIN_WIRE_VENTRICULAR_LAND_ACCEPTED_BEAT_TERM_BALANCE_V1_ID,
     source: Object.freeze({
@@ -204,10 +260,13 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
       As: d.As,
       cwPerSec: d.cw,
       csPerSec: d.cs,
+      ksuPerSec: d.ksu,
       weakDistortionRecoveryTimeSec: 1 / d.cw,
       strongDistortionRecoveryTimeSec: 1 / d.cs,
       weakConstantRateDistortionGainSec: d.Aw / d.cw,
       strongConstantRateDistortionGainSec: d.As / d.cs,
+      gammaWPerSec: p.gammaW,
+      gammaSPerSec: p.gammaS,
     }),
     replay: Object.freeze({
       simulatedCycleCount: trace.simulatedCycleCount,
@@ -241,11 +300,55 @@ export function measureMainWireVentricularLandAcceptedBeatTermBalanceV1(
           / Math.max(
             readback.undistortedStrongActiveKirchhoffStressKPa,
             1e-12,
-          ))),
+        ))),
+    }),
+    postEjectionIsovolumicRelaxation: Object.freeze({
+      aorticValveClosurePhase01: phases01[aorticValveClosureIndex]!,
+      mitralValveOpeningPhase01: phases01[mitralValveOpeningIndex]!,
+      durationSec: postEjectionIndices.length * result.dtSec,
+      sampleCount: postEjectionIndices.length,
+      positiveStrongDistortionSampleFraction:
+        postEjectionReadbacks.filter((readback) => readback.zetaS > 0).length
+        / postEjectionReadbacks.length,
+      maximumPositiveStrongDistortion: Math.max(
+        0,
+        ...postEjectionReadbacks.map((readback) => readback.zetaS),
+      ),
+      maximumLandLengtheningRatePerSec: Math.max(
+        ...postEjectionReadbacks.map((readback) =>
+          readback.landStretchRatePerSec),
+      ),
+      maximumStrongDistortionLossRatePerSec: Math.max(
+        ...postEjectionReadbacks.map((readback) =>
+          readback.strongDistortionLossRatePerSec),
+      ),
+      meanStrongDistortionLossRatePerSec: mean(
+        postEjectionReadbacks.map((readback) =>
+          readback.strongDistortionLossRatePerSec),
+      ),
+      integratedStrongDistortionLossExposure:
+        postEjectionReadbacks.reduce((sum, readback) =>
+          sum + readback.strongDistortionLossRatePerSec * result.dtSec, 0),
+      integratedBaselineStrongDetachmentPopulation,
+      integratedDistortionStrongDetachmentPopulation,
+      distortionToBaselineStrongDetachmentRatio:
+        integratedDistortionStrongDetachmentPopulation
+        / Math.max(integratedBaselineStrongDetachmentPopulation, 1e-12),
+      strongPopulationChange:
+        atMitralValveOpening.strongPopulationS
+        - atAorticValveClosure.strongPopulationS,
+      strongPopulationFractionRemainingAtMitralOpening:
+        atMitralValveOpening.strongPopulationS
+        / Math.max(atAorticValveClosure.strongPopulationS, 1e-12),
+      netActiveStressFractionRemainingAtMitralOpening:
+        atMitralValveOpening.netActiveKirchhoffStressKPa
+        / Math.max(atAorticValveClosure.netActiveKirchhoffStressKPa, 1e-12),
     }),
     atAorticFlowOnset: trace.readbacks[onsetIndex]!,
     atAorticFlowPeak: trace.readbacks[flowPeakIndex]!,
     atAorticFlowEnd: trace.readbacks[endIndex]!,
+    atAorticValveClosure,
+    atMitralValveOpening,
     atLvfwActiveStressPeak: trace.readbacks[stressPeakIndex]!,
     claim: MAIN_WIRE_VENTRICULAR_LAND_ACCEPTED_BEAT_TERM_BALANCE_CLAIM_V1,
   });
@@ -407,6 +510,18 @@ function readback(
 function cyclicIndex(index: number, count: number): number {
   const resolved = index % count;
   return resolved < 0 ? resolved + count : resolved;
+}
+
+function cyclicHalfOpenIndices(
+  count: number,
+  startInclusive: number,
+  endExclusive: number,
+): readonly number[] {
+  const length = cyclicIndex(endExclusive - startInclusive, count);
+  return Object.freeze(Array.from(
+    { length },
+    (_, offset) => cyclicIndex(startInclusive + offset, count),
+  ));
 }
 
 function indexOfMaximum(values: readonly number[]): number {

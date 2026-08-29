@@ -1,14 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  measureMainWireVentricularLandSteadyStateForceCalciumAuditV1,
+} from "@/analysis/methods/mainWire/MainWireVentricularLandSteadyStateForceCalciumAuditV1";
+import {
+  resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
+import {
   LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
   LAND2017_LOCAL_JACOBIAN_SIZE,
   LAND2017_STATE_SIZE,
   computeLand2017AlgorithmicTangentPa,
   computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
+  deriveLand2017DerivedParameters,
   evaluateLand2017StepOutput,
   solveLand2017BackwardEulerStep,
   writeLand2017BackwardEulerResidual,
   writeLand2017BackwardEulerResidualJacobian,
+  stableHash,
+  type Land2017RuntimeParameters,
+  type Land2017SourceParameterSet,
   type LandStepInput,
 } from "@/engine/myocardium/myofilament/land2017";
 
@@ -188,6 +198,124 @@ describe("Land 2017 kernel contract", () => {
       );
       expect(relativeError(consistent, centeredShadow)).toBeLessThan(2e-6);
     }
+  });
+
+  it("audits the composed steady-state force-calcium response", () => {
+    const source =
+      measureMainWireVentricularLandSteadyStateForceCalciumAuditV1();
+
+    expect(source.halfActivation.eq48NumericalCapActive).toBe(false);
+    expect(source.halfActivation.calciumTroponinFraction).toBeCloseTo(0.35, 14);
+    expect(source.halfActivation.freeCalciumUM).toBeCloseTo(
+      0.590708505492801,
+      14,
+    );
+    expect(source.halfActivation.normalizedActiveStress01).toBeCloseTo(
+      0.5,
+      14,
+    );
+    expect(source.halfActivation.localForceOddsHillSlope).toBeCloseTo(6.5, 14);
+    expect(source.numericalHealth).toMatchObject({
+      everyPopulationNonNegative: true,
+      everyValueFinite: true,
+    });
+    expect(
+      source.numericalHealth.maximumPopulationConservationResidual,
+    ).toBeLessThan(1e-14);
+    expect(
+      source.numericalHealth.maximumAbsoluteRhsResidualPerSec,
+    ).toBeLessThan(1e-10);
+
+    const material =
+      resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
+        "source-twitch-retention-kws-thirteen-twentieths-ntm-four-fifths-peak-compensated",
+        "land-sarcomere-reference-plus-5-percent",
+        "land-whole-organ-kuw-nu4",
+      );
+    const retained =
+      measureMainWireVentricularLandSteadyStateForceCalciumAuditV1(
+        material.landEquationParameters,
+      );
+    expect(retained.halfActivation.freeCalciumUM).toBeCloseTo(
+      source.halfActivation.freeCalciumUM,
+      14,
+    );
+    expect(retained.halfActivation.localForceOddsHillSlope).toBeCloseTo(
+      5.2,
+      14,
+    );
+  });
+
+  it("keeps normalized equilibrium force invariant to population kinetics", () => {
+    const source = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
+    const values: Land2017RuntimeParameters = Object.freeze({
+      ...source.values,
+      kws: source.values.kws * 0.4,
+      rs: source.values.rs * 0.6,
+      rw: source.values.rw * 0.75,
+    });
+    const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
+      ...source,
+      parameterSetId: `${source.parameterSetId}-population-coordinate-test`,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+    };
+    const changed: Land2017SourceParameterSet = Object.freeze({
+      ...hashInput,
+      parameterSetStableHash: stableHash(hashInput),
+    });
+    const reference =
+      measureMainWireVentricularLandSteadyStateForceCalciumAuditV1(source);
+    const comparison =
+      measureMainWireVentricularLandSteadyStateForceCalciumAuditV1(changed);
+
+    expect(comparison.halfActivation.freeCalciumUM).toBeCloseTo(
+      reference.halfActivation.freeCalciumUM,
+      14,
+    );
+    expect(comparison.halfActivation.localForceOddsHillSlope).toBeCloseTo(
+      reference.halfActivation.localForceOddsHillSlope,
+      14,
+    );
+    for (const [index, sample] of comparison.curveSamples.entries()) {
+      expect(sample.normalizedActiveStress01).toBeCloseTo(
+        reference.curveSamples[index]!.normalizedActiveStress01,
+        14,
+      );
+    }
+    expect(comparison.curveSamples.some((sample, index) =>
+      sample.strongPopulationS
+      !== reference.curveSamples[index]!.strongPopulationS)).toBe(true);
+  });
+
+  it("includes the Eq 48 numerical cap in the equilibrium half point", () => {
+    const source = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
+    const values: Land2017RuntimeParameters = Object.freeze({
+      ...source.values,
+      TRPN50: 0.01,
+    });
+    const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
+      ...source,
+      parameterSetId: `${source.parameterSetId}-eq48-cap-test`,
+      values,
+      derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+    };
+    const parameterSet: Land2017SourceParameterSet = Object.freeze({
+      ...hashInput,
+      parameterSetStableHash: stableHash(hashInput),
+    });
+    const audit =
+      measureMainWireVentricularLandSteadyStateForceCalciumAuditV1(
+        parameterSet,
+      );
+
+    expect(audit.halfActivation.eq48NumericalCapActive).toBe(true);
+    expect(audit.halfActivation.normalizedActiveStress01).toBeCloseTo(
+      0.5,
+      14,
+    );
+    expect(audit.numericalHealth.maximumAbsoluteRhsResidualPerSec)
+      .toBeLessThan(1e-10);
   });
 });
 
