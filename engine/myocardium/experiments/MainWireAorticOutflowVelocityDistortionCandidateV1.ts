@@ -1,6 +1,6 @@
 import type {
-  MainWireAorticOutflowCandidateProtocolV2,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
+  MainWireAorticOutflowCandidateProtocolV3,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_VELOCITY_DISTORTION_CANDIDATE_V1_ID =
   "main-wire-aortic-outflow-velocity-distortion-candidate-v1" as const;
@@ -15,7 +15,7 @@ export type MainWireAorticOutflowVelocityDistortionCandidateIdV1 =
   (typeof MAIN_WIRE_AORTIC_OUTFLOW_VELOCITY_DISTORTION_CANDIDATE_IDS_V1)[number];
 
 export type MainWireAorticOutflowVelocityDistortionCandidateV1 =
-  MainWireAorticOutflowCandidateProtocolV2<
+  MainWireAorticOutflowCandidateProtocolV3<
     MainWireAorticOutflowVelocityDistortionCandidateIdV1
   >;
 

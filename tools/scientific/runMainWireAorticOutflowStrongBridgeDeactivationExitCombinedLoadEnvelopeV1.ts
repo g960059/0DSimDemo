@@ -9,8 +9,8 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
 import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -63,6 +63,7 @@ const envelope =
   measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1(
     runs,
     twitchRetentionCandidateId,
+    deactivationProfileId,
   );
 const report = Object.freeze({
   artifactSchemaVersion: 1 as const,

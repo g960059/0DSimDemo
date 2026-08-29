@@ -124,7 +124,7 @@ export function initializeLandSlsWallAtFixedInputV1(
   requireFinite(fiberLogStrain, "fiberLogStrain");
   requireNonnegative(freeCalciumUM, "freeCalciumUM");
   const relaxationDtSec = options.relaxationDtSec ?? 0.002;
-  const maximumIterations = options.maximumIterations ?? 800;
+  const maximumIterations = options.maximumIterations ?? 1600;
   const stateTolerance = options.stateTolerance ?? 1e-10;
   requirePositive(relaxationDtSec, "relaxationDtSec");
   if (!Number.isInteger(maximumIterations) || maximumIterations <= 0) {

@@ -6,6 +6,9 @@ import {
   trialLandSlsWallMaterialV1,
   type LandSlsWallMaterialParamsV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
+import {
+  resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
 import { LAND2017_HUMAN_ATRIAL_EFFECTIVE_PARAMETER_SET_V1 } from
   "@/engine/myocardium/myofilament/land2017/atrialPrior";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from
@@ -43,6 +46,25 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
     expect(cold.maximumStateUpdate).toBeLessThanOrEqual(1e-10);
     expect(cold.state.slsState.viscousLogStrain).toBe(0);
     expect(cold.state.previousFreeCalciumUM).toBe(0.1);
+  });
+
+  it("cold-equilibrates the bounded slow-transition candidate without truncating its relaxation", () => {
+    const material =
+      resolveMainWireVentricularLandSourceTwitchRetentionWallMaterialV1(
+        "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated",
+        "land-sarcomere-reference-canonical",
+        "land-whole-organ-kuw-nu7",
+      );
+    const fixedLandStretch = 1;
+    const cold = initializeLandSlsWallAtFixedInputV1(
+      Math.log(fixedLandStretch / material.landSlackStretch),
+      0.164,
+      material,
+    );
+    expect(cold.converged).toBe(true);
+    expect(cold.fixedInputIterations).toBeGreaterThan(800);
+    expect(cold.fixedInputIterations).toBeLessThanOrEqual(1600);
+    expect(cold.maximumStateUpdate).toBeLessThanOrEqual(1e-10);
   });
 
   it("advances Land and SLS from accepted history without mutating it", () => {

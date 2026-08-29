@@ -35,6 +35,7 @@ export const MAIN_WIRE_VENTRICULAR_LAND_SOURCE_TWITCH_RETENTION_CANDIDATE_IDS_V1
     "source-twitch-retention-kws-three-fifths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-twenty-three-fortieths-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-kws-eleven-twentieths-ntm-four-fifths-peak-compensated",
+    "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-rw-three-quarters-peak-compensated",
     "source-twitch-retention-ntm-four-fifths-peak-compensated",
     "source-twitch-retention-ntm-three-fifths-peak-compensated",
@@ -343,6 +344,19 @@ const CANDIDATES = Object.freeze({
         fivePercentRiseToPeakMs: 174.45376150382974,
         relaxationTime50Ms: 148.61034342120008,
         relaxationTime95Ms: 396.8656840240429,
+      },
+      "bounded-ET-completion-after-load-envelope",
+    ),
+  "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated":
+    candidate(
+      "source-twitch-retention-kws-one-half-ntm-four-fifths-peak-compensated",
+      { kws: 0.5, nTm: 0.8 },
+      1.1649410305064938,
+      {
+        uncompensatedPeakStressKPa: 43.77904002387673,
+        fivePercentRiseToPeakMs: 177.68341539753786,
+        relaxationTime50Ms: 153.7931357383438,
+        relaxationTime95Ms: 421.0664715876057,
       },
       "bounded-ET-completion-after-load-envelope",
     ),

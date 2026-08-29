@@ -8,9 +8,9 @@ import {
   runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2 as CANDIDATE,
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_CLAIM,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV2";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3 as CANDIDATE,
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV3";
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_SOURCE_TWITCH_RETENTION_DT_V1_ID =
   "main-wire-aortic-outflow-source-twitch-retention-dt-v1" as const;
@@ -56,7 +56,7 @@ const report = Object.freeze({
     independentCanonicalColdStartPerRun: true as const,
     candidateFixedBeforeDtComparison: true as const,
     candidate: CANDIDATE,
-    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V2_CLAIM,
+    candidateClaim: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V3_CLAIM,
     parameterSearchOrFitting: false as const,
   }),
   arms: Object.freeze(arms.map((arm) => Object.freeze({
