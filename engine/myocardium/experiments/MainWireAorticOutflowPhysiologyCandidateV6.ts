@@ -27,10 +27,10 @@ import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v5" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v6" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV5<
+export type MainWireAorticOutflowCandidateProtocolV6<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -55,14 +55,14 @@ export type MainWireAorticOutflowCandidateProtocolV5<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV5 =
-  MainWireAorticOutflowCandidateProtocolV5<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_ID
+export type MainWireAorticOutflowPhysiologyCandidateV6 =
+  MainWireAorticOutflowCandidateProtocolV6<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -74,15 +74,15 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5 =
     trefForceLoadProfileId: "tref-force-load-baseline" as const,
     sourceVelocityDistortionProfileId: "source-Aeff-canonical" as const,
     strongBridgeDeactivationExitProfileId:
-      "strong-to-unbound-deactivation-fifteen-per-sec-squared-equilibrium-excess-gate" as const,
+      "strong-to-unbound-deactivation-twenty-per-sec-quartic-equilibrium-excess-gate" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
       "all-Ao-SA-resistance-upstream-of-root-compliance" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV5;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV6;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
@@ -103,14 +103,15 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_CLAIM =
       true as const,
     trefCompensationChangesStressScaleNotCrossbridgeStateKinetics:
       true as const,
-    strongBridgeDeactivationExitMaximumRatePerSec: 15 as const,
-    strongBridgeDeactivationExitCooperativeGatePower: 2 as const,
+    strongBridgeDeactivationExitMaximumRatePerSec: 20 as const,
+    strongBridgeDeactivationExitCooperativeGatePower: 4 as const,
     strongBridgeDeactivationExitDestination: "unbound" as const,
     strongBridgeDeactivationExitUsesCaTRPNDirectionGate: false as const,
     strongBridgeDeactivationExitUsesPopulationDisequilibriumGate:
       true as const,
     strongBridgeDeactivationExitAddsContinuousState: false as const,
     strongBridgeDeactivationExitAddsOneContinuousRateParameter: true as const,
+    strongBridgeDeactivationExitUsesOneDiscreteGateShapeChoice: true as const,
     sourceVelocityDistortionAeffScaleFromIntactSource: 1 as const,
     effectiveSystemicArterialTangentStiffnessScaleFromCanonical: 2 as const,
     systemicArterialTopologyDesignPressurePreservedAtGlobalLawReferenceVolume:
@@ -125,8 +126,18 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V5_CLAIM =
     relaxationMetricsUsedToSelectBoundedCandidate: true as const,
     selectedRelaxationMetrics:
       Object.freeze(["IVRT", "Tei-index", "LV-negative-dP-dt"] as const),
+    ventricularPerformanceMetricsEvaluated:
+      Object.freeze([
+        "ICT",
+        "IVRT",
+        "Tei-index",
+        "LV-positive-dP-dt",
+        "LV-negative-dP-dt",
+      ] as const),
     ejectionTimeTreatedAsPrimarySelectionConstraint: true as const,
     fasterDeactivationBoundaryScreened: true as const,
+    steeperGatePreservesLateEjectionWhileAcceleratingRelaxation:
+      true as const,
     sourceLandIdentityClaimed: false as const,
     arterialCharacteristicImpedanceMatchedToLand2017Source: false as const,
     fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:
