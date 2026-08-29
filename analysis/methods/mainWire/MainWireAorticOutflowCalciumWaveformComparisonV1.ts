@@ -419,7 +419,10 @@ export function measureMainWireAorticOutflowCalciumWaveformCycleV1(
   const pulseShape = configuredVentricularPulseShape(calciumParams);
   const valveMetrics = measureMainWireValveDiseaseCycleMetricsV1(result)
     .valves.AoV;
-  const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
+  const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
+    result,
+    calciumParams,
+  );
   const aorticPressureFlowCoupling =
     measureMainWireAorticPressureFlowCouplingV1(result);
   const samples = beat.samples;

@@ -19,8 +19,8 @@ import {
   type MainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV6";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
 import type {
   MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
@@ -151,6 +151,7 @@ export type MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 =
       MainWireVentricularLandSourceTwitchRetentionCandidateIdV1;
     strongBridgeDeactivationExitProfileId:
       MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
+    atrioventricularDelayProfileId: string;
     arms:
       readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadArmV1[];
     ranges: Readonly<Record<
@@ -221,14 +222,14 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1[],
   expectedTwitchRetentionCandidateId:
     MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7
         .twitchRetentionCandidateId,
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
-      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6
+      MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7
         .strongBridgeDeactivationExitProfileId,
 ): MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
   const byId = new Map<string,
     MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1>();
   for (const input of inputs) {
@@ -268,6 +269,7 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
         const diastolicFlow =
           measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
             input.run.periodicResult,
+            input.run.calciumDriveParams,
           );
         const externalCompatibility =
           evaluateMainWireAorticOutflowExternalReferenceCompatibilityV1({
@@ -353,6 +355,8 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     twitchRetentionCandidateId: expectedTwitchRetentionCandidateId,
     strongBridgeDeactivationExitProfileId:
       expectedStrongBridgeDeactivationExitProfileId,
+    atrioventricularDelayProfileId:
+      candidate.atrioventricularDelayProfileId,
     arms,
     ranges: mapCoreMetrics((key) =>
       range(arms.map((arm) => arm.coreMetrics[key]))),
@@ -423,7 +427,7 @@ function assertRunMatchesContext(
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
 ): void {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
   const expected =
     resolveMainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1(
       input.contextId,
@@ -441,6 +445,8 @@ function assertRunMatchesContext(
       !== candidate.sourceVelocityDistortionProfileId
     || run.strongBridgeDeactivationExitProfile.profileId
       !== expectedStrongBridgeDeactivationExitProfileId
+    || run.atrioventricularDelayProfile.profileId
+      !== candidate.atrioventricularDelayProfileId
     || run.calciumSensitivityLengthProfile.profileId
       !== candidate.calciumSensitivityLengthProfileId
     || run.complianceProfile.profileId !== expected.complianceProfileId

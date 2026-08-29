@@ -5,6 +5,9 @@ import type {
   MainWireArterialCompliancePhysiologyProfileIdV1,
 } from "@/engine/myocardium/experiments/MainWireArterialCompliancePhysiologyBracketV1";
 import type {
+  MainWireAtrioventricularDelayProfileIdV1,
+} from "@/engine/myocardium/calcium/MainWireAtrioventricularDelayBracketV1";
+import type {
   MainWireVentricularLandCalciumSensitivityLengthProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandCalciumSensitivityLengthBracketV1";
 import type {
@@ -27,10 +30,10 @@ import type {
   MainWireAorticCharacteristicResistancePlacementProfileIdV1,
 } from "@/engine/valves/MainWireAorticCharacteristicResistancePlacementV1";
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID =
-  "main-wire-aortic-outflow-physiology-candidate-v6" as const;
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID =
+  "main-wire-aortic-outflow-physiology-candidate-v7" as const;
 
-export type MainWireAorticOutflowCandidateProtocolV6<
+export type MainWireAorticOutflowCandidateProtocolV7<
   CandidateId extends string = string,
 > = Readonly<{
   candidateId: CandidateId;
@@ -48,6 +51,8 @@ export type MainWireAorticOutflowCandidateProtocolV6<
     MainWireVentricularLandSourceVelocityDistortionProfileIdV1;
   strongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
+  atrioventricularDelayProfileId:
+    MainWireAtrioventricularDelayProfileIdV1;
   complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1;
   characteristicResistancePlacementProfileId:
     MainWireAorticCharacteristicResistancePlacementProfileIdV1;
@@ -55,14 +60,14 @@ export type MainWireAorticOutflowCandidateProtocolV6<
   aorticMaximumForwardEoaCm2: 3.5;
 }>;
 
-export type MainWireAorticOutflowPhysiologyCandidateV6 =
-  MainWireAorticOutflowCandidateProtocolV6<
-    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID
+export type MainWireAorticOutflowPhysiologyCandidateV7 =
+  MainWireAorticOutflowCandidateProtocolV7<
+    typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID
   >;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6 =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 =
   Object.freeze({
-    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_ID,
+    candidateId: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_ID,
     calciumProfileId:
       "main-wire-ventricular-calcium-land-coppini-source-trace-v1" as const,
     kuwProfileId: "land-whole-organ-kuw-nu4" as const,
@@ -75,14 +80,16 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6 =
     sourceVelocityDistortionProfileId: "source-Aeff-canonical" as const,
     strongBridgeDeactivationExitProfileId:
       "strong-to-unbound-deactivation-twenty-per-sec-quartic-equilibrium-excess-gate" as const,
+    atrioventricularDelayProfileId:
+      "coppini-source-atrioventricular-delay-120ms" as const,
     complianceProfileId: "arterial-stiffness-twofold" as const,
     characteristicResistancePlacementProfileId:
       "all-Ao-SA-resistance-upstream-of-root-compliance" as const,
     rootInertanceProfileId: "aortic-root-inertance-two-fifths" as const,
     aorticMaximumForwardEoaCm2: 3.5 as const,
-  }) satisfies MainWireAorticOutflowPhysiologyCandidateV6;
+  }) satisfies MainWireAorticOutflowPhysiologyCandidateV7;
 
-export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_CLAIM =
+export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7_CLAIM =
   Object.freeze({
     role: "exact-research-candidate-not-canonical-default" as const,
     primaryNumericCoppiniCalciumTraceUsed: true as const,
@@ -138,6 +145,28 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_CLAIM =
     fasterDeactivationBoundaryScreened: true as const,
     steeperGatePreservesLateEjectionWhileAcceleratingRelaxation:
       true as const,
+    sourceAtrioventricularDelaySec: 0.16 as const,
+    selectedAtrioventricularDelaySec: 0.12 as const,
+    atrioventricularDelaySelectionStage:
+      "fixed-six-point-timing-bracket-after-ET-and-relaxation-candidate-fixed" as const,
+    atrioventricularDelaySelectedUsingClosedLoopTimingAndFlowReadbacks:
+      true as const,
+    atrioventricularDelaySelectionCriterion:
+      "remove-MV-closure-to-ventricular-calcium-rise-dead-time-without-short-delay-A-wave-truncation-or-loss-of-ET-gradient-envelope" as const,
+    atrioventricularDelayContinuousOptimizerApplied: false as const,
+    patientSpecificTimingFitApplied: false as const,
+    atrioventricularDelayIsRelativeElectricalOnsetTimingNotClinicalPrInterval:
+      true as const,
+    atrialCalciumPulseShapeAndAmplitudeChanged: false as const,
+    ventricularCalciumTraceTimingOrAmplitudeChanged: false as const,
+    ictMechanismTarget:
+      "remove-noncontractile-flow-defined-MV-closure-to-ventricular-calcium-rise-gap" as const,
+    ictTeiAndPressureRateIncludedInSelectionReadback: true as const,
+    mitralAndPulmonaryVenousFlowSideEffectsIncludedInSelectionReadback:
+      true as const,
+    combinedLoadEnvelopeRecheckedAfterAtrioventricularTimingChange:
+      true as const,
+    ejectionTimeEnvelopePreservedAsPrimaryConstraint: true as const,
     sourceLandIdentityClaimed: false as const,
     arterialCharacteristicImpedanceMatchedToLand2017Source: false as const,
     fullSourceAoSaResistanceReinterpretedAsProximalCharacteristicImpedance:
@@ -154,7 +183,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6_CLAIM =
     aorticValveAreaOrOpeningLawChanged: false as const,
     calciumOrMechanicsStateAdded: false as const,
     acceptedStateOrCheckpointTopologyChanged: false as const,
-    parameterSearchOrPatientFit: false as const,
+    fixedDiscretePhysiologyBracketsScreened: true as const,
+    continuousParameterOptimizationOrPatientFit: false as const,
     clinicalValidationClaimed: false as const,
     canonicalAdoptionEstablished: false as const,
   });

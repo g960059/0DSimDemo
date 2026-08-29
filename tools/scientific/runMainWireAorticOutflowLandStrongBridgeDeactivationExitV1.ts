@@ -17,8 +17,8 @@ import {
   evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6 as CANDIDATE,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV6";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7 as CANDIDATE,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
 import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_CONTEXTS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1";
@@ -91,6 +91,7 @@ const arms = Object.freeze(
             ?? CANDIDATE.trefForceLoadProfileId,
           CANDIDATE.sourceVelocityDistortionProfileId,
           profileId,
+          CANDIDATE.atrioventricularDelayProfileId,
         );
       const material =
         resolveMainWireVentricularLandStrongBridgeDeactivationExitWallMaterialV1(
@@ -141,6 +142,7 @@ const arms = Object.freeze(
         diastolicFlow:
           measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
             run.periodicResult,
+            run.calciumDriveParams,
           ),
         landTermBalance:
           measureMainWireVentricularLandAcceptedBeatTermBalanceV1(

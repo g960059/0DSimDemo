@@ -8,8 +8,8 @@ import type {
   MainWireArterialCompliancePhysiologyProfileIdV1,
 } from "@/engine/myocardium/experiments/MainWireArterialCompliancePhysiologyBracketV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV6";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
 import type {
   MainWireVentricularLandTrefForceLoadProfileIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
@@ -56,7 +56,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_ENVELOP
   Object.freeze({
     role:
       "fixed-candidate-four-axis-full-factorial-combined-load-corner-envelope" as const,
-    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
+    fixedCandidate: MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
     axes:
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_COMBINED_LOAD_AXES_V1,
     systemicResistanceScaleFromBaseline:

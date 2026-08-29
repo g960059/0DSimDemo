@@ -100,6 +100,7 @@
     "characterize:scientific:aortic-outflow-activation-distribution-windkessel:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowActivationDistributionWindkesselV1.ts",
     "characterize:scientific:aortic-outflow-independent-activation-cohort-windkessel:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowIndependentActivationCohortWindkesselV1.ts",
     "characterize:scientific:aortic-outflow-land-coppini-source-trace-windkessel:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLandCoppiniSourceTraceWindkesselV1.ts",
+    "characterize:scientific:atrioventricular-delay-bracket:v1": "vite-node --script tools/scientific/runMainWireAtrioventricularDelayBracketV1.ts",
     "characterize:scientific:aortic-outflow-land-sarcomere-reference:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLandSarcomereReferenceV1.ts",
     "characterize:scientific:aortic-outflow-land-reference-rlc-refinement:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowLandReferenceRlcRefinementV1.ts",
     "characterize:scientific:ventricular-land-coppini-amplitude-isometric:v1": "vite-node --script tools/scientific/runMainWireVentricularLandCoppiniAmplitudeIsometricV1.ts",

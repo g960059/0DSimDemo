@@ -27,6 +27,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireVentricularCalciumSourceTraceFitTrefPassiveParetoV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   resolveMainWireVentricularCalciumSourceTraceFitParamsV1,
@@ -684,6 +685,7 @@ function relativeAbsoluteDifference(value: number, reference: number): number {
 
 export function measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
+  calciumDriveParams?: FiveWallNormalCalciumDriveParamsV1,
 ): MainWireVentricularCalciumSourceTraceFitDiastolicFlowReadbackV1 {
   const selectedBeat = result.retainedCompleteBeats.at(-1);
   if (selectedBeat === undefined || selectedBeat.samples.length === 0) {
@@ -692,7 +694,12 @@ export function measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
   return measureDiastolicFlow(
     selectedBeat.samples,
     result.dtSec,
-    summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result),
+    calciumDriveParams === undefined
+      ? summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result)
+      : summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
+        result,
+        calciumDriveParams,
+      ),
   );
 }
 

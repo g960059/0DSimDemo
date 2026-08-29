@@ -55,6 +55,7 @@ const arms = Object.freeze(profiles.map((profileId) => {
       CANDIDATE.trefForceLoadProfileId,
       profileId,
       CANDIDATE.strongBridgeDeactivationExitProfileId,
+      CANDIDATE.atrioventricularDelayProfileId,
     );
   const material =
     resolveMainWireVentricularLandSourceVelocityDistortionWallMaterialV1(
@@ -84,9 +85,11 @@ const arms = Object.freeze(profiles.map((profileId) => {
     diastolicFlow:
       measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
         run.periodicResult,
+        run.calciumDriveParams,
       ),
     periodicSummary: summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       run.periodicResult,
+      run.calciumDriveParams,
     ),
     runnerClaim: run.claim,
   });

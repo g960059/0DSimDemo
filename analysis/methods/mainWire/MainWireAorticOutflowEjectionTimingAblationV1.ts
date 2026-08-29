@@ -157,6 +157,7 @@ export function measureMainWireAorticOutflowEjectionTimingArmV1(
     diastolicFlow:
       measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
         run.periodicResult,
+        run.calciumDriveParams,
       ),
     monitoring: Object.freeze({
       meanRightAtrialAbsolutePressureMmHg: mean(samples.map((sample) =>

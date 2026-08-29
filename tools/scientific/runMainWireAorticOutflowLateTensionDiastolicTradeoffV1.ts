@@ -68,6 +68,7 @@ const arms = Object.freeze(candidateIds.map((candidateId) => {
     diastolicFlow:
       measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
         run.periodicResult,
+        run.calciumDriveParams,
       ),
     runnerClaim: run.claim,
   });

@@ -22,8 +22,8 @@ import {
   type MainWireAorticOutflowCandidateCirculatoryRecalibrationLevelV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowCandidateCirculatoryRecalibrationV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV6";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -200,6 +200,7 @@ export function measureMainWireAorticOutflowCandidateCirculatoryRecalibrationV1(
           diastolicFlow:
             measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
               input.run.periodicResult,
+              input.run.calciumDriveParams,
             ),
           system: measureSystemReadback(input.run),
         });
@@ -411,7 +412,7 @@ function assertRunMatchesContext(
       input.contextId,
     );
   const run = input.run;
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6;
+  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7;
   const actual = Object.freeze({
     kuwProfileId: run.kuwProfile.profileId,
     complianceProfileId: run.complianceProfile.profileId,
@@ -428,6 +429,8 @@ function assertRunMatchesContext(
       run.sourceVelocityDistortionProfile.profileId,
     strongBridgeDeactivationExitProfileId:
       run.strongBridgeDeactivationExitProfile.profileId,
+    atrioventricularDelayProfileId:
+      run.atrioventricularDelayProfile.profileId,
     circulatoryLoadPointId: run.circulatoryLoadPoint.pointId,
     stressedVenousVolumePointId: run.stressedVenousVolumePoint.pointId,
   });
@@ -446,6 +449,8 @@ function assertRunMatchesContext(
       candidate.sourceVelocityDistortionProfileId,
     strongBridgeDeactivationExitProfileId:
       candidate.strongBridgeDeactivationExitProfileId,
+    atrioventricularDelayProfileId:
+      candidate.atrioventricularDelayProfileId,
     circulatoryLoadPointId: context.circulatoryLoadPointId,
     stressedVenousVolumePointId: context.stressedVenousVolumePointId,
   });

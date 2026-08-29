@@ -9,6 +9,7 @@ import {
 } from "@/engine/myocardium/diagnostics/LaPvLobeMeasurementV2";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
@@ -54,6 +55,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V1 =
     morphologyMetricAcceptanceThresholdApplied: false as const,
     timeStepRobustnessAssessedBySummary: false as const,
     bloodVolumeOperatingPointReadbackOnly: true as const,
+    callerMaySupplyExactCalciumDriveForActivationWindows: true as const,
+    suppliedCalciumDriveIdentityMustMatchProtocol: true as const,
   });
 
 type ChamberId = "LA" | "LV" | "RA" | "RV";
@@ -252,6 +255,7 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
  */
 export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
+  calciumDriveParams?: FiveWallNormalCalciumDriveParamsV1,
 ): MainWireNormalAdultFiveWallPeriodicSummaryV1 {
   const selectedBeat = result.retainedCompleteBeats.at(-1);
   if (selectedBeat === undefined || selectedBeat.samples.length === 0) {
@@ -266,10 +270,21 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     ? precedingBeat.samples.at(-1) ?? null
     : null;
   const samples = selectedBeat.samples;
+  const activationParams = calciumDriveParams
+    ?? FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  if (
+    calciumDriveParams !== undefined
+    && result.protocolIdentity.calciumDrive.parameterSetId
+      !== calciumDriveParams.parameterSetId
+  ) {
+    throw new Error("summary calcium protocol identity mismatch");
+  }
   assertClosureReferenceScaleSetMatchesPolicy(result);
   const evidenceClosures = classifierEvidenceClosures(result);
   const evidenceJacobianAudits = classifierEvidenceJacobianAudits(result);
-  const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
+  const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01(
+    activationParams,
+  );
   const cycleMeasurement =
     tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
     samples,
@@ -286,7 +301,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
         theta: sample.cyclePhase01,
         laVolumeMl: sample.nodeVolumeMl.LA,
         laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
-        laActivation01: atrialActivation01(sample),
+        laActivation01: atrialActivation01(sample, activationParams),
         phase: cycle.phaseBySample[index]!,
       })));
   const branchOrder = cycle === null
@@ -388,7 +403,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     }),
     fixedActivationPrior: Object.freeze({
       parameterSetId:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+        activationParams.parameterSetId,
       atrialCalciumOnsetPhase01: atrialOnsetPhase01,
       purpose:
         "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law" as const,
@@ -627,16 +642,18 @@ function compactBranchOrder(
 
 function atrialActivation01(
   sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
+  calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
 ): number {
-  const atrial = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial;
+  const atrial = calciumDriveParams.atrial;
   return clamp01(
     (sample.freeCalciumUM.LA - atrial.diastolicCalciumUM)
       / atrial.peakAmplitudeUM,
   );
 }
 
-function normalAtrialCalciumOnsetPhase01(): number {
-  const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+function normalAtrialCalciumOnsetPhase01(
+  prior: FiveWallNormalCalciumDriveParamsV1,
+): number {
   return positiveModulo(
     prior.cycleLengthSec - prior.atrioventricularDelaySec
       + prior.atrial.electricalToCalciumDelaySec,

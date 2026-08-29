@@ -50,6 +50,7 @@ const arms = MAIN_WIRE_VENTRICULAR_LAND_SOURCE_VELOCITY_DISTORTION_PROFILE_IDS_V
       diastolicFlow:
         measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
           run.periodicResult,
+          run.calciumDriveParams,
         ),
       runnerClaim: run.claim,
     });

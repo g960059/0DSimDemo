@@ -87,8 +87,13 @@ import {
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumPeakLockedTailAblationV1";
 import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1,
-  resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniSourceTraceV1";
+import {
+  resolveMainWireAtrioventricularDelayCalciumParamsV1,
+  resolveMainWireAtrioventricularDelayProfileV1,
+  type MainWireAtrioventricularDelayProfileIdV1,
+  type MainWireAtrioventricularDelayProfileV1,
+} from "@/engine/myocardium/calcium/MainWireAtrioventricularDelayBracketV1";
 import {
   resolveMainWireVentricularCalciumLandCoppiniAmplitudeParamsV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniAmplitudeBracketV1";
@@ -1218,6 +1223,8 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       MainWireVentricularLandSourceVelocityDistortionProfileV1;
     strongBridgeDeactivationExitProfile:
       MainWireVentricularLandStrongBridgeDeactivationExitProfileV1;
+    atrioventricularDelayProfile:
+      MainWireAtrioventricularDelayProfileV1;
     circulatoryLoadPoint:
       MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
     stressedVenousVolumePoint:
@@ -1248,6 +1255,7 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       sourceLandVelocityDistortionChanged: boolean;
       sourceLandStrongBridgeDeactivationExitChanged: boolean;
       sourceLandStrongBridgeDeactivationExitPeakCompensationChanged: boolean;
+      atrioventricularDelayChanged: boolean;
       sourceTwitchRetentionCandidateDerivedFromIsometricOnly: boolean;
       sourceTwitchRetentionCandidateInformedByPriorLoadedEnvelope: boolean;
       referenceLengthIsometricLandValuesChanged: false;
@@ -3316,6 +3324,9 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
   strongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
       "strong-to-blocked-deactivation-off",
+  atrioventricularDelayProfileId:
+    MainWireAtrioventricularDelayProfileIdV1 =
+      "coppini-source-atrioventricular-delay-160ms",
 ): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
   assertExactAorticOutflowResearchOptions(options);
   const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
@@ -3362,6 +3373,10 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
   const strongBridgeDeactivationExitProfile =
     resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1(
       strongBridgeDeactivationExitProfileId,
+    );
+  const atrioventricularDelayProfile =
+    resolveMainWireAtrioventricularDelayProfileV1(
+      atrioventricularDelayProfileId,
     );
   if (
     calciumSensitivityLengthProfile.beta1ScaleFromSource !== 1
@@ -3434,7 +3449,9 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       kuwProfileId,
     );
   const calciumDriveParams =
-    resolveMainWireVentricularCalciumLandCoppiniSourceTraceParamsV1();
+    resolveMainWireAtrioventricularDelayCalciumParamsV1(
+      atrioventricularDelayProfileId,
+    );
   const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
     runtime,
     stressedVenousVolumePointId,
@@ -3479,6 +3496,7 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     trefForceLoadProfile,
     sourceVelocityDistortionProfile,
     strongBridgeDeactivationExitProfile,
+    atrioventricularDelayProfile,
     circulatoryLoadPoint,
     stressedVenousVolumePoint: bloodVolume.point,
     complianceProfile,
@@ -3521,6 +3539,8 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       sourceLandStrongBridgeDeactivationExitPeakCompensationChanged:
         strongBridgeDeactivationExitProfile
           .trefScaleFromUncompensatedBase !== 1,
+      atrioventricularDelayChanged:
+        !atrioventricularDelayProfile.sourceAtrioventricularDelayRetained,
       sourceTwitchRetentionCandidateDerivedFromIsometricOnly:
         !sourceTwitchRetentionCandidate
           .loadedOrHemodynamicOutcomeUsedToDeriveCandidate,

@@ -18,9 +18,9 @@ import {
   type MainWireAorticOutflowSourceTwitchRetentionLoadContextV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1";
 import {
-  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
-  type MainWireAorticOutflowCandidateProtocolV6,
-} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV6";
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
+  type MainWireAorticOutflowCandidateProtocolV7,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV7";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -166,8 +166,8 @@ const AXIS_CONTEXT_PAIRS = Object.freeze([
 export function measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
   inputs:
     readonly MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeInputV1[],
-  candidate: MainWireAorticOutflowCandidateProtocolV6 =
-    MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V6,
+  candidate: MainWireAorticOutflowCandidateProtocolV7 =
+    MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V7,
 ): MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1 {
   const byId = new Map<
     MainWireAorticOutflowSourceTwitchRetentionLoadContextIdV1,
@@ -214,6 +214,7 @@ export function measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
         const diastolicFlow =
           measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
             input.run.periodicResult,
+            input.run.calciumDriveParams,
           );
         return Object.freeze({
           context: resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1(
@@ -378,7 +379,7 @@ export function measureMainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeV1(
 
 function assertRunMatchesContext(
   input: MainWireAorticOutflowSourceTwitchRetentionLoadEnvelopeInputV1,
-  candidate: MainWireAorticOutflowCandidateProtocolV6,
+  candidate: MainWireAorticOutflowCandidateProtocolV7,
 ): void {
   const expected = resolveMainWireAorticOutflowSourceTwitchRetentionLoadContextV1(
     input.contextId,
@@ -396,6 +397,8 @@ function assertRunMatchesContext(
       !== candidate.sourceVelocityDistortionProfileId
     || run.strongBridgeDeactivationExitProfile.profileId
       !== candidate.strongBridgeDeactivationExitProfileId
+    || run.atrioventricularDelayProfile.profileId
+      !== candidate.atrioventricularDelayProfileId
     || run.calciumSensitivityLengthProfile.profileId
       !== candidate.calciumSensitivityLengthProfileId
     || run.complianceProfile.profileId !== expected.complianceProfileId

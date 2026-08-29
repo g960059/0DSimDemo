@@ -61,6 +61,7 @@ const arms = combinations.map((combinationValue) => {
     diastolicFlow:
       measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
         run.periodicResult,
+        run.calciumDriveParams,
       ),
     runnerClaim: run.claim,
   });

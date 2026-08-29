@@ -52,6 +52,7 @@ const candidateReports =
                   context.trefForceLoadProfileId,
                   candidate.sourceVelocityDistortionProfileId,
                   candidate.strongBridgeDeactivationExitProfileId,
+                  candidate.atrioventricularDelayProfileId,
                 ),
             });
           },

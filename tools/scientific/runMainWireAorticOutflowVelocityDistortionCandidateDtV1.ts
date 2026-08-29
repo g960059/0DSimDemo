@@ -37,6 +37,7 @@ const rawArms = dtValuesSec.map((dtSec) => {
       CANDIDATE.trefForceLoadProfileId,
       CANDIDATE.sourceVelocityDistortionProfileId,
       CANDIDATE.strongBridgeDeactivationExitProfileId,
+      CANDIDATE.atrioventricularDelayProfileId,
     );
   return Object.freeze({
     dtSec,
@@ -49,6 +50,7 @@ const rawArms = dtValuesSec.map((dtSec) => {
     diastolicFlow:
       measureMainWireVentricularCalciumSourceTraceFitDiastolicFlowV1(
         run.periodicResult,
+        run.calciumDriveParams,
       ),
     runnerClaim: run.claim,
   });
