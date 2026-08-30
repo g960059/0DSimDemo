@@ -156,6 +156,11 @@ import {
   type MainWireAorticOutflowV10MatchedAlphaSaturatingHr90OpeningLoadMechanismArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingHr90OpeningLoadMechanismV1";
 import {
+  resolveMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmV1,
+  type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmIdV1,
+  type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeV1";
+import {
   resolveMainWireArterialCompliancePhysiologyProfileV1,
   resolveMainWireArterialCompliancePhysiologyRuntimeV1,
   type MainWireArterialCompliancePhysiologyProfileIdV1,
@@ -1598,6 +1603,49 @@ export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHr9
         nonHr60V3WarmStartEmissionSuppressed: true;
         nonHr60V3WarmStartRestoreRejected: true;
         exactProtocolIdentityIncludesCalciumParamsAndAllLoadFactors: true;
+        derivedAnalysisStored: false;
+        parameterSearchOrFitting: false;
+        clinicalValidationClaimed: false;
+        canonicalAdoptionEstablished: false;
+      }>;
+    }
+  >;
+
+export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1 =
+  Readonly<
+    Omit<
+      MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHeartRateLawResearchRunV1,
+      | "configurationRole"
+      | "activeDesign"
+      | "claim"
+    > & {
+      configurationRole: "fixed-v10-matched-alpha-saturating-robustness-envelope-arm";
+      robustnessEnvelopeArm: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmV1;
+      claim: Readonly<{
+        sourceResearchRunnerOnly: true;
+        independentCanonicalColdStart: true;
+        warmStartApplied: false;
+        exactResearchOptionsLimitedToDtAndMaximumBeatCount: true;
+        genericParameterPatchAccepted: false;
+        fixedClosedThirtySixArmCatalogOnly: true;
+        arbitraryNumericFactorInputExposed: false;
+        referenceAssemblyDerivedFromCandidateV10: true;
+        V10ReferenceIdentityOutsideDeclaredFactorsHeldExactly: true;
+        matchedAlphaSaturatingRateCoefficientHeldAt: 0.4;
+        atrioventricularDelayHeldAtSec: 0.12;
+        circulatoryLoadResolvedByFixedCatalogId: true;
+        complianceResolvedByFixedCatalogId: true;
+        stressedVenousVolumeResolvedByFixedCatalogId: true;
+        trefForceResolvedByFixedCatalogId: true;
+        pulmonaryResistanceHeldAtBaseline: true;
+        totalBloodVolumeFixedWithinRun: true;
+        outcomeTargetedRecalibrationApplied: false;
+        aorticMaximumForwardEoaHeldAtCm2: 3.5;
+        V10PressureRecoveryAndProximalPortOwnershipHeldExactly: true;
+        calciumOrMechanicsStateAdded: false;
+        acceptedStateOrCheckpointTopologyChanged: false;
+        exactProtocolIdentityIncludesCalciumParamsAndAllFiveFactors: true;
+        fixedPhysicalHorizonAuditCompleted: false;
         derivedAnalysisStored: false;
         parameterSearchOrFitting: false;
         clinicalValidationClaimed: false;
@@ -4122,6 +4170,8 @@ type MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyLoadSelectionV1
       MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1;
     stressedVenousVolumePointId:
       MainWireNormalAdultStressedVenousVolumeResearchPointIdV1;
+    complianceProfileId?: MainWireArterialCompliancePhysiologyProfileIdV1;
+    trefForceLoadProfileId?: MainWireVentricularLandTrefForceLoadProfileIdV1;
   }>;
 
 /**
@@ -4138,11 +4188,15 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
 ): MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyExecutionV1 {
   const reference =
     MAIN_WIRE_AORTIC_OUTFLOW_V10_HEART_RATE_CALCIUM_REFERENCE_NON_CALCIUM_ASSEMBLY_V1;
+  const selectedComplianceProfileId =
+    loadSelection.complianceProfileId ?? reference.complianceProfileId;
+  const selectedTrefForceLoadProfileId =
+    loadSelection.trefForceLoadProfileId ?? reference.trefForceLoadProfileId;
   const assembly =
     resolveMainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1(
       Object.freeze({
         kuwProfileId: reference.kuwProfileId,
-        complianceProfileId: reference.complianceProfileId,
+        complianceProfileId: selectedComplianceProfileId,
         placementProfileId:
           reference.characteristicResistancePlacementProfileId,
         rootInertanceProfileId: reference.rootInertanceProfileId,
@@ -4153,7 +4207,7 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
         circulatoryLoadPointId: loadSelection.circulatoryLoadPointId,
         stressedVenousVolumePointId:
           loadSelection.stressedVenousVolumePointId,
-        trefForceLoadProfileId: reference.trefForceLoadProfileId,
+        trefForceLoadProfileId: selectedTrefForceLoadProfileId,
         sourceVelocityDistortionProfileId:
           reference.sourceVelocityDistortionProfileId,
         strongBridgeDeactivationExitProfileId:
@@ -4190,12 +4244,12 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
     assembly.sourceTwitchRetentionCandidate.candidateId !==
       reference.twitchRetentionCandidateId ||
     assembly.trefForceLoadProfile.profileId !==
-      reference.trefForceLoadProfileId ||
+      selectedTrefForceLoadProfileId ||
     assembly.sourceVelocityDistortionProfile.profileId !==
       reference.sourceVelocityDistortionProfileId ||
     assembly.strongBridgeDeactivationExitProfile.profileId !==
       reference.strongBridgeDeactivationExitProfileId ||
-    assembly.complianceProfile.profileId !== reference.complianceProfileId ||
+    assembly.complianceProfile.profileId !== selectedComplianceProfileId ||
     placementProfile.profileId !==
       reference.characteristicResistancePlacementProfileId ||
     rootInertanceProfile.profileId !== reference.rootInertanceProfileId ||
@@ -5055,6 +5109,164 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSatura
       nonHr60V3WarmStartRestoreRejected: true as const,
       exactProtocolIdentityIncludesCalciumParamsAndAllLoadFactors:
         true as const,
+      derivedAnalysisStored: false as const,
+      parameterSearchOrFitting: false as const,
+      clinicalValidationClaimed: false as const,
+      canonicalAdoptionEstablished: false as const,
+    }),
+  });
+}
+
+/**
+ * Closed 36-arm robustness envelope around the accepted matched-alpha
+ * saturating a=0.40 law and V10 pressure-station assembly. Every non-timebase
+ * factor is selected by the fixed catalog arm; callers cannot pass numeric
+ * load, compliance, volume, or Tref patches.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  armId: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const robustnessEnvelopeArm =
+    resolveMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmV1(
+      armId,
+    );
+  const saturatingHeartRateLawProfile =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawProfileV1(
+      robustnessEnvelopeArm.calciumProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+      robustnessEnvelopeArm.calciumProfileId,
+    );
+  if (
+    saturatingHeartRateLawProfile.profileId !==
+      robustnessEnvelopeArm.calciumProfileId ||
+    saturatingHeartRateLawProfile.heartRateBpm !==
+      robustnessEnvelopeArm.heartRateBpm ||
+    saturatingHeartRateLawProfile.dimensionlessRateCoefficient !== 0.4 ||
+    calciumDriveParams.cycleLengthSec !==
+      saturatingHeartRateLawProfile.cycleLengthSec ||
+    60 / calciumDriveParams.cycleLengthSec !==
+      robustnessEnvelopeArm.heartRateBpm ||
+    calciumDriveParams.atrioventricularDelaySec !== 0.12
+  ) {
+    throw new Error(
+      "V10 matched-alpha saturating robustness-envelope calcium identity mismatch",
+    );
+  }
+  const {
+    reference,
+    assembly,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    periodicResult,
+    exactAssemblyAudit,
+  } = runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
+    options,
+    calciumDriveParams,
+    robustnessEnvelopeArm.heartRateBpm,
+    Object.freeze({
+      circulatoryLoadPointId:
+        robustnessEnvelopeArm.circulatoryLoadPointId,
+      stressedVenousVolumePointId:
+        robustnessEnvelopeArm.stressedVenousVolumePointId,
+      complianceProfileId: robustnessEnvelopeArm.complianceProfileId,
+      trefForceLoadProfileId: robustnessEnvelopeArm.trefForceLoadProfileId,
+    }),
+    Object.freeze({
+      protocolIdentity:
+        "V10 matched-alpha saturating robustness-envelope protocol identity mismatch",
+      nonCalciumAssemblyIdentity:
+        "V10 matched-alpha saturating robustness-envelope assembly identity mismatch",
+      exactProtocolReadback:
+        "V10 matched-alpha saturating robustness-envelope exact protocol readback mismatch",
+    }),
+  );
+  if (
+    reference !==
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1 ||
+    assembly.circulatoryLoadPoint.pointId !==
+      robustnessEnvelopeArm.circulatoryLoadPointId ||
+    assembly.circulatoryLoadPoint.systemicResistanceScaleFromBaseline !==
+      robustnessEnvelopeArm.systemicResistanceScaleFromBaseline ||
+    assembly.circulatoryLoadPoint.pulmonaryResistanceScaleFromBaseline !== 1 ||
+    assembly.circulatoryLoadPoint.arterialStiffnessScaleFromBaseline !== 1 ||
+    assembly.complianceProfile.profileId !==
+      robustnessEnvelopeArm.complianceProfileId ||
+    assembly.complianceProfile.arterialStiffnessScaleFromBaseline !==
+      robustnessEnvelopeArm
+        .systemicArterialTangentStiffnessAbsoluteScaleFromCanonical ||
+    assembly.bloodVolume.point.pointId !==
+      robustnessEnvelopeArm.stressedVenousVolumePointId ||
+    assembly.bloodVolume.point.canonicalAdditionalSvVcVolumeScale !==
+      robustnessEnvelopeArm.canonicalAdditionalStressedVenousVolumeScale ||
+    assembly.bloodVolume.point.fixedTotalBloodVolumeMl !==
+      robustnessEnvelopeArm.fixedTotalBloodVolumeMl ||
+    assembly.trefForceLoadProfile.profileId !==
+      robustnessEnvelopeArm.trefForceLoadProfileId ||
+    assembly.trefForceLoadProfile.trefScaleFromRetainedCandidate !==
+      robustnessEnvelopeArm.ventricularTrefForceScaleFromCandidate ||
+    periodicResult.valveResearchInput.valves.AoV.maximumForwardEoaCm2 !== 3.5
+  ) {
+    throw new Error(
+      "V10 matched-alpha saturating robustness-envelope catalog resolution mismatch",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-v10-matched-alpha-saturating-robustness-envelope-arm" as const,
+    referenceNonCalciumAssembly:
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1,
+    robustnessEnvelopeArm,
+    saturatingHeartRateLawProfile,
+    kuwProfile: assembly.kuwProfile,
+    sarcomereReferenceProfile: assembly.sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile: assembly.calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate: assembly.sourceTwitchRetentionCandidate,
+    trefForceLoadProfile: assembly.trefForceLoadProfile,
+    sourceVelocityDistortionProfile: assembly.sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile:
+      assembly.strongBridgeDeactivationExitProfile,
+    circulatoryLoadPoint: assembly.circulatoryLoadPoint,
+    stressedVenousVolumePoint: assembly.bloodVolume.point,
+    complianceProfile: assembly.complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    calciumDriveParams,
+    periodicResult,
+    exactAssemblyAudit,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      exactResearchOptionsLimitedToDtAndMaximumBeatCount: true as const,
+      genericParameterPatchAccepted: false as const,
+      fixedClosedThirtySixArmCatalogOnly: true as const,
+      arbitraryNumericFactorInputExposed: false as const,
+      referenceAssemblyDerivedFromCandidateV10: true as const,
+      V10ReferenceIdentityOutsideDeclaredFactorsHeldExactly: true as const,
+      matchedAlphaSaturatingRateCoefficientHeldAt: 0.4 as const,
+      atrioventricularDelayHeldAtSec: 0.12 as const,
+      circulatoryLoadResolvedByFixedCatalogId: true as const,
+      complianceResolvedByFixedCatalogId: true as const,
+      stressedVenousVolumeResolvedByFixedCatalogId: true as const,
+      trefForceResolvedByFixedCatalogId: true as const,
+      pulmonaryResistanceHeldAtBaseline: true as const,
+      totalBloodVolumeFixedWithinRun: true as const,
+      outcomeTargetedRecalibrationApplied: false as const,
+      aorticMaximumForwardEoaHeldAtCm2: 3.5 as const,
+      V10PressureRecoveryAndProximalPortOwnershipHeldExactly: true as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      exactProtocolIdentityIncludesCalciumParamsAndAllFiveFactors:
+        true as const,
+      fixedPhysicalHorizonAuditCompleted: false as const,
       derivedAnalysisStored: false as const,
       parameterSearchOrFitting: false as const,
       clinicalValidationClaimed: false as const,
