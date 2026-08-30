@@ -11,11 +11,15 @@ import {
 import {
   MainWireIntegratedModelBeatAccumulatorV3,
   validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3,
+  type MainWireIntegratedModelBeatAccumulatorCheckpointV3,
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
+  restoreMainWireIntegratedModelStandardV2,
   validateMainWireIntegratedModelStandardCheckpointV2,
+  type MainWireIntegratedModelStandardCheckpointContextV2,
   type MainWireIntegratedModelStandardCheckpointV2,
+  type RestoredMainWireIntegratedModelStandardCheckpointV2,
 } from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
 import {
   MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
@@ -110,6 +114,24 @@ export type MainWireIntegratedModelStandard66CheckpointV1 =
     checkpointSha256: string;
   }>;
 
+export type MainWireIntegratedModelStandard66RestoreContextV1<TWallState> =
+  Readonly<{
+    base: MainWireIntegratedModelStandardCheckpointContextV2<TWallState>;
+    selected: MainWireIntegratedModelStandard66CheckpointContextV1;
+  }>;
+
+export type RestoredMainWireIntegratedModelStandard66CheckpointV1<TWallState> =
+  RestoredMainWireIntegratedModelStandardCheckpointV2<TWallState> & Readonly<{
+    selectedAorticPortExtension:
+      MainWireSelectedAorticPortSessionExtensionV1;
+  }>;
+
+type MainWireIntegratedModelStandard66BaseExactBeatStateV1 = Readonly<{
+  acceptedTimeSec: number;
+  beatAccumulator: MainWireIntegratedModelBeatAccumulatorCheckpointV3;
+  completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
+}>;
+
 export function createMainWireIntegratedModelStandard66CheckpointContextV1(
   input: Readonly<{
     fixedAssemblyId: unknown;
@@ -201,9 +223,76 @@ export async function checkpointMainWireIntegratedModelStandard66V1(
 }
 
 /**
- * Owns and validates the complete object wrapper. Restore of the numerical
- * state deliberately remains with a future Standard66 Session seam; this
- * module does not reinterpret the embedded Standard V2 owner.
+ * Restores both exact owners of the selected Standard66 model. The embedded
+ * Standard V2 checkpoint remains the sole owner of accepted numerical state;
+ * the selected sidecar restores only exact beat analysis. Its instantaneous
+ * 76-f64 readback is intentionally unavailable until the next accepted step.
+ */
+export async function restoreMainWireIntegratedModelStandard66V1<TWallState>(
+  context: MainWireIntegratedModelStandard66RestoreContextV1<TWallState>,
+  input: unknown,
+): Promise<RestoredMainWireIntegratedModelStandard66CheckpointV1<TWallState>> {
+  const contextRecord = plainExactRecordV1(
+    context,
+    ["base", "selected"],
+    "Standard66 restore context",
+  );
+  // Capture both context branches synchronously. The nested base context is a
+  // trusted immutable runtime construction under the existing Standard V2
+  // contract, but the public outer context object must not be retained across
+  // the wrapper digest await.
+  const baseContext = contextRecord.base as
+    MainWireIntegratedModelStandardCheckpointContextV2<TWallState>;
+  const selectedContext = contextRecord.selected as
+    MainWireIntegratedModelStandard66CheckpointContextV1;
+  createMainWireIntegratedModelStandard66CheckpointContextV1(
+    selectedContext,
+  );
+  const checkpoint = await validateMainWireIntegratedModelStandard66CheckpointV1(
+    input,
+  );
+  const restoredBase = await restoreMainWireIntegratedModelStandardV2(
+    baseContext,
+    checkpoint.baseStandardCheckpointV2,
+  );
+  const selectedAorticPortExtension =
+    MainWireSelectedAorticPortSessionExtensionV1.restoreExactBeatStateV1(
+      checkpoint.selectedAorticPortExactBeatState,
+    );
+  if (selectedAorticPortExtension.acceptedReadbackClockV1() !== null) {
+    throw new Error(
+      "restored Standard66 selected instantaneous readback must be unavailable",
+    );
+  }
+  if (
+    restoredBase.acceptedState.revision !== checkpoint.revision
+    || !Object.is(
+      restoredBase.acceptedState.acceptedTimeSec,
+      checkpoint.acceptedTimeSec,
+    )
+  ) {
+    throw new Error("restored Standard66 owner clocks differ");
+  }
+
+  const restoredBaseExactState = Object.freeze({
+    acceptedTimeSec: restoredBase.acceptedState.acceptedTimeSec,
+    beatAccumulator: restoredBase.beatAccumulator.checkpoint(),
+    completedBeatMetrics: restoredBase.completedBeatMetrics,
+  }) satisfies MainWireIntegratedModelStandard66BaseExactBeatStateV1;
+  assertSynchronizedExactBeatStatesV1(
+    restoredBaseExactState,
+    selectedAorticPortExtension.checkpointExactBeatStateV1(),
+  );
+  return Object.freeze({
+    ...restoredBase,
+    selectedAorticPortExtension,
+  });
+}
+
+/**
+ * Owns and validates the complete object wrapper before either exact owner
+ * is restored. This module never reinterprets the embedded Standard V2
+ * numerical semantics.
  */
 export async function validateMainWireIntegratedModelStandard66CheckpointV1(
   input: unknown,
@@ -260,7 +349,7 @@ function ownSelectedExactBeatStateV1(
 }
 
 function assertSynchronizedExactBeatStatesV1(
-  base: MainWireIntegratedModelStandardCheckpointV2,
+  base: MainWireIntegratedModelStandard66BaseExactBeatStateV1,
   selected: MainWireSelectedAorticPortExactBeatStateCheckpointV1,
 ): void {
   const baseAccumulator = MainWireIntegratedModelBeatAccumulatorV3

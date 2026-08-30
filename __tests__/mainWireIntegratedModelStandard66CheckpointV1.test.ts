@@ -14,6 +14,7 @@ import {
   createMainWireIntegratedModelStandard66CheckpointContextV1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1,
+  restoreMainWireIntegratedModelStandard66V1,
   validateMainWireIntegratedModelStandard66CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard66CheckpointV1";
 import {
@@ -273,6 +274,66 @@ describe("Main Wire integrated Standard66 exact object checkpoint V1", () => {
       validateMainWireIntegratedModelStandard66CheckpointV1(checkpoint),
     ).resolves.toEqual(checkpoint);
   }, 60_000);
+
+  it("restores both exact owners while leaving the selected instantaneous readback unavailable", async () => {
+    const fixture = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1();
+    const checkpoint = await synchronizedCompletedCheckpointV1();
+    const restored = await restoreMainWireIntegratedModelStandard66V1(
+      Object.freeze({
+        base: standardContextV1(fixture),
+        selected: selectedContextV1(fixture),
+      }),
+      checkpoint,
+    );
+
+    expect(restored.acceptedState.revision).toBe(checkpoint.revision);
+    expect(Object.is(
+      restored.acceptedState.acceptedTimeSec,
+      checkpoint.acceptedTimeSec,
+    )).toBe(true);
+    expect(restored.beatAccumulator.checkpoint()).toEqual(
+      checkpoint.baseStandardCheckpointV2.beatAccumulator,
+    );
+    expect(restored.completedBeatMetrics).toEqual(
+      checkpoint.baseStandardCheckpointV2.completedBeatMetrics,
+    );
+    expect(restored.selectedAorticPortExtension.checkpointExactBeatStateV1())
+      .toEqual(checkpoint.selectedAorticPortExactBeatState);
+    expect(restored.selectedAorticPortExtension.acceptedReadbackClockV1())
+      .toBeNull();
+    expect(restored.selectedAorticPortExtension.withAcceptedReadbackV3(
+      Object.freeze({
+        acceptedTimeSec: checkpoint.acceptedTimeSec,
+        revision: checkpoint.revision,
+      }),
+      () => "unexpected",
+    )).toBeNull();
+  }, 120_000);
+
+  it("synchronously owns the Standard66 wrapper before restore awaits", async () => {
+    const fixture = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1();
+    const checkpoint = await synchronizedCompletedCheckpointV1();
+    const mutable = cloneV1(checkpoint);
+    const restorePromise = restoreMainWireIntegratedModelStandard66V1(
+      Object.freeze({
+        base: standardContextV1(fixture),
+        selected: selectedContextV1(fixture),
+      }),
+      mutable,
+    );
+    mutable.revision = 777;
+    mutable.baseStandardCheckpointV2.revision = 777;
+    mutable.selectedAorticPortExactBeatState.selectedBeatAccumulator.active
+      .previous.aorticValveFlowMlPerSec = 777;
+    const restored = await restorePromise;
+
+    expect(restored.acceptedState.revision).toBe(checkpoint.revision);
+    expect(restored.beatAccumulator.checkpoint()).toEqual(
+      checkpoint.baseStandardCheckpointV2.beatAccumulator,
+    );
+    expect(restored.selectedAorticPortExtension.checkpointExactBeatStateV1())
+      .toEqual(checkpoint.selectedAorticPortExactBeatState);
+  }, 120_000);
 });
 
 async function checkpointFixtureV1() {
