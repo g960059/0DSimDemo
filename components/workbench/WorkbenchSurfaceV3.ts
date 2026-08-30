@@ -896,18 +896,6 @@ export function resolveWorkbenchGraphSeriesLabelV3(
     : storedLabel;
 }
 
-export function shouldShowAorticPressureStationNoticeV3(
-  pane: ExperimentSurfaceGraphPaneV2,
-): boolean {
-  if (
-    pane.graphId !== "hemodynamics.pressure.waveform" &&
-    pane.graphId !== "hemodynamics.pressure.waveform.comprehensive-v1"
-  )
-    return false;
-  const seriesIds = new Set(pane.series.map(({ seriesId }) => seriesId));
-  return seriesIds.has("LVP") && seriesIds.has("AoP");
-}
-
 export function outputLabelV3(outputId: string): string {
   return OUTPUT_LABEL_BY_ID_V3[outputId] ?? humanizeCatalogIdV3(outputId);
 }

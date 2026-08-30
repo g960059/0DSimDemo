@@ -8,7 +8,6 @@ import {
   isWorkbenchGraphTraceExcludedV3,
   resolveWorkbenchGraphSeriesLabelV3,
   resolveWorkbenchGraphScenarioIdsV3,
-  shouldShowAorticPressureStationNoticeV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   GuytonStarlingComparisonCanvasV3,
@@ -230,7 +229,6 @@ function SampledGraphPaneBodyV3({
   surface: ExperimentSurfaceV2;
   visibleScenarioIds: readonly string[];
 }>) {
-  const { t } = useTranslation();
   const { appTheme } = useAppTheme();
   const graphPresentation = useWorkbenchSampledGraphPresentationSamplesV3(
     sampleStore,
@@ -488,11 +486,6 @@ function SampledGraphPaneBodyV3({
     <ExperimentGraphPresentationV3
       variant="pane"
       canvasClassName="h-full min-h-0"
-      annotation={
-        shouldShowAorticPressureStationNoticeV3(pane)
-          ? t("workbench.live.aorticPressureStationNotice")
-          : undefined
-      }
     >
       <SweepingWaveformCanvasV3
         activeScenarioId={activeScenarioId}

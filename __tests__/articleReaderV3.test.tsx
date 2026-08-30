@@ -15,7 +15,6 @@ import {
   resolveArticleReaderGraphPresentationV3,
   readerStructuralAnalysisRequestsV3,
   selectedSweepOutputIdsV3,
-  shouldShowArticleReaderAorticPressureStationNoticeV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   articleReaderPeekFractionForPointerV3,
@@ -599,18 +598,6 @@ describe("Article Reader V3 experiment anchor", () => {
       "LV absolute cavity pressure",
       "Ao compliance node",
     ]);
-    expect(
-      shouldShowArticleReaderAorticPressureStationNoticeV3(
-        resolved.pane,
-        resolved.series,
-      ),
-    ).toBe(true);
-    expect(
-      shouldShowArticleReaderAorticPressureStationNoticeV3(
-        resolved.pane,
-        resolved.series.filter(({ seriesId }) => seriesId !== "AoP"),
-      ),
-    ).toBe(false);
   });
 
   it("clears only the Placement that actually left the Reader center band", () => {

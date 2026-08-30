@@ -229,7 +229,6 @@
       "resetControl": "Reset",
       "applying": "Applying…",
       "outputNotAssessed": "Output quality is not assessed at this boundary.",
-      "aorticPressureStationNotice": "Ao is the lumped compliance-node pressure; the plotted LV–Ao separation is not a Doppler- or catheter-defined AV gradient.",
       "analysisRunning": "Computing a read-only structural orientation from the current accepted V3 step…",
       "analysisRecalculating": "Recalculating Guyton / Starling",
       "analysisUnavailable": "This exact accepted boundary did not provide the registered structural analysis.",

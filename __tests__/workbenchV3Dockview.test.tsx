@@ -49,7 +49,6 @@ import {
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
-  shouldShowAorticPressureStationNoticeV3,
   WORKBENCH_GRAPH_PANE_OPTIONS_V3,
   workbenchGraphPaneOptionsForContractV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -251,22 +250,6 @@ describe("V3 Dockview Workbench", () => {
     );
     expect(graphSeriesLabelV3("AoP")).toBe("Ao compliance node");
     expect(graphSeriesLabelV3("LVP")).toBe("LV absolute cavity pressure");
-  });
-
-  it("shows a persistent pressure-station annotation outside the graph tooltip", () => {
-    const annotation =
-      "Ao is the lumped compliance-node pressure; LV–Ao is not a clinical AV gradient.";
-    const markup = renderToStaticMarkup(
-      <ExperimentGraphPresentationV3 variant="pane" annotation={annotation}>
-        <div>graph</div>
-      </ExperimentGraphPresentationV3>,
-    );
-
-    expect(markup).toContain(
-      'data-experiment-graph-annotation="pressure-stations"',
-    );
-    expect(markup).toContain(annotation);
-    expect(markup).not.toContain(`title="${annotation}"`);
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
@@ -887,17 +870,6 @@ describe("V3 Dockview Workbench", () => {
     expect(resolveWorkbenchGraphSeriesLabelV3("LVP", "Custom LV")).toBe(
       "Custom LV",
     );
-    expect(shouldShowAorticPressureStationNoticeV3(legacyPressurePane)).toBe(
-      true,
-    );
-    expect(
-      shouldShowAorticPressureStationNoticeV3({
-        ...legacyPressurePane,
-        series: legacyPressurePane.series.filter(
-          ({ seriesId }) => seriesId !== "AoP",
-        ),
-      }),
-    ).toBe(false);
   });
 
   it("marks a new Workbench dirty until its first durable Save", () => {

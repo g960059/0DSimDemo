@@ -32,7 +32,6 @@ export type ExperimentPaneAddItemActionV3 = Readonly<{
  * visual surface so both contexts retain identical theme and spacing rules.
  */
 export function ExperimentGraphPresentationV3({
-  annotation,
   canvasClassName = "",
   children,
   className = "",
@@ -40,7 +39,6 @@ export function ExperimentGraphPresentationV3({
   variant,
   ...figureProps
 }: Readonly<{
-  annotation?: string;
   canvasClassName?: string;
   children: React.ReactNode;
   label?: string;
@@ -49,9 +47,7 @@ export function ExperimentGraphPresentationV3({
   Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   const figureClassName =
     variant === "pane"
-      ? `h-full min-h-0 min-w-0 bg-wb-canvas p-3 ${
-          annotation === undefined ? "" : "flex flex-col"
-        }`
+      ? "h-full min-h-0 min-w-0 bg-wb-canvas p-3"
       : "min-w-0 rounded-xl bg-wb-canvas p-3 sm:p-4";
   return (
     <figure
@@ -64,20 +60,7 @@ export function ExperimentGraphPresentationV3({
           {label}
         </figcaption>
       )}
-      {annotation !== undefined && (
-        <p
-          className="mb-2 shrink-0 text-[11px] leading-4 text-wb-muted"
-          data-experiment-graph-annotation="pressure-stations"
-          role="note"
-        >
-          {annotation}
-        </p>
-      )}
-      <div
-        className={`${annotation === undefined ? "" : "min-h-0 flex-1"} ${
-          canvasClassName
-        }`.trim()}
-      >
+      <div className={canvasClassName}>
         {children}
       </div>
     </figure>
