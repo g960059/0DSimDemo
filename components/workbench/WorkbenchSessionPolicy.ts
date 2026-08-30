@@ -150,6 +150,31 @@ export function shouldPublishWorkbenchRootFrameV3(
   );
 }
 
+/**
+ * Detects an input mutation that replaced the exact trajectory instead of
+ * continuing from its accepted clock. Presentation samples from the previous
+ * trajectory must not be joined to, or retained as PV history for, the new
+ * cold-started trajectory.
+ */
+export function workbenchInputMutationReplacedAcceptedClockV3(
+  previous: Readonly<{
+    inputEpoch: number;
+    acceptedRevision: number;
+    acceptedTimeSec: number;
+  }>,
+  next: Readonly<{
+    inputEpoch: number;
+    acceptedRevision: number;
+    acceptedTimeSec: number;
+  }>,
+): boolean {
+  return (
+    next.inputEpoch > previous.inputEpoch &&
+    (next.acceptedRevision < previous.acceptedRevision ||
+      next.acceptedTimeSec < previous.acceptedTimeSec)
+  );
+}
+
 export function workbenchScenarioRuntimeStatusV3(
   isPlaying: boolean,
 ): "Live" | "Paused" {

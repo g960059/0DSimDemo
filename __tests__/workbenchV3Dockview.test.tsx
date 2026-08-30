@@ -35,6 +35,7 @@ import {
   resolveWorkbenchSurfaceAfterCommitV3,
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
+  workbenchInputMutationReplacedAcceptedClockV3,
   workbenchDurableContentAvailableV3,
   workbenchPublicationAvailableV3,
   workbenchScenarioRuntimeStatusV3,
@@ -1945,6 +1946,35 @@ describe("V3 Dockview Workbench", () => {
         schedulerRunning: false,
       }),
     ).toBe(true);
+  });
+
+  it("distinguishes a cold-restarted accepted clock from a warm input epoch", () => {
+    const previous = {
+      inputEpoch: 3,
+      acceptedRevision: 500,
+      acceptedTimeSec: 1,
+    };
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 0,
+        acceptedTimeSec: 0,
+      }),
+    ).toBe(true);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 500,
+        acceptedTimeSec: 1,
+      }),
+    ).toBe(false);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 3,
+        acceptedRevision: 499,
+        acceptedTimeSec: 0.998,
+      }),
+    ).toBe(false);
   });
 
   it("labels every concurrently simulated Scenario from global playback", () => {

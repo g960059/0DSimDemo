@@ -194,6 +194,7 @@ import {
   resolveWorkbenchSurfaceAfterCommitV3,
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
+  workbenchInputMutationReplacedAcceptedClockV3,
   workbenchDurableContentAvailableV3,
   workbenchPaneIdentityForIdV3,
   workbenchPublicationAvailableV3,
@@ -1405,6 +1406,20 @@ export const WorkbenchSession = ({
             ),
           ),
         );
+        for (const nextFrame of nextFrames) {
+          const previousFrame = acceptedFrames.find(
+            ({ scenarioId }) => scenarioId === nextFrame.scenarioId,
+          );
+          if (
+            previousFrame !== undefined &&
+            workbenchInputMutationReplacedAcceptedClockV3(
+              previousFrame,
+              nextFrame,
+            )
+          ) {
+            presentationSampleStore.resetScenario(nextFrame.scenarioId);
+          }
+        }
         appendFramesV3(nextFrames, presentationSampleStore);
         setStatus((current) =>
           current.kind === "live"
