@@ -433,7 +433,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       maximum: finiteNumber,
       step: finiteNumber,
       defaultValue: finiteNumber,
-      changeSemantics: { const: "accepted-state-warm-start" },
+      changeSemantics: {
+        enum: ["accepted-state-warm-start", "cold-restart"],
+      },
     }) },
     outputCatalog: { type: "array", items: outputDefinition },
     graphCatalog: { type: "array", items: graphDefinition },
