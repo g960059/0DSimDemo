@@ -232,6 +232,13 @@ function normalizedPeriodicBiexponential(
   riseTimeConstantSec: number,
   decayTimeConstantSec: number,
 ): number {
+  if (decayTimeConstantSec === riseTimeConstantSec) {
+    return normalizedPeriodicAlphaLimit(
+      timeSinceOnsetSec,
+      cycleLengthSec,
+      riseTimeConstantSec,
+    );
+  }
   if (!(decayTimeConstantSec > riseTimeConstantSec)) {
     throw new Error("decay time constant must exceed rise time constant");
   }
@@ -255,6 +262,36 @@ function normalizedPeriodicBiexponential(
   const tolerance = 1e-12;
   if (normalized < -tolerance || normalized > 1 + tolerance) {
     throw new Error("normalized periodic biexponential pulse left [0,1]");
+  }
+  return Math.min(1, Math.max(0, normalized));
+}
+
+/**
+ * Exact equal-time-constant limit of the normalized periodic biexponential.
+ * The unequal-time-constant path above remains the Standard-65 arithmetic.
+ */
+function normalizedPeriodicAlphaLimit(
+  timeSinceOnsetSec: number,
+  cycleLengthSec: number,
+  timeConstantSec: number,
+): number {
+  const carry = Math.exp(-cycleLengthSec / timeConstantSec);
+  const periodicAgeOffsetSec = cycleLengthSec * carry / (1 - carry);
+  const raw = (timeSec: number): number =>
+    (timeSec + periodicAgeOffsetSec) * Math.exp(-timeSec / timeConstantSec);
+  const peakTimeSec = Math.min(
+    cycleLengthSec,
+    Math.max(0, timeConstantSec - periodicAgeOffsetSec),
+  );
+  const minimum = raw(0);
+  const amplitude = raw(peakTimeSec) - minimum;
+  if (!(amplitude > 0) || !Number.isFinite(amplitude)) {
+    throw new Error("periodic alpha-limit pulse has no positive amplitude");
+  }
+  const normalized = (raw(timeSinceOnsetSec) - minimum) / amplitude;
+  const tolerance = 1e-12;
+  if (normalized < -tolerance || normalized > 1 + tolerance) {
+    throw new Error("normalized periodic alpha-limit pulse left [0,1]");
   }
   return Math.min(1, Math.max(0, normalized));
 }
@@ -289,8 +326,10 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
       requirePositive(scale, `${wall} decay-time scale`);
       const tissue =
         wall === "LA" || wall === "RA" ? params.atrial : params.ventricular;
-      if (!(tissue.decayTimeConstantSec * scale > tissue.riseTimeConstantSec)) {
-        throw new Error(`${wall} scaled decay time must exceed rise time`);
+      if (!(tissue.decayTimeConstantSec * scale >= tissue.riseTimeConstantSec)) {
+        throw new Error(
+          `${wall} scaled decay time must not be shorter than rise time`,
+        );
       }
     }
   }
@@ -323,9 +362,9 @@ function validateClass(
     value.electricalToCalciumDelaySec,
     `${label}.electricalToCalciumDelaySec`,
   );
-  if (!(value.decayTimeConstantSec > value.riseTimeConstantSec)) {
+  if (!(value.decayTimeConstantSec >= value.riseTimeConstantSec)) {
     throw new Error(
-      `${label}.decayTimeConstantSec must exceed riseTimeConstantSec`,
+      `${label}.decayTimeConstantSec must not be shorter than riseTimeConstantSec`,
     );
   }
   if (!(value.electricalToCalciumDelaySec < cycleLengthSec)) {
