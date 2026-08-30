@@ -1143,14 +1143,18 @@ function ArticleReaderPressureVolumeCanvasV3({
 }>) {
   const scenarioIds = React.useMemo(
     () =>
-      Object.freeze([
-        ...new Set(
-          traces
-            .filter(({ chamberId }) => chamberId === "LV" || chamberId === "RV")
-            .map(({ scenarioId }) => scenarioId),
-        ),
-      ]),
-    [traces],
+      runtime.periodicPvaDerivation === null
+        ? Object.freeze([])
+        : Object.freeze([
+            ...new Set(
+              traces
+                .filter(
+                  ({ chamberId }) => chamberId === "LV" || chamberId === "RV",
+                )
+                .map(({ scenarioId }) => scenarioId),
+            ),
+          ]),
+    [runtime.periodicPvaDerivation, traces],
   );
   const missingScenarioIds = scenarioIds.filter((scenarioId) => {
     const key = articleReaderAnalysisKeyV3(scenarioId, analysisId);
@@ -1164,7 +1168,11 @@ function ArticleReaderPressureVolumeCanvasV3({
   const canRequest =
     runtime.state.status === "playing" || runtime.state.status === "paused";
   React.useEffect(() => {
-    if (!canRequest || missingScenarioIds.length === 0) return;
+    if (
+      runtime.periodicPvaDerivation === null ||
+      !canRequest ||
+      missingScenarioIds.length === 0
+    ) return;
     void runtime
       .requestAnalysis({
         analysisId,
@@ -1173,7 +1181,13 @@ function ArticleReaderPressureVolumeCanvasV3({
       .catch(() => {
         // The runtime publishes recoverable per-Scenario analysis errors.
       });
-  }, [analysisId, canRequest, missingKey, runtime.requestAnalysis]);
+  }, [
+    analysisId,
+    canRequest,
+    missingKey,
+    runtime.periodicPvaDerivation,
+    runtime.requestAnalysis,
+  ]);
 
   const enrichedTraces = React.useMemo(
     () =>
@@ -1211,6 +1225,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   );
   return (
     <PressureVolumeLoopCanvasV3
+      periodicPvaSupported={runtime.periodicPvaDerivation !== null}
       traces={enrichedTraces}
       showPressureEnvelope={showPressureEnvelope}
     />

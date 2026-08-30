@@ -167,10 +167,13 @@ export function workbenchInputMutationReplacedAcceptedClockV3(
     acceptedRevision: number;
     acceptedTimeSec: number;
   }>,
+  changeSemantics: "accepted-state-warm-start" | "cold-restart" =
+    "accepted-state-warm-start",
 ): boolean {
   return (
     next.inputEpoch > previous.inputEpoch &&
-    (next.acceptedRevision < previous.acceptedRevision ||
+    (changeSemantics === "cold-restart" ||
+      next.acceptedRevision < previous.acceptedRevision ||
       next.acceptedTimeSec < previous.acceptedTimeSec)
   );
 }

@@ -1317,6 +1317,10 @@ export const WorkbenchSession = ({
         ownsControlOperation = true;
         await runtime.pauseAll();
         const uniqueScenarioIds = [...new Set(scenarioIds)];
+        const changeSemantics =
+          contract.controlCatalog.find(
+            (definition) => definition.controlId === controlId,
+          )?.changeSemantics ?? "accepted-state-warm-start";
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
           runtime.latestFrame(scenarioId),
         );
@@ -1415,6 +1419,7 @@ export const WorkbenchSession = ({
             workbenchInputMutationReplacedAcceptedClockV3(
               previousFrame,
               nextFrame,
+              changeSemantics,
             )
           ) {
             presentationSampleStore.resetScenario(nextFrame.scenarioId);

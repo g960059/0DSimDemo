@@ -12,6 +12,9 @@ import {
   workbenchPvGraphUsesPeriodicPvaAnalysisV3,
 } from "@/components/workbench/WorkbenchGraphPaneBodyV3";
 import {
+  PressureVolumeLoopCanvasV3,
+} from "@/components/workbench/presentation";
+import {
   archiveWorkbenchAnalysesV3,
   cloneWorkbenchAnalysisForScenarioV3,
   cloneWorkbenchScenarioAnalysesV3,
@@ -1973,6 +1976,16 @@ describe("V3 Dockview Workbench", () => {
         {} as never,
       ),
     ).toBe(false);
+
+    const rawMarkup = renderToStaticMarkup(
+      <PressureVolumeLoopCanvasV3
+        periodicPvaSupported={false}
+        traces={[]}
+      />,
+    );
+    expect(rawMarkup).toContain('data-pv-analysis-mode="raw-exact-orbit"');
+    expect(rawMarkup).not.toContain("formal-periodic");
+    expect(rawMarkup).not.toContain("preload-reduction analysis selected");
   });
 
   it("distinguishes a cold-restarted accepted clock from a warm input epoch", () => {
@@ -1993,8 +2006,15 @@ describe("V3 Dockview Workbench", () => {
         inputEpoch: 4,
         acceptedRevision: 500,
         acceptedTimeSec: 1,
-      }),
+      }, "accepted-state-warm-start"),
     ).toBe(false);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 500,
+        acceptedTimeSec: 1,
+      }, "cold-restart"),
+    ).toBe(true);
     expect(
       workbenchInputMutationReplacedAcceptedClockV3(previous, {
         inputEpoch: 3,

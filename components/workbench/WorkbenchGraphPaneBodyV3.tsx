@@ -411,6 +411,7 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
+          periodicPvaSupported={periodicPvaDerivation !== null}
           traces={traces}
           showPressureEnvelope={pane.showPressureEnvelope}
         />
