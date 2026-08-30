@@ -9,6 +9,9 @@ import {
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
 import {
+  workbenchPvGraphUsesPeriodicPvaAnalysisV3,
+} from "@/components/workbench/WorkbenchGraphPaneBodyV3";
+import {
   archiveWorkbenchAnalysesV3,
   cloneWorkbenchAnalysisForScenarioV3,
   cloneWorkbenchScenarioAnalysesV3,
@@ -1946,6 +1949,30 @@ describe("V3 Dockview Workbench", () => {
         schedulerRunning: false,
       }),
     ).toBe(true);
+  });
+
+  it("keeps a raw PV loop independent from an unavailable PVA analysis", () => {
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "pressure-volume",
+        ["LV"],
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "pressure-volume",
+        ["LV"],
+        {} as never,
+      ),
+    ).toBe(true);
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "sweep",
+        ["LV"],
+        {} as never,
+      ),
+    ).toBe(false);
   });
 
   it("distinguishes a cold-restarted accepted clock from a warm input epoch", () => {

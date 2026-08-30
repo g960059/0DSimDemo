@@ -51,6 +51,18 @@ const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioOrbitHistoryV3;
 
+export function workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+  renderer: ModelContractV2["graphCatalog"][number]["renderer"],
+  displayedSeriesIds: readonly string[],
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null,
+): boolean {
+  return (
+    renderer === "pressure-volume" &&
+    periodicPvaDerivation !== null &&
+    displayedSeriesIds.some((seriesId) => seriesId === "LV" || seriesId === "RV")
+  );
+}
+
 export function GraphPaneBodyV3({
   activeScenarioId,
   playbackRunning,
@@ -261,9 +273,10 @@ function SampledGraphPaneBodyV3({
   const pressureVolumeAnalysisId =
     MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
   const pvaAnalysisScenarioIds =
-    graph.renderer === "pressure-volume" &&
-    displayedSeries.some(
-      ({ seriesId }) => seriesId === "LV" || seriesId === "RV",
+    workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+      graph.renderer,
+      displayedSeries.map(({ seriesId }) => seriesId),
+      periodicPvaDerivation,
     )
       ? scenarios
           .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
@@ -310,6 +323,7 @@ function SampledGraphPaneBodyV3({
     missingPvaAnalysisScenarioIds,
     onRequestAnalysis,
     operationPending,
+    periodicPvaDerivation,
     pressureVolumeAnalysisId,
     pvaAnalysisRequestKey,
   ]);

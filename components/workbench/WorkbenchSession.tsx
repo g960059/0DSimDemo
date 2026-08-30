@@ -2509,6 +2509,7 @@ export const WorkbenchSession = ({
     saveState === "saving" ||
     snapshotState === "creating";
   const periodicPvaOutputScenarioIds = React.useMemo(() => {
+    if (periodicPvaDerivationRef.current === null) return Object.freeze([]);
     const analysisOutputIds = new Set<string>(
       MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     );
