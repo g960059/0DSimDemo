@@ -8,6 +8,10 @@ import {
 import { evaluateExactEventCalciumV1 } from
   "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import {
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
+import {
+  FIVE_WALL_PERIODIC_SINUS_ALPHA_REPLAY_ABS_TOLERANCE_UM_V1,
   FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1,
   checkpointAcceptedFiveWallRhythmCalciumStateV1,
   commitAcceptedFiveWallRhythmCalciumTrialV1,
@@ -193,6 +197,73 @@ describe("accepted five-wall rhythm-calcium owner V1", () => {
     );
     expect(replay.timing.ventricularEffectiveCalciumOnsetOffsetSec)
       .toBe(params.ventricular.electricalToCalciumDelaySec);
+  });
+
+  it("replays and checkpoints the equal-tau periodic owner in two slots", async () => {
+    const params =
+      resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+        73.25,
+      );
+    const replay = createPeriodicSinusFiveWallRhythmCalciumReplayV1(params, {
+      scheduleId: "matched-alpha-accepted-schedule-v1",
+      bindingId: "matched-alpha-accepted-binding-v1",
+      acceptedTimeSec: 0,
+      endTimeSec: params.cycleLengthSec,
+      revision: 0,
+    });
+    expect(replay.compatibility.absoluteToleranceUM).toBe(
+      FIVE_WALL_PERIODIC_SINUS_ALPHA_REPLAY_ABS_TOLERANCE_UM_V1,
+    );
+
+    const candidateTimeSec = 0.317 * params.cycleLengthSec;
+    const trial = evaluateAcceptedFiveWallRhythmCalciumTrialV1(
+      replay.acceptedState,
+      candidateTimeSec,
+      replay.binding,
+      replay.schedule,
+    );
+    const direct = evaluateFiveWallNormalCalciumDriveV1(
+      candidateTimeSec,
+      params,
+    );
+    for (const wall of WALLS) {
+      expect(Math.abs(
+        trial.candidateFreeCalciumUMByWall[wall]
+          - direct.freeCalciumUMByWall[wall],
+      )).toBeLessThanOrEqual(replay.compatibility.absoluteToleranceUM);
+    }
+    const accepted = commitAcceptedFiveWallRhythmCalciumTrialV1(
+      replay.acceptedState,
+      trial,
+      replay.binding,
+      replay.schedule,
+    );
+    const checkpoint = await checkpointAcceptedFiveWallRhythmCalciumStateV1(
+      accepted,
+      replay.binding,
+      replay.schedule,
+    );
+    expect(checkpoint.schemaVersion).toBe(1);
+    expect(WALLS.every((wall) =>
+      checkpoint.calciumStateByWall[wall].length === 2)).toBe(true);
+    const restored = await restoreAcceptedFiveWallRhythmCalciumStateV1(
+      JSON.parse(JSON.stringify(checkpoint)),
+      replay.binding,
+      replay.schedule,
+    );
+    expect(restored).toEqual(accepted);
+    const continuationTimeSec = 0.733 * params.cycleLengthSec;
+    expect(evaluateAcceptedFiveWallRhythmCalciumTrialV1(
+      restored,
+      continuationTimeSec,
+      replay.binding,
+      replay.schedule,
+    )).toEqual(evaluateAcceptedFiveWallRhythmCalciumTrialV1(
+      accepted,
+      continuationTimeSec,
+      replay.binding,
+      replay.schedule,
+    ));
   });
 
   it("analytically seeds an event exactly at initial time as history", () => {

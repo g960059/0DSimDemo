@@ -14,7 +14,8 @@ export const EXACT_EVENT_PRESCRIBED_CALCIUM_CLAIM_BOUNDARY_V1 = Object.freeze({
 /**
  * Both state components receive the same instantaneous event increment. Their
  * difference, and therefore the reported free calcium, is continuous across
- * an event. Between events each component follows its exact exponential flow.
+ * an event. Distinct time constants use two independent exact exponential
+ * flows. Equal time constants use their exact repeated-root Jordan limit.
  */
 export type ExactEventCalciumStateV1 = readonly [
   riseDrive: number,
@@ -99,6 +100,14 @@ export function propagateExactEventCalciumV1(
   const [riseDrive, decayDrive] = validateState(state, "state");
   const duration = requireNonnegativeFinite(durationSec, "durationSec");
   validateParameters(parameters);
+  if (parameters.tauDecaySec === parameters.tauRiseSec) {
+    return propagateEqualTimeConstantExactEventCalcium(
+      riseDrive,
+      decayDrive,
+      duration,
+      parameters.tauRiseSec,
+    );
+  }
   return frozenState(
     riseDrive * Math.exp(-duration / parameters.tauRiseSec),
     decayDrive * Math.exp(-duration / parameters.tauDecaySec),
@@ -217,6 +226,13 @@ export function convertPeriodicBiexponentialToExactEventCalciumV1(
   const cycle = requirePositiveFinite(cycleLengthSec, "cycleLengthSec");
   const tauRiseSec = periodic.riseTimeConstantSec;
   const tauDecaySec = periodic.decayTimeConstantSec;
+  if (tauDecaySec === tauRiseSec) {
+    return convertPeriodicAlphaLimitToExactEventCalcium(
+      periodic,
+      cycle,
+      tauRiseSec,
+    );
+  }
   const riseCarry = 1 / -Math.expm1(-cycle / tauRiseSec);
   const decayCarry = 1 / -Math.expm1(-cycle / tauDecaySec);
   const periodicStateImmediatelyAfterEvent = frozenState(riseCarry, decayCarry);
@@ -283,8 +299,10 @@ export function convertPeriodicBiexponentialToExactEventCalciumV1(
 function validateParameters(parameters: ExactEventCalciumParametersV1): void {
   requirePositiveFinite(parameters.tauRiseSec, "parameters.tauRiseSec");
   requirePositiveFinite(parameters.tauDecaySec, "parameters.tauDecaySec");
-  if (!(parameters.tauDecaySec > parameters.tauRiseSec)) {
-    throw new Error("parameters.tauDecaySec must exceed parameters.tauRiseSec");
+  if (!(parameters.tauDecaySec >= parameters.tauRiseSec)) {
+    throw new Error(
+      "parameters.tauDecaySec must not be shorter than parameters.tauRiseSec",
+    );
   }
   requireNonnegativeFinite(parameters.calciumRestUM, "parameters.calciumRestUM");
   requireNonnegativeFinite(
@@ -309,11 +327,129 @@ function validatePeriodicInput(
     periodic.decayTimeConstantSec,
     "periodic.decayTimeConstantSec",
   );
-  if (!(periodic.decayTimeConstantSec > periodic.riseTimeConstantSec)) {
+  if (!(periodic.decayTimeConstantSec >= periodic.riseTimeConstantSec)) {
     throw new Error(
-      "periodic.decayTimeConstantSec must exceed periodic.riseTimeConstantSec",
+      "periodic.decayTimeConstantSec must not be shorter than periodic.riseTimeConstantSec",
     );
   }
+}
+
+/**
+ * Exact flow of the repeated root while retaining the existing coordinates.
+ * With q = duration / tau, the matrix exponential is
+ * exp(-q) [[1, 0], [q, 1]]. The existing equal event jump [s, s]
+ * therefore produces the exact alpha response q * exp(-q) in decay - rise.
+ */
+function propagateEqualTimeConstantExactEventCalcium(
+  riseDrive: number,
+  decayDrive: number,
+  durationSec: number,
+  timeConstantSec: number,
+): ExactEventCalciumStateV1 {
+  const dimensionlessDuration = durationSec / timeConstantSec;
+  const decayFactor = Math.exp(-dimensionlessDuration);
+  const alphaFactor = dimensionlessTimesExpNegative(
+    dimensionlessDuration,
+    decayFactor,
+  );
+  return frozenState(
+    riseDrive * decayFactor,
+    decayDrive * decayFactor + riseDrive * alphaFactor,
+  );
+}
+
+/**
+ * Period-one state for unit events in the repeated-root coordinates.
+ * If u = cycle / tau and rho = exp(-u), the post-event state is
+ * [1/(1-rho), 1/(1-rho) + u*rho/(1-rho)^2].
+ */
+function convertPeriodicAlphaLimitToExactEventCalcium(
+  periodic: PeriodicBiexponentialCalciumForExactEventConversionV1,
+  cycleLengthSec: number,
+  timeConstantSec: number,
+): PeriodicBiexponentialExactEventConversionV1 {
+  const dimensionlessCycle = cycleLengthSec / timeConstantSec;
+  const cycleCarry = Math.exp(-dimensionlessCycle);
+  const oneMinusCycleCarry = -Math.expm1(-dimensionlessCycle);
+  const commonDriveCarry = 1 / oneMinusCycleCarry;
+  const alphaDifferenceCarry = Number.isFinite(dimensionlessCycle)
+    ? (dimensionlessCycle / oneMinusCycleCarry)
+      * (cycleCarry / oneMinusCycleCarry)
+    : 0;
+  const periodicStateImmediatelyAfterEvent = frozenState(
+    commonDriveCarry,
+    commonDriveCarry + alphaDifferenceCarry,
+  );
+  const dimensionlessTimeToPeak = Number.isFinite(dimensionlessCycle)
+    ? 1 - dimensionlessCycle / Math.expm1(dimensionlessCycle)
+    : 1;
+  const timeToPeakSec = timeConstantSec * dimensionlessTimeToPeak;
+  if (
+    !(timeToPeakSec >= 0 && timeToPeakSec <= cycleLengthSec)
+    || !Number.isFinite(timeToPeakSec)
+  ) {
+    throw new Error(
+      "periodic alpha-limit peak must lie within the reference cycle",
+    );
+  }
+  const eventTroughDriveDifference =
+    periodicStateImmediatelyAfterEvent[1]
+    - periodicStateImmediatelyAfterEvent[0];
+  const peakState = propagateEqualTimeConstantExactEventCalcium(
+    periodicStateImmediatelyAfterEvent[0],
+    periodicStateImmediatelyAfterEvent[1],
+    timeToPeakSec,
+    timeConstantSec,
+  );
+  const peakDriveDifference = peakState[1] - peakState[0];
+  const peakToTroughDriveExcursion = peakDriveDifference
+    - eventTroughDriveDifference;
+  if (
+    !(peakToTroughDriveExcursion > 0)
+    || !Number.isFinite(peakToTroughDriveExcursion)
+  ) {
+    throw new Error(
+      "periodic alpha limit must have a positive peak-to-trough excursion",
+    );
+  }
+  const calciumGainUMPerUnitDrive =
+    canonicalizeDerivedExactEventCalciumParameterV1(
+      periodic.peakAmplitudeUM / peakToTroughDriveExcursion,
+    );
+  const calciumRestUM = canonicalizeDerivedExactEventCalciumParameterV1(
+    periodic.diastolicCalciumUM
+      - calciumGainUMPerUnitDrive * eventTroughDriveDifference,
+  );
+  if (calciumRestUM < 0 || !Number.isFinite(calciumRestUM)) {
+    throw new Error(
+      "exact periodic conversion would require negative event-free resting calcium",
+    );
+  }
+  const parameters = Object.freeze({
+    tauRiseSec: timeConstantSec,
+    tauDecaySec: timeConstantSec,
+    calciumRestUM,
+    calciumGainUMPerUnitDrive,
+  });
+  validateParameters(parameters);
+  return Object.freeze({
+    parameters,
+    periodicStateImmediatelyAfterEvent,
+    reference: Object.freeze({
+      cycleLengthSec,
+      timeToPeakSec,
+      eventTroughDriveDifference,
+      peakDriveDifference,
+      peakToTroughDriveExcursion,
+    }),
+  });
+}
+
+function dimensionlessTimesExpNegative(
+  dimensionless: number,
+  expNegative: number,
+): number {
+  return Number.isFinite(dimensionless) ? dimensionless * expNegative : 0;
 }
 
 function validateState(
