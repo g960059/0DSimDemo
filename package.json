@@ -132,6 +132,8 @@
     "characterize:scientific:aortic-outflow-v10-matched-alpha-timing-policy-bridge-numerical-sensitivity:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeNumericalSensitivityV1.ts",
     "characterize:scientific:aortic-outflow-v10-matched-alpha-saturating-heart-rate-law:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawV1.ts",
     "characterize:scientific:aortic-outflow-v10-matched-alpha-saturating-heart-rate-law-ict-mechanism:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawIctMechanismV1.ts",
+    "characterize:scientific:aortic-outflow-v10-matched-alpha-saturating-hr90-atrioventricular-delay-mechanism:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaSaturatingHr90AtrioventricularDelayMechanismV1.ts",
+    "characterize:scientific:aortic-outflow-v10-matched-alpha-saturating-hr90-opening-load-mechanism:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaSaturatingHr90OpeningLoadMechanismV1.ts",
     "characterize:scientific:aortic-outflow-candidate-circulatory-recalibration:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCandidateCirculatoryRecalibrationV1.ts",
     "characterize:scientific:aortic-outflow-calcium-decay-windkessel:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumDecayWindkesselV1.ts",
     "characterize:scientific:aortic-outflow-mechanism-candidate-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1.ts",
