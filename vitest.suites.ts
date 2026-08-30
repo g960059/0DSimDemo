@@ -219,6 +219,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawV1.test.ts",
   "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawRunnerV1.test.ts",
   "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawComparisonV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHeartRateLawIctMechanismV1.test.ts",
   "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHr90AtrioventricularDelayBracketRunnerV1.test.ts",
   "__tests__/mainWireAorticOutflowV10MatchedAlphaSaturatingHr90OpeningLoadMechanismRunnerV1.test.ts",
   "__tests__/mainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeComparisonV1.test.ts",
