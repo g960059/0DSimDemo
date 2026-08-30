@@ -1,9 +1,20 @@
-import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from
+import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  type FiveWallNormalCalciumDriveParamsV1,
+} from
   "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   convertPeriodicBiexponentialToExactEventCalciumV1,
+  propagateExactEventCalciumV1,
   zeroExactEventCalciumStateV1,
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+  resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaExactPersistenceV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_V1_ID,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
 import {
   createAcceptedAuthoredEctopyScheduleConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedAuthoredEctopyScheduleV2";
@@ -18,6 +29,7 @@ import {
 } from "@/engine/myocardium/rhythm/acceptedDistalConductionGateV1";
 import {
   createAcceptedElectricalCaptureOwnerConfigurationV2,
+  createHistoricalCapturedElectricalActivationV2,
   createSourceImpulseV2,
   evaluateAcceptedElectricalCaptureBatchCandidateV2,
   initializeAcceptedElectricalCaptureOwnerStateV2,
@@ -47,12 +59,56 @@ export type MainWireIntegratedRegularSinusRhythmV3 = Readonly<{
   state: AcceptedComposedRhythmTransactionStateV2;
 }>;
 
+export const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID =
+  "main-wire-integrated-matched-alpha-fixed-regular-sinus-profile-v1" as const;
+
+export type MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1 =
+  Readonly<{
+    profileId:
+      typeof MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID;
+    heartRateBpm: number;
+  }>;
+
+export const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM =
+  Object.freeze({
+    calciumLawId:
+      MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_V1_ID,
+    calciumExactPersistenceId:
+      MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+    proximalAvDelaySec: 0.08 as const,
+    distalHvDelaySec: 0.04 as const,
+    aggregateAtrialToVentricularElectricalDelaySec: 0.12 as const,
+    atrialElectricalToCalciumDelaySec: 0.012 as const,
+    ventricularElectricalToCalciumDelaySec: 0.012 as const,
+    ventricularDepositPolicy:
+      "existing-interval-strength-reference-fixed-point" as const,
+    intervalStrengthStateAndLineageRetained: true as const,
+    nonReferenceIntervalsRetainIntervalStrengthModulation: true as const,
+    accumulatedAbsoluteTimeMayRoundIntervalsByUlps: true as const,
+    perpetualBitExactUnitDepositClaimed: false as const,
+    initialCalciumState: "analytic-periodic" as const,
+    ventricularCalciumEventsAtCycleBoundaries: true as const,
+    newContinuousStateAdded: false as const,
+    defaultProfileChanged: false as const,
+    clinicalValidationClaimed: false as const,
+  });
+
+type ResolvedMatchedAlphaFixedProfileV1 = Readonly<{
+  calcium: FiveWallNormalCalciumDriveParamsV1;
+  proximalAvDelaySec: 0.08;
+  distalHvDelaySec: 0.04;
+  aggregateAvDelaySec: 0.12;
+  atrialElectricalToCalciumDelaySec: 0.012;
+  ventricularElectricalToCalciumDelaySec: 0.012;
+}>;
+
 /**
  * Shared regular-sinus numbers for the periodic experiment and browser lane.
  * Each caller supplies its own identity prefix and parameter provenance.
  */
 export function createMainWireIntegratedRegularSinusRhythmV3(
   identity: MainWireIntegratedRegularSinusRhythmIdentityV3,
+  fixedProfile?: MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1,
 ): MainWireIntegratedRegularSinusRhythmV3 {
   const idPrefix = requireIdentityString(identity.idPrefix, "idPrefix");
   const parameterProvenanceSourceId = requireIdentityString(
@@ -60,6 +116,9 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     "parameterProvenanceSourceId",
   );
   const cycleLengthSec = requireCycleLengthSec(identity.cycleLengthSec);
+  const selected = fixedProfile === undefined
+    ? null
+    : resolveMatchedAlphaFixedProfile(fixedProfile, cycleLengthSec);
   const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
     configurationId: `${idPrefix}-capture-configuration`,
     ownerInstanceId: `${idPrefix}-capture-owner`,
@@ -83,7 +142,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     releaseFractionBeta: 0.8,
     releasedLoadReturnFractionR: 0.5,
     intervalInfluxInhibitionFractionH: 0.2,
-    referenceCycleLengthSec: 1,
+    referenceCycleLengthSec: selected === null ? 1 : cycleLengthSec,
   });
   const regular = createRegularAtrialSourceConfigurationV1({
     configurationId: `${idPrefix}-regular-sinus-configuration`,
@@ -92,35 +151,23 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     rhythmClass: "sinus",
     cycleLengthSec,
   });
+  const calcium = selected?.calcium
+    ?? FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
   const atrialCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
     {
-      diastolicCalciumUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial.diastolicCalciumUM,
-      peakAmplitudeUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial.peakAmplitudeUM,
-      riseTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
-          .riseTimeConstantSec,
-      decayTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
-          .decayTimeConstantSec,
+      diastolicCalciumUM: calcium.atrial.diastolicCalciumUM,
+      peakAmplitudeUM: calcium.atrial.peakAmplitudeUM,
+      riseTimeConstantSec: calcium.atrial.riseTimeConstantSec,
+      decayTimeConstantSec: calcium.atrial.decayTimeConstantSec,
     },
     cycleLengthSec,
   );
   const ventricularCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
     {
-      diastolicCalciumUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .diastolicCalciumUM,
-      peakAmplitudeUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .peakAmplitudeUM,
-      riseTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .riseTimeConstantSec,
-      decayTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .decayTimeConstantSec,
+      diastolicCalciumUM: calcium.ventricular.diastolicCalciumUM,
+      peakAmplitudeUM: calcium.ventricular.peakAmplitudeUM,
+      riseTimeConstantSec: calcium.ventricular.riseTimeConstantSec,
+      decayTimeConstantSec: calcium.ventricular.decayTimeConstantSec,
     },
     cycleLengthSec,
   );
@@ -148,7 +195,8 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
         kind: "explicit-research-parameters",
         sourceId: parameterProvenanceSourceId,
       },
-      minimumConductionDelaySec: 0.125,
+      minimumConductionDelaySec:
+        selected?.proximalAvDelaySec ?? 0.125,
       recoveryDelayAmplitudeSec: 0,
       recoveryTimeConstantSec: 1,
       postConductionRefractorySec: 0.25,
@@ -162,7 +210,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
         kind: "explicit-research-parameters",
         sourceId: parameterProvenanceSourceId,
       },
-      hvConductionDelaySec: 0.0625,
+      hvConductionDelaySec: selected?.distalHvDelaySec ?? 0.0625,
       distalEffectiveRefractoryPeriodSec: 0,
       modeConfiguration: { mode: "pass" },
     }),
@@ -187,44 +235,72 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
       RA: atrialCalcium.parameters,
     }),
     sinusAtrialCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
+      electricalToCalciumDelaySec:
+        selected?.atrialElectricalToCalciumDelaySec ?? 0.0625,
       leftAtrialStrength: 1,
       rightAtrialStrength: 1,
     },
     pacAtrialCalciumDeposit: null,
     ventricularCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
+      electricalToCalciumDelaySec:
+        selected?.ventricularElectricalToCalciumDelaySec ?? 0.0625,
       lvFreeWallBaseStrength: 1,
       septalBaseStrength: 1,
       rvFreeWallBaseStrength: 1,
     },
   });
   const zero = zeroExactEventCalciumStateV1();
-  const state = initializeAcceptedComposedRhythmTransactionStateV2(
-    configuration,
-    {
-      acceptedTimeSec: 0,
-      regularFirstFutureActivationTimeSec: 0.625 * cycleLengthSec,
-      regularFirstSourceSequence: 0,
-      priorAcceptedAtrialCapture: null,
-      priorAcceptedVentricularActivation: priorVentricularCapture(
-        capture,
-        idPrefix,
-      ),
-      initialNormalizedSrLoadState: interval.referenceNormalizedSrLoadState,
-      calciumStateByWall: Object.freeze({
+  const calciumStateByWall = selected === null
+    ? Object.freeze({
         LA: zero,
         LVFW: zero,
         SEP: zero,
         RVFW: zero,
         RA: zero,
-      }),
+      })
+    : Object.freeze({
+        LA: propagateExactEventCalciumV1(
+          atrialCalcium.periodicStateImmediatelyAfterEvent,
+          selected.aggregateAvDelaySec,
+          atrialCalcium.parameters,
+        ),
+        LVFW: ventricularCalcium.periodicStateImmediatelyAfterEvent,
+        SEP: ventricularCalcium.periodicStateImmediatelyAfterEvent,
+        RVFW: ventricularCalcium.periodicStateImmediatelyAfterEvent,
+        RA: propagateExactEventCalciumV1(
+          atrialCalcium.periodicStateImmediatelyAfterEvent,
+          selected.aggregateAvDelaySec,
+          atrialCalcium.parameters,
+        ),
+      });
+  const selectedHistory = selected === null
+    ? null
+    : selectedPeriodicCaptureHistory(capture, idPrefix, selected);
+  const state = initializeAcceptedComposedRhythmTransactionStateV2(
+    configuration,
+    {
+      acceptedTimeSec: 0,
+      regularFirstFutureActivationTimeSec: selected === null
+        ? 0.625 * cycleLengthSec
+        : cycleLengthSec - 0.132,
+      regularFirstSourceSequence: 0,
+      priorAcceptedAtrialCapture: selectedHistory === null
+        ? null
+        : Object.freeze({
+            capturedActivationId:
+              selectedHistory.atrial.capturedActivationId,
+            activationTimeSec: selectedHistory.atrial.activationTimeSec,
+          }),
+      priorAcceptedVentricularActivation: selectedHistory?.ventricular
+        ?? legacyPriorVentricularCaptureAtZero(capture, idPrefix),
+      initialNormalizedSrLoadState: interval.referenceNormalizedSrLoadState,
+      calciumStateByWall,
     },
   );
   return Object.freeze({ configuration, state });
 }
 
-function priorVentricularCapture(
+function legacyPriorVentricularCaptureAtZero(
   configuration: ReturnType<
     typeof createAcceptedElectricalCaptureOwnerConfigurationV2
   >,
@@ -244,10 +320,96 @@ function priorVentricularCapture(
     sourceSequence: 0,
     activationTimeSec: 0,
   });
-  return evaluateAcceptedElectricalCaptureBatchCandidateV2(state, {
+  const captured = evaluateAcceptedElectricalCaptureBatchCandidateV2(state, {
     candidateTimeSec: 0,
     sourceImpulses: [source],
   }).capturedActivations[0]!;
+  return captured;
+}
+
+function selectedPeriodicCaptureHistory(
+  configuration: ReturnType<
+    typeof createAcceptedElectricalCaptureOwnerConfigurationV2
+  >,
+  idPrefix: string,
+  profile: ResolvedMatchedAlphaFixedProfileV1,
+): Readonly<{
+  atrial: CapturedElectricalActivationV2;
+  ventricular: CapturedElectricalActivationV2;
+}> {
+  const ventricularActivationTimeSec =
+    -profile.ventricularElectricalToCalciumDelaySec;
+  const atrialActivationTimeSec =
+    ventricularActivationTimeSec - profile.aggregateAvDelaySec;
+  const atrial = createHistoricalCapturedElectricalActivationV2(
+    configuration,
+    {
+      sourceImpulse: createSourceImpulseV2({
+        sourceImpulseId: `${idPrefix}-periodic-history-atrial-source-0`,
+        parentCapturedActivationId: null,
+        chamber: "atrial",
+        sourceKind: "primary-intrinsic",
+        sourceId: `${idPrefix}-periodic-history-atrial-source`,
+        sourceSequence: 0,
+        activationTimeSec: atrialActivationTimeSec,
+      }),
+      captureOrdinal: 1,
+      ownerRevision: 1,
+    },
+  );
+  const ventricular = createHistoricalCapturedElectricalActivationV2(
+    configuration,
+    {
+      sourceImpulse: createSourceImpulseV2({
+        sourceImpulseId: `${idPrefix}-periodic-history-ventricular-source-0`,
+        parentCapturedActivationId: atrial.capturedActivationId,
+        chamber: "ventricular",
+        sourceKind: "av-output",
+        sourceId: `${idPrefix}-periodic-history-ventricular-source`,
+        sourceSequence: 0,
+        activationTimeSec: ventricularActivationTimeSec,
+      }),
+      captureOrdinal: 1,
+      ownerRevision: 2,
+    },
+  );
+  return Object.freeze({ atrial, ventricular });
+}
+
+function resolveMatchedAlphaFixedProfile(
+  input: MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1,
+  cycleLengthSec: number,
+): ResolvedMatchedAlphaFixedProfileV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("integrated regular-sinus fixed profile must be an object");
+  }
+  const keys = Object.keys(input).sort();
+  if (keys.length !== 2 || keys[0] !== "heartRateBpm" || keys[1] !== "profileId") {
+    throw new Error("integrated regular-sinus fixed profile keys are invalid");
+  }
+  if (
+    input.profileId
+      !== MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID
+  ) {
+    throw new Error("integrated regular-sinus fixed profile id is invalid");
+  }
+  const calcium =
+    resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+      input.heartRateBpm,
+    );
+  if (calcium.cycleLengthSec !== cycleLengthSec) {
+    throw new Error(
+      "integrated regular-sinus fixed profile heart rate and cycle split",
+    );
+  }
+  return Object.freeze({
+    calcium,
+    proximalAvDelaySec: 0.08 as const,
+    distalHvDelaySec: 0.04 as const,
+    aggregateAvDelaySec: 0.12 as const,
+    atrialElectricalToCalciumDelaySec: 0.012 as const,
+    ventricularElectricalToCalciumDelaySec: 0.012 as const,
+  });
 }
 
 function requireIdentityString(value: string, label: string): string {

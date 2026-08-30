@@ -65,6 +65,58 @@ describe("accepted ventricular interval-strength owner V1", () => {
       .toBe(reference.referenceNormalizedSrLoadState);
   });
 
+  it("keeps dense-HR accumulated regular timing numerically near its reference", () => {
+    let maximumStrengthError = 0;
+    let maximumRelativeLoadError = 0;
+    for (let heartRateBpm = 40; heartRateBpm <= 100; heartRateBpm += 0.5) {
+      const cycleLengthSec = 60 / heartRateBpm;
+      const config = configuration({ referenceCycleLengthSec: cycleLengthSec });
+      const reference =
+        deriveVentricularIntervalStrengthSteadyReferenceV1(config);
+      let state =
+        initializeAcceptedVentricularIntervalStrengthSteadyReferenceStateV1(
+          config,
+          {
+            acceptedTimeSec: 0,
+            priorAcceptedVentricularActivation:
+              capture(`dense-history-${heartRateBpm}`, -0.012, 1),
+          },
+        );
+      let activationTimeSec = cycleLengthSec - 0.012;
+      for (let beat = 1; beat <= 128; beat += 1) {
+        const candidate = evaluate(
+          state,
+          capture(
+            `dense-${heartRateBpm}-${beat}`,
+            activationTimeSec,
+            beat + 1,
+          ),
+        );
+        maximumStrengthError = Math.max(
+          maximumStrengthError,
+          Math.abs(
+            candidate.depositMetadata
+              .futureExactCalciumDepositRelativeStrength - 1,
+          ),
+        );
+        maximumRelativeLoadError = Math.max(
+          maximumRelativeLoadError,
+          Math.abs(
+            candidate.depositMetadata.normalizedSrLoadAfter
+              / reference.referenceNormalizedSrLoadState - 1,
+          ),
+        );
+        state = commitAcceptedVentricularIntervalStrengthCandidateV1(
+          state,
+          candidate,
+        );
+        activationTimeSec += cycleLengthSec;
+      }
+    }
+    expect(maximumStrengthError).toBeLessThanOrEqual(5e-11);
+    expect(maximumRelativeLoadError).toBeLessThanOrEqual(5e-11);
+  });
+
   it("implements the documented Rice-style transition for nonreference intervals", () => {
     const config = configuration();
     const reference = deriveVentricularIntervalStrengthSteadyReferenceV1(config);
