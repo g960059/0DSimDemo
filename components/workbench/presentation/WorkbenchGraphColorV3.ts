@@ -29,6 +29,8 @@ const WORKBENCH_SINGLE_SCENARIO_ITEM_PALETTE_V3: Readonly<
   LAP: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
   LA: Object.freeze({ light: "#a12bc7", dark: "#e07ce8" }),
   AoP: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
+  ABP: Object.freeze({ light: "#2d70ac", dark: "#76aaff" }),
+  SAP: Object.freeze({ light: "#2d70ac", dark: "#76aaff" }),
   AoV: Object.freeze({ light: "#0068a3", dark: "#39c2ff" }),
   RAP: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),
   RA: Object.freeze({ light: "#00786f", dark: "#2fd0b2" }),

@@ -125,6 +125,22 @@ const CONTROL_PRESENTATION_V1: Readonly<
 const OUTPUT_PRESENTATION_V1: Readonly<
   Record<string, StudioItemPresentationDraftV1>
 > = Object.freeze({
+  "presentation.pressure-summary.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
+    description: textV1(
+      "Maximum, minimum, and time-mean model proximal-aortic constitutive-port pressure (Ao compliance node + Zc × signed AoV flow) at the fixed ascending-aortic area after the local valve law accounts for static pressure recovery; it is not tied to a specific catheter site and omits wave travel and reflection",
+      "局所弁則で静的圧回復を考慮した後の固定上行大動脈断面におけるモデル近位大動脈constitutive-port圧（Ao compliance node + Zc × 符号付きAoV flow）の最大値／最小値と時間平均。特定のカテーテル位置には対応せず、波伝播・反射は含まない",
+    ),
+    aliases: [
+      "AoP",
+      "aortic pressure",
+      "proximal aortic pressure",
+      "aortic port pressure",
+      "大動脈圧",
+      "近位大動脈圧",
+    ],
+  },
   "presentation.pressure-summary.Ao": {
     category: "hemodynamics",
     label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
@@ -146,8 +162,8 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     category: "hemodynamics",
     label: textV1("Arterial blood pressure (ABP)", "体動脈圧 (ABP)"),
     description: textV1(
-      "Systolic and diastolic systemic arterial pressure with the time mean in parentheses",
-      "体動脈圧の最大値／最小値と括弧内の時間平均",
+      "Maximum, minimum, and time-mean pressure of the lumped systemic-arterial (SA) compartment; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
+      "集中定数系の体動脈（SA）compartment圧の最大値／最小値と時間平均。特定のカフ・動脈ライン位置には対応せず、波伝播・反射は含まない",
     ),
     aliases: [
       "ABP",
@@ -177,6 +193,159 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "リズムモデルが出力する現在の心拍数",
     ),
     aliases: ["HR", "heart rate", "心拍", "脈拍"],
+  },
+  "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
+    description: textV1(
+      "Algebraic proximal-aortic constitutive-port pressure (Ao compliance node + Zc × signed AoV flow) at the fixed ascending-aortic area after the local valve law accounts for static pressure recovery; it is not tied to a specific catheter site and omits wave travel and reflection",
+      "局所弁則で静的圧回復を考慮した後の固定上行大動脈断面における代数的近位大動脈constitutive-port圧（Ao compliance node + Zc × 符号付きAoV flow）。特定のカテーテル位置には対応せず、波伝播・反射は含まない",
+    ),
+    aliases: [
+      "AoP",
+      "aortic pressure",
+      "proximal aortic pressure",
+      "aortic port pressure",
+      "Pprox",
+      "大動脈圧",
+      "近位大動脈圧",
+    ],
+  },
+  "hemodynamics.pressure.absolute.SA": {
+    category: "hemodynamics",
+    label: textV1("Arterial blood pressure (ABP)", "体動脈圧 (ABP)"),
+    description: textV1(
+      "Pressure of the lumped systemic-arterial (SA) compartment; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
+      "集中定数系の体動脈（SA）compartment圧。特定のカフ・動脈ライン位置には対応せず、波伝播・反射は含まない",
+    ),
+    aliases: [
+      "ABP",
+      "arterial blood pressure",
+      "systemic arterial pressure",
+      "SA pressure",
+      "血圧",
+      "体動脈圧",
+    ],
+  },
+  "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV": {
+    category: "valves",
+    label: textV1("AV local pressure gradient", "大動脈弁局所圧較差"),
+    description: textV1(
+      "Instantaneous modeled LV − proximal AoP hydraulic pressure difference; it is neither the raw LV − Ao compliance-node difference nor a catheter- or Doppler-equivalent gradient",
+      "モデル上の瞬時LV − 近位AoP局所水力学的圧較差。raw LV − Ao compliance-node差ではなく、カテーテル・Doppler等価性も主張しない",
+    ),
+    aliases: [
+      "AV gradient",
+      "aortic valve gradient",
+      "LV Ao gradient",
+      "local hydraulic gradient",
+      "大動脈弁圧較差",
+    ],
+  },
+  "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV": {
+    category: "valves",
+    label: textV1(
+      "AV vena-contracta Bernoulli gradient",
+      "大動脈弁vena contracta Bernoulli圧較差",
+    ),
+    description: textV1(
+      "Instantaneous ideal Bernoulli pressure at the model vena contracta from AoV flow and active EOA; pressure recovery acts downstream and measured-Doppler equivalence is not claimed",
+      "AoV flowとactive EOAから求めるモデルvena contractaでの瞬時ideal Bernoulli圧。下流では圧回復が作用し、実測Dopplerとの等価性は主張しない",
+    ),
+    aliases: [
+      "AV Bernoulli gradient",
+      "vena contracta gradient",
+      "Doppler gradient",
+      "大動脈弁圧較差",
+      "ベルヌーイ圧較差",
+    ],
+  },
+  "hemodynamics.pressure.mean.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Mean aortic pressure (AoP mean)", "平均大動脈圧 (AoP mean)"),
+    description: textV1(
+      "Time-mean model proximal-aortic constitutive-port pressure over the accepted beat; the station and wave-propagation limitations are the same as for AoP",
+      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の時間平均。位置と波伝播に関する制約はAoPと同じ",
+    ),
+    aliases: ["AoP", "AoP mean", "mean aortic pressure", "平均大動脈圧"],
+  },
+  "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Aortic pressure (AoP max)", "大動脈圧 (AoP max)"),
+    description: textV1(
+      "Maximum model proximal-aortic constitutive-port pressure during the accepted beat; the station and wave-propagation limitations are the same as for AoP",
+      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の最大値。位置と波伝播に関する制約はAoPと同じ",
+    ),
+    aliases: ["AoP", "AoP max", "aortic systolic pressure", "大動脈圧", "収縮期圧"],
+  },
+  "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Aortic pressure (AoP min)", "大動脈圧 (AoP min)"),
+    description: textV1(
+      "Minimum model proximal-aortic constitutive-port pressure during the accepted beat; the station and wave-propagation limitations are the same as for AoP",
+      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の最小値。位置と波伝播に関する制約はAoPと同じ",
+    ),
+    aliases: ["AoP", "AoP min", "aortic diastolic pressure", "大動脈圧", "拡張期圧"],
+  },
+  "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port": {
+    category: "hemodynamics",
+    label: textV1("Aortic pulse pressure (AoPP)", "大動脈脈圧 (AoPP)"),
+    description: textV1(
+      "Accepted-beat maximum minus minimum model proximal-aortic constitutive-port pressure; the station and wave-propagation limitations are the same as for AoP",
+      "解析対象となる1心拍のモデル近位大動脈constitutive-port圧の最大値−最小値。位置と波伝播に関する制約はAoPと同じ",
+    ),
+    aliases: ["AoPP", "aortic pulse pressure", "pulse pressure", "大動脈脈圧", "脈圧"],
+  },
+  "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1("Mean AV local gradient", "平均大動脈弁局所圧較差"),
+    description: textV1(
+      "Time-weighted mean LV − proximal AoP hydraulic pressure difference over linearly interpolated intervals with modeled AoV flow > 0; it is not a catheter- or Doppler-equivalent gradient",
+      "モデルAoV flow > 0の線形補間区間におけるLV − 近位AoP局所水力学的圧較差の時間加重平均。カテーテル・Doppler等価性は主張しない",
+    ),
+    aliases: ["AV mean gradient", "mean aortic valve gradient", "mPG", "平均大動脈弁圧較差"],
+  },
+  "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1("Peak AV local gradient", "最大大動脈弁局所圧較差"),
+    description: textV1(
+      "Peak LV − proximal AoP hydraulic pressure difference over linearly interpolated intervals with modeled AoV flow > 0; it is not a catheter- or Doppler-equivalent gradient",
+      "モデルAoV flow > 0の線形補間区間におけるLV − 近位AoP局所水力学的圧較差の最大値。カテーテル・Doppler等価性は主張しない",
+    ),
+    aliases: ["AV peak gradient", "peak aortic valve gradient", "max PG", "最大大動脈弁圧較差"],
+  },
+  "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "Mean AV Bernoulli gradient",
+      "平均大動脈弁Bernoulli圧較差",
+    ),
+    description: textV1(
+      "Time-weighted mean model vena-contracta ideal Bernoulli pressure over linearly interpolated intervals with AoV flow > 0; pressure recovery acts downstream and measured-Doppler equivalence is not claimed",
+      "AoV flow > 0の線形補間区間におけるモデルvena contracta ideal Bernoulli圧の時間加重平均。下流では圧回復が作用し、実測Dopplerとの等価性は主張しない",
+    ),
+    aliases: ["AV mean Bernoulli gradient", "mean Doppler gradient", "mPG", "平均大動脈弁圧較差"],
+  },
+  "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "Peak AV Bernoulli gradient",
+      "最大大動脈弁Bernoulli圧較差",
+    ),
+    description: textV1(
+      "Peak model vena-contracta ideal Bernoulli pressure over linearly interpolated intervals with AoV flow > 0; pressure recovery acts downstream and measured-Doppler equivalence is not claimed",
+      "AoV flow > 0の線形補間区間におけるモデルvena contracta ideal Bernoulli圧の最大値。下流では圧回復が作用し、実測Dopplerとの等価性は主張しない",
+    ),
+    aliases: ["AV peak Bernoulli gradient", "peak Doppler gradient", "max PG", "最大大動脈弁圧較差"],
+  },
+  "hemodynamics.duration.valve-forward-flow.AoV": {
+    category: "valves",
+    label: textV1("AV forward-flow duration", "大動脈弁前方血流時間"),
+    description: textV1(
+      "Sum of linearly interpolated intervals with modeled AoV flow > 0 during the accepted beat; this is not a valve-event or clinical Doppler LV ejection time",
+      "解析対象となる1心拍でモデルAoV flow > 0となる線形補間区間の総和。弁イベントまたは臨床Doppler左室駆出時間とは同一ではない",
+    ),
+    aliases: ["AV flow duration", "aortic ejection duration", "ejection time", "ET", "駆出時間", "前方血流時間"],
   },
   "hemodynamics.pressure.systolic.Ao": {
     category: "hemodynamics",
@@ -491,6 +660,12 @@ const pressureSummaryV1 = (
  */
 export const STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1: readonly StudioOutputPressureSummaryV1[] =
   Object.freeze([
+    pressureSummaryV1(
+      "presentation.pressure-summary.aortic-proximal-constitutive-port",
+      "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
+      "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
+      "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
+    ),
     pressureSummaryV1(
       "presentation.pressure-summary.Ao",
       "hemodynamics.pressure.systolic.Ao",

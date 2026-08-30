@@ -557,6 +557,7 @@ export function WorkbenchPaneEditorV3({
                     <GraphPaneEditorV3
                       appTheme={appTheme}
                       contract={contract}
+                      locale={locale}
                       pane={pane}
                       scenarios={scenarios}
                       surface={draftSurface}
@@ -686,6 +687,7 @@ function GraphPaneEditorV3({
   appTheme,
   contract,
   dataSectionTitle,
+  locale,
   pane,
   scenarios,
   surface,
@@ -695,6 +697,7 @@ function GraphPaneEditorV3({
   appTheme: "light" | "dark";
   contract: ModelContractV2;
   dataSectionTitle: string;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceGraphPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   surface: ExperimentSurfaceV2;
@@ -803,9 +806,28 @@ function GraphPaneEditorV3({
               const selectedItem = pane.series.find(
                 ({ seriesId }) => seriesId === series.seriesId,
               );
+              const definition = "outputId" in series
+                ? contract.outputCatalog.find(
+                    ({ outputId }) => outputId === series.outputId,
+                  )
+                : undefined;
+              const presentation = "outputId" in series
+                ? resolveStudioItemPresentationV1({
+                    kind: "output",
+                    itemId: series.outputId,
+                    fallbackEnglishLabel: outputLabelV3(series.outputId),
+                    locale,
+                    ...(definition === undefined
+                      ? {}
+                      : { catalogFacts: { outputKind: definition.kind } }),
+                  })
+                : undefined;
               return {
                 id: series.seriesId,
                 defaultLabel: graphSeriesLabelV3(series.seriesId),
+                ...(presentation === undefined
+                  ? {}
+                  : { description: presentation.description }),
                 label: selectedItem?.label,
                 selected: selectedItem !== undefined,
                 disableDeselect:
@@ -2898,6 +2920,7 @@ function reorderPaneItemIdsForDropV3(
 type CatalogSelectionEntryV3 = Readonly<{
   id: string;
   defaultLabel: string;
+  description?: string;
   label: string | undefined;
   selected: boolean;
   disableDeselect: boolean;
@@ -2957,13 +2980,14 @@ function CatalogSelectionV3({
                   type="button"
                   className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                   disabled={entry.disableDeselect}
+                  title={entry.description}
                   onClick={() => onToggle(entry.id)}
                 >
                   <span className="block truncate text-xs font-medium">
                     {entry.label ?? entry.defaultLabel}
                   </span>
-                  <span className="block truncate font-mono text-[9px] text-wb-subtle">
-                    {entry.id}
+                  <span className="line-clamp-2 block text-[9px] leading-4 text-wb-subtle">
+                    {entry.description ?? entry.id}
                   </span>
                 </button>
               </div>
