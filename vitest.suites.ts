@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 83;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 48;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 52;
 
 export const fastTests = [
   "__tests__/analysisMethodRegistryV1.test.ts",
@@ -56,15 +56,9 @@ export const fastTests = [
   "__tests__/mainWireNormalAdultFiveWallPeriodicOrbitComparisonV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallPeriodicReviewV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallProviderV1.test.ts",
-  "__tests__/mainWireAorticValvePressureRecoveryAblationV1.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
   "__tests__/mainWireAorticValveObservationStationsV1.test.ts",
-  "__tests__/mainWireAorticOutflowV9PressureRecoveryBaselineComparisonV1.test.ts",
   "__tests__/mainWireAorticOutflowV10ConstitutiveOwnershipComparisonV1.test.ts",
-  "__tests__/mainWireAorticOutflowV10CombinedLoadEnvelopeV1.test.ts",
-  "__tests__/mainWireAorticOutflowDriverRootAblationV1.test.ts",
-  "__tests__/mainWireAorticOutflowCalciumWaveformAblationV1.test.ts",
-  "__tests__/mainWireVentricularCalciumSourceTraceFitRecalibrationSensitivityV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
   "__tests__/modelLimitations.test.ts",
@@ -214,6 +208,16 @@ export const canonicalScientificTests = [
   "__tests__/coronaryV3StepResponseMetricsV1.test.ts",
   "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
   "__tests__/mainWireAcceptedRhythmEventScheduleV1.test.ts",
+  "__tests__/mainWireAorticOutflowCalciumWaveformAblationV1.test.ts",
+  "__tests__/mainWireAorticOutflowDriverRootAblationV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10CombinedLoadEnvelopeV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10EventDefinitionSensitivityV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10HeartRateCalciumHypothesesV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10HeartRateCalciumHypothesisComparisonV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10HeartRateCalciumHypothesisRunnerV1.test.ts",
+  "__tests__/mainWireAorticOutflowV10LimitingCornerDtConvergenceV1.test.ts",
+  "__tests__/mainWireAorticOutflowV9PressureRecoveryBaselineComparisonV1.test.ts",
+  "__tests__/mainWireAorticValvePressureRecoveryAblationV1.test.ts",
   "__tests__/mainWireCoronaryBoundaryV2.test.ts",
   "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV2.test.ts",
@@ -247,6 +251,8 @@ export const canonicalScientificTests = [
   "__tests__/mainWireNormalFiveWallStructuralAblationReportV1.test.ts",
   "__tests__/mainWireSettledHyperemicRetrogradeGateV1.test.ts",
   "__tests__/mainWireValveResearchBracketNumericalRobustnessEnvelopeV1.test.ts",
+  "__tests__/mainWireVentricularCalciumHeartRateHypothesesV1.test.ts",
+  "__tests__/mainWireVentricularCalciumSourceTraceFitRecalibrationSensitivityV1.test.ts",
 ] as const;
 
 export type TestSuiteName = "fast" | "regression" | "canonical-scientific";

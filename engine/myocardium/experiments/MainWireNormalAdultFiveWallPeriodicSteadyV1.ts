@@ -89,6 +89,12 @@ import {
   MAIN_WIRE_VENTRICULAR_CALCIUM_LAND_COPPINI_SOURCE_TRACE_PROFILE_V1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumLandCoppiniSourceTraceV1";
 import {
+  resolveMainWireVentricularCalciumHeartRateHypothesisParamsV1,
+  resolveMainWireVentricularCalciumHeartRateHypothesisProfileV1,
+  type MainWireVentricularCalciumHeartRateHypothesisProfileIdV1,
+  type MainWireVentricularCalciumHeartRateHypothesisProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumHeartRateHypothesesV1";
+import {
   resolveMainWireAtrioventricularDelayCalciumParamsV1,
   resolveMainWireAtrioventricularDelayProfileV1,
   type MainWireAtrioventricularDelayProfileIdV1,
@@ -114,6 +120,7 @@ import {
   normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import { MAIN_WIRE_AORTIC_OUTFLOW_V10_HEART_RATE_CALCIUM_REFERENCE_NON_CALCIUM_ASSEMBLY_V1 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10HeartRateCalciumHypothesesV1";
 import {
   resolveMainWireArterialCompliancePhysiologyProfileV1,
   resolveMainWireArterialCompliancePhysiologyRuntimeV1,
@@ -1277,6 +1284,62 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
     }>;
   }>;
 
+export type MainWireNormalAdultFiveWallAorticOutflowV10HeartRateCalciumHypothesisResearchRunV1 =
+  Readonly<{
+    configurationRole: "fixed-v10-reference-non-calcium-heart-rate-calcium-hypothesis-arm";
+    referenceNonCalciumAssembly: typeof MAIN_WIRE_AORTIC_OUTFLOW_V10_HEART_RATE_CALCIUM_REFERENCE_NON_CALCIUM_ASSEMBLY_V1;
+    calciumHypothesisProfile: MainWireVentricularCalciumHeartRateHypothesisProfileV1;
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    sarcomereReferenceProfile: MainWireVentricularLandSarcomereReferenceProfileV1;
+    calciumSensitivityLengthProfile: MainWireVentricularLandCalciumSensitivityLengthProfileV1;
+    sourceTwitchRetentionCandidate: MainWireVentricularLandSourceTwitchRetentionCandidateV1;
+    trefForceLoadProfile: MainWireVentricularLandTrefForceLoadProfileV1;
+    sourceVelocityDistortionProfile: MainWireVentricularLandSourceVelocityDistortionProfileV1;
+    strongBridgeDeactivationExitProfile: MainWireVentricularLandStrongBridgeDeactivationExitProfileV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    stressedVenousVolumePoint: MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile: MainWireAorticCharacteristicResistancePlacementProfileV1;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1;
+    aorticValveResearchProfile: MainWireAorticValveResearchProfileV1;
+    recoveredRootPortValveProfile: MainWireAorticRecoveredRootPortValveProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+    exactAssemblyAudit: Readonly<{
+      mechanicsProviderParameterIdentityHash: string;
+      circulationRuntimeStableHash: string;
+      bloodVolumeOperatingPointStableHash: string;
+      calciumDriveFixedParamsStableHash: string;
+    }>;
+    claim: Readonly<{
+      sourceResearchRunnerOnly: true;
+      independentCanonicalColdStart: true;
+      warmStartApplied: false;
+      genericParameterPatchAccepted: false;
+      fixedCalciumHypothesisProfileOnly: true;
+      valveDiseaseBracketApplied: false;
+      referenceAssemblyDerivedFromCandidateV10: true;
+      fullV10CandidateIdentityRetained: false;
+      V10ReferenceNonCalciumAssemblyHeldExactly: true;
+      V10CalciumAndAtrioventricularTimingIdentityHeldFixed: false;
+      ventricularNumericSourceTraceUsed: boolean;
+      oldLandCoppiniSourceTraceProfileReturned: false;
+      oldAtrioventricularDelayProfileReturned: false;
+      circulatoryLoadHeldAtBaseline: true;
+      bloodVolumeHeldAtBaseline: true;
+      systemicOrBloodVolumeRecalibrationApplied: false;
+      aorticMaximumForwardEoaHeldAtCm2: 3.5;
+      calciumOrMechanicsStateAdded: false;
+      acceptedStateOrCheckpointTopologyChanged: false;
+      nonHr60V3WarmStartEmissionSuppressed: true;
+      nonHr60V3WarmStartRestoreRejected: true;
+      exactProtocolIdentityIncludesActiveCalciumAndAllNonCalciumFactors: true;
+      parameterSearchOrFitting: false;
+      clinicalValidationClaimed: false;
+      canonicalAdoptionEstablished: false;
+    }>;
+  }>;
+
 export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniAmplitudeTrefWindkesselResearchRunV1 =
   Readonly<{
     configurationRole:
@@ -1850,7 +1913,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   }>;
   policy: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1;
   claim: Readonly<{
-    heartRateBpm: 60;
+    heartRateBpm: number;
     circulation: "main-wire-derived-noncoronary-experimental";
     ordinaryBeatIterationOnly: true;
     shootingOrAndersonAccelerationApplied: false;
@@ -1880,7 +1943,7 @@ type ResolvedPeriodicAssemblyV1 = Readonly<{
   calciumDriveParams?: FiveWallNormalCalciumDriveParamsV1;
 }>;
 
-const CYCLE_LENGTH_SEC = 1;
+const STANDARD_WARM_START_CYCLE_LENGTH_SEC = 1;
 
 export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
@@ -3303,105 +3366,107 @@ export function runMainWireNormalAdultFiveWallAorticOutflowWholeOrganKuwWindkess
   });
 }
 
-/** Primary-repository Coppini calcium trace × whole-organ kuw × Windkessel. */
-export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1(
-  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
-  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
-  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
-  placementProfileId:
-    MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
-  rootInertanceProfileId:
-    MainWireAorticRootInertanceResearchProfileIdV1 | null,
-  sarcomereReferenceProfileId:
-    MainWireVentricularLandSarcomereReferenceProfileIdV1 =
-      "land-sarcomere-reference-canonical",
-  calciumSensitivityLengthProfileId:
-    MainWireVentricularLandCalciumSensitivityLengthProfileIdV1 =
-      "land-beta1-canonical",
-  sourceTwitchRetentionCandidateId:
-    MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 =
-      "source-twitch-retention-canonical",
-  circulatoryLoadPointId:
-    MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 = "baseline",
-  stressedVenousVolumePointId:
-    MainWireNormalAdultStressedVenousVolumeResearchPointIdV1 = "baseline",
-  trefForceLoadProfileId:
-    MainWireVentricularLandTrefForceLoadProfileIdV1 =
-      "tref-force-load-baseline",
-  sourceVelocityDistortionProfileId:
-    MainWireVentricularLandSourceVelocityDistortionProfileIdV1 =
-      "source-Aeff-canonical",
-  strongBridgeDeactivationExitProfileId:
-    MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
-      "strong-to-blocked-deactivation-off",
-  atrioventricularDelayProfileId:
-    MainWireAtrioventricularDelayProfileIdV1 =
-      "coppini-source-atrioventricular-delay-160ms",
-  aorticValveResearchProfileId:
-    MainWireAorticValveResearchProfileIdV1 | null = null,
-  recoveredRootPortValveProfileId:
-    MainWireAorticRecoveredRootPortValveProfileIdV1 | null = null,
-): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
-  assertExactAorticOutflowResearchOptions(options);
+type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyIdsV1 =
+  Readonly<{
+    kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1;
+    complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1;
+    placementProfileId: MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null;
+    rootInertanceProfileId: MainWireAorticRootInertanceResearchProfileIdV1 | null;
+    sarcomereReferenceProfileId: MainWireVentricularLandSarcomereReferenceProfileIdV1;
+    calciumSensitivityLengthProfileId: MainWireVentricularLandCalciumSensitivityLengthProfileIdV1;
+    sourceTwitchRetentionCandidateId: MainWireVentricularLandSourceTwitchRetentionCandidateIdV1;
+    circulatoryLoadPointId: MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1;
+    stressedVenousVolumePointId: MainWireNormalAdultStressedVenousVolumeResearchPointIdV1;
+    trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1;
+    sourceVelocityDistortionProfileId: MainWireVentricularLandSourceVelocityDistortionProfileIdV1;
+    strongBridgeDeactivationExitProfileId: MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1;
+    aorticValveResearchProfileId: MainWireAorticValveResearchProfileIdV1 | null;
+    recoveredRootPortValveProfileId: MainWireAorticRecoveredRootPortValveProfileIdV1 | null;
+  }>;
+
+type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1 =
+  Readonly<{
+    kuwProfile: MainWireVentricularLandWholeOrganKuwProfileV1;
+    complianceProfile: MainWireArterialCompliancePhysiologyProfileV1;
+    placementProfile: MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
+    rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    aorticValveResearchProfile: MainWireAorticValveResearchProfileV1 | null;
+    recoveredRootPortValveProfile: MainWireAorticRecoveredRootPortValveProfileV1 | null;
+    sarcomereReferenceProfile: MainWireVentricularLandSarcomereReferenceProfileV1;
+    calciumSensitivityLengthProfile: MainWireVentricularLandCalciumSensitivityLengthProfileV1;
+    sourceTwitchRetentionCandidate: MainWireVentricularLandSourceTwitchRetentionCandidateV1;
+    circulatoryLoadPoint: MainWireNormalAdultFiveWallCirculatoryLoadPointV1;
+    trefForceLoadProfile: MainWireVentricularLandTrefForceLoadProfileV1;
+    sourceVelocityDistortionProfile: MainWireVentricularLandSourceVelocityDistortionProfileV1;
+    strongBridgeDeactivationExitProfile: MainWireVentricularLandStrongBridgeDeactivationExitProfileV1;
+    runtime: NonCoronaryCirculationRuntimeParamsV1;
+    provider: MainWireNormalAdultFiveWallProviderV1;
+    bloodVolume: ReturnType<
+      typeof resolveMainWireNormalAdultBloodVolumeResearchPointV1
+    >;
+  }>;
+
+function resolveMainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1(
+  ids: MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyIdsV1,
+): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1 {
   const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
-    kuwProfileId,
+    ids.kuwProfileId,
   );
   const complianceProfile =
     resolveMainWireArterialCompliancePhysiologyProfileV1(
-      complianceProfileId,
+      ids.complianceProfileId,
     );
-  const placementProfile = placementProfileId === null
-    ? null
-    : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
-      placementProfileId,
-    );
-  const rootInertanceProfile = rootInertanceProfileId === null
-    ? null
-    : resolveMainWireAorticRootInertanceResearchProfileV1(
-      rootInertanceProfileId,
-    );
-  const aorticValveResearchProfile = aorticValveResearchProfileId === null
-    ? null
-    : resolveMainWireAorticValveResearchProfileV1(
-      aorticValveResearchProfileId,
-    );
+  const placementProfile =
+    ids.placementProfileId === null
+      ? null
+      : resolveMainWireAorticCharacteristicResistancePlacementProfileV1(
+          ids.placementProfileId,
+        );
+  const rootInertanceProfile =
+    ids.rootInertanceProfileId === null
+      ? null
+      : resolveMainWireAorticRootInertanceResearchProfileV1(
+          ids.rootInertanceProfileId,
+        );
+  const aorticValveResearchProfile =
+    ids.aorticValveResearchProfileId === null
+      ? null
+      : resolveMainWireAorticValveResearchProfileV1(
+          ids.aorticValveResearchProfileId,
+        );
   const recoveredRootPortValveProfile =
-    recoveredRootPortValveProfileId === null
+    ids.recoveredRootPortValveProfileId === null
       ? null
       : resolveMainWireAorticRecoveredRootPortValveProfileV1(
-        recoveredRootPortValveProfileId,
-      );
+          ids.recoveredRootPortValveProfileId,
+        );
   const sarcomereReferenceProfile =
     resolveMainWireVentricularLandSarcomereReferenceProfileV1(
-      sarcomereReferenceProfileId,
+      ids.sarcomereReferenceProfileId,
     );
   const calciumSensitivityLengthProfile =
     resolveMainWireVentricularLandCalciumSensitivityLengthProfileV1(
-      calciumSensitivityLengthProfileId,
+      ids.calciumSensitivityLengthProfileId,
     );
   const sourceTwitchRetentionCandidate =
     resolveMainWireVentricularLandSourceTwitchRetentionCandidateV1(
-      sourceTwitchRetentionCandidateId,
+      ids.sourceTwitchRetentionCandidateId,
     );
   const circulatoryLoadPoint =
     resolveMainWireNormalAdultFiveWallCirculatoryLoadPointV1(
-      circulatoryLoadPointId,
+      ids.circulatoryLoadPointId,
     );
   const trefForceLoadProfile =
     resolveMainWireVentricularLandTrefForceLoadProfileV1(
-      trefForceLoadProfileId,
+      ids.trefForceLoadProfileId,
     );
   const sourceVelocityDistortionProfile =
     resolveMainWireVentricularLandSourceVelocityDistortionProfileV1(
-      sourceVelocityDistortionProfileId,
+      ids.sourceVelocityDistortionProfileId,
     );
   const strongBridgeDeactivationExitProfile =
     resolveMainWireVentricularLandStrongBridgeDeactivationExitProfileV1(
-      strongBridgeDeactivationExitProfileId,
-    );
-  const atrioventricularDelayProfile =
-    resolveMainWireAtrioventricularDelayProfileV1(
-      atrioventricularDelayProfileId,
+      ids.strongBridgeDeactivationExitProfileId,
     );
   if (
     calciumSensitivityLengthProfile.beta1ScaleFromSource !== 1
@@ -3418,7 +3483,7 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
   }
   const loadRuntime =
     resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(
-      circulatoryLoadPointId,
+      ids.circulatoryLoadPointId,
     );
   const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
     ...loadRuntime,
@@ -3446,50 +3511,72 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
           recoveredRootPortValveProfile,
       }),
   });
-  const provider = strongBridgeDeactivationExitProfile.maximumRatePerSec !== 0
-    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongBridgeDeactivationExitV1(
-      strongBridgeDeactivationExitProfileId,
-      sourceVelocityDistortionProfileId,
-      sourceTwitchRetentionCandidateId,
-      trefForceLoadProfileId,
-      sarcomereReferenceProfileId,
-      kuwProfileId,
-    )
-    : sourceVelocityDistortionProfile
-      .aeffScaleFromIntactHumanSource !== 1
-    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
-      sourceVelocityDistortionProfileId,
-      sourceTwitchRetentionCandidateId,
-      trefForceLoadProfileId,
-      sarcomereReferenceProfileId,
-      kuwProfileId,
-    )
-    : trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
-    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1(
-      sourceTwitchRetentionCandidateId,
-      trefForceLoadProfileId,
-      sarcomereReferenceProfileId,
-      kuwProfileId,
-    )
-    : sourceTwitchRetentionCandidate.changedKineticParameters.length === 0
-    ? createMainWireNormalAdultFiveWallProviderWithVentricularLandCalciumSensitivityLengthProfileV1(
-      calciumSensitivityLengthProfileId,
-      sarcomereReferenceProfileId,
-      kuwProfileId,
-    )
-    : createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1(
-      sourceTwitchRetentionCandidateId,
-      sarcomereReferenceProfileId,
-      kuwProfileId,
-    );
-  const calciumDriveParams =
-    resolveMainWireAtrioventricularDelayCalciumParamsV1(
-      atrioventricularDelayProfileId,
-    );
+  const provider =
+    strongBridgeDeactivationExitProfile.maximumRatePerSec !== 0
+      ? createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongBridgeDeactivationExitV1(
+          ids.strongBridgeDeactivationExitProfileId,
+          ids.sourceVelocityDistortionProfileId,
+          ids.sourceTwitchRetentionCandidateId,
+          ids.trefForceLoadProfileId,
+          ids.sarcomereReferenceProfileId,
+          ids.kuwProfileId,
+        )
+      : sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1
+        ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceVelocityDistortionV1(
+            ids.sourceVelocityDistortionProfileId,
+            ids.sourceTwitchRetentionCandidateId,
+            ids.trefForceLoadProfileId,
+            ids.sarcomereReferenceProfileId,
+            ids.kuwProfileId,
+          )
+        : trefForceLoadProfile.trefScaleFromRetainedCandidate !== 1
+          ? createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionTrefForceLoadV1(
+              ids.sourceTwitchRetentionCandidateId,
+              ids.trefForceLoadProfileId,
+              ids.sarcomereReferenceProfileId,
+              ids.kuwProfileId,
+            )
+          : sourceTwitchRetentionCandidate.changedKineticParameters.length === 0
+            ? createMainWireNormalAdultFiveWallProviderWithVentricularLandCalciumSensitivityLengthProfileV1(
+                ids.calciumSensitivityLengthProfileId,
+                ids.sarcomereReferenceProfileId,
+                ids.kuwProfileId,
+              )
+            : createMainWireNormalAdultFiveWallProviderWithVentricularLandSourceTwitchRetentionCandidateV1(
+                ids.sourceTwitchRetentionCandidateId,
+                ids.sarcomereReferenceProfileId,
+                ids.kuwProfileId,
+              );
   const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
     runtime,
-    stressedVenousVolumePointId,
+    ids.stressedVenousVolumePointId,
   );
+  return Object.freeze({
+    kuwProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate,
+    circulatoryLoadPoint,
+    trefForceLoadProfile,
+    sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile,
+    runtime,
+    provider,
+    bloodVolume,
+  });
+}
+
+function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniResolvedAssemblyV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  assembly: MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1,
+  calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
+  identityMismatchMessage: string,
+): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const periodicResult =
     runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
       Object.freeze({
@@ -3503,21 +3590,95 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
         initialization: "canonical" as const,
         valveDiseaseBracketIds: Object.freeze([]),
       }),
-      runtime,
+      assembly.runtime,
       Object.freeze({
-        provider,
-        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+        provider: assembly.provider,
+        bloodVolumeOperatingPoint: assembly.bloodVolume.operatingPoint,
         calciumDriveParams,
       }),
     );
   if (
-    periodicResult.protocolIdentity.calciumDrive.parameterSetId
-      !== calciumDriveParams.parameterSetId
-    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
-      !== provider.parameterIdentityHash
-    || periodicResult.protocolComponentHashes.circulationRuntimeStableHash
-      !== hashProtocolValue(runtime)
-  ) throw new Error("Land/Coppini source-trace Windkessel identity mismatch");
+    periodicResult.protocolIdentity.calciumDrive.parameterSetId !==
+      calciumDriveParams.parameterSetId ||
+    periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash !==
+      assembly.provider.parameterIdentityHash ||
+    periodicResult.protocolComponentHashes.circulationRuntimeStableHash !==
+      hashProtocolValue(assembly.runtime)
+  )
+    throw new Error(identityMismatchMessage);
+  return periodicResult;
+}
+
+/** Primary-repository Coppini calcium trace × whole-organ kuw × Windkessel. */
+export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  kuwProfileId: MainWireVentricularLandWholeOrganKuwProfileIdV1,
+  complianceProfileId: MainWireArterialCompliancePhysiologyProfileIdV1,
+  placementProfileId: MainWireAorticCharacteristicResistancePlacementProfileIdV1 | null,
+  rootInertanceProfileId: MainWireAorticRootInertanceResearchProfileIdV1 | null,
+  sarcomereReferenceProfileId: MainWireVentricularLandSarcomereReferenceProfileIdV1 = "land-sarcomere-reference-canonical",
+  calciumSensitivityLengthProfileId: MainWireVentricularLandCalciumSensitivityLengthProfileIdV1 = "land-beta1-canonical",
+  sourceTwitchRetentionCandidateId: MainWireVentricularLandSourceTwitchRetentionCandidateIdV1 = "source-twitch-retention-canonical",
+  circulatoryLoadPointId: MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1 = "baseline",
+  stressedVenousVolumePointId: MainWireNormalAdultStressedVenousVolumeResearchPointIdV1 = "baseline",
+  trefForceLoadProfileId: MainWireVentricularLandTrefForceLoadProfileIdV1 = "tref-force-load-baseline",
+  sourceVelocityDistortionProfileId: MainWireVentricularLandSourceVelocityDistortionProfileIdV1 = "source-Aeff-canonical",
+  strongBridgeDeactivationExitProfileId: MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 = "strong-to-blocked-deactivation-off",
+  atrioventricularDelayProfileId: MainWireAtrioventricularDelayProfileIdV1 = "coppini-source-atrioventricular-delay-160ms",
+  aorticValveResearchProfileId: MainWireAorticValveResearchProfileIdV1 | null = null,
+  recoveredRootPortValveProfileId: MainWireAorticRecoveredRootPortValveProfileIdV1 | null = null,
+): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const assembly =
+    resolveMainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1(
+      Object.freeze({
+        kuwProfileId,
+        complianceProfileId,
+        placementProfileId,
+        rootInertanceProfileId,
+        sarcomereReferenceProfileId,
+        calciumSensitivityLengthProfileId,
+        sourceTwitchRetentionCandidateId,
+        circulatoryLoadPointId,
+        stressedVenousVolumePointId,
+        trefForceLoadProfileId,
+        sourceVelocityDistortionProfileId,
+        strongBridgeDeactivationExitProfileId,
+        aorticValveResearchProfileId,
+        recoveredRootPortValveProfileId,
+      }),
+    );
+  const atrioventricularDelayProfile =
+    resolveMainWireAtrioventricularDelayProfileV1(
+      atrioventricularDelayProfileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireAtrioventricularDelayCalciumParamsV1(
+      atrioventricularDelayProfileId,
+    );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniResolvedAssemblyV1(
+      options,
+      assembly,
+      calciumDriveParams,
+      "Land/Coppini source-trace Windkessel identity mismatch",
+    );
+  const {
+    kuwProfile,
+    complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate,
+    circulatoryLoadPoint,
+    trefForceLoadProfile,
+    sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile,
+    bloodVolume,
+  } = assembly;
   return Object.freeze({
     configurationRole:
       "fixed-aortic-outflow-land-coppini-source-trace-windkessel-arm" as const,
@@ -3596,6 +3757,188 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       calciumOrMechanicsStateAdded: false as const,
       acceptedStateOrCheckpointTopologyChanged: false as const,
       exactProtocolIdentityIncludesAllExplicitFactors: true as const,
+    }),
+  });
+}
+
+/**
+ * Fixed heart-rate/calcium hypothesis on the V10-derived non-calcium assembly.
+ * The calcium profile is the sole discrete experimental input; every mechanics,
+ * vascular, blood-volume, and aortic-port selection is fixed here by ID.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10HeartRateCalciumHypothesisResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  profileId: MainWireVentricularCalciumHeartRateHypothesisProfileIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10HeartRateCalciumHypothesisResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const reference =
+    MAIN_WIRE_AORTIC_OUTFLOW_V10_HEART_RATE_CALCIUM_REFERENCE_NON_CALCIUM_ASSEMBLY_V1;
+  const assembly =
+    resolveMainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1(
+      Object.freeze({
+        kuwProfileId: reference.kuwProfileId,
+        complianceProfileId: reference.complianceProfileId,
+        placementProfileId:
+          reference.characteristicResistancePlacementProfileId,
+        rootInertanceProfileId: reference.rootInertanceProfileId,
+        sarcomereReferenceProfileId: reference.sarcomereReferenceProfileId,
+        calciumSensitivityLengthProfileId:
+          reference.calciumSensitivityLengthProfileId,
+        sourceTwitchRetentionCandidateId: reference.twitchRetentionCandidateId,
+        circulatoryLoadPointId: "baseline" as const,
+        stressedVenousVolumePointId: "baseline" as const,
+        trefForceLoadProfileId: reference.trefForceLoadProfileId,
+        sourceVelocityDistortionProfileId:
+          reference.sourceVelocityDistortionProfileId,
+        strongBridgeDeactivationExitProfileId:
+          reference.strongBridgeDeactivationExitProfileId,
+        aorticValveResearchProfileId: reference.pressureRecoveryProfileId,
+        recoveredRootPortValveProfileId:
+          reference.recoveredRootPortValveProfileId,
+      }),
+    );
+  const calciumHypothesisProfile =
+    resolveMainWireVentricularCalciumHeartRateHypothesisProfileV1(profileId);
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumHeartRateHypothesisParamsV1(profileId);
+  if (
+    calciumDriveParams.cycleLengthSec !==
+      calciumHypothesisProfile.cycleLengthSec ||
+    calciumDriveParams.atrioventricularDelaySec !==
+      calciumHypothesisProfile.atrioventricularDelaySec ||
+    60 / calciumDriveParams.cycleLengthSec !==
+      calciumHypothesisProfile.heartRateBpm
+  ) {
+    throw new Error(
+      "V10 heart-rate calcium hypothesis profile/parameter identity mismatch",
+    );
+  }
+  const periodicResult =
+    runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniResolvedAssemblyV1(
+      options,
+      assembly,
+      calciumDriveParams,
+      "V10 heart-rate calcium hypothesis protocol identity mismatch",
+    );
+  const {
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+  } = assembly;
+  if (
+    placementProfile === null ||
+    rootInertanceProfile === null ||
+    aorticValveResearchProfile === null ||
+    recoveredRootPortValveProfile === null ||
+    assembly.kuwProfile.profileId !== reference.kuwProfileId ||
+    assembly.sarcomereReferenceProfile.profileId !==
+      reference.sarcomereReferenceProfileId ||
+    assembly.calciumSensitivityLengthProfile.profileId !==
+      reference.calciumSensitivityLengthProfileId ||
+    assembly.sourceTwitchRetentionCandidate.candidateId !==
+      reference.twitchRetentionCandidateId ||
+    assembly.trefForceLoadProfile.profileId !==
+      reference.trefForceLoadProfileId ||
+    assembly.sourceVelocityDistortionProfile.profileId !==
+      reference.sourceVelocityDistortionProfileId ||
+    assembly.strongBridgeDeactivationExitProfile.profileId !==
+      reference.strongBridgeDeactivationExitProfileId ||
+    assembly.complianceProfile.profileId !== reference.complianceProfileId ||
+    placementProfile.profileId !==
+      reference.characteristicResistancePlacementProfileId ||
+    rootInertanceProfile.profileId !== reference.rootInertanceProfileId ||
+    aorticValveResearchProfile.profileId !==
+      reference.pressureRecoveryProfileId ||
+    recoveredRootPortValveProfile.profileId !==
+      reference.recoveredRootPortValveProfileId ||
+    assembly.circulatoryLoadPoint.pointId !== "baseline" ||
+    assembly.bloodVolume.point.pointId !== "baseline" ||
+    periodicResult.valveResearchInput.valves.AoV.maximumForwardEoaCm2 !==
+      reference.aorticMaximumForwardEoaCm2
+  ) {
+    throw new Error("V10 heart-rate non-calcium assembly identity mismatch");
+  }
+  const expectedCalciumHash = hashProtocolValue(calciumDriveParams);
+  const expectedBloodVolumeHash = hashProtocolValue(
+    assembly.bloodVolume.operatingPoint.identity,
+  );
+  if (
+    periodicResult.claim.heartRateBpm !==
+      calciumHypothesisProfile.heartRateBpm ||
+    periodicResult.protocolComponentHashes.calciumDriveFixedParamsStableHash !==
+      expectedCalciumHash ||
+    periodicResult.protocolComponentHashes
+      .bloodVolumeOperatingPointStableHash !== expectedBloodVolumeHash ||
+    periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash !==
+      assembly.provider.parameterIdentityHash ||
+    (calciumHypothesisProfile.heartRateBpm !== 60 &&
+      periodicResult.terminalCycleBoundaryWarmStart !== null)
+  ) {
+    throw new Error("V10 heart-rate exact protocol readback mismatch");
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-v10-reference-non-calcium-heart-rate-calcium-hypothesis-arm" as const,
+    referenceNonCalciumAssembly: reference,
+    calciumHypothesisProfile,
+    kuwProfile: assembly.kuwProfile,
+    sarcomereReferenceProfile: assembly.sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile: assembly.calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate: assembly.sourceTwitchRetentionCandidate,
+    trefForceLoadProfile: assembly.trefForceLoadProfile,
+    sourceVelocityDistortionProfile: assembly.sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile:
+      assembly.strongBridgeDeactivationExitProfile,
+    circulatoryLoadPoint: assembly.circulatoryLoadPoint,
+    stressedVenousVolumePoint: assembly.bloodVolume.point,
+    complianceProfile: assembly.complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    calciumDriveParams,
+    periodicResult,
+    exactAssemblyAudit: Object.freeze({
+      mechanicsProviderParameterIdentityHash:
+        assembly.provider.parameterIdentityHash,
+      circulationRuntimeStableHash:
+        periodicResult.protocolComponentHashes.circulationRuntimeStableHash,
+      bloodVolumeOperatingPointStableHash:
+        periodicResult.protocolComponentHashes
+          .bloodVolumeOperatingPointStableHash,
+      calciumDriveFixedParamsStableHash:
+        periodicResult.protocolComponentHashes
+          .calciumDriveFixedParamsStableHash,
+    }),
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedCalciumHypothesisProfileOnly: true as const,
+      valveDiseaseBracketApplied: false as const,
+      referenceAssemblyDerivedFromCandidateV10: true as const,
+      fullV10CandidateIdentityRetained: false as const,
+      V10ReferenceNonCalciumAssemblyHeldExactly: true as const,
+      V10CalciumAndAtrioventricularTimingIdentityHeldFixed: false as const,
+      ventricularNumericSourceTraceUsed:
+        calciumHypothesisProfile.ventricularNumericSourceTraceUsed,
+      oldLandCoppiniSourceTraceProfileReturned: false as const,
+      oldAtrioventricularDelayProfileReturned: false as const,
+      circulatoryLoadHeldAtBaseline: true as const,
+      bloodVolumeHeldAtBaseline: true as const,
+      systemicOrBloodVolumeRecalibrationApplied: false as const,
+      aorticMaximumForwardEoaHeldAtCm2: 3.5 as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      nonHr60V3WarmStartEmissionSuppressed: true as const,
+      nonHr60V3WarmStartRestoreRejected: true as const,
+      exactProtocolIdentityIncludesActiveCalciumAndAllNonCalciumFactors:
+        true as const,
+      parameterSearchOrFitting: false as const,
+      clinicalValidationClaimed: false as const,
+      canonicalAdoptionEstablished: false as const,
     }),
   });
 }
@@ -5815,7 +6158,21 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   resolvedAssembly?: ResolvedPeriodicAssemblyV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
-  const resolved = validateAndResolveOptions(options);
+  const calciumDriveParams =
+    resolvedAssembly?.calciumDriveParams ??
+    FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const resolved = validateAndResolveOptions(
+    options,
+    calciumDriveParams.cycleLengthSec,
+  );
+  if (
+    resolved.warmStart !== null &&
+    resolved.cycleLengthSec !== STANDARD_WARM_START_CYCLE_LENGTH_SEC
+  ) {
+    throw new Error(
+      "non-HR60 calcium cycles do not emit or restore the V3 warm-start schema",
+    );
+  }
   const localAorticValveInertanceProfile =
     runtime.aorticValveLocalInertanceResearchProfile;
   if (
@@ -5831,10 +6188,8 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     resolved.pericardiumCase,
   );
   const bloodVolumeOperatingPoint =
-    resolvedAssembly?.bloodVolumeOperatingPoint
-    ?? resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
-  const calciumDriveParams = resolvedAssembly?.calciumDriveParams
-    ?? FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    resolvedAssembly?.bloodVolumeOperatingPoint ??
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     runtime,
@@ -5944,7 +6299,9 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
         localAorticValveAcceptedFlowMlPerSec =
           stepped.circulationTrial.edgeFlowsMlPerSec.AoV;
       }
-      beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
+      beatSamples.push(
+        samplePeriodicDiagnosticStep(stepped, resolved.cycleLengthSec),
+      );
     }
 
     boundaryStates.push(state);
@@ -6003,17 +6360,19 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     classification,
     externalClosure,
   );
-  const terminalCycleBoundaryWarmStart = failure === null
-    && observations.length > 0
-    && localAorticValveInertanceProfile === undefined
-    ? buildCycleBoundaryWarmStart(
-      provider,
-      state,
-      protocol,
-      resolved.dtSec,
-      observations.length,
-    )
-    : null;
+  const terminalCycleBoundaryWarmStart =
+    failure === null &&
+    observations.length > 0 &&
+    localAorticValveInertanceProfile === undefined &&
+    resolved.cycleLengthSec === STANDARD_WARM_START_CYCLE_LENGTH_SEC
+      ? buildCycleBoundaryWarmStart(
+          provider,
+          state,
+          protocol,
+          resolved.dtSec,
+          observations.length,
+        )
+      : null;
   return Object.freeze({
     experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
     mode: "canonical" as const,
@@ -6062,7 +6421,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     initializationAudit,
     policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
     claim: Object.freeze({
-      heartRateBpm: 60 as const,
+      heartRateBpm: 60 / resolved.cycleLengthSec,
       circulation: "main-wire-derived-noncoronary-experimental" as const,
       ordinaryBeatIterationOnly: true as const,
       shootingOrAndersonAccelerationApplied: false as const,
@@ -6308,6 +6667,19 @@ function pulmonaryRedistributionInitialState(
   });
 }
 
+function samplePeriodicDiagnosticStep(
+  step: Parameters<typeof sampleMainWireNormalAdultFiveWallDiagnosticStepV2>[0],
+  cycleLengthSec: number,
+): MainWireNormalAdultFiveWallDiagnosticSampleV2 {
+  const sample = sampleMainWireNormalAdultFiveWallDiagnosticStepV2(step);
+  if (cycleLengthSec === STANDARD_WARM_START_CYCLE_LENGTH_SEC) return sample;
+  return Object.freeze({
+    ...sample,
+    cyclePhase01:
+      positiveModulo(sample.timeSec, cycleLengthSec) / cycleLengthSec,
+  });
+}
+
 function auditInitialization(
   provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
   canonical: AcceptedState,
@@ -6434,23 +6806,28 @@ function restoreWarmStart(
   ) {
     throw new Error("warm-start checkpoint TBV owner does not match protocol identity");
   }
-  const phase = positiveModulo(warmStart.checkpoint.acceptedTimeSec, CYCLE_LENGTH_SEC);
-  if (Math.min(phase, CYCLE_LENGTH_SEC - phase) > 1e-9) {
+  const phase = positiveModulo(
+    warmStart.checkpoint.acceptedTimeSec,
+    STANDARD_WARM_START_CYCLE_LENGTH_SEC,
+  );
+  if (Math.min(phase, STANDARD_WARM_START_CYCLE_LENGTH_SEC - phase) > 1e-9) {
     throw new Error("warm start must be captured at the HR60 cycle boundary");
   }
-  const sourceSteps = CYCLE_LENGTH_SEC / warmStart.sourceDtSec;
+  const sourceSteps =
+    STANDARD_WARM_START_CYCLE_LENGTH_SEC / warmStart.sourceDtSec;
   const sourceStepsPerBeat = Math.round(sourceSteps);
   if (
-    !(warmStart.sourceDtSec > 0)
-    || !Number.isInteger(sourceStepsPerBeat)
-    || Math.abs(sourceSteps - sourceStepsPerBeat) > 1e-12
-    || !Number.isInteger(warmStart.sourceCompletedBeatCount)
-    || warmStart.sourceCompletedBeatCount <= 0
-    || warmStart.checkpoint.revision
-      !== sourceStepsPerBeat * warmStart.sourceCompletedBeatCount
-    || Math.abs(
-      warmStart.checkpoint.acceptedTimeSec
-        - warmStart.sourceCompletedBeatCount * CYCLE_LENGTH_SEC,
+    !(warmStart.sourceDtSec > 0) ||
+    !Number.isInteger(sourceStepsPerBeat) ||
+    Math.abs(sourceSteps - sourceStepsPerBeat) > 1e-12 ||
+    !Number.isInteger(warmStart.sourceCompletedBeatCount) ||
+    warmStart.sourceCompletedBeatCount <= 0 ||
+    warmStart.checkpoint.revision !==
+      sourceStepsPerBeat * warmStart.sourceCompletedBeatCount ||
+    Math.abs(
+      warmStart.checkpoint.acceptedTimeSec -
+        warmStart.sourceCompletedBeatCount *
+          STANDARD_WARM_START_CYCLE_LENGTH_SEC,
     ) > 1e-9
   ) throw new Error("warm-start source dt/beat/checkpoint provenance mismatch");
   return restoreMainWireFiveWallNonCoronaryV1(
@@ -6512,8 +6889,11 @@ function buildCycleBoundaryWarmStart(
   dtSec: number,
   completedBeatCount: number,
 ): MainWireNormalAdultFiveWallCycleWarmStartV1 {
-  const phase = positiveModulo(state.acceptedTimeSec, CYCLE_LENGTH_SEC);
-  if (Math.min(phase, CYCLE_LENGTH_SEC - phase) > 1e-9) {
+  const phase = positiveModulo(
+    state.acceptedTimeSec,
+    STANDARD_WARM_START_CYCLE_LENGTH_SEC,
+  );
+  if (Math.min(phase, STANDARD_WARM_START_CYCLE_LENGTH_SEC - phase) > 1e-9) {
     throw new Error("terminal warm start is not on a cycle boundary");
   }
   const envelope = {
@@ -6675,8 +7055,10 @@ function resolveTerminationReason(
 
 function validateAndResolveOptions(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
+  cycleLengthSec: number,
 ): Readonly<{
   dtSec: number;
+  cycleLengthSec: number;
   stepsPerBeat: number;
   maximumBeatCount: number;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
@@ -6689,10 +7071,24 @@ function validateAndResolveOptions(
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");
   }
-  const steps = CYCLE_LENGTH_SEC / options.dtSec;
+  if (!(cycleLengthSec > 0) || !Number.isFinite(cycleLengthSec)) {
+    throw new Error("calcium cycleLengthSec must be positive and finite");
+  }
+  const steps = cycleLengthSec / options.dtSec;
   const stepsPerBeat = Math.round(steps);
-  if (!Number.isInteger(stepsPerBeat) || Math.abs(steps - stepsPerBeat) > 1e-12) {
-    throw new Error("dtSec must divide the fixed HR60 one-second cycle exactly");
+  const exactDivisionError = Math.abs(
+    stepsPerBeat * options.dtSec - cycleLengthSec,
+  );
+  const divisionTolerance = 1e-12 * Math.max(1, cycleLengthSec);
+  if (
+    !Number.isInteger(stepsPerBeat) ||
+    stepsPerBeat <= 0 ||
+    Math.abs(steps - stepsPerBeat) > 1e-12 * Math.max(1, steps) ||
+    exactDivisionError > divisionTolerance
+  ) {
+    throw new Error(
+      "dtSec must divide the calcium cycleLengthSec into an exact integer step count",
+    );
   }
   const maximumBeatCount = options.maximumBeatCount
     ?? MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1
@@ -6736,6 +7132,7 @@ function validateAndResolveOptions(
     : "cycle-boundary-warm-start" as const;
   return Object.freeze({
     dtSec: options.dtSec,
+    cycleLengthSec,
     stepsPerBeat,
     maximumBeatCount,
     laSlsMode,

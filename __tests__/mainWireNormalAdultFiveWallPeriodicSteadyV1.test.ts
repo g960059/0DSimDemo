@@ -47,6 +47,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.initializationAudit.totalBloodVolumeDifferenceMl).toBe(0);
     expect(result.initializationAudit.transferredVolumeMl).toBe(0);
     expect(result.claim.ordinaryBeatIterationOnly).toBe(true);
+    expect(result.claim.heartRateBpm).toBe(60);
     expect(result.claim.shootingOrAndersonAccelerationApplied).toBe(false);
     expect(result.claim.parameterSearch).toBe(false);
     expect(result.claim.pericardialConstraintInterfaceIncluded).toBe(true);
@@ -466,10 +467,12 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.protocolIdentityHash).toMatch(/^[0-9a-f]{8}$/);
   }, 60_000);
 
-  it("rejects a non-integral HR60 beat grid before running the model", () => {
+  it("rejects a non-integral calcium-cycle grid before running the model", () => {
     expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
       dtSec: 0.003,
       maximumBeatCount: 1,
-    })).toThrow("dtSec must divide the fixed HR60 one-second cycle exactly");
+    })).toThrow(
+      "dtSec must divide the calcium cycleLengthSec into an exact integer step count",
+    );
   });
 });
