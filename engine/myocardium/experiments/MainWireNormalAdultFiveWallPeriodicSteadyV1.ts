@@ -107,6 +107,12 @@ import {
   type MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawProfileV1,
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
 import {
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayParamsV1,
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileV1,
+  type MainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileIdV1,
+  type MainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayBracketV1";
+import {
   resolveMainWireAtrioventricularDelayCalciumParamsV1,
   resolveMainWireAtrioventricularDelayProfileV1,
   type MainWireAtrioventricularDelayProfileIdV1,
@@ -1481,6 +1487,60 @@ export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHea
         profileToCalciumParamsIdentityChecked: true;
         exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors: true;
         derivedAnalysisStored: false;
+        parameterSearchOrFitting: false;
+        clinicalValidationClaimed: false;
+        canonicalAdoptionEstablished: false;
+      }>;
+    }
+  >;
+
+export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHr90AtrioventricularDelayBracketResearchRunV1 =
+  Readonly<
+    Omit<
+      MainWireNormalAdultFiveWallAorticOutflowV10HeartRateCalciumHypothesisResearchRunV1,
+      | "configurationRole"
+      | "referenceNonCalciumAssembly"
+      | "calciumHypothesisProfile"
+      | "claim"
+    > & {
+      configurationRole: "fixed-v10-reference-non-calcium-matched-alpha-saturating-hr90-atrioventricular-delay-bracket-arm";
+      referenceNonCalciumAssembly: typeof MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1;
+      baseSaturatingHeartRateLawProfile: MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawProfileV1;
+      atrioventricularDelayBracketProfile: MainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileV1;
+      claim: Readonly<{
+        sourceResearchRunnerOnly: true;
+        independentCanonicalColdStart: true;
+        warmStartApplied: false;
+        exactResearchOptionsLimitedToDtAndMaximumBeatCount: true;
+        genericParameterPatchAccepted: false;
+        fixedThreePointAtrioventricularDelayProfileOnly: true;
+        arbitraryNumericAtrioventricularDelayInputExposed: false;
+        valveDiseaseBracketApplied: false;
+        referenceAssemblyDerivedFromCandidateV10: true;
+        fullV10CandidateIdentityRetained: false;
+        V10ReferenceNonCalciumAssemblyHeldExactly: true;
+        V10CalciumAndAtrioventricularTimingIdentityHeldFixed: false;
+        heartRateHeldAtBpm: 90;
+        matchedAlphaSaturatingRateCoefficientHeldAt: 0.4;
+        baseSaturatingHeartRateLawProfileHeldExactly: true;
+        controlArmReusesBaseCalciumParamsByIdentity: boolean;
+        onlyParameterSetIdAndAtrioventricularDelayEligibleToDifferFromControl: true;
+        atrialParamsHeldByIdentity: true;
+        ventricularParamsHeldByIdentity: true;
+        cycleLengthHeldExactly: true;
+        circulatoryLoadHeldAtBaseline: true;
+        bloodVolumeHeldAtBaseline: true;
+        systemicOrBloodVolumeRecalibrationApplied: false;
+        aorticMaximumForwardEoaHeldAtCm2: 3.5;
+        calciumOrMechanicsStateAdded: false;
+        acceptedStateOrCheckpointTopologyChanged: false;
+        nonHr60V3WarmStartEmissionSuppressed: true;
+        nonHr60V3WarmStartRestoreRejected: true;
+        profileToCalciumParamsIdentityChecked: true;
+        exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors: true;
+        derivedAnalysisStored: false;
+        surfaceEcgPrIntervalEquivalenceClaimed: false;
+        literatureUsedForDirectionOnly: true;
         parameterSearchOrFitting: false;
         clinicalValidationClaimed: false;
         canonicalAdoptionEstablished: false;
@@ -4614,6 +4674,170 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSatura
       exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors:
         true as const,
       derivedAnalysisStored: false as const,
+      parameterSearchOrFitting: false as const,
+      clinicalValidationClaimed: false as const,
+      canonicalAdoptionEstablished: false as const,
+    }),
+  });
+}
+
+/**
+ * Closed HR90 AV electrical-onset-delay bracket on the matched-alpha
+ * saturating a=0.40 profile and fixed V10 reference non-Ca assembly. The
+ * profile ID is the only experimental input beyond exact integration options.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHr90AtrioventricularDelayBracketResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  profileId: MainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingHr90AtrioventricularDelayBracketResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const baseSaturatingHeartRateLawProfile =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawProfileV1(
+      "matched-alpha-saturating-hr-law-a040-hr-90",
+    );
+  const baseCalciumDriveParams =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+      "matched-alpha-saturating-hr-law-a040-hr-90",
+    );
+  const atrioventricularDelayBracketProfile =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayProfileV1(
+      profileId,
+    );
+  const calciumDriveParams =
+    resolveMainWireVentricularCalciumMatchedAlphaSaturatingHr90AtrioventricularDelayParamsV1(
+      profileId,
+    );
+  const controlArm =
+    atrioventricularDelayBracketProfile.atrioventricularDelaySec === 0.12;
+  const differingParamKeys = Array.from(
+    new Set([
+      ...Object.keys(baseCalciumDriveParams),
+      ...Object.keys(calciumDriveParams),
+    ]),
+  )
+    .filter(
+      (key) =>
+        (baseCalciumDriveParams as Readonly<Record<string, unknown>>)[key] !==
+        (calciumDriveParams as Readonly<Record<string, unknown>>)[key],
+    )
+    .sort();
+  if (
+    atrioventricularDelayBracketProfile.profileId !== profileId ||
+    atrioventricularDelayBracketProfile.baseSaturatingHeartRateLawProfileId !==
+      baseSaturatingHeartRateLawProfile.profileId ||
+    atrioventricularDelayBracketProfile.heartRateBpm !== 90 ||
+    atrioventricularDelayBracketProfile.dimensionlessRateCoefficient !== 0.4 ||
+    atrioventricularDelayBracketProfile.cycleLengthSec !==
+      baseSaturatingHeartRateLawProfile.cycleLengthSec ||
+    calciumDriveParams.cycleLengthSec !==
+      baseSaturatingHeartRateLawProfile.cycleLengthSec ||
+    60 / calciumDriveParams.cycleLengthSec !== 90 ||
+    calciumDriveParams.atrioventricularDelaySec !==
+      atrioventricularDelayBracketProfile.atrioventricularDelaySec ||
+    calciumDriveParams.atrial !== baseCalciumDriveParams.atrial ||
+    calciumDriveParams.ventricular !== baseCalciumDriveParams.ventricular ||
+    (controlArm && calciumDriveParams !== baseCalciumDriveParams) ||
+    (!controlArm &&
+      (differingParamKeys.length !== 2 ||
+        differingParamKeys[0] !== "atrioventricularDelaySec" ||
+        differingParamKeys[1] !== "parameterSetId"))
+  ) {
+    throw new Error(
+      "V10 matched-alpha saturating HR90 atrioventricular-delay profile/parameter identity mismatch",
+    );
+  }
+  const {
+    reference,
+    assembly,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    periodicResult,
+    exactAssemblyAudit,
+  } = runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
+    options,
+    calciumDriveParams,
+    90,
+    Object.freeze({
+      protocolIdentity:
+        "V10 matched-alpha saturating HR90 atrioventricular-delay protocol identity mismatch",
+      nonCalciumAssemblyIdentity:
+        "V10 matched-alpha saturating HR90 atrioventricular-delay non-calcium assembly identity mismatch",
+      exactProtocolReadback:
+        "V10 matched-alpha saturating HR90 atrioventricular-delay exact protocol readback mismatch",
+    }),
+  );
+  if (
+    reference !==
+    MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1
+  ) {
+    throw new Error(
+      "V10 matched-alpha saturating HR90 atrioventricular-delay reference assembly identity mismatch",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-v10-reference-non-calcium-matched-alpha-saturating-hr90-atrioventricular-delay-bracket-arm" as const,
+    referenceNonCalciumAssembly:
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1,
+    baseSaturatingHeartRateLawProfile,
+    atrioventricularDelayBracketProfile,
+    kuwProfile: assembly.kuwProfile,
+    sarcomereReferenceProfile: assembly.sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile: assembly.calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate: assembly.sourceTwitchRetentionCandidate,
+    trefForceLoadProfile: assembly.trefForceLoadProfile,
+    sourceVelocityDistortionProfile: assembly.sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile:
+      assembly.strongBridgeDeactivationExitProfile,
+    circulatoryLoadPoint: assembly.circulatoryLoadPoint,
+    stressedVenousVolumePoint: assembly.bloodVolume.point,
+    complianceProfile: assembly.complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    calciumDriveParams,
+    periodicResult,
+    exactAssemblyAudit,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      exactResearchOptionsLimitedToDtAndMaximumBeatCount: true as const,
+      genericParameterPatchAccepted: false as const,
+      fixedThreePointAtrioventricularDelayProfileOnly: true as const,
+      arbitraryNumericAtrioventricularDelayInputExposed: false as const,
+      valveDiseaseBracketApplied: false as const,
+      referenceAssemblyDerivedFromCandidateV10: true as const,
+      fullV10CandidateIdentityRetained: false as const,
+      V10ReferenceNonCalciumAssemblyHeldExactly: true as const,
+      V10CalciumAndAtrioventricularTimingIdentityHeldFixed: false as const,
+      heartRateHeldAtBpm: 90 as const,
+      matchedAlphaSaturatingRateCoefficientHeldAt: 0.4 as const,
+      baseSaturatingHeartRateLawProfileHeldExactly: true as const,
+      controlArmReusesBaseCalciumParamsByIdentity:
+        controlArm && calciumDriveParams === baseCalciumDriveParams,
+      onlyParameterSetIdAndAtrioventricularDelayEligibleToDifferFromControl:
+        true as const,
+      atrialParamsHeldByIdentity: true as const,
+      ventricularParamsHeldByIdentity: true as const,
+      cycleLengthHeldExactly: true as const,
+      circulatoryLoadHeldAtBaseline: true as const,
+      bloodVolumeHeldAtBaseline: true as const,
+      systemicOrBloodVolumeRecalibrationApplied: false as const,
+      aorticMaximumForwardEoaHeldAtCm2: 3.5 as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      nonHr60V3WarmStartEmissionSuppressed: true as const,
+      nonHr60V3WarmStartRestoreRejected: true as const,
+      profileToCalciumParamsIdentityChecked: true as const,
+      exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors:
+        true as const,
+      derivedAnalysisStored: false as const,
+      surfaceEcgPrIntervalEquivalenceClaimed: false as const,
+      literatureUsedForDirectionOnly: true as const,
       parameterSearchOrFitting: false as const,
       clinicalValidationClaimed: false as const,
       canonicalAdoptionEstablished: false as const,
