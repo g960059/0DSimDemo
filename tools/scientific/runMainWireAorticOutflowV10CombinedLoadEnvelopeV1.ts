@@ -98,6 +98,9 @@ process.stdout.write(`${JSON.stringify({
     envelope.allValveDissipationLedgersWithinTolerance,
   allStationReconstructionResidualsWithinTolerance:
     envelope.allStationReconstructionResidualsWithinTolerance,
+  allExactEvaluatorProximalPortReadbacksAvailableAndWithinTolerance:
+    envelope
+      .allExactEvaluatorProximalPortReadbacksAvailableAndWithinTolerance,
   strictExternalIntervalMatchCounts:
     envelope.baseEnvelope.strictExternalIntervalMatchCounts,
   strictFailureContextIds: envelope.baseEnvelope.strictFailureContextIds,

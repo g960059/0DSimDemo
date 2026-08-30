@@ -51,7 +51,8 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_V9_PRESSURE_RECOVERY_BASELINE_COMPARISON_C
     exactFrameMutation: false as const,
     acceptedStateOrCheckpointTopologyChanged: false as const,
     proximalPortPressure:
-      "accepted-Ao-reservoir-node-pressure-plus-moved-characteristic-resistance-times-AoV-flow" as const,
+      "exact-evaluator-owned-when-available-otherwise-accepted-Ao-reservoir-node-pressure-plus-moved-characteristic-resistance-times-AoV-flow" as const,
+    exactEvaluatorProximalPortPreferredWhenAvailable: true as const,
     rawNodeGradient:
       "accepted-LV-chamber-node-minus-Ao-reservoir-node-pressure" as const,
     exactValvePortGradient:
@@ -102,6 +103,8 @@ export type MainWireAorticOutflowV9PressureStationWaveformSampleV1 = Readonly<{
   algebraicProximalPortPressureMmHg: number;
   rawLvMinusReservoirNodeGradientMmHg: number;
   exactLvMinusProximalPortGradientMmHg: number;
+  exactEvaluatorProximalPortPressureMmHg: number | null;
+  exactEvaluatorPortReconstructionResidualMmHg: number | null;
   geometryRecoveredStaticAorticPressureMmHg: number | null;
   venaContractaStaticPressureReadbackMmHg: number | null;
 }>;
@@ -126,6 +129,8 @@ export type MainWireAorticOutflowV9ForwardStationSampleV1 = Readonly<{
   exactPortReconstructionResidualMmHg: number;
   rawNodeReconstructionResidualMmHg: number;
   algebraicProximalPortPressureMmHg: number;
+  exactEvaluatorProximalPortPressureMmHg: number | null;
+  exactEvaluatorPortReconstructionResidualMmHg: number | null;
   geometryRecoveredStaticAorticPressureMmHg: number;
   venaContractaStaticPressureReadbackMmHg: number;
   rawNodePressurePowerMmHgMlPerSec: number;
@@ -189,6 +194,11 @@ export type MainWireAorticOutflowV9PressureStationSummaryV1 = Readonly<{
   maximumAbsoluteResidualMmHg: Readonly<{
     exactPortReconstruction: number;
     rawNodeReconstruction: number;
+  }>;
+  exactEvaluatorProximalPortReadback: Readonly<{
+    availableSampleCount: number;
+    totalSampleCount: number;
+    maximumAbsoluteReconstructionResidualMmHg: number | null;
   }>;
   waveform: readonly MainWireAorticOutflowV9PressureStationWaveformSampleV1[];
 }>;
@@ -261,6 +271,7 @@ export function evaluateMainWireAorticOutflowV9ForwardStationSampleV1(
     rawNodeGradientMmHg: number;
     sourceValveLinearResistanceMmHgSecPerMl: number;
     proximalCharacteristicResistanceMmHgSecPerMl: number;
+    exactEvaluatorProximalPortPressureMmHg?: number;
     exactForwardPortMode:
       MainWireAorticOutflowV9PressureRecoveryBaselineArmV1["expectedExactForwardPort"];
   }>,
@@ -274,6 +285,12 @@ export function evaluateMainWireAorticOutflowV9ForwardStationSampleV1(
     input.sourceValveLinearResistanceMmHgSecPerMl,
     "sourceValveLinearResistanceMmHgSecPerMl",
   );
+  if (input.exactEvaluatorProximalPortPressureMmHg !== undefined) {
+    finite(
+      input.exactEvaluatorProximalPortPressureMmHg,
+      "exactEvaluatorProximalPortPressureMmHg",
+    );
+  }
   nonnegativeFinite(
     input.proximalCharacteristicResistanceMmHgSecPerMl,
     "proximalCharacteristicResistanceMmHgSecPerMl",
@@ -316,11 +333,24 @@ export function evaluateMainWireAorticOutflowV9ForwardStationSampleV1(
       === "full-vena-contracta-drop"
     ? fullVenaContractaPortGradientMmHg
     : recoveredStaticPortGradientMmHg;
-  const exactValvePortGradientMmHg = input.rawNodeGradientMmHg
-    - proximalCharacteristicPressureMmHg;
-  const algebraicProximalPortPressureMmHg =
+  const reconstructedAlgebraicProximalPortPressureMmHg =
     input.aorticReservoirNodePressureMmHg
     + proximalCharacteristicPressureMmHg;
+  const exactEvaluatorProximalPortPressureMmHg =
+    input.exactEvaluatorProximalPortPressureMmHg ?? null;
+  const algebraicProximalPortPressureMmHg =
+    exactEvaluatorProximalPortPressureMmHg
+      ?? reconstructedAlgebraicProximalPortPressureMmHg;
+  const exactEvaluatorPortReconstructionResidualMmHg =
+    exactEvaluatorProximalPortPressureMmHg === null
+      ? null
+      : exactEvaluatorProximalPortPressureMmHg
+        - reconstructedAlgebraicProximalPortPressureMmHg;
+  const exactValvePortGradientMmHg =
+    exactEvaluatorProximalPortPressureMmHg === null
+      ? input.rawNodeGradientMmHg - proximalCharacteristicPressureMmHg
+      : input.leftVentricularPressureMmHg
+        - exactEvaluatorProximalPortPressureMmHg;
   const geometryRecoveredStaticAorticPressureMmHg =
     input.leftVentricularPressureMmHg - recoveredStaticPortGradientMmHg;
   const venaContractaStaticPressureReadbackMmHg =
@@ -376,6 +406,8 @@ export function evaluateMainWireAorticOutflowV9ForwardStationSampleV1(
     exactPortReconstructionResidualMmHg,
     rawNodeReconstructionResidualMmHg,
     algebraicProximalPortPressureMmHg,
+    exactEvaluatorProximalPortPressureMmHg,
+    exactEvaluatorPortReconstructionResidualMmHg,
     geometryRecoveredStaticAorticPressureMmHg,
     venaContractaStaticPressureReadbackMmHg,
     rawNodePressurePowerMmHgMlPerSec,
@@ -673,6 +705,9 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
       rawNodeGradientMmHg: valve.pressureGradientMmHg,
       sourceValveLinearResistanceMmHgSecPerMl,
       proximalCharacteristicResistanceMmHgSecPerMl,
+      exactEvaluatorProximalPortPressureMmHg:
+        valve.recoveredRootPortExactReadback
+          ?.algebraicProximalConstitutivePortPressureMmHg,
       exactForwardPortMode,
     })];
   });
@@ -685,8 +720,15 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
     const reservoir = sample.circulationNodeAbsolutePressureMmHg.Ao;
     const characteristic =
       proximalCharacteristicResistanceMmHgSecPerMl * flow;
-    const port = reservoir + characteristic;
     const valve = sample.valveHydraulics.AoV;
+    const reconstructedPort = reservoir + characteristic;
+    const exactEvaluatorPort = valve.recoveredRootPortExactReadback
+      ?.algebraicProximalConstitutivePortPressureMmHg ?? null;
+    const port = exactEvaluatorPort ?? reconstructedPort;
+    const exactEvaluatorPortReconstructionResidualMmHg =
+      exactEvaluatorPort === null
+        ? null
+        : exactEvaluatorPort - reconstructedPort;
     let recovered: number | null = null;
     let venaContracta: number | null = null;
     if (flow > 0) {
@@ -698,6 +740,8 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
         rawNodeGradientMmHg: valve.pressureGradientMmHg,
         sourceValveLinearResistanceMmHgSecPerMl,
         proximalCharacteristicResistanceMmHgSecPerMl,
+        exactEvaluatorProximalPortPressureMmHg:
+          exactEvaluatorPort ?? undefined,
         exactForwardPortMode,
       });
       recovered = station.geometryRecoveredStaticAorticPressureMmHg;
@@ -713,6 +757,8 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
       algebraicProximalPortPressureMmHg: port,
       rawLvMinusReservoirNodeGradientMmHg: lv - reservoir,
       exactLvMinusProximalPortGradientMmHg: lv - port,
+      exactEvaluatorProximalPortPressureMmHg: exactEvaluatorPort,
+      exactEvaluatorPortReconstructionResidualMmHg,
       geometryRecoveredStaticAorticPressureMmHg: recovered,
       venaContractaStaticPressureReadbackMmHg: venaContracta,
     });
@@ -752,6 +798,10 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
     sample.aorticReservoirNodePressureMmHg));
   const peakPort = maximum(waveform.map((sample) =>
     sample.algebraicProximalPortPressureMmHg));
+  const exactEvaluatorPortResiduals = waveform.flatMap((sample) =>
+    sample.exactEvaluatorPortReconstructionResidualMmHg === null
+      ? []
+      : [sample.exactEvaluatorPortReconstructionResidualMmHg]);
   return Object.freeze({
     sourceValveLinearResistanceMmHgSecPerMl,
     proximalCharacteristicResistanceMmHgSecPerMl,
@@ -812,6 +862,14 @@ export function measureMainWireAorticOutflowV9PressureStationsV1(
       rawNodeReconstruction: maxField((sample) => Math.abs(
         sample.rawNodeReconstructionResidualMmHg,
       )),
+    }),
+    exactEvaluatorProximalPortReadback: Object.freeze({
+      availableSampleCount: exactEvaluatorPortResiduals.length,
+      totalSampleCount: waveform.length,
+      maximumAbsoluteReconstructionResidualMmHg:
+        exactEvaluatorPortResiduals.length === 0
+          ? null
+          : maximum(exactEvaluatorPortResiduals.map(Math.abs)),
     }),
     waveform,
   });

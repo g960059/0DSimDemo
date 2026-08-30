@@ -75,6 +75,9 @@ process.stdout.write(`${JSON.stringify({
     comparison.allResistanceReadbacksWithinTolerance,
   allExactPowerBalancesWithinTolerance:
     comparison.allExactPowerBalancesWithinTolerance,
+  v10ExactEvaluatorProximalPortReadbackAvailableAndWithinTolerance:
+    comparison
+      .v10ExactEvaluatorProximalPortReadbackAvailableAndWithinTolerance,
   v10CompatibilityDissipationMatchesReconstructedValveIrreversibleEnergy:
     comparison
       .v10CompatibilityDissipationMatchesReconstructedValveIrreversibleEnergy,

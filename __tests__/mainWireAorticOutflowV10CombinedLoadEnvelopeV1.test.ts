@@ -53,6 +53,28 @@ describe("main-wire V10 combined-load envelope V1", () => {
     expect(envelope.allValveDissipationLedgersWithinTolerance).toBe(true);
     expect(envelope.allStationReconstructionResidualsWithinTolerance)
       .toBe(true);
+    expect(
+      envelope
+        .allExactEvaluatorProximalPortReadbacksAvailableAndWithinTolerance,
+    ).toBe(true);
+    expect(envelope.baseEnvelope.diastolicRanges).toMatchObject({
+      isovolumicContractionTimeSec: {
+        minimum: expect.any(Number),
+        maximum: expect.any(Number),
+      },
+      leftVentricularTeiIndex: {
+        minimum: expect.any(Number),
+        maximum: expect.any(Number),
+      },
+      maximumPositiveLeftVentricularPressureRiseRateMmHgPerSec: {
+        minimum: expect.any(Number),
+        maximum: expect.any(Number),
+      },
+      maximumLeftVentricularPressureFallRateMagnitudeMmHgPerSec: {
+        minimum: expect.any(Number),
+        maximum: expect.any(Number),
+      },
+    });
     expect(envelope.stationRanges.meanLocalPortGradientMmHg.minimum)
       .toBeGreaterThan(0);
     expect(envelope.stationRanges.meanRawNodeGradientMmHg.minimum)

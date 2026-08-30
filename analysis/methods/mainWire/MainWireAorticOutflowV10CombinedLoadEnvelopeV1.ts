@@ -36,6 +36,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_V10_COMBINED_LOAD_ENVELOPE_ANALYSIS_CLAIM_
     pressureStationGradientAggregation:
       "arithmetic-mean-of-strictly-positive-accepted-AoV-flow-samples" as const,
     exactBeatAccumulatorZeroCrossingInterpolationUsed: false as const,
+    proximalPortUsesExactEvaluatorReadback: true as const,
     independentPeakComponentsAdditive: false as const,
     openingTargetAuditedAtLocalPortPressurePointwise: true as const,
     characteristicLoadExcludedFromValveDissipationPointwise: true as const,
@@ -93,6 +94,7 @@ export type MainWireAorticOutflowV10CombinedLoadEnvelopeV1 = Readonly<{
   allExactPowerBalancesWithinTolerance: boolean;
   allValveDissipationLedgersWithinTolerance: boolean;
   allStationReconstructionResidualsWithinTolerance: boolean;
+  allExactEvaluatorProximalPortReadbacksAvailableAndWithinTolerance: boolean;
   experimentClaim:
     typeof MAIN_WIRE_AORTIC_OUTFLOW_V10_COMBINED_LOAD_ENVELOPE_CLAIM_V1;
   analysisClaim:
@@ -188,6 +190,14 @@ export function measureMainWireAorticOutflowV10CombinedLoadEnvelopeV1(
         .exactPortReconstruction <= 1e-9
       && arm.pressureStations.maximumAbsoluteResidualMmHg
         .rawNodeReconstruction <= 1e-9),
+    allExactEvaluatorProximalPortReadbacksAvailableAndWithinTolerance:
+      stationArms.every((arm) => {
+        const readback =
+          arm.pressureStations.exactEvaluatorProximalPortReadback;
+        return readback.availableSampleCount === readback.totalSampleCount
+          && readback.maximumAbsoluteReconstructionResidualMmHg !== null
+          && readback.maximumAbsoluteReconstructionResidualMmHg <= 1e-12;
+      }),
     experimentClaim:
       MAIN_WIRE_AORTIC_OUTFLOW_V10_COMBINED_LOAD_ENVELOPE_CLAIM_V1,
     analysisClaim:

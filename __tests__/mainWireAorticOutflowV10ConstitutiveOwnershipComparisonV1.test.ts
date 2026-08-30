@@ -39,6 +39,10 @@ describe("main-wire V10 constitutive ownership comparison V1", () => {
     expect(comparison.allOwnedOpeningTargetsWithinTolerance).toBe(true);
     expect(comparison.allResistanceReadbacksWithinTolerance).toBe(true);
     expect(comparison.allExactPowerBalancesWithinTolerance).toBe(true);
+    expect(
+      comparison
+        .v10ExactEvaluatorProximalPortReadbackAvailableAndWithinTolerance,
+    ).toBe(true);
     expect(comparison
       .v10CompatibilityDissipationMatchesReconstructedValveIrreversibleEnergy)
       .toBe(true);

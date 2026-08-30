@@ -59,6 +59,7 @@ export const MAIN_WIRE_AORTIC_OUTFLOW_V10_CONSTITUTIVE_OWNERSHIP_COMPARISON_CLAI
     openingTargetAuditedPointwiseAtOwnedPressureStation: true as const,
     compatibilityResistanceReadbackAuditedPointwise: true as const,
     exactPowerBalanceResidualAuditedPointwise: true as const,
+    proximalPortUsesExactEvaluatorReadbackWhenOwned: true as const,
     pressureStationGradientAggregation:
       "arithmetic-mean-of-strictly-positive-accepted-AoV-flow-samples" as const,
     exactBeatAccumulatorZeroCrossingInterpolationUsed: false as const,
@@ -152,6 +153,7 @@ export type MainWireAorticOutflowV10ConstitutiveOwnershipComparisonV1 =
     allOwnedOpeningTargetsWithinTolerance: boolean;
     allResistanceReadbacksWithinTolerance: boolean;
     allExactPowerBalancesWithinTolerance: boolean;
+    v10ExactEvaluatorProximalPortReadbackAvailableAndWithinTolerance: boolean;
     v10CompatibilityDissipationMatchesReconstructedValveIrreversibleEnergy:
       boolean;
     experimentClaim:
@@ -211,6 +213,15 @@ export function compareMainWireAorticOutflowV10ConstitutiveOwnershipV1(
     allExactPowerBalancesWithinTolerance: arms.every((arm) =>
       arm.constitutiveAudit.maximumAbsolutePowerBalanceResidualMmHgMlPerSec
         <= 1e-7),
+    v10ExactEvaluatorProximalPortReadbackAvailableAndWithinTolerance:
+      v10.pressureStations.exactEvaluatorProximalPortReadback
+        .availableSampleCount
+        === v10.pressureStations.exactEvaluatorProximalPortReadback
+          .totalSampleCount
+      && v10.pressureStations.exactEvaluatorProximalPortReadback
+        .maximumAbsoluteReconstructionResidualMmHg !== null
+      && v10.pressureStations.exactEvaluatorProximalPortReadback
+        .maximumAbsoluteReconstructionResidualMmHg <= 1e-12,
     v10CompatibilityDissipationMatchesReconstructedValveIrreversibleEnergy:
       Math.abs(
         v10.constitutiveAudit

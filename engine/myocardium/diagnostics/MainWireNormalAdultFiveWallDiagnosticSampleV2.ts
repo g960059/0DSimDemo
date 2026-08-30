@@ -33,6 +33,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM =
     acceptedStepReadbackOnly: true as const,
     emitsAuthoritativeCommonIntrathoracicPressure: true as const,
     emitsCompleteCirculationNodeAndEdgeReadback: true as const,
+    emitsRecoveredRootPortExactReadbackWhenOwned: true as const,
     addsDynamicState: false as const,
     changesFixedV1RunnerJson: false as const,
   });
@@ -100,6 +101,16 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
         /** Compatibility alias for V2 dissipativePowerMmHgMlPerSec. */
         dissipativePowerProxyMmHgMlPerSec: number;
         powerBalanceResidualMmHgMlPerSec: number;
+        /** Present only when the exact AoV evaluator owns the recovered port. */
+        recoveredRootPortExactReadback?: Readonly<{
+          openingDrivePressureStation:
+            "LV-minus-proximal-constitutive-port";
+          aorticComplianceNodePressureMmHg: number;
+          characteristicImpedancePressureMmHg: number;
+          algebraicProximalConstitutivePortPressureMmHg: number;
+          localValvePressureGradientMmHg: number;
+          recoveredStaticPressureMmHg: number;
+        }>;
       }>
     >>;
   }>;
@@ -147,6 +158,23 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
     valveHydraulics: Object.freeze(Object.fromEntries(
       (["MV", "AoV", "TV", "PV"] as const).map((valveId) => {
         const valve = circulation.valveEvaluations[valveId];
+        const recoveredRootPortExactReadback =
+          valveId === "AoV"
+            && "algebraicProximalConstitutivePortPressureMmHg" in valve
+          ? Object.freeze({
+            openingDrivePressureStation: valve.openingDrivePressureStation,
+            aorticComplianceNodePressureMmHg:
+              valve.aorticComplianceNodePressureMmHg,
+            characteristicImpedancePressureMmHg:
+              valve.characteristicImpedancePressureMmHg,
+            algebraicProximalConstitutivePortPressureMmHg:
+              valve.algebraicProximalConstitutivePortPressureMmHg,
+            localValvePressureGradientMmHg:
+              valve.localValvePressureGradientMmHg,
+            recoveredStaticPressureMmHg:
+              valve.recoveredStaticPressureMmHg,
+          })
+          : undefined;
         return [valveId, Object.freeze({
           physicalAreaCm2: valve.activeEoaCm2,
           forwardActiveEoaCm2: valve.forwardActiveEoaCm2,
@@ -171,6 +199,9 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
             valve.dissipativePowerMmHgMlPerSec,
           powerBalanceResidualMmHgMlPerSec:
             valve.powerBalanceResidualMmHgMlPerSec,
+          ...(recoveredRootPortExactReadback === undefined
+            ? {}
+            : { recoveredRootPortExactReadback }),
         })];
       }),
     )) as MainWireNormalAdultFiveWallDiagnosticSampleV2["valveHydraulics"],
