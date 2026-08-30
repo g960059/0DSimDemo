@@ -127,19 +127,38 @@ const OUTPUT_PRESENTATION_V1: Readonly<
 > = Object.freeze({
   "presentation.pressure-summary.Ao": {
     category: "hemodynamics",
-    label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
+    label: textV1(
+      "Aortic compliance-node pressure (Ao node)",
+      "大動脈コンプライアンス節点圧 (Ao node)",
+    ),
     description: textV1(
-      "Systolic and diastolic aortic-root pressure with the time mean in parentheses",
-      "大動脈基部圧の最大値／最小値と括弧内の時間平均",
+      "Maximum and minimum pressure at the lumped aortic compliance node, with the time mean in parentheses",
+      "集中定数大動脈コンプライアンス節点圧の最大値／最小値と括弧内の時間平均",
     ),
     aliases: [
       "AoP",
-      "central blood pressure",
-      "central SBP",
-      "central DBP",
-      "central MAP",
-      "大動脈圧",
-      "中心血圧",
+      "Ao node",
+      "aortic compliance node",
+      "大動脈節点圧",
+      "大動脈コンプライアンス節点",
+    ],
+  },
+  "hemodynamics.pressure.absolute.Ao": {
+    category: "hemodynamics",
+    label: textV1(
+      "Aortic compliance-node pressure",
+      "大動脈コンプライアンス節点圧",
+    ),
+    description: textV1(
+      "Instantaneous pressure at the lumped aortic compliance node",
+      "集中定数大動脈コンプライアンス節点における瞬時圧",
+    ),
+    aliases: [
+      "AoP",
+      "Ao node",
+      "aortic compliance node",
+      "大動脈節点圧",
+      "大動脈コンプライアンス節点",
     ],
   },
   "presentation.pressure-summary.SA": {
@@ -180,30 +199,83 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "hemodynamics.pressure.systolic.Ao": {
     category: "hemodynamics",
-    label: textV1("Aortic pressure (AoP max)", "大動脈圧 (AoP max)"),
-    description: textV1(
-      "Maximum aortic-root pressure during the accepted beat",
-      "解析対象となる1心拍における大動脈基部圧の最大値",
+    label: textV1(
+      "Maximum aortic compliance-node pressure",
+      "大動脈コンプライアンス節点圧（最大）",
     ),
-    aliases: ["AoP", "AoP max", "central SBP", "大動脈圧", "収縮期圧"],
+    description: textV1(
+      "Maximum pressure at the lumped aortic compliance node during the accepted beat",
+      "解析対象となる1心拍における集中定数大動脈コンプライアンス節点圧の最大値",
+    ),
+    aliases: ["AoP", "AoP max", "Ao node max", "大動脈節点圧"],
   },
   "hemodynamics.pressure.diastolic.Ao": {
     category: "hemodynamics",
-    label: textV1("Aortic pressure (AoP min)", "大動脈圧 (AoP min)"),
-    description: textV1(
-      "Minimum aortic-root pressure during the accepted beat",
-      "解析対象となる1心拍における大動脈基部圧の最小値",
+    label: textV1(
+      "Minimum aortic compliance-node pressure",
+      "大動脈コンプライアンス節点圧（最小）",
     ),
-    aliases: ["AoP", "AoP min", "central DBP", "大動脈圧", "拡張期圧"],
+    description: textV1(
+      "Minimum pressure at the lumped aortic compliance node during the accepted beat",
+      "解析対象となる1心拍における集中定数大動脈コンプライアンス節点圧の最小値",
+    ),
+    aliases: ["AoP", "AoP min", "Ao node min", "大動脈節点圧"],
   },
   "hemodynamics.pressure.mean.Ao": {
     category: "hemodynamics",
-    label: textV1("Mean aortic pressure (AoP mean)", "平均大動脈圧 (AoP mean)"),
-    description: textV1(
-      "Time-mean aortic-root pressure over the accepted beat",
-      "解析対象となる1心拍における大動脈基部圧の時間平均",
+    label: textV1(
+      "Mean aortic compliance-node pressure",
+      "平均大動脈コンプライアンス節点圧",
     ),
-    aliases: ["AoP", "AoP mean", "central MAP", "大動脈圧", "平均圧"],
+    description: textV1(
+      "Time-mean pressure at the lumped aortic compliance node over the accepted beat",
+      "解析対象となる1心拍における集中定数大動脈コンプライアンス節点圧の時間平均",
+    ),
+    aliases: ["AoP", "AoP mean", "Ao node mean", "大動脈節点圧"],
+  },
+  "hemodynamics.pressure.pulse.Ao": {
+    category: "hemodynamics",
+    label: textV1(
+      "Aortic compliance-node pulse pressure",
+      "大動脈コンプライアンス節点脈圧",
+    ),
+    description: textV1(
+      "Maximum minus minimum pressure at the lumped aortic compliance node during the accepted beat",
+      "解析対象となる1心拍における集中定数大動脈コンプライアンス節点圧の最大値と最小値の差",
+    ),
+    aliases: ["AoP pulse", "Ao node pulse pressure", "大動脈節点脈圧"],
+  },
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "Mean LV–aortic compliance-node pressure difference",
+      "平均LV–大動脈コンプライアンス節点圧差",
+    ),
+    description: textV1(
+      "Time mean of LV pressure minus aortic compliance-node pressure during forward aortic-valve flow; this node-to-node quantity is not pressure-recovery-corrected to a defined downstream station or separated into recoverable and irreversible components",
+      "大動脈弁前方流中のLV圧と大動脈コンプライアンス節点圧との差の時間平均で、定義済み下流stationへの圧回復補正や可逆成分と不可逆成分の分離は行っていない",
+    ),
+    aliases: [
+      "LV Ao node mean pressure difference",
+      "raw LV Ao node difference",
+      "平均LV 大動脈節点圧差",
+    ],
+  },
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "Peak LV–aortic compliance-node pressure difference",
+      "最大LV–大動脈コンプライアンス節点圧差",
+    ),
+    description: textV1(
+      "Peak LV pressure minus aortic compliance-node pressure during forward aortic-valve flow; this node-to-node quantity is not pressure-recovery-corrected to a defined downstream station or separated into recoverable and irreversible components",
+      "大動脈弁前方流中のLV圧と大動脈コンプライアンス節点圧との差の最大値で、定義済み下流stationへの圧回復補正や可逆成分と不可逆成分の分離は行っていない",
+    ),
+    aliases: [
+      "LV Ao node peak pressure difference",
+      "raw LV Ao node difference",
+      "最大LV 大動脈節点圧差",
+    ],
   },
   "hemodynamics.pressure.systolic.SA": {
     category: "hemodynamics",

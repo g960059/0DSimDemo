@@ -199,7 +199,7 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.transmural.LV": "LV transmural pressure",
   "hemodynamics.pressure.transmural.RA": "RA transmural pressure",
   "hemodynamics.pressure.transmural.RV": "RV transmural pressure",
-  "hemodynamics.pressure.absolute.Ao": "Aortic-root pressure",
+  "hemodynamics.pressure.absolute.Ao": "Aortic compliance-node pressure",
   "hemodynamics.pressure.absolute.SA": "Systemic arterial pressure",
   "hemodynamics.pressure.absolute.PA": "Pulmonary arterial pressure",
   "hemodynamics.pressure.absolute.PVein": "Pulmonary venous pressure",
@@ -266,10 +266,13 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "coronary.power.dissipated.total": "Total coronary dissipated power",
   "device.LVAD.flow": "LVAD flow",
   "rhythm.phase.regular-sinus": "Sinus cycle phase",
-  "hemodynamics.pressure.mean.Ao": "Mean aortic-root pressure",
-  "hemodynamics.pressure.systolic.Ao": "Systolic aortic-root pressure",
-  "hemodynamics.pressure.diastolic.Ao": "Diastolic aortic-root pressure",
-  "hemodynamics.pressure.pulse.Ao": "Aortic-root pulse pressure",
+  "hemodynamics.pressure.mean.Ao": "Mean aortic compliance-node pressure",
+  "hemodynamics.pressure.systolic.Ao":
+    "Maximum aortic compliance-node pressure",
+  "hemodynamics.pressure.diastolic.Ao":
+    "Minimum aortic compliance-node pressure",
+  "hemodynamics.pressure.pulse.Ao":
+    "Aortic compliance-node pulse pressure",
   "hemodynamics.pressure.mean.SA": "Mean systemic arterial pressure (MAP)",
   "hemodynamics.pressure.systolic.SA":
     "Systemic arterial systolic pressure (SBP)",
@@ -349,6 +352,10 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
       ],
     ]),
   ),
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV":
+    "Mean LV–aortic compliance-node pressure difference",
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV":
+    "Peak LV–aortic compliance-node pressure difference",
   "hemodynamics.valve-volume.net.AoV":
     "Effective LV forward stroke volume (AoV net)",
   "hemodynamics.valve-volume.net.PV":
@@ -810,7 +817,7 @@ export function graphSeriesLabelV3(seriesId: string): string {
   const labels: Readonly<Record<string, string>> = {
     LVP: "LVP",
     LAP: "LAP",
-    AoP: "AoP",
+    AoP: "Ao compliance node",
     SAP: "Systemic arterial pressure",
     RAP: "RAP",
     RVP: "RVP",

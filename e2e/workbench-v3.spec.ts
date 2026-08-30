@@ -961,10 +961,18 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   ).first();
   const outputGroupToggle = outputGroup.locator("button[aria-expanded]");
   await expect(outputGroupToggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
+  await expect(
+    page.getByText("大動脈コンプライアンス節点圧 (Ao node)", {
+      exact: true,
+    }),
+  )
     .toBeVisible();
   await outputGroupToggle.click();
-  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
+  await expect(
+    page.getByText("大動脈コンプライアンス節点圧 (Ao node)", {
+      exact: true,
+    }),
+  )
     .toBeHidden();
   await outputGroupToggle.click();
   await taskDeck.getByRole("tab", { name: "Scenario" }).click();

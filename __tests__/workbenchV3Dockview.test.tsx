@@ -41,7 +41,9 @@ import {
 } from "@/components/workbench/WorkbenchSessionPolicy";
 import {
   createDefaultExperimentSurfaceV3,
+  graphSeriesLabelV3,
   isWorkbenchGraphTraceExcludedV3,
+  outputLabelV3,
   reconcileWorkbenchSurfaceScenariosV3,
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
@@ -206,6 +208,39 @@ describe("V3 Dockview Workbench", () => {
     expect(work.aliases).toContain("stroke work");
   });
 
+  it("keeps the aortic compliance node distinct from a clinical valve gradient", () => {
+    const absoluteAo = resolveStudioItemPresentationV1({
+      kind: "output",
+      itemId: "hemodynamics.pressure.absolute.Ao",
+      fallbackEnglishLabel: outputLabelV3(
+        "hemodynamics.pressure.absolute.Ao",
+      ),
+      locale: "en",
+    });
+    const rawMeanDifference = resolveStudioItemPresentationV1({
+      kind: "output",
+      itemId:
+        "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+      fallbackEnglishLabel: outputLabelV3(
+        "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+      ),
+      locale: "en",
+    });
+
+    expect(absoluteAo.label).toContain("compliance-node");
+    expect(rawMeanDifference.label).toContain("compliance-node");
+    expect(rawMeanDifference.description).toContain(
+      "not pressure-recovery-corrected",
+    );
+    expect(rawMeanDifference.aliases).not.toContain("mPG");
+    expect(rawMeanDifference.aliases).not.toContain("Doppler");
+    expect(outputLabelV3(absoluteAo.itemId)).toContain("compliance-node");
+    expect(outputLabelV3(rawMeanDifference.itemId)).toContain(
+      "compliance-node",
+    );
+    expect(graphSeriesLabelV3("AoP")).toBe("Ao compliance node");
+  });
+
   it("resolves complete picker metadata for every registered output and control", async () => {
     const { contract } = (await loadStudioDefaultClientCompositionV2())
       .modelSurface;
@@ -360,7 +395,7 @@ describe("V3 Dockview Workbench", () => {
     );
 
     expect(aorticPressure).toMatchObject({
-      label: "大動脈圧 (AoP)",
+      label: "大動脈コンプライアンス節点圧 (Ao node)",
       displayValue: "94.6/63.8(73.1)",
       unit: "mmHg",
       availability: "available",
