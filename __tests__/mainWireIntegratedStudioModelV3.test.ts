@@ -53,9 +53,18 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import { resolveExactModelControlValueV1 } from
@@ -87,7 +96,7 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
-  it("resolves controls only for the current exact model and fixture ABI", () => {
+  it("resolves controls only for registered exact model and fixture pairs", () => {
     const projection = resolveRegisteredExactModelFixtureProjectionV1(
       {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -165,6 +174,52 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         fixtureSchemaId: "fixture/retired-v1",
       },
     )).toThrow(/No exact fixture projection is registered/);
+
+    const selectedProjection = resolveRegisteredExactModelFixtureProjectionV1({
+      modelId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+      fixtureSchemaId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+    });
+    const selectedFixture = {
+      ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+      hemodynamicResearchInputs: {
+        ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1
+          .hemodynamicResearchInputs,
+        heartRateBpm: 72,
+      },
+    };
+    expect(selectedProjection.controlValue(
+      selectedFixture,
+      "rhythm.heart-rate-bpm",
+    )).toEqual({ status: "value", value: 72 });
+    expect(selectedProjection.controlValue(
+      selectedFixture,
+      "hemodynamics.systemic-resistance",
+    )).toEqual({ status: "unsupported" });
+
+    for (const crossPair of [
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+      },
+      {
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        fixtureSchemaId:
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
+      },
+      {
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        fixtureSchemaId: "fixture/unknown-selected-v1",
+      },
+    ]) {
+      expect(() => resolveRegisteredExactModelFixtureProjectionV1(crossPair))
+        .toThrow(/No exact fixture projection is registered/);
+    }
   });
 
   it("keeps the exact current frame identical to the accepted batch boundary", async () => {
