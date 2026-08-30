@@ -17,6 +17,7 @@ export {
   LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID,
   LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1,
   LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1_ID,
+  LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1,
   LAND2017_SOURCE_DOI,
   LAND2017_SOURCE_ID,
   deriveLand2017DerivedParameters,
@@ -27,7 +28,15 @@ export {
   type Land2017RuntimeParameters,
   type Land2017SourceParameterProvenance,
   type Land2017SourceParameterSet,
+  type Land2017StrongBridgeDeactivationExitV1,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
+export {
+  evaluateLand2017StrongBridgeDeactivationExitRateTermsV1,
+  evaluateLand2017StrongBridgeDeactivationExitTermsV1,
+  land2017ZeroDistortionStrongToWeakRatioV1,
+  type Land2017StrongBridgeDeactivationExitRateTermsV1,
+  type Land2017StrongBridgeDeactivationExitTermsV1,
+} from "@/engine/myocardium/myofilament/land2017/strongBridgeDeactivationExitV1";
 export {
   evaluateLand2017AlgebraicTerms,
   LAND2017_EQ48_CA_TRPN_UNBLOCKING_FACTOR_LIMIT,

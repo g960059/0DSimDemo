@@ -10,6 +10,9 @@ import type {
   Land2017SourceParameterSet,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
+import {
+  evaluateLand2017StrongBridgeDeactivationExitTermsV1,
+} from "@/engine/myocardium/myofilament/land2017/strongBridgeDeactivationExitV1";
 import { requireFiniteNumber } from "@/engine/myocardium/units";
 
 export type Land2017AlgebraicTerms = {
@@ -64,7 +67,18 @@ export function writeLand2017Rhs(
     p.kuw * terms.U - d.kwu * W - p.kws * W - terms.gammawu * W;
 
   // Eq 50.
-  out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S;
+  if (parameterSet.strongBridgeDeactivationExit === undefined) {
+    out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S;
+  } else {
+    const deactivationExit =
+      evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+        state,
+        parameterSet,
+      );
+    out[LAND2017_STATE_INDEX.S] =
+      p.kws * W - d.ksu * S - terms.gammasu * S
+      - deactivationExit.populationFluxPerSec;
+  }
 
   // Eq 51.
   out[LAND2017_STATE_INDEX.zetaW] = d.Aw * lambdaDot - d.cw * zetaW;

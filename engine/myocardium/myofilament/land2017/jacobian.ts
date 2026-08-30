@@ -10,6 +10,9 @@ import {
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
+  evaluateLand2017StrongBridgeDeactivationExitTermsV1,
+} from "@/engine/myocardium/myofilament/land2017/strongBridgeDeactivationExitV1";
+import {
   LAND2017_STATE_INDEX,
   LAND2017_STATE_SIZE,
   assertLand2017StateVectorLength,
@@ -182,6 +185,34 @@ export function writeLand2017BackwardEulerResidualJacobian(
     dt,
     -S * land2017GammaSuDerivative(zetaS, p),
   );
+  if (parameterSet.strongBridgeDeactivationExit !== undefined) {
+    const deactivationExit =
+      evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+        next,
+        parameterSet,
+      );
+    subtractRhsDerivative(
+      outJacobian,
+      LAND2017_STATE_INDEX.S,
+      LAND2017_STATE_INDEX.CaTRPN,
+      dt,
+      -deactivationExit.derivativeByCaTRPNPerSec,
+    );
+    subtractRhsDerivative(
+      outJacobian,
+      LAND2017_STATE_INDEX.S,
+      LAND2017_STATE_INDEX.W,
+      dt,
+      -deactivationExit.derivativeByWeakPopulationPerSec,
+    );
+    subtractRhsDerivative(
+      outJacobian,
+      LAND2017_STATE_INDEX.S,
+      LAND2017_STATE_INDEX.S,
+      dt,
+      -deactivationExit.derivativeByStrongPopulationPerSec,
+    );
+  }
 
   // Eq 51.
   subtractRhsDerivative(outJacobian, LAND2017_STATE_INDEX.zetaW, LAND2017_STATE_INDEX.zetaW, dt, -d.cw);
