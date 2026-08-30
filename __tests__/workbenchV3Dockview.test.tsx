@@ -45,9 +45,11 @@ import {
   isWorkbenchGraphTraceExcludedV3,
   outputLabelV3,
   reconcileWorkbenchSurfaceScenariosV3,
+  resolveWorkbenchGraphSeriesLabelV3,
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
+  shouldShowAorticPressureStationNoticeV3,
   WORKBENCH_GRAPH_PANE_OPTIONS_V3,
   workbenchGraphPaneOptionsForContractV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -67,6 +69,7 @@ import {
   WorkbenchPaneBindingModeSelectorV3,
 } from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
+  ExperimentGraphPresentationV3,
   ExperimentOutputGridV3,
   formatExperimentOutputValueV3,
   formatExperimentPressureSummaryV3,
@@ -209,6 +212,12 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("keeps the aortic compliance node distinct from a clinical valve gradient", () => {
+    const absoluteLv = resolveStudioItemPresentationV1({
+      kind: "output",
+      itemId: "hemodynamics.pressure.absolute.LV",
+      fallbackEnglishLabel: outputLabelV3("hemodynamics.pressure.absolute.LV"),
+      locale: "en",
+    });
     const absoluteAo = resolveStudioItemPresentationV1({
       kind: "output",
       itemId: "hemodynamics.pressure.absolute.Ao",
@@ -227,6 +236,8 @@ describe("V3 Dockview Workbench", () => {
       locale: "en",
     });
 
+    expect(absoluteLv.label).toBe("LV absolute cavity pressure");
+    expect(absoluteLv.description).toContain("lumped LV cavity");
     expect(absoluteAo.label).toContain("compliance-node");
     expect(rawMeanDifference.label).toContain("compliance-node");
     expect(rawMeanDifference.description).toContain(
@@ -239,6 +250,23 @@ describe("V3 Dockview Workbench", () => {
       "compliance-node",
     );
     expect(graphSeriesLabelV3("AoP")).toBe("Ao compliance node");
+    expect(graphSeriesLabelV3("LVP")).toBe("LV absolute cavity pressure");
+  });
+
+  it("shows a persistent pressure-station annotation outside the graph tooltip", () => {
+    const annotation =
+      "Ao is the lumped compliance-node pressure; LV–Ao is not a clinical AV gradient.";
+    const markup = renderToStaticMarkup(
+      <ExperimentGraphPresentationV3 variant="pane" annotation={annotation}>
+        <div>graph</div>
+      </ExperimentGraphPresentationV3>,
+    );
+
+    expect(markup).toContain(
+      'data-experiment-graph-annotation="pressure-stations"',
+    );
+    expect(markup).toContain(annotation);
+    expect(markup).not.toContain(`title="${annotation}"`);
   });
 
   it("resolves complete picker metadata for every registered output and control", async () => {
@@ -335,6 +363,7 @@ describe("V3 Dockview Workbench", () => {
           {
             itemId: "hemodynamics.ejection-fraction.LV-event-defined",
             label: "LVEF",
+            description: "Event-defined LV ejection fraction",
             value: 0.604,
             unit: "1",
             significantDigits: 3,
@@ -347,6 +376,7 @@ describe("V3 Dockview Workbench", () => {
     expect(markup.indexOf("LVEF")).toBeLessThan(markup.indexOf("項目を追加"));
     expect(markup).toContain("60.4");
     expect(markup).toContain("%</span>");
+    expect(markup).toContain('title="Event-defined LV ejection fraction"');
   });
 
   it("renders pressure triplets as one clinical pane item", async () => {
@@ -396,6 +426,7 @@ describe("V3 Dockview Workbench", () => {
 
     expect(aorticPressure).toMatchObject({
       label: "大動脈コンプライアンス節点圧 (Ao node)",
+      description: expect.stringContaining("集中定数"),
       displayValue: "94.6/63.8(73.1)",
       unit: "mmHg",
       availability: "available",
@@ -814,6 +845,59 @@ describe("V3 Dockview Workbench", () => {
       "priority",
       "role",
     ]);
+  });
+
+  it("migrates only known AoP and LVP default labels while preserving custom graph labels", async () => {
+    const { contract } = (await loadStudioDefaultClientCompositionV2())
+      .modelSurface;
+    const original = createDefaultExperimentSurfaceV3(contract, "scenario/a");
+    const pressurePane = original.graphPanes.find(
+      ({ graphId }) =>
+        graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
+    )!;
+    const legacyPressurePane = {
+      ...pressurePane,
+      series: pressurePane.series.map((series) => ({
+        ...series,
+        label:
+          series.seriesId === "LAP" ? "Custom atrial station" : series.seriesId,
+      })),
+    };
+    const legacySurface = {
+      ...original,
+      graphPanes: original.graphPanes.map((pane) =>
+        pane.paneId === legacyPressurePane.paneId ? legacyPressurePane : pane,
+      ),
+    };
+
+    const migrated = reconcileWorkbenchSurfaceScenariosV3(legacySurface, [
+      { scenarioId: "scenario/a" },
+    ]);
+    const labels = Object.fromEntries(
+      migrated.graphPanes
+        .find(({ paneId }) => paneId === legacyPressurePane.paneId)!
+        .series.map(({ seriesId, label }) => [seriesId, label]),
+    );
+
+    expect(labels).toMatchObject({
+      AoP: "Ao compliance node",
+      LVP: "LV absolute cavity pressure",
+      LAP: "Custom atrial station",
+    });
+    expect(resolveWorkbenchGraphSeriesLabelV3("LVP", "Custom LV")).toBe(
+      "Custom LV",
+    );
+    expect(shouldShowAorticPressureStationNoticeV3(legacyPressurePane)).toBe(
+      true,
+    );
+    expect(
+      shouldShowAorticPressureStationNoticeV3({
+        ...legacyPressurePane,
+        series: legacyPressurePane.series.filter(
+          ({ seriesId }) => seriesId !== "AoP",
+        ),
+      }),
+    ).toBe(false);
   });
 
   it("marks a new Workbench dirty until its first durable Save", () => {

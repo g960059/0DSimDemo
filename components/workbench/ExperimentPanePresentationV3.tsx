@@ -9,6 +9,7 @@ import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
   label: string;
+  description?: string;
   value: number | null;
   /** Presentation-only composition over one or more atomic numerical outputs. */
   displayValue?: string;
@@ -31,6 +32,7 @@ export type ExperimentPaneAddItemActionV3 = Readonly<{
  * visual surface so both contexts retain identical theme and spacing rules.
  */
 export function ExperimentGraphPresentationV3({
+  annotation,
   canvasClassName = "",
   children,
   className = "",
@@ -38,6 +40,7 @@ export function ExperimentGraphPresentationV3({
   variant,
   ...figureProps
 }: Readonly<{
+  annotation?: string;
   canvasClassName?: string;
   children: React.ReactNode;
   label?: string;
@@ -46,7 +49,9 @@ export function ExperimentGraphPresentationV3({
   Omit<React.HTMLAttributes<HTMLElement>, "children">) {
   const figureClassName =
     variant === "pane"
-      ? "h-full min-h-0 min-w-0 bg-wb-canvas p-3"
+      ? `h-full min-h-0 min-w-0 bg-wb-canvas p-3 ${
+          annotation === undefined ? "" : "flex flex-col"
+        }`
       : "min-w-0 rounded-xl bg-wb-canvas p-3 sm:p-4";
   return (
     <figure
@@ -59,7 +64,22 @@ export function ExperimentGraphPresentationV3({
           {label}
         </figcaption>
       )}
-      <div className={canvasClassName}>{children}</div>
+      {annotation !== undefined && (
+        <p
+          className="mb-2 shrink-0 text-[11px] leading-4 text-wb-muted"
+          data-experiment-graph-annotation="pressure-stations"
+          role="note"
+        >
+          {annotation}
+        </p>
+      )}
+      <div
+        className={`${annotation === undefined ? "" : "min-h-0 flex-1"} ${
+          canvasClassName
+        }`.trim()}
+      >
+        {children}
+      </div>
     </figure>
   );
 }
@@ -106,6 +126,7 @@ export function ExperimentOutputGridV3({
             className={`workbench-output-item min-w-0 ${itemClassName}`}
             data-output-availability={item.availability ?? "unavailable"}
             data-output-quality={item.quality ?? "not-assessed"}
+            title={item.description}
           >
             <p className="workbench-output-label truncate">{item.label}</p>
             <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums">

@@ -125,6 +125,15 @@ const CONTROL_PRESENTATION_V1: Readonly<
 const OUTPUT_PRESENTATION_V1: Readonly<
   Record<string, StudioItemPresentationDraftV1>
 > = Object.freeze({
+  "hemodynamics.pressure.absolute.LV": {
+    category: "hemodynamics",
+    label: textV1("LV absolute cavity pressure", "左室内絶対圧"),
+    description: textV1(
+      "Instantaneous absolute pressure in the lumped LV cavity",
+      "集中定数左室内腔における瞬時絶対圧",
+    ),
+    aliases: ["LVP", "LV pressure", "left ventricular pressure", "左室圧"],
+  },
   "presentation.pressure-summary.Ao": {
     category: "hemodynamics",
     label: textV1(

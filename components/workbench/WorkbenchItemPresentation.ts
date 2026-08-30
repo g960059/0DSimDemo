@@ -36,19 +36,36 @@ export function resolveWorkbenchPaneItemLabelV3(
     locale: "en" | "ja";
   }>,
 ): string {
-  const legacyDefaultLabel = input.kind === "output"
-    ? outputLabelV3(input.itemId)
-    : controlLabelV3(input.itemId);
+  return resolveWorkbenchPaneItemPresentationV3(input).label;
+}
+
+function resolveWorkbenchPaneItemPresentationV3(
+  input: Readonly<{
+    kind: "control" | "output";
+    itemId: string;
+    storedLabel: string | undefined;
+    locale: "en" | "ja";
+    catalogFacts?: Readonly<{ outputKind?: string }>;
+  }>,
+): Readonly<{ label: string; description: string }> {
+  const legacyDefaultLabel =
+    input.kind === "output"
+      ? outputLabelV3(input.itemId)
+      : controlLabelV3(input.itemId);
   const presentation = resolveStudioItemPresentationV1({
     kind: input.kind,
     itemId: input.itemId,
     fallbackEnglishLabel: legacyDefaultLabel,
     locale: input.locale,
+    catalogFacts: input.catalogFacts,
   });
-  return resolveStudioSurfaceItemLabelV1({
-    storedLabel: input.storedLabel,
-    legacyDefaultLabel,
-    presentation,
+  return Object.freeze({
+    label: resolveStudioSurfaceItemLabelV1({
+      storedLabel: input.storedLabel,
+      legacyDefaultLabel,
+      presentation,
+    }),
+    description: presentation.description,
   });
 }
 
@@ -164,14 +181,16 @@ export function materializeWorkbenchOutputPresentationItemsV3(
         locale: input.locale,
         fallbackEnglishLabel: outputLabelV3,
       });
+      const presentation = resolveWorkbenchPaneItemPresentationV3({
+        kind: "output",
+        itemId: summary.presentationId,
+        storedLabel,
+        locale: input.locale,
+      });
       result.push({
         itemId: summary.presentationId,
-        label: resolveWorkbenchPaneItemLabelV3({
-          kind: "output",
-          itemId: summary.presentationId,
-          storedLabel,
-          locale: input.locale,
-        }),
+        label: presentation.label,
+        description: presentation.description,
         value: null,
         displayValue: formatExperimentPressureSummaryV3({
           maximum,
@@ -206,14 +225,17 @@ export function materializeWorkbenchOutputPresentationItemsV3(
           input.periodicPvaAnalysisError,
         )
       : undefined;
+    const presentation = resolveWorkbenchPaneItemPresentationV3({
+      kind: "output",
+      itemId: item.outputId,
+      storedLabel: item.label,
+      locale: input.locale,
+      catalogFacts: { outputKind: definition.kind },
+    });
     result.push({
       itemId: item.outputId,
-      label: resolveWorkbenchPaneItemLabelV3({
-        kind: "output",
-        itemId: item.outputId,
-        storedLabel: item.label,
-        locale: input.locale,
-      }),
+      label: presentation.label,
+      description: presentation.description,
       value: scalarAvailableOutputV3(outputValue),
       unit: definition.unit,
       significantDigits: definition.significantDigits,

@@ -6,7 +6,9 @@ import { ExperimentGraphPresentationV3 } from "@/components/workbench/Experiment
 import {
   WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3,
   isWorkbenchGraphTraceExcludedV3,
+  resolveWorkbenchGraphSeriesLabelV3,
   resolveWorkbenchGraphScenarioIdsV3,
+  shouldShowAorticPressureStationNoticeV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   GuytonStarlingComparisonCanvasV3,
@@ -228,6 +230,7 @@ function SampledGraphPaneBodyV3({
   surface: ExperimentSurfaceV2;
   visibleScenarioIds: readonly string[];
 }>) {
+  const { t } = useTranslation();
   const { appTheme } = useAppTheme();
   const graphPresentation = useWorkbenchSampledGraphPresentationSamplesV3(
     sampleStore,
@@ -248,7 +251,17 @@ function SampledGraphPaneBodyV3({
   const displayedSeries = React.useMemo(
     () =>
       Object.freeze(
-        [...pane.series].sort((left, right) => left.order - right.order),
+        [...pane.series]
+          .sort((left, right) => left.order - right.order)
+          .map((series) =>
+            Object.freeze({
+              ...series,
+              label: resolveWorkbenchGraphSeriesLabelV3(
+                series.seriesId,
+                series.label,
+              ),
+            }),
+          ),
       ),
     [pane.series],
   );
@@ -475,6 +488,11 @@ function SampledGraphPaneBodyV3({
     <ExperimentGraphPresentationV3
       variant="pane"
       canvasClassName="h-full min-h-0"
+      annotation={
+        shouldShowAorticPressureStationNoticeV3(pane)
+          ? t("workbench.live.aorticPressureStationNotice")
+          : undefined
+      }
     >
       <SweepingWaveformCanvasV3
         activeScenarioId={activeScenarioId}

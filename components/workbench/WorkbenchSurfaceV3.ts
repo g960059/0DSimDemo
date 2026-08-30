@@ -661,6 +661,17 @@ export function reconcileWorkbenchSurfaceScenariosV3(
       ...pane,
       scenarioScope: Object.freeze({ mode: "visible-scenarios" as const }),
       excludedTraces: Object.freeze(retainedExclusions),
+      series: Object.freeze(
+        pane.series.map((series) =>
+          Object.freeze({
+            ...series,
+            label: resolveWorkbenchGraphSeriesLabelV3(
+              series.seriesId,
+              series.label,
+            ),
+          }),
+        ),
+      ),
     });
   });
   const controlPanes = surface.controlPanes.map((pane) => {
@@ -815,7 +826,7 @@ export function graphTitleV3(
 
 export function graphSeriesLabelV3(seriesId: string): string {
   const labels: Readonly<Record<string, string>> = {
-    LVP: "LVP",
+    LVP: "LV absolute cavity pressure",
     LAP: "LAP",
     AoP: "Ao compliance node",
     SAP: "Systemic arterial pressure",
@@ -865,6 +876,36 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LA: "LA",
   };
   return labels[seriesId] ?? humanizeCatalogIdV3(seriesId);
+}
+
+/**
+ * Recognizes only the two historical pressure-series defaults that predate
+ * explicit pressure-station copy. Every other authored label is user content.
+ */
+export function resolveWorkbenchGraphSeriesLabelV3(
+  seriesId: string,
+  storedLabel?: string,
+): string {
+  const currentDefault = graphSeriesLabelV3(seriesId);
+  const legacyDefault =
+    seriesId === "AoP" ? "AoP" : seriesId === "LVP" ? "LVP" : undefined;
+  return storedLabel === undefined ||
+    storedLabel === currentDefault ||
+    storedLabel === legacyDefault
+    ? currentDefault
+    : storedLabel;
+}
+
+export function shouldShowAorticPressureStationNoticeV3(
+  pane: ExperimentSurfaceGraphPaneV2,
+): boolean {
+  if (
+    pane.graphId !== "hemodynamics.pressure.waveform" &&
+    pane.graphId !== "hemodynamics.pressure.waveform.comprehensive-v1"
+  )
+    return false;
+  const seriesIds = new Set(pane.series.map(({ seriesId }) => seriesId));
+  return seriesIds.has("LVP") && seriesIds.has("AoP");
 }
 
 export function outputLabelV3(outputId: string): string {

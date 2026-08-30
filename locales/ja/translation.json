@@ -229,6 +229,7 @@
       "resetControl": "初期値へ戻す",
       "applying": "適用中…",
       "outputNotAssessed": "このboundaryではoutput qualityが未評価です。",
+      "aorticPressureStationNotice": "Aoは集中定数コンプライアンス節点圧です。表示上のLV–Ao圧差は、Dopplerまたはカテーテルで定義されたAV圧較差ではありません。",
       "analysisRunning": "現在のV3 accepted stepからread-onlyの構造的orientationを算出しています…",
       "analysisRecalculating": "Guyton / Starlingを再計算中",
       "analysisUnavailable": "このexact accepted boundaryから登録済み構造解析を取得できませんでした。",
