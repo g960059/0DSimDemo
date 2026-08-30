@@ -25,6 +25,7 @@ import {
   type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFactorIdV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeV1";
 import type {
+  MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchRunV1,
   MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1,
   MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchRunV1,
   MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1,
@@ -378,6 +379,10 @@ type Run =
 export type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1 =
   | MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1
   | MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchRunV1;
+
+export type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeGeometryCapableArmReadoutSourceV1 =
+  | MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1
+  | MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchRunV1;
 
 type PrimaryModel = Readonly<
   Record<
@@ -814,7 +819,7 @@ export function assertMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEn
 }
 
 export function measureMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutV1(
-  run: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1,
+  run: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeGeometryCapableArmReadoutSourceV1,
 ): MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmAnalysisV1 {
   const arm = run.robustnessEnvelopeArm;
   const ledger =

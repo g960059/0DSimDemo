@@ -11,7 +11,7 @@ import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1,
+  MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 
 export const MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_EXPERIMENT_V1_ID =
@@ -37,7 +37,7 @@ const armInputs: MainWireAorticValveAblationArmInputV1[] = [{
   armId: "canonical",
   periodicResult: canonical,
 }];
-const profileRuns = MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1.map(
+const profileRuns = MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1.map(
   (profileId) => {
     const run = runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
       { dtSec, maximumBeatCount },

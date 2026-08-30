@@ -10,7 +10,7 @@ import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1,
+  MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
   compareMainWireAorticValveAblationV1,
@@ -136,7 +136,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     )));
   }, 60_000);
 
-  it("runs every fixed AoV research profile with a distinct exact runtime identity", () => {
+  it("keeps every original d3p0 AoV ablation arm at a distinct exact runtime identity", () => {
     const baseline = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
       dtSec: 0.02,
       maximumBeatCount: 1,
@@ -145,7 +145,10 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       armId: "canonical",
       periodicResult: baseline,
     }];
-    for (const profileId of MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1) {
+    for (
+      const profileId of
+        MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1
+    ) {
       const run = runMainWireNormalAdultFiveWallAorticValveResearchProfileV1(
         { dtSec: 0.02, maximumBeatCount: 1 },
         profileId,

@@ -166,6 +166,11 @@ import {
   type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelArmV1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelV1";
 import {
+  resolveMainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1,
+  type MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1,
+  type MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryNewExactSimulationCellIdV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelV1";
+import {
   resolveMainWireArterialCompliancePhysiologyProfileV1,
   resolveMainWireArterialCompliancePhysiologyRuntimeV1,
   type MainWireArterialCompliancePhysiologyProfileIdV1,
@@ -1711,6 +1716,61 @@ export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRob
         limitingUnionClaimedToCoverAllThirtySixArms: false;
         continuityEquivalentEoaVariationRecertified: false;
         horizonAndTimeStepEffectsSeparatedByThisExecution: false;
+        derivedAnalysisStored: false;
+        parameterSearchOrFitting: false;
+        clinicalValidationClaimed: false;
+        canonicalAdoptionEstablished: false;
+      }>;
+    }
+  >;
+
+export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchRunV1 =
+  Readonly<
+    Omit<
+      MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchRunV1,
+      "configurationRole" | "executionPolicy" | "claim"
+    > & {
+      configurationRole: "fixed-v10-matched-alpha-saturating-pressure-recovery-geometry-48s-sentinel-cell";
+      pressureRecoveryGeometryCell:
+        MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1;
+      executionPolicy: Readonly<{
+        policyId: "matched-alpha-saturating-pressure-recovery-geometry-fixed-48s-cycle-4000-sentinel-v1";
+        fixedPhysicalHorizonSec: 48;
+        stepsPerCycle: 4_000;
+        minimumCompletedBeatCountBeforePeriodicTermination: 40 | 72;
+        maximumBeatCount: 40 | 72;
+        periodicTerminationBeforeFixedHorizonAccepted: false;
+      }>;
+      claim: Readonly<{
+        sourceResearchRunnerOnly: true;
+        independentCanonicalColdStart: true;
+        warmStartApplied: false;
+        publicExecutionOptionsAccepted: false;
+        genericParameterPatchAccepted: false;
+        fixedNewGeometryCellCatalogOnly: true;
+        d3p0CellAcceptedByNewGeometryRunner: false;
+        arbitraryNumericGeometryOrExecutionOverrideAccepted: false;
+        fixedPhysicalHorizonSec: 48;
+        fixedStepsPerCycle: 4_000;
+        minimumAndMaximumBeatCountsEqual: true;
+        periodicTerminationBeforeFixedHorizonAccepted: false;
+        endpointPeriodicClassificationStillRequiredForP1Claim: true;
+        geometryProfilePairResolvedByFixedCatalogId: true;
+        geometryIdentityOwnedByCirculationRuntimeAndFullProtocolHashes: true;
+        valveDiseaseResearchInputHeldExactly: true;
+        referenceAssemblyOutsideAorticGeometryHeldExactly: true;
+        fixedFrozenSixArmLimitingUnionOnly: true;
+        matchedAlphaSaturatingRateCoefficientHeldAt: 0.4;
+        atrioventricularDelayHeldAtSec: 0.12;
+        aorticMaximumForwardEoaHeldAtCm2: 3.5;
+        ascendingAorticAreaExceedsMaximumForwardEoa: true;
+        boundedLeafletOpeningMemoryRetained: true;
+        flowMemoryAddedByGeometryAxis: false;
+        localValveOrRootInertanceAddedByGeometryAxis: false;
+        pressureOrFlowSmoothingAddedByGeometryAxis: false;
+        calciumOrMechanicsStateAdded: false;
+        acceptedStateOrCheckpointTopologyChanged: false;
+        outcomeTargetedRecalibrationApplied: false;
         derivedAnalysisStored: false;
         parameterSearchOrFitting: false;
         clinicalValidationClaimed: false;
@@ -4237,6 +4297,9 @@ type MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyLoadSelectionV1
       MainWireNormalAdultStressedVenousVolumeResearchPointIdV1;
     complianceProfileId?: MainWireArterialCompliancePhysiologyProfileIdV1;
     trefForceLoadProfileId?: MainWireVentricularLandTrefForceLoadProfileIdV1;
+    pressureRecoveryProfileId?: MainWireAorticValveResearchProfileIdV1;
+    recoveredRootPortValveProfileId?:
+      MainWireAorticRecoveredRootPortValveProfileIdV1;
   }>;
 
 /**
@@ -4257,6 +4320,12 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
     loadSelection.complianceProfileId ?? reference.complianceProfileId;
   const selectedTrefForceLoadProfileId =
     loadSelection.trefForceLoadProfileId ?? reference.trefForceLoadProfileId;
+  const selectedPressureRecoveryProfileId =
+    loadSelection.pressureRecoveryProfileId ??
+      reference.pressureRecoveryProfileId;
+  const selectedRecoveredRootPortValveProfileId =
+    loadSelection.recoveredRootPortValveProfileId ??
+      reference.recoveredRootPortValveProfileId;
   const assembly =
     resolveMainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1(
       Object.freeze({
@@ -4277,9 +4346,9 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
           reference.sourceVelocityDistortionProfileId,
         strongBridgeDeactivationExitProfileId:
           reference.strongBridgeDeactivationExitProfileId,
-        aorticValveResearchProfileId: reference.pressureRecoveryProfileId,
+        aorticValveResearchProfileId: selectedPressureRecoveryProfileId,
         recoveredRootPortValveProfileId:
-          reference.recoveredRootPortValveProfileId,
+          selectedRecoveredRootPortValveProfileId,
       }),
     );
   const periodicResult =
@@ -4319,9 +4388,9 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
       reference.characteristicResistancePlacementProfileId ||
     rootInertanceProfile.profileId !== reference.rootInertanceProfileId ||
     aorticValveResearchProfile.profileId !==
-      reference.pressureRecoveryProfileId ||
+      selectedPressureRecoveryProfileId ||
     recoveredRootPortValveProfile.profileId !==
-      reference.recoveredRootPortValveProfileId ||
+      selectedRecoveredRootPortValveProfileId ||
     assembly.circulatoryLoadPoint.pointId !==
       loadSelection.circulatoryLoadPointId ||
     assembly.bloodVolume.point.pointId !==
@@ -5275,10 +5344,19 @@ type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustness
     }
   >;
 
+type MainWireNormalAdultFiveWallAorticOutflowV10AorticPortProfileSelectionV1 =
+  Readonly<{
+    pressureRecoveryProfileId: MainWireAorticValveResearchProfileIdV1;
+    recoveredRootPortValveProfileId:
+      MainWireAorticRecoveredRootPortValveProfileIdV1;
+  }>;
+
 function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResolvedArmV1(
   options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
   armId: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmIdV1,
   executionControl?: MainWireNormalAdultFiveWallPeriodicExecutionControlV1,
+  aorticPortProfileSelection?:
+    MainWireNormalAdultFiveWallAorticOutflowV10AorticPortProfileSelectionV1,
 ): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResolvedArmExecutionV1 {
   assertExactAorticOutflowResearchOptions(options);
   const robustnessEnvelopeArm =
@@ -5321,6 +5399,9 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRob
           robustnessEnvelopeArm.stressedVenousVolumePointId,
         complianceProfileId: robustnessEnvelopeArm.complianceProfileId,
         trefForceLoadProfileId: robustnessEnvelopeArm.trefForceLoadProfileId,
+        ...(aorticPortProfileSelection === undefined
+          ? {}
+          : aorticPortProfileSelection),
       }),
       Object.freeze({
         protocolIdentity:
@@ -5521,6 +5602,187 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSatura
       limitingUnionClaimedToCoverAllThirtySixArms: false as const,
       continuityEquivalentEoaVariationRecertified: false as const,
       horizonAndTimeStepEffectsSeparatedByThisExecution: false as const,
+      derivedAnalysisStored: false as const,
+      parameterSearchOrFitting: false as const,
+      clinicalValidationClaimed: false as const,
+      canonicalAdoptionEstablished: false as const,
+    }),
+  });
+}
+
+/**
+ * Exact 48-second, cycle/4000 execution for one of the twelve new AA-geometry
+ * cells. The retained d3p0 cells deliberately route to the pre-existing fixed
+ * horizon sentinel and are rejected here, preventing duplicate simulations.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchV1(
+  cellId: MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryNewExactSimulationCellIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchRunV1 {
+  if (arguments.length !== 1 || typeof cellId !== "string") {
+    throw new Error(
+      "pressure-recovery geometry sentinel accepts one fixed new-geometry cell ID and no execution options",
+    );
+  }
+  const pressureRecoveryGeometryCell =
+    resolveMainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1(
+      cellId,
+    );
+  const {
+    sourceFixedHorizonSentinelArm: fixedHorizonSentinelArm,
+    geometryProfile,
+  } = pressureRecoveryGeometryCell;
+  if (
+    geometryProfile.geometryId === "d3p0" ||
+    pressureRecoveryGeometryCell.newExactSimulationRequired !== true ||
+    pressureRecoveryGeometryCell.existingD3p0ExactSimulationReused !== false ||
+    pressureRecoveryGeometryCell.executionRoute !==
+      "new-pressure-recovery-geometry-fixed-horizon-sentinel"
+  ) {
+    throw new Error(
+      `${cellId} routes to the existing d3p0 fixed-horizon sentinel and is not a new geometry simulation`,
+    );
+  }
+  const { sourceEnvelopeArm } = fixedHorizonSentinelArm;
+  const beatCount = sourceEnvelopeArm.heartRateBpm === 50
+    ? 40 as const
+    : 72 as const;
+  const executionPolicy = Object.freeze({
+    policyId:
+      "matched-alpha-saturating-pressure-recovery-geometry-fixed-48s-cycle-4000-sentinel-v1" as const,
+    fixedPhysicalHorizonSec:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_SEC_V1,
+    stepsPerCycle:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_STEPS_PER_CYCLE_V1,
+    minimumCompletedBeatCountBeforePeriodicTermination: beatCount,
+    maximumBeatCount: beatCount,
+    periodicTerminationBeforeFixedHorizonAccepted: false as const,
+  });
+  const {
+    robustnessEnvelopeArm,
+    saturatingHeartRateLawProfile,
+    calciumDriveParams,
+    assembly,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    periodicResult,
+    exactAssemblyAudit,
+  } = runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResolvedArmV1(
+    Object.freeze({
+      dtSec:
+        60 / sourceEnvelopeArm.heartRateBpm / executionPolicy.stepsPerCycle,
+      maximumBeatCount: executionPolicy.maximumBeatCount,
+    }),
+    sourceEnvelopeArm.armId,
+    Object.freeze({
+      minimumCompletedBeatCountBeforePeriodicTermination:
+        executionPolicy.minimumCompletedBeatCountBeforePeriodicTermination,
+    }),
+    Object.freeze({
+      pressureRecoveryProfileId: geometryProfile.pressureRecoveryProfileId,
+      recoveredRootPortValveProfileId:
+        geometryProfile.recoveredRootPortValveProfileId,
+    }),
+  );
+  const terminalBeat = periodicResult.retainedCompleteBeats.at(-1);
+  if (
+    robustnessEnvelopeArm.armId !== fixedHorizonSentinelArm.sentinelArmId ||
+    aorticValveResearchProfile !== geometryProfile.pressureRecoveryProfile ||
+    recoveredRootPortValveProfile !==
+      geometryProfile.recoveredRootPortValveProfile ||
+    aorticValveResearchProfile.ascendingAorticDiameterCm !==
+      geometryProfile.ascendingAorticDiameterCm ||
+    aorticValveResearchProfile.ascendingAorticAreaCm2 !==
+      geometryProfile.ascendingAorticAreaCm2 ||
+    !(geometryProfile.ascendingAorticAreaCm2 >
+      periodicResult.valveResearchInput.valves.AoV.maximumForwardEoaCm2) ||
+    periodicResult.initialization !== "canonical" ||
+    periodicResult.stepsPerBeat !== executionPolicy.stepsPerCycle ||
+    periodicResult.requestedMaximumBeatCount !==
+      executionPolicy.maximumBeatCount ||
+    periodicResult.completedBeatCount !== executionPolicy.maximumBeatCount ||
+    periodicResult.retainedPartialBeat.length !== 0 ||
+    periodicResult.integrationCompletedWithoutFailure !== true ||
+    periodicResult.failure !== null ||
+    periodicResult.periodicity.status !== "period1-converged" ||
+    periodicResult.periodicSteadyStateClaimed !== true ||
+    periodicResult.terminationReason !== "period1-converged" ||
+    periodicResult.terminalCycleBoundaryWarmStart !== null ||
+    terminalBeat?.beatIndex !== executionPolicy.maximumBeatCount ||
+    Math.abs(
+      periodicResult.completedBeatCount *
+        saturatingHeartRateLawProfile.cycleLengthSec -
+        executionPolicy.fixedPhysicalHorizonSec,
+    ) > 1e-12 ||
+    terminalBeat === undefined ||
+    Math.abs(
+      terminalBeat.endTimeSec - executionPolicy.fixedPhysicalHorizonSec,
+    ) > 1e-8
+  ) {
+    throw new Error(
+      `${cellId} did not complete its exact period-1 48-second cycle/4000 geometry policy`,
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-v10-matched-alpha-saturating-pressure-recovery-geometry-48s-sentinel-cell" as const,
+    referenceNonCalciumAssembly:
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1,
+    robustnessEnvelopeArm,
+    fixedHorizonSentinelArm,
+    pressureRecoveryGeometryCell,
+    saturatingHeartRateLawProfile,
+    kuwProfile: assembly.kuwProfile,
+    sarcomereReferenceProfile: assembly.sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile: assembly.calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate: assembly.sourceTwitchRetentionCandidate,
+    trefForceLoadProfile: assembly.trefForceLoadProfile,
+    sourceVelocityDistortionProfile: assembly.sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile:
+      assembly.strongBridgeDeactivationExitProfile,
+    circulatoryLoadPoint: assembly.circulatoryLoadPoint,
+    stressedVenousVolumePoint: assembly.bloodVolume.point,
+    complianceProfile: assembly.complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    calciumDriveParams,
+    periodicResult,
+    exactAssemblyAudit,
+    executionPolicy,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      publicExecutionOptionsAccepted: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedNewGeometryCellCatalogOnly: true as const,
+      d3p0CellAcceptedByNewGeometryRunner: false as const,
+      arbitraryNumericGeometryOrExecutionOverrideAccepted: false as const,
+      fixedPhysicalHorizonSec: 48 as const,
+      fixedStepsPerCycle: 4_000 as const,
+      minimumAndMaximumBeatCountsEqual: true as const,
+      periodicTerminationBeforeFixedHorizonAccepted: false as const,
+      endpointPeriodicClassificationStillRequiredForP1Claim: true as const,
+      geometryProfilePairResolvedByFixedCatalogId: true as const,
+      geometryIdentityOwnedByCirculationRuntimeAndFullProtocolHashes:
+        true as const,
+      valveDiseaseResearchInputHeldExactly: true as const,
+      referenceAssemblyOutsideAorticGeometryHeldExactly: true as const,
+      fixedFrozenSixArmLimitingUnionOnly: true as const,
+      matchedAlphaSaturatingRateCoefficientHeldAt: 0.4 as const,
+      atrioventricularDelayHeldAtSec: 0.12 as const,
+      aorticMaximumForwardEoaHeldAtCm2: 3.5 as const,
+      ascendingAorticAreaExceedsMaximumForwardEoa: true as const,
+      boundedLeafletOpeningMemoryRetained: true as const,
+      flowMemoryAddedByGeometryAxis: false as const,
+      localValveOrRootInertanceAddedByGeometryAxis: false as const,
+      pressureOrFlowSmoothingAddedByGeometryAxis: false as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      outcomeTargetedRecalibrationApplied: false as const,
       derivedAnalysisStored: false as const,
       parameterSearchOrFitting: false as const,
       clinicalValidationClaimed: false as const,

@@ -16,10 +16,24 @@ export const MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1 = Object.freeze([
   "pressure-recovery-aa-d3p0cm",
   "instantaneous-opening",
   "pressure-recovery-aa-d3p0cm-instantaneous-opening",
+  "pressure-recovery-aa-d2p5cm",
+  "pressure-recovery-aa-d3p8cm",
 ] as const);
 
 export type MainWireAorticValveResearchProfileIdV1 =
   (typeof MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1)[number];
+
+/**
+ * Closed arm catalog for the original d3p0 pressure-recovery/opening
+ * ablation. Geometry stress profiles belong to the separate geometry
+ * sentinel and must not silently expand this V1 experiment.
+ */
+export const MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1 =
+  Object.freeze([
+    "pressure-recovery-aa-d3p0cm",
+    "instantaneous-opening",
+    "pressure-recovery-aa-d3p0cm-instantaneous-opening",
+  ] as const satisfies readonly MainWireAorticValveResearchProfileIdV1[]);
 
 export type MainWireAorticValveOpeningModeV1 =
   | "bounded-backward-euler-memory"
@@ -51,6 +65,7 @@ function profile(
   openingMode: MainWireAorticValveOpeningModeV1,
   forwardConvectivePressureMode:
     MainWireAorticValveForwardConvectivePressureModeV1,
+  ascendingAorticDiameterCm = ASCENDING_AORTIC_DIAMETER_CM,
 ): MainWireAorticValveResearchProfileV1 {
   const pressureRecoveryEnabled =
     forwardConvectivePressureMode
@@ -61,10 +76,12 @@ function profile(
     openingMode,
     forwardConvectivePressureMode,
     ascendingAorticDiameterCm: pressureRecoveryEnabled
-      ? ASCENDING_AORTIC_DIAMETER_CM
+      ? ascendingAorticDiameterCm
       : null,
     ascendingAorticAreaCm2: pressureRecoveryEnabled
-      ? ASCENDING_AORTIC_AREA_CM2
+      ? ascendingAorticDiameterCm === ASCENDING_AORTIC_DIAMETER_CM
+        ? ASCENDING_AORTIC_AREA_CM2
+        : Math.PI * (ascendingAorticDiameterCm / 2) ** 2
       : null,
     parameterSearchOrFitting: false as const,
   });
@@ -85,6 +102,18 @@ export const MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILES_V1 = Object.freeze({
     "pressure-recovery-aa-d3p0cm-instantaneous-opening",
     "instantaneous-pressure-target",
     "garcia-energy-loss-plus-downstream-kinetic-flux",
+  ),
+  "pressure-recovery-aa-d2p5cm": profile(
+    "pressure-recovery-aa-d2p5cm",
+    "bounded-backward-euler-memory",
+    "garcia-energy-loss-plus-downstream-kinetic-flux",
+    2.5,
+  ),
+  "pressure-recovery-aa-d3p8cm": profile(
+    "pressure-recovery-aa-d3p8cm",
+    "bounded-backward-euler-memory",
+    "garcia-energy-loss-plus-downstream-kinetic-flux",
+    3.8,
   ),
 } satisfies Readonly<Record<
   MainWireAorticValveResearchProfileIdV1,
@@ -115,6 +144,17 @@ export const MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1 =
     parameterSearchOrFitting: false as const,
     clinicalValidationClaimed: false as const,
   });
+
+export const MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1 =
+  Object.freeze({
+    ...MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1,
+    ascendingAorticGeometry:
+      "fixed-profile-catalog-diameters-2p5-3p0-3p8cm" as const,
+  });
+
+type MainWireAorticValvePressureRecoveryClaimV1 =
+  | typeof MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1
+  | typeof MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1;
 
 type SharedValveEvaluationV2 = Omit<
   MainWireQuasiSteadyOrificeValveEvaluationV2,
@@ -154,8 +194,7 @@ export type MainWireAorticValvePressureRecoveryAblationEvaluationV1 =
     netIrreversibleBernoulliPressureMmHg: number;
     recoveredStaticPressureMmHg: number;
     pressureRecoveryFraction01: number;
-    claim:
-      typeof MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1;
+    claim: MainWireAorticValvePressureRecoveryClaimV1;
   }>;
 
 export type MainWireValveEvaluationWithAorticResearchV1 =
@@ -580,7 +619,7 @@ export function stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
     valid: true,
     finite: true,
     issues: Object.freeze([]),
-    claim: MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1,
+    claim: pressureRecoveryClaim(researchProfile),
   } satisfies MainWireAorticValvePressureRecoveryAblationEvaluationV1);
   return numericReadbackIsFinite(result)
     ? result
@@ -653,8 +692,17 @@ function invalidEvaluation(
     valid: false,
     finite: false,
     issues: Object.freeze([...issues]),
-    claim: MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1,
+    claim: pressureRecoveryClaim(researchProfile),
   });
+}
+
+function pressureRecoveryClaim(
+  researchProfile: MainWireAorticValveResearchProfileV1,
+): MainWireAorticValvePressureRecoveryClaimV1 {
+  return researchProfile.profileId === "pressure-recovery-aa-d2p5cm"
+    || researchProfile.profileId === "pressure-recovery-aa-d3p8cm"
+    ? MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1
+    : MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1;
 }
 
 function directionFromGradient(

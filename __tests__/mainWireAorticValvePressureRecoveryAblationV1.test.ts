@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1,
+  MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1,
+  MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1,
   MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1,
   resolveMainWireAorticValveResearchProfileV1,
   stepMainWireAorticValvePressureRecoveryAblationScalarsV1,
@@ -135,6 +137,15 @@ describe("MainWireAorticValvePressureRecoveryAblationV1", () => {
       "pressure-recovery-aa-d3p0cm",
       "instantaneous-opening",
       "pressure-recovery-aa-d3p0cm-instantaneous-opening",
+      "pressure-recovery-aa-d2p5cm",
+      "pressure-recovery-aa-d3p8cm",
+    ]);
+    expect(
+      MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_OPENING_ABLATION_PROFILE_IDS_V1,
+    ).toEqual([
+      "pressure-recovery-aa-d3p0cm",
+      "instantaneous-opening",
+      "pressure-recovery-aa-d3p0cm-instantaneous-opening",
     ]);
     for (const profileId of MAIN_WIRE_AORTIC_VALVE_RESEARCH_PROFILE_IDS_V1) {
       const profile = resolveMainWireAorticValveResearchProfileV1(profileId);
@@ -150,6 +161,55 @@ describe("MainWireAorticValvePressureRecoveryAblationV1", () => {
         pressureRecoveryAddsState: false,
         reverseFlowPressureRecoveryApplied: false,
       });
+  });
+
+  it("owns the fixed d2p5/d3p0/d3p8 bounded-memory geometry profiles", () => {
+    const expectedDiameters = Object.freeze({
+      "pressure-recovery-aa-d2p5cm": 2.5,
+      "pressure-recovery-aa-d3p0cm": 3,
+      "pressure-recovery-aa-d3p8cm": 3.8,
+    } as const);
+    for (const [profileId, diameterCm] of Object.entries(
+      expectedDiameters,
+    )) {
+      const profile = resolveMainWireAorticValveResearchProfileV1(
+        profileId as keyof typeof expectedDiameters,
+      );
+      expect(profile.openingMode).toBe("bounded-backward-euler-memory");
+      expect(profile.forwardConvectivePressureMode)
+        .toBe("garcia-energy-loss-plus-downstream-kinetic-flux");
+      expect(profile.ascendingAorticDiameterCm).toBe(diameterCm);
+      expect(profile.ascendingAorticAreaCm2)
+        .toBe(Math.PI * (diameterCm / 2) ** 2);
+      expect(profile.ascendingAorticAreaCm2).toBeGreaterThan(3.5);
+      expect(profile.parameterSearchOrFitting).toBe(false);
+      const output = stepMainWireAorticValvePressureRecoveryAblationScalarsV1(
+        1,
+        0.001,
+        19,
+        10,
+        AOV,
+        profile,
+      );
+      const areaRatio = output.activeEoaCm2 / profile.ascendingAorticAreaCm2!;
+      expect(output.valid).toBe(true);
+      expect(Object.keys(output.state)).toEqual(["leafletOpeningFraction01"]);
+      expect(output.claim).toBe(
+        profileId === "pressure-recovery-aa-d3p0cm"
+          ? MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1
+          : MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1,
+      );
+      expect(output.pressureRecoveryFraction01)
+        .toBeCloseTo(2 * areaRatio * (1 - areaRatio), 14);
+    }
+    expect(
+      MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_ABLATION_CLAIM_V1
+        .ascendingAorticGeometry,
+    ).toBe("fixed-three-centimeter-diameter-research-point");
+    expect(
+      MAIN_WIRE_AORTIC_VALVE_PRESSURE_RECOVERY_GEOMETRY_CLAIM_V1
+        .ascendingAorticGeometry,
+    ).toBe("fixed-profile-catalog-diameters-2p5-3p0-3p8cm");
   });
 
   it("separates Garcia ELCo loss from downstream kinetic flux at the static root port", () => {

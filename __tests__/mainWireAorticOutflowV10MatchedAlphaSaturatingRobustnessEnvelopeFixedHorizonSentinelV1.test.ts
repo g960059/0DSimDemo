@@ -20,6 +20,15 @@ import {
   MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_ROBUSTNESS_ENVELOPE_FIXED_HORIZON_SENTINEL_SELECTION_REASON_IDS_V1,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELLS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELL_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_NEW_EXACT_SIMULATION_CELL_IDS_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_PROFILES_V1,
+  MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_SENTINEL_CLAIM_V1,
+  resolveMainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelV1";
+import {
+  runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchV1,
   runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -232,6 +241,130 @@ describe("main-wire V10 saturating robustness fixed-horizon sentinel V1", () => 
       ),
     ).toThrow(
       /unsupported V10 saturating robustness fixed-horizon sentinel arm/,
+    );
+  });
+
+  it("owns the closed 6-by-3 geometry catalog but declares only twelve new executions", () => {
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_PROFILES_V1.map(
+        (profile) => profile.geometryId,
+      ),
+    ).toEqual(["d2p5", "d3p0", "d3p8"]);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELLS_V1,
+    ).toHaveLength(18);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELL_IDS_V1,
+    ).toHaveLength(18);
+    expect(
+      new Set(
+        MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELL_IDS_V1,
+      ).size,
+    ).toBe(18);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_NEW_EXACT_SIMULATION_CELL_IDS_V1,
+    ).toHaveLength(12);
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELLS_V1.filter(
+        (cell) => cell.existingD3p0ExactSimulationReused,
+      ),
+    ).toHaveLength(6);
+    for (const sentinelArm of MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_ROBUSTNESS_ENVELOPE_FIXED_HORIZON_SENTINEL_ARMS_V1) {
+      const cells =
+        MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_CELLS_V1.filter(
+          (cell) =>
+            cell.sourceFixedHorizonSentinelArm.sentinelArmId ===
+            sentinelArm.sentinelArmId,
+        );
+      expect(cells.map((cell) => cell.geometryProfile.geometryId)).toEqual([
+        "d2p5",
+        "d3p0",
+        "d3p8",
+      ]);
+    }
+    for (const profile of MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_PROFILES_V1) {
+      expect(profile.ascendingAorticAreaCm2).toBe(
+        Math.PI * (profile.ascendingAorticDiameterCm / 2) ** 2,
+      );
+      expect(profile.ascendingAorticAreaCm2).toBeGreaterThan(3.5);
+      expect(profile.pressureRecoveryProfile.profileId).toBe(
+        profile.pressureRecoveryProfileId,
+      );
+      expect(
+        profile.recoveredRootPortValveProfile.pressureRecoveryProfileId,
+      ).toBe(profile.pressureRecoveryProfileId);
+    }
+    expect(
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_PRESSURE_RECOVERY_GEOMETRY_SENTINEL_CLAIM_V1,
+    ).toMatchObject({
+      closedGeometryCellCount: 18,
+      retainedD3p0ExistingExactSimulationCount: 6,
+      newExactSimulationCount: 12,
+      d3p0CellsRouteToExistingFixedHorizonSentinel: true,
+      newGeometryRunnerAcceptsD3p0Cells: false,
+      populationNormalRangeClaimed: false,
+      garciaPublishedAscendingAorticDiametersCm: [2.54, 3.8],
+      d2p5IsPrespecifiedRoundedStressEndpointInformedByPublished2p54Cm: true,
+      d3p8MatchesPublishedExperimentalDiameter: true,
+      threePointBracketClaimedAsPopulationInterval: false,
+      everyAscendingAorticAreaExceedsMaximumForwardEoa: true,
+      localValveOrRootInertanceAddedByGeometryAxis: false,
+      pressureOrFlowSmoothingAddedByGeometryAxis: false,
+    });
+  });
+
+  it("fails closed for d3p0 routing, unknown cells, and numeric execution overrides", () => {
+    const d3CellId = "centerline__hr-90__aa-d3p0";
+    expect(
+      resolveMainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1(
+        d3CellId,
+      ).executionRoute,
+    ).toBe("existing-d3p0-fixed-horizon-sentinel");
+    expect(() =>
+      runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchV1(
+        d3CellId as never,
+      ),
+    ).toThrow(/routes to the existing d3p0 fixed-horizon sentinel/);
+    expect(() =>
+      resolveMainWireAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometryCellV1(
+        "centerline__hr-90__aa-d4p0" as never,
+      ),
+    ).toThrow(/unsupported V10 pressure-recovery geometry sentinel cell/);
+    const withInjectedOptions =
+      runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingPressureRecoveryGeometrySentinelResearchV1 as unknown as (
+        cellId: string,
+        options: unknown,
+      ) => unknown;
+    expect(() =>
+      withInjectedOptions("centerline__hr-90__aa-d2p5", {
+        maximumBeatCount: 1,
+      }),
+    ).toThrow(/one fixed new-geometry cell ID and no execution options/);
+  });
+
+  it("keeps the pre-generalization d3p0 public execution JSON identity exact", () => {
+    const run =
+      runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchV1(
+        { dtSec: 60 / 90 / 100, maximumBeatCount: 2 },
+        "centerline__hr-90",
+      );
+    expect(run.periodicResult.protocolIdentityHash).toBe("11c11d8c");
+    expect(run.periodicResult.protocolComponentHashes).toEqual({
+      mechanicsProviderMetadataStableHash: "d25c229c",
+      calciumDriveFixedParamsStableHash: "c44c8e84",
+      circulationTopologyGraphStableHash: "3b85a518",
+      circulationRuntimeStableHash: "60757786",
+      bloodVolumeOperatingPointStableHash: "337d28cc",
+      commonPericardiumStableHash: "ff9ebb6d",
+      periodicPolicyStableHash: "00e13e40",
+    });
+    expect(
+      JSON.stringify({
+        profile: run.aorticValveResearchProfile,
+        port: run.recoveredRootPortValveProfile,
+      }),
+    ).toBe(
+      '{"profile":{"profileId":"pressure-recovery-aa-d3p0cm","valveId":"AoV","openingMode":"bounded-backward-euler-memory","forwardConvectivePressureMode":"garcia-energy-loss-plus-downstream-kinetic-flux","ascendingAorticDiameterCm":3,"ascendingAorticAreaCm2":7.0685834705770345,"parameterSearchOrFitting":false},"port":{"profileId":"Land2017-Zc-Garcia-AA-d3p0cm-local-opening","valveId":"AoV","characteristicResistancePlacementProfileId":"Land2017-characteristic-impedance-matched","pressureRecoveryProfileId":"pressure-recovery-aa-d3p0cm","openingDrivePressureStation":"LV-minus-proximal-constitutive-port","coupledUnknowns":"leaflet-opening-and-algebraic-flow","reducedSolve":"monotone-bisection-on-bounded-opening","maximumBisectionIterations":80,"openingResidualTolerance01":1e-13,"parameterSearchOrFitting":false}}',
     );
   });
 

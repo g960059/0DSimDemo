@@ -24,6 +24,8 @@ export const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID =
 export const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_PROFILE_IDS_V1 =
   Object.freeze([
     "Land2017-Zc-Garcia-AA-d3p0cm-local-opening",
+    "Land2017-Zc-Garcia-AA-d2p5cm-local-opening",
+    "Land2017-Zc-Garcia-AA-d3p8cm-local-opening",
   ] as const);
 
 export type MainWireAorticRecoveredRootPortValveProfileIdV1 =
@@ -34,7 +36,10 @@ export type MainWireAorticRecoveredRootPortValveProfileV1 = Readonly<{
   valveId: "AoV";
   characteristicResistancePlacementProfileId:
     "Land2017-characteristic-impedance-matched";
-  pressureRecoveryProfileId: "pressure-recovery-aa-d3p0cm";
+  pressureRecoveryProfileId:
+    | "pressure-recovery-aa-d2p5cm"
+    | "pressure-recovery-aa-d3p0cm"
+    | "pressure-recovery-aa-d3p8cm";
   openingDrivePressureStation: "LV-minus-proximal-constitutive-port";
   coupledUnknowns: "leaflet-opening-and-algebraic-flow";
   reducedSolve: "monotone-bisection-on-bounded-opening";
@@ -51,6 +56,34 @@ export const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_PROFILES_V1 =
       characteristicResistancePlacementProfileId:
         "Land2017-characteristic-impedance-matched" as const,
       pressureRecoveryProfileId: "pressure-recovery-aa-d3p0cm" as const,
+      openingDrivePressureStation:
+        "LV-minus-proximal-constitutive-port" as const,
+      coupledUnknowns: "leaflet-opening-and-algebraic-flow" as const,
+      reducedSolve: "monotone-bisection-on-bounded-opening" as const,
+      maximumBisectionIterations: 80 as const,
+      openingResidualTolerance01: 1e-13 as const,
+      parameterSearchOrFitting: false as const,
+    }),
+    "Land2017-Zc-Garcia-AA-d2p5cm-local-opening": Object.freeze({
+      profileId: "Land2017-Zc-Garcia-AA-d2p5cm-local-opening" as const,
+      valveId: "AoV" as const,
+      characteristicResistancePlacementProfileId:
+        "Land2017-characteristic-impedance-matched" as const,
+      pressureRecoveryProfileId: "pressure-recovery-aa-d2p5cm" as const,
+      openingDrivePressureStation:
+        "LV-minus-proximal-constitutive-port" as const,
+      coupledUnknowns: "leaflet-opening-and-algebraic-flow" as const,
+      reducedSolve: "monotone-bisection-on-bounded-opening" as const,
+      maximumBisectionIterations: 80 as const,
+      openingResidualTolerance01: 1e-13 as const,
+      parameterSearchOrFitting: false as const,
+    }),
+    "Land2017-Zc-Garcia-AA-d3p8cm-local-opening": Object.freeze({
+      profileId: "Land2017-Zc-Garcia-AA-d3p8cm-local-opening" as const,
+      valveId: "AoV" as const,
+      characteristicResistancePlacementProfileId:
+        "Land2017-characteristic-impedance-matched" as const,
+      pressureRecoveryProfileId: "pressure-recovery-aa-d3p8cm" as const,
       openingDrivePressureStation:
         "LV-minus-proximal-constitutive-port" as const,
       coupledUnknowns: "leaflet-opening-and-algebraic-flow" as const,

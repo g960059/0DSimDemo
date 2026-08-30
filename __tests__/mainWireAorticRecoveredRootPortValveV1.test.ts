@@ -42,11 +42,27 @@ const RECOVERY = resolveMainWireAorticValveResearchProfileV1(
 const PORT = resolveMainWireAorticRecoveredRootPortValveProfileV1(
   "Land2017-Zc-Garcia-AA-d3p0cm-local-opening",
 );
+const PAIRED_GEOMETRY_PROFILES =
+  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_PROFILE_IDS_V1.map(
+    (portProfileId) => {
+      const port = resolveMainWireAorticRecoveredRootPortValveProfileV1(
+        portProfileId,
+      );
+      return Object.freeze({
+        port,
+        recovery: resolveMainWireAorticValveResearchProfileV1(
+          port.pressureRecoveryProfileId,
+        ),
+      });
+    },
+  );
 
 function evaluate(
   rawGradientMmHg: number,
   previousOpening01 = 0.35,
   params: MainWireQuasiSteadyOrificeValveParamsV2 = AOV,
+  recovery = RECOVERY,
+  port = PORT,
 ) {
   return stepMainWireAorticRecoveredRootPortValveScalarsV1(
     previousOpening01,
@@ -55,19 +71,50 @@ function evaluate(
     80,
     params,
     PLACEMENT,
-    RECOVERY,
-    PORT,
+    recovery,
+    port,
   );
 }
 
 describe("MainWireAorticRecoveredRootPortValveV1", () => {
-  it("owns one immutable non-fitted profile without adding state", () => {
+  it("owns three paired immutable non-fitted profiles without adding state", () => {
     expect(MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_PROFILE_IDS_V1)
-      .toEqual(["Land2017-Zc-Garcia-AA-d3p0cm-local-opening"]);
-    expect(validateMainWireAorticRecoveredRootPortValveProfileV1(PORT))
-      .toEqual([]);
-    expect(Object.isFrozen(PORT)).toBe(true);
-    expect(PORT.parameterSearchOrFitting).toBe(false);
+      .toEqual([
+        "Land2017-Zc-Garcia-AA-d3p0cm-local-opening",
+        "Land2017-Zc-Garcia-AA-d2p5cm-local-opening",
+        "Land2017-Zc-Garcia-AA-d3p8cm-local-opening",
+      ]);
+    for (
+      const profileId of
+        MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_PROFILE_IDS_V1
+    ) {
+      const profile = resolveMainWireAorticRecoveredRootPortValveProfileV1(
+        profileId,
+      );
+      const recovery = resolveMainWireAorticValveResearchProfileV1(
+        profile.pressureRecoveryProfileId,
+      );
+      expect(validateMainWireAorticRecoveredRootPortValveProfileV1(profile))
+        .toEqual([]);
+      expect(Object.isFrozen(profile)).toBe(true);
+      expect(profile.parameterSearchOrFitting).toBe(false);
+      expect(recovery.openingMode).toBe("bounded-backward-euler-memory");
+      expect(recovery.ascendingAorticAreaCm2).toBeGreaterThan(3.5);
+      const output = stepMainWireAorticRecoveredRootPortValveScalarsV1(
+        0.35,
+        0.001,
+        92,
+        80,
+        AOV,
+        PLACEMENT,
+        recovery,
+        profile,
+      );
+      expect(output.valid).toBe(true);
+      expect(output.pressureRecoveryProfileId).toBe(recovery.profileId);
+      expect(output.recoveredRootPortProfileId).toBe(profile.profileId);
+      expect(Object.keys(output.state)).toEqual(["leafletOpeningFraction01"]);
+    }
     expect(MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_CLAIM_V1)
       .toMatchObject({
         acceptedMemory: "leaflet-opening-fraction-only",
@@ -135,36 +182,61 @@ describe("MainWireAorticRecoveredRootPortValveV1", () => {
     expect(output.openingTarget01).toBeLessThan(rawTarget);
   });
 
-  it("matches finite-difference total tangents over forward pressure trials", () => {
-    for (const rawGradient of [0.25, 1, 4, 12, 25]) {
-      for (const previousOpening of [0, 0.25, 0.8]) {
-        const output = evaluate(rawGradient, previousOpening);
-        const h = 1e-5;
-        const plus = evaluate(rawGradient + h, previousOpening);
-        const minus = evaluate(rawGradient - h, previousOpening);
-        const flowFiniteDifference =
-          (plus.flowMlPerSec - minus.flowMlPerSec) / (2 * h);
-        const openingFiniteDifference =
-          (plus.state.leafletOpeningFraction01
-            - minus.state.leafletOpeningFraction01) / (2 * h);
-        const localGradientFiniteDifference =
-          (plus.localValvePressureGradientMmHg
-            - minus.localValvePressureGradientMmHg) / (2 * h);
-        const localGradientTangent = 1
-          - output.characteristicImpedanceResistanceMmHgSecPerMl
-            * output.dFlowDPressureGradientMlPerSecPerMmHg;
+  it("matches finite-difference total tangents over all paired geometries and forward pressure trials", () => {
+    for (const { recovery, port } of PAIRED_GEOMETRY_PROFILES) {
+      for (const rawGradient of [0.25, 1, 4, 12, 25]) {
+        for (const previousOpening of [0, 0.25, 0.8]) {
+          const output = evaluate(
+            rawGradient,
+            previousOpening,
+            AOV,
+            recovery,
+            port,
+          );
+          const h = 1e-5;
+          const plus = evaluate(
+            rawGradient + h,
+            previousOpening,
+            AOV,
+            recovery,
+            port,
+          );
+          const minus = evaluate(
+            rawGradient - h,
+            previousOpening,
+            AOV,
+            recovery,
+            port,
+          );
+          const flowFiniteDifference =
+            (plus.flowMlPerSec - minus.flowMlPerSec) / (2 * h);
+          const openingFiniteDifference =
+            (plus.state.leafletOpeningFraction01 -
+              minus.state.leafletOpeningFraction01) /
+            (2 * h);
+          const localGradientFiniteDifference =
+            (plus.localValvePressureGradientMmHg -
+              minus.localValvePressureGradientMmHg) /
+            (2 * h);
+          const localGradientTangent =
+            1 -
+            output.characteristicImpedanceResistanceMmHgSecPerMl *
+              output.dFlowDPressureGradientMlPerSecPerMmHg;
 
-        expect(output.valid).toBe(true);
-        expect(output.dFlowDPressureGradientMlPerSecPerMmHg)
-          .toBeGreaterThanOrEqual(0);
-        expect(output.dLeafletOpeningFractionDPressureGradientPerMmHg)
-          .toBeGreaterThanOrEqual(0);
-        expect(output.dFlowDPressureGradientMlPerSecPerMmHg)
-          .toBeCloseTo(flowFiniteDifference, 5);
-        expect(output.dLeafletOpeningFractionDPressureGradientPerMmHg)
-          .toBeCloseTo(openingFiniteDifference, 6);
-        expect(localGradientTangent)
-          .toBeCloseTo(localGradientFiniteDifference, 6);
+          expect(output.valid).toBe(true);
+          expect(output.pressureRecoveryProfileId).toBe(recovery.profileId);
+          expect(output.recoveredRootPortProfileId).toBe(port.profileId);
+          expect(output.dFlowDPressureGradientMlPerSecPerMmHg)
+            .toBeGreaterThanOrEqual(0);
+          expect(output.dLeafletOpeningFractionDPressureGradientPerMmHg)
+            .toBeGreaterThanOrEqual(0);
+          expect(output.dFlowDPressureGradientMlPerSecPerMmHg)
+            .toBeCloseTo(flowFiniteDifference, 5);
+          expect(output.dLeafletOpeningFractionDPressureGradientPerMmHg)
+            .toBeCloseTo(openingFiniteDifference, 6);
+          expect(localGradientTangent)
+            .toBeCloseTo(localGradientFiniteDifference, 6);
+        }
       }
     }
   });
@@ -327,6 +399,27 @@ describe("MainWireAorticRecoveredRootPortValveV1", () => {
     expect(output.valid).toBe(false);
     expect(output.issues.join(" ")).toContain(
       "fixed characteristic-resistance placement",
+    );
+
+    const d2p5Recovery = resolveMainWireAorticValveResearchProfileV1(
+      "pressure-recovery-aa-d2p5cm",
+    );
+    const d3p8Port = resolveMainWireAorticRecoveredRootPortValveProfileV1(
+      "Land2017-Zc-Garcia-AA-d3p8cm-local-opening",
+    );
+    const crossPaired = stepMainWireAorticRecoveredRootPortValveScalarsV1(
+      0.5,
+      0.001,
+      90,
+      80,
+      AOV,
+      PLACEMENT,
+      d2p5Recovery,
+      d3p8Port,
+    );
+    expect(crossPaired.valid).toBe(false);
+    expect(crossPaired.issues.join(" ")).toContain(
+      "requires bounded-memory Garcia pressure recovery",
     );
   });
 });
