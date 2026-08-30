@@ -26,6 +26,7 @@ import {
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeV1";
 import type {
   MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1,
+  MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchRunV1,
   MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
@@ -374,6 +375,10 @@ export type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeAnal
 type Run =
   MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1;
 
+export type MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1 =
+  | MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeResearchRunV1
+  | MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeFixedHorizonSentinelResearchRunV1;
+
 type PrimaryModel = Readonly<
   Record<
     MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeMetricIdV1,
@@ -560,7 +565,11 @@ export function measureMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessE
     );
   }
 
-  const armsInCatalogOrder = Object.freeze(orderedRuns.map(measureArm));
+  const armsInCatalogOrder = Object.freeze(
+    orderedRuns.map(
+      measureMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutV1,
+    ),
+  );
   const primaryModel = fitPrimaryResolutionVModel(armsInCatalogOrder);
   const safetyGuardResiduals = Object.freeze(
     MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_ROBUSTNESS_ENVELOPE_SAFETY_GUARD_ARMS_V1.flatMap(
@@ -698,6 +707,25 @@ export function measureMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessE
 }
 
 function validateRunIdentity(run: Run): void {
+  assertMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeExpectedExactModelIdentityV1(
+    run,
+  );
+  const arm = run.robustnessEnvelopeArm;
+  if (
+    run.configurationRole !==
+      "fixed-v10-matched-alpha-saturating-robustness-envelope-arm" ||
+    run.claim.outcomeTargetedRecalibrationApplied !== false ||
+    run.claim.fixedPhysicalHorizonAuditCompleted !== false ||
+    run.claim.parameterSearchOrFitting !== false ||
+    run.claim.V10PressureRecoveryAndProximalPortOwnershipHeldExactly !== true
+  ) {
+    throw new Error(`${arm.armId} runner claim mismatch`);
+  }
+}
+
+export function assertMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeExpectedExactModelIdentityV1(
+  run: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1,
+): void {
   const arm = run.robustnessEnvelopeArm;
   const expected =
     resolveMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmV1(
@@ -713,14 +741,32 @@ function validateRunIdentity(run: Run): void {
     );
   const result = run.periodicResult;
   if (
-    run.configurationRole !==
-      "fixed-v10-matched-alpha-saturating-robustness-envelope-arm" ||
     protocolHash(arm) !== protocolHash(expected) ||
     protocolHash(run.saturatingHeartRateLawProfile) !==
       protocolHash(expectedProfile) ||
     protocolHash(run.calciumDriveParams) !== protocolHash(expectedParams) ||
     run.referenceNonCalciumAssembly !==
-      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_NON_CALCIUM_ASSEMBLY_V1 ||
+    run.kuwProfile.profileId !== run.referenceNonCalciumAssembly.kuwProfileId ||
+    run.sarcomereReferenceProfile.profileId !==
+      run.referenceNonCalciumAssembly.sarcomereReferenceProfileId ||
+    run.calciumSensitivityLengthProfile.profileId !==
+      run.referenceNonCalciumAssembly.calciumSensitivityLengthProfileId ||
+    run.sourceTwitchRetentionCandidate.candidateId !==
+      run.referenceNonCalciumAssembly.twitchRetentionCandidateId ||
+    run.sourceVelocityDistortionProfile.profileId !==
+      run.referenceNonCalciumAssembly.sourceVelocityDistortionProfileId ||
+    run.strongBridgeDeactivationExitProfile.profileId !==
+      run.referenceNonCalciumAssembly.strongBridgeDeactivationExitProfileId ||
+    run.placementProfile.profileId !==
+      run.referenceNonCalciumAssembly
+        .characteristicResistancePlacementProfileId ||
+    run.rootInertanceProfile.profileId !==
+      run.referenceNonCalciumAssembly.rootInertanceProfileId ||
+    run.aorticValveResearchProfile.profileId !==
+      run.referenceNonCalciumAssembly.pressureRecoveryProfileId ||
+    run.recoveredRootPortValveProfile.profileId !==
+      run.referenceNonCalciumAssembly.recoveredRootPortValveProfileId
   ) {
     throw new Error(`${arm.armId} robustness catalog identity mismatch`);
   }
@@ -730,6 +776,10 @@ function validateRunIdentity(run: Run): void {
       run.calciumDriveParams.parameterSetId ||
     result.protocolComponentHashes.calciumDriveFixedParamsStableHash !==
       protocolHash(run.calciumDriveParams) ||
+    result.protocolIdentity.circulation.valveResearchInputStableHash !==
+      protocolHash(result.valveResearchInput) ||
+    result.protocolIdentity.periodicPolicy.policyStableHash !==
+      result.protocolComponentHashes.periodicPolicyStableHash ||
     result.claim.heartRateBpm !== arm.heartRateBpm ||
     result.initialization !== "canonical" ||
     result.valveResearchInput.valves.AoV.maximumForwardEoaCm2 !== 3.5
@@ -749,22 +799,22 @@ function validateRunIdentity(run: Run): void {
       arm.fixedTotalBloodVolumeMl ||
     run.trefForceLoadProfile.profileId !== arm.trefForceLoadProfileId ||
     run.trefForceLoadProfile.trefScaleFromRetainedCandidate !==
-      arm.ventricularTrefForceScaleFromCandidate
+      arm.ventricularTrefForceScaleFromCandidate ||
+    run.exactAssemblyAudit.mechanicsProviderParameterIdentityHash !==
+      result.protocolIdentity.mechanicsProvider.parameterIdentityHash ||
+    run.exactAssemblyAudit.circulationRuntimeStableHash !==
+      result.protocolComponentHashes.circulationRuntimeStableHash ||
+    run.exactAssemblyAudit.bloodVolumeOperatingPointStableHash !==
+      result.protocolComponentHashes.bloodVolumeOperatingPointStableHash ||
+    run.exactAssemblyAudit.calciumDriveFixedParamsStableHash !==
+      result.protocolComponentHashes.calciumDriveFixedParamsStableHash
   ) {
     throw new Error(`${arm.armId} declared factor readback mismatch`);
   }
-  if (
-    run.claim.outcomeTargetedRecalibrationApplied !== false ||
-    run.claim.fixedPhysicalHorizonAuditCompleted !== false ||
-    run.claim.parameterSearchOrFitting !== false ||
-    run.claim.V10PressureRecoveryAndProximalPortOwnershipHeldExactly !== true
-  ) {
-    throw new Error(`${arm.armId} runner claim mismatch`);
-  }
 }
 
-function measureArm(
-  run: Run,
+export function measureMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutV1(
+  run: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmReadoutSourceV1,
 ): MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeArmAnalysisV1 {
   const arm = run.robustnessEnvelopeArm;
   const ledger =
@@ -1005,7 +1055,10 @@ function guardResiduals(
       const tolerance =
         observed === null
           ? null
-          : guardMaterialityTolerance(metricId, observed);
+          : mainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeNumericalToleranceV1(
+              metricId,
+              observed,
+            );
       const observedClass =
         observed === null
           ? null
@@ -1071,9 +1124,9 @@ function orthogonalColumns(rows: readonly (readonly number[])[]): boolean {
   return true;
 }
 
-function guardMaterialityTolerance(
+export function mainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeNumericalToleranceV1(
   metricId: MainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeMetricIdV1,
-  observed: number,
+  reference: number,
 ): number | null {
   const gates =
     MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_SATURATING_ROBUSTNESS_ENVELOPE_NUMERICAL_GATES_V1;
@@ -1103,7 +1156,7 @@ function guardMaterialityTolerance(
   })();
   return threshold === null
     ? null
-    : Math.max(threshold.absolute, threshold.relative01 * Math.abs(observed));
+    : Math.max(threshold.absolute, threshold.relative01 * Math.abs(reference));
 }
 
 export function classifyMainWireAorticOutflowV10MatchedAlphaSaturatingRobustnessEnvelopeIndependentHardGateV1(
