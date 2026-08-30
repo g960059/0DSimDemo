@@ -21,6 +21,9 @@ import {
 import {
   MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9,
 } from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV9";
+import {
+  MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V10,
+} from "@/engine/myocardium/experiments/MainWireAorticOutflowPhysiologyCandidateV10";
 import type {
   MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandSourceTwitchRetentionCandidatesV1";
@@ -217,6 +220,10 @@ const DIASTOLIC_METRIC_KEYS = Object.freeze([
   keyof MainWireAorticOutflowPhysiologyCandidateCombinedLoadDiastolicMetricsV1
 )[]);
 
+type MainWireAorticOutflowCombinedLoadCandidateV1 =
+  | typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9
+  | typeof MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V10;
+
 export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1(
   inputs:
     readonly MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1[],
@@ -228,8 +235,10 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1 =
       MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9
         .strongBridgeDeactivationExitProfileId,
+  expectedCandidate: MainWireAorticOutflowCombinedLoadCandidateV1 =
+    MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9,
 ): MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeV1 {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9;
+  const candidate = expectedCandidate;
   const byId = new Map<string,
     MainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvelopeInputV1>();
   for (const input of inputs) {
@@ -240,6 +249,7 @@ export function measureMainWireAorticOutflowPhysiologyCandidateCombinedLoadEnvel
       input,
       expectedTwitchRetentionCandidateId,
       expectedStrongBridgeDeactivationExitProfileId,
+      candidate,
     );
     byId.set(input.contextId, input);
   }
@@ -426,8 +436,8 @@ function assertRunMatchesContext(
     MainWireVentricularLandSourceTwitchRetentionCandidateIdV1,
   expectedStrongBridgeDeactivationExitProfileId:
     MainWireVentricularLandStrongBridgeDeactivationExitProfileIdV1,
+  candidate: MainWireAorticOutflowCombinedLoadCandidateV1,
 ): void {
-  const candidate = MAIN_WIRE_AORTIC_OUTFLOW_PHYSIOLOGY_CANDIDATE_V9;
   const expected =
     resolveMainWireAorticOutflowPhysiologyCandidateCombinedLoadContextV1(
       input.contextId,
@@ -458,6 +468,14 @@ function assertRunMatchesContext(
     || run.stressedVenousVolumePoint.pointId
       !== expected.stressedVenousVolumePointId
     || run.trefForceLoadProfile.profileId !== expected.trefForceLoadProfileId
+    || run.aorticValveResearchProfile?.profileId
+      !== ("pressureRecoveryProfileId" in candidate
+        ? candidate.pressureRecoveryProfileId
+        : undefined)
+    || run.recoveredRootPortValveProfile?.profileId
+      !== ("recoveredRootPortValveProfileId" in candidate
+        ? candidate.recoveredRootPortValveProfileId
+        : undefined)
   ) {
     throw new Error(input.contextId
       + " does not match the fixed combined-load protocol");
