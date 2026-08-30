@@ -50023,7 +50023,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         }
         const packedIndex = index * outputIds.length + outputIndex;
         outputStates[packedIndex] = selectedOutputStateCodeV1(value);
-        outputValues[packedIndex] = value.value ?? Number.NaN;
+        outputValues[packedIndex] = portableSelectedOutputScalarV1(value.value) ?? Number.NaN;
       }
       if (terminal) {
         terminalFrame = selectedFrameFromValuesV1({
@@ -50734,7 +50734,7 @@ function selectedFrameFromValuesV1(input) {
       value.outputId,
       Object.freeze({
         outputId: value.outputId,
-        value: value.value,
+        value: portableSelectedOutputScalarV1(value.value),
         availability: value.availability,
         quality: value.quality
       })
@@ -50749,6 +50749,9 @@ function selectedFrameFromValuesV1(input) {
     acceptedTimeSec: input.acceptedTimeSec,
     outputs: Object.freeze(outputs)
   });
+}
+function portableSelectedOutputScalarV1(value) {
+  return Object.is(value, -0) ? 0 : value;
 }
 function selectedOutputStateCodeV1(output) {
   const availability = output.availability === "available" ? 0 : 3;

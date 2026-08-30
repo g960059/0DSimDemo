@@ -26,6 +26,7 @@ import {
 
 const PROXIMAL_PRESSURE =
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
+const LAD_FOCAL_PRESSURE_LOSS = "coronary.pressure-loss.focal.LAD";
 
 describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
   it("declares the selected identity, HR-only cold-restart control, and all 185 exact outputs", () => {
@@ -186,6 +187,42 @@ describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
       62,
       0,
     )).rejects.toThrow(/input epoch is stale/);
+  }, 120_000);
+
+  it("emits portable positive zero in frames and presentation batches", async () => {
+    const host =
+      new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1();
+    await host.createSession("selected-portable-runtime", [{
+      scenarioId: "baseline",
+      fixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+    }]);
+    const coldFrame = host.currentFrame(
+      "selected-portable-runtime",
+      "baseline",
+    );
+    expect(Object.values(coldFrame.outputs).some((output) =>
+      Object.is(output.value, -0))).toBe(false);
+
+    const batch = host.advancePresentationBatch(
+      "selected-portable-runtime",
+      "baseline",
+      1,
+      [LAD_FOCAL_PRESSURE_LOSS],
+    );
+
+    expect(batch.outputValues[0]).toBe(0);
+    expect(Object.is(batch.outputValues[0], -0)).toBe(false);
+    expect(batch.terminalFrame.outputs[LAD_FOCAL_PRESSURE_LOSS]).toMatchObject({
+      value: 0,
+      availability: "available",
+    });
+    expect(Object.is(
+      batch.terminalFrame.outputs[LAD_FOCAL_PRESSURE_LOSS]!.value,
+      -0,
+    )).toBe(false);
+    expect(Object.values(batch.terminalFrame.outputs).some((output) =>
+      Object.is(output.value, -0))).toBe(false);
   }, 120_000);
 
   it("captures and restores the named Standard66 object checkpoint without persisting the 76-f64 readback", async () => {
