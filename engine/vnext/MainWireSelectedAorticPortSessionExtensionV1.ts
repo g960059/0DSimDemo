@@ -101,10 +101,10 @@ type TicketStateV1 =
   | "closed";
 
 /**
- * Standalone selected-model extension. A future Standard 66 Session may own
- * one instance; Standard 65 and the current typed Session do not instantiate
- * it. Candidate staging is separate from accepted publication, and selected
- * beat analysis advances on a checkpoint clone before synchronized promotion.
+ * Standalone selected-model extension owned by the Standard66 typed-authority
+ * Session. Standard65 does not instantiate it. Candidate staging is separate
+ * from accepted publication, and selected beat analysis advances on a
+ * checkpoint clone before synchronized promotion.
  */
 export class MainWireSelectedAorticPortSessionExtensionV1 {
   readonly extensionId = MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_V1_ID;

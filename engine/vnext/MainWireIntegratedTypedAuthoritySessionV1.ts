@@ -66,6 +66,7 @@ import {
   type MainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
   type MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
@@ -1783,6 +1784,43 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     );
   }
 
+  /**
+   * Synchronously captures the base half of a selected Standard66 checkpoint
+   * before its digest promise can yield. The selected subclass must capture
+   * its extension checkpoint immediately after calling this method and before
+   * awaiting the returned promise, so both owners describe one accepted
+   * epoch. This seam remains unavailable to Standard65 owners.
+   */
+  protected checkpointSelectedAorticBaseStandardExactV1(): Promise<
+    MainWireIntegratedModelStandardCheckpointV2
+  > {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic base checkpoint requires its Session extension owner",
+      );
+    }
+    this.#acceptedState = this.#authority.current();
+    this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
+    return checkpointMainWireIntegratedModelStandardV2(
+      this.selectedAorticCheckpointContextV1(),
+      this.#acceptedState,
+      this.#beatAccumulator,
+      this.#completedBeatMetrics,
+    );
+  }
+
+  /** Exact accepted clock for the selected subclass's readback borrow. */
+  protected selectedAorticAcceptedClockV1(): MainWireAcceptedTypedClockV1 {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic accepted clock requires its Session extension owner",
+      );
+    }
+    return this.currentAcceptedClock();
+  }
+
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
     this.assertSessionUsableV1();
     this.assertLegacySessionOperationAvailableV1("Standard 65 canonical checkpoint");
@@ -1844,6 +1882,26 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       ...base,
       provider: this.#provider,
       dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig,
+    });
+  }
+
+  private selectedAorticCheckpointContextV1() {
+    if (!isSelectedAorticOutflowRuntimeV1(this.#runtime)) {
+      throw new Error(
+        "selected aortic checkpoint context requires the fixed selected runtime",
+      );
+    }
+    const base =
+      createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+        this.#runtime,
+      );
+    return Object.freeze({
+      ...base,
+      provider: this.#provider,
+      coronaryAutoregulationBinding:
+        this.#acceptedState.coronary.coronaryAutoregulationBinding,
+      dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig,
+      mechanismResearchInputs: this.#runtime.mechanismResearchInputs,
     });
   }
 
