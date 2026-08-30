@@ -3,6 +3,13 @@ import {
   type MainWireAorticOutflowCalciumWaveformCycleMetricsV1,
 } from "@/analysis/methods/mainWire/MainWireAorticOutflowCalciumWaveformComparisonV1";
 import {
+  MAIN_WIRE_AORTIC_OUTFLOW_EXACT_READBACK_AUDIT_TOLERANCE_V1,
+  measureMainWireAorticOutflowCycleReadbackV1,
+  type MainWireAorticOutflowExactPressureStationsV1,
+  type MainWireAorticOutflowExactReadbackAuditV1,
+  type MainWireAorticOutflowOnePercentFlowEjectionTimeV1,
+} from "@/analysis/methods/mainWire/MainWireAorticOutflowCycleReadbackV1";
+import {
   measureMainWireAorticValveObservationStationsV1,
   type MainWireAorticValveObservationStationsV1,
 } from "@/analysis/methods/mainWire/MainWireAorticValveObservationStationsV1";
@@ -29,7 +36,6 @@ import type { MainWireNormalAdultFiveWallPeriodicResultV1 } from "@/engine/myoca
 export const MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_COMPARISON_V1_ID =
   "main-wire-aortic-outflow-v10-matched-alpha-timing-policy-bridge-comparison-v1" as const;
 
-const EXACT_AUDIT_TOLERANCE = 1e-9;
 const ACCEPTED_TIME_CHRONOLOGY_TOLERANCE_SEC = 1e-9;
 
 export const MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_OBSERVATION_GEOMETRY_V1 =
@@ -98,45 +104,13 @@ export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeComparisonInpu
   }>;
 
 export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeOnePercentEtV1 =
-  Readonly<{
-    peakFraction01: 0.01;
-    thresholdMlPerSec: number;
-    cyclicEpisodeCount: number;
-    primaryEpisodeActiveSampleCount: number;
-    extraActiveSampleCountOutsidePrimaryEpisode: number;
-    primaryOpeningSampleIndex: number;
-    primaryClosingSampleIndex: number;
-    primaryContainsGlobalPositiveFlowPeak: true;
-    openingInterpolationFractionFromPreviousToFirstActive01: number;
-    closingInterpolationFractionFromLastActiveToNext01: number;
-    interpolatedEjectionTimeSec: number;
-  }>;
+  MainWireAorticOutflowOnePercentFlowEjectionTimeV1;
 
 export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeExactPressureStationsV1 =
-  Readonly<{
-    averagingDomain: "strictly-positive-forward-AoV-flow-samples";
-    positiveForwardFlowSampleCount: number;
-    rawLvMinusAorticComplianceNodeGradientMmHg: MeanAndPeak;
-    exactLvMinusProximalConstitutivePortGradientMmHg: MeanAndPeak;
-    characteristicImpedancePressureMmHg: MeanAndPeak;
-  }>;
+  MainWireAorticOutflowExactPressureStationsV1;
 
 export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeExactReadbackAuditV1 =
-  Readonly<{
-    requiredSelectedBeatSampleCount: number;
-    availableSelectedBeatSampleCount: number;
-    allSelectedBeatSamplesAvailable: true;
-    allOpeningDriveStationsExact: boolean;
-    maximumAbsoluteValveFlowReadbackResidualMlPerSec: number;
-    maximumAbsoluteRawNodeGradientResidualMmHg: number;
-    maximumAbsoluteAorticNodeReadbackResidualMmHg: number;
-    maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg: number;
-    maximumAbsoluteProximalPortReconstructionResidualMmHg: number;
-    maximumAbsoluteLocalGradientReconstructionResidualMmHg: number;
-    maximumAbsoluteStationAdditivityResidualMmHg: number;
-    maximumAbsoluteCyclePhaseResidual01: number;
-    stationEquationsWithinTolerance: boolean;
-  }>;
+  MainWireAorticOutflowExactReadbackAuditV1;
 
 export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeCorrectedTimingReadoutV1 =
   Readonly<{
@@ -236,16 +210,6 @@ export type MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeComparisonV1 =
     experimentClaim: typeof MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_CLAIM_V1;
     analysisClaim: typeof MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_COMPARISON_CLAIM_V1;
   }>;
-
-type MeanAndPeak = Readonly<{ timeMean: number; peak: number }>;
-
-type CyclicEpisode = Readonly<{
-  openingIndex: number;
-  closingIndex: number;
-  activeSampleCount: number;
-  episodeCount: number;
-  totalActiveSampleCount: number;
-}>;
 
 export function compareMainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeV1(
   inputs: readonly MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeComparisonInputV1[],
@@ -359,32 +323,24 @@ function measureArm(
     result,
     MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_OBSERVATION_GEOMETRY_V1,
   );
-  const flows = beat.samples.map((sample, index) => {
-    const flow = sample.valveHydraulics.AoV.flowMlPerSec;
-    finite(flow, `${arm.armId} sample ${index} AoV flow`);
-    return flow;
-  });
-  const positivePeakFlow = maximum(flows);
-  if (!(positivePeakFlow > 0)) {
-    throw new Error(`${arm.armId} requires positive AoV peak flow`);
-  }
-  const peakIndex = flows.indexOf(positivePeakFlow);
-  const onePercentFlowEjectionTime = measureOnePercentEt(
-    flows,
-    peakIndex,
-    result.dtSec,
-  );
-  const exactStations = measureExactStationsAndAudit(
+  const cycleReadback = measureMainWireAorticOutflowCycleReadbackV1(
     result,
     arm.cycleLengthSec,
+    arm.armId,
   );
+  if (
+    cycleReadback.exactReadbackAudit.maximumAbsoluteCyclePhaseResidual01 >
+    MAIN_WIRE_AORTIC_OUTFLOW_EXACT_READBACK_AUDIT_TOLERANCE_V1
+  ) {
+    throw new Error("selected beat cycle phase mismatch");
+  }
   const period1AndIntegrationPassed =
     result.periodicSteadyStateClaimed &&
     result.integrationCompletedWithoutFailure;
   const singleDistinctAorticFlowPeakPassed =
     cycleMetrics.aorticFlowDistinctPeakCountAboveFivePercent === 1;
   const exactStationAuditPassed =
-    exactStations.exactReadbackAudit.stationEquationsWithinTolerance;
+    cycleReadback.exactReadbackAudit.stationEquationsWithinTolerance;
 
   return Object.freeze({
     arm,
@@ -411,10 +367,10 @@ function measureArm(
       singleDistinctAorticFlowPeakPassed &&
       exactStationAuditPassed,
     cycleMetrics,
-    onePercentFlowEjectionTime,
-    exactPressureStations: exactStations.exactPressureStations,
+    onePercentFlowEjectionTime: cycleReadback.onePercentFlowEjectionTime,
+    exactPressureStations: cycleReadback.exactPressureStations,
     observationStations,
-    exactReadbackAudit: exactStations.exactReadbackAudit,
+    exactReadbackAudit: cycleReadback.exactReadbackAudit,
     copenhagenTimingReadout: copenhagenTimingReadout(
       arm.heartRateBpm,
       cycleMetrics,
@@ -486,175 +442,6 @@ function validateInputIdentity(
   if (result.valveResearchInput.valves.AoV.maximumForwardEoaCm2 !== 3.5) {
     throw new Error(`${arm.armId} V10-reference aortic EOA mismatch`);
   }
-}
-
-function measureOnePercentEt(
-  flows: readonly number[],
-  peakIndex: number,
-  dtSec: number,
-): MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeOnePercentEtV1 {
-  const threshold = flows[peakIndex]! * 0.01;
-  const shifted = flows.map((flow) => flow - threshold);
-  const episode = primaryCyclicPositiveEpisode(shifted, peakIndex);
-  const interpolation = interpolatedEpisodeDuration(shifted, episode, dtSec);
-  return Object.freeze({
-    peakFraction01: 0.01 as const,
-    thresholdMlPerSec: threshold,
-    cyclicEpisodeCount: episode.episodeCount,
-    primaryEpisodeActiveSampleCount: episode.activeSampleCount,
-    extraActiveSampleCountOutsidePrimaryEpisode:
-      episode.totalActiveSampleCount - episode.activeSampleCount,
-    primaryOpeningSampleIndex: episode.openingIndex,
-    primaryClosingSampleIndex: episode.closingIndex,
-    primaryContainsGlobalPositiveFlowPeak: true as const,
-    openingInterpolationFractionFromPreviousToFirstActive01:
-      interpolation.openingInterpolationFractionFromPreviousToFirstActive01,
-    closingInterpolationFractionFromLastActiveToNext01:
-      interpolation.closingInterpolationFractionFromLastActiveToNext01,
-    interpolatedEjectionTimeSec: interpolation.interpolatedDurationSec,
-  });
-}
-
-function measureExactStationsAndAudit(
-  result: MainWireNormalAdultFiveWallPeriodicResultV1,
-  cycleLengthSec: number,
-): Readonly<{
-  exactPressureStations: MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeExactPressureStationsV1;
-  exactReadbackAudit: MainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeExactReadbackAuditV1;
-}> {
-  const beat = result.retainedCompleteBeats.at(-1)!;
-  const rawGradients: number[] = [];
-  const localGradients: number[] = [];
-  const characteristicPressures: number[] = [];
-  let exactReadbackCount = 0;
-  let allOpeningDriveStationsExact = true;
-  let maximumAbsoluteValveFlowReadbackResidualMlPerSec = 0;
-  let maximumAbsoluteRawNodeGradientResidualMmHg = 0;
-  let maximumAbsoluteAorticNodeReadbackResidualMmHg = 0;
-  let maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg = 0;
-  let maximumAbsoluteProximalPortReconstructionResidualMmHg = 0;
-  let maximumAbsoluteLocalGradientReconstructionResidualMmHg = 0;
-  let maximumAbsoluteStationAdditivityResidualMmHg = 0;
-  let maximumAbsoluteCyclePhaseResidual01 = 0;
-
-  for (let index = 0; index < beat.samples.length; index += 1) {
-    const sample = beat.samples[index]!;
-    const valve = sample.valveHydraulics.AoV;
-    const exact = valve.recoveredRootPortExactReadback;
-    if (exact === undefined) {
-      throw new Error(
-        `exact proximal-port readback missing at sample ${index}`,
-      );
-    }
-    exactReadbackCount += 1;
-    const lv = sample.circulationNodeAbsolutePressureMmHg.LV;
-    const ao = sample.circulationNodeAbsolutePressureMmHg.Ao;
-    const flow = valve.flowMlPerSec;
-    const rawGradient = lv - ao;
-    const reconstructedCharacteristic =
-      exact.algebraicProximalConstitutivePortPressureMmHg - ao;
-    const reconstructedPort = ao + exact.characteristicImpedancePressureMmHg;
-    const reconstructedLocal =
-      lv - exact.algebraicProximalConstitutivePortPressureMmHg;
-    const stationAdditivityResidual =
-      rawGradient -
-      exact.localValvePressureGradientMmHg -
-      exact.characteristicImpedancePressureMmHg;
-    const expectedPhase =
-      positiveModulo(sample.timeSec, cycleLengthSec) / cycleLengthSec;
-    const phaseResidual = Math.abs(
-      signedShortestPhaseDifference01(sample.cyclePhase01 - expectedPhase),
-    );
-    maximumAbsoluteValveFlowReadbackResidualMlPerSec = Math.max(
-      maximumAbsoluteValveFlowReadbackResidualMlPerSec,
-      Math.abs(flow - sample.circulationEdgeFlowMlPerSec.AoV),
-    );
-    maximumAbsoluteRawNodeGradientResidualMmHg = Math.max(
-      maximumAbsoluteRawNodeGradientResidualMmHg,
-      Math.abs(valve.pressureGradientMmHg - rawGradient),
-    );
-    maximumAbsoluteAorticNodeReadbackResidualMmHg = Math.max(
-      maximumAbsoluteAorticNodeReadbackResidualMmHg,
-      Math.abs(exact.aorticComplianceNodePressureMmHg - ao),
-    );
-    maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg = Math.max(
-      maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg,
-      Math.abs(
-        exact.characteristicImpedancePressureMmHg - reconstructedCharacteristic,
-      ),
-    );
-    maximumAbsoluteProximalPortReconstructionResidualMmHg = Math.max(
-      maximumAbsoluteProximalPortReconstructionResidualMmHg,
-      Math.abs(
-        exact.algebraicProximalConstitutivePortPressureMmHg - reconstructedPort,
-      ),
-    );
-    maximumAbsoluteLocalGradientReconstructionResidualMmHg = Math.max(
-      maximumAbsoluteLocalGradientReconstructionResidualMmHg,
-      Math.abs(exact.localValvePressureGradientMmHg - reconstructedLocal),
-    );
-    maximumAbsoluteStationAdditivityResidualMmHg = Math.max(
-      maximumAbsoluteStationAdditivityResidualMmHg,
-      Math.abs(stationAdditivityResidual),
-    );
-    maximumAbsoluteCyclePhaseResidual01 = Math.max(
-      maximumAbsoluteCyclePhaseResidual01,
-      phaseResidual,
-    );
-    allOpeningDriveStationsExact &&=
-      exact.openingDrivePressureStation ===
-      "LV-minus-proximal-constitutive-port";
-    if (flow > 0) {
-      rawGradients.push(rawGradient);
-      localGradients.push(exact.localValvePressureGradientMmHg);
-      characteristicPressures.push(exact.characteristicImpedancePressureMmHg);
-    }
-  }
-  if (rawGradients.length === 0) {
-    throw new Error("exact station analysis requires positive forward flow");
-  }
-  if (maximumAbsoluteCyclePhaseResidual01 > EXACT_AUDIT_TOLERANCE) {
-    throw new Error("selected beat cycle phase mismatch");
-  }
-  const stationEquationsWithinTolerance =
-    allOpeningDriveStationsExact &&
-    maximumAbsoluteValveFlowReadbackResidualMlPerSec <= EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteRawNodeGradientResidualMmHg <= EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteAorticNodeReadbackResidualMmHg <= EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg <=
-      EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteProximalPortReconstructionResidualMmHg <=
-      EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteLocalGradientReconstructionResidualMmHg <=
-      EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteStationAdditivityResidualMmHg <= EXACT_AUDIT_TOLERANCE &&
-    maximumAbsoluteCyclePhaseResidual01 <= EXACT_AUDIT_TOLERANCE;
-
-  return Object.freeze({
-    exactPressureStations: Object.freeze({
-      averagingDomain: "strictly-positive-forward-AoV-flow-samples" as const,
-      positiveForwardFlowSampleCount: rawGradients.length,
-      rawLvMinusAorticComplianceNodeGradientMmHg: meanAndPeak(rawGradients),
-      exactLvMinusProximalConstitutivePortGradientMmHg:
-        meanAndPeak(localGradients),
-      characteristicImpedancePressureMmHg: meanAndPeak(characteristicPressures),
-    }),
-    exactReadbackAudit: Object.freeze({
-      requiredSelectedBeatSampleCount: beat.samples.length,
-      availableSelectedBeatSampleCount: exactReadbackCount,
-      allSelectedBeatSamplesAvailable: true as const,
-      allOpeningDriveStationsExact,
-      maximumAbsoluteValveFlowReadbackResidualMlPerSec,
-      maximumAbsoluteRawNodeGradientResidualMmHg,
-      maximumAbsoluteAorticNodeReadbackResidualMmHg,
-      maximumAbsoluteCharacteristicPressureReconstructionResidualMmHg,
-      maximumAbsoluteProximalPortReconstructionResidualMmHg,
-      maximumAbsoluteLocalGradientReconstructionResidualMmHg,
-      maximumAbsoluteStationAdditivityResidualMmHg,
-      maximumAbsoluteCyclePhaseResidual01,
-      stationEquationsWithinTolerance,
-    }),
-  });
 }
 
 function copenhagenTimingReadout(
@@ -801,124 +588,8 @@ function selectArm(
   return selected[0]!;
 }
 
-function primaryCyclicPositiveEpisode(
-  values: readonly number[],
-  requiredIndex: number,
-): CyclicEpisode {
-  if (values.length < 3) {
-    throw new Error(
-      "cyclic episode measurement requires at least three samples",
-    );
-  }
-  if (!(requiredIndex >= 0 && requiredIndex < values.length)) {
-    throw new Error("required cyclic episode index is out of range");
-  }
-  const active = values.map((value, index) => {
-    finite(value, `cyclic episode sample ${index}`);
-    return value > 0;
-  });
-  if (!active[requiredIndex]) {
-    throw new Error("primary cyclic episode does not contain required peak");
-  }
-  const totalActiveSampleCount = active.filter(Boolean).length;
-  if (totalActiveSampleCount === values.length) {
-    throw new Error("cyclic episode has no bracketing inactive samples");
-  }
-  const episodeCount = active.reduce((count, current, index) => {
-    const previous = active[(index - 1 + active.length) % active.length]!;
-    return count + (current && !previous ? 1 : 0);
-  }, 0);
-  let openingIndex = requiredIndex;
-  while (active[(openingIndex - 1 + active.length) % active.length]) {
-    openingIndex = (openingIndex - 1 + active.length) % active.length;
-  }
-  let closingIndex = requiredIndex;
-  while (active[(closingIndex + 1) % active.length]) {
-    closingIndex = (closingIndex + 1) % active.length;
-  }
-  const activeSampleCount =
-    ((closingIndex - openingIndex + active.length) % active.length) + 1;
-  return Object.freeze({
-    openingIndex,
-    closingIndex,
-    activeSampleCount,
-    episodeCount,
-    totalActiveSampleCount,
-  });
-}
-
-function interpolatedEpisodeDuration(
-  shiftedValues: readonly number[],
-  episode: CyclicEpisode,
-  dtSec: number,
-): Readonly<{
-  openingInterpolationFractionFromPreviousToFirstActive01: number;
-  closingInterpolationFractionFromLastActiveToNext01: number;
-  interpolatedDurationSec: number;
-}> {
-  const previousIndex =
-    (episode.openingIndex - 1 + shiftedValues.length) % shiftedValues.length;
-  const nextIndex = (episode.closingIndex + 1) % shiftedValues.length;
-  const previous = shiftedValues[previousIndex]!;
-  const first = shiftedValues[episode.openingIndex]!;
-  const last = shiftedValues[episode.closingIndex]!;
-  const next = shiftedValues[nextIndex]!;
-  if (!(previous <= 0 && first > 0 && last > 0 && next <= 0)) {
-    throw new Error("cyclic episode boundaries do not bracket zero");
-  }
-  const openingFraction = zeroCrossingFraction(previous, first);
-  const closingFraction = zeroCrossingFraction(last, next);
-  const interpolatedDurationSec =
-    (episode.activeSampleCount + closingFraction - openingFraction) * dtSec;
-  if (
-    !(interpolatedDurationSec > 0) ||
-    interpolatedDurationSec > shiftedValues.length * dtSec ||
-    !Number.isFinite(interpolatedDurationSec)
-  ) {
-    throw new Error("interpolated cyclic episode duration is invalid");
-  }
-  return Object.freeze({
-    openingInterpolationFractionFromPreviousToFirstActive01: openingFraction,
-    closingInterpolationFractionFromLastActiveToNext01: closingFraction,
-    interpolatedDurationSec,
-  });
-}
-
 function difference(left: number | null, right: number | null): number | null {
   return left === null || right === null ? null : left - right;
-}
-
-function meanAndPeak(values: readonly number[]): MeanAndPeak {
-  if (values.length === 0) throw new Error("mean and peak require values");
-  return Object.freeze({
-    timeMean: values.reduce((sum, value) => sum + value, 0) / values.length,
-    peak: maximum(values),
-  });
-}
-
-function zeroCrossingFraction(left: number, right: number): number {
-  const denominator = right - left;
-  if (denominator === 0) {
-    throw new Error("zero crossing requires distinct bracketing values");
-  }
-  const fraction = -left / denominator;
-  if (!(fraction >= 0 && fraction <= 1) || !Number.isFinite(fraction)) {
-    throw new Error("zero crossing interpolation fraction is invalid");
-  }
-  return fraction;
-}
-
-function maximum(values: readonly number[]): number {
-  if (values.length === 0) throw new Error("maximum requires values");
-  return Math.max(...values);
-}
-
-function positiveModulo(value: number, modulus: number): number {
-  return ((value % modulus) + modulus) % modulus;
-}
-
-function signedShortestPhaseDifference01(value: number): number {
-  return positiveModulo(value + 0.5, 1) - 0.5;
 }
 
 function nearlyEqual(left: number, right: number): boolean {
@@ -930,8 +601,4 @@ function nearlyEqual(left: number, right: number): boolean {
 
 function protocolHash(value: unknown): string {
   return stableHash(sanitizeForStableHash(value));
-}
-
-function finite(value: number, label: string): void {
-  if (!Number.isFinite(value)) throw new Error(`${label} must be finite`);
 }

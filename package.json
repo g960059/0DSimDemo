@@ -129,6 +129,7 @@
     "characterize:scientific:aortic-outflow-v10-limiting-corner-dt-convergence:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10LimitingCornerDtConvergenceV1.ts",
     "characterize:scientific:aortic-outflow-v10-heart-rate-calcium-hypotheses:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10HeartRateCalciumHypothesesV1.ts",
     "characterize:scientific:aortic-outflow-v10-matched-alpha-timing-policy-bridge:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeV1.ts",
+    "characterize:scientific:aortic-outflow-v10-matched-alpha-timing-policy-bridge-numerical-sensitivity:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeNumericalSensitivityV1.ts",
     "characterize:scientific:aortic-outflow-candidate-circulatory-recalibration:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCandidateCirculatoryRecalibrationV1.ts",
     "characterize:scientific:aortic-outflow-calcium-decay-windkessel:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowCalciumDecayWindkesselV1.ts",
     "characterize:scientific:aortic-outflow-mechanism-candidate-load-envelope:v1": "vite-node --script tools/scientific/runMainWireAorticOutflowMechanismCandidateLoadEnvelopeV1.ts",
