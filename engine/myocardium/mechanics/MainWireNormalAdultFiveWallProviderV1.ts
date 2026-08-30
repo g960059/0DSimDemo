@@ -36,6 +36,11 @@ import {
   assertNormalAdultFiveWallPriorV1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 import {
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRelaxationProfileV1";
+import {
   validateAndOwnMainWireFiveWallMechanicsResearchInputsV1,
   type MainWireFiveWallMechanicsResearchInputsV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
@@ -185,6 +190,30 @@ export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   );
 }
 
+/** Dormant fixed ventricular material; no Standard-model factory selects it. */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileV1():
+  MainWireNormalAdultFiveWallProviderV1 {
+  return createNormalAdultProviderFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+    `-${MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID}`,
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+  );
+}
+
+export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileV1():
+  MainWireFiveWallRecordV1<
+    MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+  > {
+  return createMaterialKernelsFromMaterial(
+    "on",
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+  );
+}
+
 /**
  * Creates the continuous, bounded contractility variant used by the exact
  * Standard model. Passive material, geometry, calcium ownership, SLS, and the
@@ -232,6 +261,57 @@ export function createMainWireNormalAdultFiveWallProviderWithMechanicsResearchIn
     "on",
     createMaterialKernelsWithMechanicsResearchInputsV1(inputs),
     `-wall-mechanics-${identity}`,
+  );
+}
+
+/**
+ * Composes the existing bounded wall controls over the selected ventricular
+ * material instead of silently rebuilding those walls from the canonical
+ * Land prior. Calcium-decay controls remain outside the material provider.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const inputs =
+    validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs);
+  const materialChanged = (
+    [
+      ...Object.values(inputs.activeTensionScaleByWall),
+      ...Object.values(inputs.passiveStiffnessScaleByWall),
+    ] as number[]
+  ).some((scale) => scale !== 1);
+  if (!materialChanged) {
+    return createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileV1();
+  }
+  const identity = stableHash(
+    sanitizeForStableHash(
+      Object.freeze({
+        activeTensionScaleByWall: inputs.activeTensionScaleByWall,
+        passiveStiffnessScaleByWall: inputs.passiveStiffnessScaleByWall,
+      }),
+    ),
+  );
+  return createNormalAdultProviderFromKernels(
+    "on",
+    createMaterialKernelsWithMechanicsResearchInputsV1(
+      inputs,
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+    ),
+    `-${MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID}` +
+      `-wall-mechanics-${identity}`,
+  );
+}
+
+export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
+  return createMaterialKernelsWithMechanicsResearchInputsV1(
+    validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs),
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+    MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
   );
 }
 
@@ -349,6 +429,7 @@ function createMaterialKernelsFromMaterial(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   ventricularEquilibriumPassive: CompiledEquilibriumOneFiberPassiveV1,
   ventricularWallMaterial: LandSlsWallMaterialParamsV1,
+  ventricularColdMaximumIterations?: number,
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
@@ -371,12 +452,15 @@ function createMaterialKernelsFromMaterial(
       materialParams,
       passive,
       prior.parameterIdentityHash,
+      isAtrium ? undefined : ventricularColdMaximumIterations,
     );
   });
 }
 
 function createMaterialKernelsWithMechanicsResearchInputsV1(
   inputs: MainWireFiveWallMechanicsResearchInputsV1,
+  selectedVentricularWallMaterial?: LandSlsWallMaterialParamsV1,
+  selectedVentricularColdMaximumIterations?: number,
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
@@ -393,7 +477,9 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
       passiveScale === 1
         ? basePassive
         : scaledPassiveEvaluatorV1(basePassive, passiveScale, wallId);
-    const baseline = prior.active.wallMaterialByWall[wallId];
+    const baseline = isAtrium || selectedVentricularWallMaterial === undefined
+      ? prior.active.wallMaterialByWall[wallId]
+      : selectedVentricularWallMaterial;
     const materialParams =
       activeScale === 1 && passiveScale === 1
         ? baseline
@@ -430,6 +516,7 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
       materialParams,
       passive,
       prior.parameterIdentityHash,
+      isAtrium ? undefined : selectedVentricularColdMaximumIterations,
     );
   });
 }
@@ -455,6 +542,7 @@ function createNormalAdultProviderFromMaterial(
   ventricularEquilibriumPassive: CompiledEquilibriumOneFiberPassiveV1,
   ventricularWallMaterial: LandSlsWallMaterialParamsV1,
   identitySuffix: string,
+  ventricularColdMaximumIterations?: number,
 ): MainWireNormalAdultFiveWallProviderV1 {
   return createNormalAdultProviderFromKernels(
     laSlsMode,
@@ -462,6 +550,7 @@ function createNormalAdultProviderFromMaterial(
       laSlsMode,
       ventricularEquilibriumPassive,
       ventricularWallMaterial,
+      ventricularColdMaximumIterations,
     ),
     identitySuffix,
   );
@@ -744,6 +833,12 @@ function scaledWallLandTrefForScaleV1(
       derivedParameters: Object.freeze(
         baseline.derivedParameters.map((entry) => Object.freeze({ ...entry })),
       ),
+      ...(baseline.strongBridgeDeactivationExit === undefined
+        ? {}
+        : {
+            strongBridgeDeactivationExit:
+              baseline.strongBridgeDeactivationExit,
+          }),
     };
   return Object.freeze({
     ...hashInput,
@@ -800,6 +895,7 @@ function createWallKernel(
   params: LandSlsWallMaterialParamsV1,
   evaluatePassive: PassiveEvaluatorV1,
   priorIdentityHash: string,
+  coldMaximumIterations?: number,
 ): MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1> {
   const passiveAtZero = evaluatePassive(0);
   const parameterIdentityHash = stableHash(
@@ -810,6 +906,9 @@ function createWallKernel(
       passiveModelId: passiveAtZero.modelId,
       passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
       landSls: landSlsParameterHashInput(params),
+      ...(coldMaximumIterations === undefined
+        ? {}
+        : { coldMaximumIterations }),
     }),
   );
   type TrialInput = Readonly<{
@@ -923,11 +1022,18 @@ function createWallKernel(
     evaluationStateOwnershipMode: "exclusive-result" as const,
     initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) => {
       const passive = evaluatePassive(fiberLogStrain);
-      const cold = initializeLandSlsWallAtFixedInputV1(
-        fiberLogStrain,
-        freeCalciumUM,
-        params,
-      );
+      const cold = coldMaximumIterations === undefined
+        ? initializeLandSlsWallAtFixedInputV1(
+            fiberLogStrain,
+            freeCalciumUM,
+            params,
+          )
+        : initializeLandSlsWallAtFixedInputV1(
+            fiberLogStrain,
+            freeCalciumUM,
+            params,
+            { maximumIterations: coldMaximumIterations },
+          );
       const accepted = evaluateAcceptedLandSlsWallStateV1(
         cold.state,
         passive.input,
