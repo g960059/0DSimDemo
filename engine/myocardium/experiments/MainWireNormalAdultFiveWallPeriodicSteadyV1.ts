@@ -1411,6 +1411,65 @@ export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyB
     }>;
   }>;
 
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_STEPS_PER_CYCLE_V1 =
+  4_000 as const;
+
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_SEC_V1 =
+  48 as const;
+
+export type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeFixedPhysicalHorizonSentinelResearchRunV1 =
+  Readonly<
+    Omit<
+      MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeResearchRunV1,
+      "configurationRole" | "claim"
+    > & {
+      configurationRole: "fixed-v10-reference-non-calcium-matched-alpha-timing-policy-bridge-48s-sentinel-arm";
+      executionPolicy: Readonly<{
+        policyId: "matched-alpha-fixed-physical-horizon-48s-sentinel-v1";
+        fixedPhysicalHorizonSec: 48;
+        stepsPerCycle: 4_000;
+        minimumCompletedBeatCountBeforePeriodicTermination: 40 | 72;
+        maximumBeatCount: 40 | 72;
+        periodicTerminationBeforeFixedHorizonAccepted: false;
+      }>;
+      claim: Readonly<{
+        sourceResearchRunnerOnly: true;
+        independentCanonicalColdStart: true;
+        warmStartApplied: false;
+        publicExecutionOptionsAccepted: false;
+        genericParameterPatchAccepted: false;
+        fixedMatchedAlphaTimingPolicyBridgeProfileOnly: true;
+        fixedPhysicalHorizonSentinelOnly: true;
+        fixedPhysicalHorizonSec: 48;
+        fixedStepsPerCycle: 4_000;
+        minimumAndMaximumBeatCountsEqual: true;
+        periodicTerminationBeforeFixedHorizonAccepted: false;
+        endpointPeriodicClassificationStillRequiredForP1Claim: true;
+        executionHorizonIsExactRunnerPolicyNotPhysiologicalProtocolParameter: true;
+        valveDiseaseBracketApplied: false;
+        referenceAssemblyDerivedFromCandidateV10: true;
+        fullV10CandidateIdentityRetained: false;
+        V10ReferenceNonCalciumAssemblyHeldExactly: true;
+        matchedAlphaWaveformFamilyHeldExactly: true;
+        ventricularCalciumExtremaHeldExactly: true;
+        circulatoryLoadHeldAtBaseline: true;
+        bloodVolumeHeldAtBaseline: true;
+        systemicOrBloodVolumeRecalibrationApplied: false;
+        aorticMaximumForwardEoaHeldAtCm2: 3.5;
+        calciumOrMechanicsStateAdded: false;
+        acceptedStateOrCheckpointTopologyChanged: false;
+        nonHr60V3WarmStartEmissionSuppressed: true;
+        nonHr60V3WarmStartRestoreRejected: true;
+        profileToCalciumParamsIdentityChecked: true;
+        exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors: true;
+        derivedAnalysisStored: false;
+        parameterSearchOrFitting: false;
+        clinicalValidationClaimed: false;
+        canonicalAdoptionEstablished: false;
+      }>;
+    }
+  >;
+
 export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniAmplitudeTrefWindkesselResearchRunV1 =
   Readonly<{
     configurationRole:
@@ -2012,6 +2071,10 @@ type ResolvedPeriodicAssemblyV1 = Readonly<{
   bloodVolumeOperatingPoint:
     MainWireNormalAdultBloodVolumeOperatingPointResolvedV1;
   calciumDriveParams?: FiveWallNormalCalciumDriveParamsV1;
+}>;
+
+type MainWireNormalAdultFiveWallPeriodicExecutionControlV1 = Readonly<{
+  minimumCompletedBeatCountBeforePeriodicTermination: number;
 }>;
 
 const STANDARD_WARM_START_CYCLE_LENGTH_SEC = 1;
@@ -3647,6 +3710,7 @@ function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniResolvedAssemblyV
   assembly: MainWireNormalAdultFiveWallAorticOutflowLandCoppiniNonCalciumAssemblyV1,
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
   identityMismatchMessage: string,
+  executionControl?: MainWireNormalAdultFiveWallPeriodicExecutionControlV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const periodicResult =
     runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
@@ -3667,6 +3731,7 @@ function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniResolvedAssemblyV
         bloodVolumeOperatingPoint: assembly.bloodVolume.operatingPoint,
         calciumDriveParams,
       }),
+      executionControl,
     );
   if (
     periodicResult.protocolIdentity.calciumDrive.parameterSetId !==
@@ -3865,6 +3930,7 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
   expectedHeartRateBpm: number,
   mismatchMessages: MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyMismatchMessagesV1,
+  executionControl?: MainWireNormalAdultFiveWallPeriodicExecutionControlV1,
 ): MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyExecutionV1 {
   const reference =
     MAIN_WIRE_AORTIC_OUTFLOW_V10_HEART_RATE_CALCIUM_REFERENCE_NON_CALCIUM_ASSEMBLY_V1;
@@ -3898,6 +3964,7 @@ function runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
       assembly,
       calciumDriveParams,
       mismatchMessages.protocolIdentity,
+      executionControl,
     );
   const {
     placementProfile,
@@ -4081,16 +4148,16 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10HeartRateCalciumHy
   });
 }
 
-/**
- * Matched-alpha timing-policy bridge on the fixed V10 reference non-Ca
- * assembly. The profile ID is the only experimental input beyond integration
- * resolution and execution beat limit.
- */
-export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeResearchV1(
-  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+type MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1 =
+  Readonly<{
+    matchedAlphaTimingPolicyBridgeProfile:
+      MainWireVentricularCalciumMatchedAlphaTimingPolicyBridgeProfileV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+  }>;
+
+function resolveMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaProfileV1(
   profileId: MainWireVentricularCalciumMatchedAlphaTimingPolicyBridgeProfileIdV1,
-): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeResearchRunV1 {
-  assertExactAorticOutflowResearchOptions(options);
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1 {
   const arm =
     resolveMainWireAorticOutflowV10MatchedAlphaTimingPolicyBridgeArmV1(
       profileId,
@@ -4134,8 +4201,62 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTiming
       "V10 matched-alpha timing-policy bridge profile/parameter identity mismatch",
     );
   }
+  return Object.freeze({
+    matchedAlphaTimingPolicyBridgeProfile,
+    calciumDriveParams,
+  });
+}
+
+function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  resolvedProfile: MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1,
+  executionControl?: MainWireNormalAdultFiveWallPeriodicExecutionControlV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyExecutionV1 {
+  const execution =
+    runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
+      options,
+      resolvedProfile.calciumDriveParams,
+      resolvedProfile.matchedAlphaTimingPolicyBridgeProfile.heartRateBpm,
+      Object.freeze({
+        protocolIdentity:
+          "V10 matched-alpha timing-policy bridge protocol identity mismatch",
+        nonCalciumAssemblyIdentity:
+          "V10 matched-alpha timing-policy bridge non-calcium assembly identity mismatch",
+        exactProtocolReadback:
+          "V10 matched-alpha timing-policy bridge exact protocol readback mismatch",
+      }),
+      executionControl,
+    );
+  if (
+    execution.reference !==
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_REFERENCE_NON_CALCIUM_ASSEMBLY_V1
+  ) {
+    throw new Error(
+      "V10 matched-alpha timing-policy bridge reference assembly identity mismatch",
+    );
+  }
+  return execution;
+}
+
+/**
+ * Matched-alpha timing-policy bridge on the fixed V10 reference non-Ca
+ * assembly. The profile ID is the only experimental input beyond integration
+ * resolution and execution beat limit.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeResearchV1(
+  options: MainWireNormalAdultFiveWallAorticOutflowResearchOptionsV1,
+  profileId: MainWireVentricularCalciumMatchedAlphaTimingPolicyBridgeProfileIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeResearchRunV1 {
+  assertExactAorticOutflowResearchOptions(options);
+  const resolvedProfile =
+    resolveMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaProfileV1(
+      profileId,
+    );
   const {
-    reference,
+    matchedAlphaTimingPolicyBridgeProfile,
+    calciumDriveParams,
+  } = resolvedProfile;
+  const {
     assembly,
     placementProfile,
     rootInertanceProfile,
@@ -4143,27 +4264,10 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTiming
     recoveredRootPortValveProfile,
     periodicResult,
     exactAssemblyAudit,
-  } = runMainWireNormalAdultFiveWallAorticOutflowV10ReferenceAssemblyV1(
+  } = runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1(
     options,
-    calciumDriveParams,
-    matchedAlphaTimingPolicyBridgeProfile.heartRateBpm,
-    Object.freeze({
-      protocolIdentity:
-        "V10 matched-alpha timing-policy bridge protocol identity mismatch",
-      nonCalciumAssemblyIdentity:
-        "V10 matched-alpha timing-policy bridge non-calcium assembly identity mismatch",
-      exactProtocolReadback:
-        "V10 matched-alpha timing-policy bridge exact protocol readback mismatch",
-    }),
+    resolvedProfile,
   );
-  if (
-    reference !==
-      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_REFERENCE_NON_CALCIUM_ASSEMBLY_V1
-  ) {
-    throw new Error(
-      "V10 matched-alpha timing-policy bridge reference assembly identity mismatch",
-    );
-  }
   return Object.freeze({
     configurationRole:
       "fixed-v10-reference-non-calcium-matched-alpha-timing-policy-bridge-arm" as const,
@@ -4218,6 +4322,145 @@ export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTiming
       profileToCalciumParamsIdentityChecked: true as const,
       exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors:
         true as const,
+      parameterSearchOrFitting: false as const,
+      clinicalValidationClaimed: false as const,
+      canonicalAdoptionEstablished: false as const,
+    }),
+  });
+}
+
+/**
+ * Fixed 48-second sentinel for the four matched-alpha bridge profiles. This
+ * runner exposes no integration options: resolution and horizon are fixed so
+ * periodic classification is an endpoint readback rather than an early stop.
+ */
+export function runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeFixedPhysicalHorizonSentinelResearchV1(
+  profileId: MainWireVentricularCalciumMatchedAlphaTimingPolicyBridgeProfileIdV1,
+): MainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaTimingPolicyBridgeFixedPhysicalHorizonSentinelResearchRunV1 {
+  if (arguments.length !== 1 || typeof profileId !== "string") {
+    throw new Error(
+      "matched-alpha fixed-horizon sentinel accepts only one fixed bridge profile ID and no execution options",
+    );
+  }
+  const resolvedProfile =
+    resolveMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaProfileV1(
+      profileId,
+    );
+  const {
+    matchedAlphaTimingPolicyBridgeProfile,
+    calciumDriveParams,
+  } = resolvedProfile;
+  const beatCount =
+    matchedAlphaTimingPolicyBridgeProfile.heartRateBpm === 50
+      ? 40 as const
+      : 72 as const;
+  const executionPolicy = Object.freeze({
+    policyId:
+      "matched-alpha-fixed-physical-horizon-48s-sentinel-v1" as const,
+    fixedPhysicalHorizonSec:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_SEC_V1,
+    stepsPerCycle:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_FIXED_PHYSICAL_HORIZON_SENTINEL_STEPS_PER_CYCLE_V1,
+    minimumCompletedBeatCountBeforePeriodicTermination: beatCount,
+    maximumBeatCount: beatCount,
+    periodicTerminationBeforeFixedHorizonAccepted: false as const,
+  });
+  const {
+    assembly,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    periodicResult,
+    exactAssemblyAudit,
+  } = runMainWireNormalAdultFiveWallAorticOutflowV10MatchedAlphaResolvedProfileV1(
+    Object.freeze({
+      dtSec:
+        matchedAlphaTimingPolicyBridgeProfile.cycleLengthSec
+        / executionPolicy.stepsPerCycle,
+      maximumBeatCount: executionPolicy.maximumBeatCount,
+    }),
+    resolvedProfile,
+    Object.freeze({
+      minimumCompletedBeatCountBeforePeriodicTermination:
+        executionPolicy.minimumCompletedBeatCountBeforePeriodicTermination,
+    }),
+  );
+  if (
+    periodicResult.stepsPerBeat !== executionPolicy.stepsPerCycle ||
+    periodicResult.requestedMaximumBeatCount !==
+      executionPolicy.maximumBeatCount ||
+    periodicResult.completedBeatCount !== executionPolicy.maximumBeatCount ||
+    periodicResult.completedBeatCount
+      * matchedAlphaTimingPolicyBridgeProfile.cycleLengthSec !==
+      executionPolicy.fixedPhysicalHorizonSec ||
+    periodicResult.integrationCompletedWithoutFailure !== true ||
+    periodicResult.failure !== null ||
+    periodicResult.retainedCompleteBeats.at(-1)?.beatIndex !==
+      executionPolicy.maximumBeatCount
+  ) {
+    throw new Error(
+      "matched-alpha fixed-horizon sentinel did not complete its exact 48-second execution policy",
+    );
+  }
+  return Object.freeze({
+    configurationRole:
+      "fixed-v10-reference-non-calcium-matched-alpha-timing-policy-bridge-48s-sentinel-arm" as const,
+    referenceNonCalciumAssembly:
+      MAIN_WIRE_AORTIC_OUTFLOW_V10_MATCHED_ALPHA_TIMING_POLICY_BRIDGE_REFERENCE_NON_CALCIUM_ASSEMBLY_V1,
+    matchedAlphaTimingPolicyBridgeProfile,
+    kuwProfile: assembly.kuwProfile,
+    sarcomereReferenceProfile: assembly.sarcomereReferenceProfile,
+    calciumSensitivityLengthProfile: assembly.calciumSensitivityLengthProfile,
+    sourceTwitchRetentionCandidate: assembly.sourceTwitchRetentionCandidate,
+    trefForceLoadProfile: assembly.trefForceLoadProfile,
+    sourceVelocityDistortionProfile: assembly.sourceVelocityDistortionProfile,
+    strongBridgeDeactivationExitProfile:
+      assembly.strongBridgeDeactivationExitProfile,
+    circulatoryLoadPoint: assembly.circulatoryLoadPoint,
+    stressedVenousVolumePoint: assembly.bloodVolume.point,
+    complianceProfile: assembly.complianceProfile,
+    placementProfile,
+    rootInertanceProfile,
+    aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
+    calciumDriveParams,
+    periodicResult,
+    exactAssemblyAudit,
+    executionPolicy,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      publicExecutionOptionsAccepted: false as const,
+      genericParameterPatchAccepted: false as const,
+      fixedMatchedAlphaTimingPolicyBridgeProfileOnly: true as const,
+      fixedPhysicalHorizonSentinelOnly: true as const,
+      fixedPhysicalHorizonSec: 48 as const,
+      fixedStepsPerCycle: 4_000 as const,
+      minimumAndMaximumBeatCountsEqual: true as const,
+      periodicTerminationBeforeFixedHorizonAccepted: false as const,
+      endpointPeriodicClassificationStillRequiredForP1Claim: true as const,
+      executionHorizonIsExactRunnerPolicyNotPhysiologicalProtocolParameter:
+        true as const,
+      valveDiseaseBracketApplied: false as const,
+      referenceAssemblyDerivedFromCandidateV10: true as const,
+      fullV10CandidateIdentityRetained: false as const,
+      V10ReferenceNonCalciumAssemblyHeldExactly: true as const,
+      matchedAlphaWaveformFamilyHeldExactly: true as const,
+      ventricularCalciumExtremaHeldExactly: true as const,
+      circulatoryLoadHeldAtBaseline: true as const,
+      bloodVolumeHeldAtBaseline: true as const,
+      systemicOrBloodVolumeRecalibrationApplied: false as const,
+      aorticMaximumForwardEoaHeldAtCm2: 3.5 as const,
+      calciumOrMechanicsStateAdded: false as const,
+      acceptedStateOrCheckpointTopologyChanged: false as const,
+      nonHr60V3WarmStartEmissionSuppressed: true as const,
+      nonHr60V3WarmStartRestoreRejected: true as const,
+      profileToCalciumParamsIdentityChecked: true as const,
+      exactProtocolIdentityIncludesCalciumParamsAndAllNonCalciumFactors:
+        true as const,
+      derivedAnalysisStored: false as const,
       parameterSearchOrFitting: false as const,
       clinicalValidationClaimed: false as const,
       canonicalAdoptionEstablished: false as const,
@@ -6439,6 +6682,7 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   resolvedAssembly?: ResolvedPeriodicAssemblyV1,
+  executionControl?: MainWireNormalAdultFiveWallPeriodicExecutionControlV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const calciumDriveParams =
     resolvedAssembly?.calciumDriveParams ??
@@ -6447,6 +6691,18 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
     options,
     calciumDriveParams.cycleLengthSec,
   );
+  const minimumCompletedBeatCountBeforePeriodicTermination =
+    executionControl?.minimumCompletedBeatCountBeforePeriodicTermination ?? 0;
+  if (
+    !Number.isInteger(minimumCompletedBeatCountBeforePeriodicTermination)
+    || minimumCompletedBeatCountBeforePeriodicTermination < 0
+    || minimumCompletedBeatCountBeforePeriodicTermination
+      > resolved.maximumBeatCount
+  ) {
+    throw new Error(
+      "minimum completed beat count before periodic termination must be a nonnegative integer no greater than maximumBeatCount",
+    );
+  }
   if (
     resolved.warmStart !== null &&
     resolved.cycleLengthSec !== STANDARD_WARM_START_CYCLE_LENGTH_SEC
@@ -6623,13 +6879,16 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
       localAorticValveBoundaryFlowsMlPerSec,
     );
     if (
-      (
-        classification.status === "period1-converged"
-        && externalClosure.period1BoundaryClosureSatisfied
-      )
-      || (
-        classification.status === "period2-suspect"
-        && externalClosure.period2BoundaryClosureSatisfied
+      beatIndex >= minimumCompletedBeatCountBeforePeriodicTermination
+      && (
+        (
+          classification.status === "period1-converged"
+          && externalClosure.period1BoundaryClosureSatisfied
+        )
+        || (
+          classification.status === "period2-suspect"
+          && externalClosure.period2BoundaryClosureSatisfied
+        )
       )
     ) break;
   }
