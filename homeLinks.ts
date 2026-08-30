@@ -43,6 +43,24 @@ export const loginHref = (locale?: Locale) => prefixPath("/login", locale);
 export const authoringCliDocsHref = (locale?: Locale) =>
   prefixPath("/docs/authoring-cli", locale);
 
+/** Third-layer documentation for one exact model and pinned Model Surface. */
+export const modelDocumentationHref = ({
+  locale,
+  modelId,
+  surfaceReleaseId,
+}: Readonly<{
+  locale?: Locale;
+  modelId: string;
+  surfaceReleaseId: string;
+}>) => {
+  const path = prefixPath(
+    `/models/${encodeURIComponent(modelId)}`,
+    locale,
+  );
+  const search = new URLSearchParams({ surface: surfaceReleaseId });
+  return `${path}?${search.toString()}`;
+};
+
 /** Compact inventory for development content and model releases in use. */
 export const devDashboardHref = (locale?: Locale) => prefixPath("/dev", locale);
 

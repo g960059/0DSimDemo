@@ -1,5 +1,6 @@
 export * from "./GuytonStarlingOrientationCanvasV3";
 export * from "./WorkbenchGraphColorV3";
+export * from "./WorkbenchItemDescriptionPopoverV3";
 export * from "./PressureVolumeLoopCanvasV3";
 export * from "./SweepingWaveformCanvasV3";
 export * from "./WorkbenchCanvasRuntimeV3";

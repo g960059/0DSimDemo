@@ -4,6 +4,7 @@ import {
 } from "@/components/workbench/ExperimentPanePresentationV3";
 import {
   controlLabelV3,
+  graphSeriesLabelV3,
   outputLabelV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
@@ -12,7 +13,10 @@ import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import type { ExperimentSurfaceOutputPaneV2 } from "@/studio/contracts/v2/content";
-import type { ModelContractV2 } from "@/studio/contracts/v2/model";
+import type {
+  ControlDefinitionV2,
+  ModelContractV2,
+} from "@/studio/contracts/v2/model";
 import type {
   StudioSimulationFrameV2,
   StudioSimulationOutputValueV2,
@@ -22,6 +26,7 @@ import {
   resolveStudioOutputPressureSummaryStoredLabelV1,
   resolveStudioSurfaceItemLabelV1,
   studioOutputPressureSummaryForOutputIdV1,
+  type ResolvedStudioItemPresentationV1,
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 
 const WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
@@ -49,6 +54,99 @@ export function resolveWorkbenchPaneItemLabelV3(
     storedLabel: input.storedLabel,
     legacyDefaultLabel,
     presentation,
+  });
+}
+
+export function resolveWorkbenchControlPresentationV3(
+  input: Readonly<{
+    definition: ControlDefinitionV2;
+    storedLabel: string | undefined;
+    locale: "en" | "ja";
+  }>,
+): ResolvedStudioItemPresentationV1 {
+  const legacyDefaultLabel = controlLabelV3(input.definition.controlId);
+  const presentation = resolveStudioItemPresentationV1({
+    kind: "control",
+    itemId: input.definition.controlId,
+    fallbackEnglishLabel: legacyDefaultLabel,
+    locale: input.locale,
+    catalogFacts: {
+      controlChangeSemantics: input.definition.changeSemantics,
+    },
+  });
+  return Object.freeze({
+    ...presentation,
+    label: resolveStudioSurfaceItemLabelV1({
+      storedLabel: input.storedLabel,
+      legacyDefaultLabel,
+      presentation,
+    }),
+  });
+}
+
+export function resolveWorkbenchOutputPresentationV3(
+  input: Readonly<{
+    locale: "en" | "ja";
+    outputId: string;
+    outputKind?: string;
+    storedLabel: string | undefined;
+  }>,
+): ResolvedStudioItemPresentationV1 {
+  const legacyDefaultLabel = outputLabelV3(input.outputId);
+  const presentation = resolveStudioItemPresentationV1({
+    kind: "output",
+    itemId: input.outputId,
+    fallbackEnglishLabel: legacyDefaultLabel,
+    locale: input.locale,
+    ...(input.outputKind === undefined
+      ? {}
+      : { catalogFacts: { outputKind: input.outputKind } }),
+  });
+  return Object.freeze({
+    ...presentation,
+    label: resolveStudioSurfaceItemLabelV1({
+      storedLabel: input.storedLabel,
+      legacyDefaultLabel,
+      presentation,
+    }),
+  });
+}
+
+/**
+ * Resolves a graph series through its output identity while retaining the
+ * compact clinical legend label owned by the graph catalog. Historical
+ * generated labels localize/migrate; an authored custom label remains exact.
+ */
+export function resolveWorkbenchGraphSeriesPresentationV3(
+  input: Readonly<{
+    definition: ModelContractV2["outputCatalog"][number] | undefined;
+    locale: "en" | "ja";
+    outputId: string;
+    seriesId: string;
+    storedLabel: string | undefined;
+  }>,
+): ResolvedStudioItemPresentationV1 {
+  const compactDefaultLabel = graphSeriesLabelV3(input.seriesId);
+  const presentation = resolveStudioItemPresentationV1({
+    kind: "output",
+    itemId: input.outputId,
+    fallbackEnglishLabel: outputLabelV3(input.outputId),
+    locale: input.locale,
+    ...(input.definition === undefined
+      ? {}
+      : { catalogFacts: { outputKind: input.definition.kind } }),
+  });
+  const resolvedLabel = resolveStudioSurfaceItemLabelV1({
+    storedLabel: input.storedLabel,
+    legacyDefaultLabel: compactDefaultLabel,
+    presentation,
+  });
+  return Object.freeze({
+    ...presentation,
+    label:
+      resolvedLabel === presentation.label
+        ? compactDefaultLabel
+        : resolvedLabel,
   });
 }
 
@@ -164,14 +262,24 @@ export function materializeWorkbenchOutputPresentationItemsV3(
         locale: input.locale,
         fallbackEnglishLabel: outputLabelV3,
       });
+      const presentation = resolveWorkbenchOutputPresentationV3({
+        locale: input.locale,
+        outputId: summary.presentationId,
+        outputKind: "metric",
+        storedLabel,
+      });
       result.push({
         itemId: summary.presentationId,
-        label: resolveWorkbenchPaneItemLabelV3({
-          kind: "output",
-          itemId: summary.presentationId,
-          storedLabel,
-          locale: input.locale,
-        }),
+        label: presentation.label,
+        ...(presentation.inlineDisclosure
+          ? {
+              description: presentation.description,
+              descriptionAriaLabel:
+                input.locale === "ja"
+                  ? `${presentation.label}の説明`
+                  : `About ${presentation.label}`,
+            }
+          : {}),
         value: null,
         displayValue: formatExperimentPressureSummaryV3({
           maximum,
@@ -206,14 +314,24 @@ export function materializeWorkbenchOutputPresentationItemsV3(
           input.periodicPvaAnalysisError,
         )
       : undefined;
+    const presentation = resolveWorkbenchOutputPresentationV3({
+      locale: input.locale,
+      outputId: item.outputId,
+      outputKind: definition.kind,
+      storedLabel: item.label,
+    });
     result.push({
       itemId: item.outputId,
-      label: resolveWorkbenchPaneItemLabelV3({
-        kind: "output",
-        itemId: item.outputId,
-        storedLabel: item.label,
-        locale: input.locale,
-      }),
+      label: presentation.label,
+      ...(presentation.inlineDisclosure
+        ? {
+            description: presentation.description,
+            descriptionAriaLabel:
+              input.locale === "ja"
+                ? `${presentation.label}の説明`
+                : `About ${presentation.label}`,
+          }
+        : {}),
       value: scalarAvailableOutputV3(outputValue),
       unit: definition.unit,
       significantDigits: definition.significantDigits,

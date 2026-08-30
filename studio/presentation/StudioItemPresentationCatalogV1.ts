@@ -6,6 +6,8 @@
  * Japanese label never changes model identity.
  */
 
+import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
+
 export type StudioItemPresentationLocaleV1 = "en" | "ja";
 
 export type StudioItemPresentationCategoryV1 =
@@ -30,10 +32,17 @@ export type ResolvedStudioItemPresentationV1 = Readonly<{
   canonicalEnglishLabel: string;
   /** Compact dictionary-style copy for hover, focus, and touch disclosure. */
   description: string;
+  /** Show the compact copy beside live clinical labels, not only in pickers. */
+  inlineDisclosure: boolean;
   /** Search-only vocabulary. Never render this list as user-facing copy. */
   aliases: readonly string[];
   /** Both locales and all hidden aliases, normalized lazily by search. */
   searchTerms: readonly string[];
+}>;
+
+export type StudioItemPresentationCatalogFactsV1 = Readonly<{
+  controlChangeSemantics?: ControlDefinitionV2["changeSemantics"];
+  outputKind?: string;
 }>;
 
 type LocalizedTextV1 = Readonly<{ en: string; ja: string }>;
@@ -42,7 +51,10 @@ type StudioItemPresentationDraftV1 = Readonly<{
   category: StudioItemPresentationCategoryV1;
   label?: LocalizedTextV1;
   description?: LocalizedTextV1;
+  inlineDisclosure?: true;
   aliases?: readonly string[];
+  /** Historical generated labels that must remain auto-localizable. */
+  historicalDefaultLabels?: readonly string[];
 }>;
 
 const textV1 = (en: string, ja: string): LocalizedTextV1 =>
@@ -127,10 +139,11 @@ const OUTPUT_PRESENTATION_V1: Readonly<
 > = Object.freeze({
   "presentation.pressure-summary.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
     description: textV1(
-      "Maximum, minimum, and time-mean model proximal-aortic constitutive-port pressure (Ao compliance node + Zc × signed AoV flow) at the fixed ascending-aortic area after the local valve law accounts for static pressure recovery; it is not tied to a specific catheter site and omits wave travel and reflection",
-      "局所弁則で静的圧回復を考慮した後の固定上行大動脈断面におけるモデル近位大動脈constitutive-port圧（Ao compliance node + Zc × 符号付きAoV flow）の最大値／最小値と時間平均。特定のカテーテル位置には対応せず、波伝播・反射は含まない",
+      "Maximum, minimum, and mean model proximal-aortic pressure after local static pressure recovery to the fixed ascending-aortic area; it is not a specific catheter-site pressure, and wave travel or reflection is not modeled",
+      "固定上行大動脈断面までの局所的な静圧回復を反映したモデル近位大動脈圧の最大値・最小値・平均値。特定のカテーテル測定部位には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: [
       "AoP",
@@ -160,6 +173,7 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "presentation.pressure-summary.SA": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Arterial blood pressure (ABP)", "体動脈圧 (ABP)"),
     description: textV1(
       "Maximum, minimum, and time-mean pressure of the lumped systemic-arterial (SA) compartment; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
@@ -196,10 +210,11 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
     description: textV1(
-      "Algebraic proximal-aortic constitutive-port pressure (Ao compliance node + Zc × signed AoV flow) at the fixed ascending-aortic area after the local valve law accounts for static pressure recovery; it is not tied to a specific catheter site and omits wave travel and reflection",
-      "局所弁則で静的圧回復を考慮した後の固定上行大動脈断面における代数的近位大動脈constitutive-port圧（Ao compliance node + Zc × 符号付きAoV flow）。特定のカテーテル位置には対応せず、波伝播・反射は含まない",
+      "Model proximal-aortic pressure after local static pressure recovery to the fixed ascending-aortic area; it is not a specific catheter-site pressure, and wave travel or reflection is not modeled",
+      "固定上行大動脈断面までの局所的な静圧回復を反映したモデル近位大動脈圧。特定のカテーテル測定部位には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: [
       "AoP",
@@ -213,6 +228,7 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "hemodynamics.pressure.absolute.SA": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Arterial blood pressure (ABP)", "体動脈圧 (ABP)"),
     description: textV1(
       "Pressure of the lumped systemic-arterial (SA) compartment; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
@@ -226,6 +242,7 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "血圧",
       "体動脈圧",
     ],
+    historicalDefaultLabels: ["Systemic arterial pressure"],
   },
   "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV": {
     category: "valves",
@@ -262,37 +279,41 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "hemodynamics.pressure.mean.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Mean aortic pressure (AoP mean)", "平均大動脈圧 (AoP mean)"),
     description: textV1(
-      "Time-mean model proximal-aortic constitutive-port pressure over the accepted beat; the station and wave-propagation limitations are the same as for AoP",
-      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の時間平均。位置と波伝播に関する制約はAoPと同じ",
+      "Time-mean proximal-aortic constitutive-port pressure over the accepted beat; it is not a specific catheter-site pressure, and wave travel or reflection is not modeled",
+      "解析対象となる1心拍における近位大動脈constitutive port圧の時間平均。特定のカテーテル測定部位には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: ["AoP", "AoP mean", "mean aortic pressure", "平均大動脈圧"],
   },
   "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pressure (AoP max)", "大動脈圧 (AoP max)"),
     description: textV1(
-      "Maximum model proximal-aortic constitutive-port pressure during the accepted beat; the station and wave-propagation limitations are the same as for AoP",
-      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の最大値。位置と波伝播に関する制約はAoPと同じ",
+      "Maximum proximal-aortic constitutive-port pressure during the accepted beat; it is not a specific catheter-site pressure, and wave travel or reflection is not modeled",
+      "解析対象となる1心拍における近位大動脈constitutive port圧の最大値。特定のカテーテル測定部位には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: ["AoP", "AoP max", "aortic systolic pressure", "大動脈圧", "収縮期圧"],
   },
   "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pressure (AoP min)", "大動脈圧 (AoP min)"),
     description: textV1(
-      "Minimum model proximal-aortic constitutive-port pressure during the accepted beat; the station and wave-propagation limitations are the same as for AoP",
-      "解析対象となる1心拍におけるモデル近位大動脈constitutive-port圧の最小値。位置と波伝播に関する制約はAoPと同じ",
+      "Minimum proximal-aortic constitutive-port pressure during the accepted beat; it is not a specific catheter-site pressure, and wave travel or reflection is not modeled",
+      "解析対象となる1心拍における近位大動脈constitutive port圧の最小値。特定のカテーテル測定部位には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: ["AoP", "AoP min", "aortic diastolic pressure", "大動脈圧", "拡張期圧"],
   },
   "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pulse pressure (AoPP)", "大動脈脈圧 (AoPP)"),
     description: textV1(
-      "Accepted-beat maximum minus minimum model proximal-aortic constitutive-port pressure; the station and wave-propagation limitations are the same as for AoP",
-      "解析対象となる1心拍のモデル近位大動脈constitutive-port圧の最大値−最小値。位置と波伝播に関する制約はAoPと同じ",
+      "Accepted-beat maximum minus minimum proximal-aortic constitutive-port pressure; it is not a specific catheter-site pulse pressure, and wave travel or reflection is not modeled",
+      "解析対象となる1心拍の近位大動脈constitutive port圧の最大値−最小値。特定のカテーテル測定部位の脈圧には対応せず、圧波の伝播・反射はモデル化していない",
     ),
     aliases: ["AoPP", "aortic pulse pressure", "pulse pressure", "大動脈脈圧", "脈圧"],
   },
@@ -376,28 +397,31 @@ const OUTPUT_PRESENTATION_V1: Readonly<
   },
   "hemodynamics.pressure.systolic.SA": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Systolic arterial pressure (SBP)", "収縮期体動脈圧 (SBP)"),
     description: textV1(
-      "Maximum systemic arterial pressure during the accepted beat",
-      "解析対象となる1心拍における体動脈圧の最大値",
+      "Maximum pressure of the lumped systemic-arterial compartment during the accepted beat; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
+      "解析対象となる1心拍における集中定数系の体動脈compartment圧の最大値。特定のカフ・動脈ライン位置には対応せず、波伝播・反射は含まない",
     ),
     aliases: ["SBP", "systolic blood pressure", "収縮期血圧", "血圧"],
   },
   "hemodynamics.pressure.diastolic.SA": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Diastolic arterial pressure (DBP)", "拡張期体動脈圧 (DBP)"),
     description: textV1(
-      "Minimum systemic arterial pressure during the accepted beat",
-      "解析対象となる1心拍における体動脈圧の最小値",
+      "Minimum pressure of the lumped systemic-arterial compartment during the accepted beat; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
+      "解析対象となる1心拍における集中定数系の体動脈compartment圧の最小値。特定のカフ・動脈ライン位置には対応せず、波伝播・反射は含まない",
     ),
     aliases: ["DBP", "diastolic blood pressure", "拡張期血圧", "血圧"],
   },
   "hemodynamics.pressure.mean.SA": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Mean arterial pressure (MAP)", "平均体動脈圧 (MAP)"),
     description: textV1(
-      "Time-mean systemic arterial pressure over the accepted beat",
-      "解析対象となる1心拍における体動脈圧の時間平均",
+      "Time-mean pressure of the lumped systemic-arterial compartment over the accepted beat; it is not tied to a specific cuff or arterial-line site and omits wave travel and reflection",
+      "解析対象となる1心拍における集中定数系の体動脈compartment圧の時間平均。特定のカフ・動脈ライン位置には対応せず、波伝播・反射は含まない",
     ),
     aliases: ["MAP", "mean arterial pressure", "平均血圧", "血圧"],
   },
@@ -1003,9 +1027,7 @@ export function resolveStudioItemPresentationV1(
     itemId: string;
     fallbackEnglishLabel: string;
     locale: string;
-    catalogFacts?: Readonly<{
-      outputKind?: string;
-    }>;
+    catalogFacts?: StudioItemPresentationCatalogFactsV1;
   }>,
 ): ResolvedStudioItemPresentationV1 {
   const authored =
@@ -1025,8 +1047,16 @@ export function resolveStudioItemPresentationV1(
     label,
     locale,
   });
-  const description = dictionaryDescriptionV1(
+  const baseDescription = dictionaryDescriptionV1(
     authored?.description?.[locale] ?? fallbackDescription,
+  );
+  const description = dictionaryDescriptionV1(
+    input.kind === "control" &&
+        input.catalogFacts?.controlChangeSemantics === "cold-restart"
+      ? locale === "ja"
+        ? `${baseDescription}。この値を変更するとモデル時刻0から新しい計算軌道を開始し、それまでの確定済みモデル時刻・軌道を置き換える`
+        : `${baseDescription}. Changing this value starts a new model trajectory at t = 0 and replaces the prior accepted model clock and trajectory`
+      : baseDescription,
   );
   const aliases = Object.freeze([...(authored?.aliases ?? [])]);
   const searchTerms = Object.freeze(
@@ -1039,6 +1069,7 @@ export function resolveStudioItemPresentationV1(
       authored?.description?.ja,
       description,
       ...aliases,
+      ...(authored?.historicalDefaultLabels ?? []),
     ].filter((term): term is string => term !== undefined),
   );
   return Object.freeze({
@@ -1049,6 +1080,7 @@ export function resolveStudioItemPresentationV1(
     label,
     canonicalEnglishLabel,
     description,
+    inlineDisclosure: authored?.inlineDisclosure === true,
     aliases,
     searchTerms,
   });
@@ -1064,9 +1096,7 @@ function fallbackStudioItemDescriptionV1(
     itemId: string;
     label: string;
     locale: StudioItemPresentationLocaleV1;
-    catalogFacts?: Readonly<{
-      outputKind?: string;
-    }>;
+    catalogFacts?: StudioItemPresentationCatalogFactsV1;
   }>,
 ): string {
   if (input.kind === "control") {
@@ -1095,10 +1125,22 @@ export function resolveStudioSurfaceItemLabelV1(
   if (
     input.storedLabel === undefined ||
     input.storedLabel === input.legacyDefaultLabel ||
-    input.storedLabel === input.presentation.canonicalEnglishLabel
+    input.storedLabel === input.presentation.canonicalEnglishLabel ||
+    historicalStudioItemDefaultLabelsV1(input.presentation).includes(
+      input.storedLabel,
+    )
   )
     return input.presentation.label;
   return input.storedLabel;
+}
+
+function historicalStudioItemDefaultLabelsV1(
+  presentation: ResolvedStudioItemPresentationV1,
+): readonly string[] {
+  const authored = presentation.kind === "control"
+    ? CONTROL_PRESENTATION_V1[presentation.itemId]
+    : OUTPUT_PRESENTATION_V1[presentation.itemId];
+  return authored?.historicalDefaultLabels ?? Object.freeze([]);
 }
 
 export function normalizeStudioItemSearchTextV1(value: string): string {

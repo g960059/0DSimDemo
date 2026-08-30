@@ -374,6 +374,40 @@ export function assertExperimentContentMatchesModelV2(
   assertExperimentModelAndSurfaceMatchV2(content, model, "$.content");
 }
 
+/**
+ * Binds analysis claims in durable presentation data to the capabilities of
+ * the resolved exact Model Surface. A raw-only Surface may expose an exact PV
+ * orbit, but it cannot durably claim a periodic analysis method or envelope.
+ */
+export function assertExperimentContentMatchesModelSurfaceCapabilitiesV2(
+  content: ExperimentContentV2,
+  model: ModelContractV2,
+  capabilities: Readonly<{ periodicPvaSupported: boolean }>,
+): void {
+  assertExperimentModelAndSurfaceMatchV2(content, model, "$.content");
+  if (capabilities.periodicPvaSupported) return;
+
+  const graphsById = new Map(
+    model.graphCatalog.map((definition) => [definition.graphId, definition]),
+  );
+  content.surface.graphPanes.forEach((pane, paneIndex) => {
+    if (graphsById.get(pane.graphId)?.renderer !== "pressure-volume") return;
+    const panePath = `$.content.surface.graphPanes[${paneIndex}]`;
+    if (pane.pressureVolumeAnalysisMode !== "raw-exact-orbit") {
+      throw validationErrorV2(
+        `${panePath}.pressureVolumeAnalysisMode`,
+        "resolved Model Surface has no periodic PVA analysis; must be raw-exact-orbit",
+      );
+    }
+    if (pane.showPressureEnvelope !== undefined) {
+      throw validationErrorV2(
+        `${panePath}.showPressureEnvelope`,
+        "resolved Model Surface has no periodic PVA analysis; must not configure an analysis envelope",
+      );
+    }
+  });
+}
+
 export function assertExperimentDesiredContentMatchesModelV2(
   desiredContent: ExperimentDesiredContentV2,
   model: ModelContractV2,
@@ -540,6 +574,16 @@ function assertExperimentModelAndSurfaceMatchV2(
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
         "pressure-volume graphs must configure an analysis mode",
+      );
+    }
+    if (
+      graph.renderer === "pressure-volume" &&
+      pane.pressureVolumeAnalysisMode === "raw-exact-orbit" &&
+      pane.showPressureEnvelope !== undefined
+    ) {
+      throw validationErrorV2(
+        `${panePath}.showPressureEnvelope`,
+        "raw-exact-orbit pressure-volume graphs must not configure an analysis envelope",
       );
     }
     if (
@@ -1270,12 +1314,13 @@ function assertExperimentSurfaceV2(
     }
     if (
       pane.pressureVolumeAnalysisMode !== undefined &&
+      pane.pressureVolumeAnalysisMode !== "raw-exact-orbit" &&
       pane.pressureVolumeAnalysisMode !== "responsive-preview" &&
       pane.pressureVolumeAnalysisMode !== "formal-periodic"
     ) {
       throw validationErrorV2(
         `${panePath}.pressureVolumeAnalysisMode`,
-        "must be responsive-preview or formal-periodic",
+        "must be raw-exact-orbit, responsive-preview, or formal-periodic",
       );
     }
     if (

@@ -1,5 +1,9 @@
 import React from "react";
 
+import {
+  WorkbenchItemDescriptionPopoverV3,
+} from "./WorkbenchItemDescriptionPopoverV3";
+
 export type WorkbenchScenarioTraceIdentityV3 = Readonly<{
   scenarioId: string;
   scenarioLabel: string;
@@ -15,6 +19,8 @@ export type WorkbenchTraceLegendDescriptorV3 = Readonly<{
   scenarioLabel: string;
   itemId: string;
   itemLabel: string;
+  itemDescription?: string;
+  itemDescriptionLabel?: string;
   color: string;
 }>;
 
@@ -33,6 +39,8 @@ export type WorkbenchTraceLegendModelV3 = Readonly<{
   items: readonly Readonly<{
     itemId: string;
     label: string;
+    description?: string;
+    descriptionLabel?: string;
   }>[];
   traces: readonly WorkbenchTraceLegendDescriptorV3[];
 }>;
@@ -90,6 +98,12 @@ export function buildWorkbenchTraceLegendModelV3(
       itemById.set(trace.itemId, Object.freeze({
         itemId: trace.itemId,
         label: trace.itemLabel,
+        ...(trace.itemDescription === undefined
+          ? {}
+          : { description: trace.itemDescription }),
+        ...(trace.itemDescriptionLabel === undefined
+          ? {}
+          : { descriptionLabel: trace.itemDescriptionLabel }),
       }));
     }
   }
@@ -177,6 +191,16 @@ export function WorkbenchChartLegendV3({
       : hiddenSelections.some((hidden) =>
           legendSelectionsEqualV3(hidden, candidate)),
   });
+  const descriptionPopover = (
+    item: WorkbenchTraceLegendModelV3["items"][number],
+  ) => item.description === undefined
+    ? null
+    : (
+        <WorkbenchItemDescriptionPopoverV3
+          ariaLabel={item.descriptionLabel ?? item.label}
+          description={item.description}
+        />
+      );
 
   if (model.mode === "items") {
     const scenario = model.scenarios[0];
@@ -198,15 +222,20 @@ export function WorkbenchChartLegendV3({
             itemId: item.itemId,
           });
           return (
-            <button
+            <span
               key={trace.traceKey}
-              type="button"
-              className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
-              {...interactionProps(candidate)}
+              className="pointer-events-auto inline-flex items-center gap-0.5"
             >
-              <LegendLineV3 color={trace.color} />
-              {item.label}
-            </button>
+              <button
+                type="button"
+                className={`${commonClassName} ${selectionClassName(candidate)} ${visibilityClassName(candidate)}`}
+                {...interactionProps(candidate)}
+              >
+                <LegendLineV3 color={trace.color} />
+                {item.label}
+              </button>
+              {descriptionPopover(item)}
+            </span>
           );
         })}
       </div>
@@ -221,6 +250,11 @@ export function WorkbenchChartLegendV3({
         data-chart-legend="scenarios"
         onPointerLeave={() => onHoverSelection(null)}
       >
+        {item !== undefined && item.description !== undefined && (
+          <span className="pointer-events-auto inline-flex items-center">
+            {descriptionPopover(item)}
+          </span>
+        )}
         {model.scenarios.map((scenario) => {
           const trace = item === undefined
             ? undefined
@@ -255,15 +289,15 @@ export function WorkbenchChartLegendV3({
       onPointerLeave={() => onHoverSelection(null)}
     >
       {model.scenarios.map((scenario) => {
-          const scenarioSelection = Object.freeze({
-            kind: "scenario" as const,
-            scenarioId: scenario.scenarioId,
-          });
-          return (
-            <div
-              key={scenario.scenarioId}
-              className="pointer-events-auto inline-flex min-w-0 items-center gap-2"
-            >
+        const scenarioSelection = Object.freeze({
+          kind: "scenario" as const,
+          scenarioId: scenario.scenarioId,
+        });
+        return (
+          <div
+            key={scenario.scenarioId}
+            className="pointer-events-auto inline-flex min-w-0 items-center gap-2"
+          >
             <button
               type="button"
               className={`${commonClassName} min-w-0 max-w-36 justify-start ${selectionClassName(scenarioSelection)} ${visibilityClassName(scenarioSelection)}`}
@@ -287,22 +321,29 @@ export function WorkbenchChartLegendV3({
                 itemId: item.itemId,
               });
               return (
-                <button
+                <span
                   key={trace.traceKey}
-                  type="button"
-                  aria-label={`${scenario.label}, ${item.label}`}
-                  title={`${scenario.label} · ${item.label}`}
-                  className={`${commonClassName} justify-center ${selectionClassName(traceSelection)} ${visibilityClassName(traceSelection)}`}
-                  {...interactionProps(traceSelection)}
+                  className="inline-flex items-center gap-0.5"
                 >
-                  <LegendLineV3 color={trace.color} />
-                  {item.label}
-                </button>
+                  <button
+                    type="button"
+                    aria-label={`${scenario.label}, ${item.label}`}
+                    title={`${scenario.label} · ${item.label}`}
+                    className={`${commonClassName} justify-center ${selectionClassName(traceSelection)} ${visibilityClassName(traceSelection)}`}
+                    {...interactionProps(traceSelection)}
+                  >
+                    <LegendLineV3 color={trace.color} />
+                    {item.label}
+                  </button>
+                  {scenario.scenarioId === model.scenarios[0]?.scenarioId
+                    ? descriptionPopover(item)
+                    : null}
+                </span>
               );
             })}
-            </div>
-          );
-        })}
+          </div>
+        );
+      })}
     </div>
   );
 }

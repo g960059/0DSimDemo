@@ -73,6 +73,7 @@ import {
 import {
   WORKBENCH_SCENARIO_ID_V3,
   createDefaultExperimentSurfaceV3,
+  reconcileWorkbenchPressureVolumeCapabilityV3,
   reconcileWorkbenchSurfaceScenariosV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
   workbenchGraphPaneOptionsForContractV3,
@@ -86,10 +87,14 @@ import {
   experimentDetailHref,
   homeHref,
   loginHref,
+  modelDocumentationHref,
   myExperimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
+import {
+  resolveRegisteredModelDocumentationV1,
+} from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
@@ -468,6 +473,20 @@ export const WorkbenchSession = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
+  const modelDocumentation = resolveRegisteredModelDocumentationV1(
+    contract?.modelId,
+    surfaceReleaseIdRef.current,
+  );
+  const modelDocumentationLink = modelDocumentation === null
+    ? undefined
+    : modelDocumentationHref({
+        locale: isLocale(locale) ? locale : undefined,
+        modelId: modelDocumentation.modelId,
+        surfaceReleaseId: modelDocumentation.surfaceReleaseId,
+      });
+  const modelLimitationsKey = modelDocumentation === null
+    ? "modelLimitations.items"
+    : "modelLimitations.standard66Items";
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -758,6 +777,10 @@ export const WorkbenchSession = ({
         createDefaultExperimentSurfaceV3(
           composition.modelSurface.contract,
           initialScenarioId,
+          {
+            periodicPvaSupported:
+              composition.modelSurface.analysis.periodicPvaDerivation !== null,
+          },
         );
       const baselineLabel = translationRef.current(
         "workbench.editor.scenarioManager.baselinePresetTitle",
@@ -778,8 +801,13 @@ export const WorkbenchSession = ({
                 }),
               ),
             );
-      const nextSurface = reconcileWorkbenchSurfaceScenariosV3(
+      const capabilitySurface = reconcileWorkbenchPressureVolumeCapabilityV3(
         candidateSurface,
+        composition.modelSurface.contract,
+        composition.modelSurface.analysis.periodicPvaDerivation !== null,
+      );
+      const nextSurface = reconcileWorkbenchSurfaceScenariosV3(
+        capabilitySurface,
         candidateScenarioDescriptors,
       );
       surfaceRef.current = nextSurface;
@@ -1152,6 +1180,9 @@ export const WorkbenchSession = ({
         graphOption !== undefined && "structuralSide" in graphOption
           ? graphOption.structuralSide
           : undefined,
+        {
+          periodicPvaSupported: periodicPvaDerivationRef.current !== null,
+        },
       );
       if (result.selectedPane === null || result.surface === surface) {
         return undefined;
@@ -3031,7 +3062,7 @@ export const WorkbenchSession = ({
             <WorkbenchSimulationInfoV3
               currentModelId={contract.modelId}
               limitations={
-                t("modelLimitations.items", {
+                t(modelLimitationsKey, {
                   returnObjects: true,
                 }) as string[]
               }
@@ -3056,6 +3087,9 @@ export const WorkbenchSession = ({
                   description: t(
                     "workbench.editor.simulationInfo.integratedModelDescription",
                   ),
+                  ...(modelDocumentationLink === undefined
+                    ? {}
+                    : { documentationHref: modelDocumentationLink }),
                 },
               ]}
               scenarios={simulationInfoScenarios}
@@ -3336,6 +3370,7 @@ export const WorkbenchSession = ({
             paneSettings.kind !== "graph" ? paneSettings.section : undefined
           }
           locale={resolvedLocale}
+          periodicPvaSupported={periodicPvaDerivationRef.current !== null}
           selectedPane={paneSettings}
           contract={contract}
           surface={surface}

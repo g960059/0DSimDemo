@@ -189,12 +189,23 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
       ),
       controlCatalog: [{ controlId: "rhythm.heart-rate-bpm" }],
     } as unknown as ModelContractV2;
-    const surface = createDefaultExperimentSurfaceV3(contract);
+    const surface = createDefaultExperimentSurfaceV3(
+      contract,
+      undefined,
+      { periodicPvaSupported: false },
+    );
 
     expect(surface.graphPanes.map(({ graphId }) => graphId)).toEqual([
       "hemodynamics.pressure-volume",
       "hemodynamics.pressure.waveform.comprehensive-v1",
     ]);
+    const pressureVolumePane = surface.graphPanes.find(
+      ({ graphId }) => graphId === "hemodynamics.pressure-volume",
+    )!;
+    expect(pressureVolumePane.pressureVolumeAnalysisMode).toBe(
+      "raw-exact-orbit",
+    );
+    expect("showPressureEnvelope" in pressureVolumePane).toBe(false);
     const pressurePane = surface.graphPanes.find(
       ({ graphId }) =>
         graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
@@ -257,15 +268,17 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     });
 
     expect(aopEn.label).toBe("Aortic pressure (AoP)");
-    expect(aopEn.description).toContain("Ao compliance node + Zc");
     expect(aopEn.description).toContain("static pressure recovery");
-    expect(aopEn.description).toContain("not tied to a specific catheter site");
-    expect(aopEn.description).toContain("omits wave travel and reflection");
+    expect(aopEn.description).toContain("not a specific catheter-site pressure");
+    expect(aopEn.description).toContain("wave travel or reflection is not modeled");
+    expect(aopEn.description).not.toContain("Ao compliance node + Zc");
+    expect(aopEn.inlineDisclosure).toBe(true);
     expect(aopJa.label).toBe("大動脈圧 (AoP)");
-    expect(aopJa.description).toContain("波伝播・反射は含まない");
+    expect(aopJa.description).toContain("圧波の伝播・反射はモデル化していない");
     expect(abpEn.label).toBe("Arterial blood pressure (ABP)");
     expect(abpEn.description).toContain("systemic-arterial (SA) compartment");
     expect(abpEn.description).toContain("cuff or arterial-line site");
+    expect(abpEn.inlineDisclosure).toBe(true);
     expect(localGradient.description).toContain("LV − proximal AoP");
     expect(localGradient.description).not.toContain("pressure recovery before");
     expect(forwardDuration.description).toContain(

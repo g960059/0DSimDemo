@@ -4,11 +4,13 @@ import {
 import {
   assertExperimentBriefingMatchesModelV2,
   assertExperimentContentMatchesModelV2,
+  assertExperimentContentMatchesModelSurfaceCapabilitiesV2,
   validateExperimentPlacementAgainstSnapshotV2,
   validateExperimentContentV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
   applyStudioExperimentPlanV1,
+  assertStudioAuthoringResolvedNumericalModelMatchesPinV1,
   previewStudioExperimentPlanV1,
   sealStudioExperimentSnapshotV1,
   STUDIO_EXPERIMENT_APPLY_PLAN_V1_SCHEMA_ID,
@@ -462,7 +464,9 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
     }) },
     windowSec: finiteNumber,
     historyDepth: version,
-    pressureVolumeAnalysisMode: { enum: ["responsive-preview", "formal-periodic"] },
+    pressureVolumeAnalysisMode: {
+      enum: ["raw-exact-orbit", "responsive-preview", "formal-periodic"],
+    },
     showPressureEnvelope: { type: "boolean" },
     structuralSide: { enum: ["left", "right"] },
     traceColors: { type: "array", items: object([
@@ -1367,12 +1371,21 @@ export async function executeStudioAuthoringCommandV1(
         ...current.experiment.content,
         surface: command.input.surface,
       });
-      const model = await models.resolveModel({
+      const exactModel = Object.freeze({
         modelId: content.modelId,
         surfaceSeriesId: content.surfaceSeriesId,
         surfaceReleaseId: command.input.surfaceReleaseId,
       });
-      assertExperimentContentMatchesModelV2(content, model);
+      const resolved = await models.resolveExactNumericalModel(exactModel);
+      assertStudioAuthoringResolvedNumericalModelMatchesPinV1(
+        resolved,
+        exactModel,
+      );
+      assertExperimentContentMatchesModelSurfaceCapabilitiesV2(
+        content,
+        resolved.contract,
+        { periodicPvaSupported: resolved.periodicPvaSupported },
+      );
       return summarizeExperimentMutationV1(await repository.saveExperiment({
         experimentId: command.input.experimentId,
         expectedVersion: command.input.expectedVersion,

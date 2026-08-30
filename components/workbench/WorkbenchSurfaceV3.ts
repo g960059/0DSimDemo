@@ -450,6 +450,9 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
 export function createDefaultExperimentSurfaceV3(
   contract: ModelContractV2,
   initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
+  options: Readonly<{
+    periodicPvaSupported?: boolean;
+  }> = Object.freeze({}),
 ): ExperimentSurfaceV2 {
   const defaultGraphs = Object.freeze([
     Object.freeze({
@@ -476,6 +479,7 @@ export function createDefaultExperimentSurfaceV3(
       ? []
       : [
           createDefaultGraphPaneV3(graph, index, {
+            periodicPvaSupported: options.periodicPvaSupported ?? true,
             ...("structuralSide" in defaultGraph
               ? { structuralSide: defaultGraph.structuralSide }
               : {}),
@@ -585,10 +589,50 @@ export function createDefaultExperimentSurfaceV3(
   );
 }
 
+/**
+ * Canonicalize PV presentation against the analysis method pinned by the
+ * current Model Surface. This prevents a saved analysis-backed pane from
+ * retaining hidden formal/envelope claims when reopened on a raw-only pair.
+ */
+export function reconcileWorkbenchPressureVolumeCapabilityV3(
+  surface: ExperimentSurfaceV2,
+  contract: ModelContractV2,
+  periodicPvaSupported: boolean,
+): ExperimentSurfaceV2 {
+  if (periodicPvaSupported) return surface;
+  let changed = false;
+  const graphPanes = surface.graphPanes.map((pane) => {
+    const graph = contract.graphCatalog.find(
+      ({ graphId }) => graphId === pane.graphId,
+    );
+    if (
+      graph?.renderer !== "pressure-volume" ||
+      (pane.pressureVolumeAnalysisMode === "raw-exact-orbit" &&
+        pane.showPressureEnvelope === undefined)
+    )
+      return pane;
+    changed = true;
+    const {
+      showPressureEnvelope: _showPressureEnvelope,
+      ...withoutEnvelope
+    } = pane;
+    return Object.freeze({
+      ...withoutEnvelope,
+      pressureVolumeAnalysisMode: "raw-exact-orbit" as const,
+    });
+  });
+  if (!changed) return surface;
+  return Object.freeze({
+    ...surface,
+    graphPanes: Object.freeze(graphPanes),
+  });
+}
+
 function createDefaultGraphPaneV3(
   graph: GraphDefinitionV2,
   index: number,
   options: Readonly<{
+    periodicPvaSupported?: boolean;
     structuralSide?: "left" | "right";
     seriesIds?: readonly string[];
   }> = Object.freeze({}),
@@ -618,12 +662,16 @@ function createDefaultGraphPaneV3(
       : {
           historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
           ...(graph.renderer === "pressure-volume"
-            ? {
-                pressureVolumeAnalysisMode:
-                  WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
-                showPressureEnvelope:
-                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
-              }
+            ? options.periodicPvaSupported === false
+              ? {
+                  pressureVolumeAnalysisMode: "raw-exact-orbit" as const,
+                }
+              : {
+                  pressureVolumeAnalysisMode:
+                    WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                  showPressureEnvelope:
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
+                }
             : {}),
           ...(graph.renderer === "structural-return" ? { structuralSide } : {}),
         }),
@@ -856,7 +904,7 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LAP: "LAP",
     AoP: "AoP",
     ABP: "ABP",
-    SAP: "Systemic arterial pressure",
+    SAP: "ABP",
     RAP: "RAP",
     RVP: "RVP",
     PAP: "PAP",

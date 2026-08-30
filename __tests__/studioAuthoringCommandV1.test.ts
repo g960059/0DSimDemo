@@ -430,6 +430,47 @@ describe("Studio authoring command V1", () => {
     expect(repository.saveExperiment).not.toHaveBeenCalled();
   });
 
+  it("does not save periodic PVA or envelope claims on a raw-only Model Surface", async () => {
+    const repository = repositoryV1();
+    vi.mocked(repository.readMyExperiment).mockResolvedValue({
+      experiment: {
+        schemaId: STUDIO_EXPERIMENT_V2_SCHEMA_ID,
+        experimentId: "experiment/pv-loop",
+        version: 3,
+        content: contentV1(),
+      },
+      title: "Baseline",
+    });
+    const models = modelsV1({
+      periodicPvaSupported: false,
+      pressureVolumeGraph: true,
+    });
+    const command = (surface: ReturnType<typeof pressureVolumeSurfaceV1>) => ({
+      schemaId: STUDIO_AUTHORING_COMMAND_V1_SCHEMA_ID,
+      commandId: "67676767-6767-4767-8767-676767676767",
+      action: "experiment.presentation.save" as const,
+      input: {
+        experimentId: "experiment/pv-loop",
+        expectedVersion: 3,
+        surfaceReleaseId: "surface-release/example",
+        title: "Baseline",
+        surface,
+      },
+    });
+
+    await expect(executeStudioAuthoringCommandV1(
+      repository,
+      models,
+      command(pressureVolumeSurfaceV1("formal-periodic")),
+    )).rejects.toThrow(/no periodic PVA analysis.*raw-exact-orbit/);
+    await expect(executeStudioAuthoringCommandV1(
+      repository,
+      models,
+      command(pressureVolumeSurfaceV1("raw-exact-orbit", false)),
+    )).rejects.toThrow(/raw-exact-orbit.*must not configure an analysis envelope/);
+    expect(repository.saveExperiment).not.toHaveBeenCalled();
+  });
+
   it("rejects an Article placement when its exact Snapshot is unavailable", async () => {
     const repository = repositoryV1();
     const article = {
@@ -599,23 +640,76 @@ function repositoryV1(): StudioAuthoringRepositoryPortV1 {
   };
 }
 
-function modelsV1(): StudioAuthoringModelPortV1 {
+function modelsV1(
+  options: Readonly<{
+    periodicPvaSupported?: boolean;
+    pressureVolumeGraph?: boolean;
+  }> = Object.freeze({}),
+): StudioAuthoringModelPortV1 {
+  const graphCatalog = options.pressureVolumeGraph === true
+    ? [{
+        graphId: "graph/pressure-volume",
+        renderer: "pressure-volume" as const,
+        seriesCatalog: [{
+          kind: "pressure-volume" as const,
+          seriesId: "LV",
+          volumeOutputId: "output/volume/LV",
+          pressureOutputId: "output/pressure/LV",
+          pressureBasis: "transmural" as const,
+          cyclePhaseOutputId: "output/phase",
+        }],
+        defaultSeriesIds: ["LV"],
+      }]
+    : [];
+  const contract = Object.freeze({
+    modelId: "model/example",
+    modelFamilyId: "model-family/example",
+    displayName: "Example",
+    fixtureSchemaId: "fixture/example-v1",
+    checkpointCodecId: "checkpoint/example-v1",
+    snapshotGateId: "snapshot/example-v1",
+    controlCatalog: [],
+    outputCatalog: [],
+    graphCatalog,
+  });
   return {
-    resolveModel: vi.fn().mockResolvedValue({
-        modelId: "model/example",
-        modelFamilyId: "model-family/example",
-        displayName: "Example",
-        fixtureSchemaId: "fixture/example-v1",
-        checkpointCodecId: "checkpoint/example-v1",
-        snapshotGateId: "snapshot/example-v1",
-        controlCatalog: [],
-        outputCatalog: [],
-        graphCatalog: [],
-    }),
+    resolveModel: vi.fn().mockResolvedValue(contract),
     resolveActiveNumericalModel: vi.fn(),
     resolveLatestNumericalModel: vi.fn(),
-    resolveExactNumericalModel: vi.fn(),
+    resolveExactNumericalModel: vi.fn().mockResolvedValue(Object.freeze({
+      contract,
+      defaultFixture: Object.freeze({}),
+      periodicPvaSupported: options.periodicPvaSupported ?? true,
+      runtime: null as never,
+      surfaceReleaseId: "surface-release/example",
+      surfaceSeriesId: "surface-series/example",
+    })),
     prepareSurface: vi.fn(),
+  };
+}
+
+function pressureVolumeSurfaceV1(
+  pressureVolumeAnalysisMode: "raw-exact-orbit" | "formal-periodic",
+  showPressureEnvelope?: boolean,
+) {
+  return {
+    graphPanes: [{
+      paneId: "pane/pv",
+      role: "graph" as const,
+      label: "PV loop",
+      order: 0,
+      priority: 100,
+      graphId: "graph/pressure-volume",
+      scenarioScope: { mode: "visible-scenarios" as const },
+      excludedTraces: [],
+      historyDepth: 1,
+      pressureVolumeAnalysisMode,
+      ...(showPressureEnvelope === undefined ? {} : { showPressureEnvelope }),
+      series: [{ seriesId: "LV", label: "LV", order: 0 }],
+    }],
+    outputPanes: [],
+    controlPanes: [],
+    note: { text: "" },
   };
 }
 

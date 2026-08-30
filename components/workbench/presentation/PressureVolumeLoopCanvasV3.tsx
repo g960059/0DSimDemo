@@ -442,7 +442,8 @@ export function PressureVolumeLoopCanvasV3(
 ) {
   const { className } = props;
   const periodicPvaSupported = props.periodicPvaSupported ?? true;
-  const showPressureEnvelope = props.showPressureEnvelope ?? false;
+  const showPressureEnvelope =
+    periodicPvaSupported && (props.showPressureEnvelope ?? false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const volumeDomainStateRef = React.useRef<
