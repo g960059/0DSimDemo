@@ -110,6 +110,7 @@ import {
   reportMainWireFiveWallCoupledPredictorV1,
   resetMainWireFiveWallCoupledPredictorV1,
   restoreMainWireFiveWallCoupledPredictorV1,
+  validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import {
   MainWireFlatCoupledAcceptedStateV1,
@@ -1367,6 +1368,20 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       accepted,
       createMainWireFiveWallCoupledPredictorWorkspaceV1(),
     )).toThrow(/root differs/);
+
+    const signedZeroCurrent = new Array<number>(30).fill(1);
+    signedZeroCurrent[0] = -0;
+    const signedZeroCheckpoint = Object.freeze({
+      ...checkpoint,
+      currentAcceptedMl: Object.freeze(signedZeroCurrent),
+    });
+    const ownedSignedZero =
+      validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2(
+        signedZeroCheckpoint,
+      );
+    expect(Object.is(ownedSignedZero.currentAcceptedMl[0], -0)).toBe(true);
+    expect(ownedSignedZero.currentAcceptedMl)
+      .not.toBe(signedZeroCheckpoint.currentAcceptedMl);
 
     let getterCalls = 0;
     const accessorCheckpoint = { ...checkpoint } as Record<string, unknown>;

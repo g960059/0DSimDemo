@@ -173,6 +173,10 @@ describe("CanonicalFlatDataV1", () => {
 
     const checkpoint = await encodeCanonicalFlatCheckpointV1(first);
     expect(await decodeCanonicalFlatCheckpointV1(checkpoint)).toEqual(decoded);
+    const inFlightCheckpoint = checkpoint.slice();
+    const inFlightDecode = decodeCanonicalFlatCheckpointV1(inFlightCheckpoint);
+    inFlightCheckpoint.fill(0);
+    expect(await inFlightDecode).toEqual(decoded);
     const tampered = checkpoint.slice();
     tampered[tampered.length - 1] ^= 1;
     await expect(decodeCanonicalFlatCheckpointV1(tampered))

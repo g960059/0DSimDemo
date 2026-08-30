@@ -270,7 +270,8 @@ export function restoreMainWireFiveWallCoupledPredictorV1(
   }>,
   workspace: MainWireFiveWallCoupledPredictorWorkspaceV1,
 ): void {
-  const checkpoint = validatePredictorCheckpoint(input);
+  const checkpoint =
+    validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2(input);
   const storage = requireStorage(workspace);
   resetStorage(storage);
   if (checkpoint.historyDepth === 0) return;
@@ -385,7 +386,8 @@ function resetStorage(storage: PredictorStorage): void {
   storage.resetCount = 0;
 }
 
-function validatePredictorCheckpoint(
+/** Validates and recursively owns exact predictor history for persistence. */
+export function validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2(
   input: unknown,
 ): MainWireFiveWallCoupledPredictorCheckpointV2 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -556,6 +558,12 @@ function sameNumber(left: number | null, right: number): boolean {
 }
 
 function sameCoupledRootValue(left: number, right: number): boolean {
+  // `currentAcceptedMl` deliberately preserves the raw Newton root. The
+  // accepted non-coronary state passes through physical/scale*scale and can
+  // therefore differ by a few ulps after exact checkpoint restore. This is a
+  // coherence bridge between redundant representations, not the tamper
+  // boundary (the enclosing canonical checkpoint SHA owns that). Operational
+  // sequential matching has the same bounded representation seam.
   const tolerance = 1e-12 * Math.max(1, Math.abs(left), Math.abs(right));
   return Math.abs(left - right) <= tolerance;
 }

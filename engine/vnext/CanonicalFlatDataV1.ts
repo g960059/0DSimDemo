@@ -96,25 +96,29 @@ export async function decodeCanonicalFlatCheckpointV1(
   input: Uint8Array,
 ): Promise<unknown> {
   assertOwnedDestination(input);
-  if (input.byteLength < CHECKPOINT_HEADER_BYTES) {
+  // Detach synchronously, before the first digest await. Every subsequent
+  // view must point into this owned snapshot so caller mutation cannot splice
+  // a different header, digest, or payload into an in-flight decode.
+  const ownedInput = input.slice();
+  if (ownedInput.byteLength < CHECKPOINT_HEADER_BYTES) {
     throw new Error("Canonical flat checkpoint is truncated");
   }
   const magic = new TextDecoder("utf-8", { fatal: true }).decode(
-    input.subarray(0, 8),
+    ownedInput.subarray(0, 8),
   );
   if (magic !== CANONICAL_FLAT_CHECKPOINT_V1_MAGIC) {
     throw new Error("Canonical flat checkpoint magic is unsupported");
   }
   const payloadLength = new DataView(
-    input.buffer,
-    input.byteOffset,
-    input.byteLength,
+    ownedInput.buffer,
+    ownedInput.byteOffset,
+    ownedInput.byteLength,
   ).getUint32(8, false);
-  if (payloadLength !== input.byteLength - CHECKPOINT_HEADER_BYTES) {
+  if (payloadLength !== ownedInput.byteLength - CHECKPOINT_HEADER_BYTES) {
     throw new Error("Canonical flat checkpoint payload length is invalid");
   }
-  const expected = input.subarray(12, CHECKPOINT_HEADER_BYTES);
-  const payload = input.subarray(CHECKPOINT_HEADER_BYTES);
+  const expected = ownedInput.subarray(12, CHECKPOINT_HEADER_BYTES);
+  const payload = ownedInput.subarray(CHECKPOINT_HEADER_BYTES);
   const actual = await sha256Bytes(payload);
   if (!constantTimeEqual(expected, actual)) {
     throw new Error("Canonical flat checkpoint SHA-256 mismatch");
