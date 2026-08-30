@@ -21,7 +21,9 @@ import {
 } from "@/studio/application/article/ArticleExperimentPlacementV3";
 import {
   isWorkbenchGraphTraceExcludedV3,
+  resolveWorkbenchGraphSeriesLabelV3,
   resolveWorkbenchGraphScenarioIdsV3,
+  shouldShowAorticPressureStationNoticeV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   ExperimentGraphPresentationV3,
@@ -893,6 +895,7 @@ function ArticleReaderLiveGraphV3({
   visibleScenarioIds: readonly string[];
 }>) {
   const { appTheme } = useAppTheme();
+  const { t } = useTranslation();
   const sampleStore = runtime.sampleStore;
   const resolved = resolveArticleReaderGraphPresentationV3(snapshot, briefing);
   const pane = resolved?.pane;
@@ -1113,6 +1116,11 @@ function ArticleReaderLiveGraphV3({
       variant="article"
       label={resolved.label}
       data-reader-legend={resolved.legend}
+      annotation={
+        shouldShowArticleReaderAorticPressureStationNoticeV3(pane, series)
+          ? t("workbench.live.aorticPressureStationNotice")
+          : undefined
+      }
       canvasClassName={
         inline
           ? "article-reader-inflow-graph min-w-0"
@@ -2111,8 +2119,28 @@ function briefingGraphSeriesV3(
   briefing: ExperimentPlacementBriefingGraphV2,
 ) {
   return Object.freeze(
-    [...(briefing.overrides?.series ?? pane.series)].sort(compareOrderV3),
+    [...(briefing.overrides?.series ?? pane.series)]
+      .sort(compareOrderV3)
+      .map((series) =>
+        Object.freeze({
+          ...series,
+          label: resolveWorkbenchGraphSeriesLabelV3(
+            series.seriesId,
+            series.label,
+          ),
+        }),
+      ),
   );
+}
+
+export function shouldShowArticleReaderAorticPressureStationNoticeV3(
+  pane: ExperimentSurfaceGraphPaneV2,
+  displayedSeries: readonly ExperimentPlacementBriefingGraphSeriesV2[],
+): boolean {
+  return shouldShowAorticPressureStationNoticeV3({
+    ...pane,
+    series: displayedSeries,
+  });
 }
 
 function articleBriefingTraceColorV3(

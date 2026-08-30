@@ -15,6 +15,7 @@ import {
   resolveArticleReaderGraphPresentationV3,
   readerStructuralAnalysisRequestsV3,
   selectedSweepOutputIdsV3,
+  shouldShowArticleReaderAorticPressureStationNoticeV3,
 } from "@/components/article/reader/ArticleReaderExperimentV3";
 import {
   articleReaderPeekFractionForPointerV3,
@@ -555,6 +556,61 @@ describe("Article Reader V3 experiment anchor", () => {
       series: [{ seriesId: "series/custom", label: "Custom", order: 0 }],
     });
     expect(resolved?.pane.structuralSide).toBe("right");
+  });
+
+  it("preserves pressure-station semantics in authored Reader graphs", () => {
+    const snapshot = snapshotV3();
+    const pressureSnapshot: ExperimentSnapshotV2 = {
+      ...snapshot,
+      content: {
+        ...snapshot.content,
+        surface: {
+          ...snapshot.content.surface,
+          graphPanes: [
+            {
+              paneId: "pane/pressure",
+              role: "graph",
+              label: "Pressure waveforms",
+              order: 0,
+              priority: 10,
+              graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
+              scenarioScope: { mode: "visible-scenarios" },
+              excludedTraces: [],
+              windowSec: 2,
+              series: [
+                { seriesId: "LVP", label: "LVP", order: 0 },
+                { seriesId: "AoP", label: "AoP", order: 1 },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    const resolved = resolveArticleReaderGraphPresentationV3(
+      pressureSnapshot,
+      {
+        paneId: "pane/pressure",
+        order: 0,
+        emphasis: "primary",
+      },
+    )!;
+
+    expect(resolved.series.map(({ label }) => label)).toEqual([
+      "LV absolute cavity pressure",
+      "Ao compliance node",
+    ]);
+    expect(
+      shouldShowArticleReaderAorticPressureStationNoticeV3(
+        resolved.pane,
+        resolved.series,
+      ),
+    ).toBe(true);
+    expect(
+      shouldShowArticleReaderAorticPressureStationNoticeV3(
+        resolved.pane,
+        resolved.series.filter(({ seriesId }) => seriesId !== "AoP"),
+      ),
+    ).toBe(false);
   });
 
   it("clears only the Placement that actually left the Reader center band", () => {
