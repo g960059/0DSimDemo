@@ -480,9 +480,12 @@ function visit(
     return;
   }
   if (destination.nullableContinuousPointers.has(pathPointer)) {
-    if (value !== null) {
+    if (
+      value !== null
+      && (typeof value !== "number" || !Number.isFinite(value))
+    ) {
       throw new Error(
-        `Flat numerical nullable-continuous ${pathPointer} reference must be null`,
+        `Flat numerical nullable-continuous ${pathPointer} reference must be null or finite`,
       );
     }
     destination.nullableContinuousSlots.push(slot(
@@ -495,9 +498,9 @@ function visit(
     return;
   }
   if (destination.nullableStringPointers.has(pathPointer)) {
-    if (value !== null) {
+    if (value !== null && typeof value !== "string") {
       throw new Error(
-        `Flat numerical nullable-string ${pathPointer} reference must be null`,
+        `Flat numerical nullable-string ${pathPointer} reference must be null or a string`,
       );
     }
     destination.nullableStringSlots.push(slot(
