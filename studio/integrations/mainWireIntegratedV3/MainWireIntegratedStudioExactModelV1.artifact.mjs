@@ -15769,6 +15769,109 @@ function rejectIndependentRateInput(input) {
     }
   }
 }
+function evaluateLand2017StrongBridgeDeactivationExitRateTermsV1(CaTRPN, parameterSet) {
+  const extension = requireSelectedExtension(parameterSet);
+  const calciumTroponin = requireFiniteNumber(
+    CaTRPN,
+    "Land 2017 strong-bridge deactivation-exit CaTRPN"
+  );
+  if (!(calciumTroponin > 0)) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation exit requires positive CaTRPN"
+    );
+  }
+  const exponent = requireFiniteNumber(
+    parameterSet.values.nTm,
+    "Land 2017 strong-bridge deactivation-exit nTm"
+  );
+  const threshold = requireFiniteNumber(
+    parameterSet.values.TRPN50,
+    "Land 2017 strong-bridge deactivation-exit TRPN50"
+  );
+  if (!(exponent > 0) || !(threshold > 0)) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation exit requires positive nTm and TRPN50"
+    );
+  }
+  const thresholdPower = Math.pow(threshold, exponent);
+  const calciumPower = Math.pow(calciumTroponin, exponent);
+  const denominator = thresholdPower + calciumPower;
+  const baseGate = thresholdPower / denominator;
+  const baseGateDerivative = -thresholdPower * exponent * Math.pow(calciumTroponin, exponent - 1) / (denominator * denominator);
+  const levelGate = Math.pow(baseGate, extension.cooperativeGatePower);
+  const levelGateDerivative = extension.cooperativeGatePower * Math.pow(baseGate, extension.cooperativeGatePower - 1) * baseGateDerivative;
+  return {
+    ratePerSec: extension.maximumRatePerSec * levelGate,
+    derivativeByCaTRPNPerSec: extension.maximumRatePerSec * levelGateDerivative
+  };
+}
+function evaluateLand2017StrongBridgeDeactivationExitTermsV1(state, parameterSet) {
+  assertLand2017StateVectorLength(
+    state,
+    "Land 2017 strong-bridge deactivation-exit state"
+  );
+  const rate = evaluateLand2017StrongBridgeDeactivationExitRateTermsV1(
+    state[LAND2017_STATE_INDEX.CaTRPN],
+    parameterSet
+  );
+  const ratio = land2017ZeroDistortionStrongToWeakRatioV1(parameterSet);
+  const weakPopulation = requireFiniteNumber(
+    state[LAND2017_STATE_INDEX.W],
+    "Land 2017 strong-bridge deactivation-exit weak population"
+  );
+  const strongPopulation = requireFiniteNumber(
+    state[LAND2017_STATE_INDEX.S],
+    "Land 2017 strong-bridge deactivation-exit strong population"
+  );
+  const rawPopulationExcess = strongPopulation - ratio * weakPopulation;
+  const populationGateTolerance = 64 * Number.EPSILON;
+  if (!(rawPopulationExcess > populationGateTolerance)) {
+    return {
+      ratePerSec: rate.ratePerSec,
+      populationExcess: 0,
+      populationFluxPerSec: 0,
+      derivativeByCaTRPNPerSec: 0,
+      derivativeByWeakPopulationPerSec: 0,
+      derivativeByStrongPopulationPerSec: 0,
+      populationGateActive: false,
+      equilibriumStrongToWeakRatio: ratio
+    };
+  }
+  return {
+    ratePerSec: rate.ratePerSec,
+    populationExcess: rawPopulationExcess,
+    populationFluxPerSec: rate.ratePerSec * rawPopulationExcess,
+    derivativeByCaTRPNPerSec: rate.derivativeByCaTRPNPerSec * rawPopulationExcess,
+    derivativeByWeakPopulationPerSec: -rate.ratePerSec * ratio,
+    derivativeByStrongPopulationPerSec: rate.ratePerSec,
+    populationGateActive: true,
+    equilibriumStrongToWeakRatio: ratio
+  };
+}
+function land2017ZeroDistortionStrongToWeakRatioV1(parameterSet) {
+  requireSelectedExtension(parameterSet);
+  const ratio = parameterSet.values.kws / parameterSet.derived.ksu;
+  if (!(ratio > 0) || !Number.isFinite(ratio)) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation exit requires a positive finite zero-distortion S/W ratio"
+    );
+  }
+  return ratio;
+}
+function requireSelectedExtension(parameterSet) {
+  const extension = parameterSet.strongBridgeDeactivationExit;
+  if (extension === void 0) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation-exit sidecar requires the active extension"
+    );
+  }
+  if (extension.extensionId !== "land2017-strong-bridge-deactivation-exit-v1" || extension.maximumRatePerSec !== 30 || extension.calciumTroponinGate !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" || extension.cooperativeGatePower !== 8 || extension.deactivationDirectionGate !== "none" || extension.strongPopulationGate !== "positive-excess-over-zero-distortion-equilibrium" || extension.exitDestination !== "unbound" || extension.sourceIdentityClaimed !== false) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation exit must match the fixed V1 mechanism"
+    );
+  }
+  return extension;
+}
 const LAND2017_EQ48_CA_TRPN_UNBLOCKING_FACTOR_LIMIT = 100;
 function writeLand2017Rhs(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET, out = new Float64Array(LAND2017_STATE_SIZE)) {
   assertLand2017StateVectorLength(state, "Land 2017 RHS state");
@@ -15790,7 +15893,15 @@ function writeLand2017Rhs(state, input, parameterSet = LAND2017_INTACT_HUMAN_37C
   out[LAND2017_STATE_INDEX.CaTRPN] = p.kTRPN * (caDrive * (1 - CaTRPN) - CaTRPN);
   out[LAND2017_STATE_INDEX.B] = d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p) * terms.U - p.ku * Math.pow(CaTRPN, nTmHalf) * B;
   out[LAND2017_STATE_INDEX.W] = p.kuw * terms.U - d.kwu * W - p.kws * W - terms.gammawu * W;
-  out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S;
+  if (parameterSet.strongBridgeDeactivationExit === void 0) {
+    out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S;
+  } else {
+    const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+      state,
+      parameterSet
+    );
+    out[LAND2017_STATE_INDEX.S] = p.kws * W - d.ksu * S - terms.gammasu * S - deactivationExit.populationFluxPerSec;
+  }
   out[LAND2017_STATE_INDEX.zetaW] = d.Aw * lambdaDot - d.cw * zetaW;
   out[LAND2017_STATE_INDEX.zetaS] = d.As * lambdaDot - d.cs * zetaS;
   return out;
@@ -16055,19 +16166,37 @@ function solveLand2017AffineStage(base2, implicitDtSec, continuousInput, paramet
   const unbindingRate = p.ku * Math.pow(caTRPN, p.nTm / 2);
   const weakLossRate = d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
-  const population = solveLand2017PopulationBlock(
-    1 + implicitDtSec * (bindingRate + unbindingRate),
-    implicitDtSec * bindingRate,
-    implicitDtSec * bindingRate,
-    implicitDtSec * p.kuw,
-    1 + implicitDtSec * (p.kuw + weakLossRate),
-    implicitDtSec * p.kuw,
-    -implicitDtSec * p.kws,
-    1 + implicitDtSec * strongLossRate,
-    base2[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
-    base2[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
-    base2[LAND2017_STATE_INDEX.S]
-  );
+  let population;
+  if (parameterSet.strongBridgeDeactivationExit === void 0) {
+    population = solveLand2017PopulationBlock(
+      1 + implicitDtSec * (bindingRate + unbindingRate),
+      implicitDtSec * bindingRate,
+      implicitDtSec * bindingRate,
+      implicitDtSec * p.kuw,
+      1 + implicitDtSec * (p.kuw + weakLossRate),
+      implicitDtSec * p.kuw,
+      -implicitDtSec * p.kws,
+      1 + implicitDtSec * strongLossRate,
+      base2[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
+      base2[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
+      base2[LAND2017_STATE_INDEX.S]
+    );
+  } else {
+    const rate = evaluateLand2017StrongBridgeDeactivationExitRateTermsV1(
+      caTRPN,
+      parameterSet
+    ).ratePerSec;
+    population = solveLand2017PopulationStageWithStrongBridgeExitV1(
+      base2,
+      implicitDtSec,
+      bindingRate,
+      unbindingRate,
+      weakLossRate,
+      strongLossRate,
+      rate,
+      parameterSet
+    );
+  }
   const next = new Float64Array(LAND2017_STATE_SIZE);
   next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
   next[LAND2017_STATE_INDEX.B] = population[0];
@@ -16077,6 +16206,33 @@ function solveLand2017AffineStage(base2, implicitDtSec, continuousInput, paramet
   next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
+}
+function solveLand2017PopulationStageWithStrongBridgeExitV1(base2, implicitDtSec, bindingRate, unbindingRate, weakLossRate, strongLossRate, deactivationRatePerSec, parameterSet) {
+  const p = parameterSet.values;
+  const ratio = land2017ZeroDistortionStrongToWeakRatioV1(parameterSet);
+  const solveBranch = (branchRatePerSec) => solveLand2017PopulationBlock(
+    1 + implicitDtSec * (bindingRate + unbindingRate),
+    implicitDtSec * bindingRate,
+    implicitDtSec * bindingRate,
+    implicitDtSec * p.kuw,
+    1 + implicitDtSec * (p.kuw + weakLossRate),
+    implicitDtSec * p.kuw,
+    -implicitDtSec * (p.kws + branchRatePerSec * ratio),
+    1 + implicitDtSec * (strongLossRate + branchRatePerSec),
+    base2[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
+    base2[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
+    base2[LAND2017_STATE_INDEX.S]
+  );
+  const inactive = solveBranch(0);
+  const inactiveExcess = inactive[2] - ratio * inactive[1];
+  const branchTolerance = 128 * Number.EPSILON;
+  if (inactiveExcess <= branchTolerance) return inactive;
+  const active = solveBranch(deactivationRatePerSec);
+  const activeExcess = active[2] - ratio * active[1];
+  if (activeExcess >= -branchTolerance) return active;
+  throw new Error(
+    "Land 2017 strong-bridge deactivation-exit population gate has no consistent affine branch"
+  );
 }
 function solveLand2017PopulationBlock(a00, a01, a02, a10, a11, a12, a21, a22, b0, b1, b2) {
   const scale = Math.max(
@@ -16237,19 +16393,40 @@ function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(solvedNextS
   const dBResidualDCaTRPN = -dt * (d.kb * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p) * terms.U - p.ku * nTmHalf * Math.pow(CaTRPN, nTmHalf - 1) * B);
   const dWResidualDZetaW = dt * W * land2017GammaWuDerivative(zetaW, p);
   const dSResidualDZetaS = dt * S * centralSemismoothGammaSuDerivative(zetaS, p.gammaS);
-  const populationDerivative = solveLand2017PopulationBlock(
-    1 + dt * (bindingRate + unbindingRate),
-    dt * bindingRate,
-    dt * bindingRate,
-    dt * p.kuw,
-    1 + dt * (p.kuw + weakLossRate),
-    dt * p.kuw,
-    -dt * p.kws,
-    1 + dt * strongLossRate,
-    -dBResidualDCaTRPN * dCaTRPNDStrain,
-    -dWResidualDZetaW * dZetaWDStrain,
-    -dSResidualDZetaS * dZetaSDStrain
-  );
+  let populationDerivative;
+  if (parameterSet.strongBridgeDeactivationExit === void 0) {
+    populationDerivative = solveLand2017PopulationBlock(
+      1 + dt * (bindingRate + unbindingRate),
+      dt * bindingRate,
+      dt * bindingRate,
+      dt * p.kuw,
+      1 + dt * (p.kuw + weakLossRate),
+      dt * p.kuw,
+      -dt * p.kws,
+      1 + dt * strongLossRate,
+      -dBResidualDCaTRPN * dCaTRPNDStrain,
+      -dWResidualDZetaW * dZetaWDStrain,
+      -dSResidualDZetaS * dZetaSDStrain
+    );
+  } else {
+    const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+      solvedNextState,
+      parameterSet
+    );
+    populationDerivative = solveLand2017PopulationBlock(
+      1 + dt * (bindingRate + unbindingRate),
+      dt * bindingRate,
+      dt * bindingRate,
+      dt * p.kuw,
+      1 + dt * (p.kuw + weakLossRate),
+      dt * p.kuw,
+      -dt * (p.kws - deactivationExit.derivativeByWeakPopulationPerSec),
+      1 + dt * (strongLossRate + deactivationExit.derivativeByStrongPopulationPerSec),
+      -dBResidualDCaTRPN * dCaTRPNDStrain,
+      -dWResidualDZetaW * dZetaWDStrain,
+      -dt * deactivationExit.derivativeByCaTRPNPerSec * dCaTRPNDStrain - dSResidualDZetaS * dZetaSDStrain
+    );
+  }
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0) * p.Tref / p.rs * populationDistortion;
@@ -16282,19 +16459,40 @@ function computeLand2017SteadyStateTangentPaFromSolvedState(solvedState, freeCal
   const bindingRate = d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p);
   const unbindingRate = p.ku * Math.pow(CaTRPN, nTmHalf);
   const dPopulationResidualDCaTRPN = -(d.kb * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p) * terms.U - p.ku * nTmHalf * Math.pow(CaTRPN, nTmHalf - 1) * B);
-  const populationDerivative = solveLand2017PopulationBlock(
-    bindingRate + unbindingRate,
-    bindingRate,
-    bindingRate,
-    p.kuw,
-    p.kuw + d.kwu + p.kws,
-    p.kuw,
-    -p.kws,
-    d.ksu,
-    -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
-    0,
-    0
-  );
+  let populationDerivative;
+  if (parameterSet.strongBridgeDeactivationExit === void 0) {
+    populationDerivative = solveLand2017PopulationBlock(
+      bindingRate + unbindingRate,
+      bindingRate,
+      bindingRate,
+      p.kuw,
+      p.kuw + d.kwu + p.kws,
+      p.kuw,
+      -p.kws,
+      d.ksu,
+      -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
+      0,
+      0
+    );
+  } else {
+    const deactivationExit = evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+      solvedState,
+      parameterSet
+    );
+    populationDerivative = solveLand2017PopulationBlock(
+      bindingRate + unbindingRate,
+      bindingRate,
+      bindingRate,
+      p.kuw,
+      p.kuw + d.kwu + p.kws,
+      p.kuw,
+      -(p.kws - deactivationExit.derivativeByWeakPopulationPerSec),
+      d.ksu + deactivationExit.derivativeByStrongPopulationPerSec,
+      -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
+      0,
+      -deactivationExit.derivativeByCaTRPNPerSec * dCaTRPNDStrain
+    );
+  }
   const populationDistortion = S;
   const stressScalePa = terms.h * p.Tref / p.rs;
   const tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0) * p.Tref / p.rs * populationDistortion + stressScalePa * populationDerivative[2];
@@ -18279,6 +18477,13 @@ function evaluateFiveWallNormalCalciumDriveV1(timeSec, params = FIVE_WALL_NORMAL
   });
 }
 function normalizedPeriodicBiexponential(timeSinceOnsetSec, cycleLengthSec, riseTimeConstantSec, decayTimeConstantSec) {
+  if (decayTimeConstantSec === riseTimeConstantSec) {
+    return normalizedPeriodicAlphaLimit(
+      timeSinceOnsetSec,
+      cycleLengthSec,
+      riseTimeConstantSec
+    );
+  }
   if (!(decayTimeConstantSec > riseTimeConstantSec)) {
     throw new Error("decay time constant must exceed rise time constant");
   }
@@ -18298,6 +18503,26 @@ function normalizedPeriodicBiexponential(timeSinceOnsetSec, cycleLengthSec, rise
   const tolerance = 1e-12;
   if (normalized < -tolerance || normalized > 1 + tolerance) {
     throw new Error("normalized periodic biexponential pulse left [0,1]");
+  }
+  return Math.min(1, Math.max(0, normalized));
+}
+function normalizedPeriodicAlphaLimit(timeSinceOnsetSec, cycleLengthSec, timeConstantSec) {
+  const carry = Math.exp(-cycleLengthSec / timeConstantSec);
+  const periodicAgeOffsetSec = cycleLengthSec * carry / (1 - carry);
+  const raw = (timeSec) => (timeSec + periodicAgeOffsetSec) * Math.exp(-timeSec / timeConstantSec);
+  const peakTimeSec = Math.min(
+    cycleLengthSec,
+    Math.max(0, timeConstantSec - periodicAgeOffsetSec)
+  );
+  const minimum = raw(0);
+  const amplitude = raw(peakTimeSec) - minimum;
+  if (!(amplitude > 0) || !Number.isFinite(amplitude)) {
+    throw new Error("periodic alpha-limit pulse has no positive amplitude");
+  }
+  const normalized = (raw(timeSinceOnsetSec) - minimum) / amplitude;
+  const tolerance = 1e-12;
+  if (normalized < -tolerance || normalized > 1 + tolerance) {
+    throw new Error("normalized periodic alpha-limit pulse left [0,1]");
   }
   return Math.min(1, Math.max(0, normalized));
 }
@@ -18327,8 +18552,10 @@ function validateParams(params) {
       if (scale === void 0) continue;
       requirePositive(scale, `${wall} decay-time scale`);
       const tissue = wall === "LA" || wall === "RA" ? params.atrial : params.ventricular;
-      if (!(tissue.decayTimeConstantSec * scale > tissue.riseTimeConstantSec)) {
-        throw new Error(`${wall} scaled decay time must exceed rise time`);
+      if (!(tissue.decayTimeConstantSec * scale >= tissue.riseTimeConstantSec)) {
+        throw new Error(
+          `${wall} scaled decay time must not be shorter than rise time`
+        );
       }
     }
   }
@@ -18348,9 +18575,9 @@ function validateClass(value, label, cycleLengthSec) {
     value.electricalToCalciumDelaySec,
     `${label}.electricalToCalciumDelaySec`
   );
-  if (!(value.decayTimeConstantSec > value.riseTimeConstantSec)) {
+  if (!(value.decayTimeConstantSec >= value.riseTimeConstantSec)) {
     throw new Error(
-      `${label}.decayTimeConstantSec must exceed riseTimeConstantSec`
+      `${label}.decayTimeConstantSec must not be shorter than riseTimeConstantSec`
     );
   }
   if (!(value.electricalToCalciumDelaySec < cycleLengthSec)) {
