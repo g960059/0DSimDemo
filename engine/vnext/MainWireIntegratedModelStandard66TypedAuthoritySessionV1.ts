@@ -9,9 +9,15 @@ import {
 import {
   checkpointMainWireIntegratedModelStandard66V1,
   createMainWireIntegratedModelStandard66CheckpointContextV1,
+  restoreMainWireIntegratedModelStandard66V1,
   type MainWireIntegratedModelStandard66CheckpointContextV1,
   type MainWireIntegratedModelStandard66CheckpointV1,
+  type RestoredMainWireIntegratedModelStandard66CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard66CheckpointV1";
+import {
+  decodeMainWireIntegratedModelStandard66CanonicalCheckpointV3,
+  encodeMainWireIntegratedModelStandard66CanonicalCheckpointV3,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard66CanonicalCheckpointV3";
 import {
   mergeMainWireIntegratedModelStandard66SelectedValuesV1,
   partitionMainWireIntegratedModelStandard66OutputIdsV1,
@@ -24,9 +30,13 @@ import {
   type MainWireAorticRecoveredRootPortOutputValueV1,
 } from "@/engine/myocardium/MainWireAorticRecoveredRootPortOutputOverlayV1";
 import {
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
   type MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import type {
+  MainWireNormalAdultFiveWallMechanicsStateV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   MainWireIntegratedTypedAuthoritySessionV1,
   type MainWireFlatModelOwnedProjectionAdvanceV1,
@@ -47,6 +57,11 @@ export type MainWireIntegratedModelStandard66SelectedOutputProjectionAdvanceV1 =
     > | null;
     outputProjectionDurationMs: number;
   }>;
+
+type RestoredStandard66V1 =
+  RestoredMainWireIntegratedModelStandard66CheckpointV1<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >;
 
 /**
  * Public selected-model owner. Numerical advancement remains entirely in the
@@ -69,13 +84,14 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     selectedAorticPortExtension:
       MainWireSelectedAorticPortSessionExtensionV1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    restored: RestoredStandard66V1 | null = null,
   ) {
     super(
       runtime,
-      runtime.cold.acceptedState,
-      "cold",
+      restored?.acceptedState ?? runtime.cold.acceptedState,
+      restored === null ? "cold" : "standard-exact-checkpoint-restore",
       null,
-      undefined,
+      restored ?? undefined,
       executionPlanInitialization,
       selectedAorticPortExtension,
     );
@@ -112,9 +128,8 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
   }
 
   /**
-   * A Standard66 restore must validate and restore both exact owners. Until
-   * that boundary exists, inherited Standard65 restore entrypoints fail
-   * closed instead of silently constructing the historical model.
+   * Historical Standard65 restore entrypoints remain disabled for this owner.
+   * Call restoreStandard66ExactCheckpoint so both exact owners are restored.
    */
   static override async restoreStandardExactCheckpoint(
     _checkpoint: unknown,
@@ -126,7 +141,7 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<never> {
     throw new Error(
-      "Standard66 exact restore is unavailable; Standard65 restore cannot own the selected model",
+      "Standard65 restore cannot own the selected model; use restoreStandard66ExactCheckpoint",
     );
   }
 
@@ -140,8 +155,76 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     _executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
   ): Promise<never> {
     throw new Error(
-      "Standard66 canonical restore is unavailable; Standard65 restore cannot own the selected model",
+      "Standard65 restore cannot own the selected model; use restoreStandard66CanonicalBinaryV3",
     );
+  }
+
+  /** Restores numerical state and both exact beat-analysis owners. */
+  static async restoreStandard66ExactCheckpoint(
+    checkpoint: unknown,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  ): Promise<MainWireIntegratedModelStandard66TypedAuthoritySessionV1> {
+    const runtime =
+      createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+        inputs,
+        ventricularContractilityScale,
+        mechanismResearchInputs,
+      );
+    const restored = await restoreMainWireIntegratedModelStandard66V1(
+      standard66RestoreContextV1(runtime),
+      checkpoint,
+    );
+    return new MainWireIntegratedModelStandard66TypedAuthoritySessionV1(
+      runtime,
+      restored.selectedAorticPortExtension,
+      executionPlanInitialization,
+      restored,
+    );
+  }
+
+  /** Restores the complete exact model plus seed-identical predictor history. */
+  static async restoreStandard66CanonicalBinaryV3(
+    checkpointBytes: Uint8Array,
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale = 1,
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 =
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+  ): Promise<MainWireIntegratedModelStandard66TypedAuthoritySessionV1> {
+    // Start both ownership branches before the first await: decode snapshots
+    // caller bytes synchronously, while fixture construction validates and
+    // owns the caller's input tuples synchronously.
+    const checkpointPromise =
+      decodeMainWireIntegratedModelStandard66CanonicalCheckpointV3(
+        checkpointBytes,
+      );
+    const runtime =
+      createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+        inputs,
+        ventricularContractilityScale,
+        mechanismResearchInputs,
+      );
+    const checkpoint = await checkpointPromise;
+    const restored = await restoreMainWireIntegratedModelStandard66V1(
+      standard66RestoreContextV1(runtime),
+      checkpoint.standard66Checkpoint,
+    );
+    const session = new MainWireIntegratedModelStandard66TypedAuthoritySessionV1(
+      runtime,
+      restored.selectedAorticPortExtension,
+      executionPlanInitialization,
+      restored,
+    );
+    session.restoreSelectedAorticCoupledPredictorV1(
+      checkpoint.coupledPredictor,
+    );
+    return session;
   }
 
   projectCurrentAcceptedStandard66ValuesV1(
@@ -227,6 +310,19 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     );
   }
 
+  /** Adds predictor history to the object checkpoint in one canonical image. */
+  async checkpointStandard66CanonicalBinaryV3(): Promise<Uint8Array> {
+    // Both captures are synchronous. In particular, predictor history must be
+    // owned before awaiting either Standard checkpoint digest.
+    const standard66CheckpointPromise = this.checkpointStandard66Exact();
+    const coupledPredictor =
+      this.checkpointSelectedAorticCoupledPredictorV1();
+    return encodeMainWireIntegratedModelStandard66CanonicalCheckpointV3(
+      await standard66CheckpointPromise,
+      coupledPredictor,
+    );
+  }
+
   #projectCurrentSelectedAorticPortValuesV1(
     outputIds: readonly MainWireAorticRecoveredRootPortOutputIdV1[],
   ): Readonly<Record<string, MainWireAorticRecoveredRootPortOutputValueV1>> {
@@ -256,4 +352,24 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
         outputIds,
       );
   }
+}
+
+function standard66RestoreContextV1(
+  runtime: MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+) {
+  const base =
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+      runtime,
+    );
+  return Object.freeze({
+    base: Object.freeze({
+      ...base,
+      mechanismResearchInputs: runtime.mechanismResearchInputs,
+    }),
+    selected: createMainWireIntegratedModelStandard66CheckpointContextV1({
+      fixedAssemblyId: runtime.fixedAssemblyId,
+      selectedAorticOutflowProfile:
+        runtime.runtime.vascular.selectedAorticOutflowProfile,
+    }),
+  });
 }

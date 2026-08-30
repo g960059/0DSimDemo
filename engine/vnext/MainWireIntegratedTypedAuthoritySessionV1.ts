@@ -1821,6 +1821,42 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     return this.currentAcceptedClock();
   }
 
+  /** Captures the selected owner's algorithmic continuation history. */
+  protected checkpointSelectedAorticCoupledPredictorV1():
+    MainWireFiveWallCoupledPredictorCheckpointV2 {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic predictor checkpoint requires its Session extension owner",
+      );
+    }
+    return checkpointMainWireFiveWallCoupledPredictorV1(
+      this.#coupledPredictorWorkspace,
+    );
+  }
+
+  /** Restores predictor history against the already-restored accepted root. */
+  protected restoreSelectedAorticCoupledPredictorV1(
+    checkpoint: unknown,
+  ): void {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic predictor restore requires its Session extension owner",
+      );
+    }
+    const acceptedState = this.#authority.current();
+    restoreMainWireFiveWallCoupledPredictorV1(
+      checkpoint,
+      Object.freeze({
+        revision: acceptedState.revision,
+        acceptedTimeSec: acceptedState.acceptedTimeSec,
+        unknownsMl: coupledUnknownsFromAcceptedStateV1(acceptedState),
+      }),
+      this.#coupledPredictorWorkspace,
+    );
+  }
+
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
     this.assertSessionUsableV1();
     this.assertLegacySessionOperationAvailableV1("Standard 65 canonical checkpoint");
