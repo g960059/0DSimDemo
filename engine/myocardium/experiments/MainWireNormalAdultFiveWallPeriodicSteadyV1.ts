@@ -1233,6 +1233,7 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
     placementProfile:
       MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
     rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
+    aorticValveResearchProfile: MainWireAorticValveResearchProfileV1 | null;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
     claim: Readonly<{
@@ -1244,6 +1245,7 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       bloodVolumeChanged: boolean;
       systemicOrPulmonaryResistanceChanged: boolean;
       arterialStiffnessLoadScaleChanged: boolean;
+      aorticValveConstitutiveLawChanged: boolean;
       aorticMaximumForwardEoaChanged: false;
       sourceFittedAeffChanged: boolean;
       sourceWholeOrganTrefChanged: boolean;
@@ -3327,6 +3329,8 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
   atrioventricularDelayProfileId:
     MainWireAtrioventricularDelayProfileIdV1 =
       "coppini-source-atrioventricular-delay-160ms",
+  aorticValveResearchProfileId:
+    MainWireAorticValveResearchProfileIdV1 | null = null,
 ): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
   assertExactAorticOutflowResearchOptions(options);
   const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
@@ -3345,6 +3349,11 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     ? null
     : resolveMainWireAorticRootInertanceResearchProfileV1(
       rootInertanceProfileId,
+    );
+  const aorticValveResearchProfile = aorticValveResearchProfileId === null
+    ? null
+    : resolveMainWireAorticValveResearchProfileV1(
+      aorticValveResearchProfileId,
     );
   const sarcomereReferenceProfile =
     resolveMainWireVentricularLandSarcomereReferenceProfileV1(
@@ -3411,6 +3420,9 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     ...(rootInertanceProfile === null
       ? {}
       : { aorticRootInertanceResearchProfile: rootInertanceProfile }),
+    ...(aorticValveResearchProfile === null
+      ? {}
+      : { aorticValveResearchProfile }),
   });
   const provider = strongBridgeDeactivationExitProfile.maximumRatePerSec !== 0
     ? createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongBridgeDeactivationExitV1(
@@ -3502,6 +3514,7 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     complianceProfile,
     placementProfile,
     rootInertanceProfile,
+    aorticValveResearchProfile,
     calciumDriveParams,
     periodicResult,
     claim: Object.freeze({
@@ -3516,6 +3529,8 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
         || circulatoryLoadPoint.pulmonaryResistanceScaleFromBaseline !== 1,
       arterialStiffnessLoadScaleChanged:
         circulatoryLoadPoint.arterialStiffnessScaleFromBaseline !== 1,
+      aorticValveConstitutiveLawChanged:
+        aorticValveResearchProfile !== null,
       aorticMaximumForwardEoaChanged: false as const,
       sourceFittedAeffChanged:
         sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,

@@ -4740,12 +4740,20 @@ function validateRuntimeOnceV1(
     }
     if (
       runtime.aorticRootResistanceResearchProfile !== undefined
-      || runtime.aorticValveResearchProfile !== undefined
+      || (
+        runtime.aorticValveResearchProfile !== undefined
+        && (
+          runtime.aorticValveResearchProfile.openingMode
+            !== "bounded-backward-euler-memory"
+          || runtime.aorticValveResearchProfile.forwardConvectivePressureMode
+            !== "garcia-energy-loss-plus-downstream-kinetic-flux"
+        )
+      )
       || runtime.aorticValveLocalInertanceResearchProfile !== undefined
       || runtime.aorticRootFlowStateRelocationResearchProfile !== undefined
     ) {
       throw new Error(
-        "aortic characteristic-resistance placement cannot combine with another AoV or Ao_SA resistance research profile",
+        "aortic characteristic-resistance placement combines only with bounded-memory Garcia pressure recovery and cannot combine with another AoV or Ao_SA resistance research profile",
       );
     }
   }
