@@ -45,6 +45,7 @@ import {
 import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
 import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -79,7 +80,9 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
+import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -487,7 +490,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses the committed Standard bundle when Supabase is unconfigured", async () => {
+  it("uses selected Standard66 by default and resolves only exact local pairs", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -518,14 +521,48 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           )
           .searchParams.get("revision"),
       ).toBe(mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId);
+      expect(
+        composition
+          .localSelectedAorticOutflowArtifactRevisionUrlV1(
+            new URL(
+              "http://127.0.0.1:4176/selected-standard66.artifact.mjs",
+            ),
+          )
+          .searchParams.get("revision"),
+      ).toBe(
+        mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1
+          .artifactRevisionId,
+      );
+      expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
+        mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest.modelId,
+      );
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
         exactModel: {
-          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
           },
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioLocalStandardModelLabClientCompositionV1(),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
         },
         modelSurface: {
           identity: {
@@ -556,8 +593,92 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       });
       await expect(
         composition.loadStudioExperimentClientCompositionV2(
-          "model/pre-standard",
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        ),
+      ).rejects.toThrow(/cannot resolve the requested exact model/);
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+        ),
+      ).rejects.toThrow(/cannot resolve the requested exact model/);
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          "model/pre-standard",
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
         ),
       ).rejects.toThrow(/cannot resolve the requested exact model/);
     } finally {
