@@ -532,7 +532,11 @@ function measureArm(
       result,
       input.run.calciumDriveParams,
     ),
-    pressureStations: measurePressureStations(result, input),
+    pressureStations: measureMainWireAorticOutflowV9PressureStationsV1(
+      result,
+      input.run,
+      input.arm.expectedExactForwardPort,
+    ),
   });
 }
 
@@ -609,6 +613,11 @@ function validateCandidateIdentity(
       run.aorticValveResearchProfile?.profileId ?? null,
       input.arm.pressureRecoveryProfileId,
     ),
+    mismatch(
+      "recovered-root-port-valve-profile",
+      run.recoveredRootPortValveProfile?.profileId ?? null,
+      null,
+    ),
   ].filter((issue): issue is string => issue !== null);
   if (issues.length > 0) {
     throw new Error(
@@ -634,9 +643,12 @@ function mismatch(
     : `${label} expected ${String(expected)}, received ${String(actual)}`;
 }
 
-function measurePressureStations(
+export function measureMainWireAorticOutflowV9PressureStationsV1(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
-  input: MainWireAorticOutflowV9PressureRecoveryBaselineInputV1,
+  run:
+    MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1,
+  exactForwardPortMode:
+    MainWireAorticOutflowV9PressureRecoveryBaselineArmV1["expectedExactForwardPort"],
 ): MainWireAorticOutflowV9PressureStationSummaryV1 {
   const beat = result.retainedCompleteBeats.at(-1);
   if (beat === undefined || beat.samples.length === 0) {
@@ -646,7 +658,7 @@ function measurePressureStations(
     result.valveResearchInput.valves.AoV
       .backgroundLinearResistanceMmHgSecPerMl;
   const proximalCharacteristicResistanceMmHgSecPerMl =
-    input.run.placementProfile!
+    run.placementProfile!
       .upstreamValveLinearResistanceAdditionMmHgSecPerMl;
   const forward = beat.samples.flatMap((sample) => {
     const valve = sample.valveHydraulics.AoV;
@@ -661,7 +673,7 @@ function measurePressureStations(
       rawNodeGradientMmHg: valve.pressureGradientMmHg,
       sourceValveLinearResistanceMmHgSecPerMl,
       proximalCharacteristicResistanceMmHgSecPerMl,
-      exactForwardPortMode: input.arm.expectedExactForwardPort,
+      exactForwardPortMode,
     })];
   });
   if (forward.length === 0) {
@@ -686,7 +698,7 @@ function measurePressureStations(
         rawNodeGradientMmHg: valve.pressureGradientMmHg,
         sourceValveLinearResistanceMmHgSecPerMl,
         proximalCharacteristicResistanceMmHgSecPerMl,
-        exactForwardPortMode: input.arm.expectedExactForwardPort,
+        exactForwardPortMode,
       });
       recovered = station.geometryRecoveredStaticAorticPressureMmHg;
       venaContracta = station.venaContractaStaticPressureReadbackMmHg;
@@ -743,7 +755,7 @@ function measurePressureStations(
   return Object.freeze({
     sourceValveLinearResistanceMmHgSecPerMl,
     proximalCharacteristicResistanceMmHgSecPerMl,
-    exactForwardPortMode: input.arm.expectedExactForwardPort,
+    exactForwardPortMode,
     forwardSampleCount: forward.length,
     forwardFlowTimeSec: forward.length * dtSec,
     forwardVolumeMl: sumField((sample) => sample.flowMlPerSec) * dtSec,

@@ -59,6 +59,12 @@ import {
   type MainWireValveEvaluationWithAorticResearchV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
+  stepMainWireAorticRecoveredRootPortValveScalarsV1,
+  validateMainWireAorticRecoveredRootPortValveProfileV1,
+  type MainWireAorticRecoveredRootPortValveEvaluationV1,
+  type MainWireAorticRecoveredRootPortValveProfileV1,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
+import {
   resolveMainWireAorticValveLocalInertanceValueV1,
   stepMainWireAorticValveLocalInertanceScalarsV1,
   validateMainWireAorticValveLocalInertanceProfileV1,
@@ -189,6 +195,7 @@ type DynamicEdgeRecord<T> = Readonly<Record<NonCoronaryDynamicEdgeNameV1, T>>;
 type ValveRecord<T> = Readonly<Record<NonCoronaryValveNameV1, T>>;
 type NonCoronaryValveEvaluationV1 =
   | MainWireValveEvaluationWithAorticResearchV1
+  | MainWireAorticRecoveredRootPortValveEvaluationV1
   | MainWireAorticValveLocalInertanceEvaluationV1
   | MainWireAorticRootFlowStateRelocationEvaluationV1;
 
@@ -276,6 +283,9 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   /** Moves a fixed share of Ao_SA R upstream of the Ao root compliance. */
   aorticCharacteristicResistancePlacementResearchProfile?:
     MainWireAorticCharacteristicResistancePlacementProfileV1;
+  /** Couples AoV opening to the local proximal constitutive-port pressure. */
+  aorticRecoveredRootPortValveResearchProfile?:
+    MainWireAorticRecoveredRootPortValveProfileV1;
   /** Reuses the Ao_SA accepted-flow slot as AoV inflow; no state is added. */
   aorticRootFlowStateRelocationResearchProfile?:
     MainWireAorticRootFlowStateRelocationProfileV1;
@@ -2736,7 +2746,12 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       const previousOpening01 = previous.valveOpeningFractions01[
         NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
       ]!;
+      const recoveredRootPortValve = input.runtime
+        .aorticRecoveredRootPortValveResearchProfile;
       const valveParams = valveName === "AoV"
+          && recoveredRootPortValve !== undefined
+        ? valveResearchInput.valves.AoV
+        : valveName === "AoV"
           && aorticRootFlowStateRelocation !== undefined
         ? resolveMainWireAorticRootFlowStateRelocationValveParamsV1(
           valveResearchInput.valves.AoV,
@@ -2753,6 +2768,19 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
           )
           : valveResearchInput.valves[valveName];
       const evaluation = valveName === "AoV"
+          && recoveredRootPortValve !== undefined
+        ? stepMainWireAorticRecoveredRootPortValveScalarsV1(
+          previousOpening01,
+          input.dtSec,
+          upstreamPressure,
+          downstreamPressure,
+          valveParams,
+          input.runtime
+            .aorticCharacteristicResistancePlacementResearchProfile!,
+          input.runtime.aorticValveResearchProfile!,
+          recoveredRootPortValve,
+        )
+        : valveName === "AoV"
           && aorticRootFlowStateRelocation !== undefined
         ? stepMainWireAorticRootFlowStateRelocationScalarsV1(
           previousOpening01,
@@ -4757,6 +4785,38 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  if (runtime.aorticRecoveredRootPortValveResearchProfile !== undefined) {
+    const profileIssues =
+      validateMainWireAorticRecoveredRootPortValveProfileV1(
+        runtime.aorticRecoveredRootPortValveResearchProfile,
+      );
+    if (profileIssues.length > 0) {
+      throw new Error(
+        "invalid aorticRecoveredRootPortValveResearchProfile: "
+          + profileIssues.join("; "),
+      );
+    }
+    const placement =
+      runtime.aorticCharacteristicResistancePlacementResearchProfile;
+    const recovery = runtime.aorticValveResearchProfile;
+    if (
+      placement === undefined
+      || placement.profileId
+        !== runtime.aorticRecoveredRootPortValveResearchProfile
+          .characteristicResistancePlacementProfileId
+      || recovery === undefined
+      || recovery.profileId
+        !== runtime.aorticRecoveredRootPortValveResearchProfile
+          .pressureRecoveryProfileId
+      || recovery.openingMode !== "bounded-backward-euler-memory"
+      || recovery.forwardConvectivePressureMode
+        !== "garcia-energy-loss-plus-downstream-kinetic-flux"
+    ) {
+      throw new Error(
+        "aorticRecoveredRootPortValveResearchProfile requires its fixed characteristic-resistance placement and bounded-memory Garcia recovery profiles",
+      );
+    }
+  }
   if (runtime.aorticRootFlowStateRelocationResearchProfile !== undefined) {
     const profileIssues =
       validateMainWireAorticRootFlowStateRelocationProfileV1(
@@ -4775,6 +4835,7 @@ function validateRuntimeOnceV1(
         !== undefined
       || runtime.aorticValveLocalInertanceResearchProfile !== undefined
       || runtime.aorticValveResearchProfile !== undefined
+      || runtime.aorticRecoveredRootPortValveResearchProfile !== undefined
     ) {
       throw new Error(
         "aortic-root flow-state relocation cannot combine with another AoV or Ao_SA R/L research profile",

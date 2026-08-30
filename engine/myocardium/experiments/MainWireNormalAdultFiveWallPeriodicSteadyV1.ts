@@ -369,6 +369,11 @@ import {
   type MainWireAorticValveResearchProfileV1,
 } from "@/engine/valves/MainWireAorticValvePressureRecoveryAblationV1";
 import {
+  resolveMainWireAorticRecoveredRootPortValveProfileV1,
+  type MainWireAorticRecoveredRootPortValveProfileIdV1,
+  type MainWireAorticRecoveredRootPortValveProfileV1,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
+import {
   MAIN_WIRE_AORTIC_VALVE_LOCAL_INERTANCE_PROFILE_V1,
   resolveMainWireAorticValveLocalInertanceProfileV1,
   type MainWireAorticValveLocalInertanceProfileV1,
@@ -1234,6 +1239,8 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       MainWireAorticCharacteristicResistancePlacementProfileV1 | null;
     rootInertanceProfile: MainWireAorticRootInertanceResearchProfileV1 | null;
     aorticValveResearchProfile: MainWireAorticValveResearchProfileV1 | null;
+    recoveredRootPortValveProfile:
+      MainWireAorticRecoveredRootPortValveProfileV1 | null;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
     claim: Readonly<{
@@ -1246,6 +1253,7 @@ export type MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindke
       systemicOrPulmonaryResistanceChanged: boolean;
       arterialStiffnessLoadScaleChanged: boolean;
       aorticValveConstitutiveLawChanged: boolean;
+      aorticValvePressureStationOwnershipChanged: boolean;
       aorticMaximumForwardEoaChanged: false;
       sourceFittedAeffChanged: boolean;
       sourceWholeOrganTrefChanged: boolean;
@@ -3331,6 +3339,8 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       "coppini-source-atrioventricular-delay-160ms",
   aorticValveResearchProfileId:
     MainWireAorticValveResearchProfileIdV1 | null = null,
+  recoveredRootPortValveProfileId:
+    MainWireAorticRecoveredRootPortValveProfileIdV1 | null = null,
 ): MainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTraceWindkesselResearchRunV1 {
   assertExactAorticOutflowResearchOptions(options);
   const kuwProfile = resolveMainWireVentricularLandWholeOrganKuwProfileV1(
@@ -3355,6 +3365,12 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     : resolveMainWireAorticValveResearchProfileV1(
       aorticValveResearchProfileId,
     );
+  const recoveredRootPortValveProfile =
+    recoveredRootPortValveProfileId === null
+      ? null
+      : resolveMainWireAorticRecoveredRootPortValveProfileV1(
+        recoveredRootPortValveProfileId,
+      );
   const sarcomereReferenceProfile =
     resolveMainWireVentricularLandSarcomereReferenceProfileV1(
       sarcomereReferenceProfileId,
@@ -3423,6 +3439,12 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     ...(aorticValveResearchProfile === null
       ? {}
       : { aorticValveResearchProfile }),
+    ...(recoveredRootPortValveProfile === null
+      ? {}
+      : {
+        aorticRecoveredRootPortValveResearchProfile:
+          recoveredRootPortValveProfile,
+      }),
   });
   const provider = strongBridgeDeactivationExitProfile.maximumRatePerSec !== 0
     ? createMainWireNormalAdultFiveWallProviderWithVentricularLandStrongBridgeDeactivationExitV1(
@@ -3515,6 +3537,7 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
     placementProfile,
     rootInertanceProfile,
     aorticValveResearchProfile,
+    recoveredRootPortValveProfile,
     calciumDriveParams,
     periodicResult,
     claim: Object.freeze({
@@ -3530,7 +3553,10 @@ export function runMainWireNormalAdultFiveWallAorticOutflowLandCoppiniSourceTrac
       arterialStiffnessLoadScaleChanged:
         circulatoryLoadPoint.arterialStiffnessScaleFromBaseline !== 1,
       aorticValveConstitutiveLawChanged:
-        aorticValveResearchProfile !== null,
+        aorticValveResearchProfile !== null
+        || recoveredRootPortValveProfile !== null,
+      aorticValvePressureStationOwnershipChanged:
+        recoveredRootPortValveProfile !== null,
       aorticMaximumForwardEoaChanged: false as const,
       sourceFittedAeffChanged:
         sourceVelocityDistortionProfile.aeffScaleFromIntactHumanSource !== 1,
