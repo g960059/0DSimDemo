@@ -1,4 +1,5 @@
 import { createMainWireCoronaryDiseaseInputV2 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
+import { canonicalCoronaryAutoregulationWindowEndTimeV3 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import { NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
@@ -933,8 +934,10 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
   }
 
   const boundaryAcceptedTimeSec =
-    binding.windowPolicy.originAcceptedTimeSec +
-    (window.windowIndex + 1) * binding.windowPolicy.durationSec;
+    canonicalCoronaryAutoregulationWindowEndTimeV3(
+      binding,
+      window.windowIndex,
+    );
   if (!(boundaryAcceptedTimeSec > sourceAcceptedTimeSec)) {
     throw new Error("V3 qualification candidate passed its window boundary");
   }
@@ -1164,7 +1167,10 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   const windowPolicy =
     initial.coronary.coronaryAutoregulationBinding.windowPolicy;
   const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  const endTimeSec = canonicalCoronaryAutoregulationWindowEndTimeV3(
+    initial.coronary.coronaryAutoregulationBinding,
+    window.windowIndex,
+  );
   if (
     startTimeSec !== window.windowStartAcceptedTimeSec ||
     window.acceptedDurationSec !== 0 ||

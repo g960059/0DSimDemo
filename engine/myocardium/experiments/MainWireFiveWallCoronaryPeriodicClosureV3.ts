@@ -1,3 +1,4 @@
+import { canonicalCoronaryAutoregulationWindowStartTimeV3 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
@@ -62,6 +63,8 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V3 =
       "periodic-sinus-autoregulation-accumulator-empty-at-both-boundaries",
       "coronary-autoregulation-window-provenance-monotonic-and-time-consistent",
     ] as const),
+    comparisonBoundaryClock:
+      "exact-binding-owned-empty-window-start" as const,
     periodicSinusBoundaryPolicy: "fail-closed-empty-accumulator" as const,
     irregularRhythmP1Applicability: "not-applicable" as const,
   });
@@ -564,19 +567,20 @@ function validateCompatiblePeriodicStates(
     - referenceWindow.windowIndex;
   const windowStartRevisionAdvance = currentWindow.windowStartRevision
     - referenceWindow.windowStartRevision;
-  if (windowIndexAdvance <= 0 || windowStartRevisionAdvance <= 0) {
+  if (
+    !Number.isSafeInteger(currentWindow.windowIndex)
+    || !Number.isSafeInteger(referenceWindow.windowIndex)
+    || !Number.isSafeInteger(windowIndexAdvance)
+    || windowIndexAdvance <= 0
+    || windowStartRevisionAdvance <= 0
+  ) {
     throw new Error(
       "coronary V3 periodic closure window provenance is not strictly advancing",
     );
   }
-  const expectedElapsedTimeSec = windowIndexAdvance
-    * currentBinding.windowPolicy.durationSec;
-  const elapsedTimeSec = current.acceptedTimeSec - reference.acceptedTimeSec;
-  if (!nearlyEqual(elapsedTimeSec, expectedElapsedTimeSec)) {
-    throw new Error(
-      "coronary V3 periodic closure window-index advance differs from physical time",
-    );
-  }
+  // Each state was already checked against the binding-owned absolute
+  // window lattice. Subtracting two late absolute clocks to reconstruct the
+  // short interval loses precision; the integer index advance is authoritative.
 }
 
 function requireEmptyPeriodicBoundary(
@@ -584,7 +588,20 @@ function requireEmptyPeriodicBoundary(
   label: string,
 ): void {
   const window = state.coronaryAutoregulation;
-  const empty = window.acceptedDurationSec === 0
+  const ownedWindowStartAcceptedTimeSec =
+    canonicalCoronaryAutoregulationWindowStartTimeV3(
+      state.coronaryAutoregulationBinding,
+      window.windowIndex,
+    );
+  const empty = nearlyEqual(
+    state.acceptedTimeSec,
+    ownedWindowStartAcceptedTimeSec,
+  )
+    && window.windowStartAcceptedTimeSec === ownedWindowStartAcceptedTimeSec
+    && window.windowOriginAcceptedTimeSec
+      === state.coronaryAutoregulationBinding.windowPolicy
+        .originAcceptedTimeSec
+    && window.acceptedDurationSec === 0
     && window.acceptedStepCount === 0
     && window.windowControl === null
     && CORONARY_TERRITORY_IDS_V2.every((territoryId) =>
@@ -594,7 +611,7 @@ function requireEmptyPeriodicBoundary(
         === 0);
   if (!empty) {
     throw new Error(
-      `${label} coronary V3 periodic boundary autoregulation accumulator is not empty`,
+      `${label} coronary V3 periodic boundary autoregulation accumulator is not empty or not at its exact owned boundary`,
     );
   }
 }

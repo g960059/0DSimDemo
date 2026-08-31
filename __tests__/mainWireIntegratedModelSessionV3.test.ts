@@ -33,6 +33,9 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD_CHECKPOINT_V2_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelStandardCheckpointV2";
+import {
+  compareMainWireIntegratedModelAcceptedStatesV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -177,6 +180,10 @@ describe("MainWireIntegratedModelSessionV3", () => {
       acceptedDurationSec: 0,
       acceptedStepCount: 0,
     });
+    expect(targetRegular.initialAcceptedTimeSec).not.toBe(
+      accepted.coronary.coronaryAutoregulationBinding.windowPolicy
+        .originAcceptedTimeSec,
+    );
 
     const checkpoint = await warmed.checkpointOperational();
     const restored = await MainWireIntegratedModelSessionV3
@@ -189,6 +196,23 @@ describe("MainWireIntegratedModelSessionV3", () => {
       source.acceptedTimeSec + 0.002,
     );
     expect(advanced.status).toBe("advanced");
+
+    const firstBoundaryResult = warmed.advanceToPresentationTime(
+      source.acceptedTimeSec + 0.8,
+    );
+    expect(firstBoundaryResult.status).toBe("advanced");
+    const firstBoundary = warmed.currentAcceptedState();
+    const secondBoundaryResult = warmed.advanceToPresentationTime(
+      source.acceptedTimeSec + 1.6,
+    );
+    expect(secondBoundaryResult.status).toBe("advanced");
+    const secondBoundary = warmed.currentAcceptedState();
+    expect(
+      compareMainWireIntegratedModelAcceptedStatesV3(
+        secondBoundary,
+        firstBoundary,
+      ).provenance.periodLag,
+    ).toBe(1);
   }, 120_000);
 
   it("T-A2/T6/T12 — emits one ordinal sample across the 0.8125 s rhythm boundary", async () => {

@@ -219,6 +219,20 @@ export function maximumCoronaryAutoregulationStepDurationV3(
 }
 
 /**
+ * Returns the exact absolute start owned by the anchored window lattice.
+ * Periodic comparators use this at empty boundaries rather than reconstructing
+ * a short interval by subtracting two late absolute clocks.
+ */
+export function canonicalCoronaryAutoregulationWindowStartTimeV3(
+  binding: CoronaryAutoregulationWindowBindingV3,
+  windowIndex: number,
+): number {
+  validateCoronaryAutoregulationWindowBindingV3(binding);
+  requireNonnegativeInteger(windowIndex, "windowIndex");
+  return canonicalWindowStart(binding, windowIndex);
+}
+
+/**
  * Returns the exact absolute endpoint owned by the anchored window lattice.
  * Consumers that coordinate another periodic event must reuse this value
  * instead of reconstructing it from the preceding window start.

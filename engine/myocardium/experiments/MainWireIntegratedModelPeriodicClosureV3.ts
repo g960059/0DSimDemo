@@ -222,14 +222,18 @@ export function compareMainWireIntegratedModelAcceptedStatesV3(
     reference,
     expectedAllOffConfig,
   );
-  const provenance = validateProvenance(current, reference);
-  validateWithinStateLineage(current, "current");
-  validateWithinStateLineage(reference, "reference");
   const coronaryClosure = compareMainWireFiveWallCoronaryAcceptedStatesV3(
     current.coronary,
     reference.coronary,
     projectCoronaryScales(scales),
   );
+  const provenance = validateProvenance(
+    current,
+    reference,
+    coronaryClosure.provenance.autoregulationWindowIndexAdvance,
+  );
+  validateWithinStateLineage(current, "current");
+  validateWithinStateLineage(reference, "reference");
   const entries: Array<
     | MainWireIntegratedModelPeriodicNumericDeltaEntryV3
     | MainWireIntegratedModelPeriodicExactDeltaEntryV3
@@ -512,6 +516,7 @@ function validateCompatibility(
 function validateProvenance(
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
+  ownedWindowIndexAdvance: number,
 ): MainWireIntegratedModelPeriodicClosureReportV3["provenance"] {
   const currentRhythm = current.composedRhythm;
   const referenceRhythm = reference.composedRhythm;
@@ -520,13 +525,24 @@ function validateProvenance(
   const period = currentRegular.configuration.cycleLengthSec;
   const acceptedTimeAdvanceSec =
     current.acceptedTimeSec - reference.acceptedTimeSec;
-  const candidateLag = Math.round(acceptedTimeAdvanceSec / period);
+  const currentWindowBinding =
+    current.coronary.coronaryAutoregulationBinding.windowPolicy;
+  const referenceWindowBinding =
+    reference.coronary.coronaryAutoregulationBinding.windowPolicy;
+  const candidateLag = ownedWindowIndexAdvance;
   if (
     (candidateLag !== 1 && candidateLag !== 2) ||
-    !nearlyEqual(acceptedTimeAdvanceSec, candidateLag * period)
+    period !== currentWindowBinding.durationSec ||
+    period !== referenceWindowBinding.durationSec
   ) {
-    throw new Error("V3 periodic clock must advance by exactly P1 or P2");
+    throw new Error(
+      "V3 periodic rhythm and coronary owner clocks must advance by exactly P1 or P2",
+    );
   }
+  // A heart-rate warm start deliberately preserves the regular source phase
+  // while rebasing the coronary window at the edit boundary. The two origins
+  // therefore need not coincide; exact owner-window boundaries plus the
+  // source/capture/deposit counter advances below establish the shared lag.
   const periodLag = candidateLag as 1 | 2;
   const revisionAdvance = current.revision - reference.revision;
   if (!Number.isSafeInteger(revisionAdvance) || revisionAdvance <= 0) {

@@ -82,6 +82,38 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
     expect(single.period1EvidenceEstablished).toBe(false);
   });
 
+  it.each([
+    [1.2, 107, 1],
+    [1.2, 214, 2],
+    [2 / 3, 195, 1],
+    [2 / 3, 387, 2],
+  ] as const)(
+    "uses the owned window-index lag at duration %s, index %s, P%s",
+    (windowDurationSec, currentWindowIndex, periodLag) => {
+      const referenceWindowIndex = currentWindowIndex - periodLag;
+      const report = compareMainWireFiveWallCoronaryAcceptedStatesV3(
+        acceptedState({
+          revision: currentWindowIndex * 100,
+          timeSec: currentWindowIndex * windowDurationSec,
+          windowDurationSec,
+        }),
+        acceptedState({
+          revision: referenceWindowIndex * 100,
+          timeSec: referenceWindowIndex * windowDurationSec,
+          windowDurationSec,
+        }),
+        MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+      );
+
+      expect(report.provenance.autoregulationWindowIndexAdvance).toBe(
+        periodLag,
+      );
+      expect(
+        report.provenance.autoregulationWindowStartAcceptedTimeAdvanceSec,
+      ).toBeCloseTo(periodLag * windowDurationSec, 12);
+    },
+  );
+
   it("measures every desired-control scalar and gates its identity exactly", () => {
     const changedScalar = compareMainWireFiveWallCoronaryAcceptedStatesV3(
       acceptedState({
@@ -122,6 +154,39 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
         MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
       ),
     ).toThrow(/accumulator is not empty/);
+
+    const exact = acceptedState({ revision: 300, timeSec: 3 });
+    const offLattice = Object.freeze({
+      ...exact,
+      coronaryAutoregulation: Object.freeze({
+        ...exact.coronaryAutoregulation,
+        windowStartAcceptedTimeSec:
+          exact.coronaryAutoregulation.windowStartAcceptedTimeSec
+          + 4 * Number.EPSILON,
+      }),
+    });
+    expect(() =>
+      compareMainWireFiveWallCoronaryAcceptedStatesV3(
+        offLattice,
+        acceptedState({ revision: 200, timeSec: 2 }),
+        MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+      ),
+    ).toThrow(/exact owned boundary/);
+
+    const offOrigin = Object.freeze({
+      ...exact,
+      coronaryAutoregulation: Object.freeze({
+        ...exact.coronaryAutoregulation,
+        windowOriginAcceptedTimeSec: Number.EPSILON,
+      }),
+    });
+    expect(() =>
+      compareMainWireFiveWallCoronaryAcceptedStatesV3(
+        offOrigin,
+        acceptedState({ revision: 200, timeSec: 2 }),
+        MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+      ),
+    ).toThrow(/exact owned boundary/);
   });
 
   it("uses exact autoregulation binding and accepted-window revision gates", () => {

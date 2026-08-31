@@ -2,7 +2,10 @@ import {
   MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
   MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
 } from "@/engine/executionPlan/MainWireNumericalClockV1";
-import { canonicalCoronaryAutoregulationWindowEndTimeV3 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
+  canonicalCoronaryAutoregulationWindowEndTimeV3,
+  canonicalCoronaryAutoregulationWindowStartTimeV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
   assertMainWireStandard66SelectedTraceLiveSessionV1,
@@ -1198,12 +1201,19 @@ function boundaryFromStateV1(
   acceptedState: MainWireIntegratedModelPeriodicAcceptedStateV3,
 ): MainWireStandard66P1SettlingWindowBoundaryV1 {
   const window = acceptedState.coronary.coronaryAutoregulation;
+  const binding = acceptedState.coronary.coronaryAutoregulationBinding;
+  const ownedWindowStartAcceptedTimeSec =
+    canonicalCoronaryAutoregulationWindowStartTimeV3(
+      binding,
+      window.windowIndex,
+    );
   if (
     window.windowStartRevision !== acceptedState.revision ||
-    !nearlyEqualTimeV1(
-      window.windowStartAcceptedTimeSec,
-      acceptedState.acceptedTimeSec,
-    ) ||
+    window.windowOriginAcceptedTimeSec
+      !== binding.windowPolicy.originAcceptedTimeSec ||
+    window.windowStartAcceptedTimeSec
+      !== ownedWindowStartAcceptedTimeSec ||
+    acceptedState.acceptedTimeSec !== ownedWindowStartAcceptedTimeSec ||
     window.acceptedDurationSec !== 0 ||
     window.acceptedStepCount !== 0 ||
     window.windowControl !== null ||

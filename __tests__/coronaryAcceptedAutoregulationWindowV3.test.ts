@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   advanceCoronaryAcceptedAutoregulationV3,
   canonicalCoronaryAutoregulationWindowEndTimeV3,
+  canonicalCoronaryAutoregulationWindowStartTimeV3,
   createCoronaryAcceptedAutoregulationStateV3,
   createCoronaryAutoregulationWindowBindingV3,
   createDefaultCoronaryAutoregulationWindowControlV3,
@@ -41,6 +42,12 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
       });
       let recompositionMismatchCount = 0;
       for (let windowIndex = 0; windowIndex < 1_000; windowIndex += 1) {
+        expect(
+          canonicalCoronaryAutoregulationWindowStartTimeV3(
+            variableBinding,
+            windowIndex,
+          ),
+        ).toBe(windowIndex * durationSec);
         const ownedEnd =
           canonicalCoronaryAutoregulationWindowEndTimeV3(
             variableBinding,
