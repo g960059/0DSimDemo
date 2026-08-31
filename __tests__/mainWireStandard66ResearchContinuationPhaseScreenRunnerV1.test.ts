@@ -74,6 +74,12 @@ describe("Standard66 research continuation phase screen V1", () => {
     expect(result.formalProtocolEligibility).toBe(false);
     expect(result.numericalPeriodicityEstablished).toBe(false);
     expect(result.claim.acceptedStatesPersisted).toBe(false);
+    expect(Object.keys(result.terminalCompletedBeatProjection)).toHaveLength(10);
+    for (const projected of
+      Object.values(result.terminalCompletedBeatProjection)) {
+      expect(projected.availability).toBe("available");
+      expect(projected.value).toEqual(expect.any(Number));
+    }
     expect(JSON.stringify(result)).not.toContain('"acceptedState":');
     expect(result.failure).toBeNull();
   }, 120_000);

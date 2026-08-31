@@ -27,6 +27,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1,
   type MainWireIntegratedModelStandard66ValidationClockArmIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard66ValidationPreregistrationV1";
+import type {
+  MainWireIntegratedModelStandard66OutputIdV1,
+  MainWireIntegratedModelStandard66OutputValueV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard66OutputRegistryV1";
 
 export const MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_PHASE_SCREEN_RUNNER_V1_ID =
   "main-wire-standard66-research-continuation-phase-screen-runner-v1" as const;
@@ -43,6 +47,7 @@ export const MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_PHASE_SCREEN_CLAIM_V1 =
     freshConfirmationConsecutiveComparisonsRequired: 3 as const,
     exactModelMutation: false as const,
     acceptedStatesPersisted: false as const,
+    compactTerminalCompletedBeatProjectionRecorded: true as const,
     formalValidationOutcomeProduced: false as const,
     formalPeriodicClassifierEligible: false as const,
     numericalPeriodicityEstablished: false as const,
@@ -54,6 +59,19 @@ export const MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_PHASE_SCREEN_CLAIM_V1 =
 const DEFAULT_MAXIMUM_CONTINUATION_DURATION_SEC_V1 = 120 as const;
 const MAXIMUM_CONTINUATION_DURATION_SEC_V1 = 250 as const;
 const REQUIRED_CONSECUTIVE_PHASE_MATCHED_COMPARISONS_V1 = 3 as const;
+
+const TERMINAL_COMPLETED_BEAT_OUTPUT_IDS_V1 = Object.freeze([
+  "hemodynamics.pressure.mean.Ao",
+  "hemodynamics.pressure.mean.SA",
+  "hemodynamics.stroke-volume.LV-extrema",
+  "hemodynamics.stroke-volume.LV-event-defined",
+  "hemodynamics.valve-volume.forward.AoV",
+  "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV",
+  "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV",
+  "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV",
+  "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV",
+  "hemodynamics.duration.valve-forward-flow.AoV",
+] as const satisfies readonly MainWireIntegratedModelStandard66OutputIdV1[]);
 
 type ExactBoundaryV1 = Readonly<{
   windowIndex: number;
@@ -153,6 +171,9 @@ export type MainWireStandard66ResearchContinuationPhaseScreenResultV1 =
     }>;
     observations:
       readonly MainWireStandard66ResearchContinuationPhaseScreenObservationV1[];
+    terminalCompletedBeatProjection: Readonly<
+      Record<string, MainWireIntegratedModelStandard66OutputValueV1>
+    >;
     terminalAcceptedTimeSec: number;
     terminalAcceptedRevision: number;
     formalProtocolEligibility: false;
@@ -498,6 +519,10 @@ export async function runMainWireStandard66ResearchContinuationPhaseScreenV1(
   }
 
   const terminal = session.currentAcceptedState();
+  const terminalCompletedBeatProjection =
+    session.projectCurrentAcceptedStandard66ValuesV1(
+      TERMINAL_COMPLETED_BEAT_OUTPUT_IDS_V1,
+    );
   return Object.freeze({
     runnerId:
       MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_PHASE_SCREEN_RUNNER_V1_ID,
@@ -552,6 +577,7 @@ export async function runMainWireStandard66ResearchContinuationPhaseScreenV1(
       phaseMatchedComparisonCount,
     }),
     observations: Object.freeze([...observations]),
+    terminalCompletedBeatProjection,
     terminalAcceptedTimeSec: terminal.acceptedTimeSec,
     terminalAcceptedRevision: terminal.revision,
     formalProtocolEligibility: false as const,
