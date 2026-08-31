@@ -555,7 +555,7 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
         },
       );
       let completed = rhythm.state;
-      for (let cycleOrdinal = 1; cycleOrdinal <= 6; cycleOrdinal += 1) {
+      for (let cycleOrdinal = 1; cycleOrdinal <= 12; cycleOrdinal += 1) {
         completed = advanceThroughOwnedBoundaries(
           completed,
           cycleOrdinal * cycleLengthSec,

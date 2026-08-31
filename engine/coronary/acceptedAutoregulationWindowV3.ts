@@ -219,6 +219,20 @@ export function maximumCoronaryAutoregulationStepDurationV3(
 }
 
 /**
+ * Returns the exact absolute endpoint owned by the anchored window lattice.
+ * Consumers that coordinate another periodic event must reuse this value
+ * instead of reconstructing it from the preceding window start.
+ */
+export function canonicalCoronaryAutoregulationWindowEndTimeV3(
+  binding: CoronaryAutoregulationWindowBindingV3,
+  windowIndex: number,
+): number {
+  validateCoronaryAutoregulationWindowBindingV3(binding);
+  requireNonnegativeInteger(windowIndex, "windowIndex");
+  return canonicalWindowEnd(binding, windowIndex);
+}
+
+/**
  * Pure accepted-boundary operator. Candidate probes and rejected steps never
  * call this function. The final converged BE right-endpoint readback is the
  * only value integrated, and tone changes only after a complete time window.

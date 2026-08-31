@@ -147,32 +147,39 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
     ).rejects.toThrow(/unadvanced cold window-zero state/);
   }, 120_000);
 
-  it("keeps the HR 50 first cycle boundary structurally empty", async () => {
-    const liveSession =
-      await createMainWireStandard66SelectedTraceLiveSessionV1({
-        hemodynamicResearchInputs: Object.freeze({
-          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-          heartRateBpm: 50,
-        }),
+  it.each([
+    [50, 7.202],
+    [90, 4.002],
+  ] as const)(
+    "keeps six consecutive HR %s cycle boundaries structurally empty",
+    async (heartRateBpm, boundedSmokeHorizonSec) => {
+      const liveSession =
+        await createMainWireStandard66SelectedTraceLiveSessionV1({
+          hemodynamicResearchInputs: Object.freeze({
+            ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+            heartRateBpm,
+          }),
+        });
+      const result = await runMainWireStandard66P1SettlingOnLiveSessionV1({
+        liveSession,
+        clockArmId: "dt-2ms-production",
+        executionPurpose: "bounded-smoke",
+        boundedSmokeHorizonSec,
       });
-    const result = await runMainWireStandard66P1SettlingOnLiveSessionV1({
-      liveSession,
-      clockArmId: "dt-2ms-production",
-      executionPurpose: "bounded-smoke",
-      boundedSmokeHorizonSec: 1.202,
-    });
 
-    expect(result.status).toBe("bounded-smoke-complete");
-    expect(result.failure).toBeNull();
-    expect(result.counters.completedCoronaryWindowCount).toBe(1);
-    expect(result.retainedWindowBoundaries.at(-1)?.acceptedState.composedRhythm)
-      .toMatchObject({
-        acceptedAtrialCaptureCount: 1,
-        acceptedVentricularCaptureCount: 1,
-        deliveredCalciumDepositCount: 2,
-        pendingCalciumDeposits: [],
-      });
-  }, 120_000);
+      expect(result.status).toBe("bounded-smoke-complete");
+      expect(result.failure).toBeNull();
+      expect(result.counters.completedCoronaryWindowCount).toBe(6);
+      expect(result.retainedWindowBoundaries.at(-1)?.acceptedState.composedRhythm)
+        .toMatchObject({
+          acceptedAtrialCaptureCount: 6,
+          acceptedVentricularCaptureCount: 6,
+          deliveredCalciumDepositCount: 12,
+          pendingCalciumDeposits: [],
+        });
+    },
+    120_000,
+  );
 
   it.each([
     ["dt-2ms-production", 0.002],

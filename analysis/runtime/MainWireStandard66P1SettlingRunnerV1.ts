@@ -3,6 +3,9 @@ import {
   MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
 } from "@/engine/executionPlan/MainWireNumericalClockV1";
 import {
+  canonicalCoronaryAutoregulationWindowEndTimeV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
   MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
   assertMainWireStandard66SelectedTraceLiveSessionV1,
   createMainWireStandard66SelectedTraceLiveSessionV1,
@@ -539,33 +542,33 @@ export async function confirmMainWireStandard66P1OnLiveSessionV1(
     );
   }
   const cycleLengthSec = regular.configuration.cycleLengthSec;
-  const coronaryWindowDurationSec =
-    startState.coronary.coronaryAutoregulationBinding.windowPolicy.durationSec;
-  if (!nearlyEqualTimeV1(cycleLengthSec, coronaryWindowDurationSec)) {
+  const coronaryWindowBinding =
+    startState.coronary.coronaryAutoregulationBinding;
+  const coronaryWindowDurationSec = coronaryWindowBinding.windowPolicy.durationSec;
+  if (
+    cycleLengthSec !== coronaryWindowDurationSec
+    || regular.initialAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
+    || startState.coronary.coronaryAutoregulation
+      .windowOriginAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
+  ) {
     throw new Error(
-      "Standard66 P1 confirmation coronary window does not equal the sinus cycle",
+      "Standard66 P1 confirmation periodic rhythm and coronary owner clocks differ",
     );
   }
 
   let currentAcceptedTimeSec = startState.acceptedTimeSec;
   let currentAcceptedRevision = startState.revision;
   let nextCoronaryWindowBoundaryTimeSec =
-    startState.coronary.coronaryAutoregulation.windowStartAcceptedTimeSec +
-    coronaryWindowDurationSec;
+    canonicalCoronaryAutoregulationWindowEndTimeV3(
+      coronaryWindowBinding,
+      startState.coronary.coronaryAutoregulation.windowIndex,
+    );
   if (!(nextCoronaryWindowBoundaryTimeSec > currentAcceptedTimeSec)) {
-    if (
-      previousBoundary !== null &&
-      nearlyEqualTimeV1(
-        nextCoronaryWindowBoundaryTimeSec,
-        currentAcceptedTimeSec,
-      )
-    ) {
-      nextCoronaryWindowBoundaryTimeSec += coronaryWindowDurationSec;
-    } else {
-      throw new Error(
-        "Standard66 P1 confirmation next coronary boundary is invalid",
-      );
-    }
+    throw new Error(
+      "Standard66 P1 confirmation next coronary boundary is invalid",
+    );
   }
   const confirmationDeadlineSec =
     startState.acceptedTimeSec + maximumContinuationDurationSec;
@@ -714,8 +717,10 @@ export async function confirmMainWireStandard66P1OnLiveSessionV1(
           }
         }
         nextCoronaryWindowBoundaryTimeSec =
-          boundaryState.coronary.coronaryAutoregulation
-            .windowStartAcceptedTimeSec + coronaryWindowDurationSec;
+          canonicalCoronaryAutoregulationWindowEndTimeV3(
+            boundaryState.coronary.coronaryAutoregulationBinding,
+            boundaryState.coronary.coronaryAutoregulation.windowIndex,
+          );
       } catch (error) {
         failure = boundaryFailureV1(
           error instanceof Error ? error.message : String(error),
@@ -809,12 +814,19 @@ async function runOwnedMainWireStandard66P1SettlingV1(
     throw new Error("Standard66 settling requires a regular atrial source");
   }
   const cycleLengthSec = regular.configuration.cycleLengthSec;
-  const coronaryWindowDurationSec =
-    initialState.coronary.coronaryAutoregulationBinding.windowPolicy
-      .durationSec;
-  if (!nearlyEqualTimeV1(cycleLengthSec, coronaryWindowDurationSec)) {
+  const coronaryWindowBinding =
+    initialState.coronary.coronaryAutoregulationBinding;
+  const coronaryWindowDurationSec = coronaryWindowBinding.windowPolicy.durationSec;
+  if (
+    cycleLengthSec !== coronaryWindowDurationSec
+    || regular.initialAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
+    || initialState.coronary.coronaryAutoregulation
+      .windowOriginAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
+  ) {
     throw new Error(
-      "Standard66 settling coronary window does not equal the sinus cycle",
+      "Standard66 settling periodic rhythm and coronary owner clocks differ",
     );
   }
 
@@ -827,8 +839,10 @@ async function runOwnedMainWireStandard66P1SettlingV1(
   let currentAcceptedTimeSec = initialState.acceptedTimeSec;
   let currentAcceptedRevision = initialState.revision;
   let nextCoronaryWindowBoundaryTimeSec =
-    initialState.coronary.coronaryAutoregulation.windowStartAcceptedTimeSec +
-    coronaryWindowDurationSec;
+    canonicalCoronaryAutoregulationWindowEndTimeV3(
+      coronaryWindowBinding,
+      initialState.coronary.coronaryAutoregulation.windowIndex,
+    );
   let nextRequestedBoundaryOrdinal = 1;
   let horizonIndex = 0;
   let consecutivePeriod1Closures = 0;
@@ -949,8 +963,10 @@ async function runOwnedMainWireStandard66P1SettlingV1(
         completedCoronaryWindowCount += 1;
         completedPeriod1ComparisonCount += 1;
         nextCoronaryWindowBoundaryTimeSec =
-          boundaryState.coronary.coronaryAutoregulation
-            .windowStartAcceptedTimeSec + coronaryWindowDurationSec;
+          canonicalCoronaryAutoregulationWindowEndTimeV3(
+            boundaryState.coronary.coronaryAutoregulationBinding,
+            boundaryState.coronary.coronaryAutoregulation.windowIndex,
+          );
       } catch (error) {
         failure = boundaryFailureV1(
           error instanceof Error ? error.message : String(error),

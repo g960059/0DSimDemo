@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   advanceCoronaryAcceptedAutoregulationV3,
+  canonicalCoronaryAutoregulationWindowEndTimeV3,
   createCoronaryAcceptedAutoregulationStateV3,
   createCoronaryAutoregulationWindowBindingV3,
   createDefaultCoronaryAutoregulationWindowControlV3,
@@ -29,6 +30,30 @@ const binding = createCoronaryAutoregulationWindowBindingV3({
 });
 
 describe("accepted physical-time coronary autoregulation window V3", () => {
+  it.each([50, 90] as const)(
+    "owns the anchored %s bpm window endpoint instead of a start-plus-period recomposition",
+    (heartRateBpm) => {
+      const durationSec = 60 / heartRateBpm;
+      const variableBinding = createCoronaryAutoregulationWindowBindingV3({
+        originAcceptedTimeSec: 0,
+        durationSec,
+        interpretation: "periodic-sinus-cycle-aligned",
+      });
+      let recompositionMismatchCount = 0;
+      for (let windowIndex = 0; windowIndex < 1_000; windowIndex += 1) {
+        const ownedEnd =
+          canonicalCoronaryAutoregulationWindowEndTimeV3(
+            variableBinding,
+            windowIndex,
+          );
+        expect(ownedEnd).toBe((windowIndex + 1) * durationSec);
+        const recomposedEnd = windowIndex * durationSec + durationSec;
+        if (recomposedEnd !== ownedEnd) recompositionMismatchCount += 1;
+      }
+      expect(recompositionMismatchCount).toBeGreaterThan(0);
+    },
+  );
+
   it("uses BE duration weights and updates tone once at the exact boundary", () => {
     let state = createCoronaryAcceptedAutoregulationStateV3(binding, {
       acceptedTimeSec: 0,
