@@ -7,6 +7,11 @@ import {
   evaluateMainWireLeftVentricularPressureRateV1,
 } from "@/analysis/methods/mainWire/MainWireLeftVentricularPressureRateV1";
 import {
+  measureMainWireStandard66TerminalBeatValidationV1,
+} from "@/analysis/methods/mainWire/MainWireStandard66TerminalBeatValidationMeasurementsV1";
+import {
+  continueMainWireStandard66SelectedTraceFromLiveSessionV1,
+  createMainWireStandard66SelectedTraceLiveSessionV1,
   mainWireStandard66SelectedTraceLatestFlowTimingInputV1,
   mainWireStandard66SelectedTracePressureSamplesV1,
   runMainWireStandard66SelectedTraceV1,
@@ -179,6 +184,74 @@ describe("Standard66 selected accepted-endpoint trace runner V1", () => {
     expect(pressure.positiveExtremum.status).toBe("available");
     expect(pressure.negativeExtremum.status).toBe("available");
   }, 120_000);
+
+  it.each([0.002, 0.001, 0.0005] as const)(
+    "continues the same live Session on the zero-anchored %s s grid through a margin-complete terminal beat",
+    async (requestedBoundaryIntervalSec) => {
+      const liveSession =
+        await createMainWireStandard66SelectedTraceLiveSessionV1({
+          hemodynamicResearchInputs: Object.freeze({
+            ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+            heartRateBpm: 90,
+          }),
+        });
+      const settledStandIn = liveSession.session
+        .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+          0.053,
+          Object.freeze([]),
+        );
+      expect(settledStandIn.advance.status).toBe("advanced");
+      const before = liveSession.session.currentAcceptedState();
+
+      const trace =
+        continueMainWireStandard66SelectedTraceFromLiveSessionV1({
+          liveSession,
+          requestedBoundaryIntervalSec,
+        });
+      const after = liveSession.session.currentAcceptedState();
+
+      expect(trace.terminalAcquisition.sameSessionContinuedAfterSettling)
+        .toBe(true);
+      expect(trace.window.startTimeSec).toBe(before.acceptedTimeSec);
+      expect(trace.endpoints[0]?.acceptedRevision).toBe(before.revision);
+      expect(trace.endpoints[1]?.acceptedRevision).toBe(before.revision + 1);
+      expect(trace.window.endTimeSec).toBe(after.acceptedTimeSec);
+      expect(trace.endpoints.at(-1)?.acceptedRevision).toBe(after.revision);
+      expect(trace.terminalAcquisition.leadingRetainedMarginSec)
+        .toBeGreaterThanOrEqual(0.02);
+      expect(trace.terminalAcquisition.trailingRetainedMarginSec)
+        .toBeGreaterThanOrEqual(0.02);
+      expect(trace.capturedAtrialActivationBoundaries.length)
+        .toBeGreaterThanOrEqual(2);
+      expect(trace.capturedAtrialActivationBoundaries.at(-2)?.capturedActivationId)
+        .toBe(trace.terminalAcquisition.startCapturedActivationId);
+      expect(trace.capturedAtrialActivationBoundaries.at(-1)?.capturedActivationId)
+        .toBe(trace.terminalAcquisition.endCapturedActivationId);
+
+      for (const interval of trace.intervals) {
+        const zeroAnchoredOrdinal =
+          interval.requestedBoundaryTimeSec / requestedBoundaryIntervalSec;
+        expect(zeroAnchoredOrdinal).toBeCloseTo(
+          Math.round(zeroAnchoredOrdinal),
+          10,
+        );
+      }
+      for (let endpointIndex = 1; endpointIndex < trace.endpoints.length; endpointIndex += 1) {
+        expect(trace.endpoints[endpointIndex]!.acceptedRevision).toBe(
+          trace.endpoints[endpointIndex - 1]!.acceptedRevision + 1,
+        );
+      }
+
+      const measured = measureMainWireStandard66TerminalBeatValidationV1(trace);
+      expect(measured.source.startAtrialCaptureId)
+        .toBe(trace.terminalAcquisition.startCapturedActivationId);
+      expect(measured.source.endAtrialCaptureId)
+        .toBe(trace.terminalAcquisition.endCapturedActivationId);
+      expect(measured.completedBeatAlignmentAudit.allCrossChecksPassed)
+        .toBe(true);
+    },
+    120_000,
+  );
 });
 
 function landingEndpointV1(

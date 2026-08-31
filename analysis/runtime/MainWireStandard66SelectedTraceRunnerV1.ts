@@ -50,6 +50,16 @@ import {
 export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_RUNNER_V1_ID =
   "main-wire-standard66-selected-accepted-endpoint-trace-runner-v1" as const;
 
+export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID =
+  "main-wire-standard66-selected-trace-production-route-live-session-v1" as const;
+
+export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1 =
+  0.02 as const;
+
+const LIVE_SESSION_ROUTE_V1 = Symbol(
+  MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
+);
+
 export type MainWireStandard66SelectedTraceBoundaryIntervalSecV1 =
   (typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1)[number]["requestedStepSec"];
 
@@ -91,6 +101,35 @@ export type MainWireStandard66SelectedTraceRunnerInputV1 = Readonly<{
   mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
   ventricularContractilityScale?: number;
 }>;
+
+export type MainWireStandard66SelectedTraceLiveSessionCreateInputV1 =
+  Readonly<{
+    hemodynamicResearchInputs?:
+      MainWireIntegratedModelHemodynamicResearchInputsV3;
+    mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
+    ventricularContractilityScale?: number;
+  }>;
+
+/**
+ * A still-live Standard66 Session together with private proof that this module
+ * created it using the production compiled plan and Newton workspace binding.
+ * Consumers may advance `session`; they cannot synthesize the route proof.
+ */
+export type MainWireStandard66SelectedTraceLiveSessionV1 = Readonly<{
+  routeIdentity:
+    typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID;
+  session: MainWireIntegratedModelStandard66TypedAuthoritySessionV1;
+  [LIVE_SESSION_ROUTE_V1]: ReturnType<
+    typeof createProductionExecutionPlanRouteV1
+  >;
+}>;
+
+export type MainWireStandard66SelectedTraceLiveContinuationInputV1 =
+  Readonly<{
+    liveSession: MainWireStandard66SelectedTraceLiveSessionV1;
+    requestedBoundaryIntervalSec:
+      MainWireStandard66SelectedTraceBoundaryIntervalSecV1;
+  }>;
 
 export type MainWireStandard66SelectedTraceSignalsV1 = Readonly<{
   mitralValveFlowMlPerSec: number;
@@ -207,6 +246,50 @@ export type MainWireStandard66SelectedTraceV1 = Readonly<{
   }>;
 }>;
 
+export type MainWireStandard66SelectedTerminalTraceV1 =
+  MainWireStandard66SelectedTraceV1 & Readonly<{
+    terminalAcquisition: Readonly<{
+      liveSessionRouteIdentity:
+        typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID;
+      sameSessionContinuedAfterSettling: true;
+      zeroAnchoredRequestedBoundaryGrid: true;
+      firstZeroAnchoredRequestedBoundaryOrdinal: number;
+      lastZeroAnchoredRequestedBoundaryOrdinal: number;
+      requiredPressureRateMarginSec:
+        typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1;
+      startCapturedActivationId: string;
+      endCapturedActivationId: string;
+      leadingRetainedMarginSec: number;
+      trailingRetainedMarginSec: number;
+      maximumPermittedContinuationDurationSec: number;
+    }>;
+  }>;
+
+/**
+ * Creates the only live-session handle accepted by the continuation runner.
+ * The private route proof binds the exact same compiled execution plan and
+ * coupled Newton workspace factory used by the production host.
+ */
+export async function createMainWireStandard66SelectedTraceLiveSessionV1(
+  input: MainWireStandard66SelectedTraceLiveSessionCreateInputV1 = {},
+): Promise<MainWireStandard66SelectedTraceLiveSessionV1> {
+  const owned = ownLiveSessionCreateInputV1(input);
+  const route = createProductionExecutionPlanRouteV1();
+  const session =
+    await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
+      owned.hemodynamicResearchInputs,
+      owned.ventricularContractilityScale,
+      route.initialization,
+      owned.mechanismResearchInputs,
+    );
+  return Object.freeze({
+    routeIdentity:
+      MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
+    session,
+    [LIVE_SESSION_ROUTE_V1]: route,
+  });
+}
+
 /**
  * Runs the selected exact Session through its production compiled-plan and
  * workspace bindings. The requested interval is active numerically: it caps
@@ -218,18 +301,18 @@ export async function runMainWireStandard66SelectedTraceV1(
   input: MainWireStandard66SelectedTraceRunnerInputV1,
 ): Promise<MainWireStandard66SelectedTraceV1> {
   const owned = ownRunnerInputV1(input);
-  const route = createProductionExecutionPlanRouteV1();
+  const liveSession =
+    await createMainWireStandard66SelectedTraceLiveSessionV1({
+      hemodynamicResearchInputs: owned.hemodynamicResearchInputs,
+      mechanismResearchInputs: owned.mechanismResearchInputs,
+      ventricularContractilityScale: owned.ventricularContractilityScale,
+    });
+  const route = liveSession[LIVE_SESSION_ROUTE_V1];
   const productionPresentationStepSec =
     route.schedule.baseTickSec * route.schedule.presentationPeriodTicks;
   const productionPresentationScheduleArm =
     owned.requestedBoundaryIntervalSec === productionPresentationStepSec;
-  const session =
-    await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
-      owned.hemodynamicResearchInputs,
-      owned.ventricularContractilityScale,
-      route.initialization,
-      owned.mechanismResearchInputs,
-    );
+  const session = liveSession.session;
 
   let lastWarmupLanding:
     MainWireIntegratedModelStandard66AcceptedEndpointProjectionV1 | null =
@@ -364,113 +447,170 @@ export async function runMainWireStandard66SelectedTraceV1(
     }));
   }
 
-  const captures = Object.freeze(endpoints.flatMap((endpoint) => {
-    const capture = endpoint.capturedAtrialActivation;
-    if (capture === null) return [];
-    if (
-      capture.chamber !== "atrial"
-      || capture.activationTimeSec !== endpoint.actualTimeSec
-    ) {
+  return assembleSelectedTraceV1({
+    route,
+    requestedBoundaryIntervalSec: owned.requestedBoundaryIntervalSec,
+    productionPresentationScheduleArm,
+    warmupBoundaryCount: owned.warmupBoundaryCount,
+    windowStartState,
+    endpoints,
+    intervals,
+  });
+}
+
+/**
+ * Continues an already-advanced production-route Session in place and retains
+ * a terminal analysis window. Requested boundaries stay on the absolute
+ * time-zero grid; model-event commits remain inserted and are all retained.
+ *
+ * The acquisition stops only after the latest two consecutive atrial captures
+ * have 20 ms of retained context on both sides. That context is deliberately
+ * wider than the half-window needed by the centered 20 ms dP/dt sensitivity
+ * method. A regular-sinus-derived hard horizon prevents an unbounded run.
+ */
+export function continueMainWireStandard66SelectedTraceFromLiveSessionV1(
+  input: MainWireStandard66SelectedTraceLiveContinuationInputV1,
+): MainWireStandard66SelectedTerminalTraceV1 {
+  const { liveSession } = input;
+  if (
+    liveSession === null
+    || typeof liveSession !== "object"
+    || liveSession.routeIdentity
+      !== MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+    || liveSession[LIVE_SESSION_ROUTE_V1] === undefined
+  ) {
+    throw new Error(
+      "Standard66 terminal trace requires a production-route live-session handle",
+    );
+  }
+  requireSupportedBoundaryIntervalV1(input.requestedBoundaryIntervalSec);
+  const route = liveSession[LIVE_SESSION_ROUTE_V1];
+  const session = liveSession.session;
+  const windowStartState = session.currentAcceptedState();
+  const windowStartTimeSec = windowStartState.acceptedTimeSec;
+  const regular = windowStartState.composedRhythm.regularAtrialSourceState;
+  if (regular === null) {
+    throw new Error(
+      "Standard66 terminal trace requires a regular atrial source",
+    );
+  }
+  const cycleLengthSec = regular.configuration.cycleLengthSec;
+  if (!Number.isFinite(cycleLengthSec) || cycleLengthSec <= 0) {
+    throw new Error("Standard66 terminal trace sinus cycle is invalid");
+  }
+  const maximumPermittedContinuationDurationSec =
+    3 * cycleLengthSec
+    + 2 * MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1
+    + input.requestedBoundaryIntervalSec;
+  const maximumPermittedEndTimeSec =
+    windowStartTimeSec + maximumPermittedContinuationDurationSec;
+  const productionPresentationStepSec =
+    route.schedule.baseTickSec * route.schedule.presentationPeriodTicks;
+  const productionPresentationScheduleArm =
+    input.requestedBoundaryIntervalSec === productionPresentationStepSec;
+  const firstAbsoluteOrdinal = firstZeroAnchoredGridOrdinalAfterTimeV1(
+    windowStartTimeSec,
+    input.requestedBoundaryIntervalSec,
+  );
+  let absoluteOrdinal = firstAbsoluteOrdinal;
+  let relativeOrdinal = 1;
+
+  const initialValues =
+    session.projectCurrentAcceptedStandard66ValuesV1(TRACE_OUTPUT_IDS_V1);
+  const endpoints: MainWireStandard66SelectedTraceEndpointV1[] = [
+    endpointFromProjectionV1({
+      endpointIndex: 0,
+      origin: "preceding-window-endpoint",
+      actualTimeSec: windowStartTimeSec,
+      acceptedRevision: windowStartState.revision,
+      enclosingRequestedBoundaryOrdinal: 0,
+      landedOnRequestedBoundary: false,
+      clippedByCoronaryWindow: false,
+      clippedByRhythmBoundary: false,
+      rhythmBoundaryTimeSec: null,
+      rhythmBoundaryOwners: Object.freeze([]),
+      capturedAtrialActivation: null,
+      projectedValues: initialValues,
+    }),
+  ];
+  const intervals: MainWireStandard66SelectedTraceIntervalV1[] = [];
+
+  while (true) {
+    const requestedBoundaryTimeSec = requestedTargetTimeSecV1(
+      route.schedule,
+      input.requestedBoundaryIntervalSec,
+      absoluteOrdinal,
+      productionPresentationScheduleArm,
+    );
+    if (!(requestedBoundaryTimeSec > endpoints.at(-1)!.actualTimeSec)) {
       throw new Error(
-        "Standard66 trace atrial-capture provenance is not clock-aligned",
+        "Standard66 terminal trace zero-anchored boundary did not advance",
       );
     }
-    return [Object.freeze({
-      endpointIndex: endpoint.endpointIndex,
-      capturedActivationId: capture.capturedActivationId,
-      activationTimeSec: capture.activationTimeSec,
-      parentSourceImpulseId: capture.parentSourceImpulseId,
-      upstreamCapturedActivationId: capture.upstreamCapturedActivationId,
-      sourceKind: capture.sourceKind,
-      sourceId: capture.sourceId,
-      sourceSequence: capture.sourceSequence,
-      captureOrdinal: capture.captureOrdinal,
-    })];
-  }));
-  const acceptedStepRangeSec = endpoints.slice(1).reduce(
-    (range, endpoint, index) => {
-      const durationSec =
-        endpoint.actualTimeSec - endpoints[index]!.actualTimeSec;
-      return Object.freeze({
-        minimum: Math.min(range.minimum, durationSec),
-        maximum: Math.max(range.maximum, durationSec),
-      });
-    },
-    Object.freeze({
-      minimum: Number.POSITIVE_INFINITY,
-      maximum: Number.NEGATIVE_INFINITY,
-    }),
-  );
-  const eventClippedAcceptedCommitCount = intervals.reduce(
-    (sum, interval) => sum + interval.eventClippedAcceptedCommitCount,
-    0,
-  );
-  const windowStartAtrialGate =
-    windowStartState.composedRhythm.electricalCaptureState.atrialGate;
-  const lastAcceptedAtrialCaptureAtWindowStart =
-    windowStartAtrialGate.lastCapturedActivationId === null
-      ? null
-      : Object.freeze({
-          capturedActivationId:
-            windowStartAtrialGate.lastCapturedActivationId,
-          activationTimeSec:
-            windowStartAtrialGate.lastCapturedActivationTimeSec!,
-        });
+    if (requestedBoundaryTimeSec > maximumPermittedEndTimeSec) {
+      throw new Error(
+        "Standard66 terminal trace did not retain two captures and margins within its sinus-derived horizon",
+      );
+    }
+    appendRecordedBoundaryV1({
+      session,
+      requestedBoundaryTimeSec,
+      relativeOrdinal,
+      endpoints,
+      intervals,
+      label: `live terminal boundary ${relativeOrdinal}`,
+    });
 
-  return Object.freeze({
-    runnerId: MAIN_WIRE_STANDARD66_SELECTED_TRACE_RUNNER_V1_ID,
-    source: Object.freeze({
-      modelOwner: "Standard66-selected-typed-authority-session" as const,
-      exactModelMutation: false as const,
-      exactFrameOutputReserved: false as const,
-      registryOrModelSurfaceChanged: false as const,
-      sameCompiledExecutionPlanAsProduction: true as const,
-      sameCoupledNewtonWorkspaceBindingAsProduction: true as const,
-    }),
-    clock: Object.freeze({
-      executionPlanBaseTickSec: route.schedule.baseTickSec,
-      productionPresentationStepSec,
-      requestedBoundaryIntervalSec: owned.requestedBoundaryIntervalSec,
-      requestedBoundaryRole:
-        "research-integration-cap-and-observation-boundary" as const,
-      acceptedStepPolicy:
-        "backward-euler-accepted-commits-clipped-at-model-event-boundaries" as const,
-      fixedStepIntegrationClaimed: false as const,
-      productionPresentationScheduleArm,
-      offProductionScheduleConvergenceArm:
-        !productionPresentationScheduleArm,
-      minimumAcceptedStepSec: acceptedStepRangeSec.minimum,
-      maximumAcceptedStepSec: acceptedStepRangeSec.maximum,
-    }),
-    window: Object.freeze({
-      warmupBoundaryCount: owned.warmupBoundaryCount,
-      recordedBoundaryCount: owned.recordedBoundaryCount,
-      startTimeSec: windowStartTimeSec,
-      endTimeSec: endpoints.at(-1)!.actualTimeSec,
-      precedingEndpointIncluded: true as const,
-    }),
-    lastAcceptedAtrialCaptureAtWindowStart,
-    endpoints: Object.freeze(endpoints),
-    intervals: Object.freeze(intervals),
-    capturedAtrialActivationBoundaries: captures,
-    summary: Object.freeze({
-      acceptedCommitCount: endpoints.length - 1,
-      requestedBoundaryLandingCount: endpoints.filter(
-        (endpoint) =>
-          endpoint.origin === "accepted-commit"
-          && endpoint.landedOnRequestedBoundary,
-      ).length,
-      eventClippedAcceptedCommitCount,
-      capturedAtrialActivationCount: captures.length,
-      maximumObservedPositiveAorticValveFlowMlPerSec: endpoints.reduce(
-        (maximum, endpoint) => Math.max(
-          maximum,
-          endpoint.signals.aorticValveFlowMlPerSec,
-        ),
-        0,
-      ),
-    }),
-  });
+    const retainedAtrialCaptureEndpoints = endpoints.filter((endpoint) =>
+      endpoint.capturedAtrialActivation?.chamber === "atrial"
+    );
+    if (retainedAtrialCaptureEndpoints.length >= 2) {
+      const startCaptureEndpoint = retainedAtrialCaptureEndpoints.at(-2)!;
+      const endCaptureEndpoint = retainedAtrialCaptureEndpoints.at(-1)!;
+      const leadingRetainedMarginSec =
+        startCaptureEndpoint.actualTimeSec - windowStartTimeSec;
+      const trailingRetainedMarginSec =
+        endpoints.at(-1)!.actualTimeSec - endCaptureEndpoint.actualTimeSec;
+      if (
+        leadingRetainedMarginSec
+          >= MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1
+        && trailingRetainedMarginSec
+          >= MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1
+      ) {
+        const trace = assembleSelectedTraceV1({
+          route,
+          requestedBoundaryIntervalSec: input.requestedBoundaryIntervalSec,
+          productionPresentationScheduleArm,
+          warmupBoundaryCount: 0,
+          windowStartState,
+          endpoints,
+          intervals,
+        });
+        const captures = trace.capturedAtrialActivationBoundaries;
+        const startCapture = captures.at(-2)!;
+        const endCapture = captures.at(-1)!;
+        return Object.freeze({
+          ...trace,
+          terminalAcquisition: Object.freeze({
+            liveSessionRouteIdentity: liveSession.routeIdentity,
+            sameSessionContinuedAfterSettling: true as const,
+            zeroAnchoredRequestedBoundaryGrid: true as const,
+            firstZeroAnchoredRequestedBoundaryOrdinal: firstAbsoluteOrdinal,
+            lastZeroAnchoredRequestedBoundaryOrdinal: absoluteOrdinal,
+            requiredPressureRateMarginSec:
+              MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1,
+            startCapturedActivationId: startCapture.capturedActivationId,
+            endCapturedActivationId: endCapture.capturedActivationId,
+            leadingRetainedMarginSec,
+            trailingRetainedMarginSec,
+            maximumPermittedContinuationDurationSec,
+          }),
+        });
+      }
+    }
+    absoluteOrdinal += 1;
+    relativeOrdinal += 1;
+  }
 }
 
 /** All actual accepted endpoints, directly consumable by the pressure method. */
@@ -563,6 +703,194 @@ export function mainWireStandard66SelectedTraceLatestFlowTimingInputV1(
   );
 }
 
+function appendRecordedBoundaryV1(input: Readonly<{
+  session: MainWireIntegratedModelStandard66TypedAuthoritySessionV1;
+  requestedBoundaryTimeSec: number;
+  relativeOrdinal: number;
+  endpoints: MainWireStandard66SelectedTraceEndpointV1[];
+  intervals: MainWireStandard66SelectedTraceIntervalV1[];
+  label: string;
+}>): void {
+  const startAcceptedTimeSec = input.endpoints.at(-1)!.actualTimeSec;
+  const projected = input.session
+    .advanceToPresentationTimeWithStandard66AcceptedEndpointProjectionForAnalysisV1(
+      input.requestedBoundaryTimeSec,
+      TRACE_OUTPUT_IDS_V1,
+    );
+  const advance = requireAdvancedV1(projected.advance, input.label);
+  if (
+    projected.acceptedEndpoints.length
+    !== advance.internalAcceptedSubstepCount
+  ) {
+    throw new Error(
+      "Standard66 trace accepted-endpoint projection lost an internal commit",
+    );
+  }
+  const firstAcceptedEndpointIndex = input.endpoints.length;
+  for (const accepted of projected.acceptedEndpoints) {
+    const endpoint = endpointFromAcceptedProjectionV1(
+      input.endpoints.length,
+      input.relativeOrdinal,
+      accepted,
+    );
+    const previous = input.endpoints.at(-1)!;
+    if (!(endpoint.actualTimeSec > previous.actualTimeSec)) {
+      throw new Error("Standard66 trace accepted endpoint did not advance");
+    }
+    if (endpoint.acceptedRevision !== previous.acceptedRevision + 1) {
+      throw new Error("Standard66 trace accepted revisions are not contiguous");
+    }
+    input.endpoints.push(endpoint);
+  }
+  const landing = input.endpoints.at(-1)!;
+  if (
+    !landing.landedOnRequestedBoundary
+    || landing.actualTimeSec !== input.requestedBoundaryTimeSec
+  ) {
+    throw new Error("Standard66 trace did not retain its requested landing");
+  }
+  input.intervals.push(Object.freeze({
+    requestedBoundaryOrdinal: input.relativeOrdinal,
+    requestedBoundaryTimeSec: input.requestedBoundaryTimeSec,
+    startAcceptedTimeSec,
+    endAcceptedTimeSec: landing.actualTimeSec,
+    firstAcceptedEndpointIndex,
+    lastAcceptedEndpointIndex: input.endpoints.length - 1,
+    internalAcceptedCommitCount: projected.acceptedEndpoints.length,
+    eventClippedAcceptedCommitCount: projected.acceptedEndpoints.filter(
+      ({ commit }) => !commit.substep.landedOnPresentationTarget,
+    ).length,
+  }));
+}
+
+function assembleSelectedTraceV1(input: Readonly<{
+  route: ReturnType<typeof createProductionExecutionPlanRouteV1>;
+  requestedBoundaryIntervalSec:
+    MainWireStandard66SelectedTraceBoundaryIntervalSecV1;
+  productionPresentationScheduleArm: boolean;
+  warmupBoundaryCount: number;
+  windowStartState: ReturnType<
+    MainWireIntegratedModelStandard66TypedAuthoritySessionV1["currentAcceptedState"]
+  >;
+  endpoints: readonly MainWireStandard66SelectedTraceEndpointV1[];
+  intervals: readonly MainWireStandard66SelectedTraceIntervalV1[];
+}>): MainWireStandard66SelectedTraceV1 {
+  if (input.endpoints.length < 2 || input.intervals.length < 1) {
+    throw new Error("Standard66 trace cannot assemble an empty window");
+  }
+  const captures = Object.freeze(input.endpoints.flatMap((endpoint) => {
+    const capture = endpoint.capturedAtrialActivation;
+    if (capture === null) return [];
+    if (
+      capture.chamber !== "atrial"
+      || capture.activationTimeSec !== endpoint.actualTimeSec
+    ) {
+      throw new Error(
+        "Standard66 trace atrial-capture provenance is not clock-aligned",
+      );
+    }
+    return [Object.freeze({
+      endpointIndex: endpoint.endpointIndex,
+      capturedActivationId: capture.capturedActivationId,
+      activationTimeSec: capture.activationTimeSec,
+      parentSourceImpulseId: capture.parentSourceImpulseId,
+      upstreamCapturedActivationId: capture.upstreamCapturedActivationId,
+      sourceKind: capture.sourceKind,
+      sourceId: capture.sourceId,
+      sourceSequence: capture.sourceSequence,
+      captureOrdinal: capture.captureOrdinal,
+    })];
+  }));
+  const acceptedStepRangeSec = input.endpoints.slice(1).reduce(
+    (range, endpoint, index) => {
+      const durationSec =
+        endpoint.actualTimeSec - input.endpoints[index]!.actualTimeSec;
+      return Object.freeze({
+        minimum: Math.min(range.minimum, durationSec),
+        maximum: Math.max(range.maximum, durationSec),
+      });
+    },
+    Object.freeze({
+      minimum: Number.POSITIVE_INFINITY,
+      maximum: Number.NEGATIVE_INFINITY,
+    }),
+  );
+  const eventClippedAcceptedCommitCount = input.intervals.reduce(
+    (sum, interval) => sum + interval.eventClippedAcceptedCommitCount,
+    0,
+  );
+  const windowStartAtrialGate = input.windowStartState.composedRhythm
+    .electricalCaptureState.atrialGate;
+  const lastAcceptedAtrialCaptureAtWindowStart =
+    windowStartAtrialGate.lastCapturedActivationId === null
+      ? null
+      : Object.freeze({
+          capturedActivationId:
+            windowStartAtrialGate.lastCapturedActivationId,
+          activationTimeSec:
+            windowStartAtrialGate.lastCapturedActivationTimeSec!,
+        });
+  const productionPresentationStepSec =
+    input.route.schedule.baseTickSec
+    * input.route.schedule.presentationPeriodTicks;
+
+  return Object.freeze({
+    runnerId: MAIN_WIRE_STANDARD66_SELECTED_TRACE_RUNNER_V1_ID,
+    source: Object.freeze({
+      modelOwner: "Standard66-selected-typed-authority-session" as const,
+      exactModelMutation: false as const,
+      exactFrameOutputReserved: false as const,
+      registryOrModelSurfaceChanged: false as const,
+      sameCompiledExecutionPlanAsProduction: true as const,
+      sameCoupledNewtonWorkspaceBindingAsProduction: true as const,
+    }),
+    clock: Object.freeze({
+      executionPlanBaseTickSec: input.route.schedule.baseTickSec,
+      productionPresentationStepSec,
+      requestedBoundaryIntervalSec: input.requestedBoundaryIntervalSec,
+      requestedBoundaryRole:
+        "research-integration-cap-and-observation-boundary" as const,
+      acceptedStepPolicy:
+        "backward-euler-accepted-commits-clipped-at-model-event-boundaries" as const,
+      fixedStepIntegrationClaimed: false as const,
+      productionPresentationScheduleArm:
+        input.productionPresentationScheduleArm,
+      offProductionScheduleConvergenceArm:
+        !input.productionPresentationScheduleArm,
+      minimumAcceptedStepSec: acceptedStepRangeSec.minimum,
+      maximumAcceptedStepSec: acceptedStepRangeSec.maximum,
+    }),
+    window: Object.freeze({
+      warmupBoundaryCount: input.warmupBoundaryCount,
+      recordedBoundaryCount: input.intervals.length,
+      startTimeSec: input.windowStartState.acceptedTimeSec,
+      endTimeSec: input.endpoints.at(-1)!.actualTimeSec,
+      precedingEndpointIncluded: true as const,
+    }),
+    lastAcceptedAtrialCaptureAtWindowStart,
+    endpoints: Object.freeze([...input.endpoints]),
+    intervals: Object.freeze([...input.intervals]),
+    capturedAtrialActivationBoundaries: captures,
+    summary: Object.freeze({
+      acceptedCommitCount: input.endpoints.length - 1,
+      requestedBoundaryLandingCount: input.endpoints.filter(
+        (endpoint) =>
+          endpoint.origin === "accepted-commit"
+          && endpoint.landedOnRequestedBoundary,
+      ).length,
+      eventClippedAcceptedCommitCount,
+      capturedAtrialActivationCount: captures.length,
+      maximumObservedPositiveAorticValveFlowMlPerSec: input.endpoints.reduce(
+        (maximum, endpoint) => Math.max(
+          maximum,
+          endpoint.signals.aorticValveFlowMlPerSec,
+        ),
+        0,
+      ),
+    }),
+  });
+}
+
 function createProductionExecutionPlanRouteV1() {
   const boundExecutionPlan =
     bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1();
@@ -624,6 +952,30 @@ function requestedTargetTimeSecV1(
     throw new Error("Standard66 trace requested target is not finite");
   }
   return targetTimeSec;
+}
+
+function firstZeroAnchoredGridOrdinalAfterTimeV1(
+  acceptedTimeSec: number,
+  requestedBoundaryIntervalSec:
+    MainWireStandard66SelectedTraceBoundaryIntervalSecV1,
+): number {
+  if (!Number.isFinite(acceptedTimeSec) || acceptedTimeSec < 0) {
+    throw new Error("Standard66 trace accepted start time is invalid");
+  }
+  const scaled = acceptedTimeSec / requestedBoundaryIntervalSec;
+  if (!Number.isFinite(scaled) || scaled > Number.MAX_SAFE_INTEGER - 1) {
+    throw new Error("Standard66 trace zero-anchored grid ordinal overflowed");
+  }
+  const nearest = Math.round(scaled);
+  const scaledTolerance = 32 * Number.EPSILON * Math.max(1, Math.abs(scaled));
+  const completedOrdinal = Math.abs(scaled - nearest) <= scaledTolerance
+    ? nearest
+    : Math.floor(scaled);
+  const nextOrdinal = completedOrdinal + 1;
+  if (!Number.isSafeInteger(nextOrdinal) || nextOrdinal < 1) {
+    throw new Error("Standard66 trace next grid ordinal is invalid");
+  }
+  return nextOrdinal;
 }
 
 function endpointFromAcceptedProjectionV1(
@@ -800,14 +1152,7 @@ function uniqueCaptureBoundaryV1(
 function ownRunnerInputV1(
   input: MainWireStandard66SelectedTraceRunnerInputV1,
 ) {
-  if (
-    !MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1.some(
-      ({ requestedStepSec }) =>
-        requestedStepSec === input.requestedBoundaryIntervalSec,
-    )
-  ) {
-    throw new Error("Standard66 trace boundary interval is unsupported");
-  }
+  requireSupportedBoundaryIntervalV1(input.requestedBoundaryIntervalSec);
   const warmupBoundaryCount = input.warmupBoundaryCount ?? 1;
   if (!Number.isSafeInteger(warmupBoundaryCount) || warmupBoundaryCount < 1) {
     throw new Error("Standard66 trace warmup boundary count is invalid");
@@ -842,6 +1187,40 @@ function ownRunnerInputV1(
       ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
     ventricularContractilityScale,
   });
+}
+
+function ownLiveSessionCreateInputV1(
+  input: MainWireStandard66SelectedTraceLiveSessionCreateInputV1,
+) {
+  const ventricularContractilityScale =
+    input.ventricularContractilityScale ?? 1;
+  if (
+    !Number.isFinite(ventricularContractilityScale)
+    || ventricularContractilityScale <= 0
+  ) {
+    throw new Error("Standard66 trace contractility scale is invalid");
+  }
+  return Object.freeze({
+    hemodynamicResearchInputs: input.hemodynamicResearchInputs
+      ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    mechanismResearchInputs: input.mechanismResearchInputs
+      ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    ventricularContractilityScale,
+  });
+}
+
+function requireSupportedBoundaryIntervalV1(
+  requestedBoundaryIntervalSec: number,
+): asserts requestedBoundaryIntervalSec is
+  MainWireStandard66SelectedTraceBoundaryIntervalSecV1 {
+  if (
+    !MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1.some(
+      ({ requestedStepSec }) =>
+        requestedStepSec === requestedBoundaryIntervalSec,
+    )
+  ) {
+    throw new Error("Standard66 trace boundary interval is unsupported");
+  }
 }
 
 function requireAdvancedV1<T extends Readonly<{
