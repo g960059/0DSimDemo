@@ -26,6 +26,7 @@ import { MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID } from "@/engine/myocardiu
 import {
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+  createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
   MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
@@ -1043,7 +1044,12 @@ function selectedExecutableBundleV1(
       }>,
     ) {
       assertSelectedRuntimeContextV1(input.context);
-      validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+        fixture.hemodynamicResearchInputs,
+        1,
+        fixture.mechanismResearchInputs,
+      );
       return undefined;
     },
     reduceControlAction(

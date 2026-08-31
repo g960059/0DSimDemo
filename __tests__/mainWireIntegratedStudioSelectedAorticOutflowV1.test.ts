@@ -4,6 +4,13 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard66OutputRegistryV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_INPUT_KEYS_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  type MainWireIntegratedModelHemodynamicResearchInputsV3,
+  type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
+} from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
   MainWireIntegratedModelStandard66TypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedModelStandard66TypedAuthoritySessionV1";
 import { assertModelContractV2, type ModelContractV2 } from "@/studio/contracts/v2/model";
@@ -225,6 +232,131 @@ describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
       Object.is(output.value, -0))).toBe(false);
   }, 120_000);
 
+  it("keeps complete-fixture validation and execution consistent over a deterministic hemodynamic covering matrix", async () => {
+    const release =
+      createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1();
+    const host =
+      new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1();
+    const cases = selectedHemodynamicConstructibilityCasesV1();
+    const admittedCaseIds: string[] = [];
+    const rejectedCaseIds: string[] = [];
+
+    expect(cases.map(({ caseId }) => caseId)).toHaveLength(
+      new Set(cases.map(({ caseId }) => caseId)).size,
+    );
+    for (const { caseId, inputs } of cases) {
+      const fixture = Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+        hemodynamicResearchInputs: inputs,
+      });
+      const runtimeSessionId = `selected-constructibility/${caseId}`;
+      const scenarioId = "scenario";
+
+      let validationError: unknown;
+      try {
+        release.executables.fixtureAdapter.validateCompleteFixture({
+          context: Object.freeze({
+            scenarioId,
+            modelId:
+              MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+          }),
+          fixture,
+        });
+      } catch (error) {
+        validationError = error;
+      }
+      if (validationError !== undefined) {
+        expect(validationError, caseId).toBeInstanceOf(Error);
+        expect((validationError as Error).message, caseId)
+          .toMatch(/exceeds SV\/VC PV-law support/);
+        expect(inputs.venousTone, caseId).toBe(1);
+        expect(inputs.totalBloodVolumeMl, caseId).toBe(7_000);
+        await expect(
+          host.createSession(runtimeSessionId, [{ scenarioId, fixture }]),
+          caseId,
+        ).rejects.toThrow(/exceeds SV\/VC PV-law support/);
+        rejectedCaseIds.push(caseId);
+        continue;
+      }
+      try {
+        await host.createSession(runtimeSessionId, [{ scenarioId, fixture }]);
+      } catch (error) {
+        throw new Error(
+          `constructibility case ${caseId} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+      expect(
+        host.advanceOnePresentationStep(runtimeSessionId, scenarioId),
+        caseId,
+      ).toMatchObject({
+        acceptedRevision: expect.any(Number),
+        acceptedTimeSec: 0.002,
+      });
+      host.closeSession(runtimeSessionId);
+      admittedCaseIds.push(caseId);
+    }
+    expect(admittedCaseIds).toHaveLength(7);
+    expect(rejectedCaseIds).toEqual([
+      "pairwise-endpoint-row-2",
+      "pairwise-endpoint-row-5",
+      "all-maximum",
+    ]);
+  }, 120_000);
+
+  it("preflights mechanism inputs through the exact cold constructor", async () => {
+    const release =
+      createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1();
+    const defaultFixture =
+      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1;
+    const unsupportedFixture = Object.freeze({
+      ...defaultFixture,
+      mechanismResearchInputs: Object.freeze({
+        ...defaultFixture.mechanismResearchInputs,
+        pericardium: Object.freeze({
+          ...defaultFixture.mechanismResearchInputs.pericardium,
+          prescribedFluidVolumeMl: 500,
+        }),
+      }),
+    });
+    const context = Object.freeze({
+      scenarioId: "scenario/pericardial-cold-construction",
+      modelId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+    });
+
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: unsupportedFixture,
+    })).toThrow(/pressure-ladder initialization requires Ao pressure above RA/);
+    await expect(release.executables.simulationAdapter.createSession({
+      runtimeSessionId: "selected-pericardial-cold-construction",
+      scenarios: Object.freeze([Object.freeze({
+        scenarioId: context.scenarioId,
+        fixture: unsupportedFixture,
+      })]),
+    })).rejects.toThrow(
+      /pressure-ladder initialization requires Ao pressure above RA/,
+    );
+
+    const admittedFixture = Object.freeze({
+      ...unsupportedFixture,
+      mechanismResearchInputs: Object.freeze({
+        ...unsupportedFixture.mechanismResearchInputs,
+        pericardium: Object.freeze({
+          ...unsupportedFixture.mechanismResearchInputs.pericardium,
+          prescribedFluidVolumeMl: 220,
+        }),
+      }),
+    });
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: admittedFixture,
+    })).not.toThrow();
+  });
+
   it("captures and restores the named Standard66 object checkpoint without persisting the 76-f64 readback", async () => {
     const release =
       createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1();
@@ -344,4 +476,64 @@ function emptySurfaceV1() {
     controlPanes: Object.freeze([]),
     note: Object.freeze({ text: "" }),
   });
+}
+
+function selectedHemodynamicConstructibilityCasesV1(): readonly Readonly<{
+  caseId: string;
+  inputs: MainWireIntegratedModelHemodynamicResearchInputsV3;
+}>[] {
+  const defaults =
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3;
+  const keys = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_INPUT_KEYS_V3;
+  const cases: Array<Readonly<{
+    caseId: string;
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3;
+  }>> = [Object.freeze({ caseId: "default", inputs: defaults })];
+
+  // The seven nonzero 3-bit columns form an orthogonal strength-2 endpoint
+  // array over eight rows: every pair of axes visits all four endpoint pairs
+  // exactly twice without expanding to the full 2^7 Cartesian product.
+  for (let row = 0; row < 8; row += 1) {
+    cases.push(endpointPatternCaseV1(
+      `pairwise-endpoint-row-${row}`,
+      (_key, index) => bitParityV1(row & (index + 1)) === 0
+        ? "minimum"
+        : "maximum",
+    ));
+  }
+  if (keys.length !== 7) {
+    throw new Error("constructibility endpoint array requires seven axes");
+  }
+  cases.push(endpointPatternCaseV1("all-maximum", () => "maximum"));
+  return Object.freeze(cases);
+}
+
+function endpointPatternCaseV1(
+  caseId: string,
+  endpointAt: (
+    key: MainWireIntegratedModelHemodynamicResearchInputKeyV3,
+    index: number,
+  ) => "minimum" | "maximum",
+) {
+  const entries = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_INPUT_KEYS_V3
+    .map((key, index) => {
+      const endpoint = endpointAt(key, index);
+      return [
+        key,
+        MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[key][endpoint],
+      ] as const;
+    });
+  return Object.freeze({
+    caseId,
+    inputs: Object.freeze(Object.fromEntries(entries)) as
+      MainWireIntegratedModelHemodynamicResearchInputsV3,
+  });
+}
+
+function bitParityV1(value: number): 0 | 1 {
+  let parity: 0 | 1 = 0;
+  for (let remaining = value; remaining > 0; remaining >>= 1) {
+    parity = (parity ^ (remaining & 1)) as 0 | 1;
+  }
+  return parity;
 }

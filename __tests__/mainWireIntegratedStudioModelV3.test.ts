@@ -461,6 +461,50 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/totalBloodVolumeMl/);
   });
 
+  it("rejects a structurally valid fixture outside the coupled SV/VC PV support before session construction", async () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const unsupportedFixture = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      hemodynamicResearchInputs: Object.freeze({
+        systemicResistance: 1.25,
+        pulmonaryResistance: 0.8,
+        venousTone: 1,
+        arterialStiffness: 1,
+        heartRateBpm: 100,
+        totalBloodVolumeMl: 7_000,
+        peepCmH2O: 20,
+      }),
+    });
+    const context = Object.freeze({
+      scenarioId: "scenario/high-tone-hypervolemia",
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+    });
+
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: unsupportedFixture,
+    })).toThrow(/exceeds SV\/VC PV-law support/);
+    await expect(release.executables.simulationAdapter.createSession({
+      runtimeSessionId: "session/high-tone-hypervolemia",
+      scenarios: Object.freeze([Object.freeze({
+        scenarioId: context.scenarioId,
+        fixture: unsupportedFixture,
+      })]),
+    })).rejects.toThrow(/exceeds SV\/VC PV-law support/);
+
+    const adjacentGridFixture = Object.freeze({
+      ...unsupportedFixture,
+      hemodynamicResearchInputs: Object.freeze({
+        ...unsupportedFixture.hemodynamicResearchInputs,
+        totalBloodVolumeMl: 6_900,
+      }),
+    });
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: adjacentGridFixture,
+    })).not.toThrow();
+  });
+
   it("cold-starts a portable fixture at the advertised hypovolemic boundary", async () => {
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-hypovolemic-cold-start";

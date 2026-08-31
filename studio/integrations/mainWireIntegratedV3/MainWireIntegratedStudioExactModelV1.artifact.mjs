@@ -19691,13 +19691,16 @@ function solveSharedTransmuralPressureOffsetMmHg(coldSeedVolumesMl, targetAdditi
   let lowerMmHg;
   let upperMmHg;
   if (targetAdditionalVolumeMl > 0) {
+    const maximumSharedOffsetMmHg = Math.min(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum - baselineTransmuralPressuresMmHg[nodeName]
+    ));
+    if (addedVolumeAtOffsetMl(maximumSharedOffsetMmHg) < targetAdditionalVolumeMl) {
+      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+    }
     lowerMmHg = 0;
-    upperMmHg = 1;
+    upperMmHg = Math.min(1, maximumSharedOffsetMmHg);
     while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
-      upperMmHg *= 2;
-      if (upperMmHg > 256) {
-        throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
-      }
+      upperMmHg = Math.min(2 * upperMmHg, maximumSharedOffsetMmHg);
     }
   } else {
     upperMmHg = 0;
@@ -41332,6 +41335,1540 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
+const IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1 = Object.freeze({
+  0: 0,
+  1: 23e3,
+  2: 31e3,
+  3: 33e3,
+  4: 35e3,
+  5: 37e3,
+  6: 39e3,
+  7: 42e3,
+  8: 44e3,
+  9: 46e3
+});
+const HEARTMATE_3_SIGNED_LITERATURE_CURVE_V1 = Object.freeze({
+  referenceSpeedRpm: 5200,
+  shutoffHeadMmHg: 345e-8 * 5200 ** 2,
+  linearLossMmHgSecPerMl: 59e-6 * 5200 * 0.06,
+  linearLossSpeedExponent: 1,
+  quadraticLossMmHgSec2PerMl2: 1.45 * 0.06 ** 2
+});
+const GENERIC_CENTRIFUGAL_LVAD_CURVE_V1 = HEARTMATE_3_SIGNED_LITERATURE_CURVE_V1;
+const IMPELLA_CP_CURVE_V1 = Object.freeze({
+  referenceSpeedRpm: 46e3,
+  shutoffHeadMmHg: 210,
+  linearLossMmHgSecPerMl: 0.4,
+  linearLossSpeedExponent: 1,
+  quadraticLossMmHgSec2PerMl2: 0.0314
+});
+const TAKAHASHI_SENKO_ECMO_CURVE_V1 = Object.freeze({
+  referenceSpeedRpm: 3500,
+  shutoffHeadMmHg: 337,
+  linearLossMmHgSecPerMl: 0.0864,
+  linearLossSpeedExponent: 1,
+  quadraticLossMmHgSec2PerMl2: 3096e-6
+});
+const EMPTY_SEGMENT = Object.freeze({
+  linearResistanceMmHgSecPerMl: 0,
+  quadraticResistanceMmHgSec2PerMl2: 0
+});
+const LVAD_BASE = Object.freeze({
+  enabled: false,
+  circuitClamped: false,
+  speedRpm: 5200,
+  inletNode: "LV",
+  outletNode: "Ao",
+  curve: GENERIC_CENTRIFUGAL_LVAD_CURVE_V1,
+  drainage: Object.freeze({
+    linearResistanceMmHgSecPerMl: 0.015,
+    quadraticResistanceMmHgSec2PerMl2: 3e-4
+  }),
+  oxygenator: EMPTY_SEGMENT,
+  returnPath: Object.freeze({
+    linearResistanceMmHgSecPerMl: 0.015,
+    quadraticResistanceMmHgSec2PerMl2: 3e-4
+  }),
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability",
+    collapsePressureMmHg: -5,
+    recoveredPressureMmHg: 3,
+    minimumVolumeMl: 20,
+    recoveredVolumeMl: 55
+  }),
+  maximumForwardFlowLMin: 10,
+  maximumReverseFlowLMin: 3,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null
+  })
+});
+const IMPELLA_BASE = Object.freeze({
+  enabled: false,
+  circuitClamped: false,
+  performanceLevel: 6,
+  speedRpm: IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1[6],
+  inletNode: "LV",
+  outletNode: "Ao",
+  curve: IMPELLA_CP_CURVE_V1,
+  drainage: Object.freeze({
+    linearResistanceMmHgSecPerMl: 0.03,
+    quadraticResistanceMmHgSec2PerMl2: 1e-3
+  }),
+  oxygenator: EMPTY_SEGMENT,
+  returnPath: Object.freeze({
+    linearResistanceMmHgSecPerMl: 0.03,
+    quadraticResistanceMmHgSec2PerMl2: 1e-3
+  }),
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability",
+    collapsePressureMmHg: -4,
+    recoveredPressureMmHg: 4,
+    minimumVolumeMl: 18,
+    recoveredVolumeMl: 50
+  }),
+  maximumForwardFlowLMin: 4.3,
+  maximumReverseFlowLMin: 2,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null
+  })
+});
+const ECMO_DRAINAGE = Object.freeze({
+  // Takahashi drain 22 Fr: 3.09 Q^2 - 0.54 Q, conservatively
+  // represented with its measured quadratic term and no negative linear loss.
+  linearResistanceMmHgSecPerMl: 0,
+  quadraticResistanceMmHgSec2PerMl2: 0.011124
+});
+const ECMO_OXYGENATOR = Object.freeze({
+  linearResistanceMmHgSecPerMl: 0.9198,
+  quadraticResistanceMmHgSec2PerMl2: 198e-5
+});
+const ECMO_RETURN = Object.freeze({
+  // Takahashi return 18 Fr: 5.01 Q^2 - 1.74 Q, with the same passive
+  // nonnegative-loss restriction as the drainage cannula.
+  linearResistanceMmHgSecPerMl: 0,
+  quadraticResistanceMmHgSec2PerMl2: 0.018036
+});
+const VA_ECMO_BASE = Object.freeze({
+  enabled: false,
+  circuitClamped: false,
+  cannulation: "peripheral",
+  speedRpm: 3200,
+  inletNode: "VC",
+  outletNode: "SA",
+  curve: TAKAHASHI_SENKO_ECMO_CURVE_V1,
+  drainage: ECMO_DRAINAGE,
+  oxygenator: ECMO_OXYGENATOR,
+  returnPath: ECMO_RETURN,
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability",
+    collapsePressureMmHg: -8,
+    recoveredPressureMmHg: 2,
+    minimumVolumeMl: 25,
+    recoveredVolumeMl: 100
+  }),
+  maximumForwardFlowLMin: 7,
+  maximumReverseFlowLMin: 7,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null
+  })
+});
+const VV_ECMO_BASE = Object.freeze({
+  enabled: false,
+  circuitClamped: false,
+  cannulation: "femoral-jugular",
+  hemodynamicCoupling: "well-mixed-venous",
+  speedRpm: 3200,
+  inletNode: "VC",
+  outletNode: "VC",
+  curve: TAKAHASHI_SENKO_ECMO_CURVE_V1,
+  drainage: ECMO_DRAINAGE,
+  oxygenator: ECMO_OXYGENATOR,
+  returnPath: ECMO_RETURN,
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability",
+    collapsePressureMmHg: -8,
+    recoveredPressureMmHg: 2,
+    minimumVolumeMl: 25,
+    recoveredVolumeMl: 100
+  }),
+  maximumForwardFlowLMin: 7,
+  maximumReverseFlowLMin: 7,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null
+  })
+});
+function createMechanicalSupportConfigV1(overrides = {}) {
+  const impellaLevel = integerLevel(
+    overrides.impella?.performanceLevel ?? IMPELLA_BASE.performanceLevel
+  );
+  const vaCannulation = overrides.vaEcmo?.cannulation ?? VA_ECMO_BASE.cannulation;
+  const config = {
+    modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
+    lvad: mergePump(LVAD_BASE, overrides.lvad),
+    impella: Object.freeze({
+      ...mergePump(IMPELLA_BASE, overrides.impella),
+      performanceLevel: impellaLevel,
+      speedRpm: IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1[impellaLevel]
+    }),
+    vaEcmo: Object.freeze({
+      ...mergePump(VA_ECMO_BASE, overrides.vaEcmo),
+      cannulation: vaCannulation,
+      inletNode: vaCannulation === "central" ? "RA" : "VC",
+      outletNode: vaCannulation === "central" ? "Ao" : "SA"
+    }),
+    vvEcmo: Object.freeze({
+      ...mergePump(VV_ECMO_BASE, overrides.vvEcmo),
+      cannulation: overrides.vvEcmo?.cannulation ?? VV_ECMO_BASE.cannulation,
+      hemodynamicCoupling: overrides.vvEcmo?.hemodynamicCoupling ?? VV_ECMO_BASE.hemodynamicCoupling,
+      inletNode: "VC",
+      outletNode: (overrides.vvEcmo?.hemodynamicCoupling ?? VV_ECMO_BASE.hemodynamicCoupling) === "bicaval-pressure-resolved" ? "RA" : "VC"
+    }),
+    iabp: Object.freeze({
+      enabled: false,
+      assistRatio: 1,
+      balloonVolumeMl: 40,
+      inflationPhase01: 0.22,
+      deflationPhase01: 0.9,
+      inflationDurationSec: 0.08,
+      deflationDurationSec: 0.08,
+      placementNode: "SA",
+      ...overrides.iabp
+    }),
+    gasExchange: Object.freeze({
+      fractionDeliveredOxygen01: 1,
+      sweepGasLMin: 4,
+      oxygenatorRatedFlowLMin: 7,
+      membraneOxygenTransferCoefficient: 2.5,
+      maximumOxygenTransferMlPerMin: 220,
+      membraneCo2RemovalMlPerMinAtSweep1: 80,
+      hemoglobinGPerDl: 10,
+      venousOxygenMode: "fick-closed",
+      mixedVenousSaturation01: 0.65,
+      nativeLungShuntFraction01: 0.05,
+      nativeEndCapillarySaturation01: 0.98,
+      oxygenConsumptionMlPerMin: 250,
+      vvRecirculationFraction01: 0.15,
+      upperBodyFlowFraction01: 0.35,
+      ...overrides.gasExchange
+    })
+  };
+  validateMechanicalSupportConfigV1(config);
+  return deepFreeze$3(config);
+}
+function mergePump(base2, override) {
+  return Object.freeze({
+    ...base2,
+    ...override,
+    curve: Object.freeze({ ...base2.curve, ...override?.curve }),
+    drainage: Object.freeze({ ...base2.drainage, ...override?.drainage }),
+    oxygenator: Object.freeze({ ...base2.oxygenator, ...override?.oxygenator }),
+    returnPath: Object.freeze({ ...base2.returnPath, ...override?.returnPath }),
+    inletSuction: deepFreeze$3(
+      override?.inletSuction ?? { ...base2.inletSuction }
+    ),
+    forwardFlowEvidenceDomain: Object.freeze({
+      ...base2.forwardFlowEvidenceDomain,
+      ...override?.forwardFlowEvidenceDomain
+    })
+  });
+}
+function integerLevel(value) {
+  if (!Number.isInteger(value) || value < 0 || value > 9) {
+    throw new Error("Impella performance level must be an integer from P0 to P9");
+  }
+  return value;
+}
+function deepFreeze$3(value) {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      deepFreeze$3(child);
+    }
+  }
+  return value;
+}
+const MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1_ID = "main-wire-ventricular-calcium-source-fit-anchor-v1";
+const MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1 = Object.freeze({
+  anchorId: MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1_ID,
+  sourceFitProfileId: "land2017-figure6-whole-trace-alpha-fit",
+  derivationMethodId: "main-wire-ventricular-calcium-source-trace-fit-v1",
+  sourceTraceId: "land2017-figure6-coppini-calcium-trace-v1",
+  sourceDoi: "10.1016/j.yjmcc.2017.03.008",
+  sourceFigure: "Figure 6 left panel",
+  amplitudePolicy: "source-digitized-extrema-locked",
+  ventricularDiastolicCalciumUM: 0.164321,
+  ventricularPeakCalciumUM: 0.592586,
+  ventricularAlphaTimeConstantSec: 0.1234750900275888,
+  sourceTraceOnsetOffsetSec: 0.007222906291484831,
+  sourceTraceOnsetOffsetChangesElectricalToCalciumDelay: false,
+  ventricularElectricalToCalciumDelaySec: 0.012,
+  ventricularElectricalToCalciumDelaySource: "five-wall-normal-calcium-component-timing-prior-v1",
+  ventricularElectricalToCalciumDelayDerivedFromSourceFit: false,
+  figureDigitizationUsed: true,
+  originalNumericSourceTraceUsed: false,
+  sourceMeasurementCovarianceAvailable: false,
+  hemodynamicOutcomeUsedToDeriveFit: false,
+  landTensionOutcomeUsedToDeriveFit: false
+});
+const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_RANGE_V1 = Object.freeze({ minimumBpm: 40, maximumBpm: 100 });
+const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_HEART_RATE_BPM_V1 = 60;
+const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_COEFFICIENT_V1 = 0.4;
+const FIXED_ATRIOVENTRICULAR_DELAY_SEC = 0.12;
+const SOURCE = MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1;
+Object.freeze({
+  role: "fixed-source-anchored-continuous-heart-rate-calcium-law",
+  formula: "s=(HR-60)/(HR+60); tau=tau0*exp(-0.4*s)",
+  waveformFamily: "periodic-normalized-biexponential-exact-alpha-limit",
+  publicHeartRateRangeBpm: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_RANGE_V1,
+  referenceHeartRateBpm: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_HEART_RATE_BPM_V1,
+  sourceTimeConstantSec: SOURCE.ventricularAlphaTimeConstantSec,
+  dimensionlessRateCoefficient: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_COEFFICIENT_V1,
+  riseAndDecayShareOneTimeConstant: true,
+  ventricularExtremaHeldExactly: true,
+  ventricularElectricalToCalciumDelaySec: SOURCE.ventricularElectricalToCalciumDelaySec,
+  atrioventricularDelaySec: FIXED_ATRIOVENTRICULAR_DELAY_SEC,
+  atrialParamsRetainedExactly: true,
+  periodicCarryRecomputedForCycleLength: true,
+  forceFrequencyRelationModeled: false,
+  calciumCyclingStateModeled: false,
+  dynamicRateHistoryModeled: false,
+  parameterSearchOrFittingAppliedToRateLaw: false,
+  hemodynamicOutcomeUsedToSetRateLaw: false,
+  newContinuousStateAdded: false,
+  clinicalValidationClaimed: false
+});
+const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID = "main-wire-ventricular-calcium-matched-alpha-exact-persistence-v1";
+const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID = "main-wire-integrated-matched-alpha-fixed-regular-sinus-profile-v1";
+function createMainWireIntegratedRegularSinusRhythmV3(identity, fixedProfile) {
+  const idPrefix = requireIdentityString(identity.idPrefix, "idPrefix");
+  const parameterProvenanceSourceId = requireIdentityString(
+    identity.parameterProvenanceSourceId,
+    "parameterProvenanceSourceId"
+  );
+  const cycleLengthSec = requireCycleLengthSec(identity.cycleLengthSec);
+  const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
+    configurationId: `${idPrefix}-capture-configuration`,
+    ownerInstanceId: `${idPrefix}-capture-owner`,
+    atrialGate: {
+      gateInstanceId: `${idPrefix}-atrial-capture-gate`,
+      refractoryPeriodSec: 0.2
+    },
+    ventricularGate: {
+      gateInstanceId: `${idPrefix}-ventricular-capture-gate`,
+      refractoryPeriodSec: 0.25
+    }
+  });
+  const interval = createAcceptedVentricularIntervalStrengthConfigurationV1({
+    configurationId: `${idPrefix}-interval-configuration`,
+    ownerInstanceId: `${idPrefix}-interval-owner`,
+    parameterProvenance: {
+      kind: "explicit-research-parameters",
+      sourceId: parameterProvenanceSourceId
+    },
+    recoveryTimeConstantSec: 0.5,
+    releaseFractionBeta: 0.8,
+    releasedLoadReturnFractionR: 0.5,
+    intervalInfluxInhibitionFractionH: 0.2,
+    referenceCycleLengthSec: 1
+  });
+  const regular = createRegularAtrialSourceConfigurationV1({
+    configurationId: `${idPrefix}-regular-sinus-configuration`,
+    ownerInstanceId: `${idPrefix}-regular-sinus-owner`,
+    sourceId: `${idPrefix}-sinus-source`,
+    rhythmClass: "sinus",
+    cycleLengthSec
+  });
+  const calcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const atrialCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
+    {
+      diastolicCalciumUM: calcium.atrial.diastolicCalciumUM,
+      peakAmplitudeUM: calcium.atrial.peakAmplitudeUM,
+      riseTimeConstantSec: calcium.atrial.riseTimeConstantSec,
+      decayTimeConstantSec: calcium.atrial.decayTimeConstantSec
+    },
+    cycleLengthSec
+  );
+  const ventricularCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
+    {
+      diastolicCalciumUM: calcium.ventricular.diastolicCalciumUM,
+      peakAmplitudeUM: calcium.ventricular.peakAmplitudeUM,
+      riseTimeConstantSec: calcium.ventricular.riseTimeConstantSec,
+      decayTimeConstantSec: calcium.ventricular.decayTimeConstantSec
+    },
+    cycleLengthSec
+  );
+  const configuration = createAcceptedComposedRhythmTransactionConfigurationV2({
+    configurationId: `${idPrefix}-composed-sinus-configuration`,
+    ownerInstanceId: `${idPrefix}-composed-sinus-owner`,
+    atrialSource: {
+      mode: "regular",
+      regularSourceConfiguration: regular,
+      externalAfOwnerInstanceId: null
+    },
+    authoredEctopySchedule: createAcceptedAuthoredEctopyScheduleConfigurationV2(
+      {
+        configurationId: `${idPrefix}-empty-ectopy-configuration`,
+        ownerInstanceId: `${idPrefix}-empty-ectopy-owner`,
+        scheduleId: `${idPrefix}-empty-ectopy-schedule`,
+        events: []
+      }
+    ),
+    authoredVentricularPacingReplay: null,
+    electricalCaptureOwner: capture,
+    avGateParameters: createRecoveryConcealmentAvGateParametersV1({
+      parameterSetId: `${idPrefix}-proximal-av-parameters`,
+      parameterProvenance: {
+        kind: "explicit-research-parameters",
+        sourceId: parameterProvenanceSourceId
+      },
+      minimumConductionDelaySec: 0.125,
+      recoveryDelayAmplitudeSec: 0,
+      recoveryTimeConstantSec: 1,
+      postConductionRefractorySec: 0.25,
+      concealedRefractoryExtensionSec: 0
+    }),
+    avGateInstanceId: `${idPrefix}-proximal-av-owner`,
+    distalGate: createDistalConductionGateConfigurationV1({
+      configurationId: `${idPrefix}-distal-configuration`,
+      gateInstanceId: `${idPrefix}-distal-owner`,
+      parameterProvenance: {
+        kind: "explicit-research-parameters",
+        sourceId: parameterProvenanceSourceId
+      },
+      hvConductionDelaySec: 0.0625,
+      distalEffectiveRefractoryPeriodSec: 0,
+      modeConfiguration: { mode: "pass" }
+    }),
+    ventricularBackup: createAcceptedVentricularBackupSourceConfigurationV2({
+      configurationId: `${idPrefix}-backup-configuration`,
+      ownerInstanceId: `${idPrefix}-backup-owner`,
+      parameterProvenance: {
+        kind: "authored",
+        sourceId: parameterProvenanceSourceId
+      },
+      intrinsicEscapeSourceId: `${idPrefix}-escape-source`,
+      intrinsicEscapeCycleLengthSec: 2,
+      vviPacingSourceId: `${idPrefix}-vvi-source`,
+      vviLowerRateLimitPerMin: 30
+    }),
+    ventricularIntervalStrength: interval,
+    calciumParametersByWall: Object.freeze({
+      LA: atrialCalcium.parameters,
+      LVFW: ventricularCalcium.parameters,
+      SEP: ventricularCalcium.parameters,
+      RVFW: ventricularCalcium.parameters,
+      RA: atrialCalcium.parameters
+    }),
+    sinusAtrialCalciumDeposit: {
+      electricalToCalciumDelaySec: 0.0625,
+      leftAtrialStrength: 1,
+      rightAtrialStrength: 1
+    },
+    pacAtrialCalciumDeposit: null,
+    ventricularCalciumDeposit: {
+      electricalToCalciumDelaySec: 0.0625,
+      lvFreeWallBaseStrength: 1,
+      septalBaseStrength: 1,
+      rvFreeWallBaseStrength: 1
+    }
+  });
+  const zero = zeroExactEventCalciumStateV1();
+  const calciumStateByWall = Object.freeze({
+    LA: zero,
+    LVFW: zero,
+    SEP: zero,
+    RVFW: zero,
+    RA: zero
+  });
+  const state = initializeAcceptedComposedRhythmTransactionStateV2(
+    configuration,
+    {
+      acceptedTimeSec: 0,
+      regularFirstFutureActivationTimeSec: 0.625 * cycleLengthSec,
+      regularFirstSourceSequence: 0,
+      priorAcceptedAtrialCapture: null,
+      priorAcceptedVentricularActivation: legacyPriorVentricularCaptureAtZero(capture, idPrefix),
+      initialNormalizedSrLoadState: interval.referenceNormalizedSrLoadState,
+      calciumStateByWall
+    }
+  );
+  return Object.freeze({ configuration, state });
+}
+function legacyPriorVentricularCaptureAtZero(configuration, idPrefix) {
+  const state = initializeAcceptedElectricalCaptureOwnerStateV2(configuration, {
+    acceptedTimeSec: 0,
+    atrialPriorCapture: null,
+    ventricularPriorCapture: null
+  });
+  const source = createSourceImpulseV2({
+    sourceImpulseId: `${idPrefix}-history-source-0`,
+    parentCapturedActivationId: null,
+    chamber: "ventricular",
+    sourceKind: "escape",
+    sourceId: `${idPrefix}-history-source`,
+    sourceSequence: 0,
+    activationTimeSec: 0
+  });
+  const captured = evaluateAcceptedElectricalCaptureBatchCandidateV2(state, {
+    candidateTimeSec: 0,
+    sourceImpulses: [source]
+  }).capturedActivations[0];
+  return captured;
+}
+function requireIdentityString(value, label) {
+  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
+    throw new Error(`integrated regular-sinus ${label} is invalid`);
+  }
+  return value;
+}
+function requireCycleLengthSec(value) {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("integrated regular-sinus cycleLengthSec is invalid");
+  }
+  return value;
+}
+const MAIN_WIRE_FIVE_WALL_PERIODIC_CLOSURE_V1_ID = "main-wire-five-wall-periodic-closure-v1";
+const MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1 = Object.freeze({
+  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-v1",
+  circulationNodeVolumeMl: 100,
+  dynamicEdgeFlowMlPerSec: 500,
+  valveOpeningFraction01: 1,
+  trisegSeptalMidwallCapVolumeM3: 1e-4,
+  trisegJunctionRadiusM: 0.04,
+  landState01: 1,
+  slsViscousLogStrain: 0.1,
+  wallFiberLogStrain: 0.1,
+  wallFreeCalciumUM: 1
+});
+const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V2_ID = "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v2";
+const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2 = Object.freeze({
+  legacyComparatorId: MAIN_WIRE_FIVE_WALL_PERIODIC_CLOSURE_V1_ID,
+  legacyNumericStateCount: 68,
+  coronaryConservedVolumeStateCount: 16,
+  coronaryToneStateCount: 6,
+  mvcReferenceStrainStateCount: 3,
+  numericClosureEntryCount: 93,
+  hiddenBooleanClosureEntryCount: 1,
+  totalClosureEntryCount: 94,
+  compatibilityGates: Object.freeze([
+    "coronary-binding-exact",
+    "fixed-global-tbv-exact",
+    "mechanics-provider-identity-exact"
+  ]),
+  metadataExcludedFromClosureDelta: Object.freeze([
+    "accepted-time",
+    "accepted-revision",
+    "mvc-reference-accepted-time",
+    "mvc-reference-revision",
+    "accepted-mitral-closure-event-count"
+  ]),
+  metadataRequirement: "monotonic-provenance",
+  rapidSettlingBeatRange: Object.freeze([2, 5]),
+  rapidSettlingEvidenceRole: "presentation-only",
+  rapidSettlingCanEstablishP1: false,
+  classifierAcceptedEvidenceRole: "canonical-periodic-protocol",
+  classifierProtocolIdentityGate: "lowercase-sha256-consistency-preimage-bound-by-canonical-runner",
+  period1Period2CurrentProvenanceGate: "exact-within-each-observation",
+  consecutiveObservationProvenanceGate: "exact-p1-current-to-next-reference-and-p2-two-back-chain",
+  minimumConsecutiveClassificationBeats: 3,
+  p1EvidenceBoundary: "separate-consecutive-beat-classification-over-complete-v2-closure-reports",
+  singlePeriodComparisonCanEstablishP1: false
+});
+const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2 = Object.freeze({
+  ...MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-coronary-v2",
+  coronaryConservedNodeVolumeMl: 1,
+  coronaryToneResistanceScale: 1,
+  mvcReferenceFiberLogStrain: 0.1,
+  mitralForwardFlowActiveMismatch01: 1
+});
+const LEGACY_GROUP_ORDER = Object.freeze([
+  "circulation-node-volume",
+  "dynamic-edge-flow",
+  "valve-opening",
+  "triseg-coordinate",
+  "land-state",
+  "sls-viscous-strain",
+  "wall-input-history"
+]);
+const CORONARY_GROUP_ORDER = Object.freeze([
+  "coronary-node-volume",
+  "coronary-tone",
+  "mvc-reference-strain",
+  "mvc-phase-memory"
+]);
+Object.freeze([
+  ...LEGACY_GROUP_ORDER,
+  ...CORONARY_GROUP_ORDER
+]);
+Object.freeze({
+  baseComparatorId: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V2_ID,
+  baseNumericStateCount: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.numericClosureEntryCount,
+  baseBooleanStateCount: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.hiddenBooleanClosureEntryCount,
+  autoregulationFlowIntegralStateCount: 6,
+  autoregulationPressureIntegralStateCount: 3,
+  autoregulationWindowScalarStateCount: 2,
+  autoregulationDesiredControlNumericStateCount: 18,
+  autoregulationNumericStateCount: 29,
+  autoregulationControlBoundBooleanStateCount: 2,
+  numericClosureEntryCount: 122,
+  hiddenBooleanClosureEntryCount: 3,
+  totalClosureEntryCount: 125,
+  compatibilityGates: Object.freeze([
+    ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.compatibilityGates,
+    "coronary-autoregulation-binding-exact",
+    "coronary-autoregulation-non-null-desired-control-id-exact",
+    "periodic-sinus-autoregulation-accumulator-empty-at-both-boundaries",
+    "coronary-autoregulation-window-provenance-monotonic-and-time-consistent"
+  ]),
+  periodicSinusBoundaryPolicy: "fail-closed-empty-accumulator",
+  irregularRhythmP1Applicability: "not-applicable"
+});
+const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3 = Object.freeze({
+  ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2,
+  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-coronary-v3",
+  coronaryAutoregulationQmTimeIntegralMl: 1,
+  coronaryAutoregulationPerfusionPressureTimeIntegralMmHgSec: 100,
+  coronaryAutoregulationAcceptedDurationSec: 1,
+  coronaryAutoregulationAcceptedStepCount: 1,
+  coronaryAutoregulationWindowControlBoundMismatch01: 1,
+  coronaryAutoregulationDesiredControlBoundMismatch01: 1,
+  coronaryAutoregulationDesiredDemandScale: 1,
+  coronaryAutoregulationDesiredHyperemia01: 1,
+  coronaryAutoregulationDesiredMinimumToneScale: 1
+});
+const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 = Object.freeze({
+  ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+  scaleSetId: "fixed-dimensional-reference-scales-integrated-composed-rhythm-v3",
+  dynamicMcsAcceptedFlowMlPerSecByDevice: Object.freeze({
+    LVAD: 100,
+    IMPELLA: 50,
+    VA_ECMO: 100,
+    VV_ECMO: 100
+  }),
+  generatedCalciumRiseDrive: 1,
+  generatedCalciumDecayDrive: 1,
+  generatedAvRelativeTimingSec: 1,
+  generatedNextSourceRelativeTimingSec: 1,
+  generatedPendingRelativeTimingSec: 1,
+  generatedPendingActivationStrength01: 1
+});
+function normalAdultMainWireRuntimeV1(valveDiseaseBracketIds = []) {
+  const base2 = defaultParams();
+  return Object.freeze({
+    vascular: Object.freeze({
+      venousTone: base2.venousTone,
+      arterialStiffness: base2.arterialStiffness
+    }),
+    losses: Object.freeze({
+      systemicResistance: base2.systemicResistance,
+      pulmonaryResistance: base2.pulmonaryResistance
+    }),
+    respiratory: Object.freeze({
+      PEEP: base2.PEEP,
+      Pth0: base2.Pth0,
+      respAmpTh: 0,
+      respAmpAlv: 0,
+      respRate: 0
+    }),
+    valveResearchInput: composeMainWireFourValveDiseaseResearchInputV1(
+      valveDiseaseBracketIds
+    )
+  });
+}
+const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 = Object.freeze({
+  maxIterations: 30,
+  absoluteContinuityResidualToleranceMl: 1e-8,
+  scaledResidualInfinityTolerance: 2e-10,
+  scaledUpdateInfinityTolerance: 2e-11,
+  finiteDifferenceScaledStep: 2e-6,
+  maximumLineSearchBacktracks: 24,
+  analyticJacobianFiniteDifferenceShadow: false
+});
+const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2 = Object.freeze({
+  policyId: "provisional-full-accepted-state-periodic-policy-v2",
+  evidenceStatus: "provisional-not-release-acceptance",
+  period1NormalizedTolerance: 1e-3,
+  period2NormalizedTolerance: 1e-3,
+  period2MinimumPeriod1NormalizedDelta: 5e-3,
+  consecutiveBeats: 3,
+  defaultMaximumBeatCount: 32,
+  defaultRetainedBoundaryCount: 3,
+  minimumRetainedBoundaryCount: 3,
+  referenceScaleSetId: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2.scaleSetId
+});
+const V3_CYCLE_LENGTH_SEC = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.cycleLengthSec;
+const MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 = Object.freeze({
+  policyId: "main-wire-integrated-model-numerical-policy-v3",
+  cycleLengthSec: V3_CYCLE_LENGTH_SEC,
+  maximumAcceptedStepCountPerRun: 1100,
+  invariantTolerance: Object.freeze({
+    acceptedOwnerClockSkewSec: 1e-12,
+    globalTotalBloodVolumeErrorMl: 1e-8,
+    coronaryBloodVolumeLedgerResidualMl: 1e-8,
+    dynamicMcsConservationResidualMlPerSec: 1e-12
+  })
+});
+const CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3 = 10;
+const CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3 = CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3 * NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2.responseTimeConstantSec;
+const CANONICAL_MAXIMUM_CYCLE_COUNT_V3 = CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3 / V3_CYCLE_LENGTH_SEC;
+if (!Number.isSafeInteger(CANONICAL_MAXIMUM_CYCLE_COUNT_V3) || CANONICAL_MAXIMUM_CYCLE_COUNT_V3 <= 0) {
+  throw new Error(
+    "integrated V3 canonical slow-time horizon must contain an exact positive number of sinus cycles"
+  );
+}
+const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 = Object.freeze({
+  policyId: "integrated-full-accepted-state-periodic-policy-v3-preregistered",
+  period1NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period1NormalizedTolerance,
+  period2NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period2NormalizedTolerance,
+  period2MinimumPeriod1NormalizedDelta: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period2MinimumPeriod1NormalizedDelta,
+  consecutiveCycles: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.consecutiveBeats,
+  coronaryAutoregulationResponseTimeConstantSec: NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2.responseTimeConstantSec,
+  canonicalSlowTimeConstantMultiples: CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3,
+  canonicalMaximumPhysicalTimeSec: CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3,
+  canonicalSinusCycleLengthSec: V3_CYCLE_LENGTH_SEC,
+  defaultMaximumCycleCount: CANONICAL_MAXIMUM_CYCLE_COUNT_V3,
+  maximumCycleCount: CANONICAL_MAXIMUM_CYCLE_COUNT_V3,
+  boundedSmokeDefaultMaximumCycleCount: 1,
+  boundedSmokeMaximumCycleCount: 2,
+  minimumNominalDtSec: 1e-3,
+  maximumNominalDtSec: 0.01,
+  referenceScaleSetId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3.scaleSetId,
+  thresholdProvenance: "copied-before-integrated-v3-evaluation-from-the-current-coronary-full-state-periodic-policy-not-fit-to-integrated-output",
+  canonicalMaximumHorizonProvenance: "ten-times-the-explicit-25-second-coronary-controller-coefficient-divided-by-the-fixed-one-second-sinus-cycle"
+});
+deepFreeze$2({
+  scope: "canonical-provider-main-v3-regular-sinus-composed-rhythm-and-all-off-dynamic-MCS",
+  rhythmApplicability: "regular-sinus-source-period-boundaries-only",
+  coronaryComparator: "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v3",
+  composedRhythmCoverage: Object.freeze([
+    "regular-source-clock-and-lineage",
+    "empty-authored-ectopy-owner",
+    "absent-authored-ventricular-pacing-replay-owner",
+    "atrial-and-ventricular-capture-gates",
+    "proximal-AV-recovery-concealment-owner",
+    "distal-conduction-owner",
+    "ventricular-backup-owner",
+    "ventricular-interval-strength-owner",
+    "proximal-distal-and-calcium-pending-queues",
+    "five-wall-exact-event-calcium-state"
+  ]),
+  absoluteClockTreatment: "absolute-owner-times-compared-relative-to-the-exact-cycle-boundary",
+  lineageTreatment: "within-state-lineage-must-be-internally-exact-and-P1-P2-counter-advances-must-match-period-lag",
+  initialHistoryTreatment: "nullable-history-presence-and-structure-are-reported-as-delta-not-silently-discarded",
+  dynamicMechanicalSupport: "four-explicit-all-off-zero-inertance-circuits-with-exact-zero-accepted-q",
+  predeclaredReferenceScaleSetOwnedByIntegratedV3: true,
+  thresholdsOrScalesDerivedFromV3Output: false,
+  completeAcceptedStateNumericalPeriodicityIsPhysiology: false,
+  normalConstructionTargetIsIndependentValidation: false,
+  releaseAcceptanceClaimed: false,
+  clinicalValidationClaimed: false
+});
+createMechanicalSupportConfigV1();
+function deepFreeze$2(value) {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) {
+      deepFreeze$2(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+Object.freeze({
+  contextId: "main-wire-integrated-model-v3-healthy-reference-context-v1",
+  referenceSubject: Object.freeze({
+    bodySurfaceAreaM2: 1.9,
+    state: "resting-adult-research-reference"
+  }),
+  gates: Object.freeze([
+    gate(
+      "healthy.lv.edvi",
+      "hemodynamics.lv.edv_index_ml_per_m2",
+      34,
+      76,
+      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+    ),
+    gate(
+      "healthy.lv.esvi",
+      "hemodynamics.lv.esv_index_ml_per_m2",
+      10,
+      29,
+      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+    ),
+    gate(
+      "healthy.lv.ef",
+      "hemodynamics.lv.ejection_fraction_01",
+      0.52,
+      0.74,
+      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+    ),
+    gate(
+      "healthy.cardiac_index",
+      "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
+      2.5,
+      4,
+      ["cardiac-index-clinical-reference"]
+    ),
+    gate(
+      "healthy.pulmonary_artery.systolic",
+      "hemodynamics.pressure.pulmonary_artery.systolic_mmhg",
+      10,
+      35,
+      ["mukherjee-ase-right-heart-2025"]
+    ),
+    gate(
+      "healthy.left_atrium.mean",
+      "hemodynamics.pressure.left_atrium.mean_mmhg",
+      2,
+      13,
+      ["kovacs-pawp-healthy-meta-2024"]
+    )
+  ])
+});
+function gate(gateId, metricId, lowerInclusive, upperInclusive, sourceIds) {
+  return Object.freeze({
+    gateId,
+    metricId,
+    lowerInclusive,
+    upperInclusive,
+    sourceIds: Object.freeze([...sourceIds])
+  });
+}
+deepFreeze$1({
+  scope: "canonical-provider-coronary-v3-accepted-composed-regular-sinus-and-explicit-all-off-zero-inertance-dynamic-MCS",
+  dedicatedV3Fixture: true,
+  activeHeartMateIiBaselineUsed: false,
+  allFourMcsDevicesDisabled: true,
+  allFourMcsInertanceCircuitsExplicitAndZero: true,
+  completeAcceptedStateP1P2Comparator: true,
+  exactMainV3CheckpointStoredAndRoundTripVerified: true,
+  terminalCycleTrace: "raw-accepted-endpoints-with-event-clipped-dt-no-resampling",
+  finiteConservationEventIdentityAndSingleCalciumOwnerFailClosed: true,
+  canonicalV3ThresholdPolicyOwned: true,
+  maximumHorizon: "ten-times-25-second-coronary-controller-time-constant-equals-250-one-second-cycles",
+  thresholdsChangedAfterInspectingV3Output: false,
+  fixedHorizonCharacterizationEvidenceRole: "bounded-exploration-only",
+  fixedHorizonCharacterizationCanEstablishCanonicalPeriodicity: false,
+  healthyReferenceAssessment: "reported-only-after-canonical-numerical-P1-eligibility",
+  healthyReferenceRole: "construction-context-not-independent-validation",
+  healthyReferencePassIsPhysiologicalValidation: false,
+  numericalPeriodicityIsPhysiologicalAcceptance: false,
+  normalConstructionTargetIsIndependentValidation: false,
+  patientFittingApplied: false,
+  waveformOrParameterFittingApplied: false,
+  clinicalValidationClaimed: false,
+  releaseAcceptanceClaimed: false,
+  releaseReadyClaimed: false
+});
+const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID = "main-wire-integrated-model-selected-aortic-outflow-fixture-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM = Object.freeze({
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+  ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+  aorticOutflowCirculationProfileId: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+  regularSinusProfileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  assemblyScope: "cold-fixture-and-same-configuration-stepping",
+  composedRhythmCalciumOwner: "accepted-exact-event-matched-alpha-state",
+  coronaryCalciumDriveParamsRole: "matched-alpha-descriptor-and-cycle-contract-not-calcium-state-owner",
+  boundedHemodynamicResearchInputsRetained: true,
+  activeAndPassiveWallResearchInputsRetained: true,
+  valvePericardialAndCoronaryResearchInputsRetained: true,
+  oxygenTransportInputRetainedForAnalysis: true,
+  calciumDecayTimeScaleResearchInput: "fixed-unit-only-to-preserve-selected-matched-alpha-law",
+  dynamicMechanicalSupport: "existing-explicit-all-off-zero-inertance",
+  warmRuntimeRebindingSupported: false,
+  newContinuousStateAdded: false,
+  legacyDefaultFixtureSelection: "canonical-provider-and-absent-selected-aortic-outflow-profile",
+  parameterSearchOrFitting: false,
+  clinicalValidationClaimed: false
+});
+function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(requestedHemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, requestedMechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs
+  );
+  return assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () => createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+        prepared.chamberMechanics
+      ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness: prepared.hemodynamicResearchInputs.arterialStiffness
+      }),
+      createCalciumDriveParams: (cycleLengthSec) => Object.freeze({
+        ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        parameterSetId: `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}-hr-${prepared.hemodynamicResearchInputs.heartRateBpm}-bpm`,
+        cycleLengthSec,
+        decayTimeScaleByWall: prepared.chamberMechanics.calciumDecayTimeScaleByWall
+      }),
+      createRhythm: (cycleLengthSec) => createMainWireIntegratedRegularSinusRhythmV3({
+        idPrefix: "periodic-v3",
+        parameterProvenanceSourceId: "bounded-periodic-v3-construction",
+        cycleLengthSec
+      })
+    }
+  );
+}
+function prepareMainWireIntegratedModelFixtureInputsV3(requestedHemodynamicResearchInputs, ventricularContractilityScale, requestedMechanismResearchInputs) {
+  const hemodynamicResearchInputs = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    requestedHemodynamicResearchInputs
+  );
+  const requestedMechanismInputs = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+    requestedMechanismResearchInputs
+  );
+  const chamberMechanics = ventricularContractilityScale === 1 ? requestedMechanismInputs.chamberMechanics : withCommonVentricularActiveTensionScaleV1(
+    requestedMechanismInputs.chamberMechanics,
+    ventricularContractilityScale
+  );
+  const mechanismResearchInputs = Object.freeze({
+    ...requestedMechanismInputs,
+    chamberMechanics
+  });
+  return Object.freeze({
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    chamberMechanics
+  });
+}
+function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(prepared, fixedAssembly) {
+  const {
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs
+  } = prepared;
+  const provider = fixedAssembly.createProvider();
+  const canonicalRuntime = normalAdultMainWireRuntimeV1();
+  const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
+  const peepMmHg = hemodynamicResearchInputs.peepCmH2O * 0.7355592401;
+  const calciumDriveParams = fixedAssembly.createCalciumDriveParams(cycleLengthSec);
+  const runtime = Object.freeze({
+    vascular: fixedAssembly.createVascularRuntime(),
+    losses: Object.freeze({
+      systemicResistance: hemodynamicResearchInputs.systemicResistance,
+      pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance
+    }),
+    respiratory: Object.freeze({
+      ...canonicalRuntime.respiratory,
+      PEEP: peepMmHg
+    }),
+    valveResearchInput: createMainWireFourValveContinuousAreaResearchInputV1(
+      mechanismResearchInputs.valveAreas
+    )
+  });
+  const pericardium = createMainWireCommonPericardiumWithResearchInputsV1(
+    mechanismResearchInputs.pericardium
+  );
+  const coronaryDisease = createMainWireCoronaryDiseaseInputV2(
+    mechanismResearchInputs.coronaryDisease
+  );
+  const rhythm = fixedAssembly.createRhythm(cycleLengthSec);
+  const profile = createAllOffZeroInertanceProfileV3();
+  const config = createMechanicalSupportConfigV1();
+  assertAllOffConfig(config);
+  const dynamicMechanicalSupport = Object.freeze({
+    config,
+    profile
+  });
+  const coronaryStepInput = Object.freeze({
+    runtime,
+    calciumDriveParams,
+    pericardium,
+    coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
+    coronaryDisease,
+    collapseHydraulics: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
+    impMechanism: "cep-shortening-induced",
+    shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+    circulationNewtonOptions: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2
+  });
+  const cold = initializeMainWireIntegratedModelV3({
+    coronary: {
+      provider,
+      runtime,
+      calciumDriveParams,
+      pericardium,
+      coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
+      coronaryDisease,
+      collapseHydraulics: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
+      impMechanism: "cep-shortening-induced",
+      shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+      fixedGlobalTotalBloodVolumeMl: hemodynamicResearchInputs.totalBloodVolumeMl,
+      autoregulationWindow: Object.freeze({
+        durationSec: cycleLengthSec,
+        interpretation: "periodic-sinus-cycle-aligned"
+      })
+    },
+    rhythm: {
+      configuration: rhythm.configuration,
+      acceptedState: rhythm.state
+    },
+    dynamicMechanicalSupport
+  });
+  assertAllOffAcceptedQ(cold.acceptedState);
+  return Object.freeze({
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    provider,
+    runtime,
+    pericardium,
+    rhythm,
+    profile,
+    config,
+    dynamicMechanicalSupport,
+    coronaryStepInput,
+    cycleLengthSec,
+    cold
+  });
+}
+function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(fixture, initial, nominalDtSec) {
+  assertPeriodicNominalDtSec(nominalDtSec);
+  assertAllOffConfig(fixture.config);
+  assertAllOffAcceptedQ(initial);
+  const binding = initial.coronary.coronaryAutoregulationBinding;
+  const window = initial.coronary.coronaryAutoregulation;
+  const sourceAcceptedTimeSec = initial.acceptedTimeSec;
+  if (binding.windowPolicy.interpretation !== "periodic-sinus-cycle-aligned" || !nearlyEqual(binding.windowPolicy.durationSec, fixture.cycleLengthSec)) {
+    throw new Error("V3 qualification candidate window policy differs");
+  }
+  if (sourceAcceptedTimeSec === window.windowStartAcceptedTimeSec) {
+    if (window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0) {
+      throw new Error("V3 qualification boundary has a nonempty open window");
+    }
+    return deepFreeze$1({
+      alignmentRequired: false,
+      sourceAcceptedTimeSec,
+      boundaryAcceptedTimeSec: sourceAcceptedTimeSec,
+      acceptedStepCount: 0,
+      completedWindowIndex: null,
+      terminalAcceptedState: initial,
+      acceptedAtrialCaptureIds: [],
+      acceptedVentricularCaptureIds: [],
+      deliveredCalciumDepositIds: [],
+      maximumGlobalTotalBloodVolumeErrorMl: 0,
+      maximumCoronaryBloodVolumeLedgerResidualMl: 0,
+      maximumDynamicMcsConservationResidualMlPerSec: 0,
+      allRawValuesFinite: true,
+      oneComposedCalciumOwnerOnly: true,
+      allDynamicMcsAcceptedFlowsExactlyZero: true
+    });
+  }
+  const boundaryAcceptedTimeSec = binding.windowPolicy.originAcceptedTimeSec + (window.windowIndex + 1) * binding.windowPolicy.durationSec;
+  if (!(boundaryAcceptedTimeSec > sourceAcceptedTimeSec)) {
+    throw new Error("V3 qualification candidate passed its window boundary");
+  }
+  let accepted = initial;
+  let acceptedStepCount = 0;
+  let nominalGridIndex = 1;
+  let maximumGlobalTotalBloodVolumeErrorMl = 0;
+  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
+  let maximumDynamicMcsConservationResidualMlPerSec = 0;
+  let oneComposedCalciumOwnerOnly = true;
+  let allRawValuesFinite = true;
+  let allDynamicMcsAcceptedFlowsExactlyZero = true;
+  const acceptedAtrialCaptureIds = [];
+  const acceptedVentricularCaptureIds = [];
+  const deliveredCalciumDepositIds = [];
+  const completedWindowIndices = [];
+  while (accepted.acceptedTimeSec < boundaryAcceptedTimeSec) {
+    if (acceptedStepCount >= MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun) {
+      throw new Error(
+        "V3 qualification alignment exceeded accepted-step bound"
+      );
+    }
+    const nominalTargetTimeSec = Math.min(
+      boundaryAcceptedTimeSec,
+      sourceAcceptedTimeSec + nominalGridIndex * nominalDtSec
+    );
+    if (!(nominalTargetTimeSec > accepted.acceptedTimeSec)) {
+      nominalGridIndex += 1;
+      continue;
+    }
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
+      accepted,
+      nominalTargetTimeSec,
+      {
+        configuration: fixture.rhythm.configuration,
+        externalAfNextBoundaryTimeSec: null
+      },
+      fixture.profile,
+      fixture.config
+    );
+    if (!(maximum.candidateTimeSec > accepted.acceptedTimeSec) || maximum.candidateTimeSec > nominalTargetTimeSec) {
+      throw new Error(
+        "V3 qualification alignment scheduler returned an invalid step"
+      );
+    }
+    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
+    const stepped = stepMainWireIntegratedModelV3(
+      fixture.provider,
+      accepted,
+      stepInput(fixture, maximum.candidateTimeSec)
+    );
+    if (stepped.converged === false) {
+      throw new Error(
+        `V3 qualification alignment step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`
+      );
+    }
+    accepted = stepped.acceptedState;
+    acceptedStepCount += 1;
+    if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
+      nominalGridIndex += 1;
+    }
+    if (stepped.coronaryStep.autoregulationWindowCompleted) {
+      const completion = stepped.coronaryStep.autoregulationCompletion;
+      if (completion === null) {
+        throw new Error(
+          "V3 qualification completion flag lacks completion state"
+        );
+      }
+      if (completion.windowIndex !== window.windowIndex || completion.windowStartAcceptedTimeSec !== window.windowStartAcceptedTimeSec || completion.windowEndAcceptedTimeSec !== boundaryAcceptedTimeSec || !nearlyEqual(
+        completion.aggregate.acceptedWindowDurationSec,
+        fixture.cycleLengthSec
+      )) {
+        throw new Error("V3 qualification alignment window identity differs");
+      }
+      completedWindowIndices.push(completion.windowIndex);
+    }
+    const expectedCalcium = evaluateMainWireIntegratedModelCalciumDriveV3(
+      accepted.composedRhythm
+    );
+    oneComposedCalciumOwnerOnly = oneComposedCalciumOwnerOnly && canonicalJsonStringify(expectedCalcium) === canonicalJsonStringify(stepped.calciumDrive) && canonicalJsonStringify(stepped.coronaryStep.baseStep.calciumDrive) === canonicalJsonStringify(stepped.calciumDrive) && !("generatedRhythmCalcium" in accepted) && !("rhythmCalcium" in accepted) && !("fixedPeriodicCalcium" in accepted);
+    assertAllOffAcceptedQ(accepted);
+    allDynamicMcsAcceptedFlowsExactlyZero = allDynamicMcsAcceptedFlowsExactlyZero && Object.values(
+      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec
+    ).every((value) => value === 0);
+    const candidate = stepped.composedRhythmCandidate;
+    if (candidate.capturedAtrialActivation !== null) {
+      acceptedAtrialCaptureIds.push(
+        candidate.capturedAtrialActivation.capturedActivationId
+      );
+    }
+    if (candidate.capturedVentricularActivation !== null) {
+      acceptedVentricularCaptureIds.push(
+        candidate.capturedVentricularActivation.capturedActivationId
+      );
+    }
+    deliveredCalciumDepositIds.push(
+      ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId)
+    );
+    const sample = traceSample(
+      0,
+      acceptedStepCount,
+      window.windowStartAcceptedTimeSec,
+      fixture.cycleLengthSec,
+      acceptedDtSec,
+      stepped
+    );
+    allRawValuesFinite = allRawValuesFinite && allNumericLeavesFinite(sample);
+    maximumGlobalTotalBloodVolumeErrorMl = Math.max(
+      maximumGlobalTotalBloodVolumeErrorMl,
+      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl)
+    );
+    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
+      maximumCoronaryBloodVolumeLedgerResidualMl,
+      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl)
+    );
+    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
+      maximumDynamicMcsConservationResidualMlPerSec,
+      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec)
+    );
+  }
+  if (accepted.acceptedTimeSec !== boundaryAcceptedTimeSec || completedWindowIndices.length !== 1 || completedWindowIndices[0] !== window.windowIndex) {
+    throw new Error("V3 qualification did not reach one exact window boundary");
+  }
+  if (!oneComposedCalciumOwnerOnly) {
+    throw new Error(
+      "V3 qualification alignment detected split calcium ownership"
+    );
+  }
+  if (!allRawValuesFinite) {
+    throw new Error("V3 qualification alignment contains nonfinite raw values");
+  }
+  if (!allDynamicMcsAcceptedFlowsExactlyZero) {
+    throw new Error("V3 qualification alignment produced nonzero MCS q");
+  }
+  const tolerance = MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
+  if (maximumGlobalTotalBloodVolumeErrorMl > tolerance.globalTotalBloodVolumeErrorMl || maximumCoronaryBloodVolumeLedgerResidualMl > tolerance.coronaryBloodVolumeLedgerResidualMl || maximumDynamicMcsConservationResidualMlPerSec > tolerance.dynamicMcsConservationResidualMlPerSec) {
+    throw new Error(
+      "V3 qualification alignment exceeds conservation tolerance"
+    );
+  }
+  rejectDuplicateIds(
+    /* @__PURE__ */ new Set(),
+    acceptedAtrialCaptureIds,
+    "alignment atrial capture"
+  );
+  rejectDuplicateIds(
+    /* @__PURE__ */ new Set(),
+    acceptedVentricularCaptureIds,
+    "alignment ventricular capture"
+  );
+  rejectDuplicateIds(
+    /* @__PURE__ */ new Set(),
+    deliveredCalciumDepositIds,
+    "alignment calcium deposit"
+  );
+  return deepFreeze$1({
+    alignmentRequired: true,
+    sourceAcceptedTimeSec,
+    boundaryAcceptedTimeSec,
+    acceptedStepCount,
+    completedWindowIndex: window.windowIndex,
+    terminalAcceptedState: accepted,
+    acceptedAtrialCaptureIds,
+    acceptedVentricularCaptureIds,
+    deliveredCalciumDepositIds,
+    maximumGlobalTotalBloodVolumeErrorMl,
+    maximumCoronaryBloodVolumeLedgerResidualMl,
+    maximumDynamicMcsConservationResidualMlPerSec,
+    allRawValuesFinite: true,
+    oneComposedCalciumOwnerOnly: true,
+    allDynamicMcsAcceptedFlowsExactlyZero: true
+  });
+}
+function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, cycleIndex, nominalDtSec) {
+  assertPeriodicNominalDtSec(nominalDtSec);
+  if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
+    throw new Error("V3 periodic cycle index must be a positive integer");
+  }
+  const window = initial.coronary.coronaryAutoregulation;
+  const windowPolicy = initial.coronary.coronaryAutoregulationBinding.windowPolicy;
+  const startTimeSec = initial.acceptedTimeSec;
+  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  if (startTimeSec !== window.windowStartAcceptedTimeSec || window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0 || !nearlyEqual(windowPolicy.durationSec, fixture.cycleLengthSec)) {
+    throw new Error(
+      "V3 periodic continuation does not start on cycle boundary"
+    );
+  }
+  const expectedWindowIndex = window.windowIndex;
+  let accepted = initial;
+  let acceptedStepCount = 0;
+  let nominalGridIndex = 1;
+  let maximumGlobalTotalBloodVolumeErrorMl = 0;
+  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
+  let maximumDynamicMcsConservationResidualMlPerSec = 0;
+  let oneComposedCalciumOwnerOnly = true;
+  let allRawValuesFinite = true;
+  let allDynamicMcsAcceptedFlowsExactlyZero = true;
+  const traceSamples = [];
+  const acceptedAtrialCaptureIds = [];
+  const acceptedVentricularCaptureIds = [];
+  const deliveredCalciumDepositIds = [];
+  const completions = [];
+  while (accepted.acceptedTimeSec < endTimeSec) {
+    if (acceptedStepCount >= MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun) {
+      throw new Error("V3 periodic cycle exceeded accepted-step bound");
+    }
+    const nominalTargetTimeSec = Math.min(
+      endTimeSec,
+      startTimeSec + nominalGridIndex * nominalDtSec
+    );
+    const requestedStepSec = nominalTargetTimeSec - accepted.acceptedTimeSec;
+    if (!(requestedStepSec > 0)) {
+      nominalGridIndex += 1;
+      continue;
+    }
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
+      accepted,
+      nominalTargetTimeSec,
+      {
+        configuration: fixture.rhythm.configuration,
+        externalAfNextBoundaryTimeSec: null
+      },
+      fixture.profile,
+      fixture.config
+    );
+    if (!(maximum.candidateTimeSec > accepted.acceptedTimeSec) || maximum.candidateTimeSec > nominalTargetTimeSec) {
+      throw new Error("V3 periodic scheduler returned an invalid step");
+    }
+    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
+    const stepped = stepMainWireIntegratedModelV3(
+      fixture.provider,
+      accepted,
+      stepInput(fixture, maximum.candidateTimeSec)
+    );
+    if (stepped.converged === false) {
+      throw new Error(
+        `V3 periodic step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`
+      );
+    }
+    accepted = stepped.acceptedState;
+    acceptedStepCount += 1;
+    if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
+      nominalGridIndex += 1;
+    }
+    if (stepped.coronaryStep.autoregulationWindowCompleted) {
+      const completion = stepped.coronaryStep.autoregulationCompletion;
+      if (completion === null) {
+        throw new Error("V3 coronary completion flag lacks completion state");
+      }
+      completions.push(
+        Object.freeze({
+          windowIndex: completion.windowIndex,
+          startTimeSec: completion.windowStartAcceptedTimeSec,
+          endTimeSec: completion.windowEndAcceptedTimeSec,
+          acceptedDurationSec: completion.aggregate.acceptedWindowDurationSec,
+          acceptedStepCount: completion.acceptedStepCount
+        })
+      );
+    }
+    const expectedCalcium = evaluateMainWireIntegratedModelCalciumDriveV3(
+      accepted.composedRhythm
+    );
+    oneComposedCalciumOwnerOnly = oneComposedCalciumOwnerOnly && canonicalJsonStringify(expectedCalcium) === canonicalJsonStringify(stepped.calciumDrive) && canonicalJsonStringify(stepped.coronaryStep.baseStep.calciumDrive) === canonicalJsonStringify(stepped.calciumDrive) && !("generatedRhythmCalcium" in accepted) && !("rhythmCalcium" in accepted) && !("fixedPeriodicCalcium" in accepted);
+    assertAllOffAcceptedQ(accepted);
+    allDynamicMcsAcceptedFlowsExactlyZero = allDynamicMcsAcceptedFlowsExactlyZero && Object.values(
+      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec
+    ).every((value) => value === 0);
+    const candidate = stepped.composedRhythmCandidate;
+    if (candidate.capturedAtrialActivation !== null) {
+      acceptedAtrialCaptureIds.push(
+        candidate.capturedAtrialActivation.capturedActivationId
+      );
+    }
+    if (candidate.capturedVentricularActivation !== null) {
+      acceptedVentricularCaptureIds.push(
+        candidate.capturedVentricularActivation.capturedActivationId
+      );
+    }
+    deliveredCalciumDepositIds.push(
+      ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId)
+    );
+    const sample = traceSample(
+      cycleIndex,
+      acceptedStepCount,
+      startTimeSec,
+      fixture.cycleLengthSec,
+      acceptedDtSec,
+      stepped
+    );
+    traceSamples.push(sample);
+    allRawValuesFinite = allRawValuesFinite && allNumericLeavesFinite(sample);
+    maximumGlobalTotalBloodVolumeErrorMl = Math.max(
+      maximumGlobalTotalBloodVolumeErrorMl,
+      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl)
+    );
+    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
+      maximumCoronaryBloodVolumeLedgerResidualMl,
+      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl)
+    );
+    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
+      maximumDynamicMcsConservationResidualMlPerSec,
+      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec)
+    );
+  }
+  if (accepted.acceptedTimeSec !== endTimeSec || completions.length !== 1 || completions[0].windowIndex !== expectedWindowIndex || completions[0].startTimeSec !== startTimeSec || completions[0].endTimeSec !== endTimeSec || !nearlyEqual(completions[0].acceptedDurationSec, fixture.cycleLengthSec)) {
+    throw new Error("V3 periodic cycle/coronary window boundary differs");
+  }
+  if (!oneComposedCalciumOwnerOnly) {
+    throw new Error("V3 periodic cycle detected split calcium ownership");
+  }
+  if (!allRawValuesFinite) {
+    throw new Error("V3 periodic cycle contains nonfinite raw values");
+  }
+  if (!allDynamicMcsAcceptedFlowsExactlyZero) {
+    throw new Error("V3 all-off periodic cycle produced nonzero MCS q");
+  }
+  if (acceptedAtrialCaptureIds.length !== 1 || acceptedVentricularCaptureIds.length !== 1 || deliveredCalciumDepositIds.length !== 2) {
+    throw new Error("V3 regular-sinus cycle event identity count differs");
+  }
+  const tolerance = MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
+  if (maximumGlobalTotalBloodVolumeErrorMl > tolerance.globalTotalBloodVolumeErrorMl || maximumCoronaryBloodVolumeLedgerResidualMl > tolerance.coronaryBloodVolumeLedgerResidualMl || maximumDynamicMcsConservationResidualMlPerSec > tolerance.dynamicMcsConservationResidualMlPerSec) {
+    throw new Error("V3 periodic cycle exceeds conservation tolerance");
+  }
+  return deepFreeze$1({
+    startTimeSec,
+    endTimeSec,
+    acceptedStepCount,
+    terminalAcceptedState: accepted,
+    traceSamples,
+    coronaryAutoregulationWindow: completions[0],
+    acceptedAtrialCaptureIds,
+    acceptedVentricularCaptureIds,
+    deliveredCalciumDepositIds,
+    maximumGlobalTotalBloodVolumeErrorMl,
+    maximumCoronaryBloodVolumeLedgerResidualMl,
+    maximumDynamicMcsConservationResidualMlPerSec,
+    allRawValuesFinite,
+    oneComposedCalciumOwnerOnly,
+    allDynamicMcsAcceptedFlowsExactlyZero
+  });
+}
+function traceSample(cycleIndex, acceptedStepIndexWithinCycle, cycleStartTimeSec, cycleLengthSec, acceptedDtSec, stepped) {
+  const base2 = stepped.coronaryStep.baseStep;
+  const circulation = base2.circulationTrial;
+  const pressures = circulation.nodeAbsolutePressuresMmHg;
+  const volumes = circulation.candidateNodeVolumesMl;
+  const valves = circulation.valveEvaluations;
+  const hydraulics = base2.coronaryTrial.diagnostics.hydraulics;
+  const candidate = stepped.composedRhythmCandidate;
+  return deepFreeze$1({
+    cycleIndex,
+    acceptedStepIndexWithinCycle,
+    acceptedTimeSec: stepped.acceptedState.acceptedTimeSec,
+    cyclePhase01: (stepped.acceptedState.acceptedTimeSec - cycleStartTimeSec) / cycleLengthSec,
+    acceptedDtSec,
+    chamberVolumeMl: {
+      LA: volumes.LA,
+      LV: volumes.LV,
+      RA: volumes.RA,
+      RV: volumes.RV
+    },
+    absolutePressureMmHg: {
+      LA: pressures.LA,
+      LV: pressures.LV,
+      RA: pressures.RA,
+      RV: pressures.RV,
+      Ao: pressures.Ao,
+      PA: pressures.PA,
+      PVein: pressures.PVein
+    },
+    transmuralPressureMmHg: {
+      LV: base2.mechanicsTrial.transmuralPressuresMmHg.LV,
+      RV: base2.mechanicsTrial.transmuralPressuresMmHg.RV
+    },
+    valveFlowMlPerSec: {
+      MV: valves.MV.flowMlPerSec,
+      AoV: valves.AoV.flowMlPerSec,
+      TV: valves.TV.flowMlPerSec,
+      PV: valves.PV.flowMlPerSec
+    },
+    coronary: {
+      totalInletFlowMlPerSec: hydraulics.totalInletFlowMlPerSec,
+      ladSubendocardialQmFlowMlPerSec: hydraulics.layerQmInternalFlowMlPerSecByTerritory.LAD.subendocardial
+    },
+    freeCalciumUMByWall: stepped.calciumDrive.freeCalciumUMByWall,
+    dynamicMcsAcceptedFlowMlPerSec: stepped.acceptedState.dynamicMechanicalSupport.acceptedFlowMlPerSec,
+    acceptedEventIdentity: {
+      atrialCapturedActivationId: candidate.capturedAtrialActivation?.capturedActivationId ?? null,
+      ventricularCapturedActivationId: candidate.capturedVentricularActivation?.capturedActivationId ?? null,
+      deliveredCalciumDepositIds: candidate.deliveredCalciumDeposits.map(
+        (deposit) => deposit.depositId
+      ),
+      scheduledCalciumDepositIds: candidate.scheduledCalciumDeposits.map(
+        (deposit) => deposit.depositId
+      )
+    },
+    diagnostics: {
+      mechanicsResidualNorm: base2.mechanicsTrial.diagnostics.residualNorm,
+      circulationScaledResidualInfinityNorm: circulation.diagnostics.finalScaledResidualInfinityNorm,
+      maximumContinuityResidualMl: circulation.diagnostics.finalMaximumContinuityResidualMl,
+      totalBloodVolumeErrorMl: circulation.diagnostics.totalBloodVolumeErrorMl,
+      coronaryBloodVolumeLedgerResidualMl: base2.coronaryTrial.diagnostics.exactBloodVolumeLedgerResidualMl,
+      dynamicMcsConservationResidualMlPerSec: stepped.dynamicMechanicalSupportTrial.conservationResidualMlPerSec
+    }
+  });
+}
+function createAllOffZeroInertanceProfileV3() {
+  const zero = Object.freeze({
+    unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+    pumpInternalMmHgSec2PerMl: 0,
+    drainageMmHgSec2PerMl: 0,
+    oxygenatorMmHgSec2PerMl: 0,
+    returnPathMmHgSec2PerMl: 0
+  });
+  return createDynamicMechanicalSupportInertanceProfileV1({
+    profileId: "periodic-v3-explicit-all-off-zero-inertance-profile",
+    profileBindingSha256: "0".repeat(64),
+    deviceProfileBindingByDevice: Object.freeze({
+      LVAD: allOffBinding("LVAD", "1"),
+      IMPELLA: allOffBinding("IMPELLA", "2"),
+      VA_ECMO: allOffBinding("VA_ECMO", "3"),
+      VV_ECMO: allOffBinding("VV_ECMO", "4")
+    }),
+    inertanceByDevice: Object.freeze({
+      LVAD: zero,
+      IMPELLA: zero,
+      VA_ECMO: zero,
+      VV_ECMO: zero
+    })
+  });
+}
+function allOffBinding(deviceId, digit) {
+  return createDynamicMechanicalSupportDeviceProfileBindingV1({
+    deviceId,
+    circuitProfileId: `periodic-v3-${deviceId.toLowerCase()}-all-off-zero-inertance`,
+    circuitProfileBindingSha256: digit.repeat(64)
+  });
+}
+function stepInput(fixture, candidateTimeSec) {
+  return Object.freeze({
+    candidateTimeSec,
+    coronary: fixture.coronaryStepInput,
+    rhythm: Object.freeze({
+      configuration: fixture.rhythm.configuration,
+      externalAfNextBoundaryTimeSec: null,
+      externalAtrialSourceBatch: null
+    }),
+    dynamicMechanicalSupport: fixture.dynamicMechanicalSupport
+  });
+}
+function createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(fixture) {
+  return Object.freeze({
+    provider: fixture.provider,
+    coronaryPrior: fixture.coronaryStepInput.coronaryPrior,
+    collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
+    impMechanism: fixture.coronaryStepInput.impMechanism,
+    shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
+    coronaryAutoregulationBinding: fixture.cold.acceptedState.coronary.coronaryAutoregulationBinding,
+    rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
+    dynamicMechanicalSupportProfile: fixture.profile,
+    dynamicMechanicalSupportConfig: fixture.config,
+    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs
+  });
+}
+function assertPeriodicNominalDtSec(nominalDtSec) {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
+  if (!Number.isFinite(nominalDtSec) || nominalDtSec < policy.minimumNominalDtSec || nominalDtSec > policy.maximumNominalDtSec) {
+    throw new RangeError(
+      `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`
+    );
+  }
+}
+function assertAllOffConfig(config) {
+  if (config.lvad.enabled || config.impella.enabled || config.vaEcmo.enabled || config.vvEcmo.enabled || config.iabp.enabled) {
+    throw new Error("periodic V3 fixture requires all MCS devices disabled");
+  }
+}
+function assertAllOffAcceptedQ(state) {
+  if (!Object.values(state.dynamicMechanicalSupport.acceptedFlowMlPerSec).every(
+    (value) => value === 0
+  )) {
+    throw new Error("periodic V3 all-off accepted q must be exactly zero");
+  }
+}
+function rejectDuplicateIds(accepted, candidate, label) {
+  for (const id of candidate) {
+    if (accepted.has(id)) throw new Error(`duplicate V3 ${label} identity`);
+    accepted.add(id);
+  }
+}
+function allNumericLeavesFinite(value) {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (value === null || typeof value !== "object") return true;
+  return Object.values(value).every(
+    allNumericLeavesFinite
+  );
+}
+function nearlyEqual(left, right) {
+  return Math.abs(left - right) <= 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
+}
+function deepFreeze$1(value) {
+  if (value !== null && typeof value === "object" && !ArrayBuffer.isView(value)) {
+    for (const child of Object.values(value)) {
+      deepFreeze$1(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
 const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
 const MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3 = Object.freeze([
   ...["LA", "LV", "RA", "RV"].map(
@@ -42880,1540 +44417,6 @@ function assertObservationReadbackPairV3(observation2) {
       `${observation2.source} observation unexpectedly carries a step readback`
     );
   }
-}
-const IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1 = Object.freeze({
-  0: 0,
-  1: 23e3,
-  2: 31e3,
-  3: 33e3,
-  4: 35e3,
-  5: 37e3,
-  6: 39e3,
-  7: 42e3,
-  8: 44e3,
-  9: 46e3
-});
-const HEARTMATE_3_SIGNED_LITERATURE_CURVE_V1 = Object.freeze({
-  referenceSpeedRpm: 5200,
-  shutoffHeadMmHg: 345e-8 * 5200 ** 2,
-  linearLossMmHgSecPerMl: 59e-6 * 5200 * 0.06,
-  linearLossSpeedExponent: 1,
-  quadraticLossMmHgSec2PerMl2: 1.45 * 0.06 ** 2
-});
-const GENERIC_CENTRIFUGAL_LVAD_CURVE_V1 = HEARTMATE_3_SIGNED_LITERATURE_CURVE_V1;
-const IMPELLA_CP_CURVE_V1 = Object.freeze({
-  referenceSpeedRpm: 46e3,
-  shutoffHeadMmHg: 210,
-  linearLossMmHgSecPerMl: 0.4,
-  linearLossSpeedExponent: 1,
-  quadraticLossMmHgSec2PerMl2: 0.0314
-});
-const TAKAHASHI_SENKO_ECMO_CURVE_V1 = Object.freeze({
-  referenceSpeedRpm: 3500,
-  shutoffHeadMmHg: 337,
-  linearLossMmHgSecPerMl: 0.0864,
-  linearLossSpeedExponent: 1,
-  quadraticLossMmHgSec2PerMl2: 3096e-6
-});
-const EMPTY_SEGMENT = Object.freeze({
-  linearResistanceMmHgSecPerMl: 0,
-  quadraticResistanceMmHgSec2PerMl2: 0
-});
-const LVAD_BASE = Object.freeze({
-  enabled: false,
-  circuitClamped: false,
-  speedRpm: 5200,
-  inletNode: "LV",
-  outletNode: "Ao",
-  curve: GENERIC_CENTRIFUGAL_LVAD_CURVE_V1,
-  drainage: Object.freeze({
-    linearResistanceMmHgSecPerMl: 0.015,
-    quadraticResistanceMmHgSec2PerMl2: 3e-4
-  }),
-  oxygenator: EMPTY_SEGMENT,
-  returnPath: Object.freeze({
-    linearResistanceMmHgSecPerMl: 0.015,
-    quadraticResistanceMmHgSec2PerMl2: 3e-4
-  }),
-  inletSuction: Object.freeze({
-    kind: "legacy-smooth-availability",
-    collapsePressureMmHg: -5,
-    recoveredPressureMmHg: 3,
-    minimumVolumeMl: 20,
-    recoveredVolumeMl: 55
-  }),
-  maximumForwardFlowLMin: 10,
-  maximumReverseFlowLMin: 3,
-  forwardFlowEvidenceDomain: Object.freeze({
-    publishedExperimentalTraversalUpperLMin: null,
-    advertisedCapacityLMin: null
-  })
-});
-const IMPELLA_BASE = Object.freeze({
-  enabled: false,
-  circuitClamped: false,
-  performanceLevel: 6,
-  speedRpm: IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1[6],
-  inletNode: "LV",
-  outletNode: "Ao",
-  curve: IMPELLA_CP_CURVE_V1,
-  drainage: Object.freeze({
-    linearResistanceMmHgSecPerMl: 0.03,
-    quadraticResistanceMmHgSec2PerMl2: 1e-3
-  }),
-  oxygenator: EMPTY_SEGMENT,
-  returnPath: Object.freeze({
-    linearResistanceMmHgSecPerMl: 0.03,
-    quadraticResistanceMmHgSec2PerMl2: 1e-3
-  }),
-  inletSuction: Object.freeze({
-    kind: "legacy-smooth-availability",
-    collapsePressureMmHg: -4,
-    recoveredPressureMmHg: 4,
-    minimumVolumeMl: 18,
-    recoveredVolumeMl: 50
-  }),
-  maximumForwardFlowLMin: 4.3,
-  maximumReverseFlowLMin: 2,
-  forwardFlowEvidenceDomain: Object.freeze({
-    publishedExperimentalTraversalUpperLMin: null,
-    advertisedCapacityLMin: null
-  })
-});
-const ECMO_DRAINAGE = Object.freeze({
-  // Takahashi drain 22 Fr: 3.09 Q^2 - 0.54 Q, conservatively
-  // represented with its measured quadratic term and no negative linear loss.
-  linearResistanceMmHgSecPerMl: 0,
-  quadraticResistanceMmHgSec2PerMl2: 0.011124
-});
-const ECMO_OXYGENATOR = Object.freeze({
-  linearResistanceMmHgSecPerMl: 0.9198,
-  quadraticResistanceMmHgSec2PerMl2: 198e-5
-});
-const ECMO_RETURN = Object.freeze({
-  // Takahashi return 18 Fr: 5.01 Q^2 - 1.74 Q, with the same passive
-  // nonnegative-loss restriction as the drainage cannula.
-  linearResistanceMmHgSecPerMl: 0,
-  quadraticResistanceMmHgSec2PerMl2: 0.018036
-});
-const VA_ECMO_BASE = Object.freeze({
-  enabled: false,
-  circuitClamped: false,
-  cannulation: "peripheral",
-  speedRpm: 3200,
-  inletNode: "VC",
-  outletNode: "SA",
-  curve: TAKAHASHI_SENKO_ECMO_CURVE_V1,
-  drainage: ECMO_DRAINAGE,
-  oxygenator: ECMO_OXYGENATOR,
-  returnPath: ECMO_RETURN,
-  inletSuction: Object.freeze({
-    kind: "legacy-smooth-availability",
-    collapsePressureMmHg: -8,
-    recoveredPressureMmHg: 2,
-    minimumVolumeMl: 25,
-    recoveredVolumeMl: 100
-  }),
-  maximumForwardFlowLMin: 7,
-  maximumReverseFlowLMin: 7,
-  forwardFlowEvidenceDomain: Object.freeze({
-    publishedExperimentalTraversalUpperLMin: null,
-    advertisedCapacityLMin: null
-  })
-});
-const VV_ECMO_BASE = Object.freeze({
-  enabled: false,
-  circuitClamped: false,
-  cannulation: "femoral-jugular",
-  hemodynamicCoupling: "well-mixed-venous",
-  speedRpm: 3200,
-  inletNode: "VC",
-  outletNode: "VC",
-  curve: TAKAHASHI_SENKO_ECMO_CURVE_V1,
-  drainage: ECMO_DRAINAGE,
-  oxygenator: ECMO_OXYGENATOR,
-  returnPath: ECMO_RETURN,
-  inletSuction: Object.freeze({
-    kind: "legacy-smooth-availability",
-    collapsePressureMmHg: -8,
-    recoveredPressureMmHg: 2,
-    minimumVolumeMl: 25,
-    recoveredVolumeMl: 100
-  }),
-  maximumForwardFlowLMin: 7,
-  maximumReverseFlowLMin: 7,
-  forwardFlowEvidenceDomain: Object.freeze({
-    publishedExperimentalTraversalUpperLMin: null,
-    advertisedCapacityLMin: null
-  })
-});
-function createMechanicalSupportConfigV1(overrides = {}) {
-  const impellaLevel = integerLevel(
-    overrides.impella?.performanceLevel ?? IMPELLA_BASE.performanceLevel
-  );
-  const vaCannulation = overrides.vaEcmo?.cannulation ?? VA_ECMO_BASE.cannulation;
-  const config = {
-    modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
-    lvad: mergePump(LVAD_BASE, overrides.lvad),
-    impella: Object.freeze({
-      ...mergePump(IMPELLA_BASE, overrides.impella),
-      performanceLevel: impellaLevel,
-      speedRpm: IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1[impellaLevel]
-    }),
-    vaEcmo: Object.freeze({
-      ...mergePump(VA_ECMO_BASE, overrides.vaEcmo),
-      cannulation: vaCannulation,
-      inletNode: vaCannulation === "central" ? "RA" : "VC",
-      outletNode: vaCannulation === "central" ? "Ao" : "SA"
-    }),
-    vvEcmo: Object.freeze({
-      ...mergePump(VV_ECMO_BASE, overrides.vvEcmo),
-      cannulation: overrides.vvEcmo?.cannulation ?? VV_ECMO_BASE.cannulation,
-      hemodynamicCoupling: overrides.vvEcmo?.hemodynamicCoupling ?? VV_ECMO_BASE.hemodynamicCoupling,
-      inletNode: "VC",
-      outletNode: (overrides.vvEcmo?.hemodynamicCoupling ?? VV_ECMO_BASE.hemodynamicCoupling) === "bicaval-pressure-resolved" ? "RA" : "VC"
-    }),
-    iabp: Object.freeze({
-      enabled: false,
-      assistRatio: 1,
-      balloonVolumeMl: 40,
-      inflationPhase01: 0.22,
-      deflationPhase01: 0.9,
-      inflationDurationSec: 0.08,
-      deflationDurationSec: 0.08,
-      placementNode: "SA",
-      ...overrides.iabp
-    }),
-    gasExchange: Object.freeze({
-      fractionDeliveredOxygen01: 1,
-      sweepGasLMin: 4,
-      oxygenatorRatedFlowLMin: 7,
-      membraneOxygenTransferCoefficient: 2.5,
-      maximumOxygenTransferMlPerMin: 220,
-      membraneCo2RemovalMlPerMinAtSweep1: 80,
-      hemoglobinGPerDl: 10,
-      venousOxygenMode: "fick-closed",
-      mixedVenousSaturation01: 0.65,
-      nativeLungShuntFraction01: 0.05,
-      nativeEndCapillarySaturation01: 0.98,
-      oxygenConsumptionMlPerMin: 250,
-      vvRecirculationFraction01: 0.15,
-      upperBodyFlowFraction01: 0.35,
-      ...overrides.gasExchange
-    })
-  };
-  validateMechanicalSupportConfigV1(config);
-  return deepFreeze$3(config);
-}
-function mergePump(base2, override) {
-  return Object.freeze({
-    ...base2,
-    ...override,
-    curve: Object.freeze({ ...base2.curve, ...override?.curve }),
-    drainage: Object.freeze({ ...base2.drainage, ...override?.drainage }),
-    oxygenator: Object.freeze({ ...base2.oxygenator, ...override?.oxygenator }),
-    returnPath: Object.freeze({ ...base2.returnPath, ...override?.returnPath }),
-    inletSuction: deepFreeze$3(
-      override?.inletSuction ?? { ...base2.inletSuction }
-    ),
-    forwardFlowEvidenceDomain: Object.freeze({
-      ...base2.forwardFlowEvidenceDomain,
-      ...override?.forwardFlowEvidenceDomain
-    })
-  });
-}
-function integerLevel(value) {
-  if (!Number.isInteger(value) || value < 0 || value > 9) {
-    throw new Error("Impella performance level must be an integer from P0 to P9");
-  }
-  return value;
-}
-function deepFreeze$3(value) {
-  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const child of Object.values(value)) {
-      deepFreeze$3(child);
-    }
-  }
-  return value;
-}
-const MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1_ID = "main-wire-ventricular-calcium-source-fit-anchor-v1";
-const MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1 = Object.freeze({
-  anchorId: MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1_ID,
-  sourceFitProfileId: "land2017-figure6-whole-trace-alpha-fit",
-  derivationMethodId: "main-wire-ventricular-calcium-source-trace-fit-v1",
-  sourceTraceId: "land2017-figure6-coppini-calcium-trace-v1",
-  sourceDoi: "10.1016/j.yjmcc.2017.03.008",
-  sourceFigure: "Figure 6 left panel",
-  amplitudePolicy: "source-digitized-extrema-locked",
-  ventricularDiastolicCalciumUM: 0.164321,
-  ventricularPeakCalciumUM: 0.592586,
-  ventricularAlphaTimeConstantSec: 0.1234750900275888,
-  sourceTraceOnsetOffsetSec: 0.007222906291484831,
-  sourceTraceOnsetOffsetChangesElectricalToCalciumDelay: false,
-  ventricularElectricalToCalciumDelaySec: 0.012,
-  ventricularElectricalToCalciumDelaySource: "five-wall-normal-calcium-component-timing-prior-v1",
-  ventricularElectricalToCalciumDelayDerivedFromSourceFit: false,
-  figureDigitizationUsed: true,
-  originalNumericSourceTraceUsed: false,
-  sourceMeasurementCovarianceAvailable: false,
-  hemodynamicOutcomeUsedToDeriveFit: false,
-  landTensionOutcomeUsedToDeriveFit: false
-});
-const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_RANGE_V1 = Object.freeze({ minimumBpm: 40, maximumBpm: 100 });
-const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_HEART_RATE_BPM_V1 = 60;
-const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_COEFFICIENT_V1 = 0.4;
-const FIXED_ATRIOVENTRICULAR_DELAY_SEC = 0.12;
-const SOURCE = MAIN_WIRE_VENTRICULAR_CALCIUM_SOURCE_FIT_ANCHOR_V1;
-Object.freeze({
-  role: "fixed-source-anchored-continuous-heart-rate-calcium-law",
-  formula: "s=(HR-60)/(HR+60); tau=tau0*exp(-0.4*s)",
-  waveformFamily: "periodic-normalized-biexponential-exact-alpha-limit",
-  publicHeartRateRangeBpm: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_RANGE_V1,
-  referenceHeartRateBpm: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_REFERENCE_HEART_RATE_BPM_V1,
-  sourceTimeConstantSec: SOURCE.ventricularAlphaTimeConstantSec,
-  dimensionlessRateCoefficient: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_SATURATING_HEART_RATE_LAW_COEFFICIENT_V1,
-  riseAndDecayShareOneTimeConstant: true,
-  ventricularExtremaHeldExactly: true,
-  ventricularElectricalToCalciumDelaySec: SOURCE.ventricularElectricalToCalciumDelaySec,
-  atrioventricularDelaySec: FIXED_ATRIOVENTRICULAR_DELAY_SEC,
-  atrialParamsRetainedExactly: true,
-  periodicCarryRecomputedForCycleLength: true,
-  forceFrequencyRelationModeled: false,
-  calciumCyclingStateModeled: false,
-  dynamicRateHistoryModeled: false,
-  parameterSearchOrFittingAppliedToRateLaw: false,
-  hemodynamicOutcomeUsedToSetRateLaw: false,
-  newContinuousStateAdded: false,
-  clinicalValidationClaimed: false
-});
-const MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID = "main-wire-ventricular-calcium-matched-alpha-exact-persistence-v1";
-const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID = "main-wire-integrated-matched-alpha-fixed-regular-sinus-profile-v1";
-function createMainWireIntegratedRegularSinusRhythmV3(identity, fixedProfile) {
-  const idPrefix = requireIdentityString(identity.idPrefix, "idPrefix");
-  const parameterProvenanceSourceId = requireIdentityString(
-    identity.parameterProvenanceSourceId,
-    "parameterProvenanceSourceId"
-  );
-  const cycleLengthSec = requireCycleLengthSec(identity.cycleLengthSec);
-  const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
-    configurationId: `${idPrefix}-capture-configuration`,
-    ownerInstanceId: `${idPrefix}-capture-owner`,
-    atrialGate: {
-      gateInstanceId: `${idPrefix}-atrial-capture-gate`,
-      refractoryPeriodSec: 0.2
-    },
-    ventricularGate: {
-      gateInstanceId: `${idPrefix}-ventricular-capture-gate`,
-      refractoryPeriodSec: 0.25
-    }
-  });
-  const interval = createAcceptedVentricularIntervalStrengthConfigurationV1({
-    configurationId: `${idPrefix}-interval-configuration`,
-    ownerInstanceId: `${idPrefix}-interval-owner`,
-    parameterProvenance: {
-      kind: "explicit-research-parameters",
-      sourceId: parameterProvenanceSourceId
-    },
-    recoveryTimeConstantSec: 0.5,
-    releaseFractionBeta: 0.8,
-    releasedLoadReturnFractionR: 0.5,
-    intervalInfluxInhibitionFractionH: 0.2,
-    referenceCycleLengthSec: 1
-  });
-  const regular = createRegularAtrialSourceConfigurationV1({
-    configurationId: `${idPrefix}-regular-sinus-configuration`,
-    ownerInstanceId: `${idPrefix}-regular-sinus-owner`,
-    sourceId: `${idPrefix}-sinus-source`,
-    rhythmClass: "sinus",
-    cycleLengthSec
-  });
-  const calcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
-  const atrialCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
-    {
-      diastolicCalciumUM: calcium.atrial.diastolicCalciumUM,
-      peakAmplitudeUM: calcium.atrial.peakAmplitudeUM,
-      riseTimeConstantSec: calcium.atrial.riseTimeConstantSec,
-      decayTimeConstantSec: calcium.atrial.decayTimeConstantSec
-    },
-    cycleLengthSec
-  );
-  const ventricularCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
-    {
-      diastolicCalciumUM: calcium.ventricular.diastolicCalciumUM,
-      peakAmplitudeUM: calcium.ventricular.peakAmplitudeUM,
-      riseTimeConstantSec: calcium.ventricular.riseTimeConstantSec,
-      decayTimeConstantSec: calcium.ventricular.decayTimeConstantSec
-    },
-    cycleLengthSec
-  );
-  const configuration = createAcceptedComposedRhythmTransactionConfigurationV2({
-    configurationId: `${idPrefix}-composed-sinus-configuration`,
-    ownerInstanceId: `${idPrefix}-composed-sinus-owner`,
-    atrialSource: {
-      mode: "regular",
-      regularSourceConfiguration: regular,
-      externalAfOwnerInstanceId: null
-    },
-    authoredEctopySchedule: createAcceptedAuthoredEctopyScheduleConfigurationV2(
-      {
-        configurationId: `${idPrefix}-empty-ectopy-configuration`,
-        ownerInstanceId: `${idPrefix}-empty-ectopy-owner`,
-        scheduleId: `${idPrefix}-empty-ectopy-schedule`,
-        events: []
-      }
-    ),
-    authoredVentricularPacingReplay: null,
-    electricalCaptureOwner: capture,
-    avGateParameters: createRecoveryConcealmentAvGateParametersV1({
-      parameterSetId: `${idPrefix}-proximal-av-parameters`,
-      parameterProvenance: {
-        kind: "explicit-research-parameters",
-        sourceId: parameterProvenanceSourceId
-      },
-      minimumConductionDelaySec: 0.125,
-      recoveryDelayAmplitudeSec: 0,
-      recoveryTimeConstantSec: 1,
-      postConductionRefractorySec: 0.25,
-      concealedRefractoryExtensionSec: 0
-    }),
-    avGateInstanceId: `${idPrefix}-proximal-av-owner`,
-    distalGate: createDistalConductionGateConfigurationV1({
-      configurationId: `${idPrefix}-distal-configuration`,
-      gateInstanceId: `${idPrefix}-distal-owner`,
-      parameterProvenance: {
-        kind: "explicit-research-parameters",
-        sourceId: parameterProvenanceSourceId
-      },
-      hvConductionDelaySec: 0.0625,
-      distalEffectiveRefractoryPeriodSec: 0,
-      modeConfiguration: { mode: "pass" }
-    }),
-    ventricularBackup: createAcceptedVentricularBackupSourceConfigurationV2({
-      configurationId: `${idPrefix}-backup-configuration`,
-      ownerInstanceId: `${idPrefix}-backup-owner`,
-      parameterProvenance: {
-        kind: "authored",
-        sourceId: parameterProvenanceSourceId
-      },
-      intrinsicEscapeSourceId: `${idPrefix}-escape-source`,
-      intrinsicEscapeCycleLengthSec: 2,
-      vviPacingSourceId: `${idPrefix}-vvi-source`,
-      vviLowerRateLimitPerMin: 30
-    }),
-    ventricularIntervalStrength: interval,
-    calciumParametersByWall: Object.freeze({
-      LA: atrialCalcium.parameters,
-      LVFW: ventricularCalcium.parameters,
-      SEP: ventricularCalcium.parameters,
-      RVFW: ventricularCalcium.parameters,
-      RA: atrialCalcium.parameters
-    }),
-    sinusAtrialCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
-      leftAtrialStrength: 1,
-      rightAtrialStrength: 1
-    },
-    pacAtrialCalciumDeposit: null,
-    ventricularCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
-      lvFreeWallBaseStrength: 1,
-      septalBaseStrength: 1,
-      rvFreeWallBaseStrength: 1
-    }
-  });
-  const zero = zeroExactEventCalciumStateV1();
-  const calciumStateByWall = Object.freeze({
-    LA: zero,
-    LVFW: zero,
-    SEP: zero,
-    RVFW: zero,
-    RA: zero
-  });
-  const state = initializeAcceptedComposedRhythmTransactionStateV2(
-    configuration,
-    {
-      acceptedTimeSec: 0,
-      regularFirstFutureActivationTimeSec: 0.625 * cycleLengthSec,
-      regularFirstSourceSequence: 0,
-      priorAcceptedAtrialCapture: null,
-      priorAcceptedVentricularActivation: legacyPriorVentricularCaptureAtZero(capture, idPrefix),
-      initialNormalizedSrLoadState: interval.referenceNormalizedSrLoadState,
-      calciumStateByWall
-    }
-  );
-  return Object.freeze({ configuration, state });
-}
-function legacyPriorVentricularCaptureAtZero(configuration, idPrefix) {
-  const state = initializeAcceptedElectricalCaptureOwnerStateV2(configuration, {
-    acceptedTimeSec: 0,
-    atrialPriorCapture: null,
-    ventricularPriorCapture: null
-  });
-  const source = createSourceImpulseV2({
-    sourceImpulseId: `${idPrefix}-history-source-0`,
-    parentCapturedActivationId: null,
-    chamber: "ventricular",
-    sourceKind: "escape",
-    sourceId: `${idPrefix}-history-source`,
-    sourceSequence: 0,
-    activationTimeSec: 0
-  });
-  const captured = evaluateAcceptedElectricalCaptureBatchCandidateV2(state, {
-    candidateTimeSec: 0,
-    sourceImpulses: [source]
-  }).capturedActivations[0];
-  return captured;
-}
-function requireIdentityString(value, label) {
-  if (typeof value !== "string" || value.length === 0 || value.trim() !== value) {
-    throw new Error(`integrated regular-sinus ${label} is invalid`);
-  }
-  return value;
-}
-function requireCycleLengthSec(value) {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error("integrated regular-sinus cycleLengthSec is invalid");
-  }
-  return value;
-}
-const MAIN_WIRE_FIVE_WALL_PERIODIC_CLOSURE_V1_ID = "main-wire-five-wall-periodic-closure-v1";
-const MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1 = Object.freeze({
-  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-v1",
-  circulationNodeVolumeMl: 100,
-  dynamicEdgeFlowMlPerSec: 500,
-  valveOpeningFraction01: 1,
-  trisegSeptalMidwallCapVolumeM3: 1e-4,
-  trisegJunctionRadiusM: 0.04,
-  landState01: 1,
-  slsViscousLogStrain: 0.1,
-  wallFiberLogStrain: 0.1,
-  wallFreeCalciumUM: 1
-});
-const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V2_ID = "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v2";
-const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2 = Object.freeze({
-  legacyComparatorId: MAIN_WIRE_FIVE_WALL_PERIODIC_CLOSURE_V1_ID,
-  legacyNumericStateCount: 68,
-  coronaryConservedVolumeStateCount: 16,
-  coronaryToneStateCount: 6,
-  mvcReferenceStrainStateCount: 3,
-  numericClosureEntryCount: 93,
-  hiddenBooleanClosureEntryCount: 1,
-  totalClosureEntryCount: 94,
-  compatibilityGates: Object.freeze([
-    "coronary-binding-exact",
-    "fixed-global-tbv-exact",
-    "mechanics-provider-identity-exact"
-  ]),
-  metadataExcludedFromClosureDelta: Object.freeze([
-    "accepted-time",
-    "accepted-revision",
-    "mvc-reference-accepted-time",
-    "mvc-reference-revision",
-    "accepted-mitral-closure-event-count"
-  ]),
-  metadataRequirement: "monotonic-provenance",
-  rapidSettlingBeatRange: Object.freeze([2, 5]),
-  rapidSettlingEvidenceRole: "presentation-only",
-  rapidSettlingCanEstablishP1: false,
-  classifierAcceptedEvidenceRole: "canonical-periodic-protocol",
-  classifierProtocolIdentityGate: "lowercase-sha256-consistency-preimage-bound-by-canonical-runner",
-  period1Period2CurrentProvenanceGate: "exact-within-each-observation",
-  consecutiveObservationProvenanceGate: "exact-p1-current-to-next-reference-and-p2-two-back-chain",
-  minimumConsecutiveClassificationBeats: 3,
-  p1EvidenceBoundary: "separate-consecutive-beat-classification-over-complete-v2-closure-reports",
-  singlePeriodComparisonCanEstablishP1: false
-});
-const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2 = Object.freeze({
-  ...MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
-  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-coronary-v2",
-  coronaryConservedNodeVolumeMl: 1,
-  coronaryToneResistanceScale: 1,
-  mvcReferenceFiberLogStrain: 0.1,
-  mitralForwardFlowActiveMismatch01: 1
-});
-const LEGACY_GROUP_ORDER = Object.freeze([
-  "circulation-node-volume",
-  "dynamic-edge-flow",
-  "valve-opening",
-  "triseg-coordinate",
-  "land-state",
-  "sls-viscous-strain",
-  "wall-input-history"
-]);
-const CORONARY_GROUP_ORDER = Object.freeze([
-  "coronary-node-volume",
-  "coronary-tone",
-  "mvc-reference-strain",
-  "mvc-phase-memory"
-]);
-Object.freeze([
-  ...LEGACY_GROUP_ORDER,
-  ...CORONARY_GROUP_ORDER
-]);
-Object.freeze({
-  baseComparatorId: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V2_ID,
-  baseNumericStateCount: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.numericClosureEntryCount,
-  baseBooleanStateCount: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.hiddenBooleanClosureEntryCount,
-  autoregulationFlowIntegralStateCount: 6,
-  autoregulationPressureIntegralStateCount: 3,
-  autoregulationWindowScalarStateCount: 2,
-  autoregulationDesiredControlNumericStateCount: 18,
-  autoregulationNumericStateCount: 29,
-  autoregulationControlBoundBooleanStateCount: 2,
-  numericClosureEntryCount: 122,
-  hiddenBooleanClosureEntryCount: 3,
-  totalClosureEntryCount: 125,
-  compatibilityGates: Object.freeze([
-    ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2.compatibilityGates,
-    "coronary-autoregulation-binding-exact",
-    "coronary-autoregulation-non-null-desired-control-id-exact",
-    "periodic-sinus-autoregulation-accumulator-empty-at-both-boundaries",
-    "coronary-autoregulation-window-provenance-monotonic-and-time-consistent"
-  ]),
-  periodicSinusBoundaryPolicy: "fail-closed-empty-accumulator",
-  irregularRhythmP1Applicability: "not-applicable"
-});
-const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3 = Object.freeze({
-  ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2,
-  scaleSetId: "normal-adult-fixed-dimensional-reference-scales-coronary-v3",
-  coronaryAutoregulationQmTimeIntegralMl: 1,
-  coronaryAutoregulationPerfusionPressureTimeIntegralMmHgSec: 100,
-  coronaryAutoregulationAcceptedDurationSec: 1,
-  coronaryAutoregulationAcceptedStepCount: 1,
-  coronaryAutoregulationWindowControlBoundMismatch01: 1,
-  coronaryAutoregulationDesiredControlBoundMismatch01: 1,
-  coronaryAutoregulationDesiredDemandScale: 1,
-  coronaryAutoregulationDesiredHyperemia01: 1,
-  coronaryAutoregulationDesiredMinimumToneScale: 1
-});
-const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 = Object.freeze({
-  ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
-  scaleSetId: "fixed-dimensional-reference-scales-integrated-composed-rhythm-v3",
-  dynamicMcsAcceptedFlowMlPerSecByDevice: Object.freeze({
-    LVAD: 100,
-    IMPELLA: 50,
-    VA_ECMO: 100,
-    VV_ECMO: 100
-  }),
-  generatedCalciumRiseDrive: 1,
-  generatedCalciumDecayDrive: 1,
-  generatedAvRelativeTimingSec: 1,
-  generatedNextSourceRelativeTimingSec: 1,
-  generatedPendingRelativeTimingSec: 1,
-  generatedPendingActivationStrength01: 1
-});
-function normalAdultMainWireRuntimeV1(valveDiseaseBracketIds = []) {
-  const base2 = defaultParams();
-  return Object.freeze({
-    vascular: Object.freeze({
-      venousTone: base2.venousTone,
-      arterialStiffness: base2.arterialStiffness
-    }),
-    losses: Object.freeze({
-      systemicResistance: base2.systemicResistance,
-      pulmonaryResistance: base2.pulmonaryResistance
-    }),
-    respiratory: Object.freeze({
-      PEEP: base2.PEEP,
-      Pth0: base2.Pth0,
-      respAmpTh: 0,
-      respAmpAlv: 0,
-      respRate: 0
-    }),
-    valveResearchInput: composeMainWireFourValveDiseaseResearchInputV1(
-      valveDiseaseBracketIds
-    )
-  });
-}
-const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2 = Object.freeze({
-  maxIterations: 30,
-  absoluteContinuityResidualToleranceMl: 1e-8,
-  scaledResidualInfinityTolerance: 2e-10,
-  scaledUpdateInfinityTolerance: 2e-11,
-  finiteDifferenceScaledStep: 2e-6,
-  maximumLineSearchBacktracks: 24,
-  analyticJacobianFiniteDifferenceShadow: false
-});
-const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2 = Object.freeze({
-  policyId: "provisional-full-accepted-state-periodic-policy-v2",
-  evidenceStatus: "provisional-not-release-acceptance",
-  period1NormalizedTolerance: 1e-3,
-  period2NormalizedTolerance: 1e-3,
-  period2MinimumPeriod1NormalizedDelta: 5e-3,
-  consecutiveBeats: 3,
-  defaultMaximumBeatCount: 32,
-  defaultRetainedBoundaryCount: 3,
-  minimumRetainedBoundaryCount: 3,
-  referenceScaleSetId: MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2.scaleSetId
-});
-const V3_CYCLE_LENGTH_SEC = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.cycleLengthSec;
-const MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 = Object.freeze({
-  policyId: "main-wire-integrated-model-numerical-policy-v3",
-  cycleLengthSec: V3_CYCLE_LENGTH_SEC,
-  maximumAcceptedStepCountPerRun: 1100,
-  invariantTolerance: Object.freeze({
-    acceptedOwnerClockSkewSec: 1e-12,
-    globalTotalBloodVolumeErrorMl: 1e-8,
-    coronaryBloodVolumeLedgerResidualMl: 1e-8,
-    dynamicMcsConservationResidualMlPerSec: 1e-12
-  })
-});
-const CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3 = 10;
-const CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3 = CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3 * NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2.responseTimeConstantSec;
-const CANONICAL_MAXIMUM_CYCLE_COUNT_V3 = CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3 / V3_CYCLE_LENGTH_SEC;
-if (!Number.isSafeInteger(CANONICAL_MAXIMUM_CYCLE_COUNT_V3) || CANONICAL_MAXIMUM_CYCLE_COUNT_V3 <= 0) {
-  throw new Error(
-    "integrated V3 canonical slow-time horizon must contain an exact positive number of sinus cycles"
-  );
-}
-const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 = Object.freeze({
-  policyId: "integrated-full-accepted-state-periodic-policy-v3-preregistered",
-  period1NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period1NormalizedTolerance,
-  period2NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period2NormalizedTolerance,
-  period2MinimumPeriod1NormalizedDelta: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period2MinimumPeriod1NormalizedDelta,
-  consecutiveCycles: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.consecutiveBeats,
-  coronaryAutoregulationResponseTimeConstantSec: NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2.responseTimeConstantSec,
-  canonicalSlowTimeConstantMultiples: CANONICAL_SLOW_TIME_CONSTANT_MULTIPLES_V3,
-  canonicalMaximumPhysicalTimeSec: CANONICAL_MAXIMUM_PHYSICAL_TIME_SEC_V3,
-  canonicalSinusCycleLengthSec: V3_CYCLE_LENGTH_SEC,
-  defaultMaximumCycleCount: CANONICAL_MAXIMUM_CYCLE_COUNT_V3,
-  maximumCycleCount: CANONICAL_MAXIMUM_CYCLE_COUNT_V3,
-  boundedSmokeDefaultMaximumCycleCount: 1,
-  boundedSmokeMaximumCycleCount: 2,
-  minimumNominalDtSec: 1e-3,
-  maximumNominalDtSec: 0.01,
-  referenceScaleSetId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3.scaleSetId,
-  thresholdProvenance: "copied-before-integrated-v3-evaluation-from-the-current-coronary-full-state-periodic-policy-not-fit-to-integrated-output",
-  canonicalMaximumHorizonProvenance: "ten-times-the-explicit-25-second-coronary-controller-coefficient-divided-by-the-fixed-one-second-sinus-cycle"
-});
-deepFreeze$2({
-  scope: "canonical-provider-main-v3-regular-sinus-composed-rhythm-and-all-off-dynamic-MCS",
-  rhythmApplicability: "regular-sinus-source-period-boundaries-only",
-  coronaryComparator: "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v3",
-  composedRhythmCoverage: Object.freeze([
-    "regular-source-clock-and-lineage",
-    "empty-authored-ectopy-owner",
-    "absent-authored-ventricular-pacing-replay-owner",
-    "atrial-and-ventricular-capture-gates",
-    "proximal-AV-recovery-concealment-owner",
-    "distal-conduction-owner",
-    "ventricular-backup-owner",
-    "ventricular-interval-strength-owner",
-    "proximal-distal-and-calcium-pending-queues",
-    "five-wall-exact-event-calcium-state"
-  ]),
-  absoluteClockTreatment: "absolute-owner-times-compared-relative-to-the-exact-cycle-boundary",
-  lineageTreatment: "within-state-lineage-must-be-internally-exact-and-P1-P2-counter-advances-must-match-period-lag",
-  initialHistoryTreatment: "nullable-history-presence-and-structure-are-reported-as-delta-not-silently-discarded",
-  dynamicMechanicalSupport: "four-explicit-all-off-zero-inertance-circuits-with-exact-zero-accepted-q",
-  predeclaredReferenceScaleSetOwnedByIntegratedV3: true,
-  thresholdsOrScalesDerivedFromV3Output: false,
-  completeAcceptedStateNumericalPeriodicityIsPhysiology: false,
-  normalConstructionTargetIsIndependentValidation: false,
-  releaseAcceptanceClaimed: false,
-  clinicalValidationClaimed: false
-});
-createMechanicalSupportConfigV1();
-function deepFreeze$2(value) {
-  if (value !== null && typeof value === "object") {
-    for (const child of Object.values(value)) {
-      deepFreeze$2(child);
-    }
-    Object.freeze(value);
-  }
-  return value;
-}
-Object.freeze({
-  contextId: "main-wire-integrated-model-v3-healthy-reference-context-v1",
-  referenceSubject: Object.freeze({
-    bodySurfaceAreaM2: 1.9,
-    state: "resting-adult-research-reference"
-  }),
-  gates: Object.freeze([
-    gate(
-      "healthy.lv.edvi",
-      "hemodynamics.lv.edv_index_ml_per_m2",
-      34,
-      76,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
-    ),
-    gate(
-      "healthy.lv.esvi",
-      "hemodynamics.lv.esv_index_ml_per_m2",
-      10,
-      29,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
-    ),
-    gate(
-      "healthy.lv.ef",
-      "hemodynamics.lv.ejection_fraction_01",
-      0.52,
-      0.74,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
-    ),
-    gate(
-      "healthy.cardiac_index",
-      "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
-      2.5,
-      4,
-      ["cardiac-index-clinical-reference"]
-    ),
-    gate(
-      "healthy.pulmonary_artery.systolic",
-      "hemodynamics.pressure.pulmonary_artery.systolic_mmhg",
-      10,
-      35,
-      ["mukherjee-ase-right-heart-2025"]
-    ),
-    gate(
-      "healthy.left_atrium.mean",
-      "hemodynamics.pressure.left_atrium.mean_mmhg",
-      2,
-      13,
-      ["kovacs-pawp-healthy-meta-2024"]
-    )
-  ])
-});
-function gate(gateId, metricId, lowerInclusive, upperInclusive, sourceIds) {
-  return Object.freeze({
-    gateId,
-    metricId,
-    lowerInclusive,
-    upperInclusive,
-    sourceIds: Object.freeze([...sourceIds])
-  });
-}
-deepFreeze$1({
-  scope: "canonical-provider-coronary-v3-accepted-composed-regular-sinus-and-explicit-all-off-zero-inertance-dynamic-MCS",
-  dedicatedV3Fixture: true,
-  activeHeartMateIiBaselineUsed: false,
-  allFourMcsDevicesDisabled: true,
-  allFourMcsInertanceCircuitsExplicitAndZero: true,
-  completeAcceptedStateP1P2Comparator: true,
-  exactMainV3CheckpointStoredAndRoundTripVerified: true,
-  terminalCycleTrace: "raw-accepted-endpoints-with-event-clipped-dt-no-resampling",
-  finiteConservationEventIdentityAndSingleCalciumOwnerFailClosed: true,
-  canonicalV3ThresholdPolicyOwned: true,
-  maximumHorizon: "ten-times-25-second-coronary-controller-time-constant-equals-250-one-second-cycles",
-  thresholdsChangedAfterInspectingV3Output: false,
-  fixedHorizonCharacterizationEvidenceRole: "bounded-exploration-only",
-  fixedHorizonCharacterizationCanEstablishCanonicalPeriodicity: false,
-  healthyReferenceAssessment: "reported-only-after-canonical-numerical-P1-eligibility",
-  healthyReferenceRole: "construction-context-not-independent-validation",
-  healthyReferencePassIsPhysiologicalValidation: false,
-  numericalPeriodicityIsPhysiologicalAcceptance: false,
-  normalConstructionTargetIsIndependentValidation: false,
-  patientFittingApplied: false,
-  waveformOrParameterFittingApplied: false,
-  clinicalValidationClaimed: false,
-  releaseAcceptanceClaimed: false,
-  releaseReadyClaimed: false
-});
-const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID = "main-wire-integrated-model-selected-aortic-outflow-fixture-v1";
-const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM = Object.freeze({
-  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
-  ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
-  aorticOutflowCirculationProfileId: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
-  regularSinusProfileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
-  assemblyScope: "cold-fixture-and-same-configuration-stepping",
-  composedRhythmCalciumOwner: "accepted-exact-event-matched-alpha-state",
-  coronaryCalciumDriveParamsRole: "matched-alpha-descriptor-and-cycle-contract-not-calcium-state-owner",
-  boundedHemodynamicResearchInputsRetained: true,
-  activeAndPassiveWallResearchInputsRetained: true,
-  valvePericardialAndCoronaryResearchInputsRetained: true,
-  oxygenTransportInputRetainedForAnalysis: true,
-  calciumDecayTimeScaleResearchInput: "fixed-unit-only-to-preserve-selected-matched-alpha-law",
-  dynamicMechanicalSupport: "existing-explicit-all-off-zero-inertance",
-  warmRuntimeRebindingSupported: false,
-  newContinuousStateAdded: false,
-  legacyDefaultFixtureSelection: "canonical-provider-and-absent-selected-aortic-outflow-profile",
-  parameterSearchOrFitting: false,
-  clinicalValidationClaimed: false
-});
-function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(requestedHemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, requestedMechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
-  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
-    requestedHemodynamicResearchInputs,
-    ventricularContractilityScale,
-    requestedMechanismResearchInputs
-  );
-  return assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
-    prepared,
-    {
-      createProvider: () => createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
-        prepared.chamberMechanics
-      ),
-      createVascularRuntime: () => Object.freeze({
-        venousTone: prepared.hemodynamicResearchInputs.venousTone,
-        arterialStiffness: prepared.hemodynamicResearchInputs.arterialStiffness
-      }),
-      createCalciumDriveParams: (cycleLengthSec) => Object.freeze({
-        ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-        parameterSetId: `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}-hr-${prepared.hemodynamicResearchInputs.heartRateBpm}-bpm`,
-        cycleLengthSec,
-        decayTimeScaleByWall: prepared.chamberMechanics.calciumDecayTimeScaleByWall
-      }),
-      createRhythm: (cycleLengthSec) => createMainWireIntegratedRegularSinusRhythmV3({
-        idPrefix: "periodic-v3",
-        parameterProvenanceSourceId: "bounded-periodic-v3-construction",
-        cycleLengthSec
-      })
-    }
-  );
-}
-function prepareMainWireIntegratedModelFixtureInputsV3(requestedHemodynamicResearchInputs, ventricularContractilityScale, requestedMechanismResearchInputs) {
-  const hemodynamicResearchInputs = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
-    requestedHemodynamicResearchInputs
-  );
-  const requestedMechanismInputs = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
-    requestedMechanismResearchInputs
-  );
-  const chamberMechanics = ventricularContractilityScale === 1 ? requestedMechanismInputs.chamberMechanics : withCommonVentricularActiveTensionScaleV1(
-    requestedMechanismInputs.chamberMechanics,
-    ventricularContractilityScale
-  );
-  const mechanismResearchInputs = Object.freeze({
-    ...requestedMechanismInputs,
-    chamberMechanics
-  });
-  return Object.freeze({
-    hemodynamicResearchInputs,
-    ventricularContractilityScale,
-    mechanismResearchInputs,
-    chamberMechanics
-  });
-}
-function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(prepared, fixedAssembly) {
-  const {
-    hemodynamicResearchInputs,
-    ventricularContractilityScale,
-    mechanismResearchInputs
-  } = prepared;
-  const provider = fixedAssembly.createProvider();
-  const canonicalRuntime = normalAdultMainWireRuntimeV1();
-  const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
-  const peepMmHg = hemodynamicResearchInputs.peepCmH2O * 0.7355592401;
-  const calciumDriveParams = fixedAssembly.createCalciumDriveParams(cycleLengthSec);
-  const runtime = Object.freeze({
-    vascular: fixedAssembly.createVascularRuntime(),
-    losses: Object.freeze({
-      systemicResistance: hemodynamicResearchInputs.systemicResistance,
-      pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance
-    }),
-    respiratory: Object.freeze({
-      ...canonicalRuntime.respiratory,
-      PEEP: peepMmHg
-    }),
-    valveResearchInput: createMainWireFourValveContinuousAreaResearchInputV1(
-      mechanismResearchInputs.valveAreas
-    )
-  });
-  const pericardium = createMainWireCommonPericardiumWithResearchInputsV1(
-    mechanismResearchInputs.pericardium
-  );
-  const coronaryDisease = createMainWireCoronaryDiseaseInputV2(
-    mechanismResearchInputs.coronaryDisease
-  );
-  const rhythm = fixedAssembly.createRhythm(cycleLengthSec);
-  const profile = createAllOffZeroInertanceProfileV3();
-  const config = createMechanicalSupportConfigV1();
-  assertAllOffConfig(config);
-  const dynamicMechanicalSupport = Object.freeze({
-    config,
-    profile
-  });
-  const coronaryStepInput = Object.freeze({
-    runtime,
-    calciumDriveParams,
-    pericardium,
-    coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
-    coronaryDisease,
-    collapseHydraulics: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
-    impMechanism: "cep-shortening-induced",
-    shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
-    circulationNewtonOptions: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2
-  });
-  const cold = initializeMainWireIntegratedModelV3({
-    coronary: {
-      provider,
-      runtime,
-      calciumDriveParams,
-      pericardium,
-      coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
-      coronaryDisease,
-      collapseHydraulics: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
-      impMechanism: "cep-shortening-induced",
-      shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
-      fixedGlobalTotalBloodVolumeMl: hemodynamicResearchInputs.totalBloodVolumeMl,
-      autoregulationWindow: Object.freeze({
-        durationSec: cycleLengthSec,
-        interpretation: "periodic-sinus-cycle-aligned"
-      })
-    },
-    rhythm: {
-      configuration: rhythm.configuration,
-      acceptedState: rhythm.state
-    },
-    dynamicMechanicalSupport
-  });
-  assertAllOffAcceptedQ(cold.acceptedState);
-  return Object.freeze({
-    hemodynamicResearchInputs,
-    ventricularContractilityScale,
-    mechanismResearchInputs,
-    provider,
-    runtime,
-    pericardium,
-    rhythm,
-    profile,
-    config,
-    dynamicMechanicalSupport,
-    coronaryStepInput,
-    cycleLengthSec,
-    cold
-  });
-}
-function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(fixture, initial, nominalDtSec) {
-  assertPeriodicNominalDtSec(nominalDtSec);
-  assertAllOffConfig(fixture.config);
-  assertAllOffAcceptedQ(initial);
-  const binding = initial.coronary.coronaryAutoregulationBinding;
-  const window = initial.coronary.coronaryAutoregulation;
-  const sourceAcceptedTimeSec = initial.acceptedTimeSec;
-  if (binding.windowPolicy.interpretation !== "periodic-sinus-cycle-aligned" || !nearlyEqual(binding.windowPolicy.durationSec, fixture.cycleLengthSec)) {
-    throw new Error("V3 qualification candidate window policy differs");
-  }
-  if (sourceAcceptedTimeSec === window.windowStartAcceptedTimeSec) {
-    if (window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0) {
-      throw new Error("V3 qualification boundary has a nonempty open window");
-    }
-    return deepFreeze$1({
-      alignmentRequired: false,
-      sourceAcceptedTimeSec,
-      boundaryAcceptedTimeSec: sourceAcceptedTimeSec,
-      acceptedStepCount: 0,
-      completedWindowIndex: null,
-      terminalAcceptedState: initial,
-      acceptedAtrialCaptureIds: [],
-      acceptedVentricularCaptureIds: [],
-      deliveredCalciumDepositIds: [],
-      maximumGlobalTotalBloodVolumeErrorMl: 0,
-      maximumCoronaryBloodVolumeLedgerResidualMl: 0,
-      maximumDynamicMcsConservationResidualMlPerSec: 0,
-      allRawValuesFinite: true,
-      oneComposedCalciumOwnerOnly: true,
-      allDynamicMcsAcceptedFlowsExactlyZero: true
-    });
-  }
-  const boundaryAcceptedTimeSec = binding.windowPolicy.originAcceptedTimeSec + (window.windowIndex + 1) * binding.windowPolicy.durationSec;
-  if (!(boundaryAcceptedTimeSec > sourceAcceptedTimeSec)) {
-    throw new Error("V3 qualification candidate passed its window boundary");
-  }
-  let accepted = initial;
-  let acceptedStepCount = 0;
-  let nominalGridIndex = 1;
-  let maximumGlobalTotalBloodVolumeErrorMl = 0;
-  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
-  let maximumDynamicMcsConservationResidualMlPerSec = 0;
-  let oneComposedCalciumOwnerOnly = true;
-  let allRawValuesFinite = true;
-  let allDynamicMcsAcceptedFlowsExactlyZero = true;
-  const acceptedAtrialCaptureIds = [];
-  const acceptedVentricularCaptureIds = [];
-  const deliveredCalciumDepositIds = [];
-  const completedWindowIndices = [];
-  while (accepted.acceptedTimeSec < boundaryAcceptedTimeSec) {
-    if (acceptedStepCount >= MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun) {
-      throw new Error(
-        "V3 qualification alignment exceeded accepted-step bound"
-      );
-    }
-    const nominalTargetTimeSec = Math.min(
-      boundaryAcceptedTimeSec,
-      sourceAcceptedTimeSec + nominalGridIndex * nominalDtSec
-    );
-    if (!(nominalTargetTimeSec > accepted.acceptedTimeSec)) {
-      nominalGridIndex += 1;
-      continue;
-    }
-    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
-      accepted,
-      nominalTargetTimeSec,
-      {
-        configuration: fixture.rhythm.configuration,
-        externalAfNextBoundaryTimeSec: null
-      },
-      fixture.profile,
-      fixture.config
-    );
-    if (!(maximum.candidateTimeSec > accepted.acceptedTimeSec) || maximum.candidateTimeSec > nominalTargetTimeSec) {
-      throw new Error(
-        "V3 qualification alignment scheduler returned an invalid step"
-      );
-    }
-    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
-    const stepped = stepMainWireIntegratedModelV3(
-      fixture.provider,
-      accepted,
-      stepInput(fixture, maximum.candidateTimeSec)
-    );
-    if (stepped.converged === false) {
-      throw new Error(
-        `V3 qualification alignment step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`
-      );
-    }
-    accepted = stepped.acceptedState;
-    acceptedStepCount += 1;
-    if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
-      nominalGridIndex += 1;
-    }
-    if (stepped.coronaryStep.autoregulationWindowCompleted) {
-      const completion = stepped.coronaryStep.autoregulationCompletion;
-      if (completion === null) {
-        throw new Error(
-          "V3 qualification completion flag lacks completion state"
-        );
-      }
-      if (completion.windowIndex !== window.windowIndex || completion.windowStartAcceptedTimeSec !== window.windowStartAcceptedTimeSec || completion.windowEndAcceptedTimeSec !== boundaryAcceptedTimeSec || !nearlyEqual(
-        completion.aggregate.acceptedWindowDurationSec,
-        fixture.cycleLengthSec
-      )) {
-        throw new Error("V3 qualification alignment window identity differs");
-      }
-      completedWindowIndices.push(completion.windowIndex);
-    }
-    const expectedCalcium = evaluateMainWireIntegratedModelCalciumDriveV3(
-      accepted.composedRhythm
-    );
-    oneComposedCalciumOwnerOnly = oneComposedCalciumOwnerOnly && canonicalJsonStringify(expectedCalcium) === canonicalJsonStringify(stepped.calciumDrive) && canonicalJsonStringify(stepped.coronaryStep.baseStep.calciumDrive) === canonicalJsonStringify(stepped.calciumDrive) && !("generatedRhythmCalcium" in accepted) && !("rhythmCalcium" in accepted) && !("fixedPeriodicCalcium" in accepted);
-    assertAllOffAcceptedQ(accepted);
-    allDynamicMcsAcceptedFlowsExactlyZero = allDynamicMcsAcceptedFlowsExactlyZero && Object.values(
-      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec
-    ).every((value) => value === 0);
-    const candidate = stepped.composedRhythmCandidate;
-    if (candidate.capturedAtrialActivation !== null) {
-      acceptedAtrialCaptureIds.push(
-        candidate.capturedAtrialActivation.capturedActivationId
-      );
-    }
-    if (candidate.capturedVentricularActivation !== null) {
-      acceptedVentricularCaptureIds.push(
-        candidate.capturedVentricularActivation.capturedActivationId
-      );
-    }
-    deliveredCalciumDepositIds.push(
-      ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId)
-    );
-    const sample = traceSample(
-      0,
-      acceptedStepCount,
-      window.windowStartAcceptedTimeSec,
-      fixture.cycleLengthSec,
-      acceptedDtSec,
-      stepped
-    );
-    allRawValuesFinite = allRawValuesFinite && allNumericLeavesFinite(sample);
-    maximumGlobalTotalBloodVolumeErrorMl = Math.max(
-      maximumGlobalTotalBloodVolumeErrorMl,
-      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl)
-    );
-    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
-      maximumCoronaryBloodVolumeLedgerResidualMl,
-      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl)
-    );
-    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
-      maximumDynamicMcsConservationResidualMlPerSec,
-      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec)
-    );
-  }
-  if (accepted.acceptedTimeSec !== boundaryAcceptedTimeSec || completedWindowIndices.length !== 1 || completedWindowIndices[0] !== window.windowIndex) {
-    throw new Error("V3 qualification did not reach one exact window boundary");
-  }
-  if (!oneComposedCalciumOwnerOnly) {
-    throw new Error(
-      "V3 qualification alignment detected split calcium ownership"
-    );
-  }
-  if (!allRawValuesFinite) {
-    throw new Error("V3 qualification alignment contains nonfinite raw values");
-  }
-  if (!allDynamicMcsAcceptedFlowsExactlyZero) {
-    throw new Error("V3 qualification alignment produced nonzero MCS q");
-  }
-  const tolerance = MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
-  if (maximumGlobalTotalBloodVolumeErrorMl > tolerance.globalTotalBloodVolumeErrorMl || maximumCoronaryBloodVolumeLedgerResidualMl > tolerance.coronaryBloodVolumeLedgerResidualMl || maximumDynamicMcsConservationResidualMlPerSec > tolerance.dynamicMcsConservationResidualMlPerSec) {
-    throw new Error(
-      "V3 qualification alignment exceeds conservation tolerance"
-    );
-  }
-  rejectDuplicateIds(
-    /* @__PURE__ */ new Set(),
-    acceptedAtrialCaptureIds,
-    "alignment atrial capture"
-  );
-  rejectDuplicateIds(
-    /* @__PURE__ */ new Set(),
-    acceptedVentricularCaptureIds,
-    "alignment ventricular capture"
-  );
-  rejectDuplicateIds(
-    /* @__PURE__ */ new Set(),
-    deliveredCalciumDepositIds,
-    "alignment calcium deposit"
-  );
-  return deepFreeze$1({
-    alignmentRequired: true,
-    sourceAcceptedTimeSec,
-    boundaryAcceptedTimeSec,
-    acceptedStepCount,
-    completedWindowIndex: window.windowIndex,
-    terminalAcceptedState: accepted,
-    acceptedAtrialCaptureIds,
-    acceptedVentricularCaptureIds,
-    deliveredCalciumDepositIds,
-    maximumGlobalTotalBloodVolumeErrorMl,
-    maximumCoronaryBloodVolumeLedgerResidualMl,
-    maximumDynamicMcsConservationResidualMlPerSec,
-    allRawValuesFinite: true,
-    oneComposedCalciumOwnerOnly: true,
-    allDynamicMcsAcceptedFlowsExactlyZero: true
-  });
-}
-function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, cycleIndex, nominalDtSec) {
-  assertPeriodicNominalDtSec(nominalDtSec);
-  if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
-    throw new Error("V3 periodic cycle index must be a positive integer");
-  }
-  const window = initial.coronary.coronaryAutoregulation;
-  const windowPolicy = initial.coronary.coronaryAutoregulationBinding.windowPolicy;
-  const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
-  if (startTimeSec !== window.windowStartAcceptedTimeSec || window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0 || !nearlyEqual(windowPolicy.durationSec, fixture.cycleLengthSec)) {
-    throw new Error(
-      "V3 periodic continuation does not start on cycle boundary"
-    );
-  }
-  const expectedWindowIndex = window.windowIndex;
-  let accepted = initial;
-  let acceptedStepCount = 0;
-  let nominalGridIndex = 1;
-  let maximumGlobalTotalBloodVolumeErrorMl = 0;
-  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
-  let maximumDynamicMcsConservationResidualMlPerSec = 0;
-  let oneComposedCalciumOwnerOnly = true;
-  let allRawValuesFinite = true;
-  let allDynamicMcsAcceptedFlowsExactlyZero = true;
-  const traceSamples = [];
-  const acceptedAtrialCaptureIds = [];
-  const acceptedVentricularCaptureIds = [];
-  const deliveredCalciumDepositIds = [];
-  const completions = [];
-  while (accepted.acceptedTimeSec < endTimeSec) {
-    if (acceptedStepCount >= MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun) {
-      throw new Error("V3 periodic cycle exceeded accepted-step bound");
-    }
-    const nominalTargetTimeSec = Math.min(
-      endTimeSec,
-      startTimeSec + nominalGridIndex * nominalDtSec
-    );
-    const requestedStepSec = nominalTargetTimeSec - accepted.acceptedTimeSec;
-    if (!(requestedStepSec > 0)) {
-      nominalGridIndex += 1;
-      continue;
-    }
-    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
-      accepted,
-      nominalTargetTimeSec,
-      {
-        configuration: fixture.rhythm.configuration,
-        externalAfNextBoundaryTimeSec: null
-      },
-      fixture.profile,
-      fixture.config
-    );
-    if (!(maximum.candidateTimeSec > accepted.acceptedTimeSec) || maximum.candidateTimeSec > nominalTargetTimeSec) {
-      throw new Error("V3 periodic scheduler returned an invalid step");
-    }
-    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
-    const stepped = stepMainWireIntegratedModelV3(
-      fixture.provider,
-      accepted,
-      stepInput(fixture, maximum.candidateTimeSec)
-    );
-    if (stepped.converged === false) {
-      throw new Error(
-        `V3 periodic step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`
-      );
-    }
-    accepted = stepped.acceptedState;
-    acceptedStepCount += 1;
-    if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
-      nominalGridIndex += 1;
-    }
-    if (stepped.coronaryStep.autoregulationWindowCompleted) {
-      const completion = stepped.coronaryStep.autoregulationCompletion;
-      if (completion === null) {
-        throw new Error("V3 coronary completion flag lacks completion state");
-      }
-      completions.push(
-        Object.freeze({
-          windowIndex: completion.windowIndex,
-          startTimeSec: completion.windowStartAcceptedTimeSec,
-          endTimeSec: completion.windowEndAcceptedTimeSec,
-          acceptedDurationSec: completion.aggregate.acceptedWindowDurationSec,
-          acceptedStepCount: completion.acceptedStepCount
-        })
-      );
-    }
-    const expectedCalcium = evaluateMainWireIntegratedModelCalciumDriveV3(
-      accepted.composedRhythm
-    );
-    oneComposedCalciumOwnerOnly = oneComposedCalciumOwnerOnly && canonicalJsonStringify(expectedCalcium) === canonicalJsonStringify(stepped.calciumDrive) && canonicalJsonStringify(stepped.coronaryStep.baseStep.calciumDrive) === canonicalJsonStringify(stepped.calciumDrive) && !("generatedRhythmCalcium" in accepted) && !("rhythmCalcium" in accepted) && !("fixedPeriodicCalcium" in accepted);
-    assertAllOffAcceptedQ(accepted);
-    allDynamicMcsAcceptedFlowsExactlyZero = allDynamicMcsAcceptedFlowsExactlyZero && Object.values(
-      accepted.dynamicMechanicalSupport.acceptedFlowMlPerSec
-    ).every((value) => value === 0);
-    const candidate = stepped.composedRhythmCandidate;
-    if (candidate.capturedAtrialActivation !== null) {
-      acceptedAtrialCaptureIds.push(
-        candidate.capturedAtrialActivation.capturedActivationId
-      );
-    }
-    if (candidate.capturedVentricularActivation !== null) {
-      acceptedVentricularCaptureIds.push(
-        candidate.capturedVentricularActivation.capturedActivationId
-      );
-    }
-    deliveredCalciumDepositIds.push(
-      ...candidate.deliveredCalciumDeposits.map((deposit) => deposit.depositId)
-    );
-    const sample = traceSample(
-      cycleIndex,
-      acceptedStepCount,
-      startTimeSec,
-      fixture.cycleLengthSec,
-      acceptedDtSec,
-      stepped
-    );
-    traceSamples.push(sample);
-    allRawValuesFinite = allRawValuesFinite && allNumericLeavesFinite(sample);
-    maximumGlobalTotalBloodVolumeErrorMl = Math.max(
-      maximumGlobalTotalBloodVolumeErrorMl,
-      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl)
-    );
-    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
-      maximumCoronaryBloodVolumeLedgerResidualMl,
-      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl)
-    );
-    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
-      maximumDynamicMcsConservationResidualMlPerSec,
-      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec)
-    );
-  }
-  if (accepted.acceptedTimeSec !== endTimeSec || completions.length !== 1 || completions[0].windowIndex !== expectedWindowIndex || completions[0].startTimeSec !== startTimeSec || completions[0].endTimeSec !== endTimeSec || !nearlyEqual(completions[0].acceptedDurationSec, fixture.cycleLengthSec)) {
-    throw new Error("V3 periodic cycle/coronary window boundary differs");
-  }
-  if (!oneComposedCalciumOwnerOnly) {
-    throw new Error("V3 periodic cycle detected split calcium ownership");
-  }
-  if (!allRawValuesFinite) {
-    throw new Error("V3 periodic cycle contains nonfinite raw values");
-  }
-  if (!allDynamicMcsAcceptedFlowsExactlyZero) {
-    throw new Error("V3 all-off periodic cycle produced nonzero MCS q");
-  }
-  if (acceptedAtrialCaptureIds.length !== 1 || acceptedVentricularCaptureIds.length !== 1 || deliveredCalciumDepositIds.length !== 2) {
-    throw new Error("V3 regular-sinus cycle event identity count differs");
-  }
-  const tolerance = MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.invariantTolerance;
-  if (maximumGlobalTotalBloodVolumeErrorMl > tolerance.globalTotalBloodVolumeErrorMl || maximumCoronaryBloodVolumeLedgerResidualMl > tolerance.coronaryBloodVolumeLedgerResidualMl || maximumDynamicMcsConservationResidualMlPerSec > tolerance.dynamicMcsConservationResidualMlPerSec) {
-    throw new Error("V3 periodic cycle exceeds conservation tolerance");
-  }
-  return deepFreeze$1({
-    startTimeSec,
-    endTimeSec,
-    acceptedStepCount,
-    terminalAcceptedState: accepted,
-    traceSamples,
-    coronaryAutoregulationWindow: completions[0],
-    acceptedAtrialCaptureIds,
-    acceptedVentricularCaptureIds,
-    deliveredCalciumDepositIds,
-    maximumGlobalTotalBloodVolumeErrorMl,
-    maximumCoronaryBloodVolumeLedgerResidualMl,
-    maximumDynamicMcsConservationResidualMlPerSec,
-    allRawValuesFinite,
-    oneComposedCalciumOwnerOnly,
-    allDynamicMcsAcceptedFlowsExactlyZero
-  });
-}
-function traceSample(cycleIndex, acceptedStepIndexWithinCycle, cycleStartTimeSec, cycleLengthSec, acceptedDtSec, stepped) {
-  const base2 = stepped.coronaryStep.baseStep;
-  const circulation = base2.circulationTrial;
-  const pressures = circulation.nodeAbsolutePressuresMmHg;
-  const volumes = circulation.candidateNodeVolumesMl;
-  const valves = circulation.valveEvaluations;
-  const hydraulics = base2.coronaryTrial.diagnostics.hydraulics;
-  const candidate = stepped.composedRhythmCandidate;
-  return deepFreeze$1({
-    cycleIndex,
-    acceptedStepIndexWithinCycle,
-    acceptedTimeSec: stepped.acceptedState.acceptedTimeSec,
-    cyclePhase01: (stepped.acceptedState.acceptedTimeSec - cycleStartTimeSec) / cycleLengthSec,
-    acceptedDtSec,
-    chamberVolumeMl: {
-      LA: volumes.LA,
-      LV: volumes.LV,
-      RA: volumes.RA,
-      RV: volumes.RV
-    },
-    absolutePressureMmHg: {
-      LA: pressures.LA,
-      LV: pressures.LV,
-      RA: pressures.RA,
-      RV: pressures.RV,
-      Ao: pressures.Ao,
-      PA: pressures.PA,
-      PVein: pressures.PVein
-    },
-    transmuralPressureMmHg: {
-      LV: base2.mechanicsTrial.transmuralPressuresMmHg.LV,
-      RV: base2.mechanicsTrial.transmuralPressuresMmHg.RV
-    },
-    valveFlowMlPerSec: {
-      MV: valves.MV.flowMlPerSec,
-      AoV: valves.AoV.flowMlPerSec,
-      TV: valves.TV.flowMlPerSec,
-      PV: valves.PV.flowMlPerSec
-    },
-    coronary: {
-      totalInletFlowMlPerSec: hydraulics.totalInletFlowMlPerSec,
-      ladSubendocardialQmFlowMlPerSec: hydraulics.layerQmInternalFlowMlPerSecByTerritory.LAD.subendocardial
-    },
-    freeCalciumUMByWall: stepped.calciumDrive.freeCalciumUMByWall,
-    dynamicMcsAcceptedFlowMlPerSec: stepped.acceptedState.dynamicMechanicalSupport.acceptedFlowMlPerSec,
-    acceptedEventIdentity: {
-      atrialCapturedActivationId: candidate.capturedAtrialActivation?.capturedActivationId ?? null,
-      ventricularCapturedActivationId: candidate.capturedVentricularActivation?.capturedActivationId ?? null,
-      deliveredCalciumDepositIds: candidate.deliveredCalciumDeposits.map(
-        (deposit) => deposit.depositId
-      ),
-      scheduledCalciumDepositIds: candidate.scheduledCalciumDeposits.map(
-        (deposit) => deposit.depositId
-      )
-    },
-    diagnostics: {
-      mechanicsResidualNorm: base2.mechanicsTrial.diagnostics.residualNorm,
-      circulationScaledResidualInfinityNorm: circulation.diagnostics.finalScaledResidualInfinityNorm,
-      maximumContinuityResidualMl: circulation.diagnostics.finalMaximumContinuityResidualMl,
-      totalBloodVolumeErrorMl: circulation.diagnostics.totalBloodVolumeErrorMl,
-      coronaryBloodVolumeLedgerResidualMl: base2.coronaryTrial.diagnostics.exactBloodVolumeLedgerResidualMl,
-      dynamicMcsConservationResidualMlPerSec: stepped.dynamicMechanicalSupportTrial.conservationResidualMlPerSec
-    }
-  });
-}
-function createAllOffZeroInertanceProfileV3() {
-  const zero = Object.freeze({
-    unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
-    pumpInternalMmHgSec2PerMl: 0,
-    drainageMmHgSec2PerMl: 0,
-    oxygenatorMmHgSec2PerMl: 0,
-    returnPathMmHgSec2PerMl: 0
-  });
-  return createDynamicMechanicalSupportInertanceProfileV1({
-    profileId: "periodic-v3-explicit-all-off-zero-inertance-profile",
-    profileBindingSha256: "0".repeat(64),
-    deviceProfileBindingByDevice: Object.freeze({
-      LVAD: allOffBinding("LVAD", "1"),
-      IMPELLA: allOffBinding("IMPELLA", "2"),
-      VA_ECMO: allOffBinding("VA_ECMO", "3"),
-      VV_ECMO: allOffBinding("VV_ECMO", "4")
-    }),
-    inertanceByDevice: Object.freeze({
-      LVAD: zero,
-      IMPELLA: zero,
-      VA_ECMO: zero,
-      VV_ECMO: zero
-    })
-  });
-}
-function allOffBinding(deviceId, digit) {
-  return createDynamicMechanicalSupportDeviceProfileBindingV1({
-    deviceId,
-    circuitProfileId: `periodic-v3-${deviceId.toLowerCase()}-all-off-zero-inertance`,
-    circuitProfileBindingSha256: digit.repeat(64)
-  });
-}
-function stepInput(fixture, candidateTimeSec) {
-  return Object.freeze({
-    candidateTimeSec,
-    coronary: fixture.coronaryStepInput,
-    rhythm: Object.freeze({
-      configuration: fixture.rhythm.configuration,
-      externalAfNextBoundaryTimeSec: null,
-      externalAtrialSourceBatch: null
-    }),
-    dynamicMechanicalSupport: fixture.dynamicMechanicalSupport
-  });
-}
-function createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(fixture) {
-  return Object.freeze({
-    provider: fixture.provider,
-    coronaryPrior: fixture.coronaryStepInput.coronaryPrior,
-    collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
-    impMechanism: fixture.coronaryStepInput.impMechanism,
-    shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
-    coronaryAutoregulationBinding: fixture.cold.acceptedState.coronary.coronaryAutoregulationBinding,
-    rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
-    dynamicMechanicalSupportProfile: fixture.profile,
-    dynamicMechanicalSupportConfig: fixture.config,
-    hemodynamicResearchInputs: fixture.hemodynamicResearchInputs
-  });
-}
-function assertPeriodicNominalDtSec(nominalDtSec) {
-  const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
-  if (!Number.isFinite(nominalDtSec) || nominalDtSec < policy.minimumNominalDtSec || nominalDtSec > policy.maximumNominalDtSec) {
-    throw new RangeError(
-      `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`
-    );
-  }
-}
-function assertAllOffConfig(config) {
-  if (config.lvad.enabled || config.impella.enabled || config.vaEcmo.enabled || config.vvEcmo.enabled || config.iabp.enabled) {
-    throw new Error("periodic V3 fixture requires all MCS devices disabled");
-  }
-}
-function assertAllOffAcceptedQ(state) {
-  if (!Object.values(state.dynamicMechanicalSupport.acceptedFlowMlPerSec).every(
-    (value) => value === 0
-  )) {
-    throw new Error("periodic V3 all-off accepted q must be exactly zero");
-  }
-}
-function rejectDuplicateIds(accepted, candidate, label) {
-  for (const id of candidate) {
-    if (accepted.has(id)) throw new Error(`duplicate V3 ${label} identity`);
-    accepted.add(id);
-  }
-}
-function allNumericLeavesFinite(value) {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (value === null || typeof value !== "object") return true;
-  return Object.values(value).every(
-    allNumericLeavesFinite
-  );
-}
-function nearlyEqual(left, right) {
-  return Math.abs(left - right) <= 64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
-}
-function deepFreeze$1(value) {
-  if (value !== null && typeof value === "object" && !ArrayBuffer.isView(value)) {
-    for (const child of Object.values(value)) {
-      deepFreeze$1(child);
-    }
-    Object.freeze(value);
-  }
-  return value;
 }
 async function createMainWireIntegratedModelRuntimeV3(hemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
   return createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
@@ -51397,7 +51400,12 @@ function standardExecutableBundleV1(host) {
     fixtureSchemaId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_FIXTURE_SCHEMA_ID_V1,
     validateCompleteFixture(input) {
       assertRuntimeContextV1(input.context);
-      validateAndOwnStandardFixtureV1(input.fixture);
+      const fixture = validateAndOwnStandardFixtureV1(input.fixture);
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+        fixture.hemodynamicResearchInputs,
+        1,
+        fixture.mechanismResearchInputs
+      );
       return void 0;
     },
     reduceControlAction(input) {

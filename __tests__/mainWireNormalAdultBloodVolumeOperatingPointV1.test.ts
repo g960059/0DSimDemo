@@ -190,5 +190,17 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
         targetMl,
       )).toThrow();
     }
+
+    const highToneRuntime = Object.freeze({
+      ...runtime,
+      vascular: Object.freeze({
+        ...runtime.vascular,
+        venousTone: 1,
+      }),
+    });
+    expect(() => resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
+      highToneRuntime,
+      7_000,
+    )).toThrow(/exceeds SV\/VC PV-law support/);
   });
 });
