@@ -208,6 +208,18 @@ import {
 import {
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+  exactOutputSelectionWithAnalysisV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_PRESENTATION_INTERVAL_SEC_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  requireMainWireCardiacCyclePresentationIntervalSecV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import type {
+  MainWireCardiacCycleDerivationV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
@@ -338,6 +350,14 @@ export const WorkbenchSession = ({
   const [presentationSampleStore] = React.useState(
     () => new WorkbenchScenarioPresentationSampleStoreV3(),
   );
+  const [cardiacCycleSampleStore] = React.useState(
+    () => new AcceptedScalarAnalysisWindowStoreV1({
+      expectedFrameIntervalSec:
+        MAIN_WIRE_CARDIAC_CYCLE_PRESENTATION_INTERVAL_SEC_V1,
+      requiredExactOutputIds:
+        MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    }),
+  );
   const [surface, setSurface] = React.useState<ExperimentSurfaceV2 | null>(
     null,
   );
@@ -424,6 +444,9 @@ export const WorkbenchSession = ({
   >(undefined);
   const periodicPvaDerivationRef = React.useRef<
     MainWirePeriodicPvaDerivationV1 | null
+  >(null);
+  const cardiacCycleDerivationRef = React.useRef<
+    MainWireCardiacCycleDerivationV1 | null
   >(null);
   const fixtureProjectionRef =
     React.useRef<ExactModelFixtureProjectionV1 | null>(null);
@@ -733,6 +756,13 @@ export const WorkbenchSession = ({
       workerReleaseTicketRef.current = composition.exactModel.workerReleaseTicket;
       fixtureProjectionRef.current = composition.exactModel.fixtureProjection;
       periodicPvaDerivationRef.current = composition.modelSurface.analysis.periodicPvaDerivation;
+      cardiacCycleDerivationRef.current =
+        composition.modelSurface.analysis.cardiacCycleDerivation;
+      if (cardiacCycleDerivationRef.current !== null) {
+        requireMainWireCardiacCyclePresentationIntervalSecV1(
+          composition.exactModel.workerReleaseTicket.manifest.runtime,
+        );
+      }
       surfaceSeriesIdRef.current = composition.modelSurface.identity.surfaceSeriesId;
       surfaceReleaseIdRef.current = composition.modelSurface.identity.surfaceReleaseId;
       const record =
@@ -878,6 +908,7 @@ export const WorkbenchSession = ({
       analysisCaptureReleaseRef.current?.resolve();
       analysisCaptureReleaseRef.current = null;
       presentationSampleStore.reset();
+      cardiacCycleSampleStore.reset();
 
       const runtimeSeeds: readonly WorkbenchParallelScenarioSeedV3[] =
         initialContent === undefined
@@ -901,15 +932,26 @@ export const WorkbenchSession = ({
         releaseTicket: composition.exactModel.workerReleaseTicket,
         backgroundWorkerPool,
         resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
-        presentationOutputIds: () =>
-          surfaceRef.current === null
-            ? Object.freeze([])
+        presentationOutputIds: () => {
+          const selected = surfaceRef.current === null
+            ? new Set<string>()
             : workbenchPresentationOutputSelectionV3(
                 composition.modelSurface.contract,
                 surfaceRef.current,
-              ),
+              );
+          const derivation = cardiacCycleDerivationRef.current;
+          return derivation === null
+            ? selected
+            : exactOutputSelectionWithAnalysisV1(
+                selected,
+                derivation.requiredExactOutputIds,
+              );
+        },
         onFrames: (frames) => {
           if (cancelled) return;
+          if (cardiacCycleDerivationRef.current !== null) {
+            cardiacCycleSampleStore.appendFrames(frames);
+          }
           appendFramesV3(
             frames,
             presentationSampleStore,
@@ -1012,6 +1054,9 @@ export const WorkbenchSession = ({
       latestFrameRef.current = initial;
       lastRootFrameTimeSecRef.current = initial.acceptedTimeSec;
       appendFramesV3(initialFrames, presentationSampleStore);
+      if (cardiacCycleDerivationRef.current !== null) {
+        cardiacCycleSampleStore.appendFrames(initialFrames);
+      }
       // Publish the runtime authority only after every lane is active. Toolbar
       // and visibility handlers must never observe an initializing pool.
       runtimeRef.current = runtime;
@@ -1042,6 +1087,7 @@ export const WorkbenchSession = ({
     };
   }, [
     backgroundWorkerPool,
+    cardiacCycleSampleStore,
     location.search,
     navigate,
     presentationSampleStore,
@@ -1453,9 +1499,13 @@ export const WorkbenchSession = ({
             )
           ) {
             presentationSampleStore.resetScenario(nextFrame.scenarioId);
+            cardiacCycleSampleStore.resetScenario(nextFrame.scenarioId);
           }
         }
         appendFramesV3(nextFrames, presentationSampleStore);
+        if (cardiacCycleDerivationRef.current !== null) {
+          cardiacCycleSampleStore.appendFrames(nextFrames);
+        }
         setStatus((current) =>
           current.kind === "live"
             ? { ...current, frame: nextRootFrame }
@@ -1520,6 +1570,7 @@ export const WorkbenchSession = ({
       }
     },
     [
+      cardiacCycleSampleStore,
       contract,
       markExperimentDirtyV3,
       presentationSampleStore,
@@ -1748,6 +1799,9 @@ export const WorkbenchSession = ({
       latestFrameRef.current = next.frame;
       lastRootFrameTimeSecRef.current = next.frame.acceptedTimeSec;
       appendFramesV3([next.frame], presentationSampleStore);
+      if (cardiacCycleDerivationRef.current !== null) {
+        cardiacCycleSampleStore.appendFrames([next.frame]);
+      }
       const retainedScenarioIds = new Set(
         next.scenarios.map(({ scenarioId }) => scenarioId),
       );
@@ -1790,7 +1844,12 @@ export const WorkbenchSession = ({
         current.kind === "live" ? { ...current, frame: next.frame } : current,
       );
     },
-    [contract, presentationSampleStore, replaceAnalysisByKeyV3],
+    [
+      cardiacCycleSampleStore,
+      contract,
+      presentationSampleStore,
+      replaceAnalysisByKeyV3,
+    ],
   );
 
   const runScenarioOperationV3 = React.useCallback(
@@ -1928,12 +1987,14 @@ export const WorkbenchSession = ({
             intent.sourceScenarioId,
             intent.scenarioId,
           );
+          cardiacCycleSampleStore.resetScenario(intent.scenarioId);
           markExperimentDirtyV3();
         },
       );
     },
     [
       markExperimentDirtyV3,
+      cardiacCycleSampleStore,
       presentationSampleStore,
       replaceAnalysisByKeyV3,
       runScenarioOperationV3,
@@ -1971,6 +2032,7 @@ export const WorkbenchSession = ({
             controlValuesByScenarioRef.current;
           controlValuesByScenarioRef.current = retained;
           presentationSampleStore.removeScenario(intent.scenarioId);
+          cardiacCycleSampleStore.removeScenario(intent.scenarioId);
           setAnalysisHistoryByKey((current) =>
             withoutWorkbenchScenarioAnalysisHistoryV3(
               current,
@@ -1983,6 +2045,7 @@ export const WorkbenchSession = ({
     },
     [
       markExperimentDirtyV3,
+      cardiacCycleSampleStore,
       presentationSampleStore,
       runScenarioOperationV3,
       updateSurface,
@@ -2829,8 +2892,15 @@ export const WorkbenchSession = ({
             "left",
             periodicPvaDerivationRef.current,
           );
+    const cardiacCycleMetrics =
+      scenarioId === null || cardiacCycleDerivationRef.current === null
+        ? undefined
+        : cardiacCycleDerivationRef.current.build(
+            cardiacCycleSampleStore.getScenarioSamples(scenarioId),
+          );
     return (
       <OutputPaneBodyV3
+        cardiacCycleMetrics={cardiacCycleMetrics}
         contract={contract}
         frame={frame}
         locale={resolvedLocale}

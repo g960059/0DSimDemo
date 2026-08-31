@@ -51,6 +51,16 @@ import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  type MainWireCardiacCycleMetricsV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
+import {
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import selectedAorticOutflowStandard66SurfaceV1 from
@@ -205,6 +215,7 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
       analysis: Object.freeze({
         capabilities: Object.freeze([]),
         periodicPvaDerivation: null,
+        cardiacCycleDerivation: null,
         resolveExecutionPlan: () => null,
       }),
     }),
@@ -370,6 +381,7 @@ function readerRuntimeStubV3(
       ...stateOverrides,
     }),
     sampleStore,
+    cardiacCycleSampleStore: null,
     fixtureProjection: Object.freeze({
       controlValue: () => Object.freeze({
         status: "value" as const,
@@ -377,6 +389,7 @@ function readerRuntimeStubV3(
       }),
     }),
     periodicPvaDerivation: null,
+    cardiacCycleDerivation: null,
     play: NOOP,
     pause: async () => undefined,
     setPlaybackRate: NOOP,
@@ -1058,6 +1071,58 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
   });
 
+  it("materializes cardiac-cycle analysis outputs without asking the exact frame for a derived ID", () => {
+    const outputId =
+      MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1.leftVentricularEjectionTimeMs;
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      outputs: [{
+        sourcePaneId: "pane/outputs",
+        outputId,
+        scenarioId: "scenario/comparison",
+        label: "LV ejection time (ET)",
+        order: 0,
+      }],
+    };
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      outputCatalog: [{
+        outputId,
+        kind: "metric",
+        unit: "ms",
+        shape: "scalar",
+        scope: "beat",
+        dependencies: MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+      }],
+    };
+    const metrics = availableCardiacCycleMetricsV3(outputId, 230);
+    const runtime: UseArticleReaderLiveRuntimeResultV3 = Object.freeze({
+      ...readerRuntimeStubV3(),
+      cardiacCycleSampleStore: new AcceptedScalarAnalysisWindowStoreV1({
+        expectedFrameIntervalSec: 0.002,
+        requiredExactOutputIds:
+          MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+      }),
+      cardiacCycleDerivation: Object.freeze({
+        methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+        requiredExactOutputIds:
+          MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+        build: () => metrics,
+      }),
+    });
+
+    const html = renderToStaticMarkup(
+      <ArticleReaderOutputsV3
+        briefing={briefing}
+        contract={contract}
+        runtime={runtime}
+      />,
+    );
+    expect(html).toContain("左室駆出時間 (ET)");
+    expect(html).toContain(">230.0<");
+    expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
+  });
+
   it("requests the shared settled relation analysis for output-only PVA briefings", () => {
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
@@ -1274,3 +1339,63 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain("<figure");
   });
 });
+
+function availableCardiacCycleMetricsV3(
+  outputId: string,
+  value: number,
+): MainWireCardiacCycleMetricsV1 {
+  const values = Object.fromEntries(
+    MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1.map((candidate) => [
+      candidate,
+      candidate === outputId ? value : null,
+    ]),
+  ) as Extract<
+    MainWireCardiacCycleMetricsV1,
+    { status: "available" }
+  >["values"];
+  return Object.freeze({
+    methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+    status: "available" as const,
+    source: Object.freeze({
+      inputEpoch: 0,
+      sourceAcceptedRevision: 1_000,
+      cycleStartTimeSec: 1,
+      cycleEndTimeSec: 2,
+      cycleDurationSec: 1,
+      acceptedSampleCount: 502,
+      analysisPointCount: 501,
+      cycleBoundary:
+        "regular-sinus-phase-wrap-linear-interpolation" as const,
+      timebase:
+        "every-exact-presentation-boundary-no-resampling" as const,
+    }),
+    aorticEjection: Object.freeze({
+      openingTimeSec: 1.1,
+      closureTimeSec: 1.33,
+      positiveFlowDurationSec: 0.23,
+      thresholdDurationSec: 0.226,
+      thresholdFractionOfPeakFlow: 0.01 as const,
+      peakFlowMlPerSec: 380,
+      forwardVolumeMl: 62,
+      piecewiseLinearFlowSquaredIntegralMl2PerSec: 19_600,
+      shapeFactor: 1.19,
+      additionalForwardEpisodeCount: 0,
+      outsideSelectedForwardVolumeFraction: 0,
+    }),
+    flowEvents: Object.freeze({
+      mitralClosureBeforeAorticOpeningTimeSec: 1,
+      mitralOpeningAfterAorticClosureTimeSec: 1.45,
+      isovolumicContractionTimeSec: 0.1,
+      isovolumicRelaxationTimeSec: 0.12,
+    }),
+    values: Object.freeze(values),
+    limitations: Object.freeze([
+      "model-flow-events-not-clinical-valve-clicks",
+      "vena-contracta-Bernoulli-is-model-station-not-measured-Doppler",
+      "windowed-pressure-rate-is-not-MR-jet-dP-dt",
+      "regular-sinus-phase-boundary-only",
+      "internal-accepted-substeps-not-observed-between-presentation-boundaries",
+      "not-clinical-validation",
+    ] as const),
+  });
+}

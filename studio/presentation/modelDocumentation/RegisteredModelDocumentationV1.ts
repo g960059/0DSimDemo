@@ -7,6 +7,8 @@ import {
 } from "@/studio/contracts/v2/modelSurface";
 import selectedAorticOutflowStandard66SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowStandard66SurfaceV2 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   kind: "main-wire-selected-aortic-outflow-standard66";
@@ -24,15 +26,19 @@ export type RegisteredModelDisclosureV1 = Readonly<{
     | "modelLimitations.standard66Items";
 }>;
 
-const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
-  kind: "main-wire-selected-aortic-outflow-standard66" as const,
-  modelId:
-    MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-  surfaceReleaseId:
-    selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId,
-  surfaceSeriesId:
-    selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
-});
+const STANDARD66_DOCUMENTATION_SURFACES_V1 = Object.freeze([
+  selectedAorticOutflowStandard66SurfaceV1,
+  selectedAorticOutflowStandard66SurfaceV2,
+]);
+const STANDARD66_DOCUMENTATION_IDENTITIES_V1 = Object.freeze(
+  STANDARD66_DOCUMENTATION_SURFACES_V1.map((surface) => Object.freeze({
+    kind: "main-wire-selected-aortic-outflow-standard66" as const,
+    modelId:
+      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+    surfaceReleaseId: surface.surfaceReleaseId,
+    surfaceSeriesId: surface.surfaceSeriesId,
+  })),
+);
 
 /**
  * Client-local availability registry for model documentation.
@@ -45,27 +51,28 @@ export function resolveRegisteredModelDocumentationV1(
   modelId: string | undefined,
   surfaceReleaseId: string | null | undefined,
 ): RegisteredModelDocumentationIdentityV1 | null {
+  const identity = STANDARD66_DOCUMENTATION_IDENTITIES_V1.find(
+    (candidate) =>
+      candidate.modelId === modelId
+      && candidate.surfaceReleaseId === surfaceReleaseId,
+  );
+  if (identity === undefined) return null;
+  const surface = STANDARD66_DOCUMENTATION_SURFACES_V1.find(
+    (candidate) => candidate.surfaceReleaseId === identity.surfaceReleaseId,
+  );
   if (
-    modelId !== STANDARD66_DOCUMENTATION_IDENTITY_V1.modelId
-    || surfaceReleaseId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
-  ) {
-    return null;
-  }
-
-  const surface = selectedAorticOutflowStandard66SurfaceV1;
-  if (
-    surface.schemaId !== STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID
+    surface === undefined
+    || surface.schemaId !== STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID
     || surface.modelFamilyId !== MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3
     || surface.surfaceReleaseId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
+      !== identity.surfaceReleaseId
     || surface.surfaceSeriesId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceSeriesId
+      !== identity.surfaceSeriesId
   ) {
     return null;
   }
 
-  return STANDARD66_DOCUMENTATION_IDENTITY_V1;
+  return identity;
 }
 
 /** One presentation resolver shared by Workbench and Article Reader. */

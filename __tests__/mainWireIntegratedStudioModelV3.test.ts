@@ -81,6 +81,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
@@ -594,10 +595,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelSurface: {
           identity: {
             surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2
                 .surfaceReleaseId,
             surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2
                 .surfaceSeriesId,
           },
         },
@@ -639,7 +640,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         composition.loadStudioExperimentClientCompositionV2(
           mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
             .modelId,
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2
             .surfaceSeriesId,
         ),
       ).resolves.toMatchObject({
@@ -651,10 +652,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelSurface: {
           identity: {
             surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2
                 .surfaceReleaseId,
             surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV2
                 .surfaceSeriesId,
           },
         },

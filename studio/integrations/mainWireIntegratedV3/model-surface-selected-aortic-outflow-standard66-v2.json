@@ -1,0 +1,1155 @@
+{
+  "schemaId": "circleheart-studio-model-surface-release-v1",
+  "surfaceReleaseId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v2",
+  "surfaceSeriesId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench",
+  "predecessorSurfaceReleaseId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v1",
+  "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+  "displayName": "Main Wire Standard 66",
+  "exposedExactOutputIds": [
+    "hemodynamics.volume.LA",
+    "hemodynamics.volume.LV",
+    "hemodynamics.volume.RA",
+    "hemodynamics.volume.RV",
+    "hemodynamics.pressure.absolute.LA",
+    "hemodynamics.pressure.absolute.LV",
+    "hemodynamics.pressure.absolute.RA",
+    "hemodynamics.pressure.absolute.RV",
+    "hemodynamics.pressure.transmural.LA",
+    "hemodynamics.pressure.transmural.LV",
+    "hemodynamics.pressure.transmural.RA",
+    "hemodynamics.pressure.transmural.RV",
+    "hemodynamics.pressure.absolute.SA",
+    "hemodynamics.pressure.absolute.PA",
+    "hemodynamics.pressure.absolute.PVein",
+    "hemodynamics.pressure.absolute.VC",
+    "hemodynamics.flow.valve.MV",
+    "hemodynamics.flow.valve.AoV",
+    "hemodynamics.flow.valve.TV",
+    "hemodynamics.flow.valve.PV",
+    "hemodynamics.flow.systemic.SA_Art",
+    "hemodynamics.flow.pulmonary.PA_PArt",
+    "hemodynamics.flow.venous.VC_RA",
+    "hemodynamics.flow.venous.PVein_LA",
+    "pericardium.pressure.excess",
+    "pericardium.volume.heart",
+    "pericardium.volume.fluid",
+    "pericardium.volume.total-occupied",
+    "pericardium.energy.stored",
+    "respiration.pressure.pleural",
+    "respiration.pressure.alveolar",
+    "rhythm.heart-rate.instantaneous",
+    "coronary.flow.total",
+    "coronary.flow.inlet.LAD",
+    "coronary.flow.inlet.LCx",
+    "coronary.flow.inlet.RCA",
+    "coronary.flow.venous-outlet",
+    "coronary.flow.large-arterial-outflow.LAD",
+    "coronary.flow.large-arterial-storage-rate.LAD",
+    "coronary.flow.large-arterial-outflow.LCx",
+    "coronary.flow.large-arterial-storage-rate.LCx",
+    "coronary.flow.large-arterial-outflow.RCA",
+    "coronary.flow.large-arterial-storage-rate.RCA",
+    "coronary.flow.layer-r1.LAD.subepicardial",
+    "coronary.flow.layer-qm-internal.LAD.subepicardial",
+    "coronary.flow.layer-r2.LAD.subepicardial",
+    "coronary.tone-resistance-scale.LAD.subepicardial",
+    "coronary.flow.layer-r1.LAD.subendocardial",
+    "coronary.flow.layer-qm-internal.LAD.subendocardial",
+    "coronary.flow.layer-r2.LAD.subendocardial",
+    "coronary.tone-resistance-scale.LAD.subendocardial",
+    "coronary.flow.layer-r1.LCx.subepicardial",
+    "coronary.flow.layer-qm-internal.LCx.subepicardial",
+    "coronary.flow.layer-r2.LCx.subepicardial",
+    "coronary.tone-resistance-scale.LCx.subepicardial",
+    "coronary.flow.layer-r1.LCx.subendocardial",
+    "coronary.flow.layer-qm-internal.LCx.subendocardial",
+    "coronary.flow.layer-r2.LCx.subendocardial",
+    "coronary.tone-resistance-scale.LCx.subendocardial",
+    "coronary.flow.layer-r1.RCA.subepicardial",
+    "coronary.flow.layer-qm-internal.RCA.subepicardial",
+    "coronary.flow.layer-r2.RCA.subepicardial",
+    "coronary.tone-resistance-scale.RCA.subepicardial",
+    "coronary.flow.layer-r1.RCA.subendocardial",
+    "coronary.flow.layer-qm-internal.RCA.subendocardial",
+    "coronary.flow.layer-r2.RCA.subendocardial",
+    "coronary.tone-resistance-scale.RCA.subendocardial",
+    "coronary.pressure.post-focal.LAD",
+    "coronary.pressure-loss.focal.LAD",
+    "coronary.pressure.post-focal.LCx",
+    "coronary.pressure-loss.focal.LCx",
+    "coronary.pressure.post-focal.RCA",
+    "coronary.pressure-loss.focal.RCA",
+    "coronary.power.dissipated.total",
+    "device.LVAD.flow",
+    "rhythm.phase.regular-sinus",
+    "hemodynamics.pressure.mean.SA",
+    "hemodynamics.pressure.systolic.SA",
+    "hemodynamics.pressure.diastolic.SA",
+    "hemodynamics.pressure.pulse.SA",
+    "hemodynamics.pressure.mean.PA",
+    "hemodynamics.pressure.systolic.PA",
+    "hemodynamics.pressure.diastolic.PA",
+    "hemodynamics.pressure.pulse.PA",
+    "hemodynamics.pressure.mean.PVein",
+    "hemodynamics.pressure.mean.VC",
+    "hemodynamics.pressure.mean.LA",
+    "hemodynamics.pressure.mean.RA",
+    "hemodynamics.pressure.systolic.LV",
+    "hemodynamics.pressure.systolic.RV",
+    "hemodynamics.pressure-gradient.mean.systemic-circuit",
+    "hemodynamics.pressure-gradient.mean.pulmonary-circuit",
+    "hemodynamics.volume.maximum.LV",
+    "hemodynamics.volume.minimum.LV",
+    "hemodynamics.stroke-volume.LV-extrema",
+    "hemodynamics.ejection-fraction.LV-extrema",
+    "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+    "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+    "hemodynamics.pressure.transmural.end-diastolic.LV-at-MV-closure",
+    "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+    "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+    "hemodynamics.pressure.transmural.end-systolic.LV-at-AoV-closure",
+    "hemodynamics.stroke-volume.LV-event-defined",
+    "hemodynamics.ejection-fraction.LV-event-defined",
+    "hemodynamics.volume.end-diastolic.RV-at-TV-closure",
+    "hemodynamics.pressure.absolute.end-diastolic.RV-at-TV-closure",
+    "hemodynamics.pressure.transmural.end-diastolic.RV-at-TV-closure",
+    "hemodynamics.volume.end-systolic.RV-at-PV-closure",
+    "hemodynamics.pressure.absolute.end-systolic.RV-at-PV-closure",
+    "hemodynamics.pressure.transmural.end-systolic.RV-at-PV-closure",
+    "hemodynamics.stroke-volume.RV-event-defined",
+    "hemodynamics.ejection-fraction.RV-event-defined",
+    "hemodynamics.valve-volume.forward.MV",
+    "hemodynamics.valve-volume.reverse.MV",
+    "hemodynamics.valve-volume.net.MV",
+    "hemodynamics.valve-regurgitant-fraction.same-valve.MV",
+    "hemodynamics.valve-volume.forward.AoV",
+    "hemodynamics.valve-volume.reverse.AoV",
+    "hemodynamics.valve-volume.net.AoV",
+    "hemodynamics.valve-regurgitant-fraction.same-valve.AoV",
+    "hemodynamics.valve-volume.forward.TV",
+    "hemodynamics.valve-volume.reverse.TV",
+    "hemodynamics.valve-volume.net.TV",
+    "hemodynamics.valve-regurgitant-fraction.same-valve.TV",
+    "hemodynamics.valve-volume.forward.PV",
+    "hemodynamics.valve-volume.reverse.PV",
+    "hemodynamics.valve-volume.net.PV",
+    "hemodynamics.valve-regurgitant-fraction.same-valve.PV",
+    "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.MV",
+    "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.MV",
+    "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.TV",
+    "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
+    "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
+    "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
+    "myocardium.work.external.RV-transmural-pressure-volume-path",
+    "myocardium.work.stroke.LV",
+    "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
+    "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
+    "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
+    "hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV",
+    "hemodynamics.output.native-left",
+    "hemodynamics.output.native-right",
+    "hemodynamics.output.effective-native-left",
+    "hemodynamics.output.effective-native-right",
+    "hemodynamics.return.systemic-venous",
+    "hemodynamics.return.pulmonary-venous",
+    "hemodynamics.output.systemic-tissue",
+    "hemodynamics.output.pulmonary",
+    "hemodynamics.resistance.systemic-effective",
+    "hemodynamics.resistance.pulmonary-effective",
+    "hemodynamics.compliance.pulmonary-arterial-effective",
+    "oxygen.pressure.alveolar",
+    "oxygen.pressure.arterial",
+    "oxygen.pressure.gradient.alveolar-arterial",
+    "oxygen.saturation.end-capillary",
+    "oxygen.saturation.arterial",
+    "oxygen.content.end-capillary",
+    "oxygen.content.arterial",
+    "oxygen.content.required-mixed-venous",
+    "oxygen.saturation.required-mixed-venous",
+    "oxygen.pressure.required-mixed-venous",
+    "oxygen.delivery.systemic",
+    "oxygen.consumption.target",
+    "oxygen.extraction-ratio.required",
+    "oxygen.delivery-to-consumption-ratio",
+    "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
+    "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV",
+    "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
+  ],
+  "controlCatalog": [
+    {
+      "controlId": "rhythm.heart-rate-bpm",
+      "preferredPresentation": "slider",
+      "requiredCapabilities": [
+        "control/rhythm.heart-rate-bpm"
+      ]
+    }
+  ],
+  "derivedOutputCatalog": [
+    {
+      "outputId": "hemodynamics.pressure-gradient.valve.mean-forward.local-hydraulic.AoV",
+      "kind": "metric",
+      "unit": "mmHg",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV",
+        "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.pressure-gradient.valve.local-hydraulic.AoV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-gradient.valve.mean-forward.vena-contracta-bernoulli.AoV",
+      "kind": "metric",
+      "unit": "mmHg",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV",
+        "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.duration.ejection.flow-positive.LV",
+      "kind": "metric",
+      "unit": "ms",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.duration.ejection.flow-threshold-1pct-peak.LV",
+      "kind": "metric",
+      "unit": "ms",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.duration.isovolumic-contraction.flow-event.LV",
+      "kind": "metric",
+      "unit": "ms",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV",
+        "hemodynamics.flow.valve.MV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.MV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.duration.isovolumic-relaxation.flow-event.LV",
+      "kind": "metric",
+      "unit": "ms",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV",
+        "hemodynamics.flow.valve.MV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.MV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.index.myocardial-performance.flow-event.LV",
+      "kind": "metric",
+      "unit": "1",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV",
+        "hemodynamics.flow.valve.MV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.MV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.flow-shape-factor.forward-ejection.AoV",
+      "kind": "metric",
+      "unit": "1",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.flow.valve.AoV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.flow.valve.AoV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-5ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-5ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-20ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-20ms.absolute.LV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.LV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.LV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-5ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-5ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-10ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-10ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.maximum-windowed-20ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    },
+    {
+      "outputId": "hemodynamics.pressure-rate.minimum-windowed-20ms.absolute.RV",
+      "kind": "metric",
+      "unit": "mmHg/s",
+      "significantDigits": 3,
+      "shape": "scalar",
+      "scope": "beat",
+      "dependencies": [
+        "rhythm.phase.regular-sinus",
+        "hemodynamics.pressure.absolute.RV"
+      ],
+      "derivationId": "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+      "requiredCapabilities": [
+        "derivation/main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+        "output/rhythm.phase.regular-sinus",
+        "output/hemodynamics.pressure.absolute.RV"
+      ]
+    }
+  ],
+  "graphCatalog": [
+    {
+      "graphId": "hemodynamics.pressure.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "AoP",
+          "outputId": "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "ABP",
+          "outputId": "hemodynamics.pressure.absolute.SA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVP",
+          "outputId": "hemodynamics.pressure.absolute.LV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAP",
+          "outputId": "hemodynamics.pressure.absolute.LA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RAP",
+          "outputId": "hemodynamics.pressure.absolute.RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RVP",
+          "outputId": "hemodynamics.pressure.absolute.RV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PAP",
+          "outputId": "hemodynamics.pressure.absolute.PA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVeinP",
+          "outputId": "hemodynamics.pressure.absolute.PVein"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VCP",
+          "outputId": "hemodynamics.pressure.absolute.VC"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Pperi",
+          "outputId": "pericardium.pressure.excess"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Ppl",
+          "outputId": "respiration.pressure.pleural"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Palv",
+          "outputId": "respiration.pressure.alveolar"
+        }
+      ],
+      "defaultSeriesIds": [
+        "AoP",
+        "LVP",
+        "LAP"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
+        "output/hemodynamics.pressure.absolute.SA",
+        "output/hemodynamics.pressure.absolute.LV",
+        "output/hemodynamics.pressure.absolute.LA",
+        "output/hemodynamics.pressure.absolute.RA",
+        "output/hemodynamics.pressure.absolute.RV",
+        "output/hemodynamics.pressure.absolute.PA",
+        "output/hemodynamics.pressure.absolute.PVein",
+        "output/hemodynamics.pressure.absolute.VC",
+        "output/pericardium.pressure.excess",
+        "output/respiration.pressure.pleural",
+        "output/respiration.pressure.alveolar"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.flow.waveform",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "MV",
+          "outputId": "hemodynamics.flow.valve.MV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoV",
+          "outputId": "hemodynamics.flow.valve.AoV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "TV",
+          "outputId": "hemodynamics.flow.valve.TV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PV",
+          "outputId": "hemodynamics.flow.valve.PV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Coronary",
+          "outputId": "coronary.flow.total"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAD",
+          "outputId": "coronary.flow.inlet.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCx",
+          "outputId": "coronary.flow.inlet.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCA",
+          "outputId": "coronary.flow.inlet.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVAD",
+          "outputId": "device.LVAD.flow"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "SA_Art",
+          "outputId": "hemodynamics.flow.systemic.SA_Art"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PA_PArt",
+          "outputId": "hemodynamics.flow.pulmonary.PA_PArt"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VC_RA",
+          "outputId": "hemodynamics.flow.venous.VC_RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVein_LA",
+          "outputId": "hemodynamics.flow.venous.PVein_LA"
+        }
+      ],
+      "defaultSeriesIds": [
+        "MV",
+        "AoV",
+        "TV",
+        "PV"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.flow.valve.MV",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.TV",
+        "output/hemodynamics.flow.valve.PV",
+        "output/coronary.flow.total",
+        "output/coronary.flow.inlet.LAD",
+        "output/coronary.flow.inlet.LCx",
+        "output/coronary.flow.inlet.RCA",
+        "output/device.LVAD.flow",
+        "output/hemodynamics.flow.systemic.SA_Art",
+        "output/hemodynamics.flow.pulmonary.PA_PArt",
+        "output/hemodynamics.flow.venous.VC_RA",
+        "output/hemodynamics.flow.venous.PVein_LA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.pressure.waveform.comprehensive-v1",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "AoP",
+          "outputId": "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "ABP",
+          "outputId": "hemodynamics.pressure.absolute.SA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVP",
+          "outputId": "hemodynamics.pressure.absolute.LV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAP",
+          "outputId": "hemodynamics.pressure.absolute.LA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RAP",
+          "outputId": "hemodynamics.pressure.absolute.RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RVP",
+          "outputId": "hemodynamics.pressure.absolute.RV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PAP",
+          "outputId": "hemodynamics.pressure.absolute.PA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVeinP",
+          "outputId": "hemodynamics.pressure.absolute.PVein"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VCP",
+          "outputId": "hemodynamics.pressure.absolute.VC"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Pperi",
+          "outputId": "pericardium.pressure.excess"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Ppl",
+          "outputId": "respiration.pressure.pleural"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Palv",
+          "outputId": "respiration.pressure.alveolar"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADPostP",
+          "outputId": "coronary.pressure.post-focal.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxPostP",
+          "outputId": "coronary.pressure.post-focal.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAPostP",
+          "outputId": "coronary.pressure.post-focal.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADLesionLoss",
+          "outputId": "coronary.pressure-loss.focal.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxLesionLoss",
+          "outputId": "coronary.pressure-loss.focal.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCALesionLoss",
+          "outputId": "coronary.pressure-loss.focal.RCA"
+        }
+      ],
+      "defaultSeriesIds": [
+        "AoP",
+        "LVP",
+        "LAP"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
+        "output/hemodynamics.pressure.absolute.SA",
+        "output/hemodynamics.pressure.absolute.LV",
+        "output/hemodynamics.pressure.absolute.LA",
+        "output/hemodynamics.pressure.absolute.RA",
+        "output/hemodynamics.pressure.absolute.RV",
+        "output/hemodynamics.pressure.absolute.PA",
+        "output/hemodynamics.pressure.absolute.PVein",
+        "output/hemodynamics.pressure.absolute.VC",
+        "output/pericardium.pressure.excess",
+        "output/respiration.pressure.pleural",
+        "output/respiration.pressure.alveolar",
+        "output/coronary.pressure.post-focal.LAD",
+        "output/coronary.pressure.post-focal.LCx",
+        "output/coronary.pressure.post-focal.RCA",
+        "output/coronary.pressure-loss.focal.LAD",
+        "output/coronary.pressure-loss.focal.LCx",
+        "output/coronary.pressure-loss.focal.RCA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.flow.waveform.comprehensive-v1",
+      "renderer": "sweep",
+      "seriesCatalog": [
+        {
+          "kind": "scalar",
+          "seriesId": "MV",
+          "outputId": "hemodynamics.flow.valve.MV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "AoV",
+          "outputId": "hemodynamics.flow.valve.AoV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "TV",
+          "outputId": "hemodynamics.flow.valve.TV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PV",
+          "outputId": "hemodynamics.flow.valve.PV"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "Coronary",
+          "outputId": "coronary.flow.total"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LAD",
+          "outputId": "coronary.flow.inlet.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCx",
+          "outputId": "coronary.flow.inlet.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCA",
+          "outputId": "coronary.flow.inlet.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "CoronaryVenous",
+          "outputId": "coronary.flow.venous-outlet"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.LAD"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR1Epi",
+          "outputId": "coronary.flow.layer-r1.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR2Epi",
+          "outputId": "coronary.flow.layer-r2.LAD.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR1Endo",
+          "outputId": "coronary.flow.layer-r1.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LADR2Endo",
+          "outputId": "coronary.flow.layer-r2.LAD.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.LCx"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR1Epi",
+          "outputId": "coronary.flow.layer-r1.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR2Epi",
+          "outputId": "coronary.flow.layer-r2.LCx.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR1Endo",
+          "outputId": "coronary.flow.layer-r1.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LCxR2Endo",
+          "outputId": "coronary.flow.layer-r2.LCx.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAArtOut",
+          "outputId": "coronary.flow.large-arterial-outflow.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAArtStorage",
+          "outputId": "coronary.flow.large-arterial-storage-rate.RCA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR1Epi",
+          "outputId": "coronary.flow.layer-r1.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAQmEpi",
+          "outputId": "coronary.flow.layer-qm-internal.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR2Epi",
+          "outputId": "coronary.flow.layer-r2.RCA.subepicardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR1Endo",
+          "outputId": "coronary.flow.layer-r1.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAQmEndo",
+          "outputId": "coronary.flow.layer-qm-internal.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "RCAR2Endo",
+          "outputId": "coronary.flow.layer-r2.RCA.subendocardial"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "LVAD",
+          "outputId": "device.LVAD.flow"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "SA_Art",
+          "outputId": "hemodynamics.flow.systemic.SA_Art"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PA_PArt",
+          "outputId": "hemodynamics.flow.pulmonary.PA_PArt"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "VC_RA",
+          "outputId": "hemodynamics.flow.venous.VC_RA"
+        },
+        {
+          "kind": "scalar",
+          "seriesId": "PVein_LA",
+          "outputId": "hemodynamics.flow.venous.PVein_LA"
+        }
+      ],
+      "defaultSeriesIds": [
+        "MV",
+        "AoV",
+        "TV",
+        "PV"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.flow.valve.MV",
+        "output/hemodynamics.flow.valve.AoV",
+        "output/hemodynamics.flow.valve.TV",
+        "output/hemodynamics.flow.valve.PV",
+        "output/coronary.flow.total",
+        "output/coronary.flow.inlet.LAD",
+        "output/coronary.flow.inlet.LCx",
+        "output/coronary.flow.inlet.RCA",
+        "output/coronary.flow.venous-outlet",
+        "output/coronary.flow.large-arterial-outflow.LAD",
+        "output/coronary.flow.large-arterial-storage-rate.LAD",
+        "output/coronary.flow.layer-r1.LAD.subepicardial",
+        "output/coronary.flow.layer-qm-internal.LAD.subepicardial",
+        "output/coronary.flow.layer-r2.LAD.subepicardial",
+        "output/coronary.flow.layer-r1.LAD.subendocardial",
+        "output/coronary.flow.layer-qm-internal.LAD.subendocardial",
+        "output/coronary.flow.layer-r2.LAD.subendocardial",
+        "output/coronary.flow.large-arterial-outflow.LCx",
+        "output/coronary.flow.large-arterial-storage-rate.LCx",
+        "output/coronary.flow.layer-r1.LCx.subepicardial",
+        "output/coronary.flow.layer-qm-internal.LCx.subepicardial",
+        "output/coronary.flow.layer-r2.LCx.subepicardial",
+        "output/coronary.flow.layer-r1.LCx.subendocardial",
+        "output/coronary.flow.layer-qm-internal.LCx.subendocardial",
+        "output/coronary.flow.layer-r2.LCx.subendocardial",
+        "output/coronary.flow.large-arterial-outflow.RCA",
+        "output/coronary.flow.large-arterial-storage-rate.RCA",
+        "output/coronary.flow.layer-r1.RCA.subepicardial",
+        "output/coronary.flow.layer-qm-internal.RCA.subepicardial",
+        "output/coronary.flow.layer-r2.RCA.subepicardial",
+        "output/coronary.flow.layer-r1.RCA.subendocardial",
+        "output/coronary.flow.layer-qm-internal.RCA.subendocardial",
+        "output/coronary.flow.layer-r2.RCA.subendocardial",
+        "output/device.LVAD.flow",
+        "output/hemodynamics.flow.systemic.SA_Art",
+        "output/hemodynamics.flow.pulmonary.PA_PArt",
+        "output/hemodynamics.flow.venous.VC_RA",
+        "output/hemodynamics.flow.venous.PVein_LA"
+      ]
+    },
+    {
+      "graphId": "hemodynamics.pressure-volume",
+      "renderer": "pressure-volume",
+      "seriesCatalog": [
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LV",
+          "volumeOutputId": "hemodynamics.volume.LV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RV",
+          "volumeOutputId": "hemodynamics.volume.RV",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RV",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "RA",
+          "volumeOutputId": "hemodynamics.volume.RA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.RA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        },
+        {
+          "kind": "pressure-volume",
+          "seriesId": "LA",
+          "volumeOutputId": "hemodynamics.volume.LA",
+          "pressureOutputId": "hemodynamics.pressure.transmural.LA",
+          "pressureBasis": "transmural",
+          "cyclePhaseOutputId": "rhythm.phase.regular-sinus"
+        }
+      ],
+      "defaultSeriesIds": [
+        "LV"
+      ],
+      "requiredCapabilities": [
+        "output/hemodynamics.volume.LV",
+        "output/hemodynamics.pressure.transmural.LV",
+        "output/hemodynamics.volume.RV",
+        "output/hemodynamics.pressure.transmural.RV",
+        "output/hemodynamics.volume.RA",
+        "output/hemodynamics.pressure.transmural.RA",
+        "output/hemodynamics.volume.LA",
+        "output/hemodynamics.pressure.transmural.LA",
+        "output/rhythm.phase.regular-sinus"
+      ]
+    }
+  ],
+  "knobCatalog": [],
+  "protocolCatalog": []
+}

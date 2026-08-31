@@ -16,6 +16,8 @@ import {
 import { modelDocumentationHref } from "@/homeLinks";
 import selectedAorticOutflowStandard66SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowStandard66SurfaceV2 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import {
   resolveMainWireStandard66DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
@@ -123,7 +125,45 @@ describe("model documentation V1", () => {
       rawPressureVolumeLoop: true,
       formalPressureVolumeAnalysisExposed: false,
       structuralReturnAnalysisExposed: false,
+      cardiacCycleAnalysis: null,
     });
+  });
+
+  it("keeps the same station documentation available for the additive analysis Surface", () => {
+    const identity = resolveRegisteredModelDocumentationV1(
+      MODEL_ID,
+      selectedAorticOutflowStandard66SurfaceV2.surfaceReleaseId,
+    );
+    expect(identity).toMatchObject({
+      surfaceReleaseId:
+        selectedAorticOutflowStandard66SurfaceV2.surfaceReleaseId,
+      surfaceSeriesId:
+        selectedAorticOutflowStandard66SurfaceV2.surfaceSeriesId,
+    });
+    expect(resolveMainWireStandard66DocumentationFactsV1(identity!)).toMatchObject({
+      surface: {
+        rawPressureVolumeLoop: true,
+        formalPressureVolumeAnalysisExposed: false,
+        structuralReturnAnalysisExposed: false,
+        cardiacCycleAnalysis: {
+          methodId:
+            "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+          exactPresentationIntervalMs: 2,
+        },
+      },
+    });
+    const facts = resolveMainWireStandard66DocumentationFactsV1(identity!);
+    const ja = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/ja"]}>
+        <MainWireStandard66DocumentationV1 facts={facts!} locale="ja" />
+      </MemoryRouter>,
+    );
+    expect(ja).toContain("心周期derived outputs");
+    expect(ja).toContain("内部accepted solver substep");
+    expect(ja).toContain("2 ms");
+    expect(ja).toContain(
+      "main-wire-regular-sinus-station-aware-flow-event-cardiac-cycle-v1",
+    );
   });
 
   it("renders the station, measurement, wave, raw-PV, restart, and validation boundaries in both locales", () => {

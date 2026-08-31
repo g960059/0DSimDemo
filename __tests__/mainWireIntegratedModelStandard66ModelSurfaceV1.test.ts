@@ -12,13 +12,22 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelStandard66OutputRegistryV1";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
+  assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import {
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
   createMainWireIntegratedStudioSelectedAorticOutflowKernelV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import selectedStandard66SurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedStandard66SurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
   resolveStudioItemPresentationV1,
@@ -179,6 +188,77 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     expect(composed.contract.controlCatalog).toHaveLength(1);
     expect(composed.contract.graphCatalog).toHaveLength(5);
     expect(composed.surface.derivedOutputCatalog).toEqual([]);
+  });
+
+  it("adds station-aware beat analysis in an additive V2 Surface without changing exact identity", () => {
+    assertModelSurfaceReleaseManifestV1(selectedStandard66SurfaceV1);
+    assertModelSurfaceReleaseManifestV1(selectedStandard66SurfaceV2);
+    assertAdditiveModelSurfaceUpgradeV1(
+      selectedStandard66SurfaceV1,
+      selectedStandard66SurfaceV2,
+    );
+    expect(selectedStandard66SurfaceV2).toMatchObject({
+      surfaceReleaseId:
+        "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v2",
+      predecessorSurfaceReleaseId:
+        selectedStandard66SurfaceV1.surfaceReleaseId,
+      surfaceSeriesId: selectedStandard66SurfaceV1.surfaceSeriesId,
+    });
+    expect(selectedStandard66SurfaceV2.exposedExactOutputIds).toEqual(
+      selectedStandard66SurfaceV1.exposedExactOutputIds,
+    );
+    expect(
+      selectedStandard66SurfaceV2.derivedOutputCatalog.map(
+        ({ outputId }) => outputId,
+      ),
+    ).toEqual(MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1);
+    expect(
+      new Set(selectedStandard66SurfaceV2.derivedOutputCatalog.map(
+        ({ derivationId }) => derivationId,
+      )),
+    ).toEqual(new Set([MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID]));
+
+    const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
+      selectedStandard66SurfaceV2,
+    );
+    expect(methods.periodicPvaDerivation).toBeNull();
+    expect(methods.cardiacCycleDerivation).toMatchObject({
+      methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+    });
+    const kernel =
+      createMainWireIntegratedStudioSelectedAorticOutflowKernelV1();
+    const exactOutputIds = new Set([
+      ...kernel.primitiveSignalCatalog,
+      ...kernel.modelMetricCatalog,
+    ].map(({ outputId }) => outputId));
+    for (const outputId of MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1) {
+      expect(exactOutputIds.has(outputId)).toBe(false);
+    }
+    const composed = composeStandardModelContractV1(
+      kernel,
+      selectedStandard66SurfaceV2,
+      methods.capabilities,
+    );
+    expect(composed.exactContract.outputCatalog).toHaveLength(176);
+    expect(composed.contract.outputCatalog).toHaveLength(188);
+    expect(composed.contract.outputCatalog.slice(-20).map(
+      ({ outputId }) => outputId,
+    )).toEqual(MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1);
+
+    for (const outputId of MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1) {
+      for (const locale of ["en", "ja"] as const) {
+        const presentation = resolveStudioItemPresentationV1({
+          kind: "output",
+          itemId: outputId,
+          fallbackEnglishLabel: outputId,
+          locale,
+          catalogFacts: { outputKind: "metric" },
+        });
+        expect(presentation.label).not.toBe(outputId);
+        expect(presentation.description.length).toBeGreaterThan(30);
+        expect(presentation.inlineDisclosure).toBe(true);
+      }
+    }
   });
 
   it("selects the existing ABP summary and familiar waveform defaults in Workbench", () => {

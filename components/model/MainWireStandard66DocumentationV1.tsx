@@ -90,6 +90,23 @@ const COPY = Object.freeze({
     hrTitle: "Heart rate",
     hrBody:
       "Heart rate変更はwarm perturbationではありません。新しいfixture epochを作り、accepted clockとtrajectoryを0から置き換えるatomic cold restartです。",
+    beatAnalysisTitle: "心周期derived outputs",
+    beatAnalysisLead:
+      "このSurface releaseでは、exact modelのstateやcheckpointを増やさず、直近の完結したregular-sinus cycleからanalysis layerがbeat指標を導出します。",
+    beatSourceTitle: "時間基準と心周期",
+    beatSourceBody:
+      "固定間隔のexact presentation境界をbucket化・平滑化せず保持し、regular-sinus phase wrap間を1心周期とします。presentation境界間の内部accepted solver substepは別frameとして観測しません。入力epoch、時刻格子、必須outputが連続しない場合は結果を利用不能にします。",
+    beatGradientTitle: "AV mean gradientとET",
+    beatGradientBody:
+      "主要なAoV前方流episodeを選び、positive-flow ETとpeak flow 1%閾値ETを併記します。local mPGはLV−AoP局所勾配の正成分、VC mPGはvena-contracta Bernoulli勾配を同じpositive-flow ETで時間平均します。別の前方流episodeが総前方volumeの1%を超える場合は曖昧として利用不能にします。",
+    beatTimingTitle: "ICT・IVRT・Tei-like",
+    beatTimingBody:
+      "MV前方流閉鎖からAoV前方流開始までをICT、AoV前方流終了からMV前方流開始までをIVRTとし、両者とpositive-flow ETからTei-like indexを求めます。model flow eventであり、Doppler、tissue Doppler、弁音の臨床計測手順を再現しません。",
+    beatRateTitle: "dP/dtとflow shape",
+    beatRateBody:
+      "LV/RV pressureについて5、10、20 ms固定窓のsecant slopeの最大・最小を報告します。瞬時微分でもMR/TR jet法でもありません。AV flow shape factorは同一ejection episodeの時間、前方volume、flow二乗積分から波形の集中度を表す無次元指標です。",
+    beatMethod: "Analysis method ID",
+    beatInterval: "Exact presentation interval",
     limitationTitle: "限界とvalidationの境界",
     limitationItems: Object.freeze([
       "0D集中定数モデルのため、局所3D flow、jet形状、壁面応力、空間的なwave propagationやreflectionを解像しません。",
@@ -179,6 +196,23 @@ const COPY = Object.freeze({
     hrTitle: "Heart rate",
     hrBody:
       "Changing heart rate is not a warm perturbation. It creates a new fixture epoch and atomically replaces the accepted clock and trajectory from zero.",
+    beatAnalysisTitle: "Cardiac-cycle derived outputs",
+    beatAnalysisLead:
+      "In this Surface release, the analysis layer derives beat metrics from the latest completed regular-sinus cycle without adding exact-model state or checkpoint fields.",
+    beatSourceTitle: "Timebase and cycle boundary",
+    beatSourceBody:
+      "Fixed-interval exact presentation boundaries are retained without bucketization or smoothing, and consecutive regular-sinus phase wraps define one cycle. Internal accepted solver substeps between presentation boundaries are not exposed as separate frames. A broken input epoch, time grid, or required output makes the result unavailable.",
+    beatGradientTitle: "AV mean gradients and ET",
+    beatGradientBody:
+      "The dominant forward AoV-flow episode supplies positive-flow ET and a secondary 1%-of-peak threshold ET. Local mPG averages the positive part of the LV−AoP local gradient, while VC mPG averages the vena-contracta Bernoulli gradient over the same positive-flow ET. A second episode exceeding 1% of total forward volume makes the beat ambiguous and unavailable.",
+    beatTimingTitle: "ICT, IVRT, and Tei-like index",
+    beatTimingBody:
+      "ICT spans model MV forward-flow closure to AoV forward-flow onset; IVRT spans AoV forward-flow cessation to MV forward-flow onset. They are combined with positive-flow ET as a Tei-like index. These model flow events do not reproduce Doppler, tissue-Doppler, or valve-sound protocols.",
+    beatRateTitle: "dP/dt and flow shape",
+    beatRateBody:
+      "LV and RV pressure report maximum and minimum fixed-window secant slopes at 5, 10, and 20 ms. They are neither instantaneous derivatives nor MR/TR-jet measurements. The AV flow-shape factor is a dimensionless concentration measure built from time, forward volume, and the flow-squared integral of the same ejection episode.",
+    beatMethod: "Analysis method ID",
+    beatInterval: "Exact presentation interval",
     limitationTitle: "Limitations and validation boundary",
     limitationItems: Object.freeze([
       "As a 0D lumped model, it does not resolve local three-dimensional flow, jet geometry, wall stress, spatial wave propagation, or reflection.",
@@ -351,6 +385,55 @@ export function MainWireStandard66DocumentationV1({
             />
           </div>
         </DocumentationSectionV1>
+
+        {facts.surface.cardiacCycleAnalysis !== null && (
+          <DocumentationSectionV1
+            icon={Activity}
+            title={text.beatAnalysisTitle}
+          >
+            <p className="max-w-3xl text-sm leading-7 text-wb-muted">
+              {text.beatAnalysisLead}
+            </p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <BoundaryCardV1
+                badge={text.surfaceBadge}
+                title={text.beatSourceTitle}
+                body={text.beatSourceBody}
+              />
+              <BoundaryCardV1
+                badge={text.surfaceBadge}
+                title={text.beatGradientTitle}
+                body={text.beatGradientBody}
+              />
+              <BoundaryCardV1
+                badge={text.surfaceBadge}
+                title={text.beatTimingTitle}
+                body={text.beatTimingBody}
+              />
+              <BoundaryCardV1
+                badge={text.surfaceBadge}
+                title={text.beatRateTitle}
+                body={text.beatRateBody}
+              />
+            </div>
+            <dl className="mt-4 rounded-xl border border-wb-line bg-wb-panel px-4 py-3">
+              <IdentityRowV1
+                label={text.beatMethod}
+                value={facts.surface.cardiacCycleAnalysis.methodId}
+              />
+              <div className="mt-3 border-t border-wb-line pt-3">
+                <IdentityRowV1
+                  label={text.beatInterval}
+                  value={`${number(
+                    facts.surface.cardiacCycleAnalysis
+                      .exactPresentationIntervalMs,
+                    3,
+                  )} ms`}
+                />
+              </div>
+            </dl>
+          </DocumentationSectionV1>
+        )}
 
         <DocumentationSectionV1 icon={ShieldAlert} title={text.limitationTitle}>
           <BulletListV1 items={text.limitationItems} />

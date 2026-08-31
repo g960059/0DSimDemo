@@ -20,6 +20,16 @@ import selectedAorticOutflowStandard66DescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import selectedAorticOutflowStandard66SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowStandard66SurfaceV2 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
+import {
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  requireMainWireCardiacCyclePresentationIntervalSecV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
 import type {
   RegisteredModelDocumentationIdentityV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
@@ -51,6 +61,10 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
     rawPressureVolumeLoop: true;
     formalPressureVolumeAnalysisExposed: false;
     structuralReturnAnalysisExposed: false;
+    cardiacCycleAnalysis: Readonly<{
+      methodId: typeof MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID;
+      exactPresentationIntervalMs: number;
+    }> | null;
   }>;
 }>;
 
@@ -74,8 +88,15 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     const manifest = (
       selectedAorticOutflowStandard66DescriptorV1.manifest
     ) as unknown as ExactModelKernelManifestV3;
+    const registeredSurface = [
+      selectedAorticOutflowStandard66SurfaceV1,
+      selectedAorticOutflowStandard66SurfaceV2,
+    ].find((candidate) =>
+      candidate.surfaceReleaseId === identity.surfaceReleaseId
+      && candidate.surfaceSeriesId === identity.surfaceSeriesId);
+    if (registeredSurface === undefined) return null;
     const surface = (
-      selectedAorticOutflowStandard66SurfaceV1
+      registeredSurface
     ) as unknown as ModelSurfaceReleaseManifestV1;
     assertExactModelKernelManifestV3(manifest);
     assertModelSurfaceReleaseManifestV1(surface);
@@ -216,17 +237,43 @@ export function resolveMainWireStandard66DocumentationFactsV1(
         (capability) => !capability.startsWith("analysis/"),
       ));
     const formalPressureVolumeAnalysisExposed =
-      surface.derivedOutputCatalog.length > 0
+      surface.derivedOutputCatalog.some(
+        ({ derivationId }) =>
+          derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+      )
       || surface.graphCatalog.some((graph) =>
-        graph.requiredCapabilities.some((capability) =>
+        graph.renderer === "pressure-volume"
+        && graph.requiredCapabilities.some((capability) =>
           capability.startsWith("analysis/")));
     const structuralReturnAnalysisExposed = surface.graphCatalog.some(
       (graph) => graph.renderer === "structural-return",
     );
+    const cardiacCycleOutputs = surface.derivedOutputCatalog.filter(
+      ({ derivationId }) =>
+        derivationId === MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+    );
+    const cardiacCycleAnalysis = cardiacCycleOutputs.length === 0
+      ? null
+      : new Set(cardiacCycleOutputs.map(({ outputId }) => outputId)).size
+          === MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1.length
+        && MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1.every((outputId) =>
+          cardiacCycleOutputs.some((output) =>
+            output.outputId === outputId
+            && output.scope === "beat"
+            && output.shape === "scalar"))
+        ? Object.freeze({
+            methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+            exactPresentationIntervalMs:
+              requireMainWireCardiacCyclePresentationIntervalSecV1(
+                manifest.runtime,
+              ) * 1_000,
+          })
+        : undefined;
     if (
       !rawPressureVolumeLoop
       || formalPressureVolumeAnalysisExposed
       || structuralReturnAnalysisExposed
+      || cardiacCycleAnalysis === undefined
     ) {
       return null;
     }
@@ -263,6 +310,7 @@ export function resolveMainWireStandard66DocumentationFactsV1(
         rawPressureVolumeLoop: true as const,
         formalPressureVolumeAnalysisExposed: false as const,
         structuralReturnAnalysisExposed: false as const,
+        cardiacCycleAnalysis,
       }),
     });
   } catch {

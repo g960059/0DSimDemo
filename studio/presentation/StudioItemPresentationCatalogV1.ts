@@ -7,6 +7,9 @@
  */
 
 import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
 
 export type StudioItemPresentationLocaleV1 = "en" | "ja";
 
@@ -59,6 +62,38 @@ type StudioItemPresentationDraftV1 = Readonly<{
 
 const textV1 = (en: string, ja: string): LocalizedTextV1 =>
   Object.freeze({ en, ja });
+
+const CARDIAC_PRESSURE_RATE_PRESENTATION_V1: Readonly<
+  Record<string, StudioItemPresentationDraftV1>
+> = Object.freeze(Object.fromEntries(
+  (["LV", "RV"] as const).flatMap((chamber) =>
+    ([5, 10, 20] as const).flatMap((windowMs) =>
+      (["maximum", "minimum"] as const).map((extremum) => {
+        const polarity = extremum === "maximum" ? "max" : "min";
+        const outputId =
+          `hemodynamics.pressure-rate.${extremum}-windowed-${windowMs}ms.absolute.${chamber}`;
+        return [outputId, Object.freeze({
+          category: "myocardium" as const,
+          inlineDisclosure: true as const,
+          label: textV1(
+            `${chamber} dP/dt ${polarity} (${windowMs} ms)`,
+            `${chamber} dP/dt ${polarity}（${windowMs} ms）`,
+          ),
+          description: textV1(
+            `${polarity === "max" ? "Maximum" : "Minimum"} ${windowMs}-ms fixed-window pressure slope over the latest completed regular-sinus cycle; this is not an instantaneous derivative or an MR/TR-jet dP/dt measurement`,
+            `直近の完結した洞調律1心拍における${windowMs} ms固定窓の圧変化率${polarity === "max" ? "最大" : "最小"}値。瞬時微分でもMR/TR jetからのdP/dt実測値でもない`,
+          ),
+          aliases: [
+            `${chamber} dP/dt`,
+            `${chamber} dpdt`,
+            `${windowMs} ms pressure slope`,
+            `${chamber}圧変化率`,
+          ],
+        })];
+      }),
+    ),
+  ),
+));
 
 const CONTROL_PRESENTATION_V1: Readonly<
   Record<string, StudioItemPresentationDraftV1>
@@ -262,6 +297,104 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "ベルヌーイ圧較差",
     ],
   },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1.aorticMeanLocalGradientMmHg]: {
+    category: "valves",
+    inlineDisclosure: true,
+    label: textV1(
+      "AV mean gradient (LV–AoP)",
+      "大動脈弁平均圧較差 (LV–AoP)",
+    ),
+    description: textV1(
+      "Time mean of the positive part of the modeled local LV − proximal AoP hydraulic gradient while AoV flow is positive; AoP includes local static-pressure recovery, and catheter or Doppler equivalence is not claimed",
+      "AoV前方流の持続中におけるモデル局所LV − 近位AoP水力学的圧較差の正成分の時間平均。AoPは局所静圧回復を反映し、カテーテル・Dopplerとの等価性は主張しない",
+    ),
+    aliases: ["AV mPG", "mean AV gradient", "平均大動脈弁圧較差"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1
+    .aorticMeanVenaContractaGradientMmHg]: {
+    category: "valves",
+    inlineDisclosure: true,
+    label: textV1("AV mean gradient (VC)", "大動脈弁平均圧較差 (VC)"),
+    description: textV1(
+      "Time mean of the model vena-contracta ideal-Bernoulli gradient while AoV flow is positive; it is a model station upstream of pressure recovery, not a measured Doppler gradient",
+      "AoV前方流の持続中におけるモデルvena contracta ideal-Bernoulli圧較差の時間平均。圧回復前のモデル位置であり、実測Doppler圧較差ではない",
+    ),
+    aliases: ["AV mPG VC", "mean Bernoulli gradient", "平均VC圧較差"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1.leftVentricularEjectionTimeMs]: {
+    category: "hemodynamics",
+    inlineDisclosure: true,
+    label: textV1("LV ejection time (ET)", "左室駆出時間 (ET)"),
+    description: textV1(
+      "Duration of the dominant positive model AoV-flow episode in the latest completed regular-sinus cycle; model flow events are not clinical valve clicks",
+      "直近の完結した洞調律1心拍における主要なモデルAoV前方流episodeの持続時間。モデルflow eventは臨床的な弁音時相そのものではない",
+    ),
+    aliases: ["ET", "LVET", "ejection time", "駆出時間"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1
+    .leftVentricularEjectionTimeThresholdMs]: {
+    category: "hemodynamics",
+    inlineDisclosure: true,
+    label: textV1(
+      "LV ejection time (ET, 1% peak)",
+      "左室駆出時間 (ET, peak 1%)",
+    ),
+    description: textV1(
+      "AoV-flow duration above 1% of that beat's peak forward flow; reported beside positive-flow ET as a threshold-sensitivity check",
+      "当該心拍のAoV最大前方流の1%を超える持続時間。閾値依存性を確認するためpositive-flow ETと併記する",
+    ),
+    aliases: ["threshold ET", "LVET 1%", "閾値駆出時間"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1
+    .leftVentricularIsovolumicContractionTimeMs]: {
+    category: "hemodynamics",
+    inlineDisclosure: true,
+    label: textV1(
+      "Isovolumic contraction time (ICT)",
+      "等容性収縮時間 (ICT)",
+    ),
+    description: textV1(
+      "Interval from model MV forward-flow closure to model AoV forward-flow opening in the latest completed regular-sinus cycle",
+      "直近の完結した洞調律1心拍におけるモデルMV前方流閉鎖からモデルAoV前方流開始までの時間",
+    ),
+    aliases: ["ICT", "IVCT", "isovolumic contraction", "等容性収縮時間"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1
+    .leftVentricularIsovolumicRelaxationTimeMs]: {
+    category: "hemodynamics",
+    inlineDisclosure: true,
+    label: textV1(
+      "Isovolumic relaxation time (IVRT)",
+      "等容性弛緩時間 (IVRT)",
+    ),
+    description: textV1(
+      "Interval from model AoV forward-flow closure to model MV forward-flow opening in the latest completed regular-sinus cycle",
+      "直近の完結した洞調律1心拍におけるモデルAoV前方流閉鎖からモデルMV前方流開始までの時間",
+    ),
+    aliases: ["IVRT", "IRT", "isovolumic relaxation", "等容性弛緩時間"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1
+    .leftVentricularMyocardialPerformanceIndex]: {
+    category: "myocardium",
+    inlineDisclosure: true,
+    label: textV1("LV Tei-like index", "左室Tei類似指数"),
+    description: textV1(
+      "Model-flow-event ratio (ICT + IVRT) / positive-flow ET; it is intentionally labeled Tei-like because no Doppler or tissue-Doppler measurement protocol is reproduced",
+      "モデルflow eventから求める (ICT + IVRT) / positive-flow ET。Doppler・組織Doppler計測手順を再現しないためTei類似指数と明示する",
+    ),
+    aliases: ["Tei", "MPI", "myocardial performance index", "Tei index"],
+  },
+  [MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1.aorticForwardFlowShapeFactor]: {
+    category: "valves",
+    inlineDisclosure: true,
+    label: textV1("AV flow shape factor", "大動脈弁flow shape factor"),
+    description: textV1(
+      "Dimensionless ET·∫Q²dt/SV² over the dominant positive AoV-flow episode; 1 is rectangular and larger values indicate a more peaked ejection waveform",
+      "主要なAoV前方流episodeで求める無次元量 ET·∫Q²dt/SV²。1は矩形波に相当し、大きいほど駆出波形が尖鋭である",
+    ),
+    aliases: ["flow shape", "ejection shape", "flow concentration", "駆出波形"],
+  },
+  ...CARDIAC_PRESSURE_RATE_PRESENTATION_V1,
   "hemodynamics.pressure.systolic.Ao": {
     category: "hemodynamics",
     label: textV1("Aortic pressure (AoP max)", "大動脈圧 (AoP max)"),

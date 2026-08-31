@@ -58,6 +58,15 @@ import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
   type MainWirePeriodicPvaDerivationV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+  type MainWireCardiacCycleMetricsV1,
+  type MainWireCardiacCycleOutputIdV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import type {
+  AcceptedScalarAnalysisWindowSnapshotV1,
+  AcceptedScalarAnalysisWindowStoreV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
 import type { StudioArticleExperimentBlockV2 } from "@/studio/contracts/v2/article";
 import type {
   ExperimentPlacementBriefingControlV2,
@@ -113,6 +122,15 @@ type ArticleReaderPresentationV3 = "inflow" | "peek" | "fullscreen";
 const ARTICLE_READER_PERIODIC_PVA_OUTPUT_ID_SET_V3 = new Set<string>(
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
 );
+const ARTICLE_READER_CARDIAC_CYCLE_OUTPUT_ID_SET_V3 = new Set<string>(
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+);
+const EMPTY_ACCEPTED_ANALYSIS_SNAPSHOT_V3 = Object.freeze(
+  Object.create(null),
+) as AcceptedScalarAnalysisWindowSnapshotV1;
+const EMPTY_ACCEPTED_ANALYSIS_SUBSCRIBE_V3 = (): (() => void) => () => {};
+const EMPTY_ACCEPTED_ANALYSIS_GET_SNAPSHOT_V3 = () =>
+  EMPTY_ACCEPTED_ANALYSIS_SNAPSHOT_V3;
 export type ArticleReaderExpandedPresentationV3 = Exclude<
   ArticleReaderPresentationV3,
   "inflow"
@@ -469,11 +487,19 @@ function ArticleReaderLiveOwnerV3({
     snapshot,
     contract,
   );
-  const presentationOutputIds = React.useMemo(
-    () =>
-      articleReaderPresentationOutputSelectionV3(contract, snapshot, briefing),
-    [briefing, contract, snapshot],
-  );
+  const presentationOutputIds = React.useMemo(() => {
+    const requested = articleReaderPresentationOutputSelectionV3(
+      contract,
+      snapshot,
+      briefing,
+    );
+    const exactOutputIds = new Set(
+      runtimeComposition?.modelSurface.catalog.exposedExactOutputIds ?? [],
+    );
+    return new Set(
+      [...requested].filter((outputId) => exactOutputIds.has(outputId)),
+    );
+  }, [briefing, contract, runtimeComposition, snapshot]);
   const runtime = useArticleReaderLiveRuntimeV3(
     snapshot,
     requiredArticleReaderRuntimeCompositionV3(runtimeComposition),
@@ -1543,6 +1569,24 @@ export function ArticleReaderOutputsV3({
     throw new Error("Article Reader outputs require a sample store");
   }
   const samples = useWorkbenchScenarioPresentationSamplesV3(ownedSampleStore);
+  const cardiacCycleSamples = useArticleReaderCardiacCycleSamplesV3(
+    runtime?.cardiacCycleSampleStore ?? null,
+  );
+  const cardiacCycleMetricsByScenario = React.useMemo(() => {
+    const derivation = runtime?.cardiacCycleDerivation;
+    if (derivation === undefined || derivation === null) {
+      return Object.freeze(Object.create(null)) as Readonly<
+        Record<string, MainWireCardiacCycleMetricsV1>
+      >;
+    }
+    return Object.freeze(Object.fromEntries(
+      [...new Set(briefing.outputs.map(({ scenarioId }) => scenarioId))]
+        .map((scenarioId) => [
+          scenarioId,
+          derivation.build(cardiacCycleSamples[scenarioId] ?? []),
+        ]),
+    )) as Readonly<Record<string, MainWireCardiacCycleMetricsV1>>;
+  }, [briefing.outputs, cardiacCycleSamples, runtime?.cardiacCycleDerivation]);
   const analysisScenarioIds = React.useMemo(
     () =>
       Object.freeze([
@@ -1622,7 +1666,13 @@ export function ArticleReaderOutputsV3({
             output.outputId,
           )
             ? articleReaderPeriodicPvaScalarV3(periodicPva, output.outputId)
-            : latest?.values[output.outputId];
+            : ARTICLE_READER_CARDIAC_CYCLE_OUTPUT_ID_SET_V3.has(
+                output.outputId,
+              )
+              ? cardiacCycleMetricsByScenario[output.scenarioId]?.values[
+                  output.outputId as MainWireCardiacCycleOutputIdV1
+                ] ?? null
+              : latest?.values[output.outputId];
           const scalar =
             typeof value === "number" && Number.isFinite(value) ? value : null;
           const presentation = resolveWorkbenchOutputPresentationV3({
@@ -1652,6 +1702,16 @@ export function ArticleReaderOutputsV3({
         })}
       />
     </section>
+  );
+}
+
+function useArticleReaderCardiacCycleSamplesV3(
+  store: AcceptedScalarAnalysisWindowStoreV1 | null,
+): AcceptedScalarAnalysisWindowSnapshotV1 {
+  return React.useSyncExternalStore(
+    store?.subscribe ?? EMPTY_ACCEPTED_ANALYSIS_SUBSCRIBE_V3,
+    store?.getSnapshot ?? EMPTY_ACCEPTED_ANALYSIS_GET_SNAPSHOT_V3,
+    store?.getSnapshot ?? EMPTY_ACCEPTED_ANALYSIS_GET_SNAPSHOT_V3,
   );
 }
 
@@ -2358,6 +2418,8 @@ function requiredArticleReaderRuntimeCompositionV3(
     StudioClientCompositionV2["modelSurface"]["analysis"]["resolveExecutionPlan"];
   periodicPvaDerivation:
     StudioClientCompositionV2["modelSurface"]["analysis"]["periodicPvaDerivation"];
+  cardiacCycleDerivation:
+    StudioClientCompositionV2["modelSurface"]["analysis"]["cardiacCycleDerivation"];
 }> {
   if (composition === null) {
     throw new Error(
@@ -2369,6 +2431,7 @@ function requiredArticleReaderRuntimeCompositionV3(
     fixtureProjection: composition.exactModel.fixtureProjection,
     resolveAnalysisExecutionPlan: composition.modelSurface.analysis.resolveExecutionPlan,
     periodicPvaDerivation: composition.modelSurface.analysis.periodicPvaDerivation,
+    cardiacCycleDerivation: composition.modelSurface.analysis.cardiacCycleDerivation,
   });
 }
 

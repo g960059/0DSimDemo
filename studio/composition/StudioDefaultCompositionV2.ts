@@ -45,6 +45,8 @@ import selectedAorticOutflowClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import selectedAorticOutflowSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowSurfaceReleaseV2 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import selectedAorticOutflowRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 
@@ -78,8 +80,10 @@ const browserSnapshotCompositionPromisesV2 = new Map<
 >();
 let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
-let browserLocalSelectedAorticOutflowCompositionPromiseV1:
-  Promise<StudioClientCompositionV2> | undefined;
+const browserLocalSelectedAorticOutflowCompositionPromisesV1 = new Map<
+  string,
+  Promise<StudioClientCompositionV2>
+>();
 
 /**
  * Development inventory refreshes must observe active-bundle and lifecycle
@@ -118,12 +122,17 @@ async function createRegistryClientCompositionV2(
     if (
       modelId === selectedAorticOutflowClientDescriptorV1.manifest.modelId
       && surfacePin !== undefined
-      && localSurfacePinMatchesV1(
-        selectedAorticOutflowSurfaceReleaseV1,
-        surfacePin,
-      )
     ) {
-      return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
+      const selectedSurface = [
+        selectedAorticOutflowSurfaceReleaseV2,
+        selectedAorticOutflowSurfaceReleaseV1,
+      ].find((surfaceRelease) =>
+        localSurfacePinMatchesV1(surfaceRelease, surfacePin));
+      if (selectedSurface !== undefined) {
+        return loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+          selectedSurface,
+        );
+      }
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -188,9 +197,19 @@ export const loadStudioLocalStandardModelLabClientCompositionV1 =
 /** Local default Workbench composition for the selected Standard66 release. */
 export function loadStudioLocalSelectedAorticOutflowClientCompositionV1():
 Promise<StudioClientCompositionV2> {
-  if (browserLocalSelectedAorticOutflowCompositionPromiseV1 !== undefined) {
-    return browserLocalSelectedAorticOutflowCompositionPromiseV1;
-  }
+  return loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+    selectedAorticOutflowSurfaceReleaseV2,
+  );
+}
+
+function loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+  surfaceRelease: unknown,
+): Promise<StudioClientCompositionV2> {
+  assertModelSurfaceReleaseManifestV1(surfaceRelease);
+  const cached = browserLocalSelectedAorticOutflowCompositionPromisesV1.get(
+    surfaceRelease.surfaceReleaseId,
+  );
+  if (cached !== undefined) return cached;
   const pending = Promise.resolve().then(() => {
     if (
       selectedAorticOutflowClientDescriptorV1.schemaId
@@ -203,16 +222,13 @@ Promise<StudioClientCompositionV2> {
     assertExactModelKernelManifestV3(
       selectedAorticOutflowClientDescriptorV1.manifest,
     );
-    assertModelSurfaceReleaseManifestV1(
-      selectedAorticOutflowSurfaceReleaseV1,
-    );
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: selectedAorticOutflowClientDescriptorV1.manifest.modelId,
       artifactRevisionId:
         selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
       manifest: selectedAorticOutflowClientDescriptorV1.manifest,
-      surfaceRelease: selectedAorticOutflowSurfaceReleaseV1,
+      surfaceRelease,
       moduleAbi: "circleheart-exact-model-esm-v1",
       artifactUrl: localSelectedAorticOutflowArtifactUrlV1(),
     });
@@ -223,10 +239,19 @@ Promise<StudioClientCompositionV2> {
       surfaceStage: "dev" as const,
     }));
   });
-  browserLocalSelectedAorticOutflowCompositionPromiseV1 = pending;
+  browserLocalSelectedAorticOutflowCompositionPromisesV1.set(
+    surfaceRelease.surfaceReleaseId,
+    pending,
+  );
   void pending.catch(() => {
-    if (browserLocalSelectedAorticOutflowCompositionPromiseV1 === pending) {
-      browserLocalSelectedAorticOutflowCompositionPromiseV1 = undefined;
+    if (
+      browserLocalSelectedAorticOutflowCompositionPromisesV1.get(
+        surfaceRelease.surfaceReleaseId,
+      ) === pending
+    ) {
+      browserLocalSelectedAorticOutflowCompositionPromisesV1.delete(
+        surfaceRelease.surfaceReleaseId,
+      );
     }
   });
   return pending;
