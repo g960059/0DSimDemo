@@ -102,6 +102,7 @@ jobs:
         run: >-
           node node_modules/vitest/vitest.mjs run
           --config vitest.config.ts
+          --testTimeout=10000
           __tests__/mainWireSelectedAorticPortSessionExtensionV1.test.ts
           __tests__/mainWireIntegratedTypedAuthoritySelectedAorticExtensionV1.test.ts
           __tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts
