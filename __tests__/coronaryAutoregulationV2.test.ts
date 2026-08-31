@@ -97,6 +97,32 @@ describe("territory-layer accepted coronary autoregulation V2", () => {
     }
   });
 
+  it("projects a saturated log-space step onto the exact resistance floor", () => {
+    const aggregate = Object.freeze({
+      meanTissueFlowMlPerSecByTerritoryLayer: layerRecord(() => 0),
+      meanPerfusionPressureMmHgByTerritory: pressure,
+      demandScaleByTerritoryLayer: unitCoronaryDemandScaleV2(),
+      hyperemia01ByTerritoryLayer: zeroCoronaryHyperemiaDriveV2(),
+      acceptedWindowDurationSec: 2_500,
+    });
+    const first = stepCoronaryAutoregulationByTerritoryLayerV2(
+      initialCoronaryToneStateV2(),
+      aggregate,
+    );
+    const floor = 4 / 45;
+    expect(first.nextToneResistanceScaleByTerritoryLayer.LAD.subendocardial)
+      .toBe(floor);
+    expect(first.layerStepByTerritoryLayer.LAD.subendocardial.boundedAt)
+      .toBe("minimum");
+
+    const second = stepCoronaryAutoregulationByTerritoryLayerV2(
+      first.nextToneResistanceScaleByTerritoryLayer,
+      aggregate,
+    );
+    expect(second.nextToneResistanceScaleByTerritoryLayer.LAD.subendocardial)
+      .toBe(floor);
+  });
+
   it("integrates a held supply deficit until the layer recruits more reserve", () => {
     const initial = initialCoronaryToneStateV2();
     const targetLikeFlow = layerRecord((territoryId, layerId) => {

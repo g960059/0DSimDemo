@@ -24432,15 +24432,27 @@ function integralHomeostaticStepV2(input, prior) {
     minLog,
     maxLog
   );
+  const targetLog = clamp(
+    previousLog + controlSignalLogPerTimeConstant,
+    minLog,
+    maxLog
+  );
   const tolerance = 1e-12;
   return Object.freeze({
-    nextResistanceScale: Math.exp(nextLog),
+    // exp(log(bound)) can round one ULP outside a non-power-of-two bound
+    // (notably 4/45). Re-project in the owned resistance domain so the
+    // controller cannot produce a value rejected by its own exact bounds.
+    nextResistanceScale: clamp(
+      Math.exp(nextLog),
+      prior.minimumResistanceScale,
+      prior.maximumResistanceScale
+    ),
     // One time-constant held-signal projection, used only as a diagnostic.
-    targetResistanceScale: Math.exp(clamp(
-      previousLog + controlSignalLogPerTimeConstant,
-      minLog,
-      maxLog
-    )),
+    targetResistanceScale: clamp(
+      Math.exp(targetLog),
+      prior.minimumResistanceScale,
+      prior.maximumResistanceScale
+    ),
     controlSignalLogPerTimeConstant,
     tone01: (nextLog - minLog) / (maxLog - minLog),
     relaxationFraction: normalizedDt,
@@ -31591,6 +31603,11 @@ deepFreeze$7({
     exactBetweenEvents: true,
     depositsAdditive: true,
     ventricularDepositDelay: "explicit-strictly-positive",
+    periodicSinusVentricularDepositClock: Object.freeze({
+      scope: "regular-sinus-av-output-without-authored-ectopy-pacing-or-pac",
+      boundary: "initial-accepted-time-plus-safe-ordinal-times-cycle",
+      canonicalization: "raw-deposit-within-64-eps-of-boundary-uses-that-exact-clock"
+    }),
     strength: "interval-owner-relative-strength-times-explicit-wall-strength",
     coherentAtrialClasses: Object.freeze(["sinus", "captured-PAC"]),
     coherentFlutterCalciumClaimed: false,
@@ -32106,7 +32123,8 @@ function evaluateAcceptedComposedRhythmTransactionCandidateV2(state, input) {
     provisionalRegularCandidate?.sourceImpulse ?? null,
     pacMetadata,
     capturedVentricularActivation,
-    ventricularIntervalStrengthCandidate
+    ventricularIntervalStrengthCandidate,
+    regularSinusCycleBoundaryLatticeV2(state)
   );
   const pendingProximalAvOutputs = sortedPendingProximal([
     ...state.pendingProximalAvOutputs.filter((item) => item.proximalArrivalTimeSec > candidateTimeSec),
@@ -32466,7 +32484,15 @@ function createPendingProximal(decision, capture) {
     proximalArrivalTimeSec: decision.proximalAvOutputTimeSec
   });
 }
-function scheduleCalciumDeposits(configuration, candidateTimeSec, atrial, dueRegularImpulse, pacMetadata, ventricular, intervalCandidate) {
+function regularSinusCycleBoundaryLatticeV2(state) {
+  const regular = state.regularAtrialSourceState;
+  if (regular === null || state.configuration.atrialSource.mode !== "regular" || regular.configuration.rhythmClass !== "sinus" || state.configuration.authoredEctopySchedule.eventCount !== 0 || state.configuration.authoredVentricularPacingReplay !== null || state.authoredVentricularPacingReplayState !== null || regular.capturedPacResetCount !== 0 || regular.capturedPacPreserveCount !== 0 || regular.initialAcceptedTimeSec !== state.initialAcceptedTimeSec) return null;
+  return Object.freeze({
+    originTimeSec: state.initialAcceptedTimeSec,
+    cycleLengthSec: regular.configuration.cycleLengthSec
+  });
+}
+function scheduleCalciumDeposits(configuration, candidateTimeSec, atrial, dueRegularImpulse, pacMetadata, ventricular, intervalCandidate, periodicSinusLattice) {
   const deposits = [];
   if (atrial !== null && dueRegularImpulse !== null && atrial.parentSourceImpulseId === dueRegularImpulse.sourceImpulseId && configuration.atrialSource.mode === "regular" && configuration.atrialSource.regularSourceConfiguration.rhythmClass === "sinus" && configuration.sinusAtrialCalciumDeposit !== null) {
     deposits.push(atrialDeposit("sinus-atrial", atrial, candidateTimeSec, configuration.sinusAtrialCalciumDeposit));
@@ -32477,10 +32503,19 @@ function scheduleCalciumDeposits(configuration, candidateTimeSec, atrial, dueReg
     if (intervalCandidate === null) throw new Error("captured ventricular activation requires interval-strength metadata");
     const relative = intervalCandidate.depositMetadata.futureExactCalciumDepositRelativeStrength;
     const profile = configuration.ventricularCalciumDeposit;
+    const rawDepositTimeSec = safeFutureTime(
+      candidateTimeSec,
+      profile.electricalToCalciumDelaySec,
+      "ventricular calcium deposit time"
+    );
     deposits.push(createPendingCalciumDeposit(
       "ventricular",
       ventricular,
-      safeFutureTime(candidateTimeSec, profile.electricalToCalciumDelaySec, "ventricular calcium deposit time"),
+      canonicalizePeriodicSinusVentricularDepositTimeV2(
+        ventricular,
+        rawDepositTimeSec,
+        periodicSinusLattice
+      ),
       { LA: 0, RA: 0, LVFW: profile.lvFreeWallBaseStrength * relative, SEP: profile.septalBaseStrength * relative, RVFW: profile.rvFreeWallBaseStrength * relative }
     ));
   }
@@ -32765,6 +32800,25 @@ function safeFutureTime(timeSec, durationSec, field) {
   const next = timeSec + durationSec;
   if (!Number.isFinite(next) || !(next > timeSec)) throw new Error(`${field} must be strictly future and finite`);
   return next;
+}
+function canonicalizePeriodicSinusVentricularDepositTimeV2(activation, rawDepositTimeSec, lattice) {
+  if (lattice === null || activation.sourceKind !== "av-output") {
+    return rawDepositTimeSec;
+  }
+  const ordinal = Math.round(
+    (rawDepositTimeSec - lattice.originTimeSec) / lattice.cycleLengthSec
+  );
+  if (!Number.isSafeInteger(ordinal)) return rawDepositTimeSec;
+  const canonicalTimeSec = lattice.originTimeSec + ordinal * lattice.cycleLengthSec;
+  if (!Number.isFinite(canonicalTimeSec) || !(canonicalTimeSec > activation.activationTimeSec)) return rawDepositTimeSec;
+  const tolerance = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(rawDepositTimeSec),
+    Math.abs(canonicalTimeSec),
+    Math.abs(lattice.originTimeSec),
+    Math.abs(lattice.cycleLengthSec)
+  );
+  return Math.abs(rawDepositTimeSec - canonicalTimeSec) <= tolerance ? canonicalTimeSec : rawDepositTimeSec;
 }
 function codeUnitCompare(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;

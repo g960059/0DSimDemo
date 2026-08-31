@@ -314,15 +314,27 @@ function integralHomeostaticStepV2(
     minLog,
     maxLog,
   );
+  const targetLog = clamp(
+    previousLog + controlSignalLogPerTimeConstant,
+    minLog,
+    maxLog,
+  );
   const tolerance = 1e-12;
   return Object.freeze({
-    nextResistanceScale: Math.exp(nextLog),
+    // exp(log(bound)) can round one ULP outside a non-power-of-two bound
+    // (notably 4/45). Re-project in the owned resistance domain so the
+    // controller cannot produce a value rejected by its own exact bounds.
+    nextResistanceScale: clamp(
+      Math.exp(nextLog),
+      prior.minimumResistanceScale,
+      prior.maximumResistanceScale,
+    ),
     // One time-constant held-signal projection, used only as a diagnostic.
-    targetResistanceScale: Math.exp(clamp(
-      previousLog + controlSignalLogPerTimeConstant,
-      minLog,
-      maxLog,
-    )),
+    targetResistanceScale: clamp(
+      Math.exp(targetLog),
+      prior.minimumResistanceScale,
+      prior.maximumResistanceScale,
+    ),
     controlSignalLogPerTimeConstant,
     tone01: (nextLog - minLog) / (maxLog - minLog),
     relaxationFraction: normalizedDt,
