@@ -39,6 +39,8 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   MainWireIntegratedTypedAuthoritySessionV1,
+  type MainWireAcceptedEndpointCommitForAnalysisV1,
+  type MainWireAcceptedEndpointProjectionAdvanceForAnalysisV1,
   type MainWireFlatModelOwnedProjectionAdvanceV1,
   type MainWireTypedExecutionPlanInitializationV1,
 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
@@ -57,6 +59,19 @@ export type MainWireIntegratedModelStandard66SelectedOutputProjectionAdvanceV1 =
     > | null;
     outputProjectionDurationMs: number;
   }>;
+
+export type MainWireIntegratedModelStandard66AcceptedEndpointProjectionV1 =
+  Readonly<{
+    commit: MainWireAcceptedEndpointCommitForAnalysisV1;
+    projectedValues: Readonly<
+      Record<string, MainWireIntegratedModelStandard66OutputValueV1>
+    >;
+  }>;
+
+export type MainWireIntegratedModelStandard66AcceptedEndpointProjectionAdvanceV1 =
+  MainWireAcceptedEndpointProjectionAdvanceForAnalysisV1<
+    MainWireIntegratedModelStandard66AcceptedEndpointProjectionV1
+  >;
 
 type RestoredStandard66V1 =
   RestoredMainWireIntegratedModelStandard66CheckpointV1<
@@ -288,6 +303,29 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
         baseProjection.outputProjectionDurationMs
         + (performance.now() - selectedProjectionStartedAt),
     });
+  }
+
+  /**
+   * Research/analysis projection of every accepted commit inside a requested
+   * boundary interval. This is deliberately separate from exact frames and
+   * the Model Surface: it adds no model output or persisted state identity.
+   */
+  advanceToPresentationTimeWithStandard66AcceptedEndpointProjectionForAnalysisV1(
+    targetTimeSec: number,
+    outputIds: readonly MainWireIntegratedModelStandard66OutputIdV1[],
+  ): MainWireIntegratedModelStandard66AcceptedEndpointProjectionAdvanceV1 {
+    // Reject an invalid selection before a numerical candidate can open.
+    partitionMainWireIntegratedModelStandard66OutputIdsV1(outputIds);
+    return super
+      .advanceToPresentationTimeWithAcceptedEndpointProjectionForAnalysisV1(
+        targetTimeSec,
+        (commit) => Object.freeze({
+          commit,
+          projectedValues: this.projectCurrentAcceptedStandard66ValuesV1(
+            outputIds,
+          ),
+        }),
+      );
   }
 
   /**

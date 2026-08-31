@@ -25,6 +25,9 @@ import {
   MainWireIntegratedModelBeatAccumulatorV3,
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import type {
+  CapturedElectricalActivationV2,
+} from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
 import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
@@ -229,6 +232,22 @@ export type MainWireFlatSelectedOutputProjectionAdvanceV1 = Readonly<{
   > | null;
   outputProjectionDurationMs: number;
 }>;
+
+/**
+ * Immutable provenance for one commit observed by an analysis-only Session
+ * collector. The collector is invoked only after the complete accepted
+ * transaction, including the Standard66 sidecar, has promoted successfully.
+ */
+export type MainWireAcceptedEndpointCommitForAnalysisV1 = Readonly<{
+  substep: MainWireIntegratedModelSubstepRecordV3;
+  capturedAtrialActivation: CapturedElectricalActivationV2 | null;
+}>;
+
+export type MainWireAcceptedEndpointProjectionAdvanceForAnalysisV1<T> =
+  Readonly<{
+    advance: MainWireFlatModelOwnedProjectionAdvanceV1;
+    acceptedEndpoints: readonly T[];
+  }>;
 
 type ExactBeatState = Readonly<{
   beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
@@ -960,6 +979,65 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   /**
+   * Analysis-only accepted-commit seam for selected subclasses.
+   *
+   * Unlike a presentation trace, this observes every accepted transaction
+   * commit, including rhythm- and coronary-window-clipped commits inside the
+   * requested interval. The callback receives immutable clocks/provenance
+   * only; a subclass may project registered scalar outputs at that exact
+   * accepted clock. No numerical mirror or candidate buffer escapes.
+   */
+  protected advanceToPresentationTimeWithAcceptedEndpointProjectionForAnalysisV1<
+    T,
+  >(
+    targetTimeSec: number,
+    projectAcceptedEndpoint: (
+      commit: MainWireAcceptedEndpointCommitForAnalysisV1,
+    ) => T,
+  ): MainWireAcceptedEndpointProjectionAdvanceForAnalysisV1<T> {
+    this.assertSessionUsableV1();
+    this.#executionPlanWorkspaceInstallationClosed = true;
+    if (typeof projectAcceptedEndpoint !== "function") {
+      throw new Error(
+        "Main Wire accepted-endpoint analysis projector must be a function",
+      );
+    }
+    const acceptedEndpoints: T[] = [];
+    const collect = (
+      commit: MainWireAcceptedEndpointCommitForAnalysisV1,
+    ): void => {
+      acceptedEndpoints.push(projectAcceptedEndpoint(commit));
+    };
+    const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
+      targetTimeSec,
+      Object.freeze([]),
+      collect,
+    );
+    if (direct !== null) {
+      return Object.freeze({
+        advance: direct.advance,
+        acceptedEndpoints: Object.freeze([...acceptedEndpoints]),
+      });
+    }
+    const result = this.advanceToPresentationTimeInternal(
+      targetTimeSec,
+      false,
+      collect,
+    );
+    let advance: MainWireFlatModelOwnedProjectionAdvanceV1;
+    if ("observation" in result) {
+      const { observation: _observation, ...withoutObservation } = result;
+      advance = Object.freeze(withoutObservation);
+    } else {
+      advance = result;
+    }
+    return Object.freeze({
+      advance,
+      acceptedEndpoints: Object.freeze([...acceptedEndpoints]),
+    });
+  }
+
+  /**
    * Adapter-free ordinary presentation step. Event and rollover boundaries
    * return null before a candidate opens so the existing public transaction
    * remains their independent authority during migration.
@@ -967,6 +1045,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   private tryAdvanceTypedOrdinaryProjectionV1(
     targetTimeSec: number,
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+    acceptedEndpointObserver?: (
+      commit: MainWireAcceptedEndpointCommitForAnalysisV1,
+    ) => void,
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 | null {
     if (
       this.#typedAuthority === null ||
@@ -1225,6 +1306,10 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
         rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
       }) satisfies MainWireIntegratedModelSubstepRecordV3;
+      acceptedEndpointObserver?.(Object.freeze({
+        substep,
+        capturedAtrialActivation: null,
+      }));
       const advance = Object.freeze({
         status: "advanced" as const,
         presentationTimeSec: targetTimeSec,
@@ -1280,6 +1365,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   private advanceToPresentationTimeInternal(
     targetTimeSec: number,
     detachObservation: boolean,
+    acceptedEndpointObserver?: (
+      commit: MainWireAcceptedEndpointCommitForAnalysisV1,
+    ) => void,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
     this.#acceptedState = this.#authority.current();
     this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(
@@ -1698,18 +1786,24 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       }
       this.#lastAcceptedStep = committedResult;
       substepCount += 1;
-      substeps.push(
-        Object.freeze({
-          acceptedRevision: committedState.revision,
-          acceptedTimeSec: committedState.acceptedTimeSec,
-          landedOnPresentationTarget:
-            committedState.acceptedTimeSec === targetTimeSec,
-          clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
-          clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
-          rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
-          rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
-        }),
-      );
+      const substep = Object.freeze({
+        acceptedRevision: committedState.revision,
+        acceptedTimeSec: committedState.acceptedTimeSec,
+        landedOnPresentationTarget:
+          committedState.acceptedTimeSec === targetTimeSec,
+        clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
+        clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
+        rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+        rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
+      }) satisfies MainWireIntegratedModelSubstepRecordV3;
+      substeps.push(substep);
+      acceptedEndpointObserver?.(Object.freeze({
+        substep,
+        capturedAtrialActivation:
+          cloneCapturedElectricalActivationForAnalysisV1(
+            result.composedRhythmCandidate.capturedAtrialActivation,
+          ),
+      }));
       } catch (error) {
         abortDirectCandidateIfOpen();
         if (hemodynamicAuthorityCommitted) {
@@ -2409,6 +2503,28 @@ function validateReferenceCheckpointV2(
     );
   }
   return candidate as MainWireFlatAuthoritativeReferenceCheckpointV2;
+}
+
+function cloneCapturedElectricalActivationForAnalysisV1(
+  activation: CapturedElectricalActivationV2 | null,
+): CapturedElectricalActivationV2 | null {
+  if (activation === null) return null;
+  return Object.freeze({
+    activationSchemaId: activation.activationSchemaId,
+    schemaVersion: activation.schemaVersion,
+    capturedActivationId: activation.capturedActivationId,
+    parentSourceImpulseId: activation.parentSourceImpulseId,
+    upstreamCapturedActivationId: activation.upstreamCapturedActivationId,
+    chamber: activation.chamber,
+    gateInstanceId: activation.gateInstanceId,
+    activationTimeSec: activation.activationTimeSec,
+    sourceKind: activation.sourceKind,
+    sourceId: activation.sourceId,
+    sourceSequence: activation.sourceSequence,
+    capturePriority: activation.capturePriority,
+    captureOrdinal: activation.captureOrdinal,
+    ownerRevision: activation.ownerRevision,
+  });
 }
 
 function coupledUnknownsFromAcceptedStateV1(
