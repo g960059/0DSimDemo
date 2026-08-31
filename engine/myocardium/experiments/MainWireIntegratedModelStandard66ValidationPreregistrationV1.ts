@@ -388,9 +388,13 @@ export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1 =
     extensionSec: 25,
     maximumHorizonSec: 250,
     evaluationHorizonsSec: Object.freeze([
-      48, 73, 98, 123, 148, 173, 198, 223, 248,
+      48, 73, 98, 123, 148, 173, 198, 223, 248, 250,
     ]),
+    evaluationHorizonPolicy:
+      "initial-horizon-then-fixed-extension-with-one-final-clamp-to-maximum",
     extensionMayNotCrossMaximumHorizon: true,
+    maximumHorizonEvaluationRequired: true,
+    terminalExtensionMayBeClippedToMaximumHorizon: true,
     classifier: "full-accepted-state-period-1",
     consecutiveP1ClosuresRequired: 3,
     failedClosureResetsConsecutiveCount: true,
