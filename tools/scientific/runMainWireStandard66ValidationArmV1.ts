@@ -30,6 +30,7 @@ export type MainWireStandard66ValidationArmCliArgumentsV1 = Readonly<{
   clockArmId: MainWireIntegratedModelStandard66ValidationClockArmIdV1;
   outputPath: string | null;
   boundedSmokeHorizonSec: number | null;
+  researchScreening: boolean;
   forceOverwrite: boolean;
 }>;
 
@@ -41,6 +42,7 @@ const CLI_VALUE_FLAGS_V1 = Object.freeze([
 ] as const);
 
 const CLI_FORCE_FLAG_V1 = "--force" as const;
+const CLI_RESEARCH_FLAG_V1 = "--research-screening" as const;
 
 /**
  * Runs exactly one authenticated validation-envelope coordinate. Scientific
@@ -54,7 +56,9 @@ export async function runMainWireStandard66ValidationArmCliV1(
   const envelopeCase = requireEnvelopeCaseV1(parsed.caseId);
   const executionPurpose =
     parsed.boundedSmokeHorizonSec === null
-      ? ("preregistered-validation" as const)
+      ? parsed.researchScreening
+        ? ("research-screening" as const)
+        : ("preregistered-validation" as const)
       : ("bounded-smoke" as const);
   const armResult = await runMainWireStandard66ValidationArmV1({
     clockArmId: parsed.clockArmId,
@@ -109,6 +113,7 @@ export function parseMainWireStandard66ValidationArmCliArgumentsV1(
 ): MainWireStandard66ValidationArmCliArgumentsV1 {
   const values = new Map<(typeof CLI_VALUE_FLAGS_V1)[number], string>();
   let forceOverwrite = false;
+  let researchScreening = false;
   for (let index = 0; index < args.length;) {
     const flag = args[index];
     if (flag === CLI_FORCE_FLAG_V1) {
@@ -116,6 +121,14 @@ export function parseMainWireStandard66ValidationArmCliArgumentsV1(
         throw new Error(`${CLI_FORCE_FLAG_V1} may be specified only once`);
       }
       forceOverwrite = true;
+      index += 1;
+      continue;
+    }
+    if (flag === CLI_RESEARCH_FLAG_V1) {
+      if (researchScreening) {
+        throw new Error(`${CLI_RESEARCH_FLAG_V1} may be specified only once`);
+      }
+      researchScreening = true;
       index += 1;
       continue;
     }
@@ -182,12 +195,18 @@ export function parseMainWireStandard66ValidationArmCliArgumentsV1(
       );
     }
   }
+  if (researchScreening && boundedSmokeHorizonSec !== null) {
+    throw new Error(
+      "--research-screening and --bounded-smoke-seconds are mutually exclusive",
+    );
+  }
 
   return Object.freeze({
     caseId: envelopeCase.caseId,
     clockArmId: arm.armId,
     outputPath,
     boundedSmokeHorizonSec,
+    researchScreening,
     forceOverwrite,
   });
 }
@@ -205,13 +224,16 @@ function requireEnvelopeCaseV1(caseId: EnvelopeCaseIdV1) {
 
 function resolveOutputPathV1(
   args: MainWireStandard66ValidationArmCliArgumentsV1,
-  executionPurpose: "preregistered-validation" | "bounded-smoke",
+  executionPurpose:
+    "preregistered-validation" | "research-screening" | "bounded-smoke",
 ): string {
   if (args.outputPath !== null) return path.resolve(args.outputPath);
   const lane =
     executionPurpose === "preregistered-validation"
       ? "preregistered"
-      : "bounded-smoke";
+      : executionPurpose === "research-screening"
+        ? "research-screening"
+        : "bounded-smoke";
   return path.resolve(
     MAIN_WIRE_STANDARD66_VALIDATION_ARTIFACT_ROOT_V1,
     lane,

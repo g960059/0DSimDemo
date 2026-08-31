@@ -72,7 +72,7 @@ export const MAIN_WIRE_STANDARD66_VALIDATION_ARM_CLAIM_V1 = Object.freeze({
 });
 
 export type MainWireStandard66ValidationArmExecutionPurposeV1 =
-  "preregistered-validation" | "bounded-smoke";
+  "preregistered-validation" | "research-screening" | "bounded-smoke";
 
 export type MainWireStandard66ValidationArmRunnerInputV1 = Readonly<{
   clockArmId: MainWireIntegratedModelStandard66ValidationClockArmIdV1;
@@ -112,7 +112,8 @@ export type MainWireStandard66ValidationArmProtocolIdentityV1 = Readonly<{
     maximumForwardEoaCm2: number;
   }>;
   outcomePolicy: Readonly<{
-    terminalOutcomesRequireSettlingStatus: "period1-settled";
+    terminalOutcomesRequireSettlingStatus:
+      "period1-settled" | "research-period1-candidate";
     terminalOutcomesRequireFreshConfirmationStatus: "period1-confirmed";
     boundedSmokeCanProduceTerminalOutcomes: false;
     partialTerminalOutcomesReturnedAfterAnalysisFailure: false;
@@ -223,6 +224,7 @@ export type MainWireStandard66ValidationArmResultV1 = Readonly<{
   executionPurpose: MainWireStandard66ValidationArmExecutionPurposeV1;
   status:
     | "terminal-analysis-complete"
+    | "research-screening-complete"
     | "bounded-smoke-complete"
     | "settling-not-established"
     | "settling-failed"
@@ -333,7 +335,10 @@ export async function runMainWireStandard66ValidationArmV1(
       exactConstruction,
       configuredAorticValveAreaBinding,
       outcomePolicy: Object.freeze({
-        terminalOutcomesRequireSettlingStatus: "period1-settled" as const,
+        terminalOutcomesRequireSettlingStatus:
+          executionPurpose === "research-screening"
+            ? ("research-period1-candidate" as const)
+            : ("period1-settled" as const),
         terminalOutcomesRequireFreshConfirmationStatus:
           "period1-confirmed" as const,
         boundedSmokeCanProduceTerminalOutcomes: false as const,
@@ -350,7 +355,9 @@ export async function runMainWireStandard66ValidationArmV1(
     executionPurpose:
       executionPurpose === "bounded-smoke"
         ? "bounded-smoke"
-        : "preregistered-settling",
+        : executionPurpose === "research-screening"
+          ? "research-eager"
+          : "preregistered-settling",
     boundedSmokeHorizonSec:
       executionPurpose === "bounded-smoke"
         ? input.boundedSmokeHorizonSec
@@ -393,7 +400,11 @@ export async function runMainWireStandard66ValidationArmV1(
       failure: null,
     });
   }
-  if (settled.status !== "period1-settled") {
+  const requiredSettlingStatus =
+    executionPurpose === "research-screening"
+      ? ("research-period1-candidate" as const)
+      : ("period1-settled" as const);
+  if (settled.status !== requiredSettlingStatus) {
     return closedResultV1(common, {
       status:
         settled.status === "failed"
@@ -462,10 +473,14 @@ export async function runMainWireStandard66ValidationArmV1(
       });
     return Object.freeze({
       ...common,
-      status: "terminal-analysis-complete" as const,
+      status:
+        executionPurpose === "research-screening"
+          ? ("research-screening-complete" as const)
+          : ("terminal-analysis-complete" as const),
       modeEligibility: Object.freeze({
         testOnlyBoundedSmoke: false,
-        eligibleForPreregisteredSingleArmMeasurement: true,
+        eligibleForPreregisteredSingleArmMeasurement:
+          executionPurpose === "preregistered-validation",
       }),
       confirmation,
       outcomes: Object.freeze({
@@ -491,6 +506,11 @@ export async function runMainWireStandard66ValidationArmV1(
 export function mainWireStandard66ValidationArmTimestepComparisonInputV1(
   result: MainWireStandard66ValidationArmResultV1,
 ): MainWireStandard66TimestepComparisonArmInputV1 {
+  if (result.executionPurpose === "research-screening") {
+    throw new Error(
+      "Standard66 research-screening arms are ineligible for timestep validation",
+    );
+  }
   const period1Settlement =
     result.settlement.status === "period1-settled" &&
     result.settlement.numericalPeriod1Established
@@ -644,7 +664,7 @@ function closedResultV1(
   closed: Readonly<{
     status: Exclude<
       MainWireStandard66ValidationArmResultV1["status"],
-      "terminal-analysis-complete"
+      "terminal-analysis-complete" | "research-screening-complete"
     >;
     confirmation: MainWireStandard66ValidationArmConfirmationSummaryV1 | null;
     failure: MainWireStandard66ValidationArmFailureV1 | null;
@@ -667,13 +687,17 @@ function ownExecutionPurposeV1(
   input: MainWireStandard66ValidationArmRunnerInputV1,
 ): MainWireStandard66ValidationArmExecutionPurposeV1 {
   const purpose = input.executionPurpose ?? "preregistered-validation";
-  if (purpose !== "preregistered-validation" && purpose !== "bounded-smoke") {
+  if (
+    purpose !== "preregistered-validation" &&
+    purpose !== "research-screening" &&
+    purpose !== "bounded-smoke"
+  ) {
     throw new Error("Standard66 validation-arm execution purpose is invalid");
   }
-  if (purpose === "preregistered-validation") {
+  if (purpose !== "bounded-smoke") {
     if (input.boundedSmokeHorizonSec !== undefined) {
       throw new Error(
-        "Standard66 preregistered validation arm cannot override settling horizons",
+        "Standard66 validation or research arm cannot override settling horizons",
       );
     }
   } else if (

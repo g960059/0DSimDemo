@@ -31,6 +31,7 @@ import {
 } from "@/engine/integrity";
 import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_GEOMETRY_PROFILE_STAGE_IDS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_GEOMETRY_PROFILE_V1,
@@ -305,6 +306,7 @@ async function assertIntegratedArmResultV1(
   ) {
     throw new Error("Standard66 validation arm identity is invalid");
   }
+  assertKnownArmExecutionPurposeV1(result.executionPurpose);
   for (const [label, hash, value] of [
     ["arm protocol", result.protocolIdentityHash, result.protocolIdentity],
     [
@@ -452,34 +454,196 @@ function assertConfiguredAorticAreaBindingV1(
 function assertArmOutcomeStateV1(
   result: MainWireStandard66ValidationArmResultV1,
 ): void {
-  const terminalComplete = result.status === "terminal-analysis-complete";
+  const purpose = result.executionPurpose;
+  const expectedSettlingPurpose =
+    purpose === "preregistered-validation"
+      ? "preregistered-settling"
+      : purpose === "research-screening"
+        ? "research-eager"
+        : "bounded-smoke";
+  if (result.settlement.executionPurpose !== expectedSettlingPurpose) {
+    throw new Error(
+      "Standard66 validation arm and settling execution purposes are inconsistent",
+    );
+  }
+  const expectedOutcomePolicy = Object.freeze({
+    terminalOutcomesRequireSettlingStatus:
+      purpose === "research-screening"
+        ? ("research-period1-candidate" as const)
+        : ("period1-settled" as const),
+    terminalOutcomesRequireFreshConfirmationStatus:
+      "period1-confirmed" as const,
+    boundedSmokeCanProduceTerminalOutcomes: false as const,
+    partialTerminalOutcomesReturnedAfterAnalysisFailure: false as const,
+  });
   if (
-    terminalComplete !== (result.outcomes !== null) ||
+    canonicalJsonStringify(result.protocolIdentity.outcomePolicy) !==
+    canonicalJsonStringify(expectedOutcomePolicy)
+  ) {
+    throw new Error("Standard66 validation outcome policy is inconsistent");
+  }
+
+  const terminalComplete = result.status === "terminal-analysis-complete";
+  const researchComplete = result.status === "research-screening-complete";
+  const terminalOutcomesComplete = terminalComplete || researchComplete;
+  const outcomesAvailable = result.outcomes !== null;
+  if (
     terminalComplete !==
-      result.modeEligibility.eligibleForPreregisteredSingleArmMeasurement ||
-    result.modeEligibility.testOnlyBoundedSmoke !==
-      (result.executionPurpose === "bounded-smoke")
+      (purpose === "preregistered-validation" && outcomesAvailable) ||
+    researchComplete !==
+      (purpose === "research-screening" && outcomesAvailable) ||
+    terminalOutcomesComplete !== outcomesAvailable
   ) {
     throw new Error(
       "Standard66 validation arm outcome availability is inconsistent",
     );
   }
+  const allowedStatuses: readonly MainWireStandard66ValidationArmResultV1["status"][] =
+    purpose === "bounded-smoke"
+      ? ["bounded-smoke-complete", "settling-failed"]
+      : purpose === "preregistered-validation"
+        ? [
+            "terminal-analysis-complete",
+            "settling-not-established",
+            "settling-failed",
+            "confirmation-not-established",
+            "confirmation-failed",
+            "terminal-analysis-failed",
+          ]
+        : [
+            "research-screening-complete",
+            "settling-not-established",
+            "settling-failed",
+            "confirmation-not-established",
+            "confirmation-failed",
+            "terminal-analysis-failed",
+          ];
+  if (!allowedStatuses.includes(result.status)) {
+    throw new Error(
+      "Standard66 validation arm purpose and status are inconsistent",
+    );
+  }
+  const expectedModeEligibility = Object.freeze({
+    testOnlyBoundedSmoke: purpose === "bounded-smoke",
+    eligibleForPreregisteredSingleArmMeasurement:
+      purpose === "preregistered-validation" && terminalComplete,
+  });
+  if (
+    canonicalJsonStringify(result.modeEligibility) !==
+    canonicalJsonStringify(expectedModeEligibility)
+  ) {
+    throw new Error(
+      "Standard66 validation arm mode eligibility is inconsistent",
+    );
+  }
   if (
     result.executionPurpose === "bounded-smoke" &&
-    (result.status !== "bounded-smoke-complete" ||
-      result.confirmation !== null ||
-      result.outcomes !== null)
+    (result.confirmation !== null || result.outcomes !== null)
   ) {
     throw new Error("Standard66 bounded-smoke arm overclaims an outcome");
   }
   const settled =
-    result.settlement.status === "period1-settled" &&
-    result.settlement.numericalPeriod1Established;
+    purpose === "research-screening"
+      ? result.settlement.status === "research-period1-candidate" &&
+        !result.settlement.numericalPeriod1Established
+      : result.settlement.status === "period1-settled" &&
+        result.settlement.numericalPeriod1Established;
   const confirmed =
     result.confirmation?.status === "period1-confirmed" &&
     result.confirmation.numericalPeriod1Confirmed;
-  if (terminalComplete && (!settled || !confirmed)) {
+  if (
+    terminalOutcomesComplete &&
+    (!settled || !confirmed || result.failure !== null)
+  ) {
     throw new Error("Standard66 terminal outcomes lack settled confirmation");
+  }
+  if (terminalOutcomesComplete) {
+    const requiredClosures =
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired;
+    const period1Tolerance =
+      MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance;
+    const latest = result.settlement.latestPeriod1Observation;
+    if (
+      result.settlement.failure !== null ||
+      latest === null ||
+      !latest.withinTolerance ||
+      latest.maximumNormalizedDelta < 0 ||
+      latest.maximumNormalizedDelta > period1Tolerance ||
+      (researchComplete
+        ? latest.consecutiveClosures !== requiredClosures
+        : latest.consecutiveClosures < requiredClosures)
+    ) {
+      throw new Error(
+        "Standard66 terminal outcomes lack a passing settling suffix",
+      );
+    }
+    const fresh = result.confirmation?.freshSuffix;
+    const freshObservations = fresh?.observations;
+    const finalFreshObservation = Array.isArray(freshObservations)
+      ? freshObservations.at(-1)
+      : undefined;
+    if (
+      result.confirmation === null ||
+      result.confirmation.failure !== null ||
+      fresh === undefined ||
+      fresh.requiredConsecutivePeriod1Closures !== requiredClosures ||
+      fresh.comparisonCount < requiredClosures ||
+      fresh.consecutivePeriod1Closures !== requiredClosures ||
+      fresh.failedClosureResetsConsecutiveCount !== true ||
+      !Array.isArray(freshObservations) ||
+      freshObservations.length !== requiredClosures ||
+      freshObservations.some(
+        (observation, index) =>
+          !observation.withinPeriod1Tolerance ||
+          observation.period1MaximumNormalizedDelta < 0 ||
+          observation.period1MaximumNormalizedDelta > period1Tolerance ||
+          observation.consecutivePeriod1Closures !== index + 1,
+      ) ||
+      finalFreshObservation === undefined ||
+      finalFreshObservation.acceptedTimeSec !==
+        result.confirmation.terminalAcceptedTimeSec ||
+      finalFreshObservation.acceptedRevision !==
+        result.confirmation.terminalAcceptedRevision
+    ) {
+      throw new Error(
+        "Standard66 terminal outcomes lack an exact fresh confirmation suffix",
+      );
+    }
+    const settlementTerminal = result.confirmation.settlementTerminal;
+    const firstReferenceIsSettlementTerminal =
+      fresh.firstReferenceBoundaryTimeSec ===
+        result.settlement.terminalAcceptedTimeSec &&
+      fresh.firstReferenceBoundaryRevision ===
+        result.settlement.terminalAcceptedRevision;
+    const firstReferenceFollowsSettlementTerminal =
+      typeof fresh.firstReferenceBoundaryTimeSec === "number" &&
+      typeof fresh.firstReferenceBoundaryRevision === "number" &&
+      fresh.firstReferenceBoundaryTimeSec >
+        result.settlement.terminalAcceptedTimeSec &&
+      fresh.firstReferenceBoundaryRevision >
+        result.settlement.terminalAcceptedRevision;
+    if (
+      (settlementTerminal.wasExactCoronaryWindowBoundary &&
+        !firstReferenceIsSettlementTerminal) ||
+      (!settlementTerminal.wasExactCoronaryWindowBoundary &&
+        !firstReferenceFollowsSettlementTerminal)
+    ) {
+      throw new Error(
+        "Standard66 fresh confirmation reference does not follow settlement",
+      );
+    }
+    if (
+      researchComplete &&
+      (latest.acceptedTimeSec !== result.settlement.terminalAcceptedTimeSec ||
+        latest.acceptedRevision !==
+          result.settlement.terminalAcceptedRevision ||
+        result.confirmation.settlementTerminal
+          .wasExactCoronaryWindowBoundary !== true)
+    ) {
+      throw new Error(
+        "Standard66 research outcome is not anchored at its candidate boundary",
+      );
+    }
   }
   if (
     result.confirmation !== null &&
@@ -514,6 +678,18 @@ function assertArmOutcomeStateV1(
         "Standard66 terminal outcome identities are inconsistent",
       );
     }
+  }
+}
+
+function assertKnownArmExecutionPurposeV1(
+  value: unknown,
+): asserts value is MainWireStandard66ValidationArmResultV1["executionPurpose"] {
+  if (
+    value !== "preregistered-validation" &&
+    value !== "research-screening" &&
+    value !== "bounded-smoke"
+  ) {
+    throw new Error("Standard66 validation arm execution purpose is invalid");
   }
 }
 

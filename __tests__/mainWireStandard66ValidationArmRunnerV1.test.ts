@@ -138,5 +138,12 @@ describe("Standard66 integrated single-arm validation runner V1", () => {
         boundedSmokeHorizonSec: 0.01,
       }),
     ).rejects.toThrow(/cannot override settling horizons/);
+    await expect(
+      runMainWireStandard66ValidationArmV1({
+        clockArmId: "dt-2ms-production",
+        executionPurpose: "research-screening",
+        boundedSmokeHorizonSec: 0.01,
+      }),
+    ).rejects.toThrow(/cannot override settling horizons/);
   });
 });

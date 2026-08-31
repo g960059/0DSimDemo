@@ -1,9 +1,4 @@
-import {
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -315,12 +310,11 @@ describe("Standard66 validation envelope summary V1", () => {
       );
       const outputPath = path.join(temporaryDirectory, "summary.json");
       const args = inputPaths.flatMap((inputPath) => ["--input", inputPath]);
-      const first =
-        await summarizeMainWireStandard66ValidationEnvelopeCliV1([
-          ...args,
-          "--output",
-          outputPath,
-        ]);
+      const first = await summarizeMainWireStandard66ValidationEnvelopeCliV1([
+        ...args,
+        "--output",
+        outputPath,
+      ]);
 
       expect(first.summary.status).toBe("envelope-summarized");
       expect(readFileSync(outputPath, "utf8")).toBe(`${first.serialized}\n`);
@@ -366,12 +360,11 @@ describe("Standard66 validation envelope summary V1", () => {
       const inputPaths = await writeArtifactsV1(temporaryDirectory, artifacts);
       const args = inputPaths.flatMap((inputPath) => ["--input", inputPath]);
       const outputPath = path.join(temporaryDirectory, "unavailable.json");
-      const result =
-        await summarizeMainWireStandard66ValidationEnvelopeCliV1([
-          ...args,
-          "--output",
-          outputPath,
-        ]);
+      const result = await summarizeMainWireStandard66ValidationEnvelopeCliV1([
+        ...args,
+        "--output",
+        outputPath,
+      ]);
 
       expect(result.summary.status).toBe("unavailable");
       expect(result.receipt).toMatchObject({
@@ -460,6 +453,16 @@ async function completedArmForCaseV1(
   arm.settlement.numericalPeriod1Established = true;
   arm.settlement.terminalAcceptedTimeSec = 48;
   arm.settlement.terminalAcceptedRevision = 24_000;
+  arm.settlement.latestPeriod1Observation = {
+    windowIndex: 48,
+    acceptedTimeSec: 48,
+    acceptedRevision: 24_000,
+    maximumNormalizedDelta: 0.0005,
+    worstGroup: "chamber-v3",
+    worstPath: "chamber.LV.volumeMl",
+    withinTolerance: true,
+    consecutiveClosures: 3,
+  };
   arm.settlement.failure = null;
   arm.confirmation = {
     runnerId: MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID,
@@ -487,7 +490,38 @@ async function completedArmForCaseV1(
       consecutivePeriod1Closures: 3,
       requiredConsecutivePeriod1Closures: 3,
       failedClosureResetsConsecutiveCount: true,
-      observations: [],
+      observations: [
+        {
+          windowIndex: 49,
+          acceptedTimeSec: 49,
+          acceptedRevision: 24_500,
+          period1MaximumNormalizedDelta: 0.0005,
+          period1WorstGroup: "chamber-v3",
+          period1WorstPath: "chamber.LV.volumeMl",
+          withinPeriod1Tolerance: true,
+          consecutivePeriod1Closures: 1,
+        },
+        {
+          windowIndex: 50,
+          acceptedTimeSec: 50,
+          acceptedRevision: 25_000,
+          period1MaximumNormalizedDelta: 0.0005,
+          period1WorstGroup: "chamber-v3",
+          period1WorstPath: "chamber.LV.volumeMl",
+          withinPeriod1Tolerance: true,
+          consecutivePeriod1Closures: 2,
+        },
+        {
+          windowIndex: 51,
+          acceptedTimeSec: 51,
+          acceptedRevision: 25_500,
+          period1MaximumNormalizedDelta: 0.0005,
+          period1WorstGroup: "chamber-v3",
+          period1WorstPath: "chamber.LV.volumeMl",
+          withinPeriod1Tolerance: true,
+          consecutivePeriod1Closures: 3,
+        },
+      ],
     },
     counters: {
       advanceCallCount: 1_500,

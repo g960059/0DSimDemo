@@ -170,13 +170,14 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
       expect(result.status).toBe("bounded-smoke-complete");
       expect(result.failure).toBeNull();
       expect(result.counters.completedCoronaryWindowCount).toBe(6);
-      expect(result.retainedWindowBoundaries.at(-1)?.acceptedState.composedRhythm)
-        .toMatchObject({
-          acceptedAtrialCaptureCount: 6,
-          acceptedVentricularCaptureCount: 6,
-          deliveredCalciumDepositCount: 12,
-          pendingCalciumDeposits: [],
-        });
+      expect(
+        result.retainedWindowBoundaries.at(-1)?.acceptedState.composedRhythm,
+      ).toMatchObject({
+        acceptedAtrialCaptureCount: 6,
+        acceptedVentricularCaptureCount: 6,
+        deliveredCalciumDepositCount: 12,
+        pendingCalciumDeposits: [],
+      });
     },
     120_000,
   );
@@ -311,5 +312,12 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
         boundedSmokeHorizonSec: 1,
       }),
     ).rejects.toThrow(/cannot override its horizons/);
+    await expect(
+      runMainWireStandard66P1SettlingV1({
+        clockArmId: "dt-2ms-production",
+        executionPurpose: "research-eager",
+        boundedSmokeHorizonSec: 1,
+      }),
+    ).rejects.toThrow(/cannot override its maximum horizon/);
   });
 });

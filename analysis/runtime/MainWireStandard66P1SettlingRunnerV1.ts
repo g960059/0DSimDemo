@@ -2,9 +2,7 @@ import {
   MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
   MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1,
 } from "@/engine/executionPlan/MainWireNumericalClockV1";
-import {
-  canonicalCoronaryAutoregulationWindowEndTimeV3,
-} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import { canonicalCoronaryAutoregulationWindowEndTimeV3 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
   assertMainWireStandard66SelectedTraceLiveSessionV1,
@@ -57,7 +55,7 @@ const SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1 = new WeakMap<
 >();
 
 export type MainWireStandard66P1SettlingExecutionPurposeV1 =
-  "preregistered-settling" | "bounded-smoke";
+  "preregistered-settling" | "research-eager" | "bounded-smoke";
 
 export type MainWireStandard66P1SettlingRunnerInputV1 = Readonly<{
   clockArmId: MainWireIntegratedModelStandard66ValidationClockArmIdV1;
@@ -152,6 +150,7 @@ export type MainWireStandard66P1SettlingResultV1 = Readonly<{
   executionPurpose: MainWireStandard66P1SettlingExecutionPurposeV1;
   status:
     | "period1-settled"
+    | "research-period1-candidate"
     | "maximum-horizon-reached"
     | "bounded-smoke-complete"
     | "failed";
@@ -426,7 +425,9 @@ export function nextMainWireStandard66ConsecutiveP1CountV1(
 /**
  * Cold-starts one clock arm and advances through the production compiled
  * transaction route. Full accepted-state P1 is evaluated only at exact empty
- * coronary-window boundaries; physical-time horizons only read that result.
+ * coronary-window boundaries. The preregistered lane reads that result only
+ * at its declared horizons; research-eager screening may stop on the exact
+ * third consecutive passing boundary but cannot establish preregistered P1.
  */
 export async function runMainWireStandard66P1SettlingV1(
   input: MainWireStandard66P1SettlingRunnerInputV1,
@@ -544,13 +545,13 @@ export async function confirmMainWireStandard66P1OnLiveSessionV1(
   const cycleLengthSec = regular.configuration.cycleLengthSec;
   const coronaryWindowBinding =
     startState.coronary.coronaryAutoregulationBinding;
-  const coronaryWindowDurationSec = coronaryWindowBinding.windowPolicy.durationSec;
+  const coronaryWindowDurationSec =
+    coronaryWindowBinding.windowPolicy.durationSec;
   if (
-    cycleLengthSec !== coronaryWindowDurationSec
-    || regular.initialAcceptedTimeSec !==
-      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
-    || startState.coronary.coronaryAutoregulation
-      .windowOriginAcceptedTimeSec !==
+    cycleLengthSec !== coronaryWindowDurationSec ||
+    regular.initialAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec ||
+    startState.coronary.coronaryAutoregulation.windowOriginAcceptedTimeSec !==
       coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
   ) {
     throw new Error(
@@ -816,13 +817,13 @@ async function runOwnedMainWireStandard66P1SettlingV1(
   const cycleLengthSec = regular.configuration.cycleLengthSec;
   const coronaryWindowBinding =
     initialState.coronary.coronaryAutoregulationBinding;
-  const coronaryWindowDurationSec = coronaryWindowBinding.windowPolicy.durationSec;
+  const coronaryWindowDurationSec =
+    coronaryWindowBinding.windowPolicy.durationSec;
   if (
-    cycleLengthSec !== coronaryWindowDurationSec
-    || regular.initialAcceptedTimeSec !==
-      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
-    || initialState.coronary.coronaryAutoregulation
-      .windowOriginAcceptedTimeSec !==
+    cycleLengthSec !== coronaryWindowDurationSec ||
+    regular.initialAcceptedTimeSec !==
+      coronaryWindowBinding.windowPolicy.originAcceptedTimeSec ||
+    initialState.coronary.coronaryAutoregulation.windowOriginAcceptedTimeSec !==
       coronaryWindowBinding.windowPolicy.originAcceptedTimeSec
   ) {
     throw new Error(
@@ -967,6 +968,14 @@ async function runOwnedMainWireStandard66P1SettlingV1(
             boundaryState.coronary.coronaryAutoregulationBinding,
             boundaryState.coronary.coronaryAutoregulation.windowIndex,
           );
+        if (
+          owned.executionPurpose === "research-eager" &&
+          consecutivePeriod1Closures >=
+            MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired
+        ) {
+          terminalStatus = "research-period1-candidate";
+          break;
+        }
       } catch (error) {
         failure = boundaryFailureV1(
           error instanceof Error ? error.message : String(error),
@@ -1128,6 +1137,7 @@ function ownInputV1(input: MainWireStandard66P1SettlingRunnerInputV1) {
   const executionPurpose = input.executionPurpose ?? "preregistered-settling";
   if (
     executionPurpose !== "preregistered-settling" &&
+    executionPurpose !== "research-eager" &&
     executionPurpose !== "bounded-smoke"
   ) {
     throw new Error("Standard66 settling execution purpose is unsupported");
@@ -1141,6 +1151,15 @@ function ownInputV1(input: MainWireStandard66P1SettlingRunnerInputV1) {
     }
     evaluationHorizonsSec =
       buildMainWireStandard66SettlingEvaluationHorizonsV1();
+  } else if (executionPurpose === "research-eager") {
+    if (input.boundedSmokeHorizonSec !== undefined) {
+      throw new Error(
+        "Standard66 research-eager settling cannot override its maximum horizon",
+      );
+    }
+    evaluationHorizonsSec = Object.freeze([
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.maximumHorizonSec,
+    ]);
   } else {
     const horizonSec = input.boundedSmokeHorizonSec;
     if (
@@ -1226,15 +1245,23 @@ async function assertSettledContinuationBindingV1(
   liveSession: MainWireStandard66SelectedTraceLiveSessionV1,
   settled: MainWireStandard66P1SettlingResultV1,
 ): Promise<void> {
-  if (
-    settled.runnerId !== MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID ||
-    settled.status !== "period1-settled" ||
-    settled.executionPurpose !== "preregistered-settling" ||
-    settled.failure !== null ||
-    !settled.numericalPeriod1Established
-  ) {
+  const preregisteredEstablished =
+    settled.runnerId === MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID &&
+    settled.status === "period1-settled" &&
+    settled.executionPurpose === "preregistered-settling" &&
+    settled.failure === null &&
+    settled.numericalPeriod1Established;
+  const researchCandidate =
+    settled.runnerId === MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID &&
+    settled.status === "research-period1-candidate" &&
+    settled.executionPurpose === "research-eager" &&
+    settled.failure === null &&
+    !settled.numericalPeriod1Established &&
+    settled.diagnosticConsecutivePeriod1Closures >=
+      settled.periodicBoundary.consecutiveClosuresRequired;
+  if (!preregisteredEstablished && !researchCandidate) {
     throw new Error(
-      "Standard66 P1 confirmation requires an established preregistered settling result",
+      "Standard66 P1 confirmation requires an established preregistered result or a research-eager candidate",
     );
   }
   if (SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1.get(settled) !== liveSession) {
