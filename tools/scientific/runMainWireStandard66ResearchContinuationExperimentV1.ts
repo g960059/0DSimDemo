@@ -191,7 +191,7 @@ export function parseMainWireStandard66ResearchContinuationCliArgumentsV1(
     throw new Error("--arm must name a preregistered clock arm");
   }
   const maximumContinuationDurationSec = Number(
-    values.get("--max-seconds") ?? "120",
+    values.get("--max-seconds") ?? "250",
   );
   if (
     !Number.isFinite(maximumContinuationDurationSec)

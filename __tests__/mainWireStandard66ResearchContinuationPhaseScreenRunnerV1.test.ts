@@ -178,6 +178,7 @@ describe("Standard66 research continuation phase screen V1", () => {
       sourceCaseId: "resolution-iv-08",
       targetCaseId: "resolution-iv-07",
       clockArmId: "dt-2ms-production",
+      maximumContinuationDurationSec: 250,
     });
   });
 });
