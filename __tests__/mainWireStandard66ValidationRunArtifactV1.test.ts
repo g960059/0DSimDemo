@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -13,6 +17,11 @@ import {
   type MainWireStandard66ValidationArmResultV1,
 } from "@/analysis/runtime/MainWireStandard66ValidationArmRunnerV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_ENVELOPE_V1 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard66ValidationPreregistrationV1";
+import {
+  parseMainWireStandard66ValidationArmCliArgumentsV1,
+  runMainWireStandard66ValidationArmCliV1,
+} from "@/tools/scientific/runMainWireStandard66ValidationArmV1";
 
 describe("Standard66 validation run artifact V1", () => {
   let boundedSmoke: MainWireStandard66ValidationArmResultV1;
@@ -149,4 +158,150 @@ describe("Standard66 validation run artifact V1", () => {
       assertMainWireStandard66ValidationRunArtifactV1(overclaim),
     ).rejects.toThrow(/outcome availability is inconsistent/);
   });
+
+  it("parses only preregistered envelope and clock coordinates", () => {
+    expect(
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "resolution-iv-16",
+        "--arm",
+        "dt-0p5ms-reference",
+      ]),
+    ).toEqual({
+      caseId: "resolution-iv-16",
+      clockArmId: "dt-0p5ms-reference",
+      outputPath: null,
+      boundedSmokeHorizonSec: null,
+      forceOverwrite: false,
+    });
+    expect(
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--force",
+        "--case",
+        "default",
+        "--arm",
+        "dt-2ms-production",
+      ]).forceOverwrite,
+    ).toBe(true);
+    expect(() =>
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "resolution-iv-17",
+        "--arm",
+        "dt-2ms-production",
+      ]),
+    ).toThrow(/preregistered validation-envelope case/);
+    expect(() =>
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "default",
+        "--arm",
+        "dt-3ms",
+      ]),
+    ).toThrow(/preregistered clock arm/);
+    expect(() =>
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "default",
+        "--arm",
+        "dt-2ms-production",
+        "--bounded-smoke-seconds",
+        "49",
+      ]),
+    ).toThrow(/preregistered initial horizon/);
+    expect(() =>
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "default",
+        "--case",
+        "resolution-iv-01",
+        "--arm",
+        "dt-2ms-production",
+      ]),
+    ).toThrow(/specified only once/);
+    expect(() =>
+      parseMainWireStandard66ValidationArmCliArgumentsV1([
+        "--case",
+        "default",
+        "--arm",
+        "dt-2ms-production",
+        "--force",
+        "--force",
+      ]),
+    ).toThrow(/--force may be specified only once/);
+  });
+
+  it("writes canonical JSON exclusively and overwrites only with explicit force", async () => {
+    const directory = mkdtempSync(
+      path.join(tmpdir(), "standard66-validation-cli-v1-"),
+    );
+    const outputPath = path.join(directory, "nested", "artifact.json");
+    const args = [
+      "--case",
+      "resolution-iv-01",
+      "--arm",
+      "dt-2ms-production",
+      "--bounded-smoke-seconds",
+      "0.01",
+      "--output",
+      outputPath,
+    ] as const;
+    try {
+      const summary = await runMainWireStandard66ValidationArmCliV1(args);
+      const serialized = readFileSync(outputPath, "utf8");
+      const artifact =
+        await parseMainWireStandard66ValidationRunArtifactV1(serialized);
+      const envelopeCase =
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_ENVELOPE_V1.find(
+          ({ caseId }) => caseId === "resolution-iv-01",
+        )!;
+
+      expect(summary).toMatchObject({
+        study: {
+          studyKind: "validation-envelope",
+          caseId: "resolution-iv-01",
+        },
+        clockArmId: "dt-2ms-production",
+        executionPurpose: "bounded-smoke",
+        status: "bounded-smoke-complete",
+        outputPath: path.resolve(outputPath),
+        settlement: {
+          status: "bounded-smoke-complete",
+          numericalPeriod1Established: false,
+        },
+        confirmation: null,
+        keyMetrics: null,
+      });
+      expect(serialized).toBe(
+        `${await serializeMainWireStandard66ValidationRunArtifactV1(artifact)}\n`,
+      );
+      expect(
+        artifact.payload.armResult.protocolIdentity.exactConstruction
+          .hemodynamicResearchInputs,
+      ).toEqual(envelopeCase.hemodynamicResearchInputs);
+
+      await expect(
+        runMainWireStandard66ValidationArmCliV1(args),
+      ).rejects.toThrow(/EEXIST/);
+      expect(readFileSync(outputPath, "utf8")).toBe(serialized);
+
+      await expect(
+        runMainWireStandard66ValidationArmCliV1([...args, "--force"]),
+      ).resolves.toMatchObject({ outputPath: path.resolve(outputPath) });
+      await expect(
+        parseMainWireStandard66ValidationRunArtifactV1(
+          readFileSync(outputPath, "utf8"),
+        ),
+      ).resolves.toMatchObject({
+        payload: {
+          study: {
+            studyKind: "validation-envelope",
+            caseId: "resolution-iv-01",
+          },
+        },
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 120_000);
 });

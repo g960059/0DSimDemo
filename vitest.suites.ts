@@ -166,6 +166,8 @@ export const regressionTests = [
   "__tests__/mainWireStandard66P1SettlingRunnerV1.test.ts",
   "__tests__/mainWireStandard66ValidationArmRunnerV1.test.ts",
   "__tests__/mainWireStandard66ValidationRunArtifactV1.test.ts",
+  "__tests__/mainWireStandard66ValidationTimestepComparisonArtifactV1.test.ts",
+  "__tests__/mainWireStandard66ValidationEnvelopeSummaryV1.test.ts",
   "__tests__/mainWireStandard66SelectedTraceRunnerV1.test.ts",
   "__tests__/mainWireStandard66TerminalBeatValidationMeasurementsV1.test.ts",
   "__tests__/mainWireStandard66AorticOutflowShapeDiagnosticV1.test.ts",
