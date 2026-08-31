@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.selected-aortic-outflow.standard-66",
-  "artifactRevisionId": "5faca2c63f7dbd0f804b1c983ac7b9dd1c57716865fe4a49ece4f9145c0429c3",
-  "artifactSha256": "62d5db32e423c999c768343cf054cc6f56bcc0787a4149d03aace13f9ced38b3",
-  "predecessorArtifactRevisionId": "c3735b0138309a415a5660897a629f0eb3d37c2367e82b74f612bcd997d353f1",
-  "equivalenceReportSha256": "ffb89fdb9ef4b549dbba6455978dc6f6077509f9700e7989d1a483974e326393"
+  "artifactRevisionId": "651208f56e3589fb38dce99e1b721555a56d3fe4fca8e4254e4eea68c9b20ade",
+  "artifactSha256": "b1237cca2f3e5f554d944ea2dc3cb9290fe89a620fc90274241bbf45c046e41b",
+  "predecessorArtifactRevisionId": "5faca2c63f7dbd0f804b1c983ac7b9dd1c57716865fe4a49ece4f9145c0429c3",
+  "equivalenceReportSha256": "391ff5c99c980c4810388e5358d30a783824329d9c09aa7b3fc16ef80a6c6203"
 }

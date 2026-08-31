@@ -47597,11 +47597,60 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     });
   }
   /**
+   * Analysis-only accepted-commit seam for selected subclasses.
+   *
+   * Unlike a presentation trace, this observes every accepted transaction
+   * commit, including rhythm- and coronary-window-clipped commits inside the
+   * requested interval. The callback receives immutable clocks/provenance
+   * only; a subclass may project registered scalar outputs at that exact
+   * accepted clock. No numerical mirror or candidate buffer escapes.
+   */
+  advanceToPresentationTimeWithAcceptedEndpointProjectionForAnalysisV1(targetTimeSec, projectAcceptedEndpoint) {
+    this.assertSessionUsableV1();
+    this.#executionPlanWorkspaceInstallationClosed = true;
+    if (typeof projectAcceptedEndpoint !== "function") {
+      throw new Error(
+        "Main Wire accepted-endpoint analysis projector must be a function"
+      );
+    }
+    const acceptedEndpoints = [];
+    const collect = (commit) => {
+      acceptedEndpoints.push(projectAcceptedEndpoint(commit));
+    };
+    const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
+      targetTimeSec,
+      Object.freeze([]),
+      collect
+    );
+    if (direct !== null) {
+      return Object.freeze({
+        advance: direct.advance,
+        acceptedEndpoints: Object.freeze([...acceptedEndpoints])
+      });
+    }
+    const result = this.advanceToPresentationTimeInternal(
+      targetTimeSec,
+      false,
+      collect
+    );
+    let advance;
+    if ("observation" in result) {
+      const { observation: _observation, ...withoutObservation } = result;
+      advance = Object.freeze(withoutObservation);
+    } else {
+      advance = result;
+    }
+    return Object.freeze({
+      advance,
+      acceptedEndpoints: Object.freeze([...acceptedEndpoints])
+    });
+  }
+  /**
    * Adapter-free ordinary presentation step. Event and rollover boundaries
    * return null before a candidate opens so the existing public transaction
    * remains their independent authority during migration.
    */
-  tryAdvanceTypedOrdinaryProjectionV1(targetTimeSec, outputIds) {
+  tryAdvanceTypedOrdinaryProjectionV1(targetTimeSec, outputIds, acceptedEndpointObserver) {
     if (this.#typedAuthority === null || this.#typedHemodynamicBinding === null || fullHotPathInvariantsEnabledV1())
       return null;
     const currentClock = this.currentAcceptedClock();
@@ -47823,6 +47872,10 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
         rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners])
       });
+      acceptedEndpointObserver?.(Object.freeze({
+        substep,
+        capturedAtrialActivation: null
+      }));
       const advance = Object.freeze({
         status: "advanced",
         presentationTimeSec: targetTimeSec,
@@ -47870,7 +47923,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       selectedTicket?.close();
     }
   }
-  advanceToPresentationTimeInternal(targetTimeSec, detachObservation) {
+  advanceToPresentationTimeInternal(targetTimeSec, detachObservation, acceptedEndpointObserver) {
     this.#acceptedState = this.#authority.current();
     this.#autoregulationOwner = autoregulationOwnerFromAcceptedState(
       this.#acceptedState
@@ -48207,17 +48260,22 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         }
         this.#lastAcceptedStep = committedResult;
         substepCount += 1;
-        substeps.push(
-          Object.freeze({
-            acceptedRevision: committedState.revision,
-            acceptedTimeSec: committedState.acceptedTimeSec,
-            landedOnPresentationTarget: committedState.acceptedTimeSec === targetTimeSec,
-            clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
-            clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
-            rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
-            rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners])
-          })
-        );
+        const substep = Object.freeze({
+          acceptedRevision: committedState.revision,
+          acceptedTimeSec: committedState.acceptedTimeSec,
+          landedOnPresentationTarget: committedState.acceptedTimeSec === targetTimeSec,
+          clippedByCoronaryWindow: limit.clippedByCoronaryWindow,
+          clippedByRhythmBoundary: limit.clippedByRhythmBoundary,
+          rhythmBoundaryTimeSec: limit.rhythmBoundaryTimeSec,
+          rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners])
+        });
+        substeps.push(substep);
+        acceptedEndpointObserver?.(Object.freeze({
+          substep,
+          capturedAtrialActivation: cloneCapturedElectricalActivationForAnalysisV1(
+            result.composedRhythmCandidate.capturedAtrialActivation
+          )
+        }));
       } catch (error) {
         abortDirectCandidateIfOpen();
         if (hemodynamicAuthorityCommitted) {
@@ -48712,6 +48770,25 @@ function validateReferenceCheckpointV2(input) {
   }
   return candidate;
 }
+function cloneCapturedElectricalActivationForAnalysisV1(activation) {
+  if (activation === null) return null;
+  return Object.freeze({
+    activationSchemaId: activation.activationSchemaId,
+    schemaVersion: activation.schemaVersion,
+    capturedActivationId: activation.capturedActivationId,
+    parentSourceImpulseId: activation.parentSourceImpulseId,
+    upstreamCapturedActivationId: activation.upstreamCapturedActivationId,
+    chamber: activation.chamber,
+    gateInstanceId: activation.gateInstanceId,
+    activationTimeSec: activation.activationTimeSec,
+    sourceKind: activation.sourceKind,
+    sourceId: activation.sourceId,
+    sourceSequence: activation.sourceSequence,
+    capturePriority: activation.capturePriority,
+    captureOrdinal: activation.captureOrdinal,
+    ownerRevision: activation.ownerRevision
+  });
+}
 function coupledUnknownsFromAcceptedStateV1(state) {
   const unknownsMl = new Float64Array(30);
   for (let index = 0; index < NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.length; index += 1) {
@@ -48916,6 +48993,23 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
       projectedValues,
       outputProjectionDurationMs: baseProjection.outputProjectionDurationMs + (performance.now() - selectedProjectionStartedAt)
     });
+  }
+  /**
+   * Research/analysis projection of every accepted commit inside a requested
+   * boundary interval. This is deliberately separate from exact frames and
+   * the Model Surface: it adds no model output or persisted state identity.
+   */
+  advanceToPresentationTimeWithStandard66AcceptedEndpointProjectionForAnalysisV1(targetTimeSec, outputIds) {
+    partitionMainWireIntegratedModelStandard66OutputIdsV1(outputIds);
+    return super.advanceToPresentationTimeWithAcceptedEndpointProjectionForAnalysisV1(
+      targetTimeSec,
+      (commit) => Object.freeze({
+        commit,
+        projectedValues: this.projectCurrentAcceptedStandard66ValuesV1(
+          outputIds
+        )
+      })
+    );
   }
   /**
    * Creates the object wrapper only. The 76-f64 instantaneous readback is not
