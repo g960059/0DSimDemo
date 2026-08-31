@@ -145,7 +145,8 @@ export function workbenchStructuralHistoryAnalysisIdsV3(
     );
     if (
       graph?.renderer === "structural-return" ||
-      graph?.renderer === "pressure-volume"
+      (graph?.renderer === "pressure-volume" &&
+        pane.pressureVolumeAnalysisMode !== "raw-exact-orbit")
     ) {
       analysisIds.add(
         MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,

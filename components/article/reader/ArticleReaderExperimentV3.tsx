@@ -11,8 +11,13 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { ModelLimitations } from "@/components/ModelLimitations";
+import { modelDocumentationHref } from "@/homeLinks";
+import { isLocale } from "@/localeRouting";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import type { StudioClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  resolveRegisteredModelDisclosureV1,
+} from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 
 import {
   articleBriefingPresentationV3,
@@ -28,6 +33,11 @@ import {
   ExperimentNumericControlV3,
   ExperimentOutputGridV3,
 } from "@/components/workbench/ExperimentPanePresentationV3";
+import {
+  resolveWorkbenchControlPresentationV3,
+  resolveWorkbenchGraphSeriesPresentationV3,
+  resolveWorkbenchOutputPresentationV3,
+} from "@/components/workbench/WorkbenchItemPresentation";
 import {
   PressureVolumeLoopCanvasV3,
   SweepingWaveformCanvasV3,
@@ -249,6 +259,7 @@ export function ArticleReaderExperimentV3({
         <ArticleReaderStaticExperimentV3
           briefing={briefing}
           availability={contractAvailability}
+          contract={contract}
           presentation={presentation}
           snapshot={snapshot}
           title={title}
@@ -273,6 +284,7 @@ export function ArticleReaderExperimentV3({
 function ArticleReaderStaticExperimentV3({
   briefing,
   availability,
+  contract,
   presentation,
   snapshot,
   title,
@@ -281,13 +293,15 @@ function ArticleReaderStaticExperimentV3({
 }: Readonly<{
   briefing: ExperimentPlacementBriefingV2;
   availability: "loading" | "ready" | "unavailable";
+  contract: ModelContractV2 | null;
   presentation: ArticleReaderPresentationV3;
   snapshot: ExperimentSnapshotV2;
   title: string;
   onActivate(): void;
   onOpen(): void;
 }>) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = i18n.language.startsWith("ja") ? "ja" : "en";
   const { appTheme } = useAppTheme();
   const graphs = [...briefing.graphs].sort(compareOrderV3);
   if (availability === "loading") {
@@ -393,7 +407,12 @@ function ArticleReaderStaticExperimentV3({
                             style={{ backgroundColor: color }}
                             aria-hidden="true"
                           />
-                          {series.label}
+                          {resolveArticleReaderStaticGraphSeriesLabelV3({
+                            contract,
+                            locale,
+                            pane,
+                            series,
+                          })}
                         </span>
                       );
                     })}
@@ -636,8 +655,26 @@ function ArticleReaderLiveDetailV3({
   snapshot: ExperimentSnapshotV2;
   title: string;
 }>) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [modelDisclosureOpen, setModelDisclosureOpen] = React.useState(false);
+  const modelDisclosure = resolveRegisteredModelDisclosureV1(
+    contract.modelId,
+    snapshot.surfaceReleaseId,
+  );
+  const documentation = modelDisclosure.documentation;
+  const language = (i18n.resolvedLanguage ?? i18n.language)
+    .toLowerCase()
+    .split("-")[0];
+  const documentationHref = documentation === null
+    ? undefined
+    : modelDocumentationHref({
+        locale: isLocale(language) ? language : undefined,
+        modelId: documentation.modelId,
+        surfaceReleaseId: documentation.surfaceReleaseId,
+      });
+  const modelLimitations = t(modelDisclosure.limitationsTranslationKey, {
+    returnObjects: true,
+  }) as string[];
   const visibleScenarios = snapshot.content.scenarios.filter(({ scenarioId }) =>
     briefing.scenarioScope.visibleScenarioIds.includes(scenarioId),
   );
@@ -702,11 +739,18 @@ function ArticleReaderLiveDetailV3({
           title={t("workbench.editor.validationAndLimitations")}
         >
           <FlaskConical className="h-3 w-3 text-wb-accent" aria-hidden="true" />
-          MW V3
+          {modelDisclosure.badgeLabel}
         </button>
         <ModelLimitations
-          acknowledgementScope={`${contract.modelId}:disclosure-v1`}
+          acknowledgementScope={
+            `${contract.modelId}:${snapshot.surfaceReleaseId}:disclosure-v1`
+          }
           autoOpenUnacknowledged={false}
+          limitations={modelLimitations}
+          documentationHref={documentationHref}
+          documentationLabel={t(
+            "workbench.editor.simulationInfo.modelDocumentation",
+          )}
           open={modelDisclosureOpen}
           onOpenChange={setModelDisclosureOpen}
           showTrigger={false}
@@ -892,7 +936,9 @@ function ArticleReaderLiveGraphV3({
   snapshot: ExperimentSnapshotV2;
   visibleScenarioIds: readonly string[];
 }>) {
+  const { i18n } = useTranslation();
   const { appTheme } = useAppTheme();
+  const locale = i18n.language.startsWith("ja") ? "ja" : "en";
   const sampleStore = runtime.sampleStore;
   const resolved = resolveArticleReaderGraphPresentationV3(snapshot, briefing);
   const pane = resolved?.pane;
@@ -1034,6 +1080,7 @@ function ArticleReaderLiveGraphV3({
           analysisId={
             MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
           }
+          pressureVolumeAnalysisMode={pane.pressureVolumeAnalysisMode}
           runtime={runtime}
           traces={traces}
           showPressureEnvelope={pane.showPressureEnvelope}
@@ -1083,6 +1130,16 @@ function ArticleReaderLiveGraphV3({
             scenario.scenarioId,
             selectedSeries.seriesId,
           ) ?? style.color;
+        const presentation = resolveWorkbenchGraphSeriesPresentationV3({
+          definition: contract.outputCatalog.find(
+            ({ outputId }) => outputId === binding.outputId,
+          ),
+          locale,
+          outputId: binding.outputId,
+          seriesId: selectedSeries.seriesId,
+          storedLabel: selectedSeries.label,
+        });
+        const signalLabel = presentation.label;
         return [
           {
             scenarioId: scenario.scenarioId,
@@ -1091,7 +1148,16 @@ function ArticleReaderLiveGraphV3({
             scenarioStyleIndex,
             samples: scenarioSamples,
             outputId: binding.outputId,
-            signalLabel: selectedSeries.label,
+            signalLabel,
+            ...(presentation.inlineDisclosure
+              ? {
+                  signalDescription: presentation.description,
+                  signalDescriptionLabel:
+                    locale === "ja"
+                      ? `${signalLabel}の説明`
+                      : `About ${signalLabel}`,
+                }
+              : {}),
             signalColor: color,
             ...(cyclePhaseOutputId === undefined ? {} : { cyclePhaseOutputId }),
           },
@@ -1132,25 +1198,36 @@ function ArticleReaderLiveGraphV3({
 
 function ArticleReaderPressureVolumeCanvasV3({
   analysisId,
+  pressureVolumeAnalysisMode,
   showPressureEnvelope,
   runtime,
   traces,
 }: Readonly<{
   analysisId: string;
+  pressureVolumeAnalysisMode:
+    ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"];
   showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
   runtime: ArticleReaderRuntimeHookV3;
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
+  const periodicPvaEnabled = articleReaderPeriodicPvaEnabledV3(
+    runtime.periodicPvaDerivation !== null,
+    pressureVolumeAnalysisMode,
+  );
   const scenarioIds = React.useMemo(
     () =>
-      Object.freeze([
-        ...new Set(
-          traces
-            .filter(({ chamberId }) => chamberId === "LV" || chamberId === "RV")
-            .map(({ scenarioId }) => scenarioId),
-        ),
-      ]),
-    [traces],
+      !periodicPvaEnabled
+        ? Object.freeze([])
+        : Object.freeze([
+            ...new Set(
+              traces
+                .filter(
+                  ({ chamberId }) => chamberId === "LV" || chamberId === "RV",
+                )
+                .map(({ scenarioId }) => scenarioId),
+            ),
+          ]),
+    [periodicPvaEnabled, traces],
   );
   const missingScenarioIds = scenarioIds.filter((scenarioId) => {
     const key = articleReaderAnalysisKeyV3(scenarioId, analysisId);
@@ -1164,7 +1241,11 @@ function ArticleReaderPressureVolumeCanvasV3({
   const canRequest =
     runtime.state.status === "playing" || runtime.state.status === "paused";
   React.useEffect(() => {
-    if (!canRequest || missingScenarioIds.length === 0) return;
+    if (
+      !periodicPvaEnabled ||
+      !canRequest ||
+      missingScenarioIds.length === 0
+    ) return;
     void runtime
       .requestAnalysis({
         analysisId,
@@ -1173,12 +1254,20 @@ function ArticleReaderPressureVolumeCanvasV3({
       .catch(() => {
         // The runtime publishes recoverable per-Scenario analysis errors.
       });
-  }, [analysisId, canRequest, missingKey, runtime.requestAnalysis]);
+  }, [
+    analysisId,
+    canRequest,
+    missingKey,
+    periodicPvaEnabled,
+    runtime.periodicPvaDerivation,
+    runtime.requestAnalysis,
+  ]);
 
   const enrichedTraces = React.useMemo(
     () =>
       Object.freeze(
         traces.map((trace) => {
+          if (!periodicPvaEnabled) return trace;
           const side = pressureVolumeRelationSideV3(trace.chamberId);
           if (side === null) return trace;
           const key = articleReaderAnalysisKeyV3(trace.scenarioId, analysisId);
@@ -1203,6 +1292,7 @@ function ArticleReaderPressureVolumeCanvasV3({
       ),
     [
       analysisId,
+      periodicPvaEnabled,
       runtime.state.analysisByKey,
       runtime.state.analysisErrorByKey,
       runtime.state.pendingAnalysisKeys,
@@ -1211,10 +1301,19 @@ function ArticleReaderPressureVolumeCanvasV3({
   );
   return (
     <PressureVolumeLoopCanvasV3
+      periodicPvaSupported={periodicPvaEnabled}
       traces={enrichedTraces}
-      showPressureEnvelope={showPressureEnvelope}
+      showPressureEnvelope={periodicPvaEnabled ? showPressureEnvelope : false}
     />
   );
+}
+
+export function articleReaderPeriodicPvaEnabledV3(
+  derivationAvailable: boolean,
+  pressureVolumeAnalysisMode:
+    ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"],
+): boolean {
+  return derivationAvailable && pressureVolumeAnalysisMode !== "raw-exact-orbit";
 }
 
 function pressureVolumeRelationSideV3(
@@ -1437,7 +1536,8 @@ export function ArticleReaderOutputsV3({
   /** @deprecated Direct rendering tests may provide a store without a runtime. */
   sampleStore?: ArticleReaderRuntimeHookV3["sampleStore"];
 }>) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = i18n.language.startsWith("ja") ? "ja" : "en";
   const ownedSampleStore = runtime?.sampleStore ?? sampleStore;
   if (ownedSampleStore === undefined) {
     throw new Error("Article Reader outputs require a sample store");
@@ -1525,9 +1625,24 @@ export function ArticleReaderOutputsV3({
             : latest?.values[output.outputId];
           const scalar =
             typeof value === "number" && Number.isFinite(value) ? value : null;
+          const presentation = resolveWorkbenchOutputPresentationV3({
+            locale,
+            outputId: output.outputId,
+            outputKind: definition?.kind,
+            storedLabel: output.label,
+          });
           return {
             itemId: `${output.sourcePaneId}:${output.outputId}:${output.scenarioId}`,
-            label: output.label,
+            label: presentation.label,
+            ...(presentation.inlineDisclosure
+              ? {
+                  description: presentation.description,
+                  descriptionAriaLabel:
+                    locale === "ja"
+                      ? `${presentation.label}の説明`
+                      : `About ${presentation.label}`,
+                }
+              : {}),
             value: scalar,
             unit: definition?.unit ?? "",
             significantDigits: definition?.significantDigits,
@@ -1627,7 +1742,13 @@ export function ArticleReaderControlV3({
   runtime: ArticleReaderRuntimeHookV3;
   snapshot: ExperimentSnapshotV2;
 }>) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = i18n.language.startsWith("ja") ? "ja" : "en";
+  const presentation = resolveWorkbenchControlPresentationV3({
+    definition,
+    storedLabel: control.label,
+    locale,
+  });
   const targetIds = controlTargetScenarioIdsV3(
     control,
     runtime.state.activeScenarioId,
@@ -1731,9 +1852,18 @@ export function ArticleReaderControlV3({
     <ExperimentNumericControlV3
       contextLabel={contextLabel}
       control={definition}
+      {...(definition.changeSemantics === "cold-restart"
+        ? {
+            description: presentation.description,
+            descriptionAriaLabel:
+              locale === "ja"
+                ? `${presentation.label}の説明`
+                : `About ${presentation.label}`,
+          }
+        : {})}
       disabled={controlsDisabled || pending}
       error={controlError}
-      label={control.label}
+      label={presentation.label}
       mixed={mixed}
       pending={pending}
       presentation={control.presentation}
@@ -2027,6 +2157,34 @@ export type ArticleReaderResolvedGraphPresentationV3 = Readonly<{
   historyDepth: number;
 }>;
 
+export function resolveArticleReaderStaticGraphSeriesLabelV3(
+  input: Readonly<{
+    contract: ModelContractV2 | null;
+    locale: "en" | "ja";
+    pane: ExperimentSurfaceGraphPaneV2;
+    series: ExperimentPlacementBriefingGraphSeriesV2;
+  }>,
+): string {
+  const graph = input.contract?.graphCatalog.find(
+    ({ graphId }) => graphId === input.pane.graphId,
+  );
+  if (graph?.renderer !== "sweep") return input.series.label;
+  const binding = graph.seriesCatalog.find(
+    ({ seriesId }) => seriesId === input.series.seriesId,
+  );
+  if (binding === undefined) return input.series.label;
+  const definition = input.contract?.outputCatalog.find(
+    ({ outputId }) => outputId === binding.outputId,
+  );
+  return resolveWorkbenchGraphSeriesPresentationV3({
+    definition,
+    locale: input.locale,
+    outputId: binding.outputId,
+    seriesId: input.series.seriesId,
+    storedLabel: input.series.label,
+  }).label;
+}
+
 /**
  * Materializes the single graph contract consumed by inflow, Peek, and
  * fullscreen. Presentation extent may change, but renderer semantics never do.
@@ -2078,7 +2236,8 @@ export function readerStructuralAnalysisRequestsV3(
     const analysisId =
       graph?.renderer === "structural-return"
         ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
-        : graph?.renderer === "pressure-volume"
+        : graph?.renderer === "pressure-volume" &&
+            pane.pressureVolumeAnalysisMode !== "raw-exact-orbit"
           ? MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID
           : null;
     if (analysisId === null) continue;

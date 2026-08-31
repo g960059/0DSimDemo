@@ -6,8 +6,18 @@ import "@/i18n";
 
 import {
   materializeWorkbenchOutputPresentationItemsV3,
+  resolveWorkbenchControlPresentationV3,
+  resolveWorkbenchGraphSeriesPresentationV3,
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
+import {
+  workbenchPvGraphUsesPeriodicPvaAnalysisV3,
+} from "@/components/workbench/WorkbenchGraphPaneBodyV3";
+import {
+  PressureVolumeLoopCanvasV3,
+  WorkbenchChartLegendV3,
+  buildWorkbenchTraceLegendModelV3,
+} from "@/components/workbench/presentation";
 import {
   archiveWorkbenchAnalysesV3,
   cloneWorkbenchAnalysisForScenarioV3,
@@ -35,6 +45,7 @@ import {
   resolveWorkbenchSurfaceAfterCommitV3,
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
+  workbenchInputMutationReplacedAcceptedClockV3,
   workbenchDurableContentAvailableV3,
   workbenchPublicationAvailableV3,
   workbenchScenarioRuntimeStatusV3,
@@ -43,6 +54,8 @@ import {
   createDefaultExperimentSurfaceV3,
   isWorkbenchGraphTraceExcludedV3,
   reconcileWorkbenchSurfaceScenariosV3,
+  outputLabelV3,
+  reconcileWorkbenchPressureVolumeCapabilityV3,
   resolveWorkbenchControlPaneScenarioIdsV3,
   resolveWorkbenchGraphScenarioIdsV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
@@ -52,6 +65,7 @@ import {
 import {
   DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3,
   updateWorkbenchGraphTraceCustomColorV3,
+  workbenchGraphDisplaySettingsAvailableV3,
 } from "@/components/workbench/WorkbenchPaneEditorV3";
 import {
   addWorkbenchSurfacePaneV3,
@@ -65,6 +79,7 @@ import {
   WorkbenchPaneBindingModeSelectorV3,
 } from "@/components/workbench/WorkbenchPaneBindingV3";
 import {
+  ExperimentNumericControlV3,
   ExperimentOutputGridV3,
   formatExperimentOutputValueV3,
   formatExperimentPressureSummaryV3,
@@ -106,7 +121,10 @@ import {
   normalizeWorkbenchAreaLayoutPreferenceV3,
   saveWorkbenchAreaLayoutPreferenceV3,
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
-import { loadStudioDefaultClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  loadStudioDefaultClientCompositionV2,
+  loadStudioLocalStandardModelLabClientCompositionV1,
+} from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
@@ -173,6 +191,209 @@ describe("V3 Dockview Workbench", () => {
         presentation,
       }),
     ).toBe("Custom chronotropy");
+  });
+
+  it("keeps the historical Standard 65 SAP series label station-specific", () => {
+    const currentDefaultLabel = outputLabelV3(
+      "hemodynamics.pressure.absolute.SA",
+    );
+    const presentation = resolveStudioItemPresentationV1({
+      kind: "output",
+      itemId: "hemodynamics.pressure.absolute.SA",
+      fallbackEnglishLabel: currentDefaultLabel,
+      locale: "ja",
+      catalogFacts: { outputKind: "signal" },
+    });
+
+    expect(currentDefaultLabel).toBe("Arterial blood pressure (ABP)");
+    expect(
+      resolveStudioSurfaceItemLabelV1({
+        storedLabel: "Systemic arterial pressure",
+        legacyDefaultLabel: currentDefaultLabel,
+        presentation,
+      }),
+    ).toBe("体動脈圧 (ABP)");
+    expect(
+      resolveStudioSurfaceItemLabelV1({
+        storedLabel: "My arterial trace",
+        legacyDefaultLabel: currentDefaultLabel,
+        presentation,
+      }),
+    ).toBe("My arterial trace");
+
+    expect(
+      resolveWorkbenchGraphSeriesPresentationV3({
+        definition: undefined,
+        locale: "en",
+        outputId: "hemodynamics.pressure.absolute.SA",
+        seriesId: "SAP",
+        storedLabel: "Systemic arterial pressure",
+      }).label,
+    ).toBe("SAP");
+    expect(
+      resolveWorkbenchGraphSeriesPresentationV3({
+        definition: undefined,
+        locale: "en",
+        outputId: "hemodynamics.pressure.absolute.SA",
+        seriesId: "SAP",
+        storedLabel: "My arterial trace",
+      }).label,
+    ).toBe("My arterial trace");
+    expect(
+      resolveWorkbenchGraphSeriesPresentationV3({
+        definition: undefined,
+        locale: "ja",
+        outputId:
+          "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
+        seriesId: "AoP",
+        storedLabel: "AoP",
+      }).label,
+    ).toBe("AoP");
+  });
+
+  it("discloses cold-restart clock replacement without changing warm controls", () => {
+    const baseControl = {
+      controlId: "rhythm.heart-rate-bpm",
+      valueType: "number" as const,
+      unit: "bpm",
+      minimum: 30,
+      maximum: 180,
+      step: 1,
+      defaultValue: 75,
+    };
+    const coldControl = {
+      ...baseControl,
+      changeSemantics: "cold-restart" as const,
+    };
+    const warmControl = {
+      ...baseControl,
+      changeSemantics: "accepted-state-warm-start" as const,
+    };
+    const cold = resolveWorkbenchControlPresentationV3({
+      definition: coldControl,
+      storedLabel: "Heart rate (HR)",
+      locale: "en",
+    });
+    const warm = resolveWorkbenchControlPresentationV3({
+      definition: warmControl,
+      storedLabel: "Heart rate (HR)",
+      locale: "en",
+    });
+    const coldJa = resolveWorkbenchControlPresentationV3({
+      definition: coldControl,
+      storedLabel: "Heart rate (HR)",
+      locale: "ja",
+    });
+
+    expect(cold.description).toContain("t = 0");
+    expect(cold.description).toContain("accepted model clock and trajectory");
+    expect(warm.description).toBe("Cardiac cycle frequency");
+    expect(coldJa.description).toContain("モデル時刻0");
+    expect(coldJa.description).toContain("確定済みモデル時刻・軌道");
+
+    const coldMarkup = renderToStaticMarkup(
+      <ExperimentNumericControlV3
+        control={coldControl}
+        description={cold.description}
+        descriptionAriaLabel={`About ${cold.label}`}
+        disabled={false}
+        label={cold.label}
+        mixed={false}
+        pending={false}
+        presentation={{ kind: "slider" }}
+        value={75}
+        onCommit={async () => true}
+      />,
+    );
+    const warmMarkup = renderToStaticMarkup(
+      <ExperimentNumericControlV3
+        control={warmControl}
+        disabled={false}
+        label={warm.label}
+        mixed={false}
+        pending={false}
+        presentation={{ kind: "slider" }}
+        value={75}
+        onCommit={async () => true}
+      />,
+    );
+    expect(coldMarkup).toContain(
+      'data-testid="workbench-item-description-trigger-v3"',
+    );
+    expect(coldMarkup).toContain(`aria-label="About ${cold.label}"`);
+    expect(warmMarkup).not.toContain(
+      "workbench-item-description-trigger-v3",
+    );
+  });
+
+  it("exposes waveform limitations through a quiet legend info trigger", () => {
+    const model = buildWorkbenchTraceLegendModelV3([
+      {
+        traceKey: "baseline:aop",
+        scenarioId: "baseline",
+        scenarioLabel: "Baseline",
+        itemId: "aop",
+        itemLabel: "AoP",
+        itemDescription:
+          "Proximal constitutive-port pressure without wave reflection",
+        itemDescriptionLabel: "About AoP",
+        color: "#167db8",
+      },
+    ]);
+    const markup = renderToStaticMarkup(
+      <WorkbenchChartLegendV3
+        model={model}
+        selection={null}
+        onHoverSelection={() => undefined}
+        onToggleSelection={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain("AoP");
+    expect(markup).toContain('aria-label="About AoP"');
+    expect(markup).toContain(
+      'data-testid="workbench-item-description-trigger-v3"',
+    );
+    expect(markup).not.toContain("without wave reflection");
+  });
+
+  it("shows one description trigger per item instead of repeating it per Scenario", () => {
+    const model = buildWorkbenchTraceLegendModelV3([
+      ...["baseline", "comparison"].flatMap((scenarioId) => [
+        {
+          traceKey: `${scenarioId}:aop`,
+          scenarioId,
+          scenarioLabel: scenarioId,
+          itemId: "aop",
+          itemLabel: "AoP",
+          itemDescription: "AoP limitation",
+          itemDescriptionLabel: "About AoP",
+          color: "#167db8",
+        },
+        {
+          traceKey: `${scenarioId}:abp`,
+          scenarioId,
+          scenarioLabel: scenarioId,
+          itemId: "abp",
+          itemLabel: "ABP",
+          itemDescription: "ABP limitation",
+          itemDescriptionLabel: "About ABP",
+          color: "#c084fc",
+        },
+      ]),
+    ]);
+    const markup = renderToStaticMarkup(
+      <WorkbenchChartLegendV3
+        model={model}
+        selection={null}
+        onHoverSelection={() => undefined}
+        onToggleSelection={() => undefined}
+      />,
+    );
+
+    expect(
+      markup.match(/data-testid="workbench-item-description-trigger-v3"/g),
+    ).toHaveLength(2);
   });
 
   it("normalizes kana when searching shared item aliases", () => {
@@ -314,7 +535,7 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("%</span>");
   });
 
-  it("renders pressure triplets as one clinical pane item", async () => {
+  it("renders the existing SA pressure triplet as one clinical pane item", async () => {
     const { contract } = (await loadStudioDefaultClientCompositionV2())
       .modelSurface;
     const pane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
@@ -333,16 +554,16 @@ describe("V3 Dockview Workbench", () => {
       acceptedRevision: 1,
       acceptedTimeSec: 1,
       outputs: {
-        "hemodynamics.pressure.systolic.Ao": available(
-          "hemodynamics.pressure.systolic.Ao",
+        "hemodynamics.pressure.systolic.SA": available(
+          "hemodynamics.pressure.systolic.SA",
           94.6,
         ),
-        "hemodynamics.pressure.diastolic.Ao": available(
-          "hemodynamics.pressure.diastolic.Ao",
+        "hemodynamics.pressure.diastolic.SA": available(
+          "hemodynamics.pressure.diastolic.SA",
           63.8,
         ),
-        "hemodynamics.pressure.mean.Ao": available(
-          "hemodynamics.pressure.mean.Ao",
+        "hemodynamics.pressure.mean.SA": available(
+          "hemodynamics.pressure.mean.SA",
           73.1,
         ),
       },
@@ -355,20 +576,30 @@ describe("V3 Dockview Workbench", () => {
       notAssessedNotice: "未評価",
       pane,
     });
-    const aorticPressure = items.find(
-      ({ itemId }) => itemId === "presentation.pressure-summary.Ao",
+    const arterialPressure = items.find(
+      ({ itemId }) =>
+        itemId === "presentation.pressure-summary.SA",
     );
 
-    expect(aorticPressure).toMatchObject({
-      label: "大動脈圧 (AoP)",
+    expect(arterialPressure).toMatchObject({
+      label: "体動脈圧 (ABP)",
       displayValue: "94.6/63.8(73.1)",
       unit: "mmHg",
       availability: "available",
       quality: "accepted-derived",
     });
+    expect(arterialPressure?.description).toContain("集中定数系");
+    const outputMarkup = renderToStaticMarkup(
+      <ExperimentOutputGridV3 items={[arterialPressure!]} variant="pane" />,
+    );
+    expect(outputMarkup).toContain(
+      'data-testid="workbench-item-description-trigger-v3"',
+    );
+    expect(outputMarkup).not.toContain(arterialPressure!.description!);
     expect(
       items.some(
-        ({ itemId }) => itemId === "hemodynamics.pressure.systolic.Ao",
+        ({ itemId }) =>
+          itemId === "hemodynamics.pressure.systolic.SA",
       ),
     ).toBe(false);
   });
@@ -382,13 +613,15 @@ describe("V3 Dockview Workbench", () => {
       ...defaultPane,
       items: [
         {
-          outputId: "hemodynamics.pressure.systolic.Ao",
-          label: "Aortic systolic pressure",
+          outputId:
+            "hemodynamics.pressure.systolic.SA",
+          label: "Systolic arterial pressure",
           order: 0,
         },
       ],
     };
-    const outputId = "hemodynamics.pressure.systolic.Ao";
+    const outputId =
+      "hemodynamics.pressure.systolic.SA";
     const frame: StudioSimulationFrameV2 = {
       modelId: contract.modelId,
       runtimeSessionId: "runtime/test",
@@ -420,8 +653,19 @@ describe("V3 Dockview Workbench", () => {
       value: 94.6,
       unit: "mmHg",
     });
+    expect(items[0]?.description).toContain("arterial-line site");
+    const outputMarkup = renderToStaticMarkup(
+      <ExperimentOutputGridV3 items={items} variant="pane" />,
+    );
+    expect(outputMarkup).toContain(
+      'data-testid="workbench-item-description-trigger-v3"',
+    );
+    expect(outputMarkup).not.toContain(items[0]!.description!);
     expect(
-      items.some(({ itemId }) => itemId === "presentation.pressure-summary.Ao"),
+      items.some(
+        ({ itemId }) =>
+          itemId === "presentation.pressure-summary.SA",
+      ),
     ).toBe(false);
   });
 
@@ -487,6 +731,36 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).not.toContain(contract.fixtureSchemaId);
     expect(markup).not.toContain(contract.checkpointCodecId);
     expect(markup).not.toContain(contract.snapshotGateId);
+  });
+
+  it("links third-layer documentation only when the caller supplies a pinned model-Surface URL", async () => {
+    const composition = await loadStudioDefaultClientCompositionV2();
+    const contract = composition.modelSurface.contract;
+    const documentationHref = "/ja/models/model%2Fstandard66?surface=surface%2Frelease";
+    const markup = renderToStaticMarkup(
+      <WorkbenchSimulationInfoPanelV3
+        activeTab="model"
+        currentModelId={contract.modelId}
+        limitations={["Pinned Surface limitation"]}
+        models={[{
+          contract,
+          publicName: "Integrated haemodynamic model",
+          shortLabel: "Main Wire V3",
+          description: "Human-readable model description",
+          documentationHref,
+        }]}
+        onClose={() => undefined}
+        onTabChange={() => undefined}
+        scenarios={[]}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="workbench-model-documentation-link-v3"');
+    expect(markup).toContain(`href="${documentationHref}"`);
+    expect(markup).toContain('target="_blank"');
+    expect(markup).toMatch(
+      /(?:View model documentation|数理モデルの詳細を見る)/,
+    );
   });
 
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {
@@ -972,7 +1246,8 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it("selects every analysis-backed pane that retains visual history", async () => {
-    const composition = await loadStudioDefaultClientCompositionV2();
+    const composition =
+      await loadStudioLocalStandardModelLabClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const structural = composition.modelSurface.contract.graphCatalog.find(
       ({ renderer }) => renderer === "structural-return",
@@ -1041,9 +1316,13 @@ describe("V3 Dockview Workbench", () => {
     ).not.toBe(modelLimitationsAcknowledgementKey("model/dev-3:disclosure-v1"));
   });
 
-  it("starts with the teaching dashboard: LV PV, systemic return, and a six-second pressure sweep", async () => {
+  it("starts the production Workbench with raw LV PV and a six-second pressure sweep", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
-    const surface = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
+    const surface = createDefaultExperimentSurfaceV3(
+      composition.modelSurface.contract,
+      undefined,
+      { periodicPvaSupported: false },
+    );
     const graphPanes = surface.graphPanes;
     const outputPane = surface.outputPanes[0]!;
     const controlPane = surface.controlPanes[0]!;
@@ -1059,19 +1338,15 @@ describe("V3 Dockview Workbench", () => {
         seriesIds: ["LV"],
       },
       {
-        graphId: "hemodynamics.guyton-starling",
-        seriesIds: [],
-      },
-      {
         graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
         seriesIds: ["AoP", "LVP", "LAP"],
       },
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
       "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.systolic.Ao",
-      "hemodynamics.pressure.diastolic.Ao",
-      "hemodynamics.pressure.mean.Ao",
+      "hemodynamics.pressure.systolic.SA",
+      "hemodynamics.pressure.diastolic.SA",
+      "hemodynamics.pressure.mean.SA",
       "hemodynamics.pressure.systolic.PA",
       "hemodynamics.pressure.diastolic.PA",
       "hemodynamics.pressure.mean.PA",
@@ -1091,19 +1366,11 @@ describe("V3 Dockview Workbench", () => {
     expect(outputPane.binding).toEqual({ mode: "active-slot" });
     expect(controlPane.items.map(({ controlId }) => controlId)).toEqual([
       "rhythm.heart-rate-bpm",
-      "hemodynamics.total-blood-volume-ml",
-      "hemodynamics.systemic-resistance",
-      "hemodynamics.pulmonary-resistance",
-      "hemodynamics.venous-tone",
-      "myocardium.active-tension-scale.LVFW",
-      "myocardium.calcium-decay-time-scale.LVFW",
-      "myocardium.passive-stiffness-scale.LVFW",
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
-    expect(graphPanes).toHaveLength(3);
-    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("formal-periodic");
-    expect(graphPanes[0]?.showPressureEnvelope).toBe(false);
-    expect(graphPanes[1]?.structuralSide).toBe("right");
+    expect(graphPanes).toHaveLength(2);
+    expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
+    expect("showPressureEnvelope" in graphPanes[0]!).toBe(false);
     expect(Object.isFrozen(graphPanes)).toBe(true);
     expect(Object.isFrozen(outputPane.items)).toBe(true);
     expect("colorHex" in outputPane).toBe(false);
@@ -1174,6 +1441,89 @@ describe("V3 Dockview Workbench", () => {
           output.unit === "mmHg",
       ),
     ).toBe(true);
+  });
+
+  it("keeps raw PV defaults free of formal-periodic and Envelope semantics", async () => {
+    const composition = await loadStudioDefaultClientCompositionV2();
+    const contract = composition.modelSurface.contract;
+    const rawSurface = createDefaultExperimentSurfaceV3(
+      contract,
+      "scenario/a",
+      { periodicPvaSupported: false },
+    );
+    const rawPv = rawSurface.graphPanes.find(
+      ({ graphId }) => graphId === "hemodynamics.pressure-volume",
+    )!;
+
+    expect(rawPv.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
+    expect("showPressureEnvelope" in rawPv).toBe(false);
+    expect(
+      workbenchStructuralHistoryAnalysisIdsV3(rawSurface, contract),
+    ).toEqual([]);
+
+    const legacyFormalSurface = {
+      ...rawSurface,
+      graphPanes: rawSurface.graphPanes.map((pane) =>
+        pane.paneId === rawPv.paneId
+          ? {
+              ...pane,
+              pressureVolumeAnalysisMode: "formal-periodic" as const,
+              showPressureEnvelope: true,
+            }
+          : pane,
+      ),
+    };
+    const canonicalRawSurface =
+      reconcileWorkbenchPressureVolumeCapabilityV3(
+        legacyFormalSurface,
+        contract,
+        false,
+      );
+    const canonicalRawPv = canonicalRawSurface.graphPanes.find(
+      ({ paneId }) => paneId === rawPv.paneId,
+    )!;
+    expect(canonicalRawPv.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
+    expect("showPressureEnvelope" in canonicalRawPv).toBe(false);
+    expect(
+      reconcileWorkbenchPressureVolumeCapabilityV3(
+        canonicalRawSurface,
+        contract,
+        false,
+      ),
+    ).toBe(canonicalRawSurface);
+    expect(
+      workbenchGraphDisplaySettingsAvailableV3("pressure-volume", false),
+    ).toBe(false);
+    expect(
+      workbenchGraphDisplaySettingsAvailableV3("pressure-volume", true),
+    ).toBe(true);
+    expect(
+      workbenchGraphDisplaySettingsAvailableV3(
+        "pressure-volume",
+        true,
+        "raw-exact-orbit",
+      ),
+    ).toBe(false);
+    expect(workbenchGraphDisplaySettingsAvailableV3("sweep", false)).toBe(
+      true,
+    );
+
+    const added = addWorkbenchSurfacePaneV3(
+      rawSurface,
+      "graph",
+      contract,
+      "hemodynamics.pressure-volume",
+      undefined,
+      { periodicPvaSupported: false },
+    );
+    const addedPane = added.selectedPane === null
+      ? undefined
+      : added.surface.graphPanes.find(
+          ({ paneId }) => paneId === added.selectedPane?.paneId,
+        );
+    expect(addedPane).toBeDefined();
+    expect(addedPane?.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
+    expect("showPressureEnvelope" in addedPane!).toBe(false);
   });
 
   it("keeps custom pane presentation in the Experiment Surface", async () => {
@@ -1577,7 +1927,8 @@ describe("V3 Dockview Workbench", () => {
   );
 
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
-    const composition = await loadStudioDefaultClientCompositionV2();
+    const composition =
+      await loadStudioLocalStandardModelLabClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),
@@ -1945,6 +2296,86 @@ describe("V3 Dockview Workbench", () => {
         schedulerRunning: false,
       }),
     ).toBe(true);
+  });
+
+  it("keeps a raw PV loop independent from an unavailable PVA analysis", () => {
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "pressure-volume",
+        ["LV"],
+        null,
+      ),
+    ).toBe(false);
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "pressure-volume",
+        ["LV"],
+        {} as never,
+      ),
+    ).toBe(true);
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "pressure-volume",
+        ["LV"],
+        {} as never,
+        "raw-exact-orbit",
+      ),
+    ).toBe(false);
+    expect(
+      workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+        "sweep",
+        ["LV"],
+        {} as never,
+      ),
+    ).toBe(false);
+
+    const rawMarkup = renderToStaticMarkup(
+      <PressureVolumeLoopCanvasV3
+        periodicPvaSupported={false}
+        showPressureEnvelope
+        traces={[]}
+      />,
+    );
+    expect(rawMarkup).toContain('data-pv-analysis-mode="raw-exact-orbit"');
+    expect(rawMarkup).not.toContain("formal-periodic");
+    expect(rawMarkup).not.toContain("preload-reduction analysis selected");
+    expect(rawMarkup).toContain('data-pv-pressure-envelope-visible="false"');
+  });
+
+  it("distinguishes a cold-restarted accepted clock from a warm input epoch", () => {
+    const previous = {
+      inputEpoch: 3,
+      acceptedRevision: 500,
+      acceptedTimeSec: 1,
+    };
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 0,
+        acceptedTimeSec: 0,
+      }),
+    ).toBe(true);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 500,
+        acceptedTimeSec: 1,
+      }, "accepted-state-warm-start"),
+    ).toBe(false);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 4,
+        acceptedRevision: 500,
+        acceptedTimeSec: 1,
+      }, "cold-restart"),
+    ).toBe(true);
+    expect(
+      workbenchInputMutationReplacedAcceptedClockV3(previous, {
+        inputEpoch: 3,
+        acceptedRevision: 499,
+        acceptedTimeSec: 0.998,
+      }),
+    ).toBe(false);
   });
 
   it("labels every concurrently simulated Scenario from global playback", () => {

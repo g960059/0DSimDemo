@@ -114,6 +114,26 @@ export type SourceImpulseV2 = Readonly<{
   activationTimeSec: number;
 }>;
 
+export type HistoricalCapturedElectricalActivationSeedV2 = Readonly<{
+  /** Canonical signed-time source whose capture is asserted by initial history. */
+  sourceImpulse: SourceImpulseV2;
+  /** Positive ordinal in the historical capture owner's lineage. */
+  captureOrdinal: number;
+  /** Positive revision in the historical capture owner's lineage. */
+  ownerRevision: number;
+}>;
+
+export const HISTORICAL_CAPTURED_ELECTRICAL_ACTIVATION_SEED_CLAIM_V2 =
+  Object.freeze({
+    scope: "explicit-initial-history-lineage-construction" as const,
+    signedSourceActivationTimeAllowed: true as const,
+    sourceImpulseValidatedCanonically: true as const,
+    captureIdentityFramingMatchesLiveOwner: true as const,
+    acceptedOwnerStateMutated: false as const,
+    captureArbitrationReplayed: false as const,
+    historyAssertedByInitializingModel: true as const,
+  });
+
 export type CaptureDecisionOutcomeV2 =
   | "captured"
   | "coincident-suppressed"
@@ -355,6 +375,12 @@ const CANDIDATE_KEYS = Object.freeze([
   "candidateState",
 ] as const);
 
+const HISTORICAL_CAPTURE_SEED_KEYS = Object.freeze([
+  "sourceImpulse",
+  "captureOrdinal",
+  "ownerRevision",
+] as const);
+
 export function createSourceImpulseV2(
   input: SourceImpulseInputV2,
 ): SourceImpulseV2 {
@@ -425,6 +451,64 @@ export function validateSourceImpulseV2(impulse: SourceImpulseV2): void {
     "source impulse source sequence",
   );
   requireFinite(impulse.activationTimeSec, "source impulse activation time");
+}
+
+/**
+ * Constructs an explicit capture record for signed-time initial history.
+ *
+ * This is not a hidden replay through the nonnegative accepted-time owner. The
+ * initializing model supplies a canonical historical source and explicitly
+ * asserts its successful capture lineage. Live candidate evaluation remains
+ * the sole owner of captures at nonnegative simulation time.
+ */
+export function createHistoricalCapturedElectricalActivationV2(
+  configuration: AcceptedElectricalCaptureOwnerConfigurationV2,
+  seed: HistoricalCapturedElectricalActivationSeedV2,
+): CapturedElectricalActivationV2 {
+  validateConfiguration(configuration);
+  const record = requirePlainRecord(seed, "historical capture seed");
+  requireExactKeys(
+    record,
+    HISTORICAL_CAPTURE_SEED_KEYS,
+    "historical capture seed",
+  );
+  const source = copySourceImpulse(seed.sourceImpulse);
+  const captureOrdinal = requirePositiveSafeInteger(
+    seed.captureOrdinal,
+    "historical capture seed.captureOrdinal",
+  );
+  const ownerRevision = requirePositiveSafeInteger(
+    seed.ownerRevision,
+    "historical capture seed.ownerRevision",
+  );
+  if (captureOrdinal > ownerRevision) {
+    throw new Error(
+      "historical capture seed.captureOrdinal cannot exceed ownerRevision",
+    );
+  }
+  const gate = source.chamber === "atrial"
+    ? configuration.atrialGate
+    : configuration.ventricularGate;
+  return Object.freeze({
+    activationSchemaId: CAPTURED_ELECTRICAL_ACTIVATION_V2_ID,
+    schemaVersion: 2 as const,
+    capturedActivationId: buildCapturedActivationId(
+      configuration.ownerInstanceId,
+      ownerRevision,
+      source,
+    ),
+    parentSourceImpulseId: source.sourceImpulseId,
+    upstreamCapturedActivationId: source.parentCapturedActivationId,
+    chamber: source.chamber,
+    gateInstanceId: gate.gateInstanceId,
+    activationTimeSec: source.activationTimeSec,
+    sourceKind: source.sourceKind,
+    sourceId: source.sourceId,
+    sourceSequence: source.sourceSequence,
+    capturePriority: source.capturePriority,
+    captureOrdinal,
+    ownerRevision,
+  });
 }
 
 export function createAcceptedElectricalCaptureOwnerConfigurationV2(
@@ -1386,6 +1470,13 @@ function requirePositiveFinite(value: unknown, field: string): number {
 function requireNonnegativeSafeInteger(value: unknown, field: string): number {
   if (!Number.isSafeInteger(value) || (value as number) < 0) {
     throw new Error(`${field} must be a nonnegative safe integer`);
+  }
+  return value as number;
+}
+
+function requirePositiveSafeInteger(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 1) {
+    throw new Error(`${field} must be a positive safe integer`);
   }
   return value as number;
 }

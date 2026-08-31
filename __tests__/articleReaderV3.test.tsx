@@ -9,6 +9,8 @@ import {
   ArticleReaderControlV3,
   ArticleReaderOutputsV3,
   ArticleReaderStructuralReturnGraphV3,
+  articleReaderPeriodicPvaEnabledV3,
+  resolveArticleReaderStaticGraphSeriesLabelV3,
   articleReaderPlacementAfterCenterExitV3,
   articleReaderBoundedHistoryV3,
   commonGraphUnitV3,
@@ -48,6 +50,11 @@ import {
 import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+} from "@/domain/model/MainWireStandardIdentityV1";
+import selectedAorticOutflowStandard66SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 
 const NOOP = () => {};
 
@@ -380,6 +387,145 @@ function readerRuntimeStubV3(
 }
 
 describe("Article Reader V3 experiment anchor", () => {
+  it("keeps raw exact-orbit PV presentation independent from an available PVA derivation", () => {
+    expect(articleReaderPeriodicPvaEnabledV3(true, "raw-exact-orbit")).toBe(
+      false,
+    );
+    expect(articleReaderPeriodicPvaEnabledV3(true, "formal-periodic")).toBe(
+      true,
+    );
+    expect(articleReaderPeriodicPvaEnabledV3(false, "formal-periodic")).toBe(
+      false,
+    );
+
+    const snapshot = snapshotV3();
+    const rawSnapshot: ExperimentSnapshotV2 = {
+      ...snapshot,
+      content: {
+        ...snapshot.content,
+        surface: {
+          ...snapshot.content.surface,
+          graphPanes: [
+            {
+              paneId: "pane/pv",
+              role: "graph",
+              label: "PV loop",
+              order: 0,
+              priority: 10,
+              graphId: "graph/pv",
+              scenarioScope: { mode: "visible-scenarios" },
+              excludedTraces: [],
+              historyDepth: 1,
+              pressureVolumeAnalysisMode: "raw-exact-orbit",
+              series: [{ seriesId: "LV", label: "LV", order: 0 }],
+            },
+          ],
+        },
+      },
+    };
+    const rawBriefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      graphs: [{ paneId: "pane/pv", order: 0, emphasis: "primary" }],
+      outputs: [],
+    };
+    const rawContract: ModelContractV2 = {
+      ...contractV3(),
+      graphCatalog: [
+        {
+          graphId: "graph/pv",
+          renderer: "pressure-volume",
+          defaultSeriesIds: ["LV"],
+          seriesCatalog: [
+            {
+              kind: "pressure-volume",
+              seriesId: "LV",
+              volumeOutputId: "output/lv-volume",
+              pressureOutputId: "output/lv-pressure",
+              pressureBasis: "transmural",
+              cyclePhaseOutputId: "output/phase",
+            },
+          ],
+        },
+      ],
+    };
+    expect(
+      readerStructuralAnalysisRequestsV3(
+        rawBriefing,
+        rawSnapshot,
+        rawContract,
+      ),
+    ).toEqual([]);
+  });
+
+  it("migrates historical systemic-arterial labels in the static inflow preview", () => {
+    const outputId = "hemodynamics.pressure.absolute.SA";
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      outputCatalog: [
+        {
+          outputId,
+          kind: "signal",
+          unit: "mmHg",
+          shape: "scalar",
+          sampling: "accepted-step",
+        },
+      ],
+      graphCatalog: [
+        {
+          graphId: "graph/pressure",
+          renderer: "sweep",
+          defaultSeriesIds: ["SAP"],
+          seriesCatalog: [
+            {
+              kind: "scalar",
+              seriesId: "SAP",
+              outputId,
+            },
+          ],
+        },
+      ],
+    };
+    const pane: ExperimentSnapshotV2["content"]["surface"]["graphPanes"][number] = {
+      paneId: "pane/pressure",
+      role: "graph",
+      label: "Pressure",
+      order: 0,
+      priority: 10,
+      graphId: "graph/pressure",
+      scenarioScope: { mode: "visible-scenarios" },
+      excludedTraces: [],
+      historyDepth: 1,
+      series: [
+        {
+          seriesId: "SAP",
+          label: "Systemic arterial pressure",
+          order: 0,
+        },
+      ],
+    };
+
+    expect(
+      resolveArticleReaderStaticGraphSeriesLabelV3({
+        contract,
+        locale: "ja",
+        pane,
+        series: pane.series[0]!,
+      }),
+    ).toBe("SAP");
+    expect(
+      resolveArticleReaderStaticGraphSeriesLabelV3({
+        contract,
+        locale: "ja",
+        pane,
+        series: {
+          seriesId: "SAP",
+          label: "My arterial trace",
+          order: 0,
+        },
+      }),
+    ).toBe("My arterial trace");
+  });
+
   it("selects only graph and output-card histories for one Placement", () => {
     const snapshot = snapshotV3();
     const selectedSnapshot: ExperimentSnapshotV2 = {
@@ -683,6 +829,31 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain("min-w-0 px-4 pb-10");
   });
 
+  it("uses the pinned Standard66 disclosure instead of generic MW V3 copy", () => {
+    const baseSnapshot = snapshotV3();
+    const snapshot: ExperimentSnapshotV2 = {
+      ...baseSnapshot,
+      surfaceReleaseId:
+        selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId,
+      content: {
+        ...baseSnapshot.content,
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        surfaceSeriesId:
+          selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
+      },
+    };
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      modelId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+    };
+    const html = renderExperimentV3({ snapshot, contract, live: true });
+
+    expect(html).toContain("MW 66");
+    expect(html).not.toContain("MW V3");
+  });
+
   it("overlays every visible Scenario in one structural comparison canvas", () => {
     const snapshot = snapshotV3();
     const scenarios = snapshot.content.scenarios.slice(0, 2);
@@ -846,6 +1017,47 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain("gap-x-2 gap-y-2");
   });
 
+  it("shares AoP progressive disclosure with Article output cards", () => {
+    const store = new WorkbenchScenarioPresentationSampleStoreV3();
+    const outputId =
+      "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      outputs: [
+        {
+          sourcePaneId: "pane/outputs",
+          outputId,
+          scenarioId: "scenario/comparison",
+          label: "AoP",
+          order: 0,
+        },
+      ],
+    };
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      outputCatalog: [
+        {
+          outputId,
+          kind: "signal",
+          unit: "mmHg",
+          shape: "scalar",
+          sampling: "accepted-step",
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <ArticleReaderOutputsV3
+        briefing={briefing}
+        contract={contract}
+        sampleStore={store}
+      />,
+    );
+
+    expect(html).toContain(">AoP<");
+    expect(html).toContain('aria-label="AoPの説明"');
+    expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
+  });
+
   it("requests the shared settled relation analysis for output-only PVA briefings", () => {
     const briefing: ExperimentPlacementBriefingV2 = {
       ...briefingV3(),
@@ -924,6 +1136,50 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain("workbench-control-segments");
     expect(invalidButton).toContain("disabled");
     expect(invalidButton).toContain("step lattice");
+  });
+
+  it("discloses a cold-restart clock replacement in Article controls", () => {
+    const definition: ControlDefinitionV2 = {
+      controlId: "rhythm.heart-rate-bpm",
+      valueType: "number",
+      unit: "bpm",
+      minimum: 30,
+      maximum: 180,
+      step: 1,
+      defaultValue: 75,
+      changeSemantics: "cold-restart",
+    };
+    const briefing: ExperimentPlacementBriefingV2 = {
+      ...briefingV3(),
+      controls: [
+        {
+          sourcePaneId: "pane/controls",
+          controlId: definition.controlId,
+          label: "Heart rate (HR)",
+          order: 0,
+          presentation: { kind: "slider" },
+          binding: {
+            mode: "fixed",
+            scenarioIds: ["scenario/comparison"],
+            application: "absolute",
+          },
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <ArticleReaderControlV3
+        briefing={briefing}
+        control={briefing.controls[0]!}
+        definition={definition}
+        runtime={readerRuntimeStubV3({
+          activeScenarioId: "scenario/comparison",
+        })}
+        snapshot={snapshotV3()}
+      />,
+    );
+
+    expect(html).toContain('aria-label="心拍数 (HR)の説明"');
+    expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
   });
 
   it("derives a compact right-peek anchor for two to four selected graphs", () => {

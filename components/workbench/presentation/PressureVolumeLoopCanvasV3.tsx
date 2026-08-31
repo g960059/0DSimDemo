@@ -408,6 +408,7 @@ function extractPvPointsV3(
 
 type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
+  periodicPvaSupported?: boolean;
   showPressureEnvelope?: boolean;
 }>;
 
@@ -440,7 +441,9 @@ export function PressureVolumeLoopCanvasV3(
   props: PressureVolumeLoopCanvasPropsV3,
 ) {
   const { className } = props;
-  const showPressureEnvelope = props.showPressureEnvelope ?? false;
+  const periodicPvaSupported = props.periodicPvaSupported ?? true;
+  const showPressureEnvelope =
+    periodicPvaSupported && (props.showPressureEnvelope ?? false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const volumeDomainStateRef = React.useRef<
@@ -608,7 +611,7 @@ export function PressureVolumeLoopCanvasV3(
     const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
       volumeDomainStateRef.current.domain,
       visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
-        periodicPvaDrawing === null
+        !periodicPvaSupported || periodicPvaDrawing === null
           ? []
           : [periodicPvaDrawing.edpvr.zeroPressureVolumeMl],
       ),
@@ -670,7 +673,7 @@ export function PressureVolumeLoopCanvasV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
-      if (periodicPvaDrawing !== null) {
+      if (periodicPvaSupported && periodicPvaDrawing !== null) {
         drawPeriodicPvaV1(
           context,
           periodicPvaDrawing,
@@ -724,9 +727,10 @@ export function PressureVolumeLoopCanvasV3(
       context.restore();
     }
   }, [
-      domainCommitKey,
-      legendSelection,
-      pressureAxisTitle,
+    domainCommitKey,
+    legendSelection,
+    periodicPvaSupported,
+    pressureAxisTitle,
       showPressureEnvelope,
       visibleRenderedTraces,
   ]);
@@ -738,32 +742,34 @@ export function PressureVolumeLoopCanvasV3(
     "pressure-volume-loop",
   );
 
-  const availablePva = visibleRenderedTraces.flatMap(
+  const availablePva = periodicPvaSupported ? visibleRenderedTraces.flatMap(
     ({ periodicPva, trace }) => periodicPva?.status === "available"
       ? [Object.freeze({ periodicPva, trace })]
       : [],
-  );
-  const drawablePva = visibleRenderedTraces.flatMap(({
+  ) : [];
+  const drawablePva = periodicPvaSupported ? visibleRenderedTraces.flatMap(({
     periodicPvaDrawing,
     trace,
   }) =>
     periodicPvaDrawing === null
       ? []
-      : [Object.freeze({ periodicPvaDrawing, trace })]);
+      : [Object.freeze({ periodicPvaDrawing, trace })]) : [];
   const retainedPvaDrawingCount = drawablePva.filter(
     ({ periodicPvaDrawing }) =>
       periodicPvaDrawing.retainedFromPriorUpdate,
   ).length;
-  const relationStatusBase = drawablePva.length > 0
-    ? `Settled-source bidirectional preload family · anchor-local area-max common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
-    : "Settled-source preload-reduction analysis selected · relation not yet available";
-  const relationStatus = retainedPvaDrawingCount > 0
+  const relationStatusBase = !periodicPvaSupported
+    ? null
+    : drawablePva.length > 0
+      ? `Settled-source bidirectional preload family · anchor-local area-max common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
+      : "Settled-source preload-reduction analysis selected · relation not yet available";
+  const relationStatus = relationStatusBase !== null && retainedPvaDrawingCount > 0
     ? `${relationStatusBase} · previous valid relation retained while the update settles`
     : relationStatusBase;
   const chamberAriaLabel = legendModel.items.length === 0
     ? "Pressure-volume"
     : legendModel.items.map(({ label }) => label).join(", ");
-  const pvaAnalysisPending = traces.some(
+  const pvaAnalysisPending = periodicPvaSupported && traces.some(
     ({ periodicPvaAnalysisPending }) => periodicPvaAnalysisPending === true,
   );
   const collectingPvaCandidate = visibleRenderedTraces
@@ -775,22 +781,34 @@ export function PressureVolumeLoopCanvasV3(
       : undefined;
   const pvaProgress = collectingPva?.progress;
   const familyProgress = availablePva[0]?.periodicPva.source.familyProgress;
-  const pvaAnalysisError = visibleRenderedTraces
-    .map(({ trace }) => trace.periodicPvaAnalysisError)
-    .find((message): message is string =>
-      typeof message === "string" && message.length > 0);
+  const pvaAnalysisError = periodicPvaSupported
+    ? visibleRenderedTraces
+        .map(({ trace }) => trace.periodicPvaAnalysisError)
+        .find((message): message is string =>
+          typeof message === "string" && message.length > 0)
+    : undefined;
 
   return (
     <div
       className={`flex min-h-52 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
       data-chart-kind="pressure-volume-loop-v3"
-      data-pv-analysis-mode="formal-periodic"
+      data-pv-analysis-mode={
+        periodicPvaSupported ? "formal-periodic" : "raw-exact-orbit"
+      }
       data-cycle-source="model-emitted-cycle-phase"
-      data-pv-relation-model="all-settled-shape-preserving-locus"
+      data-pv-relation-model={
+        periodicPvaSupported
+          ? "all-settled-shape-preserving-locus"
+          : undefined
+      }
       data-pv-pressure-envelope-visible={
         showPressureEnvelope ? "true" : "false"
       }
-      data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"
+      data-pv-relation-semantics={
+        periodicPvaSupported
+          ? "area-max-common-isochrone-espvr-exponential-edpvr"
+          : undefined
+      }
       data-pv-loop-trace-count={visibleRenderedTraces.length}
       data-pv-ready-trace-count={visibleRenderedTraces.filter(
         ({ completedBeat }) => completedBeat.length > 0,

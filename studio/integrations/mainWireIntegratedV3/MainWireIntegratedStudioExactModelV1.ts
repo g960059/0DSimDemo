@@ -44,6 +44,9 @@ import {
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
+  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
   MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1,
   type MainWireFiveWallMechanicsScaleKindV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
@@ -1640,7 +1643,12 @@ function standardExecutableBundleV1(
       }>,
     ) {
       assertRuntimeContextV1(input.context);
-      validateAndOwnStandardFixtureV1(input.fixture);
+      const fixture = validateAndOwnStandardFixtureV1(input.fixture);
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+        fixture.hemodynamicResearchInputs,
+        1,
+        fixture.mechanismResearchInputs,
+      );
       return undefined;
     },
     reduceControlAction(

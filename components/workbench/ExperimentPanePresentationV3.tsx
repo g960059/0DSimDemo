@@ -5,10 +5,15 @@ import { useTranslation } from "react-i18next";
 import { studioNumericControlValueIssueV2 } from "@/studio/contracts/v2/control";
 import type { ExperimentControlPresentationV2 } from "@/studio/contracts/v2/content";
 import type { ControlDefinitionV2 } from "@/studio/contracts/v2/model";
+import {
+  WorkbenchItemDescriptionPopoverV3,
+} from "./presentation/WorkbenchItemDescriptionPopoverV3";
 
 export type ExperimentOutputPresentationItemV3 = Readonly<{
   itemId: string;
   label: string;
+  description?: string;
+  descriptionAriaLabel?: string;
   value: number | null;
   /** Presentation-only composition over one or more atomic numerical outputs. */
   displayValue?: string;
@@ -107,7 +112,17 @@ export function ExperimentOutputGridV3({
             data-output-availability={item.availability ?? "unavailable"}
             data-output-quality={item.quality ?? "not-assessed"}
           >
-            <p className="workbench-output-label truncate">{item.label}</p>
+            <div className="flex min-w-0 items-center gap-1">
+              <p className="workbench-output-label min-w-0 truncate">
+                {item.label}
+              </p>
+              {item.description !== undefined && (
+                <WorkbenchItemDescriptionPopoverV3
+                  ariaLabel={item.descriptionAriaLabel ?? item.label}
+                  description={item.description}
+                />
+              )}
+            </div>
             <p className="workbench-output-value mt-0.5 whitespace-nowrap tabular-nums">
               {display.value}
               <span className="workbench-output-unit ml-1">
@@ -204,6 +219,8 @@ export function resolveExperimentOutputDisplayV3(
 export function ExperimentNumericControlV3({
   contextLabel,
   control,
+  description,
+  descriptionAriaLabel,
   disabled,
   error = null,
   label,
@@ -215,6 +232,8 @@ export function ExperimentNumericControlV3({
 }: Readonly<{
   contextLabel?: string;
   control: ControlDefinitionV2;
+  description?: string;
+  descriptionAriaLabel?: string;
   disabled: boolean;
   error?: string | null;
   label: string;
@@ -261,14 +280,22 @@ export function ExperimentNumericControlV3({
       data-control-presentation={presentation.kind}
       aria-busy={pending}
     >
-      <p className="workbench-control-label" title={label}>
-        <span className="block truncate">{label}</span>
+      <div className="workbench-control-label">
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 truncate" title={label}>{label}</span>
+          {description !== undefined && (
+            <WorkbenchItemDescriptionPopoverV3
+              ariaLabel={descriptionAriaLabel ?? label}
+              description={description}
+            />
+          )}
+        </span>
         {contextLabel !== undefined && (
           <span className="workbench-control-context block truncate">
             {contextLabel}
           </span>
         )}
-      </p>
+      </div>
 
       <div className="workbench-control-widget">
         {presentation.kind === "buttons" ? (

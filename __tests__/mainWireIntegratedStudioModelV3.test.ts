@@ -45,6 +45,7 @@ import {
 import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
 import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
+import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -53,9 +54,18 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+} from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import { resolveExactModelControlValueV1 } from
@@ -70,7 +80,9 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
+import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -87,7 +99,7 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
-  it("resolves controls only for the current exact model and fixture ABI", () => {
+  it("resolves controls only for registered exact model and fixture pairs", () => {
     const projection = resolveRegisteredExactModelFixtureProjectionV1(
       {
         modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -165,6 +177,52 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         fixtureSchemaId: "fixture/retired-v1",
       },
     )).toThrow(/No exact fixture projection is registered/);
+
+    const selectedProjection = resolveRegisteredExactModelFixtureProjectionV1({
+      modelId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+      fixtureSchemaId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+    });
+    const selectedFixture = {
+      ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+      hemodynamicResearchInputs: {
+        ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1
+          .hemodynamicResearchInputs,
+        heartRateBpm: 72,
+      },
+    };
+    expect(selectedProjection.controlValue(
+      selectedFixture,
+      "rhythm.heart-rate-bpm",
+    )).toEqual({ status: "value", value: 72 });
+    expect(selectedProjection.controlValue(
+      selectedFixture,
+      "hemodynamics.systemic-resistance",
+    )).toEqual({ status: "unsupported" });
+
+    for (const crossPair of [
+      {
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        fixtureSchemaId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+      },
+      {
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        fixtureSchemaId:
+          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
+            .fixtureSchemaId,
+      },
+      {
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        fixtureSchemaId: "fixture/unknown-selected-v1",
+      },
+    ]) {
+      expect(() => resolveRegisteredExactModelFixtureProjectionV1(crossPair))
+        .toThrow(/No exact fixture projection is registered/);
+    }
   });
 
   it("keeps the exact current frame identical to the accepted batch boundary", async () => {
@@ -403,6 +461,50 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/totalBloodVolumeMl/);
   });
 
+  it("rejects a structurally valid fixture outside the coupled SV/VC PV support before session construction", async () => {
+    const release = createCircleHeartExactModelReleaseV1();
+    const unsupportedFixture = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+      hemodynamicResearchInputs: Object.freeze({
+        systemicResistance: 1.25,
+        pulmonaryResistance: 0.8,
+        venousTone: 1,
+        arterialStiffness: 1,
+        heartRateBpm: 100,
+        totalBloodVolumeMl: 7_000,
+        peepCmH2O: 20,
+      }),
+    });
+    const context = Object.freeze({
+      scenarioId: "scenario/high-tone-hypervolemia",
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+    });
+
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: unsupportedFixture,
+    })).toThrow(/exceeds SV\/VC PV-law support/);
+    await expect(release.executables.simulationAdapter.createSession({
+      runtimeSessionId: "session/high-tone-hypervolemia",
+      scenarios: Object.freeze([Object.freeze({
+        scenarioId: context.scenarioId,
+        fixture: unsupportedFixture,
+      })]),
+    })).rejects.toThrow(/exceeds SV\/VC PV-law support/);
+
+    const adjacentGridFixture = Object.freeze({
+      ...unsupportedFixture,
+      hemodynamicResearchInputs: Object.freeze({
+        ...unsupportedFixture.hemodynamicResearchInputs,
+        totalBloodVolumeMl: 6_900,
+      }),
+    });
+    expect(() => release.executables.fixtureAdapter.validateCompleteFixture({
+      context,
+      fixture: adjacentGridFixture,
+    })).not.toThrow();
+  });
+
   it("cold-starts a portable fixture at the advertised hypovolemic boundary", async () => {
     const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
     const runtimeSessionId = "session/standard-hypovolemic-cold-start";
@@ -432,7 +534,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses the committed Standard bundle when Supabase is unconfigured", async () => {
+  it("uses selected Standard66 by default and resolves only exact local pairs", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -463,14 +565,48 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
           )
           .searchParams.get("revision"),
       ).toBe(mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId);
+      expect(
+        composition
+          .localSelectedAorticOutflowArtifactRevisionUrlV1(
+            new URL(
+              "http://127.0.0.1:4176/selected-standard66.artifact.mjs",
+            ),
+          )
+          .searchParams.get("revision"),
+      ).toBe(
+        mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1
+          .artifactRevisionId,
+      );
+      expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
+        mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest.modelId,
+      );
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
         exactModel: {
-          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
           },
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioLocalStandardModelLabClientCompositionV1(),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
         },
         modelSurface: {
           identity: {
@@ -501,8 +637,92 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       });
       await expect(
         composition.loadStudioExperimentClientCompositionV2(
-          "model/pre-standard",
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
           mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+        ),
+      ).rejects.toThrow(/cannot resolve the requested exact model/);
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
+        ),
+      ).rejects.toThrow(/cannot resolve the requested exact model/);
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          "model/pre-standard",
+          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+            .surfaceSeriesId,
         ),
       ).rejects.toThrow(/cannot resolve the requested exact model/);
     } finally {

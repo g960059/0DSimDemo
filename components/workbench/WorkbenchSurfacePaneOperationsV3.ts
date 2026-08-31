@@ -59,6 +59,9 @@ export function addWorkbenchSurfacePaneV3(
   contract: ModelContractV2,
   graphId?: string,
   structuralSide?: "left" | "right",
+  options: Readonly<{
+    periodicPvaSupported?: boolean;
+  }> = Object.freeze({}),
 ): Readonly<{
   surface: ExperimentSurfaceV2;
   selectedPane: WorkbenchPaneIdentityV3 | null;
@@ -93,12 +96,16 @@ export function addWorkbenchSurfacePaneV3(
         : {
             historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
             ...(graph.renderer === "pressure-volume"
-              ? {
-                  pressureVolumeAnalysisMode:
-                    WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
-                  showPressureEnvelope:
-                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
-                }
+              ? options.periodicPvaSupported === false
+                ? {
+                    pressureVolumeAnalysisMode: "raw-exact-orbit" as const,
+                  }
+                : {
+                    pressureVolumeAnalysisMode:
+                      WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                    showPressureEnvelope:
+                      WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
+                  }
               : {}),
             ...(graph.renderer === "structural-return"
               ? { structuralSide: selectedStructuralSide! }

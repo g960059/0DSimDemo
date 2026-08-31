@@ -26,10 +26,11 @@ export type MainWireIntegratedModelHemodynamicResearchInputRangeV3 =
   }>;
 
 /**
- * Executable research ranges for the canonical construction. They are not
- * clinical reference intervals. The venous-tone and blood-volume bounds are
- * wide enough to expose finite stressed-volume reserve and compensated versus
- * uncompensated hemorrhage without entering the known low-volume failure band.
+ * Independent scalar research bounds, not clinical reference intervals or a
+ * claim that their full Cartesian product is constructible. The exact fixture
+ * adapter owns complete-tuple cold-constructibility validation. The venous-tone
+ * and blood-volume bounds expose finite stressed-volume reserve and compensated
+ * versus uncompensated hemorrhage without entering the known low-volume band.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
   Object.freeze({

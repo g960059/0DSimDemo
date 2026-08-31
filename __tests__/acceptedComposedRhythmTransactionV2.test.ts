@@ -1,5 +1,25 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM,
+  MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  createMainWireIntegratedRegularSinusRhythmV3,
+} from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
+import {
+  evaluateExactEventCalciumV1,
+} from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
+import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  evaluateFiveWallNormalCalciumDriveV1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_CLAIM_V1,
+  MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+  resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaExactPersistenceV1";
+import {
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
+import {
   checkpointAcceptedComposedRhythmTransactionStateV2,
   restoreAcceptedComposedRhythmTransactionStateV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionCheckpointV2";
@@ -263,7 +283,364 @@ function advanceAt(
   return commitAcceptedComposedRhythmTransactionCandidateV2(state, candidate);
 }
 
+function advanceThroughOwnedBoundaries(
+  state: AcceptedComposedRhythmTransactionStateV2,
+  targetTimeSec: number,
+): AcceptedComposedRhythmTransactionStateV2 {
+  let current = state;
+  while (current.acceptedTimeSec < targetTimeSec) {
+    const limited = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
+      current,
+      targetTimeSec,
+      null,
+    );
+    if (!(limited.candidateTimeSec > current.acceptedTimeSec)) {
+      throw new Error("test helper did not make strict forward progress");
+    }
+    current = advanceAt(current, limited.candidateTimeSec);
+  }
+  return current;
+}
+
 describe("AcceptedComposedRhythmTransactionV2", () => {
+  it("keeps the absent-profile regular-sinus legacy keys and literals", () => {
+    const cycleLengthSec = 0.8;
+    const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
+      idPrefix: "legacy-default-regression",
+      parameterProvenanceSourceId: "legacy-default-regression-source",
+      cycleLengthSec,
+    });
+    const interval = rhythm.configuration.ventricularIntervalStrength;
+
+    expect(Object.keys(interval)).toEqual([
+      "configurationSchemaId",
+      "schemaVersion",
+      "configurationId",
+      "ownerInstanceId",
+      "parameterProvenance",
+      "recoveryTimeConstantSec",
+      "releaseFractionBeta",
+      "releasedLoadReturnFractionR",
+      "intervalInfluxInhibitionFractionH",
+      "referenceCycleLengthSec",
+      "referenceRecoveryFractionA",
+      "referenceNormalizedSrLoadState",
+      "normalizedIntervalInfluxGamma",
+    ]);
+    expect(Object.hasOwn(interval, "futureExactCalciumDepositPolicy"))
+      .toBe(false);
+    expect(interval.referenceCycleLengthSec).toBe(1);
+    expect(rhythm.configuration.avGateParameters.minimumConductionDelaySec)
+      .toBe(0.125);
+    expect(rhythm.configuration.distalGate.hvConductionDelaySec)
+      .toBe(0.0625);
+    expect(
+      rhythm.configuration.sinusAtrialCalciumDeposit
+        ?.electricalToCalciumDelaySec,
+    ).toBe(0.0625);
+    expect(
+      rhythm.configuration.ventricularCalciumDeposit
+        .electricalToCalciumDelaySec,
+    ).toBe(0.0625);
+    expect(rhythm.state.regularAtrialSourceState?.nextActivationTimeSec)
+      .toBe(0.625 * cycleLengthSec);
+    expect(
+      rhythm.state.ventricularIntervalStrengthState
+        .lastAcceptedVentricularActivation.activationTimeSec,
+    ).toBe(0);
+    expect(rhythm.state.calciumStateByWall).toEqual({
+      LA: [0, 0],
+      RA: [0, 0],
+      LVFW: [0, 0],
+      SEP: [0, 0],
+      RVFW: [0, 0],
+    });
+    expect(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.cycleLengthSec)
+      .toBe(1);
+  });
+
+  it("activates the selected fixed profile with exact event timing and one-cycle calcium closure", () => {
+    const walls = ["LA", "RA", "LVFW", "SEP", "RVFW"] as const;
+    expect(
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM
+        .aggregateAtrialToVentricularElectricalDelaySec,
+    ).toBe(0.12);
+    expect(
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM
+        .initialCalciumState,
+    ).toBe("analytic-periodic");
+    expect(
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM
+        .calciumExactPersistenceId,
+    ).toBe(
+      MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+    );
+    expect(
+      MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_CLAIM_V1
+        .sourceContinuousLawRetainedUnrounded,
+    ).toBe(true);
+
+    for (const heartRateBpm of [40, 60, 73.25, 100]) {
+      const cycleLengthSec = 60 / heartRateBpm;
+      const resolved =
+        resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+          heartRateBpm,
+        );
+      const rhythm = createMainWireIntegratedRegularSinusRhythmV3(
+        {
+          idPrefix: `selected-${heartRateBpm}`,
+          parameterProvenanceSourceId: "selected-fixed-profile-test",
+          cycleLengthSec,
+        },
+        {
+          profileId:
+            MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+          heartRateBpm,
+        },
+      );
+      const { configuration } = rhythm;
+
+      expect(configuration.avGateParameters.minimumConductionDelaySec)
+        .toBe(0.08);
+      expect(configuration.distalGate.hvConductionDelaySec).toBe(0.04);
+      expect(configuration.sinusAtrialCalciumDeposit
+        ?.electricalToCalciumDelaySec).toBe(0.012);
+      expect(configuration.ventricularCalciumDeposit
+        .electricalToCalciumDelaySec).toBe(0.012);
+      expect(configuration.ventricularIntervalStrength.referenceCycleLengthSec)
+        .toBe(cycleLengthSec);
+      expect(Object.hasOwn(
+        configuration.ventricularIntervalStrength,
+        "futureExactCalciumDepositPolicy",
+      )).toBe(false);
+      expect(rhythm.state.regularAtrialSourceState?.nextActivationTimeSec)
+        .toBe(cycleLengthSec - 0.132);
+      expect(rhythm.state.electricalCaptureState.atrialGate
+        .lastCapturedActivationTimeSec).toBe(-0.132);
+      expect(rhythm.state.ventricularIntervalStrengthState
+        .lastAcceptedVentricularActivation.activationTimeSec).toBe(-0.012);
+      expect(rhythm.state.ventricularIntervalStrengthState
+        .lastAcceptedVentricularActivation.upstreamCapturedActivationId)
+        .toBe(rhythm.state.electricalCaptureState.atrialGate
+          .lastCapturedActivationId);
+      expect(cycleLengthSec - 0.132).toBeGreaterThan(
+        rhythm.state.electricalCaptureState.atrialGate.refractoryUntilSec,
+      );
+      expect(cycleLengthSec - 0.012).toBeGreaterThan(
+        rhythm.state.electricalCaptureState.ventricularGate
+          .refractoryUntilSec,
+      );
+
+      const atrialTimeSec = cycleLengthSec - 0.132;
+      const atrial = evaluateAt(rhythm.state, atrialTimeSec);
+      expect(atrial.capturedAtrialActivation?.activationTimeSec)
+        .toBe(atrialTimeSec);
+      expect(atrial.proximalAvOutputDecision?.proximalAvOutputTimeSec)
+        .toBe(cycleLengthSec - 0.052);
+      expect(atrial.scheduledCalciumDeposits).toEqual([
+        expect.objectContaining({
+          depositClass: "sinus-atrial",
+          depositTimeSec: cycleLengthSec - 0.12,
+        }),
+      ]);
+
+      let current = advanceThroughOwnedBoundaries(
+        rhythm.state,
+        cycleLengthSec - 0.052,
+      );
+      expect(current.pendingDistalVentricularImpulses[0]?.activationTimeSec)
+        .toBe(cycleLengthSec - 0.012);
+      const ventricular = evaluateAt(current, cycleLengthSec - 0.012);
+      expect(ventricular.capturedVentricularActivation?.activationTimeSec)
+        .toBe(cycleLengthSec - 0.012);
+      expect(ventricular.ventricularIntervalStrengthCandidate
+        ?.depositMetadata.intervalSec).toBe(cycleLengthSec);
+      expect(ventricular.ventricularIntervalStrengthCandidate
+        ?.depositMetadata.releasedRelativeStrengthR).toBe(1);
+      expect(ventricular.ventricularIntervalStrengthCandidate
+        ?.depositMetadata.futureExactCalciumDepositRelativeStrength).toBe(1);
+      expect(ventricular.scheduledCalciumDeposits).toEqual([
+        expect.objectContaining({
+          depositClass: "ventricular",
+          depositTimeSec: cycleLengthSec,
+        }),
+      ]);
+
+      current = advanceThroughOwnedBoundaries(current, cycleLengthSec);
+      expect(current.acceptedAtrialCaptureCount).toBe(1);
+      expect(current.acceptedVentricularCaptureCount).toBe(1);
+      expect(current.deliveredCalciumDepositCount).toBe(2);
+      expect(current.pendingCalciumDeposits).toEqual([]);
+      for (const wall of walls) {
+        expect(current.calciumStateByWall[wall][0])
+          .toBeCloseTo(rhythm.state.calciumStateByWall[wall][0], 14);
+        expect(current.calciumStateByWall[wall][1])
+          .toBeCloseTo(rhythm.state.calciumStateByWall[wall][1], 14);
+      }
+
+      let sampled = rhythm.state;
+      let maximumAbsoluteErrorUM = 0;
+      for (const targetTimeSec of [
+        0,
+        0.137 * cycleLengthSec,
+        0.5 * cycleLengthSec,
+        0.95 * cycleLengthSec,
+        cycleLengthSec,
+      ]) {
+        sampled = advanceThroughOwnedBoundaries(sampled, targetTimeSec);
+        const direct = evaluateFiveWallNormalCalciumDriveV1(
+          targetTimeSec + 0.012,
+          resolved,
+        ).freeCalciumUMByWall;
+        for (const wall of walls) {
+          const exact = evaluateExactEventCalciumV1(
+            sampled.calciumStateByWall[wall],
+            configuration.calciumParametersByWall[wall],
+          ).freeCalciumUM;
+          maximumAbsoluteErrorUM = Math.max(
+            maximumAbsoluteErrorUM,
+            Math.abs(exact - direct[wall]),
+          );
+        }
+      }
+      expect(maximumAbsoluteErrorUM).toBeLessThanOrEqual(3e-12);
+    }
+  });
+
+  it.each([50, 90] as const)(
+    "canonicalizes the %s bpm ventricular calcium deposit onto each exact sinus cycle boundary",
+    (heartRateBpm) => {
+      const cycleLengthSec = 60 / heartRateBpm;
+      const rhythm = createMainWireIntegratedRegularSinusRhythmV3(
+        {
+          idPrefix: `coincident-cycle-${heartRateBpm}`,
+          parameterProvenanceSourceId: "coincident-cycle-regression",
+          cycleLengthSec,
+        },
+        {
+          profileId:
+            MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+          heartRateBpm,
+        },
+      );
+
+      let completed = rhythm.state;
+      for (let cycleOrdinal = 1; cycleOrdinal <= 3; cycleOrdinal += 1) {
+        const boundaryTimeSec = cycleOrdinal * cycleLengthSec;
+        completed = advanceThroughOwnedBoundaries(completed, boundaryTimeSec);
+        expect(completed.acceptedTimeSec).toBe(boundaryTimeSec);
+        expect(completed.acceptedAtrialCaptureCount).toBe(cycleOrdinal);
+        expect(completed.acceptedVentricularCaptureCount).toBe(cycleOrdinal);
+        expect(completed.deliveredCalciumDepositCount).toBe(
+          2 * cycleOrdinal,
+        );
+        expect(completed.pendingCalciumDeposits).toEqual([]);
+      }
+    },
+  );
+
+  it("keeps the fixed-profile calcium queue empty across a dense 40-100 bpm sweep", () => {
+    for (let heartRateBpm = 40; heartRateBpm <= 100; heartRateBpm += 1) {
+      const cycleLengthSec = 60 / heartRateBpm;
+      const rhythm = createMainWireIntegratedRegularSinusRhythmV3(
+        {
+          idPrefix: `dense-cycle-${heartRateBpm}`,
+          parameterProvenanceSourceId: "dense-cycle-regression",
+          cycleLengthSec,
+        },
+        {
+          profileId:
+            MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+          heartRateBpm,
+        },
+      );
+      let completed = rhythm.state;
+      for (let cycleOrdinal = 1; cycleOrdinal <= 6; cycleOrdinal += 1) {
+        completed = advanceThroughOwnedBoundaries(
+          completed,
+          cycleOrdinal * cycleLengthSec,
+        );
+        expect(completed.acceptedAtrialCaptureCount).toBe(cycleOrdinal);
+        expect(completed.acceptedVentricularCaptureCount).toBe(cycleOrdinal);
+        expect(completed.deliveredCalciumDepositCount).toBe(
+          2 * cycleOrdinal,
+        );
+        expect(completed.pendingCalciumDeposits).toEqual([]);
+      }
+    }
+  });
+
+  it("does not project an authored PAC lineage onto the regular-sinus cycle lattice", () => {
+    const { state } = fixture({
+      firstRegularTimeSec: 10,
+      events: [{
+        eventKind: "pac",
+        authoredEctopyId: "off-lattice-pac",
+        sourceId: "off-lattice-pac-source",
+        sourceSequence: 0,
+        activationTimeSec: 1.03,
+        chamber: "atrial",
+        sinusResetPolicy: "preserve",
+      }],
+    });
+
+    const afterVentricularCapture = advanceThroughOwnedBoundaries(
+      state,
+      1.1800000000000002,
+    );
+    expect(afterVentricularCapture.pendingCalciumDeposits).toHaveLength(1);
+    expect(afterVentricularCapture.pendingCalciumDeposits[0]).toMatchObject({
+      depositClass: "ventricular",
+      depositTimeSec: 1.2000000000000002,
+    });
+    expect(afterVentricularCapture.pendingCalciumDeposits[0]?.depositTimeSec)
+      .not.toBe(1.2);
+  });
+
+  it("keeps the continuous HR law separate from its exact tau boundary", () => {
+    const continuous =
+      resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+        60,
+      );
+    const persisted =
+      resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(60);
+    expect(continuous.ventricular.riseTimeConstantSec)
+      .toBe(0.1234750900275888);
+    expect(persisted.ventricular.riseTimeConstantSec)
+      .toBe(0.123475090028);
+    expect(persisted.cycleLengthSec).toBe(continuous.cycleLengthSec);
+    expect(persisted.atrial).toBe(continuous.atrial);
+  });
+
+  it("rejects fixed-profile identity, shape, and HR-cycle splits", () => {
+    const identity = {
+      idPrefix: "selected-profile-validation",
+      parameterProvenanceSourceId: "selected-profile-validation-source",
+      cycleLengthSec: 1,
+    } as const;
+    expect(() => createMainWireIntegratedRegularSinusRhythmV3(
+      identity,
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 60,
+        extra: true,
+      } as never,
+    )).toThrow(/profile keys are invalid/);
+    expect(() => createMainWireIntegratedRegularSinusRhythmV3(
+      identity,
+      { profileId: "wrong-profile", heartRateBpm: 60 } as never,
+    )).toThrow(/profile id is invalid/);
+    expect(() => createMainWireIntegratedRegularSinusRhythmV3(
+      identity,
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 75,
+      },
+    )).toThrow(/heart rate and cycle split/);
+  });
+
   it("rejects state A's candidate against state B's rhythm configuration in the lean tier", () => {
     const a = fixture({ firstRegularTimeSec: 10 });
     const b = fixture({

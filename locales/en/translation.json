@@ -305,6 +305,7 @@
         "validationTitle": "Verification and validity",
         "validationDescription": "Current automated checks cover finite numerical values, blood-volume conservation, and event consistency. They do not establish physiological or clinical validity.",
         "limitationsTitle": "Limitations",
+        "modelDocumentation": "View model documentation",
         "chooseModel": "Change mathematical model"
       },
       "home": "Home",
@@ -677,6 +678,14 @@
       "Parameters and outputs are approximations and require validation for each intended scientific use.",
       "PV panes default to a responsive fixed-TBV multi-load preview. Their optional formal mode admits only full-state period-1 qualified loads and computes a method-specific SW/ESPVR/exponential-EDPVR/PE/PVA decomposition plus an LV literature-coefficient MVO₂ estimate; neither is independent physiological or clinical validation or measured oxygen consumption.",
       "The Guyton / Starling response starts from a locally period-1-settled operating anchor with slow coronary tone frozen. Off-centre adaptive points are preview data; nonconverged or period-2 boundary points are excluded from the connected curve, and the result is not canonical qualified evidence."
+    ],
+    "standard66Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the recovered proximal aortic constitutive-port pressure and ABP is systemic arterial compartment pressure; neither is a literal catheter or cuff measurement station.",
+      "The systemic arteries do not model spatial wave travel or reflection, so waveform timing and morphology must not be interpreted as site-resolved arterial traces.",
+      "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
+      "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
+      "Numerical verification and baseline characterization do not establish physiological or clinical validation."
     ]
   }
 }

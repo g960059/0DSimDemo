@@ -9,6 +9,9 @@ import {
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
+  evaluateLand2017StrongBridgeDeactivationExitTermsV1,
+} from "@/engine/myocardium/myofilament/land2017/strongBridgeDeactivationExitV1";
+import {
   solveLand2017BackwardEulerStep,
   solveLand2017PopulationBlock,
   type Land2017StepSolveOptions,
@@ -98,19 +101,49 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
     dt * W * land2017GammaWuDerivative(zetaW, p);
   const dSResidualDZetaS =
     dt * S * centralSemismoothGammaSuDerivative(zetaS, p.gammaS);
-  const populationDerivative = solveLand2017PopulationBlock(
-    1 + dt * (bindingRate + unbindingRate),
-    dt * bindingRate,
-    dt * bindingRate,
-    dt * p.kuw,
-    1 + dt * (p.kuw + weakLossRate),
-    dt * p.kuw,
-    -dt * p.kws,
-    1 + dt * strongLossRate,
-    -dBResidualDCaTRPN * dCaTRPNDStrain,
-    -dWResidualDZetaW * dZetaWDStrain,
-    -dSResidualDZetaS * dZetaSDStrain,
-  );
+  let populationDerivative: readonly [number, number, number];
+  if (parameterSet.strongBridgeDeactivationExit === undefined) {
+    populationDerivative = solveLand2017PopulationBlock(
+      1 + dt * (bindingRate + unbindingRate),
+      dt * bindingRate,
+      dt * bindingRate,
+      dt * p.kuw,
+      1 + dt * (p.kuw + weakLossRate),
+      dt * p.kuw,
+      -dt * p.kws,
+      1 + dt * strongLossRate,
+      -dBResidualDCaTRPN * dCaTRPNDStrain,
+      -dWResidualDZetaW * dZetaWDStrain,
+      -dSResidualDZetaS * dZetaSDStrain,
+    );
+  } else {
+    const deactivationExit =
+      evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+        solvedNextState,
+        parameterSet,
+      );
+    populationDerivative = solveLand2017PopulationBlock(
+      1 + dt * (bindingRate + unbindingRate),
+      dt * bindingRate,
+      dt * bindingRate,
+      dt * p.kuw,
+      1 + dt * (p.kuw + weakLossRate),
+      dt * p.kuw,
+      -dt * (
+        p.kws - deactivationExit.derivativeByWeakPopulationPerSec
+      ),
+      1 + dt * (
+        strongLossRate
+        + deactivationExit.derivativeByStrongPopulationPerSec
+      ),
+      -dBResidualDCaTRPN * dCaTRPNDStrain,
+      -dWResidualDZetaW * dZetaWDStrain,
+      -dt
+        * deactivationExit.derivativeByCaTRPNPerSec
+        * dCaTRPNDStrain
+        - dSResidualDZetaS * dZetaSDStrain,
+    );
+  }
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0)
@@ -173,19 +206,42 @@ export function computeLand2017SteadyStateTangentPaFromSolvedState(
       * Math.pow(CaTRPN, nTmHalf - 1)
       * B
   );
-  const populationDerivative = solveLand2017PopulationBlock(
-    bindingRate + unbindingRate,
-    bindingRate,
-    bindingRate,
-    p.kuw,
-    p.kuw + d.kwu + p.kws,
-    p.kuw,
-    -p.kws,
-    d.ksu,
-    -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
-    0,
-    0,
-  );
+  let populationDerivative: readonly [number, number, number];
+  if (parameterSet.strongBridgeDeactivationExit === undefined) {
+    populationDerivative = solveLand2017PopulationBlock(
+      bindingRate + unbindingRate,
+      bindingRate,
+      bindingRate,
+      p.kuw,
+      p.kuw + d.kwu + p.kws,
+      p.kuw,
+      -p.kws,
+      d.ksu,
+      -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
+      0,
+      0,
+    );
+  } else {
+    const deactivationExit =
+      evaluateLand2017StrongBridgeDeactivationExitTermsV1(
+        solvedState,
+        parameterSet,
+      );
+    populationDerivative = solveLand2017PopulationBlock(
+      bindingRate + unbindingRate,
+      bindingRate,
+      bindingRate,
+      p.kuw,
+      p.kuw + d.kwu + p.kws,
+      p.kuw,
+      -(p.kws - deactivationExit.derivativeByWeakPopulationPerSec),
+      d.ksu + deactivationExit.derivativeByStrongPopulationPerSec,
+      -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
+      0,
+      -deactivationExit.derivativeByCaTRPNPerSec
+        * dCaTRPNDStrain,
+    );
+  }
   const populationDistortion = S;
   const stressScalePa = terms.h * p.Tref / p.rs;
   const tangentPa =

@@ -5,8 +5,8 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 78;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
+export const FAST_SUITE_FILE_BUDGET = 88;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 47;
 
 export const fastTests = [
   "__tests__/analysisMethodRegistryV1.test.ts",
@@ -37,12 +37,20 @@ export const fastTests = [
   "__tests__/mainWireFiveWallMechanicsResearchInputsV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireIntegratedTypedAuthoritySessionV1.test.ts",
+  "__tests__/mainWireIntegratedTypedAuthoritySelectedAorticExtensionV1.test.ts",
+  "__tests__/mainWireSelectedAorticPortSessionExtensionV1.test.ts",
   "__tests__/flatNumericalStateV1.test.ts",
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
+  "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
+  "__tests__/mainWireSelectedAorticOutflowCirculationProfileV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
   "__tests__/mainWireIntegratedModelBeatMetricsV3.test.ts",
+  "__tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts",
+  "__tests__/mainWireIntegratedModelStandard66ModelSurfaceV1.test.ts",
+  "__tests__/mainWireIntegratedModelStandard66OutputRegistryV1.test.ts",
+  "__tests__/mainWireIntegratedModelStandard66TypedAuthoritySessionV1.test.ts",
   "__tests__/mainWirePeriodicPvaV1.test.ts",
   "__tests__/mainWireIntegratedMechanismStudioV1.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
@@ -59,6 +67,7 @@ export const fastTests = [
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
   "__tests__/modelLimitations.test.ts",
+  "__tests__/modelDocumentationV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
@@ -120,8 +129,10 @@ export const prSmokeTests = [
   "__tests__/mainWireStructuralAnalysisExecutionV1.test.ts",
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
+  "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
+  "__tests__/modelDocumentationV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
@@ -146,6 +157,8 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts",
+  "__tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorOwnerV1.test.ts",

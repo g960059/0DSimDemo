@@ -27,6 +27,7 @@ import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import {
   createDefaultExperimentSurfaceV3,
+  reconcileWorkbenchPressureVolumeCapabilityV3,
   reconcileWorkbenchSurfaceScenariosV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 
@@ -85,6 +86,13 @@ describe("Studio numerical authoring V1", () => {
       version: 0,
       scenarioIds: ["scenario/baseline", "scenario/fluid"],
     });
+    const authoredPressureVolume = repository.experiment()!.content.surface
+      .graphPanes.find(({ graphId }) =>
+        graphId === "hemodynamics.pressure-volume");
+    expect(authoredPressureVolume).toMatchObject({
+      pressureVolumeAnalysisMode: "formal-periodic",
+      showPressureEnvelope: false,
+    });
 
     const secondPreview = await previewStudioExperimentPlanV1(
       repository,
@@ -123,6 +131,20 @@ describe("Studio numerical authoring V1", () => {
     expect(repository.experiment()!.content.scenarios.map(
       ({ capture }) => capture.checkpoint,
     )).toEqual(capturesBeforeLabelEdit);
+
+    await expect(sealStudioExperimentSnapshotV1(
+      repository,
+      numericalModelsV1({ periodicPvaSupported: false }),
+      {
+        experimentId: applied.savedExperiment.experimentId,
+        expectedVersion: 1,
+        exactModel: firstPreview.plan.exactModel,
+        snapshotId: "snapshot/raw-only-rejected-formal-pva",
+        createdAt: "2026-08-11T00:00:00.000Z",
+        observeOutputIds: null,
+      },
+    )).rejects.toThrow(/no periodic PVA analysis.*raw-exact-orbit/);
+    expect(repository.snapshot()).toBeNull();
 
     await expect(sealStudioExperimentSnapshotV1(
       repository,
@@ -200,7 +222,9 @@ function executionBudgetV1() {
   });
 }
 
-function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
+function numericalModelsV1(
+  options: Readonly<{ periodicPvaSupported?: boolean }> = Object.freeze({}),
+): StudioAuthoringNumericalModelPortV1 {
   const release = createCircleHeartExactModelReleaseV1();
   const composed = composeStandardModelContractV1(
     release.manifest,
@@ -214,6 +238,7 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
   const resolved = Object.freeze({
     contract: composed.contract,
     defaultFixture: standardDescriptorV1.defaultFixture,
+    periodicPvaSupported: options.periodicPvaSupported ?? true,
     runtime: Object.freeze({
       ...runtime,
       snapshotGate: Object.freeze({
@@ -237,9 +262,15 @@ function numericalModelsV1(): StudioAuthoringNumericalModelPortV1 {
         : createDefaultExperimentSurfaceV3(
             input.contract,
             input.scenarioIds[0],
+            { periodicPvaSupported: input.periodicPvaSupported },
           );
-      const surface = reconcileWorkbenchSurfaceScenariosV3(
+      const capabilitySurface = reconcileWorkbenchPressureVolumeCapabilityV3(
         initial,
+        input.contract,
+        input.periodicPvaSupported,
+      );
+      const surface = reconcileWorkbenchSurfaceScenariosV3(
+        capabilitySurface,
         input.scenarioIds.map((scenarioId) => ({ scenarioId })),
       );
       return Object.freeze({

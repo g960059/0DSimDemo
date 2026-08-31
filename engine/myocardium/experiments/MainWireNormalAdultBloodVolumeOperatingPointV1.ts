@@ -454,13 +454,20 @@ function solveSharedTransmuralPressureOffsetMmHg(
   let lowerMmHg: number;
   let upperMmHg: number;
   if (targetAdditionalVolumeMl > 0) {
+    const maximumSharedOffsetMmHg = Math.min(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum
+        - baselineTransmuralPressuresMmHg[nodeName],
+    ));
+    if (
+      addedVolumeAtOffsetMl(maximumSharedOffsetMmHg)
+        < targetAdditionalVolumeMl
+    ) {
+      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+    }
     lowerMmHg = 0;
-    upperMmHg = 1;
+    upperMmHg = Math.min(1, maximumSharedOffsetMmHg);
     while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
-      upperMmHg *= 2;
-      if (upperMmHg > 256) {
-        throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
-      }
+      upperMmHg = Math.min(2 * upperMmHg, maximumSharedOffsetMmHg);
     }
   } else {
     upperMmHg = 0;

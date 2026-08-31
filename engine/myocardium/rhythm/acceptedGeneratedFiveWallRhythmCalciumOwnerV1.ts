@@ -63,6 +63,10 @@ export const ACCEPTED_GENERATED_FIVE_WALL_RHYTHM_CALCIUM_CHECKPOINT_V1_ID =
 export const GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1 =
   2e-12 as const;
 
+/** Alpha replay envelope including repeated-root carry arithmetic. */
+export const GENERATED_FIVE_WALL_PERIODIC_SINUS_ALPHA_ABS_TOLERANCE_UM_V1 =
+  3e-12 as const;
+
 export const ACCEPTED_GENERATED_FIVE_WALL_RHYTHM_CALCIUM_CLAIM_V1 = deepFreeze({
   owner:
     "one-accepted-clock-revision-generator-state-and-five-calcium-states" as const,
@@ -229,7 +233,8 @@ export type GeneratedPeriodicSinusFiveWallRhythmCalciumOwnerV1 = Readonly<{
     sourceParameterSetId: string;
     exactBitParityClaimed: false;
     absoluteToleranceUM:
-      typeof GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1;
+      | typeof GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1
+      | typeof GENERATED_FIVE_WALL_PERIODIC_SINUS_ALPHA_ABS_TOLERANCE_UM_V1;
   }>;
 }>;
 
@@ -563,7 +568,11 @@ export function createGeneratedPeriodicSinusFiveWallRhythmCalciumOwnerV1(
       sourceParameterSetId: params.parameterSetId,
       exactBitParityClaimed: false as const,
       absoluteToleranceUM:
-        GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1,
+        WALL_IDS.some((wall) =>
+          calciumParametersByWall[wall].tauDecaySec
+            === calciumParametersByWall[wall].tauRiseSec)
+          ? GENERATED_FIVE_WALL_PERIODIC_SINUS_ALPHA_ABS_TOLERANCE_UM_V1
+          : GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1,
     },
   });
 }

@@ -42,6 +42,8 @@ export type WorkbenchWaveformTraceV3 = WorkbenchScenarioTraceIdentityV3 &
     samples: readonly WorkbenchScalarSampleV3[];
     outputId: string;
     signalLabel: string;
+    signalDescription?: string;
+    signalDescriptionLabel?: string;
     /** Final resolved trace color from the automatic comparison strategy. */
     signalColor: string;
     /** Optional catalog-owned cycle source used to commit stable axes. */
@@ -346,6 +348,12 @@ export function SweepingWaveformCanvasV3(
       scenarioLabel: trace.scenarioLabel,
       itemId: trace.outputId,
       itemLabel: trace.signalLabel,
+      ...(trace.signalDescription === undefined
+        ? {}
+        : { itemDescription: trace.signalDescription }),
+      ...(trace.signalDescriptionLabel === undefined
+        ? {}
+        : { itemDescriptionLabel: trace.signalDescriptionLabel }),
       color: trace.signalColor,
     }))),
     [traces],
@@ -561,6 +569,8 @@ function sameWorkbenchWaveformTraceV3(
     && left.samples === right.samples
     && left.outputId === right.outputId
     && left.signalLabel === right.signalLabel
+    && left.signalDescription === right.signalDescription
+    && left.signalDescriptionLabel === right.signalDescriptionLabel
     && left.signalColor === right.signalColor
     && left.cyclePhaseOutputId === right.cyclePhaseOutputId;
 }
@@ -572,6 +582,12 @@ function waveformLegendDescriptorV3(trace: WorkbenchWaveformTraceV3) {
     scenarioLabel: trace.scenarioLabel,
     itemId: trace.outputId,
     itemLabel: trace.signalLabel,
+    ...(trace.signalDescription === undefined
+      ? {}
+      : { itemDescription: trace.signalDescription }),
+    ...(trace.signalDescriptionLabel === undefined
+      ? {}
+      : { itemDescriptionLabel: trace.signalDescriptionLabel }),
     color: trace.signalColor,
   });
 }

@@ -173,6 +173,10 @@ describe("CanonicalFlatDataV1", () => {
 
     const checkpoint = await encodeCanonicalFlatCheckpointV1(first);
     expect(await decodeCanonicalFlatCheckpointV1(checkpoint)).toEqual(decoded);
+    const inFlightCheckpoint = checkpoint.slice();
+    const inFlightDecode = decodeCanonicalFlatCheckpointV1(inFlightCheckpoint);
+    inFlightCheckpoint.fill(0);
+    expect(await inFlightDecode).toEqual(decoded);
     const tampered = checkpoint.slice();
     tampered[tampered.length - 1] ^= 1;
     await expect(decodeCanonicalFlatCheckpointV1(tampered))
@@ -358,6 +362,37 @@ describe("TransactionalTypedStateImageV1", () => {
     expect(cursor.readNullableContinuous(0)).toBeNull();
     expect(image.rehydrateCurrent()).toEqual(initial);
 
+    const initiallyPresent: State = Object.freeze({
+      value: 4,
+      optionalTimeSec: 0.5,
+    });
+    const initiallyPresentManifest = createTransactionalTypedStateManifestV1(
+      "test-nullable-continuous-state",
+      initiallyPresent,
+      1,
+      1,
+      { nullableContinuousPointers: ["/optionalTimeSec"] },
+    );
+    expect(initiallyPresentManifest.numericalLayout)
+      .toEqual(manifest.numericalLayout);
+    expect(initiallyPresentManifest.fingerprint).toBe(manifest.fingerprint);
+    expect(initiallyPresentManifest.bufferByteLength)
+      .toBe(manifest.bufferByteLength);
+    const initiallyPresentImage = new TransactionalTypedStateImageV1(
+      initiallyPresentManifest,
+      initiallyPresent,
+    );
+    expect(initiallyPresentImage.currentCursor().readNullableContinuous(0))
+      .toBe(0.5);
+    expect(initiallyPresentImage.rehydrateCurrent()).toEqual(initiallyPresent);
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-invalid-initial-nullable-continuous-state",
+      { value: 4, optionalTimeSec: Number.NaN },
+      1,
+      1,
+      { nullableContinuousPointers: ["/optionalTimeSec"] },
+    )).toThrow(/reference must be null or finite/);
+
     image.stage(Object.freeze({ value: 2, optionalTimeSec: 0.25 }));
     image.promote();
     expect(cursor.readNullableContinuous(0)).toBe(0.25);
@@ -405,6 +440,37 @@ describe("TransactionalTypedStateImageV1", () => {
     const cursor = image.currentCursor();
     expect(cursor.readNullableString(0)).toBeNull();
     expect(image.rehydrateCurrent()).toEqual(initial);
+
+    const initiallyPresent: State = Object.freeze({
+      value: 5,
+      optionalId: "capture:initial",
+    });
+    const initiallyPresentManifest = createTransactionalTypedStateManifestV1(
+      "test-nullable-string-state",
+      initiallyPresent,
+      32,
+      1,
+      { nullableStringPointers: ["/optionalId"] },
+    );
+    expect(initiallyPresentManifest.numericalLayout)
+      .toEqual(manifest.numericalLayout);
+    expect(initiallyPresentManifest.fingerprint).toBe(manifest.fingerprint);
+    expect(initiallyPresentManifest.bufferByteLength)
+      .toBe(manifest.bufferByteLength);
+    const initiallyPresentImage = new TransactionalTypedStateImageV1(
+      initiallyPresentManifest,
+      initiallyPresent,
+    );
+    expect(initiallyPresentImage.currentCursor().readNullableString(0))
+      .toBe("capture:initial");
+    expect(initiallyPresentImage.rehydrateCurrent()).toEqual(initiallyPresent);
+    expect(() => createTransactionalTypedStateManifestV1(
+      "test-invalid-initial-nullable-string-state",
+      { value: 5, optionalId: 1 },
+      32,
+      1,
+      { nullableStringPointers: ["/optionalId"] },
+    )).toThrow(/reference must be null or a string/);
 
     image.stage(Object.freeze({ value: 2, optionalId: "capture:1" }));
     image.promote();

@@ -11,11 +11,16 @@ import {
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureAndVolumeTangentFromLawV1,
   type BaseEdgeLossRuntimeParameterViewV1,
+  type NonValveEdgeLossAndPressureDerivativesV1,
+  type NonValveEdgeLossV1,
   type RespiratoryExternalPressuresV1,
   type RespiratoryPressureParameterViewV1,
   type VascularTransmuralPressureAndVolumeTangentV1,
   type VascularPvRuntimeParameterViewV1,
 } from "@/engine/core/circulationGraphKernelV1";
+import {
+  validateMainWireSelectedAorticOutflowCirculationProfileV1,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   fullHotPathInvariantsEnabledV1,
@@ -24,6 +29,10 @@ import {
   validateMainWireFourValveDiseaseResearchInputV1,
   type MainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import {
+  stepMainWireAorticRecoveredRootPortValveScalarsV1,
+  type MainWireAorticRecoveredRootPortValveEvaluationV1,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
 import {
   initialMainWireQuasiSteadyOrificeValveStateV2,
   stepMainWireQuasiSteadyOrificeValveScalarsV2,
@@ -84,6 +93,10 @@ export const NON_CORONARY_VALVE_NAMES_V1 = Object.freeze([
 export type NonCoronaryValveNameV1 =
   (typeof NON_CORONARY_VALVE_NAMES_V1)[number];
 
+export type NonCoronaryValveEvaluationV1 =
+  | MainWireQuasiSteadyOrificeValveEvaluationV2
+  | MainWireAorticRecoveredRootPortValveEvaluationV1;
+
 const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
   NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index]),
 ) as Record<NonCoronaryNodeNameV1, number>);
@@ -117,6 +130,10 @@ export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   ] as const),
   dependentBloodVolumeNode: "SV" as const,
   valveOwner: "MainWireQuasiSteadyOrificeValveV2" as const,
+  optionalSelectedAorticValveOwner:
+    "MainWireAorticRecoveredRootPortValveV1" as const,
+  optionalSelectedAorticValveActivation:
+    "runtime.vascular.selectedAorticOutflowProfile" as const,
   valveAcceptedMemory: "leaflet-opening-fraction-only" as const,
   valveFlow: "algebraic-candidate-readback" as const,
   valveLocalBulkInertance: "omitted-from-canonical" as const,
@@ -529,7 +546,7 @@ export type NonCoronaryCirculationTrialSuccessV1<
   candidateValveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
-  valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
+  valveEvaluations: ValveRecord<NonCoronaryValveEvaluationV1>;
   candidateMechanicsEvaluation: TEvaluation;
   /** Present when a device configuration was supplied, including all-off. */
   mechanicalSupport?: MechanicalSupportHydraulicEvaluationV1;
@@ -664,7 +681,7 @@ export type NonCoronaryPreparedCandidateBorrowV1<TEvaluation> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  valveEvaluations: readonly NonCoronaryValveEvaluationV1[];
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
     DynamicMechanicalSupportHydraulicEvaluationV1 | null;
@@ -716,7 +733,7 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   edgeFlowsMlPerSec: Float64Array;
   dynamicEdgeFlowsMlPerSec: Float64Array;
   valveStates: readonly MainWireQuasiSteadyOrificeValveStateV2[];
-  valveEvaluations: readonly MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  valveEvaluations: readonly NonCoronaryValveEvaluationV1[];
   candidateMechanicsEvaluation: TEvaluation;
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   dynamicMechanicalSupport:
@@ -749,7 +766,7 @@ type MutableCandidateNumericalPageV1 = {
   readonly edgeFlowsMlPerSec: Float64Array;
   readonly dynamicEdgeFlowsMlPerSec: Float64Array;
   readonly valveStates: MainWireQuasiSteadyOrificeValveStateV2[];
-  readonly valveEvaluations: MainWireQuasiSteadyOrificeValveEvaluationV2[];
+  readonly valveEvaluations: NonCoronaryValveEvaluationV1[];
   readonly nodeVolumeRatesMlPerSec: Float64Array;
   readonly continuityResidualMlByNode: Float64Array;
   readonly scaledIndependentResidual: Float64Array;
@@ -983,7 +1000,7 @@ MutableCandidateNumericalPageV1 {
       NON_CORONARY_VALVE_NAMES_V1.length,
     ),
     valveEvaluations:
-      Array<MainWireQuasiSteadyOrificeValveEvaluationV2>(
+      Array<NonCoronaryValveEvaluationV1>(
         NON_CORONARY_VALVE_NAMES_V1.length,
       ),
     nodeVolumeRatesMlPerSec:
@@ -2667,15 +2684,28 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     if (edge.kind === "valve") {
       const valveName = name as NonCoronaryValveNameV1;
       const valveIndex = NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName];
-      const evaluation = stepMainWireQuasiSteadyOrificeValveScalarsV2(
-        previous.valveOpeningFractions01[
-          NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
-        ]!,
-        input.dtSec,
-        upstreamPressure,
-        downstreamPressure,
-        valveResearchInput.valves[valveName],
-      );
+      const previousOpening01 = previous.valveOpeningFractions01[
+        NON_CORONARY_VALVE_INDEX_BY_NAME_V1[valveName]
+      ]!;
+      const selectedAorticOutflowProfile =
+        input.runtime.vascular.selectedAorticOutflowProfile;
+      const evaluation: NonCoronaryValveEvaluationV1 =
+        valveName === "AoV" && selectedAorticOutflowProfile !== undefined
+          ? stepMainWireAorticRecoveredRootPortValveScalarsV1(
+              previousOpening01,
+              input.dtSec,
+              upstreamPressure,
+              downstreamPressure,
+              valveResearchInput.valves.AoV,
+              selectedAorticOutflowProfile.aorticValveProfile,
+            )
+          : stepMainWireQuasiSteadyOrificeValveScalarsV2(
+              previousOpening01,
+              input.dtSec,
+              upstreamPressure,
+              downstreamPressure,
+              valveResearchInput.valves[valveName],
+            );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
@@ -2695,20 +2725,24 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
     const losses = applyProtocolResistanceScale(
-      nonValveEdgeLossV1({
-      edge,
-      params: input.runtime.losses,
-      upstreamPressureMmHg: upstreamPressure,
-      downstreamPressureMmHg: downstreamPressure,
-      edgeExternalPressureMmHg,
-      }),
+      nonCoronaryNonValveEdgeLossV1(
+        edge,
+        name,
+        input.runtime,
+        upstreamPressure,
+        downstreamPressure,
+        edgeExternalPressureMmHg,
+      ),
       protocolResistanceScaleForEdge(input, name),
     );
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
-        (edge.L ?? 0) / (
-          edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1
+        nonCoronaryDynamicEdgeInertanceV1(
+          edge,
+          dynamicName,
+          input.runtime,
+          losses.areaRatio,
         ),
         `${name} inertanceMmHgSec2PerMl`,
       );
@@ -3038,13 +3072,14 @@ function analyticEdgeFlowPressureDerivativesV1<
       edgeExternalPressureMmHg,
     });
     const losses = applyProtocolResistanceScaleWithDerivatives(
-      nonValveEdgeLossAndPressureDerivativesV1({
+      nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(
         edge,
-        params: input.runtime.losses,
+        edgeName,
+        input.runtime,
         upstreamPressureMmHg,
         downstreamPressureMmHg,
         edgeExternalPressureMmHg,
-      }),
+      ),
       protocolResistanceScaleForEdge(input, edgeName),
     );
     const flowMlPerSec = current.edgeFlowsMlPerSec[edgeIndex]!;
@@ -3054,14 +3089,23 @@ function analyticEdgeFlowPressureDerivativesV1<
     let dInertanceDDownstreamPressureSec2PerMl = 0;
     let previousFlowMlPerSec = flowMlPerSec;
     if (edge.kind === "dynamic") {
-      const areaDenominator = edge.useChiResistance
-        ? Math.max(losses.areaRatio, 1e-6)
-        : 1;
       inertanceMmHgSec2PerMl = requirePositive(
-        (edge.L ?? 0) / areaDenominator,
+        nonCoronaryDynamicEdgeInertanceV1(
+          edge,
+          edgeName as NonCoronaryDynamicEdgeNameV1,
+          input.runtime,
+          losses.areaRatio,
+        ),
         `${edgeName} inertance tangent base`,
       );
-      if (edge.useChiResistance && losses.areaRatio > 1e-6) {
+      if (
+        !selectedAorticOutflowDynamicEdgeActiveV1(
+          edgeName,
+          input.runtime,
+        )
+        && edge.useChiResistance
+        && losses.areaRatio > 1e-6
+      ) {
         const inertanceAreaFactor =
           -inertanceMmHgSec2PerMl / losses.areaRatio;
         dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor
@@ -4466,6 +4510,19 @@ function validateRuntimeOnceV1(
 ): void {
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
+  const selectedAorticOutflowProfile =
+    runtime.vascular.selectedAorticOutflowProfile;
+  if (selectedAorticOutflowProfile !== undefined) {
+    const selectedProfileIssues =
+      validateMainWireSelectedAorticOutflowCirculationProfileV1(
+        selectedAorticOutflowProfile,
+      );
+    if (selectedProfileIssues.length > 0) {
+      throw new Error(
+        `invalid selectedAorticOutflowProfile: ${selectedProfileIssues.join("; ")}`,
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
@@ -4881,6 +4938,106 @@ function protocolResistanceScaleForEdge<TEvaluation, TCompanionTrial>(
   edgeName: NonCoronaryEdgeNameV1,
 ): number {
   return input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;
+}
+
+function selectedAorticOutflowDynamicEdgeActiveV1(
+  edgeName: NonCoronaryEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): boolean {
+  const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
+  return selectedProfile !== undefined
+    && edgeName === selectedProfile.sourceDynamicEdgeId;
+}
+
+/**
+ * Selected Ao_SA resistance is the residual downstream loss only. The fixed
+ * characteristic impedance is already inside the recovered-root AoV port and
+ * must never be scaled again by systemic resistance or a protocol multiplier.
+ */
+function nonCoronaryNonValveEdgeLossV1(
+  edge: EdgeSpec,
+  edgeName: NonCoronaryEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  upstreamPressureMmHg: number,
+  downstreamPressureMmHg: number,
+  edgeExternalPressureMmHg: number,
+): NonValveEdgeLossV1 {
+  const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
+  if (
+    selectedProfile === undefined
+    || edgeName !== selectedProfile.sourceDynamicEdgeId
+  ) {
+    return nonValveEdgeLossV1({
+      edge,
+      params: runtime.losses,
+      upstreamPressureMmHg,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg,
+    });
+  }
+  return Object.freeze({
+    resistanceMmHgSecPerMl: requirePositive(
+      selectedProfile.residualDownstreamResistanceMmHgSecPerMl
+        * runtime.losses.systemicResistance,
+      `${edgeName} selected residual downstream resistance`,
+    ),
+    quadraticLossMmHgSec2PerMl2: 0,
+    areaRatio: 1,
+    collapsibleTubeApplied: false,
+  });
+}
+
+function nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(
+  edge: EdgeSpec,
+  edgeName: NonCoronaryEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  upstreamPressureMmHg: number,
+  downstreamPressureMmHg: number,
+  edgeExternalPressureMmHg: number,
+): NonValveEdgeLossAndPressureDerivativesV1 {
+  if (!selectedAorticOutflowDynamicEdgeActiveV1(edgeName, runtime)) {
+    return nonValveEdgeLossAndPressureDerivativesV1({
+      edge,
+      params: runtime.losses,
+      upstreamPressureMmHg,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg,
+    });
+  }
+  return Object.freeze({
+    ...nonCoronaryNonValveEdgeLossV1(
+      edge,
+      edgeName,
+      runtime,
+      upstreamPressureMmHg,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg,
+    ),
+    dAreaRatioDUpstreamPressurePerMmHg: 0,
+    dAreaRatioDDownstreamPressurePerMmHg: 0,
+    dResistanceDUpstreamPressureSecPerMl: 0,
+    dResistanceDDownstreamPressureSecPerMl: 0,
+    dQuadraticLossDUpstreamPressureSec2PerMl2: 0,
+    dQuadraticLossDDownstreamPressureSec2PerMl2: 0,
+    areaRatioBranch: "not-applied" as const,
+  });
+}
+
+/** Single L authority shared by the primal BE solve and analytic tangent. */
+function nonCoronaryDynamicEdgeInertanceV1(
+  edge: EdgeSpec,
+  edgeName: NonCoronaryDynamicEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  areaRatio: number,
+): number {
+  const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
+  if (
+    selectedProfile !== undefined
+    && edgeName === selectedProfile.sourceDynamicEdgeId
+  ) return selectedProfile.ascendingAorticInertanceMmHgSec2PerMl;
+  return (edge.L ?? 0) / (
+    edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1
+  );
 }
 
 function applyProtocolResistanceScale<

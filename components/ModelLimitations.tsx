@@ -54,6 +54,8 @@ export const ModelLimitations: React.FC<{
   onOpenChange?: (open: boolean) => void;
   showTrigger?: boolean;
   autoOpenUnacknowledged?: boolean;
+  documentationHref?: string;
+  documentationLabel?: string;
 }> = ({
   compact = false,
   limitations,
@@ -62,6 +64,8 @@ export const ModelLimitations: React.FC<{
   onOpenChange,
   showTrigger = true,
   autoOpenUnacknowledged = true,
+  documentationHref,
+  documentationLabel,
 }) => {
   const { t } = useTranslation();
   const defaultLimitations = t("modelLimitations.items", {
@@ -158,6 +162,8 @@ export const ModelLimitations: React.FC<{
         closeLabel={t("common.close")}
         acknowledgeLabel={t("modelLimitations.understand")}
         limitations={shownLimitations}
+        documentationHref={documentationHref}
+        documentationLabel={documentationLabel}
       />
     </>
   );
