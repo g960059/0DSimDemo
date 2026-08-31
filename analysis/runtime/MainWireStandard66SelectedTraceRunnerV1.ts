@@ -11,10 +11,12 @@ import {
 } from "@/engine/executionPlan/MainWireNumericalClockV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3,
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
@@ -31,6 +33,9 @@ import {
   bindMainWireFiveWallCoupledExecutionPlanRuntimeV1,
   MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledNewtonShadowV1";
+import {
+  isTransitivelyFrozenPlainDataV1,
+} from "@/engine/validationStampModeV1";
 import {
   MainWireIntegratedModelStandard66TypedAuthoritySessionV1,
   type MainWireIntegratedModelStandard66AcceptedEndpointProjectionV1,
@@ -52,6 +57,9 @@ export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_RUNNER_V1_ID =
 
 export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID =
   "main-wire-standard66-selected-trace-production-route-live-session-v1" as const;
+
+export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_CONSTRUCTION_V1_ID =
+  "main-wire-standard66-selected-trace-live-session-construction-v1" as const;
 
 export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1 =
   0.02 as const;
@@ -110,6 +118,16 @@ export type MainWireStandard66SelectedTraceLiveSessionCreateInputV1 =
     ventricularContractilityScale?: number;
   }>;
 
+export type MainWireStandard66SelectedTraceLiveSessionConstructionV1 =
+  Readonly<{
+    constructionId:
+      typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_CONSTRUCTION_V1_ID;
+    hemodynamicResearchInputs:
+      MainWireIntegratedModelHemodynamicResearchInputsV3;
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3;
+    ventricularContractilityScale: number;
+  }>;
+
 /**
  * A still-live Standard66 Session together with private proof that this module
  * created it using the production compiled plan and Newton workspace binding.
@@ -118,6 +136,7 @@ export type MainWireStandard66SelectedTraceLiveSessionCreateInputV1 =
 export type MainWireStandard66SelectedTraceLiveSessionV1 = Readonly<{
   routeIdentity:
     typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID;
+  construction: MainWireStandard66SelectedTraceLiveSessionConstructionV1;
   session: MainWireIntegratedModelStandard66TypedAuthoritySessionV1;
   [LIVE_SESSION_ROUTE_V1]: ReturnType<
     typeof createProductionExecutionPlanRouteV1
@@ -285,9 +304,52 @@ export async function createMainWireStandard66SelectedTraceLiveSessionV1(
   return Object.freeze({
     routeIdentity:
       MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
+    construction: Object.freeze({
+      constructionId:
+        MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_CONSTRUCTION_V1_ID,
+      hemodynamicResearchInputs: owned.hemodynamicResearchInputs,
+      mechanismResearchInputs: owned.mechanismResearchInputs,
+      ventricularContractilityScale: owned.ventricularContractilityScale,
+    }),
     session,
     [LIVE_SESSION_ROUTE_V1]: route,
   });
+}
+
+/**
+ * Verifies the module-private route brand, not merely the public diagnostic
+ * identity string. This is the shared trust boundary for analysis runners
+ * that continue an existing production-route Session in place.
+ */
+export function assertMainWireStandard66SelectedTraceLiveSessionV1(
+  value: unknown,
+): asserts value is MainWireStandard66SelectedTraceLiveSessionV1 {
+  if (
+    value === null
+    || typeof value !== "object"
+    || !("routeIdentity" in value)
+    || value.routeIdentity
+      !== MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+    || !(LIVE_SESSION_ROUTE_V1 in value)
+    || value[LIVE_SESSION_ROUTE_V1] === undefined
+    || !("construction" in value)
+    || !isOwnedLiveSessionConstructionV1(value.construction)
+    || !("session" in value)
+    || !(value.session
+      instanceof MainWireIntegratedModelStandard66TypedAuthoritySessionV1)
+  ) {
+    throw new Error(
+      "Standard66 analysis requires a privately branded production-route live-session handle",
+    );
+  }
+}
+
+/** Returns immutable factory inputs only after the private route-brand check. */
+export function readMainWireStandard66SelectedTraceLiveSessionConstructionV1(
+  value: unknown,
+): MainWireStandard66SelectedTraceLiveSessionConstructionV1 {
+  assertMainWireStandard66SelectedTraceLiveSessionV1(value);
+  return value.construction;
 }
 
 /**
@@ -472,17 +534,7 @@ export function continueMainWireStandard66SelectedTraceFromLiveSessionV1(
   input: MainWireStandard66SelectedTraceLiveContinuationInputV1,
 ): MainWireStandard66SelectedTerminalTraceV1 {
   const { liveSession } = input;
-  if (
-    liveSession === null
-    || typeof liveSession !== "object"
-    || liveSession.routeIdentity
-      !== MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
-    || liveSession[LIVE_SESSION_ROUTE_V1] === undefined
-  ) {
-    throw new Error(
-      "Standard66 terminal trace requires a production-route live-session handle",
-    );
-  }
+  assertMainWireStandard66SelectedTraceLiveSessionV1(liveSession);
   requireSupportedBoundaryIntervalV1(input.requestedBoundaryIntervalSec);
   const route = liveSession[LIVE_SESSION_ROUTE_V1];
   const session = liveSession.session;
@@ -1200,13 +1252,48 @@ function ownLiveSessionCreateInputV1(
   ) {
     throw new Error("Standard66 trace contractility scale is invalid");
   }
+  const hemodynamicResearchInputs =
+    validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      input.hemodynamicResearchInputs
+        ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+    );
+  const mechanismResearchInputs =
+    validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+      input.mechanismResearchInputs
+        ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    );
   return Object.freeze({
-    hemodynamicResearchInputs: input.hemodynamicResearchInputs
-      ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-    mechanismResearchInputs: input.mechanismResearchInputs
-      ?? MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    hemodynamicResearchInputs,
+    mechanismResearchInputs,
     ventricularContractilityScale,
   });
+}
+
+function isOwnedLiveSessionConstructionV1(
+  value: unknown,
+): value is MainWireStandard66SelectedTraceLiveSessionConstructionV1 {
+  if (
+    value === null
+    || typeof value !== "object"
+    || !isTransitivelyFrozenPlainDataV1(value)
+  ) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  const actualKeys = Object.keys(record).sort();
+  const expectedKeys = [
+    "constructionId",
+    "hemodynamicResearchInputs",
+    "mechanismResearchInputs",
+    "ventricularContractilityScale",
+  ].sort();
+  return actualKeys.length === expectedKeys.length
+    && actualKeys.every((key, index) => key === expectedKeys[index])
+    && record.constructionId
+      === MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_CONSTRUCTION_V1_ID
+    && typeof record.ventricularContractilityScale === "number"
+    && Number.isFinite(record.ventricularContractilityScale)
+    && record.ventricularContractilityScale > 0;
 }
 
 function requireSupportedBoundaryIntervalV1(

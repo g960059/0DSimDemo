@@ -10,16 +10,22 @@ import {
   measureMainWireStandard66TerminalBeatValidationV1,
 } from "@/analysis/methods/mainWire/MainWireStandard66TerminalBeatValidationMeasurementsV1";
 import {
+  assertMainWireStandard66SelectedTraceLiveSessionV1,
   continueMainWireStandard66SelectedTraceFromLiveSessionV1,
   createMainWireStandard66SelectedTraceLiveSessionV1,
   mainWireStandard66SelectedTraceLatestFlowTimingInputV1,
   mainWireStandard66SelectedTracePressureSamplesV1,
+  readMainWireStandard66SelectedTraceLiveSessionConstructionV1,
   runMainWireStandard66SelectedTraceV1,
   type MainWireStandard66SelectedTraceEndpointV1,
+  type MainWireStandard66SelectedTraceLiveSessionV1,
 } from "@/analysis/runtime/MainWireStandard66SelectedTraceRunnerV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
   MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1,
@@ -252,6 +258,50 @@ describe("Standard66 selected accepted-endpoint trace runner V1", () => {
     },
     120_000,
   );
+
+  it("rejects a public-identity lookalike without the private route brand", async () => {
+    const requestedHemodynamics = {
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      heartRateBpm: 90,
+    };
+    const genuine =
+      await createMainWireStandard66SelectedTraceLiveSessionV1({
+        hemodynamicResearchInputs: requestedHemodynamics,
+        mechanismResearchInputs:
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+        ventricularContractilityScale: 1.1,
+      });
+    requestedHemodynamics.heartRateBpm = 40;
+    const construction =
+      readMainWireStandard66SelectedTraceLiveSessionConstructionV1(genuine);
+    expect(construction.hemodynamicResearchInputs.heartRateBpm).toBe(90);
+    expect(construction.mechanismResearchInputs).toEqual(
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    );
+    expect(construction.ventricularContractilityScale).toBe(1.1);
+    expect(Object.isFrozen(construction)).toBe(true);
+    expect(Object.isFrozen(construction.hemodynamicResearchInputs)).toBe(true);
+    expect(Object.isFrozen(construction.mechanismResearchInputs)).toBe(true);
+    expect(Object.isFrozen(construction.mechanismResearchInputs.valveAreas))
+      .toBe(true);
+    const forged = Object.freeze({
+      routeIdentity: genuine.routeIdentity,
+      construction: genuine.construction,
+      session: genuine.session,
+    });
+
+    expect(() => assertMainWireStandard66SelectedTraceLiveSessionV1(forged))
+      .toThrow(/privately branded production-route live-session handle/);
+    expect(() => continueMainWireStandard66SelectedTraceFromLiveSessionV1({
+      liveSession:
+        forged as unknown as MainWireStandard66SelectedTraceLiveSessionV1,
+      requestedBoundaryIntervalSec: 0.002,
+    })).toThrow(/privately branded production-route live-session handle/);
+    expect(genuine.session.currentAcceptedState()).toMatchObject({
+      acceptedTimeSec: 0,
+      revision: 0,
+    });
+  });
 });
 
 function landingEndpointV1(
