@@ -36,17 +36,19 @@ export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
   "formal-periodic" as const;
 export const WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3 = false;
-const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3 =
-  Object.freeze([
-    "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
-  ]);
 const WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3 = Object.freeze([
   "hemodynamics.pressure.systolic.Ao",
   "hemodynamics.pressure.diastolic.Ao",
   "hemodynamics.pressure.mean.Ao",
 ]);
+const WORKBENCH_SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_OUTPUT_IDS_V3 =
+  Object.freeze([
+    "hemodynamics.pressure.systolic.SA",
+    "hemodynamics.pressure.diastolic.SA",
+    "hemodynamics.pressure.mean.SA",
+  ]);
+const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SIGNAL_OUTPUT_ID_V3 =
+  "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
 
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each
@@ -285,14 +287,6 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.systolic.Ao": "Systolic aortic-root pressure",
   "hemodynamics.pressure.diastolic.Ao": "Diastolic aortic-root pressure",
   "hemodynamics.pressure.pulse.Ao": "Aortic-root pulse pressure",
-  "hemodynamics.pressure.mean.aortic-proximal-constitutive-port":
-    "Mean aortic pressure (AoP mean)",
-  "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port":
-    "Aortic pressure (AoP max)",
-  "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port":
-    "Aortic pressure (AoP min)",
-  "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port":
-    "Aortic pulse pressure (AoPP)",
   "hemodynamics.pressure.mean.SA": "Mean systemic arterial pressure (MAP)",
   "hemodynamics.pressure.systolic.SA":
     "Systemic arterial systolic pressure (SBP)",
@@ -321,16 +315,6 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
     "AV local pressure gradient",
   "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV":
     "AV vena-contracta Bernoulli gradient",
-  "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV":
-    "Mean AV local gradient",
-  "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV":
-    "Peak AV local gradient",
-  "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV":
-    "Mean AV Bernoulli gradient",
-  "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV":
-    "Peak AV Bernoulli gradient",
-  "hemodynamics.duration.valve-forward-flow.AoV":
-    "AV forward-flow duration",
   "hemodynamics.volume.maximum.LV": "Maximum LV volume",
   "hemodynamics.volume.minimum.LV": "Minimum LV volume",
   "hemodynamics.stroke-volume.LV-extrema": "LV stroke volume (extrema)",
@@ -493,10 +477,10 @@ export function createDefaultExperimentSurfaceV3(
     contract.outputCatalog.map(({ outputId }) => outputId),
   );
   const defaultAorticPressureSummaryOutputIds =
-    WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3.every((outputId) =>
-      contractOutputIds.has(outputId),
-    )
-      ? WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3
+    contractOutputIds.has(
+          WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SIGNAL_OUTPUT_ID_V3,
+        )
+      ? WORKBENCH_SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_OUTPUT_IDS_V3
       : WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3;
   const defaultOutputIds = Object.freeze([
     "rhythm.heart-rate.instantaneous",
@@ -904,7 +888,7 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LAP: "LAP",
     AoP: "AoP",
     ABP: "ABP",
-    SAP: "ABP",
+    SAP: "SAP",
     RAP: "RAP",
     RVP: "RVP",
     PAP: "PAP",

@@ -27,8 +27,8 @@ export type MainWireIntegratedModelStandard66CanonicalCheckpointV3 = Readonly<{
 /**
  * Owns both exact branches before the first digest await, checks their shared
  * accepted epoch, and writes one canonical binary envelope. The Standard66
- * object wrapper continues to own numerical and beat-analysis semantics;
- * this V3 boundary adds only algorithmic predictor history.
+ * object wrapper continues to own numerical continuation semantics; this V3
+ * boundary adds only algorithmic predictor history.
  */
 export async function encodeMainWireIntegratedModelStandard66CanonicalCheckpointV3(
   standard66CheckpointInput: unknown,

@@ -13,8 +13,7 @@
       "ventricularMaterialProfileId": "main-wire-ventricular-land-et-relaxation-profile-v1",
       "aorticOutflowCirculationProfileId": "main-wire-selected-aortic-outflow-circulation-profile-v1",
       "acceptedStepBeatMetricOwners": [
-        "main-wire-integrated-model-accepted-step-beat-metrics-v4",
-        "main-wire-aortic-recovered-root-port-beat-metrics-v1"
+        "main-wire-integrated-model-accepted-step-beat-metrics-v4"
       ]
     },
     "runtime": {
@@ -53,7 +52,7 @@
         "checkpointId": "circleheart.main-wire-integrated-model-standard66-exact-checkpoint.v1",
         "schemaVersion": 1,
         "fixturePairing": "selected-aortic-outflow-complete-fixture-and-profile-identity",
-        "restoreSemantics": "exact-object-both-beat-owners-no-migration-no-clock-rebase"
+        "restoreSemantics": "exact-object-selected-identity-no-migration-no-clock-rebase"
       }
     },
     "primitiveControlCatalog": [
@@ -1826,110 +1825,6 @@
           "oxygen.delivery.systemic",
           "oxygen.consumption.target"
         ]
-      },
-      {
-        "outputId": "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-          "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.flow.valve.AoV",
-          "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.flow.valve.AoV",
-          "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.flow.valve.AoV",
-          "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV",
-        "kind": "metric",
-        "unit": "mmHg",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.flow.valve.AoV",
-          "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
-        ]
-      },
-      {
-        "outputId": "hemodynamics.duration.valve-forward-flow.AoV",
-        "kind": "metric",
-        "unit": "s",
-        "significantDigits": 3,
-        "shape": "scalar",
-        "scope": "beat",
-        "dependencies": [
-          "hemodynamics.flow.valve.AoV"
-        ]
       }
     ],
     "capabilities": [
@@ -2112,16 +2007,7 @@
       "output/oxygen.delivery.systemic",
       "output/oxygen.consumption.target",
       "output/oxygen.extraction-ratio.required",
-      "output/oxygen.delivery-to-consumption-ratio",
-      "output/hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
-      "output/hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-      "output/hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-      "output/hemodynamics.pressure.pulse.aortic-proximal-constitutive-port",
-      "output/hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV",
-      "output/hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV",
-      "output/hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV",
-      "output/hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV",
-      "output/hemodynamics.duration.valve-forward-flow.AoV"
+      "output/oxygen.delivery-to-consumption-ratio"
     ]
   },
   "defaultFixture": {

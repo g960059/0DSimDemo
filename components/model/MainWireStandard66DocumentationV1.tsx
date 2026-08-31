@@ -289,11 +289,6 @@ export function MainWireStandard66DocumentationV1({
           <p className="max-w-3xl text-sm leading-7 text-wb-muted">
             {text.relationLead}
           </p>
-          <div className="mt-5 grid gap-3">
-            <EquationCardV1 value={facts.aortic.proximalPortEquation} />
-            <EquationCardV1 value={facts.aortic.localGradientEquation} />
-            <EquationCardV1 value={facts.aortic.openingDriveEquation} />
-          </div>
           <div className="mt-7 rounded-xl border border-wb-line bg-wb-soft p-4 sm:p-5">
             <h3 className="text-sm font-semibold">{text.forwardLawTitle}</h3>
             <p className="mt-2 text-sm leading-7 text-wb-muted">
@@ -435,16 +430,6 @@ function StationCardV1({
       <p className="mt-1 text-sm font-semibold text-wb-text">{label}</p>
       <p className="mt-3 text-xs leading-5 text-wb-muted">{body}</p>
     </li>
-  );
-}
-
-function EquationCardV1({ value }: Readonly<{ value: string }>) {
-  return (
-    <div className="overflow-x-auto rounded-xl border border-wb-line bg-wb-panel px-4 py-4 text-center">
-      <code className="whitespace-nowrap font-mono text-sm text-wb-text sm:text-base">
-        {value}
-      </code>
-    </div>
   );
 }
 

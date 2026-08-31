@@ -15,6 +15,15 @@ export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   surfaceSeriesId: string;
 }>;
 
+export type RegisteredModelDisclosureV1 = Readonly<{
+  documentation: RegisteredModelDocumentationIdentityV1 | null;
+  badgeLabel: string;
+  shortLabel: string | null;
+  limitationsTranslationKey:
+    | "modelLimitations.items"
+    | "modelLimitations.standard66Items";
+}>;
+
 const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
   kind: "main-wire-selected-aortic-outflow-standard66" as const,
   modelId:
@@ -57,4 +66,29 @@ export function resolveRegisteredModelDocumentationV1(
   }
 
   return STANDARD66_DOCUMENTATION_IDENTITY_V1;
+}
+
+/** One presentation resolver shared by Workbench and Article Reader. */
+export function resolveRegisteredModelDisclosureV1(
+  modelId: string | undefined,
+  surfaceReleaseId: string | null | undefined,
+): RegisteredModelDisclosureV1 {
+  const documentation = resolveRegisteredModelDocumentationV1(
+    modelId,
+    surfaceReleaseId,
+  );
+  return documentation === null
+    ? Object.freeze({
+        documentation: null,
+        badgeLabel: "MW V3",
+        shortLabel: null,
+        limitationsTranslationKey: "modelLimitations.items" as const,
+      })
+    : Object.freeze({
+        documentation,
+        badgeLabel: "MW 66",
+        shortLabel: "Main Wire Standard 66",
+        limitationsTranslationKey:
+          "modelLimitations.standard66Items" as const,
+      });
 }

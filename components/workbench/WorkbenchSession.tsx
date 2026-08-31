@@ -93,7 +93,7 @@ import {
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
 import {
-  resolveRegisteredModelDocumentationV1,
+  resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
   loadStudioDefaultClientCompositionV2,
@@ -473,10 +473,11 @@ export const WorkbenchSession = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
-  const modelDocumentation = resolveRegisteredModelDocumentationV1(
+  const modelDisclosure = resolveRegisteredModelDisclosureV1(
     contract?.modelId,
     surfaceReleaseIdRef.current,
   );
+  const modelDocumentation = modelDisclosure.documentation;
   const modelDocumentationLink = modelDocumentation === null
     ? undefined
     : modelDocumentationHref({
@@ -484,9 +485,7 @@ export const WorkbenchSession = ({
         modelId: modelDocumentation.modelId,
         surfaceReleaseId: modelDocumentation.surfaceReleaseId,
       });
-  const modelLimitationsKey = modelDocumentation === null
-    ? "modelLimitations.items"
-    : "modelLimitations.standard66Items";
+  const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -3081,7 +3080,7 @@ export const WorkbenchSession = ({
                   publicName: t(
                     "workbench.editor.simulationInfo.integratedModelName",
                   ),
-                  shortLabel: t(
+                  shortLabel: modelDisclosure.shortLabel ?? t(
                     "workbench.editor.simulationInfo.integratedModelVersion",
                   ),
                   description: t(

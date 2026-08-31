@@ -97,6 +97,20 @@ jobs:
           # this remains a runaway-process guard rather than a performance gate.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 300000
 
+      - name: Verify Standard66 exact and Surface boundaries
+        if: github.event_name == 'pull_request'
+        run: >-
+          node node_modules/vitest/vitest.mjs run
+          --config vitest.config.ts
+          __tests__/mainWireSelectedAorticPortSessionExtensionV1.test.ts
+          __tests__/mainWireIntegratedTypedAuthoritySelectedAorticExtensionV1.test.ts
+          __tests__/mainWireIntegratedModelStandard66CheckpointV1.test.ts
+          __tests__/mainWireIntegratedModelStandard66OutputRegistryV1.test.ts
+          __tests__/mainWireIntegratedModelStandard66TypedAuthoritySessionV1.test.ts
+          __tests__/mainWireIntegratedModelStandard66ModelSurfaceV1.test.ts
+          __tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts
+          __tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts
+
       - name: Verify exact V3 snapshot qualification
         if: github.event_name == 'pull_request'
         # Keep the cold-to-P1 gate outside the parallel smoke worker pool. The

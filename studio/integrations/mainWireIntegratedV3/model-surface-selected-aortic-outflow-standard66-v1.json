@@ -173,16 +173,7 @@
     "oxygen.delivery-to-consumption-ratio",
     "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
     "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV",
-    "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV",
-    "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port",
-    "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV",
-    "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV",
-    "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV",
-    "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV",
-    "hemodynamics.duration.valve-forward-flow.AoV"
+    "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV"
   ],
   "controlCatalog": [
     {

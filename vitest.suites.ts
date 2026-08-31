@@ -43,7 +43,6 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
-  "__tests__/mainWireAorticRecoveredRootPortBeatMetricsV1.test.ts",
   "__tests__/mainWireSelectedAorticOutflowCirculationProfileV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",

@@ -11,8 +11,13 @@ import {
 import { useTranslation } from "react-i18next";
 import { useAppTheme } from "@/appTheme";
 import { ModelLimitations } from "@/components/ModelLimitations";
+import { modelDocumentationHref } from "@/homeLinks";
+import { isLocale } from "@/localeRouting";
 import { WorkbenchPlaybackControlV3 } from "@/components/workbench/WorkbenchPlaybackControlV3";
 import type { StudioClientCompositionV2 } from "@/studio/composition/StudioDefaultCompositionV2";
+import {
+  resolveRegisteredModelDisclosureV1,
+} from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 
 import {
   articleBriefingPresentationV3,
@@ -650,8 +655,26 @@ function ArticleReaderLiveDetailV3({
   snapshot: ExperimentSnapshotV2;
   title: string;
 }>) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [modelDisclosureOpen, setModelDisclosureOpen] = React.useState(false);
+  const modelDisclosure = resolveRegisteredModelDisclosureV1(
+    contract.modelId,
+    snapshot.surfaceReleaseId,
+  );
+  const documentation = modelDisclosure.documentation;
+  const language = (i18n.resolvedLanguage ?? i18n.language)
+    .toLowerCase()
+    .split("-")[0];
+  const documentationHref = documentation === null
+    ? undefined
+    : modelDocumentationHref({
+        locale: isLocale(language) ? language : undefined,
+        modelId: documentation.modelId,
+        surfaceReleaseId: documentation.surfaceReleaseId,
+      });
+  const modelLimitations = t(modelDisclosure.limitationsTranslationKey, {
+    returnObjects: true,
+  }) as string[];
   const visibleScenarios = snapshot.content.scenarios.filter(({ scenarioId }) =>
     briefing.scenarioScope.visibleScenarioIds.includes(scenarioId),
   );
@@ -716,11 +739,18 @@ function ArticleReaderLiveDetailV3({
           title={t("workbench.editor.validationAndLimitations")}
         >
           <FlaskConical className="h-3 w-3 text-wb-accent" aria-hidden="true" />
-          MW V3
+          {modelDisclosure.badgeLabel}
         </button>
         <ModelLimitations
-          acknowledgementScope={`${contract.modelId}:disclosure-v1`}
+          acknowledgementScope={
+            `${contract.modelId}:${snapshot.surfaceReleaseId}:disclosure-v1`
+          }
           autoOpenUnacknowledged={false}
+          limitations={modelLimitations}
+          documentationHref={documentationHref}
+          documentationLabel={t(
+            "workbench.editor.simulationInfo.modelDocumentation",
+          )}
           open={modelDisclosureOpen}
           onOpenChange={setModelDisclosureOpen}
           showTrigger={false}

@@ -3504,7 +3504,7 @@ const DEFAULT_OXYGEN_TRANSPORT_INPUTS_V1 = Object.freeze({
 });
 function evaluateOxygenTransportV1(requestedInputs, systemicFlowLPerMin) {
   const inputs = validateAndOwnOxygenTransportInputsV1(requestedInputs);
-  finiteV1$1(systemicFlowLPerMin, "systemicFlowLPerMin");
+  finiteV1(systemicFlowLPerMin, "systemicFlowLPerMin");
   const alveolarOxygenPressureMmHg = alveolarOxygenPressureMmHgV1(
     inputs.inspiredOxygenFraction01,
     inputs.barometricPressureMmHg,
@@ -3646,30 +3646,30 @@ function validateAndOwnOxygenTransportInputsV1(input) {
 }
 function alveolarOxygenPressureMmHgV1(inspiredOxygenFraction01, barometricPressureMmHg, arterialCarbonDioxidePressureMmHg, respiratoryExchangeRatio) {
   fractionV1(inspiredOxygenFraction01, "inspiredOxygenFraction01");
-  positiveFiniteV1$2(barometricPressureMmHg, "barometricPressureMmHg");
-  positiveFiniteV1$2(
+  positiveFiniteV1$1(barometricPressureMmHg, "barometricPressureMmHg");
+  positiveFiniteV1$1(
     arterialCarbonDioxidePressureMmHg,
     "arterialCarbonDioxidePressureMmHg"
   );
-  positiveFiniteV1$2(respiratoryExchangeRatio, "respiratoryExchangeRatio");
+  positiveFiniteV1$1(respiratoryExchangeRatio, "respiratoryExchangeRatio");
   const pressure = inspiredOxygenFraction01 * (barometricPressureMmHg - WATER_VAPOR_PRESSURE_AT_37C_MMHG) - arterialCarbonDioxidePressureMmHg / respiratoryExchangeRatio;
-  return positiveFiniteV1$2(pressure, "alveolarOxygenPressureMmHg");
+  return positiveFiniteV1$1(pressure, "alveolarOxygenPressureMmHg");
 }
 function oxygenContentMlPerDlV1(hemoglobinGPerDl, saturation01, po2MmHg) {
-  positiveFiniteV1$2(hemoglobinGPerDl, "hemoglobinGPerDl");
+  positiveFiniteV1$1(hemoglobinGPerDl, "hemoglobinGPerDl");
   fractionV1(saturation01, "saturation01");
-  nonnegativeFiniteV1$2(po2MmHg, "po2MmHg");
+  nonnegativeFiniteV1$1(po2MmHg, "po2MmHg");
   return HUFNER_ML_O2_PER_G_HB * hemoglobinGPerDl * saturation01 + DISSOLVED_O2_ML_PER_DL_PER_MMHG * po2MmHg;
 }
 function oxygenSaturationAtPo2V1(po2MmHg) {
-  const po2 = nonnegativeFiniteV1$2(po2MmHg, "po2MmHg");
+  const po2 = nonnegativeFiniteV1$1(po2MmHg, "po2MmHg");
   if (po2 === 0) return 0;
   const power = po2 ** OXYHEMOGLOBIN_HILL_EXPONENT;
   return power / (OXYHEMOGLOBIN_P50_MMHG ** OXYHEMOGLOBIN_HILL_EXPONENT + power);
 }
 function oxygenPo2FromContentV1(contentMlPerDl, hemoglobinGPerDl) {
-  nonnegativeFiniteV1$2(contentMlPerDl, "contentMlPerDl");
-  positiveFiniteV1$2(hemoglobinGPerDl, "hemoglobinGPerDl");
+  nonnegativeFiniteV1$1(contentMlPerDl, "contentMlPerDl");
+  positiveFiniteV1$1(hemoglobinGPerDl, "hemoglobinGPerDl");
   let lower = 0;
   let upper = 2e3;
   while (oxygenContentMlPerDlV1(
@@ -3705,19 +3705,19 @@ function exactRecordV1$2(input, keys, label) {
   }
   return input;
 }
-function positiveFiniteV1$2(value, label) {
+function positiveFiniteV1$1(value, label) {
   if (!Number.isFinite(value) || !(value > 0)) {
     throw new Error(`${label} must be positive and finite`);
   }
   return value;
 }
-function finiteV1$1(value, label) {
+function finiteV1(value, label) {
   if (!Number.isFinite(value)) {
     throw new Error(`${label} must be finite`);
   }
   return value;
 }
-function nonnegativeFiniteV1$2(value, label) {
+function nonnegativeFiniteV1$1(value, label) {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be nonnegative and finite`);
   }
@@ -21364,7 +21364,7 @@ class MainWireIntegratedModelBeatAccumulatorV3 {
    */
   acceptNumericalReadback(readback, capturedAtrialActivationId) {
     return this.acceptSample(
-      sampleFromNumericalReadbackV1$1(readback),
+      sampleFromNumericalReadbackV1(readback),
       capturedAtrialActivationId
     );
   }
@@ -21610,7 +21610,7 @@ function sampleFromStepV3(step) {
   }
   return sample;
 }
-function sampleFromNumericalReadbackV1$1(readback) {
+function sampleFromNumericalReadbackV1(readback) {
   if (!(readback instanceof Float64Array) || readback.length !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1) {
     throw new RangeError(
       `integrated V3 beat readback must contain exactly ${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1} f64 values`
@@ -23060,549 +23060,6 @@ function interpolateValveClosureV3(previous, next, valveId, previousFlowMlPerSec
       next.rightVentricularTransmuralPressureMmHg
     )
   });
-}
-const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID = "main-wire-aortic-recovered-root-port-beat-metrics-v1";
-const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_ACCUMULATOR_CHECKPOINT_V1_ID = "main-wire-aortic-recovered-root-port-beat-accumulator-checkpoint-v1";
-const AORTIC_VALVE_READBACK_INDEX_V1 = MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1.indexOf("AoV");
-if (AORTIC_VALVE_READBACK_INDEX_V1 < 0) {
-  throw new Error("accepted numerical readback valve order is missing AoV");
-}
-class MainWireAorticRecoveredRootPortBeatAccumulatorV1 {
-  #active = null;
-  static restore(input) {
-    const checkpoint = ownCheckpointV1(input);
-    const accumulator = new MainWireAorticRecoveredRootPortBeatAccumulatorV1();
-    accumulator.#active = checkpoint.active === null ? null : ownActiveBeatV1(checkpoint.active);
-    return accumulator;
-  }
-  checkpoint() {
-    return Object.freeze({
-      checkpointId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_ACCUMULATOR_CHECKPOINT_V1_ID,
-      schemaVersion: 1,
-      active: this.#active === null ? null : freezeActiveBeatV1(ownActiveBeatV1(this.#active))
-    });
-  }
-  /** Consumes an exact selected-model 76-f64 accepted numerical readback. */
-  acceptNumericalReadbackV3(readback, capturedAtrialActivationId) {
-    const sample = sampleFromNumericalReadbackV1(readback);
-    const captureId = capturedAtrialActivationId === null ? null : requiredCaptureIdV1(
-      capturedAtrialActivationId,
-      "selected aortic beat capture ID"
-    );
-    if (this.#active !== null && captureId === this.#active.startAtrialCaptureId) {
-      throw new Error("selected aortic beat capture ID did not advance");
-    }
-    if (this.#active !== null) integrateSampleV1(this.#active, sample);
-    if (captureId === null) return null;
-    const completed = this.#active === null ? null : completeBeatV1(this.#active, captureId, sample.timeSec);
-    this.#active = beginBeatV1(captureId, sample);
-    return completed;
-  }
-}
-function validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1(input) {
-  const label = "selected aortic completed beat metrics";
-  const record = plainExactRecordV1$2(
-    input,
-    [
-      "metricsId",
-      "startAtrialCaptureId",
-      "endAtrialCaptureId",
-      "startTimeSec",
-      "endTimeSec",
-      "durationSec",
-      "proximalConstitutivePortPressure",
-      "localValveForwardPressureGradient",
-      "venaContractaBernoulliForwardPressureGradient"
-    ],
-    label
-  );
-  if (record.metricsId !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID) {
-    throw new Error(`${label} identity is invalid`);
-  }
-  const startAtrialCaptureId = requiredCaptureIdV1(
-    record.startAtrialCaptureId,
-    `${label} start capture ID`
-  );
-  const endAtrialCaptureId = requiredCaptureIdV1(
-    record.endAtrialCaptureId,
-    `${label} end capture ID`
-  );
-  if (startAtrialCaptureId === endAtrialCaptureId) {
-    throw new Error(`${label} capture ID did not advance`);
-  }
-  const startTimeSec = nonnegativeFiniteV1$1(
-    record.startTimeSec,
-    `${label} start time`
-  );
-  const endTimeSec = nonnegativeFiniteV1$1(
-    record.endTimeSec,
-    `${label} end time`
-  );
-  const durationSec = positiveFiniteV1$1(
-    record.durationSec,
-    `${label} duration`
-  );
-  if (!(endTimeSec > startTimeSec) || endTimeSec - startTimeSec !== durationSec) {
-    throw new Error(`${label} clock is inconsistent`);
-  }
-  const proximalConstitutivePortPressure = ownProximalPressureSummaryV1(
-    record.proximalConstitutivePortPressure,
-    `${label} proximal pressure summary`
-  );
-  const localValveForwardPressureGradient = ownForwardGradientSummaryV1(
-    record.localValveForwardPressureGradient,
-    "left-ventricular-minus-proximal-constitutive-port-pressure-during-positive-aortic-valve-flow",
-    durationSec,
-    `${label} local gradient summary`
-  );
-  const venaContractaBernoulliForwardPressureGradient = ownForwardGradientSummaryV1(
-    record.venaContractaBernoulliForwardPressureGradient,
-    "vena-contracta-bernoulli-pressure-during-positive-aortic-valve-flow",
-    durationSec,
-    `${label} vena-contracta gradient summary`
-  );
-  if (localValveForwardPressureGradient.forwardFlowDurationSec !== venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec) {
-    throw new Error(`${label} forward-gradient durations are inconsistent`);
-  }
-  return Object.freeze({
-    metricsId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID,
-    startAtrialCaptureId,
-    endAtrialCaptureId,
-    startTimeSec,
-    endTimeSec,
-    durationSec,
-    proximalConstitutivePortPressure,
-    localValveForwardPressureGradient,
-    venaContractaBernoulliForwardPressureGradient
-  });
-}
-function sampleFromNumericalReadbackV1(readback) {
-  if (!(readback instanceof Float64Array) || readback.length !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3) {
-    throw new RangeError(
-      `selected aortic beat readback must contain exactly ${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3} f64 values`
-    );
-  }
-  const historicalLayout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1;
-  const selectedLayout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2;
-  const sample = Object.freeze({
-    timeSec: readback[historicalLayout.timeSec],
-    aorticValveFlowMlPerSec: readback[historicalLayout.valveFlowMlPerSec + AORTIC_VALVE_READBACK_INDEX_V1],
-    algebraicProximalConstitutivePortPressureMmHg: readback[selectedLayout.algebraicProximalConstitutivePortPressureMmHg],
-    localValvePressureGradientMmHg: readback[selectedLayout.localValvePressureGradientMmHg],
-    venaContractaBernoulliPressureMmHg: readback[selectedLayout.venaContractaBernoulliPressureMmHg]
-  });
-  ownSampleV1(sample, "selected aortic beat readback");
-  return sample;
-}
-function beginBeatV1(startAtrialCaptureId, sample) {
-  return {
-    startAtrialCaptureId,
-    startTimeSec: sample.timeSec,
-    previous: sample,
-    proximalPressureIntegralMmHgSec: 0,
-    maximumProximalPressureMmHg: sample.algebraicProximalConstitutivePortPressureMmHg,
-    minimumProximalPressureMmHg: sample.algebraicProximalConstitutivePortPressureMmHg,
-    forwardFlowDurationSec: 0,
-    localGradientIntegralMmHgSec: 0,
-    localGradientPeakMmHg: null,
-    venaContractaGradientIntegralMmHgSec: 0,
-    venaContractaGradientPeakMmHg: null
-  };
-}
-function integrateSampleV1(active, next) {
-  const previous = active.previous;
-  const dtSec = next.timeSec - previous.timeSec;
-  if (!Number.isFinite(dtSec) || dtSec <= 0) {
-    throw new Error("selected aortic beat sample clock did not advance");
-  }
-  const proximalPressureIncrementMmHgSec = 0.5 * (previous.algebraicProximalConstitutivePortPressureMmHg + next.algebraicProximalConstitutivePortPressureMmHg) * dtSec;
-  const localIncrement = forwardPressureGradientIncrementV3(
-    previous.aorticValveFlowMlPerSec,
-    next.aorticValveFlowMlPerSec,
-    previous.localValvePressureGradientMmHg,
-    next.localValvePressureGradientMmHg,
-    dtSec
-  );
-  const venaContractaIncrement = forwardPressureGradientIncrementV3(
-    previous.aorticValveFlowMlPerSec,
-    next.aorticValveFlowMlPerSec,
-    previous.venaContractaBernoulliPressureMmHg,
-    next.venaContractaBernoulliPressureMmHg,
-    dtSec
-  );
-  if (localIncrement.forwardFlowDurationSec !== venaContractaIncrement.forwardFlowDurationSec) {
-    throw new Error(
-      "selected aortic forward-gradient durations are inconsistent"
-    );
-  }
-  const nextProximalPressureIntegralMmHgSec = active.proximalPressureIntegralMmHgSec + proximalPressureIncrementMmHgSec;
-  const nextForwardFlowDurationSec = active.forwardFlowDurationSec + localIncrement.forwardFlowDurationSec;
-  const nextLocalGradientIntegralMmHgSec = active.localGradientIntegralMmHgSec + localIncrement.pressureIntegralMmHgSec;
-  const nextVenaContractaGradientIntegralMmHgSec = active.venaContractaGradientIntegralMmHgSec + venaContractaIncrement.pressureIntegralMmHgSec;
-  for (const [name, value] of Object.entries({
-    proximalPressureIncrementMmHgSec,
-    nextProximalPressureIntegralMmHgSec,
-    nextForwardFlowDurationSec,
-    nextLocalGradientIntegralMmHgSec,
-    nextVenaContractaGradientIntegralMmHgSec
-  })) {
-    if (!Number.isFinite(value)) {
-      throw new Error(`selected aortic beat ${name} is not finite`);
-    }
-  }
-  if (nextForwardFlowDurationSec < 0) {
-    throw new Error("selected aortic forward-flow duration is negative");
-  }
-  active.proximalPressureIntegralMmHgSec = nextProximalPressureIntegralMmHgSec;
-  active.maximumProximalPressureMmHg = Math.max(
-    active.maximumProximalPressureMmHg,
-    next.algebraicProximalConstitutivePortPressureMmHg
-  );
-  active.minimumProximalPressureMmHg = Math.min(
-    active.minimumProximalPressureMmHg,
-    next.algebraicProximalConstitutivePortPressureMmHg
-  );
-  active.forwardFlowDurationSec = nextForwardFlowDurationSec;
-  active.localGradientIntegralMmHgSec = nextLocalGradientIntegralMmHgSec;
-  active.localGradientPeakMmHg = updatePeakV1(
-    active.localGradientPeakMmHg,
-    localIncrement.peakMmHg
-  );
-  active.venaContractaGradientIntegralMmHgSec = nextVenaContractaGradientIntegralMmHgSec;
-  active.venaContractaGradientPeakMmHg = updatePeakV1(
-    active.venaContractaGradientPeakMmHg,
-    venaContractaIncrement.peakMmHg
-  );
-  active.previous = next;
-}
-function completeBeatV1(active, endAtrialCaptureId, endTimeSec) {
-  const durationSec = endTimeSec - active.startTimeSec;
-  if (!Number.isFinite(durationSec) || durationSec <= 0) {
-    throw new Error("selected aortic completed beat duration is invalid");
-  }
-  const forwardFlowDurationSec = active.forwardFlowDurationSec;
-  const completeGradient = (basis, pressureIntegralMmHgSec, peakMmHg) => Object.freeze({
-    basis,
-    forwardFlowDurationSec,
-    timeWeightedMeanMmHg: forwardFlowDurationSec > 0 ? pressureIntegralMmHgSec / forwardFlowDurationSec : null,
-    peakMmHg: forwardFlowDurationSec > 0 ? peakMmHg : null
-  });
-  return validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1({
-    metricsId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID,
-    startAtrialCaptureId: active.startAtrialCaptureId,
-    endAtrialCaptureId,
-    startTimeSec: active.startTimeSec,
-    endTimeSec,
-    durationSec,
-    proximalConstitutivePortPressure: Object.freeze({
-      basis: "algebraic-proximal-constitutive-port-pressure",
-      timeWeightedMeanMmHg: active.proximalPressureIntegralMmHgSec / durationSec,
-      maximumMmHg: active.maximumProximalPressureMmHg,
-      minimumMmHg: active.minimumProximalPressureMmHg,
-      pulseMmHg: active.maximumProximalPressureMmHg - active.minimumProximalPressureMmHg
-    }),
-    localValveForwardPressureGradient: completeGradient(
-      "left-ventricular-minus-proximal-constitutive-port-pressure-during-positive-aortic-valve-flow",
-      active.localGradientIntegralMmHgSec,
-      active.localGradientPeakMmHg
-    ),
-    venaContractaBernoulliForwardPressureGradient: completeGradient(
-      "vena-contracta-bernoulli-pressure-during-positive-aortic-valve-flow",
-      active.venaContractaGradientIntegralMmHgSec,
-      active.venaContractaGradientPeakMmHg
-    )
-  });
-}
-function ownProximalPressureSummaryV1(input, label) {
-  const record = plainExactRecordV1$2(
-    input,
-    [
-      "basis",
-      "timeWeightedMeanMmHg",
-      "maximumMmHg",
-      "minimumMmHg",
-      "pulseMmHg"
-    ],
-    label
-  );
-  if (record.basis !== "algebraic-proximal-constitutive-port-pressure") {
-    throw new Error(`${label} basis is invalid`);
-  }
-  const timeWeightedMeanMmHg = finiteV1(
-    record.timeWeightedMeanMmHg,
-    `${label} time-weighted mean`
-  );
-  const maximumMmHg = finiteV1(record.maximumMmHg, `${label} maximum`);
-  const minimumMmHg = finiteV1(record.minimumMmHg, `${label} minimum`);
-  const pulseMmHg = nonnegativeFiniteV1$1(record.pulseMmHg, `${label} pulse`);
-  const expectedPulseMmHg = maximumMmHg - minimumMmHg;
-  if (maximumMmHg < minimumMmHg || !Number.isFinite(expectedPulseMmHg) || !approximatelyEqualV1(pulseMmHg, expectedPulseMmHg) || timeWeightedMeanMmHg < minimumMmHg - numericToleranceV1(minimumMmHg) || timeWeightedMeanMmHg > maximumMmHg + numericToleranceV1(maximumMmHg)) {
-    throw new Error(`${label} values are inconsistent`);
-  }
-  return Object.freeze({
-    basis: "algebraic-proximal-constitutive-port-pressure",
-    timeWeightedMeanMmHg,
-    maximumMmHg,
-    minimumMmHg,
-    pulseMmHg
-  });
-}
-function ownForwardGradientSummaryV1(input, expectedBasis, beatDurationSec, label) {
-  const record = plainExactRecordV1$2(
-    input,
-    [
-      "basis",
-      "forwardFlowDurationSec",
-      "timeWeightedMeanMmHg",
-      "peakMmHg"
-    ],
-    label
-  );
-  if (record.basis !== expectedBasis) {
-    throw new Error(`${label} basis is invalid`);
-  }
-  const forwardFlowDurationSec = nonnegativeFiniteV1$1(
-    record.forwardFlowDurationSec,
-    `${label} forward-flow duration`
-  );
-  if (forwardFlowDurationSec > beatDurationSec + clockToleranceV1(beatDurationSec)) {
-    throw new Error(`${label} forward-flow duration exceeds beat duration`);
-  }
-  const timeWeightedMeanMmHg = nullableFiniteV1(
-    record.timeWeightedMeanMmHg,
-    `${label} time-weighted mean`
-  );
-  const peakMmHg = nullableFiniteV1(record.peakMmHg, `${label} peak`);
-  if (forwardFlowDurationSec === 0) {
-    if (timeWeightedMeanMmHg !== null || peakMmHg !== null) {
-      throw new Error(`${label} zero-flow availability is inconsistent`);
-    }
-  } else if (timeWeightedMeanMmHg === null || peakMmHg === null || timeWeightedMeanMmHg > peakMmHg + numericToleranceV1(peakMmHg)) {
-    throw new Error(`${label} positive-flow values are inconsistent`);
-  }
-  return Object.freeze({
-    basis: expectedBasis,
-    forwardFlowDurationSec,
-    timeWeightedMeanMmHg,
-    peakMmHg
-  });
-}
-function updatePeakV1(current, increment) {
-  if (increment === null) return current;
-  if (!Number.isFinite(increment)) {
-    throw new Error("selected aortic forward-gradient peak is not finite");
-  }
-  return current === null ? increment : Math.max(current, increment);
-}
-function ownCheckpointV1(input) {
-  const record = plainExactRecordV1$2(
-    input,
-    ["checkpointId", "schemaVersion", "active"],
-    "selected aortic beat accumulator checkpoint"
-  );
-  if (record.checkpointId !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_ACCUMULATOR_CHECKPOINT_V1_ID || record.schemaVersion !== 1) {
-    throw new Error("unsupported selected aortic beat accumulator checkpoint");
-  }
-  return Object.freeze({
-    checkpointId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_ACCUMULATOR_CHECKPOINT_V1_ID,
-    schemaVersion: 1,
-    active: record.active === null ? null : freezeActiveBeatV1(ownActiveBeatV1(record.active))
-  });
-}
-function ownActiveBeatV1(input) {
-  const label = "selected aortic active beat checkpoint";
-  const record = plainExactRecordV1$2(
-    input,
-    [
-      "startAtrialCaptureId",
-      "startTimeSec",
-      "previous",
-      "proximalPressureIntegralMmHgSec",
-      "maximumProximalPressureMmHg",
-      "minimumProximalPressureMmHg",
-      "forwardFlowDurationSec",
-      "localGradientIntegralMmHgSec",
-      "localGradientPeakMmHg",
-      "venaContractaGradientIntegralMmHgSec",
-      "venaContractaGradientPeakMmHg"
-    ],
-    label
-  );
-  const startTimeSec = nonnegativeFiniteV1$1(
-    record.startTimeSec,
-    `${label} start time`
-  );
-  const previous = ownSampleV1(record.previous, `${label} previous sample`);
-  if (previous.timeSec < startTimeSec) {
-    throw new Error(`${label} previous sample precedes its start`);
-  }
-  const elapsedSec = previous.timeSec - startTimeSec;
-  const proximalPressureIntegralMmHgSec = finiteV1(
-    record.proximalPressureIntegralMmHgSec,
-    `${label} proximal pressure integral`
-  );
-  const maximumProximalPressureMmHg = finiteV1(
-    record.maximumProximalPressureMmHg,
-    `${label} maximum proximal pressure`
-  );
-  const minimumProximalPressureMmHg = finiteV1(
-    record.minimumProximalPressureMmHg,
-    `${label} minimum proximal pressure`
-  );
-  if (maximumProximalPressureMmHg < minimumProximalPressureMmHg || previous.algebraicProximalConstitutivePortPressureMmHg > maximumProximalPressureMmHg || previous.algebraicProximalConstitutivePortPressureMmHg < minimumProximalPressureMmHg) {
-    throw new Error(`${label} proximal pressure extrema are inconsistent`);
-  }
-  const forwardFlowDurationSec = nonnegativeFiniteV1$1(
-    record.forwardFlowDurationSec,
-    `${label} forward-flow duration`
-  );
-  if (forwardFlowDurationSec > elapsedSec + clockToleranceV1(elapsedSec)) {
-    throw new Error(`${label} forward-flow duration exceeds elapsed time`);
-  }
-  const localGradientIntegralMmHgSec = finiteV1(
-    record.localGradientIntegralMmHgSec,
-    `${label} local gradient integral`
-  );
-  const localGradientPeakMmHg = nullableFiniteV1(
-    record.localGradientPeakMmHg,
-    `${label} local gradient peak`
-  );
-  const venaContractaGradientIntegralMmHgSec = finiteV1(
-    record.venaContractaGradientIntegralMmHgSec,
-    `${label} vena-contracta gradient integral`
-  );
-  const venaContractaGradientPeakMmHg = nullableFiniteV1(
-    record.venaContractaGradientPeakMmHg,
-    `${label} vena-contracta gradient peak`
-  );
-  if (forwardFlowDurationSec === 0) {
-    if (localGradientIntegralMmHgSec !== 0 || venaContractaGradientIntegralMmHgSec !== 0 || localGradientPeakMmHg !== null || venaContractaGradientPeakMmHg !== null) {
-      throw new Error(`${label} zero-flow gradient ledger is inconsistent`);
-    }
-  } else if (localGradientPeakMmHg === null || venaContractaGradientPeakMmHg === null) {
-    throw new Error(`${label} positive-flow gradient peak is missing`);
-  }
-  if (forwardFlowDurationSec > 0) {
-    const localMeanMmHg = localGradientIntegralMmHgSec / forwardFlowDurationSec;
-    const venaContractaMeanMmHg = venaContractaGradientIntegralMmHgSec / forwardFlowDurationSec;
-    if (!Number.isFinite(localMeanMmHg) || !Number.isFinite(venaContractaMeanMmHg) || localMeanMmHg > localGradientPeakMmHg + numericToleranceV1(localGradientPeakMmHg) || venaContractaMeanMmHg > venaContractaGradientPeakMmHg + numericToleranceV1(venaContractaGradientPeakMmHg)) {
-      throw new Error(`${label} positive-flow gradient ledger is inconsistent`);
-    }
-  }
-  if (elapsedSec === 0) {
-    if (proximalPressureIntegralMmHgSec !== 0 || forwardFlowDurationSec !== 0 || maximumProximalPressureMmHg !== previous.algebraicProximalConstitutivePortPressureMmHg || minimumProximalPressureMmHg !== previous.algebraicProximalConstitutivePortPressureMmHg) {
-      throw new Error(`${label} initial proximal pressure ledger is inconsistent`);
-    }
-  } else {
-    const proximalMeanMmHg = proximalPressureIntegralMmHgSec / elapsedSec;
-    if (!Number.isFinite(proximalMeanMmHg) || proximalMeanMmHg < minimumProximalPressureMmHg - numericToleranceV1(minimumProximalPressureMmHg) || proximalMeanMmHg > maximumProximalPressureMmHg + numericToleranceV1(maximumProximalPressureMmHg)) {
-      throw new Error(`${label} proximal pressure ledger is inconsistent`);
-    }
-  }
-  return {
-    startAtrialCaptureId: requiredCaptureIdV1(
-      record.startAtrialCaptureId,
-      `${label} start capture ID`
-    ),
-    startTimeSec,
-    previous,
-    proximalPressureIntegralMmHgSec,
-    maximumProximalPressureMmHg,
-    minimumProximalPressureMmHg,
-    forwardFlowDurationSec,
-    localGradientIntegralMmHgSec,
-    localGradientPeakMmHg,
-    venaContractaGradientIntegralMmHgSec,
-    venaContractaGradientPeakMmHg
-  };
-}
-function ownSampleV1(input, label) {
-  const record = plainExactRecordV1$2(
-    input,
-    [
-      "timeSec",
-      "aorticValveFlowMlPerSec",
-      "algebraicProximalConstitutivePortPressureMmHg",
-      "localValvePressureGradientMmHg",
-      "venaContractaBernoulliPressureMmHg"
-    ],
-    label
-  );
-  return Object.freeze({
-    timeSec: nonnegativeFiniteV1$1(record.timeSec, `${label} time`),
-    aorticValveFlowMlPerSec: finiteV1(
-      record.aorticValveFlowMlPerSec,
-      `${label} aortic valve flow`
-    ),
-    algebraicProximalConstitutivePortPressureMmHg: finiteV1(
-      record.algebraicProximalConstitutivePortPressureMmHg,
-      `${label} proximal pressure`
-    ),
-    localValvePressureGradientMmHg: finiteV1(
-      record.localValvePressureGradientMmHg,
-      `${label} local gradient`
-    ),
-    venaContractaBernoulliPressureMmHg: finiteV1(
-      record.venaContractaBernoulliPressureMmHg,
-      `${label} vena-contracta pressure`
-    )
-  });
-}
-function freezeActiveBeatV1(active) {
-  return Object.freeze({ ...active, previous: Object.freeze(active.previous) });
-}
-function plainExactRecordV1$2(input, keys, label) {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error(`${label} must be a plain object`);
-  }
-  const prototype = Object.getPrototypeOf(input);
-  if (prototype !== Object.prototype && prototype !== null) {
-    throw new Error(`${label} must be a plain object`);
-  }
-  const ownKeys = Reflect.ownKeys(input);
-  if (ownKeys.some((key) => typeof key !== "string")) {
-    throw new Error(`${label} contains a non-string key`);
-  }
-  const actual = [...ownKeys].sort();
-  const expected = [...keys].sort();
-  if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
-    throw new Error(`${label} has an unexpected field set`);
-  }
-  return input;
-}
-function requiredCaptureIdV1(value, label) {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a nonempty string`);
-  }
-  return value;
-}
-function finiteV1(value, label) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new Error(`${label} must be finite`);
-  }
-  return value;
-}
-function nonnegativeFiniteV1$1(value, label) {
-  const owned = finiteV1(value, label);
-  if (owned < 0) throw new Error(`${label} must be nonnegative`);
-  return owned;
-}
-function positiveFiniteV1$1(value, label) {
-  const owned = finiteV1(value, label);
-  if (owned <= 0) throw new Error(`${label} must be positive`);
-  return owned;
-}
-function nullableFiniteV1(value, label) {
-  return value === null ? null : finiteV1(value, label);
-}
-function clockToleranceV1(value) {
-  return numericToleranceV1(value);
-}
-function numericToleranceV1(value) {
-  return 1e-12 * Math.max(1, Math.abs(value));
-}
-function approximatelyEqualV1(left, right) {
-  return Math.abs(left - right) <= 1e-12 * Math.max(1, Math.abs(left), Math.abs(right));
 }
 function defaultParams() {
   return {
@@ -36075,9 +35532,8 @@ function constantTimeEqual(left, right) {
 }
 const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_V1_ID = "main-wire-selected-aortic-port-session-extension-v1";
 const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_TICKET_V1_ID = "main-wire-selected-aortic-port-session-ticket-v1";
-const MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID = "main-wire-selected-aortic-port-exact-beat-state-checkpoint-v1";
 class MainWireSelectedAorticPortSessionExtensionV1 {
-  constructor(selectedBeatAccumulator, latestCompletedBeatMetrics) {
+  constructor() {
     this.extensionId = MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_V1_ID;
     this.#candidateNumericalReadback = new Float64Array(
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3
@@ -36088,36 +35544,25 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
     this.#acceptedReadbackClock = null;
     this.#activeTicketOrdinal = null;
     this.#nextTicketOrdinal = 1;
-    this.#selectedBeatAccumulator = selectedBeatAccumulator;
-    this.#latestCompletedBeatMetrics = latestCompletedBeatMetrics;
   }
   #candidateNumericalReadback;
   #acceptedNumericalReadback;
   #acceptedReadbackClock;
-  #selectedBeatAccumulator;
-  #latestCompletedBeatMetrics;
   #activeTicketOrdinal;
   #nextTicketOrdinal;
   static createColdV1() {
-    return new MainWireSelectedAorticPortSessionExtensionV1(
-      new MainWireAorticRecoveredRootPortBeatAccumulatorV1(),
-      null
-    );
-  }
-  static restoreExactBeatStateV1(input) {
-    const checkpoint = ownExactBeatStateCheckpointV1(input);
-    return new MainWireSelectedAorticPortSessionExtensionV1(
-      MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-        checkpoint.selectedBeatAccumulator
-      ),
-      checkpoint.latestCompletedBeatMetrics
-    );
+    return new MainWireSelectedAorticPortSessionExtensionV1();
   }
   acceptedReadbackClockV1() {
     return this.#acceptedReadbackClock;
   }
-  latestCompletedBeatMetricsV1() {
-    return this.#latestCompletedBeatMetrics;
+  /** Guards a synchronous exact-checkpoint capture without persisting readback. */
+  assertReadyForExactCheckpointV1() {
+    if (this.#activeTicketOrdinal !== null) {
+      throw new Error(
+        "cannot checkpoint selected aortic session with an open ticket"
+      );
+    }
   }
   withAcceptedReadbackV3(expected, borrow) {
     const expectedClock = ownAcceptedClockV1(
@@ -36128,9 +35573,7 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
       throw new Error("selected aortic accepted readback borrow must be a function");
     }
     const available = this.#acceptedReadbackClock;
-    if (available === null) {
-      return null;
-    }
+    if (available === null) return null;
     if (available.acceptedTimeSec !== expectedClock.acceptedTimeSec || available.revision !== expectedClock.revision) {
       throw new Error("selected aortic accepted readback clock does not match");
     }
@@ -36170,7 +35613,7 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
       candidateRevision: stage.candidateRevision
     });
     let state = "open";
-    const ticket = Object.freeze({
+    return Object.freeze({
       ticketId: MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_TICKET_V1_ID,
       ticketOrdinal,
       candidateClock,
@@ -36179,13 +35622,12 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
           throw new Error("selected aortic candidate ticket promotion is not open");
         }
         try {
-          const completed = this.#promoteCandidateV1(
+          this.#promoteCandidateV1(
             ticketOrdinal,
             candidateClock,
             promotionInput
           );
           state = "promoted";
-          return completed;
         } catch (error) {
           state = "promotion-failed";
           throw error;
@@ -36197,24 +35639,6 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
           state = "closed";
         }
       }
-    });
-    return ticket;
-  }
-  checkpointExactBeatStateV1() {
-    if (this.#activeTicketOrdinal !== null) {
-      throw new Error("cannot checkpoint selected aortic beat state with an open ticket");
-    }
-    const selectedBeatAccumulator = this.#selectedBeatAccumulator.checkpoint();
-    if (this.#acceptedReadbackClock !== null && selectedBeatAccumulator.active !== null && selectedBeatAccumulator.active.previous.timeSec !== this.#acceptedReadbackClock.acceptedTimeSec) {
-      throw new Error(
-        "selected aortic beat state clock differs from accepted readback"
-      );
-    }
-    return Object.freeze({
-      checkpointId: MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID,
-      schemaVersion: 1,
-      selectedBeatAccumulator,
-      latestCompletedBeatMetrics: this.#latestCompletedBeatMetrics
     });
   }
   #promoteCandidateV1(ticketOrdinal, candidateClock, input) {
@@ -36228,49 +35652,18 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
     if (this.#candidateNumericalReadback[MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec] !== promotion.committedAcceptedTimeSec) {
       throw new Error("selected aortic candidate readback clock does not match commit");
     }
-    const trialAccumulator = MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-      this.#selectedBeatAccumulator.checkpoint()
-    );
-    const selectedCompleted = trialAccumulator.acceptNumericalReadbackV3(
-      this.#candidateNumericalReadback,
-      promotion.capturedAtrialActivationId
-    );
-    assertSynchronizedBeatCompletionV1(
-      promotion.baseCompletedBeatMetrics,
-      selectedCompleted,
-      promotion.capturedAtrialActivationId
-    );
-    const trialCheckpoint = trialAccumulator.checkpoint();
-    if (trialCheckpoint.active !== null && trialCheckpoint.active.previous.timeSec !== promotion.committedAcceptedTimeSec) {
-      throw new Error("selected aortic trial beat state clock differs from commit");
-    }
-    const nextLatest = selectedCompleted ?? this.#latestCompletedBeatMetrics;
     this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
     this.#acceptedReadbackClock = Object.freeze({
       acceptedTimeSec: promotion.committedAcceptedTimeSec,
       revision: promotion.committedRevision
     });
-    this.#selectedBeatAccumulator = trialAccumulator;
-    this.#latestCompletedBeatMetrics = nextLatest;
     this.#activeTicketOrdinal = null;
-    return selectedCompleted;
   }
   #abortCandidateV1(ticketOrdinal) {
     if (this.#activeTicketOrdinal !== ticketOrdinal) {
       throw new Error("selected aortic candidate ticket is not the active ticket");
     }
     this.#activeTicketOrdinal = null;
-  }
-}
-function assertSynchronizedBeatCompletionV1(baseCompletedBeatMetrics, selectedCompletedBeatMetrics, capturedAtrialActivationId) {
-  if (baseCompletedBeatMetrics === null !== (selectedCompletedBeatMetrics === null)) {
-    throw new Error("base and selected aortic beat completion availability differs");
-  }
-  if (baseCompletedBeatMetrics === null || selectedCompletedBeatMetrics === null) {
-    return;
-  }
-  if (capturedAtrialActivationId === null || baseCompletedBeatMetrics.endAtrialCaptureId !== capturedAtrialActivationId || selectedCompletedBeatMetrics.endAtrialCaptureId !== capturedAtrialActivationId || baseCompletedBeatMetrics.startAtrialCaptureId !== selectedCompletedBeatMetrics.startAtrialCaptureId || baseCompletedBeatMetrics.endAtrialCaptureId !== selectedCompletedBeatMetrics.endAtrialCaptureId || baseCompletedBeatMetrics.startTimeSec !== selectedCompletedBeatMetrics.startTimeSec || baseCompletedBeatMetrics.endTimeSec !== selectedCompletedBeatMetrics.endTimeSec || baseCompletedBeatMetrics.durationSec !== selectedCompletedBeatMetrics.durationSec || baseCompletedBeatMetrics.valveForwardPressureGradients.AoV.forwardFlowDurationSec !== selectedCompletedBeatMetrics.localValveForwardPressureGradient.forwardFlowDurationSec || selectedCompletedBeatMetrics.localValveForwardPressureGradient.forwardFlowDurationSec !== selectedCompletedBeatMetrics.venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec) {
-    throw new Error("base and selected aortic beat completion is not synchronized");
   }
 }
 function ownCandidateStageInputV1(input) {
@@ -36321,17 +35714,8 @@ function ownPromotionInputV1(input) {
   const label = "selected aortic candidate promotion input";
   const record = plainExactRecordV1$1(
     input,
-    [
-      "committedAcceptedTimeSec",
-      "committedRevision",
-      "capturedAtrialActivationId",
-      "baseCompletedBeatMetrics"
-    ],
+    ["committedAcceptedTimeSec", "committedRevision"],
     label
-  );
-  const capturedAtrialActivationId = record.capturedAtrialActivationId === null ? null : requiredNonemptyStringV1(
-    record.capturedAtrialActivationId,
-    `${label} captured atrial activation ID`
   );
   return Object.freeze({
     committedAcceptedTimeSec: nonnegativeFiniteV1(
@@ -36341,10 +35725,6 @@ function ownPromotionInputV1(input) {
     committedRevision: positiveSafeIntegerV1(
       record.committedRevision,
       `${label} committed revision`
-    ),
-    capturedAtrialActivationId,
-    baseCompletedBeatMetrics: record.baseCompletedBeatMetrics === null ? null : validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
-      record.baseCompletedBeatMetrics
     )
   });
 }
@@ -36360,38 +35740,6 @@ function ownAcceptedClockV1(input, label) {
       `${label} accepted time`
     ),
     revision: nonnegativeSafeIntegerV1(record.revision, `${label} revision`)
-  });
-}
-function ownExactBeatStateCheckpointV1(input) {
-  const label = "selected aortic exact beat state checkpoint";
-  const record = plainExactRecordV1$1(
-    input,
-    [
-      "checkpointId",
-      "schemaVersion",
-      "selectedBeatAccumulator",
-      "latestCompletedBeatMetrics"
-    ],
-    label
-  );
-  if (record.checkpointId !== MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID || record.schemaVersion !== 1) {
-    throw new Error("unsupported selected aortic exact beat state checkpoint");
-  }
-  const selectedBeatAccumulator = MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-    record.selectedBeatAccumulator
-  ).checkpoint();
-  const latestCompletedBeatMetrics = record.latestCompletedBeatMetrics === null ? null : validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1(
-    record.latestCompletedBeatMetrics
-  );
-  const active = selectedBeatAccumulator.active;
-  if (latestCompletedBeatMetrics !== null && (active === null || active.startAtrialCaptureId !== latestCompletedBeatMetrics.endAtrialCaptureId || active.startTimeSec !== latestCompletedBeatMetrics.endTimeSec)) {
-    throw new Error(`${label} latest metrics do not match active beat boundary`);
-  }
-  return Object.freeze({
-    checkpointId: MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID,
-    schemaVersion: 1,
-    selectedBeatAccumulator,
-    latestCompletedBeatMetrics
   });
 }
 function plainExactRecordV1$1(input, keys, label) {
@@ -36428,12 +35776,6 @@ function positiveSafeIntegerV1(value, label) {
 function nonnegativeSafeIntegerV1(value, label) {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     throw new Error(`${label} must be a nonnegative safe integer`);
-  }
-  return value;
-}
-function requiredNonemptyStringV1(value, label) {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a nonempty string`);
   }
   return value;
 }
@@ -36474,23 +35816,15 @@ function createMainWireIntegratedModelStandard66CheckpointContextV1(input) {
     selectedAorticOutflowProfile: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
   });
 }
-async function checkpointMainWireIntegratedModelStandard66V1(context, baseStandardCheckpointV2, selectedAorticPortExactBeatState) {
+async function checkpointMainWireIntegratedModelStandard66V1(context, baseStandardCheckpointV2) {
   const ownedContext = createMainWireIntegratedModelStandard66CheckpointContextV1(context);
   const detachedBaseStandardCheckpointV2 = detachedFrozenCheckpointSnapshotV1(baseStandardCheckpointV2);
-  const detachedSelectedExactBeatState = detachedFrozenCheckpointSnapshotV1(selectedAorticPortExactBeatState);
-  const ownedSelectedExactBeatState = ownSelectedExactBeatStateV1(
-    detachedSelectedExactBeatState
-  );
   const [ownedBaseStandardCheckpointV2, selectedProfileSha256] = await Promise.all([
     validateMainWireIntegratedModelStandardCheckpointV2(
       detachedBaseStandardCheckpointV2
     ),
     sha256CanonicalJsonHex(ownedContext.selectedAorticOutflowProfile)
   ]);
-  assertSynchronizedExactBeatStatesV1(
-    ownedBaseStandardCheckpointV2,
-    ownedSelectedExactBeatState
-  );
   const payload = Object.freeze({
     checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID,
     schemaVersion: 1,
@@ -36498,8 +35832,7 @@ async function checkpointMainWireIntegratedModelStandard66V1(context, baseStanda
     acceptedTimeSec: ownedBaseStandardCheckpointV2.acceptedTimeSec,
     selectedModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1,
     selectedAorticOutflowProfileIdentitySha256: selectedProfileSha256,
-    baseStandardCheckpointV2: ownedBaseStandardCheckpointV2,
-    selectedAorticPortExactBeatState: detachedSelectedExactBeatState
+    baseStandardCheckpointV2: ownedBaseStandardCheckpointV2
   });
   return Object.freeze({
     ...payload,
@@ -36513,9 +35846,8 @@ async function restoreMainWireIntegratedModelStandard66V1(context, input) {
     "Standard66 restore context"
   );
   const baseContext = contextRecord.base;
-  const selectedContext = contextRecord.selected;
   createMainWireIntegratedModelStandard66CheckpointContextV1(
-    selectedContext
+    contextRecord.selected
   );
   const checkpoint = await validateMainWireIntegratedModelStandard66CheckpointV1(
     input
@@ -36524,29 +35856,13 @@ async function restoreMainWireIntegratedModelStandard66V1(context, input) {
     baseContext,
     checkpoint.baseStandardCheckpointV2
   );
-  const selectedAorticPortExtension = MainWireSelectedAorticPortSessionExtensionV1.restoreExactBeatStateV1(
-    checkpoint.selectedAorticPortExactBeatState
-  );
-  if (selectedAorticPortExtension.acceptedReadbackClockV1() !== null) {
-    throw new Error(
-      "restored Standard66 selected instantaneous readback must be unavailable"
-    );
-  }
   if (restoredBase.acceptedState.revision !== checkpoint.revision || !Object.is(
     restoredBase.acceptedState.acceptedTimeSec,
     checkpoint.acceptedTimeSec
   )) {
     throw new Error("restored Standard66 owner clocks differ");
   }
-  const restoredBaseExactState = Object.freeze({
-    acceptedTimeSec: restoredBase.acceptedState.acceptedTimeSec,
-    beatAccumulator: restoredBase.beatAccumulator.checkpoint(),
-    completedBeatMetrics: restoredBase.completedBeatMetrics
-  });
-  assertSynchronizedExactBeatStatesV1(
-    restoredBaseExactState,
-    selectedAorticPortExtension.checkpointExactBeatStateV1()
-  );
+  const selectedAorticPortExtension = MainWireSelectedAorticPortSessionExtensionV1.createColdV1();
   return Object.freeze({
     ...restoredBase,
     selectedAorticPortExtension
@@ -36566,77 +35882,13 @@ async function validateMainWireIntegratedModelStandard66CheckpointV1(input) {
   if (checkpoint.selectedAorticOutflowProfileIdentitySha256 !== expectedSelectedProfileSha256) {
     throw new Error("Standard66 checkpoint selected profile identity mismatch");
   }
-  const [ownedBase, ownedSelected] = await Promise.all([
-    validateMainWireIntegratedModelStandardCheckpointV2(
-      checkpoint.baseStandardCheckpointV2
-    ),
-    Promise.resolve(
-      ownSelectedExactBeatStateV1(
-        checkpoint.selectedAorticPortExactBeatState
-      )
-    )
-  ]);
-  if (checkpoint.revision !== ownedBase.revision || !Object.is(
-    checkpoint.acceptedTimeSec,
-    ownedBase.acceptedTimeSec
-  )) {
+  const ownedBase = await validateMainWireIntegratedModelStandardCheckpointV2(
+    checkpoint.baseStandardCheckpointV2
+  );
+  if (checkpoint.revision !== ownedBase.revision || !Object.is(checkpoint.acceptedTimeSec, ownedBase.acceptedTimeSec)) {
     throw new Error("Standard66 checkpoint owner clocks differ");
   }
-  assertSynchronizedExactBeatStatesV1(ownedBase, ownedSelected);
   return checkpoint;
-}
-function ownSelectedExactBeatStateV1(input) {
-  return MainWireSelectedAorticPortSessionExtensionV1.restoreExactBeatStateV1(input).checkpointExactBeatStateV1();
-}
-function assertSynchronizedExactBeatStatesV1(base2, selected) {
-  const baseAccumulator = MainWireIntegratedModelBeatAccumulatorV3.restore(base2.beatAccumulator).checkpoint();
-  const selectedAccumulator = MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(selected.selectedBeatAccumulator).checkpoint();
-  const baseLatest = ownBaseLatestMetricsV1(base2.completedBeatMetrics);
-  const selectedLatest = ownSelectedLatestMetricsV1(
-    selected.latestCompletedBeatMetrics
-  );
-  const baseActive = baseAccumulator.active;
-  const selectedActive = selectedAccumulator.active;
-  if (baseActive === null !== (selectedActive === null)) {
-    throw new Error("Standard66 base and selected active-beat availability differs");
-  }
-  if (baseActive !== null && selectedActive !== null) {
-    if (baseActive.startAtrialCaptureId !== selectedActive.startAtrialCaptureId || !Object.is(baseActive.startTimeSec, selectedActive.startTimeSec) || !Object.is(
-      baseActive.previous.timeSec,
-      selectedActive.previous.timeSec
-    ) || !Object.is(baseActive.previous.timeSec, base2.acceptedTimeSec) || !Object.is(selectedActive.previous.timeSec, base2.acceptedTimeSec) || !Object.is(
-      baseActive.previous.aorticValveFlowMlPerSec,
-      selectedActive.previous.aorticValveFlowMlPerSec
-    ) || !Object.is(
-      baseActive.valveForwardPressureGradientAccumulators.AoV.forwardFlowDurationSec,
-      selectedActive.forwardFlowDurationSec
-    )) {
-      throw new Error("Standard66 base and selected active beats differ");
-    }
-  }
-  if (baseLatest === null !== (selectedLatest === null)) {
-    throw new Error(
-      "Standard66 base and selected completed-beat availability differs"
-    );
-  }
-  if (baseLatest === null || selectedLatest === null) return;
-  if (baseActive === null || selectedActive === null || baseLatest.startAtrialCaptureId !== selectedLatest.startAtrialCaptureId || baseLatest.endAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseLatest.startTimeSec, selectedLatest.startTimeSec) || !Object.is(baseLatest.endTimeSec, selectedLatest.endTimeSec) || !Object.is(baseLatest.durationSec, selectedLatest.durationSec) || baseLatest.endTimeSec > base2.acceptedTimeSec || baseActive.startAtrialCaptureId !== baseLatest.endAtrialCaptureId || selectedActive.startAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseActive.startTimeSec, baseLatest.endTimeSec) || !Object.is(selectedActive.startTimeSec, selectedLatest.endTimeSec) || !Object.is(
-    baseLatest.valveForwardPressureGradients.AoV.forwardFlowDurationSec,
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec
-  ) || !Object.is(
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
-    selectedLatest.venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec
-  )) {
-    throw new Error("Standard66 base and selected completed beats differ");
-  }
-}
-function ownBaseLatestMetricsV1(input) {
-  return input === null ? null : validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(input);
-}
-function ownSelectedLatestMetricsV1(input) {
-  return input === null ? null : validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1(
-    input
-  );
 }
 function assertCheckpointEnvelopeV1(input) {
   const record = plainExactRecordV1(
@@ -36649,7 +35901,6 @@ function assertCheckpointEnvelopeV1(input) {
       "selectedModelIdentity",
       "selectedAorticOutflowProfileIdentitySha256",
       "baseStandardCheckpointV2",
-      "selectedAorticPortExactBeatState",
       "checkpointSha256"
     ],
     "Standard66 checkpoint"
@@ -36726,105 +35977,18 @@ function detachedFrozenCheckpointSnapshotV1(input) {
 const PROXIMAL_PRESSURE_OUTPUT_ID_V1 = "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
 const LOCAL_GRADIENT_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV";
 const VENA_CONTRACTA_GRADIENT_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV";
-const PROXIMAL_PRESSURE_MEAN_OUTPUT_ID_V1 = "hemodynamics.pressure.mean.aortic-proximal-constitutive-port";
-const PROXIMAL_PRESSURE_MAXIMUM_OUTPUT_ID_V1 = "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port";
-const PROXIMAL_PRESSURE_MINIMUM_OUTPUT_ID_V1 = "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port";
-const PROXIMAL_PRESSURE_PULSE_OUTPUT_ID_V1 = "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port";
-const LOCAL_GRADIENT_MEAN_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV";
-const LOCAL_GRADIENT_PEAK_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV";
-const VENA_CONTRACTA_GRADIENT_MEAN_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV";
-const VENA_CONTRACTA_GRADIENT_PEAK_OUTPUT_ID_V1 = "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV";
-const FORWARD_FLOW_DURATION_OUTPUT_ID_V1 = "hemodynamics.duration.valve-forward-flow.AoV";
 const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_CATALOG_V1 = Object.freeze([
   signalDefinitionV1(
     PROXIMAL_PRESSURE_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
     "acceptedSelectedAorticReadback.algebraicProximalConstitutivePortPressureMmHg"
   ),
   signalDefinitionV1(
     LOCAL_GRADIENT_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
     "acceptedSelectedAorticReadback.localValvePressureGradientMmHg"
   ),
   signalDefinitionV1(
     VENA_CONTRACTA_GRADIENT_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
     "acceptedSelectedAorticReadback.venaContractaBernoulliPressureMmHg"
-  ),
-  metricDefinitionV1(
-    PROXIMAL_PRESSURE_MEAN_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [PROXIMAL_PRESSURE_OUTPUT_ID_V1],
-    "selectedAorticCompletedBeatMetrics.proximalConstitutivePortPressure.timeWeightedMeanMmHg"
-  ),
-  metricDefinitionV1(
-    PROXIMAL_PRESSURE_MAXIMUM_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [PROXIMAL_PRESSURE_OUTPUT_ID_V1],
-    "selectedAorticCompletedBeatMetrics.proximalConstitutivePortPressure.maximumMmHg"
-  ),
-  metricDefinitionV1(
-    PROXIMAL_PRESSURE_MINIMUM_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [PROXIMAL_PRESSURE_OUTPUT_ID_V1],
-    "selectedAorticCompletedBeatMetrics.proximalConstitutivePortPressure.minimumMmHg"
-  ),
-  metricDefinitionV1(
-    PROXIMAL_PRESSURE_PULSE_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [
-      PROXIMAL_PRESSURE_MAXIMUM_OUTPUT_ID_V1,
-      PROXIMAL_PRESSURE_MINIMUM_OUTPUT_ID_V1
-    ],
-    "selectedAorticCompletedBeatMetrics.proximalConstitutivePortPressure.pulseMmHg"
-  ),
-  metricDefinitionV1(
-    LOCAL_GRADIENT_MEAN_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    ["hemodynamics.flow.valve.AoV", LOCAL_GRADIENT_OUTPUT_ID_V1],
-    "selectedAorticCompletedBeatMetrics.localValveForwardPressureGradient.timeWeightedMeanMmHg"
-  ),
-  metricDefinitionV1(
-    LOCAL_GRADIENT_PEAK_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    ["hemodynamics.flow.valve.AoV", LOCAL_GRADIENT_OUTPUT_ID_V1],
-    "selectedAorticCompletedBeatMetrics.localValveForwardPressureGradient.peakMmHg"
-  ),
-  metricDefinitionV1(
-    VENA_CONTRACTA_GRADIENT_MEAN_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [
-      "hemodynamics.flow.valve.AoV",
-      VENA_CONTRACTA_GRADIENT_OUTPUT_ID_V1
-    ],
-    "selectedAorticCompletedBeatMetrics.venaContractaBernoulliForwardPressureGradient.timeWeightedMeanMmHg"
-  ),
-  metricDefinitionV1(
-    VENA_CONTRACTA_GRADIENT_PEAK_OUTPUT_ID_V1,
-    "pressure",
-    "mmHg",
-    [
-      "hemodynamics.flow.valve.AoV",
-      VENA_CONTRACTA_GRADIENT_OUTPUT_ID_V1
-    ],
-    "selectedAorticCompletedBeatMetrics.venaContractaBernoulliForwardPressureGradient.peakMmHg"
-  ),
-  metricDefinitionV1(
-    FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
-    "duration",
-    "s",
-    ["hemodynamics.flow.valve.AoV"],
-    "selectedAorticCompletedBeatMetrics.localValveForwardPressureGradient.forwardFlowDurationSec"
   )
 ]);
 const MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1 = Object.freeze(
@@ -36883,7 +36047,6 @@ function validateProjectionInputV1(input) {
 function projectValueV1(input, outputId) {
   const readback = input.acceptedNumericalReadbackV3;
   const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2;
-  const metrics = input.completedBeatMetrics;
   switch (outputId) {
     case PROXIMAL_PRESSURE_OUTPUT_ID_V1:
       return readbackValueV1(
@@ -36900,60 +36063,17 @@ function projectValueV1(input, outputId) {
         outputId,
         readback?.[layout.venaContractaBernoulliPressureMmHg]
       );
-    case PROXIMAL_PRESSURE_MEAN_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.proximalConstitutivePortPressure.timeWeightedMeanMmHg
-      );
-    case PROXIMAL_PRESSURE_MAXIMUM_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.proximalConstitutivePortPressure.maximumMmHg
-      );
-    case PROXIMAL_PRESSURE_MINIMUM_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.proximalConstitutivePortPressure.minimumMmHg
-      );
-    case PROXIMAL_PRESSURE_PULSE_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.proximalConstitutivePortPressure.pulseMmHg
-      );
-    case LOCAL_GRADIENT_MEAN_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.localValveForwardPressureGradient.timeWeightedMeanMmHg
-      );
-    case LOCAL_GRADIENT_PEAK_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.localValveForwardPressureGradient.peakMmHg
-      );
-    case VENA_CONTRACTA_GRADIENT_MEAN_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.venaContractaBernoulliForwardPressureGradient.timeWeightedMeanMmHg
-      );
-    case VENA_CONTRACTA_GRADIENT_PEAK_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.venaContractaBernoulliForwardPressureGradient.peakMmHg
-      );
-    case FORWARD_FLOW_DURATION_OUTPUT_ID_V1:
-      return metricValueV1(
-        outputId,
-        metrics?.localValveForwardPressureGradient.forwardFlowDurationSec
-      );
   }
 }
 function readbackValueV1(outputId, value) {
-  return value === void 0 ? unavailableValueV1(outputId) : availableValueV1(outputId, value);
-}
-function metricValueV1(outputId, value) {
-  return value === void 0 || value === null ? unavailableValueV1(outputId) : availableValueV1(outputId, value);
-}
-function availableValueV1(outputId, value) {
+  if (value === void 0) {
+    return Object.freeze({
+      outputId,
+      value: null,
+      availability: "not-evaluated-at-accepted-state",
+      quality: "not-assessed"
+    });
+  }
   if (!Number.isFinite(value)) {
     throw new MainWireAorticRecoveredRootPortOutputProjectionErrorV1(
       `${outputId} is available but is not finite`
@@ -36966,38 +36086,16 @@ function availableValueV1(outputId, value) {
     quality: "accepted-derived"
   });
 }
-function unavailableValueV1(outputId) {
-  return Object.freeze({
-    outputId,
-    value: null,
-    availability: "not-evaluated-at-accepted-state",
-    quality: "not-assessed"
-  });
-}
-function signalDefinitionV1(outputId, quantityKind, unit, sourcePath) {
+function signalDefinitionV1(outputId, sourcePath) {
   return Object.freeze({
     outputId,
     kind: "signal",
-    quantityKind,
-    unit,
+    quantityKind: "pressure",
+    unit: "mmHg",
     modelingStatus: "modeled",
     sourceKind: "accepted-step-readback",
     sourcePath,
     significantDigits: 3
-  });
-}
-function metricDefinitionV1(outputId, quantityKind, unit, dependencies, sourcePath) {
-  return Object.freeze({
-    outputId,
-    kind: "metric",
-    quantityKind,
-    unit,
-    modelingStatus: "modeled",
-    sourceKind: "completed-beat",
-    sourcePath,
-    significantDigits: 3,
-    scope: "beat",
-    dependencies: Object.freeze([...dependencies])
   });
 }
 const MMHG_ML_TO_MILLIJOULE_V1 = 0.133322;
@@ -47307,14 +46405,6 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.#lastAcceptedStep = null;
     this.#beatAccumulator = exactBeatState?.beatAccumulator ?? new MainWireIntegratedModelBeatAccumulatorV3();
     this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
-    if (selectedAorticPortExtension !== null) {
-      assertSynchronizedSelectedAorticBeatRestoreV1(
-        acceptedState2.acceptedTimeSec,
-        this.#beatAccumulator,
-        this.#completedBeatMetrics,
-        selectedAorticPortExtension
-      );
-    }
     this.#lastPresentationSource = observationSource;
     this.#lastPresentationRevision = acceptedState2.revision;
     this.#lastPresentationObservation = observation(
@@ -47840,9 +46930,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       if (this.#selectedAorticPortExtension !== null) {
         selectedTicket.promote({
           committedAcceptedTimeSec: candidateClock.acceptedTimeSec,
-          committedRevision: candidateClock.revision,
-          capturedAtrialActivationId: null,
-          baseCompletedBeatMetrics: trialCompletedBeatMetrics
+          committedRevision: candidateClock.revision
         });
         this.#beatAccumulator = trialBeatAccumulator;
         this.#completedBeatMetrics = trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
@@ -47917,7 +47005,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     } catch (error) {
       if (candidateOpen) this.#typedAuthority.abortDirectCandidate();
       if (hemodynamicAuthorityCommitted) {
-        this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+        this.poisonAfterCommittedSelectedReadbackPromotionFailureV1(error);
       }
       throw error;
     } finally {
@@ -48244,9 +47332,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         if (this.#selectedAorticPortExtension !== null) {
           selectedTicket.promote({
             committedAcceptedTimeSec: committedState.acceptedTimeSec,
-            committedRevision: committedState.revision,
-            capturedAtrialActivationId,
-            baseCompletedBeatMetrics: trialCompletedBeatMetrics
+            committedRevision: committedState.revision
           });
           this.#beatAccumulator = trialBeatAccumulator;
           this.#completedBeatMetrics = trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
@@ -48275,7 +47361,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       } catch (error) {
         abortDirectCandidateIfOpen();
         if (hemodynamicAuthorityCommitted) {
-          this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+          this.poisonAfterCommittedSelectedReadbackPromotionFailureV1(error);
         }
         throw error;
       } finally {
@@ -48585,12 +47671,12 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     }
     return this.#runtime;
   }
-  poisonAfterCommittedSelectedAnalysisFailureV1(error) {
+  poisonAfterCommittedSelectedReadbackPromotionFailureV1(error) {
     if (this.#selectedAorticPortExtension === null || this.#terminalPoison !== null) {
       return;
     }
     const poison = new Error(
-      "selected aortic Session is terminally poisoned after a committed analysis synchronization failure"
+      "selected aortic Session is terminally poisoned after a committed readback promotion failure"
     );
     poison.cause = error;
     this.#terminalPoison = poison;
@@ -48615,47 +47701,6 @@ function hasSelectedAorticOutflowRuntimeMarkerV1(runtime) {
     vascular,
     "selectedAorticOutflowProfile"
   );
-}
-function assertSynchronizedSelectedAorticBeatRestoreV1(acceptedTimeSec, baseAccumulator, baseLatest, selectedExtension) {
-  const baseActive = baseAccumulator.checkpoint().active;
-  const selectedState = selectedExtension.checkpointExactBeatStateV1();
-  const selectedActive = selectedState.selectedBeatAccumulator.active;
-  const selectedLatest = selectedState.latestCompletedBeatMetrics;
-  if (baseActive === null !== (selectedActive === null)) {
-    throw new Error(
-      "base and selected aortic restored active beat availability differs"
-    );
-  }
-  if (baseActive !== null && selectedActive !== null) {
-    if (!Object.is(baseActive.previous.timeSec, acceptedTimeSec) || !Object.is(selectedActive.previous.timeSec, acceptedTimeSec) || baseActive.startAtrialCaptureId !== selectedActive.startAtrialCaptureId || !Object.is(baseActive.startTimeSec, selectedActive.startTimeSec) || !Object.is(
-      baseActive.previous.aorticValveFlowMlPerSec,
-      selectedActive.previous.aorticValveFlowMlPerSec
-    ) || !Object.is(
-      baseActive.valveForwardPressureGradientAccumulators.AoV.forwardFlowDurationSec,
-      selectedActive.forwardFlowDurationSec
-    )) {
-      throw new Error(
-        "base and selected aortic restored active beat boundary differs"
-      );
-    }
-  }
-  if (baseLatest === null !== (selectedLatest === null)) {
-    throw new Error(
-      "base and selected aortic restored completed beat availability differs"
-    );
-  }
-  if (baseLatest === null || selectedLatest === null) return;
-  if (baseActive === null || selectedActive === null || baseActive.startAtrialCaptureId !== baseLatest.endAtrialCaptureId || selectedActive.startAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseActive.startTimeSec, baseLatest.endTimeSec) || !Object.is(selectedActive.startTimeSec, selectedLatest.endTimeSec) || baseLatest.startAtrialCaptureId !== selectedLatest.startAtrialCaptureId || baseLatest.endAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseLatest.startTimeSec, selectedLatest.startTimeSec) || !Object.is(baseLatest.endTimeSec, selectedLatest.endTimeSec) || !Object.is(baseLatest.durationSec, selectedLatest.durationSec) || !Object.is(
-    baseLatest.valveForwardPressureGradients.AoV.forwardFlowDurationSec,
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec
-  ) || !Object.is(
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
-    selectedLatest.venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec
-  )) {
-    throw new Error(
-      "base and selected aortic restored completed beat boundary differs"
-    );
-  }
 }
 function isStrictlyOrdinaryTypedCandidate(clock, limit, rhythm, autoregulationOwner) {
   if (rhythm.configuration.atrialSource.mode !== "regular" || rhythm.configuration.atrialSource.regularSourceConfiguration.rhythmClass !== "sinus" || rhythm.externalAfNextBoundaryTimeSec !== null || rhythm.externalAtrialSourceBatch !== null || limit.rhythmBoundaryTimeSec !== null || limit.rhythmBoundaryOwners.length !== 0 || autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec || autoregulationOwner.state.windowControl === null || !optionalAutoregulationControlEqual(
@@ -48881,7 +47926,7 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
       "Standard65 restore cannot own the selected model; use restoreStandard66CanonicalBinaryV3"
     );
   }
-  /** Restores numerical state and both exact beat-analysis owners. */
+  /** Restores numerical state and the selected construction identity. */
   static async restoreStandard66ExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
     const runtime = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
       inputs,
@@ -48971,17 +48016,13 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
       outputProjectionDurationMs: baseProjection.outputProjectionDurationMs + (performance.now() - selectedProjectionStartedAt)
     });
   }
-  /**
-   * Creates the object wrapper only. The 76-f64 instantaneous readback is not
-   * persisted; selected completed-beat analysis is the sole extension state.
-   */
+  /** Creates the object wrapper without persisting instantaneous readback. */
   async checkpointStandard66Exact() {
+    this.#selectedAorticPortExtension.assertReadyForExactCheckpointV1();
     const baseCheckpointPromise = this.checkpointSelectedAorticBaseStandardExactV1();
-    const selectedExactBeatState = this.#selectedAorticPortExtension.checkpointExactBeatStateV1();
     return checkpointMainWireIntegratedModelStandard66V1(
       this.#checkpointContext,
-      await baseCheckpointPromise,
-      selectedExactBeatState
+      await baseCheckpointPromise
     );
   }
   /** Adds predictor history to the object checkpoint in one canonical image. */
@@ -48995,14 +48036,12 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
   }
   #projectCurrentSelectedAorticPortValuesV1(outputIds) {
     const acceptedClock = this.selectedAorticAcceptedClockV1();
-    const completedBeatMetrics = this.#selectedAorticPortExtension.latestCompletedBeatMetricsV1();
     const projected = this.#selectedAorticPortExtension.withAcceptedReadbackV3(
       acceptedClock,
       (acceptedNumericalReadbackV3) => projectMainWireAorticRecoveredRootPortSelectedValuesV1(
         Object.freeze({
           acceptedTimeSec: acceptedClock.acceptedTimeSec,
-          acceptedNumericalReadbackV3,
-          completedBeatMetrics
+          acceptedNumericalReadbackV3
         }),
         outputIds
       )
@@ -49010,8 +48049,7 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
     return projected ?? projectMainWireAorticRecoveredRootPortSelectedValuesV1(
       Object.freeze({
         acceptedTimeSec: acceptedClock.acceptedTimeSec,
-        acceptedNumericalReadbackV3: null,
-        completedBeatMetrics
+        acceptedNumericalReadbackV3: null
       }),
       outputIds
     );
@@ -49925,8 +48963,10 @@ const SELECTED_METRIC_DEFINITIONS_V1 = Object.freeze(
     unit: definition2.unit,
     significantDigits: definition2.significantDigits,
     shape: "scalar",
-    scope: definition2.scope ?? "beat",
-    dependencies: Object.freeze([...definition2.dependencies ?? []])
+    scope: "scope" in definition2 ? definition2.scope : "beat",
+    dependencies: Object.freeze([
+      ..."dependencies" in definition2 ? definition2.dependencies : []
+    ])
   }))
 );
 const SELECTED_EXACT_OUTPUT_IDS_V1 = new Set(
@@ -50382,8 +49422,7 @@ function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1() {
       ventricularMaterialProfileId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM.ventricularMaterialProfileId,
       aorticOutflowCirculationProfileId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM.aorticOutflowCirculationProfileId,
       acceptedStepBeatMetricOwners: Object.freeze([
-        MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
-        MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID
+        MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID
       ])
     }),
     runtime: Object.freeze({
@@ -50422,7 +49461,7 @@ function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1() {
         checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID,
         schemaVersion: 1,
         fixturePairing: "selected-aortic-outflow-complete-fixture-and-profile-identity",
-        restoreSemantics: "exact-object-both-beat-owners-no-migration-no-clock-rebase"
+        restoreSemantics: "exact-object-selected-identity-no-migration-no-clock-rebase"
       })
     }),
     primitiveControlCatalog: SELECTED_CONTROL_CATALOG_V1,

@@ -20,6 +20,7 @@ import {
   resolveMainWireStandard66DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
 import {
+  resolveRegisteredModelDisclosureV1,
   resolveRegisteredModelDocumentationV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 
@@ -60,6 +61,24 @@ describe("model documentation V1", () => {
       `${SURFACE_RELEASE_ID}.other`,
     )).toBeNull();
     expect(resolveRegisteredModelDocumentationV1(MODEL_ID, null)).toBeNull();
+
+    expect(resolveRegisteredModelDisclosureV1(
+      MODEL_ID,
+      SURFACE_RELEASE_ID,
+    )).toMatchObject({
+      badgeLabel: "MW 66",
+      shortLabel: "Main Wire Standard 66",
+      limitationsTranslationKey: "modelLimitations.standard66Items",
+    });
+    expect(resolveRegisteredModelDisclosureV1(
+      MODEL_ID,
+      `${SURFACE_RELEASE_ID}.other`,
+    )).toEqual({
+      documentation: null,
+      badgeLabel: "MW V3",
+      shortLabel: null,
+      limitationsTranslationKey: "modelLimitations.items",
+    });
   });
 
   it("derives fixed aortic facts from exact owners and labels from the Surface", () => {
@@ -145,6 +164,8 @@ describe("model documentation V1", () => {
     expect(en).toContain(
       "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV",
     );
+    expect(en).not.toContain("Pprox =");
+    expect(en).not.toContain("ΔPlocal");
   });
 
   it("routes the registered pair and refuses to substitute a different Surface", () => {

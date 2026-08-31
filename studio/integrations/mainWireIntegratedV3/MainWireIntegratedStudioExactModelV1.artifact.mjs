@@ -46575,14 +46575,6 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.#lastAcceptedStep = null;
     this.#beatAccumulator = exactBeatState?.beatAccumulator ?? new MainWireIntegratedModelBeatAccumulatorV3();
     this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
-    if (selectedAorticPortExtension !== null) {
-      assertSynchronizedSelectedAorticBeatRestoreV1(
-        acceptedState2.acceptedTimeSec,
-        this.#beatAccumulator,
-        this.#completedBeatMetrics,
-        selectedAorticPortExtension
-      );
-    }
     this.#lastPresentationSource = observationSource;
     this.#lastPresentationRevision = acceptedState2.revision;
     this.#lastPresentationObservation = observation(
@@ -47108,9 +47100,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       if (this.#selectedAorticPortExtension !== null) {
         selectedTicket.promote({
           committedAcceptedTimeSec: candidateClock.acceptedTimeSec,
-          committedRevision: candidateClock.revision,
-          capturedAtrialActivationId: null,
-          baseCompletedBeatMetrics: trialCompletedBeatMetrics
+          committedRevision: candidateClock.revision
         });
         this.#beatAccumulator = trialBeatAccumulator;
         this.#completedBeatMetrics = trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
@@ -47185,7 +47175,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     } catch (error) {
       if (candidateOpen) this.#typedAuthority.abortDirectCandidate();
       if (hemodynamicAuthorityCommitted) {
-        this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+        this.poisonAfterCommittedSelectedReadbackPromotionFailureV1(error);
       }
       throw error;
     } finally {
@@ -47512,9 +47502,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
         if (this.#selectedAorticPortExtension !== null) {
           selectedTicket.promote({
             committedAcceptedTimeSec: committedState.acceptedTimeSec,
-            committedRevision: committedState.revision,
-            capturedAtrialActivationId,
-            baseCompletedBeatMetrics: trialCompletedBeatMetrics
+            committedRevision: committedState.revision
           });
           this.#beatAccumulator = trialBeatAccumulator;
           this.#completedBeatMetrics = trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
@@ -47543,7 +47531,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       } catch (error) {
         abortDirectCandidateIfOpen();
         if (hemodynamicAuthorityCommitted) {
-          this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+          this.poisonAfterCommittedSelectedReadbackPromotionFailureV1(error);
         }
         throw error;
       } finally {
@@ -47853,12 +47841,12 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     }
     return this.#runtime;
   }
-  poisonAfterCommittedSelectedAnalysisFailureV1(error) {
+  poisonAfterCommittedSelectedReadbackPromotionFailureV1(error) {
     if (this.#selectedAorticPortExtension === null || this.#terminalPoison !== null) {
       return;
     }
     const poison = new Error(
-      "selected aortic Session is terminally poisoned after a committed analysis synchronization failure"
+      "selected aortic Session is terminally poisoned after a committed readback promotion failure"
     );
     poison.cause = error;
     this.#terminalPoison = poison;
@@ -47883,47 +47871,6 @@ function hasSelectedAorticOutflowRuntimeMarkerV1(runtime) {
     vascular,
     "selectedAorticOutflowProfile"
   );
-}
-function assertSynchronizedSelectedAorticBeatRestoreV1(acceptedTimeSec, baseAccumulator, baseLatest, selectedExtension) {
-  const baseActive = baseAccumulator.checkpoint().active;
-  const selectedState = selectedExtension.checkpointExactBeatStateV1();
-  const selectedActive = selectedState.selectedBeatAccumulator.active;
-  const selectedLatest = selectedState.latestCompletedBeatMetrics;
-  if (baseActive === null !== (selectedActive === null)) {
-    throw new Error(
-      "base and selected aortic restored active beat availability differs"
-    );
-  }
-  if (baseActive !== null && selectedActive !== null) {
-    if (!Object.is(baseActive.previous.timeSec, acceptedTimeSec) || !Object.is(selectedActive.previous.timeSec, acceptedTimeSec) || baseActive.startAtrialCaptureId !== selectedActive.startAtrialCaptureId || !Object.is(baseActive.startTimeSec, selectedActive.startTimeSec) || !Object.is(
-      baseActive.previous.aorticValveFlowMlPerSec,
-      selectedActive.previous.aorticValveFlowMlPerSec
-    ) || !Object.is(
-      baseActive.valveForwardPressureGradientAccumulators.AoV.forwardFlowDurationSec,
-      selectedActive.forwardFlowDurationSec
-    )) {
-      throw new Error(
-        "base and selected aortic restored active beat boundary differs"
-      );
-    }
-  }
-  if (baseLatest === null !== (selectedLatest === null)) {
-    throw new Error(
-      "base and selected aortic restored completed beat availability differs"
-    );
-  }
-  if (baseLatest === null || selectedLatest === null) return;
-  if (baseActive === null || selectedActive === null || baseActive.startAtrialCaptureId !== baseLatest.endAtrialCaptureId || selectedActive.startAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseActive.startTimeSec, baseLatest.endTimeSec) || !Object.is(selectedActive.startTimeSec, selectedLatest.endTimeSec) || baseLatest.startAtrialCaptureId !== selectedLatest.startAtrialCaptureId || baseLatest.endAtrialCaptureId !== selectedLatest.endAtrialCaptureId || !Object.is(baseLatest.startTimeSec, selectedLatest.startTimeSec) || !Object.is(baseLatest.endTimeSec, selectedLatest.endTimeSec) || !Object.is(baseLatest.durationSec, selectedLatest.durationSec) || !Object.is(
-    baseLatest.valveForwardPressureGradients.AoV.forwardFlowDurationSec,
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec
-  ) || !Object.is(
-    selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
-    selectedLatest.venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec
-  )) {
-    throw new Error(
-      "base and selected aortic restored completed beat boundary differs"
-    );
-  }
 }
 function isStrictlyOrdinaryTypedCandidate(clock, limit, rhythm, autoregulationOwner) {
   if (rhythm.configuration.atrialSource.mode !== "regular" || rhythm.configuration.atrialSource.regularSourceConfiguration.rhythmClass !== "sinus" || rhythm.externalAfNextBoundaryTimeSec !== null || rhythm.externalAtrialSourceBatch !== null || limit.rhythmBoundaryTimeSec !== null || limit.rhythmBoundaryOwners.length !== 0 || autoregulationOwner.acceptedTimeSec !== clock.acceptedTimeSec || autoregulationOwner.state.windowControl === null || !optionalAutoregulationControlEqual(

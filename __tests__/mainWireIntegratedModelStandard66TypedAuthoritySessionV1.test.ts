@@ -39,8 +39,6 @@ const LOCAL_GRADIENT_SIGNAL =
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1[1]!;
 const VENA_CONTRACTA_SIGNAL =
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1[2]!;
-const FORWARD_FLOW_DURATION_METRIC =
-  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1.at(-1)!;
 
 describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
   it("composes cold Standard65 semantics with an unavailable selected overlay in request order", async () => {
@@ -53,7 +51,7 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     const requested = [
       PROXIMAL_PRESSURE_SIGNAL,
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3[0]!,
-      FORWARD_FLOW_DURATION_METRIC,
+      VENA_CONTRACTA_SIGNAL,
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3[4]!,
     ] as const;
     const composed = session.projectCurrentAcceptedStandard66ValuesV1(
@@ -150,32 +148,21 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     ])).toThrow(/duplicated/);
   });
 
-  it("publishes selected completed-beat metrics and owns a Standard66 object checkpoint without a 76-f64 image", async () => {
+  it("checkpoints no selected derived state and reconstructs signals after restore", async () => {
     const session =
       await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create();
-    let acceptedTimeSec = 0;
-    let durationAvailable = false;
-    for (let index = 0; index < 960 && !durationAvailable; index += 1) {
-      acceptedTimeSec += 0.002;
-      const advanced =
-        session.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
-          acceptedTimeSec,
-          [FORWARD_FLOW_DURATION_METRIC],
-        );
-      if (advanced.advance.status !== "advanced") {
-        throw new Error("Standard66 completed-beat fixture did not advance");
-      }
-      durationAvailable =
-        advanced.projectedValues![FORWARD_FLOW_DURATION_METRIC]!.availability
-          === "available";
-    }
-    expect(durationAvailable).toBe(true);
-    const completed = session.projectCurrentAcceptedStandard66ValuesV1(
+    const advanced =
+      session.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+        0.002,
+        MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1,
+      );
+    expect(advanced.advance.status).toBe("advanced");
+    const accepted = session.projectCurrentAcceptedStandard66ValuesV1(
       MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1,
     );
     for (const outputId of
       MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1) {
-      expect(completed[outputId].availability).toBe("available");
+      expect(accepted[outputId].availability).toBe("available");
     }
 
     const checkpoint = await session.checkpointStandard66Exact();
@@ -191,6 +178,8 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     expect(JSON.stringify(checkpoint)).not.toContain(
       "acceptedNumericalReadback",
     );
+    expect(checkpoint).not.toHaveProperty("selectedAorticPortExactBeatState");
+    expect(JSON.stringify(checkpoint)).not.toContain("selectedBeatAccumulator");
 
     const restored =
       await MainWireIntegratedModelStandard66TypedAuthoritySessionV1
@@ -205,19 +194,12 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     const restoredSelected = restored.projectCurrentAcceptedStandard66ValuesV1(
       MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1,
     );
-    for (const outputId of [
-      PROXIMAL_PRESSURE_SIGNAL,
-      LOCAL_GRADIENT_SIGNAL,
-      VENA_CONTRACTA_SIGNAL,
-    ]) {
+    for (const outputId of
+      MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1) {
       expect(restoredSelected[outputId]).toMatchObject({
         value: null,
         availability: "not-evaluated-at-accepted-state",
       });
-    }
-    for (const outputId of
-      MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1.slice(3)) {
-      expect(restoredSelected[outputId].availability).toBe("available");
     }
     const restoredBase = restored.projectCurrentAcceptedStandard66ValuesV1([
       MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3[0]!,
@@ -256,7 +238,7 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     ).rejects.toThrow(/Standard65 restore cannot own the selected model/);
   });
 
-  it("captures one synchronized base and selected epoch before its first digest await", async () => {
+  it("captures one base accepted epoch before its first digest await", async () => {
     const session =
       await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create();
     for (let ordinal = 1; ordinal <= 433; ordinal += 1) {
@@ -279,8 +261,8 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     const capturedClock = session.currentAcceptedState();
     const checkpointPromise = session.checkpointStandard66Exact();
 
-    // Both active-beat owners must detach their previous sample before this
-    // synchronous post-capture step runs while the digest remains pending.
+    // The base exact owner must detach before this synchronous post-capture
+    // step runs while the digest remains pending.
     session.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
       0.872,
       [],
@@ -296,15 +278,9 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
     });
     const baseActive =
       checkpoint.baseStandardCheckpointV2.beatAccumulator.active;
-    const selectedActive = checkpoint.selectedAorticPortExactBeatState
-      .selectedBeatAccumulator.active;
     expect(baseActive).not.toBeNull();
-    expect(selectedActive).not.toBeNull();
     expect(baseActive!.previous.timeSec).toBe(checkpoint.acceptedTimeSec);
-    expect(selectedActive!.previous.timeSec).toBe(checkpoint.acceptedTimeSec);
-    expect(selectedActive!.previous.timeSec).toBe(
-      baseActive!.previous.timeSec,
-    );
+    expect(checkpoint).not.toHaveProperty("selectedAorticPortExactBeatState");
     expect(session.currentAcceptedState()).toMatchObject({
       revision: capturedClock.revision + 1,
       acceptedTimeSec: 0.872,

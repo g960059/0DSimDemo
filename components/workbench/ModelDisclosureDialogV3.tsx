@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { Info, X } from "lucide-react";
+import { ArrowUpRight, Info, X } from "lucide-react";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -19,6 +19,8 @@ export type ModelDisclosureDialogV3Props = Readonly<{
   closeLabel: string;
   acknowledgeLabel: string;
   limitations: readonly string[];
+  documentationHref?: string;
+  documentationLabel?: string;
 }>;
 
 /**
@@ -33,6 +35,8 @@ export function ModelDisclosureDialogV3({
   closeLabel,
   acknowledgeLabel,
   limitations,
+  documentationHref,
+  documentationLabel,
 }: ModelDisclosureDialogV3Props) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null);
   const onOpenChangeRef = React.useRef(onOpenChange);
@@ -143,6 +147,18 @@ export function ModelDisclosureDialogV3({
               </li>
             ))}
           </ul>
+          {documentationHref !== undefined && documentationLabel !== undefined && (
+            <a
+              href={documentationHref}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex min-h-9 items-center gap-1.5 rounded-md text-xs font-semibold text-wb-accent transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+              data-testid="model-disclosure-documentation-link-v3"
+            >
+              {documentationLabel}
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          )}
         </div>
 
         <footer className="flex shrink-0 justify-end border-t border-wb-line px-5 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-3.5">

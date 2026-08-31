@@ -50,6 +50,11 @@ import {
 import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+} from "@/domain/model/MainWireStandardIdentityV1";
+import selectedAorticOutflowStandard66SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 
 const NOOP = () => {};
 
@@ -506,7 +511,7 @@ describe("Article Reader V3 experiment anchor", () => {
         pane,
         series: pane.series[0]!,
       }),
-    ).toBe("ABP");
+    ).toBe("SAP");
     expect(
       resolveArticleReaderStaticGraphSeriesLabelV3({
         contract,
@@ -822,6 +827,31 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain('data-experiment-graph-presentation="article"');
     expect(html).not.toContain("article-reader-experiment-drawer-v3");
     expect(html).not.toContain("min-w-0 px-4 pb-10");
+  });
+
+  it("uses the pinned Standard66 disclosure instead of generic MW V3 copy", () => {
+    const baseSnapshot = snapshotV3();
+    const snapshot: ExperimentSnapshotV2 = {
+      ...baseSnapshot,
+      surfaceReleaseId:
+        selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId,
+      content: {
+        ...baseSnapshot.content,
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        surfaceSeriesId:
+          selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
+      },
+    };
+    const contract: ModelContractV2 = {
+      ...contractV3(),
+      modelId:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+    };
+    const html = renderExperimentV3({ snapshot, contract, live: true });
+
+    expect(html).toContain("MW 66");
+    expect(html).not.toContain("MW V3");
   });
 
   it("overlays every visible Scenario in one structural comparison canvas", () => {

@@ -40,9 +40,6 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
     characteristicImpedanceResistanceMmHgSecPerMl: number;
     residualDownstreamResistanceMmHgSecPerMl: number;
     sourceTopologyResistanceMmHgSecPerMl: number;
-    proximalPortEquation: string;
-    localGradientEquation: string;
-    openingDriveEquation: string;
   }>;
   runtime: Readonly<{
     heartRateControlId: string;
@@ -56,18 +53,6 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
     structuralReturnAnalysisExposed: false;
   }>;
 }>;
-
-const PROXIMAL_PORT_RELATION_BY_CLAIM_V1 = Object.freeze({
-  "Ao-compliance-node-plus-characteristic-impedance-times-signed-flow":
-    "Pprox = PAo,node + Zc · QAoV",
-} as const);
-const LOCAL_GRADIENT_RELATION_BY_CLAIM_V1 = Object.freeze({
-  "raw-node-gradient-minus-characteristic-impedance-pressure":
-    "ΔPlocal = (PLV − PAo,node) − Zc · QAoV = PLV − Pprox",
-} as const);
-const OPENING_DRIVE_RELATION_BY_CLAIM_V1 = Object.freeze({
-  "LV-minus-proximal-constitutive-port": "ΔPopen = PLV − Pprox",
-} as const);
 
 /**
  * Builds the human explanation from exact-owner facts and Surface mappings.
@@ -115,22 +100,13 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     }
 
     const claim = MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_CLAIM_V1;
-    const proximalPortEquation =
-      PROXIMAL_PORT_RELATION_BY_CLAIM_V1[
-        claim.proximalConstitutivePortPressure
-      ];
-    const localGradientEquation =
-      LOCAL_GRADIENT_RELATION_BY_CLAIM_V1[
-        claim.localValvePressureGradient
-      ];
-    const openingDriveEquation =
-      OPENING_DRIVE_RELATION_BY_CLAIM_V1[
-        claim.openingDrivePressureStation
-      ];
     if (
-      proximalPortEquation === undefined
-      || localGradientEquation === undefined
-      || openingDriveEquation === undefined
+      claim.proximalConstitutivePortPressure
+        !== "Ao-compliance-node-plus-characteristic-impedance-times-signed-flow"
+      || claim.localValvePressureGradient
+        !== "raw-node-gradient-minus-characteristic-impedance-pressure"
+      || claim.openingDrivePressureStation
+        !== "LV-minus-proximal-constitutive-port"
       || claim.topology !== "algebraic-flow-and-bounded-opening-memory"
       || claim.acceptedMemory !== "leaflet-opening-fraction-only"
       || claim.flowMemory !== false
@@ -276,9 +252,6 @@ export function resolveMainWireStandard66DocumentationFactsV1(
           profile.residualDownstreamResistanceMmHgSecPerMl,
         sourceTopologyResistanceMmHgSecPerMl:
           profile.sourceTopologyResistanceMmHgSecPerMl,
-        proximalPortEquation,
-        localGradientEquation,
-        openingDriveEquation,
       }),
       runtime: Object.freeze({
         heartRateControlId,

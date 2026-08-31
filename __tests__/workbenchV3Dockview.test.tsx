@@ -193,7 +193,7 @@ describe("V3 Dockview Workbench", () => {
     ).toBe("Custom chronotropy");
   });
 
-  it("migrates the historical Standard 65 SA auto-label to clinical ABP copy", () => {
+  it("keeps the historical Standard 65 SAP series label station-specific", () => {
     const currentDefaultLabel = outputLabelV3(
       "hemodynamics.pressure.absolute.SA",
     );
@@ -229,7 +229,7 @@ describe("V3 Dockview Workbench", () => {
         seriesId: "SAP",
         storedLabel: "Systemic arterial pressure",
       }).label,
-    ).toBe("ABP");
+    ).toBe("SAP");
     expect(
       resolveWorkbenchGraphSeriesPresentationV3({
         definition: undefined,
@@ -535,7 +535,7 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("%</span>");
   });
 
-  it("renders pressure triplets as one clinical pane item", async () => {
+  it("renders the existing SA pressure triplet as one clinical pane item", async () => {
     const { contract } = (await loadStudioDefaultClientCompositionV2())
       .modelSurface;
     const pane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
@@ -554,16 +554,16 @@ describe("V3 Dockview Workbench", () => {
       acceptedRevision: 1,
       acceptedTimeSec: 1,
       outputs: {
-        "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port": available(
-          "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
+        "hemodynamics.pressure.systolic.SA": available(
+          "hemodynamics.pressure.systolic.SA",
           94.6,
         ),
-        "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port": available(
-          "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
+        "hemodynamics.pressure.diastolic.SA": available(
+          "hemodynamics.pressure.diastolic.SA",
           63.8,
         ),
-        "hemodynamics.pressure.mean.aortic-proximal-constitutive-port": available(
-          "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
+        "hemodynamics.pressure.mean.SA": available(
+          "hemodynamics.pressure.mean.SA",
           73.1,
         ),
       },
@@ -576,32 +576,30 @@ describe("V3 Dockview Workbench", () => {
       notAssessedNotice: "未評価",
       pane,
     });
-    const aorticPressure = items.find(
+    const arterialPressure = items.find(
       ({ itemId }) =>
-        itemId ===
-        "presentation.pressure-summary.aortic-proximal-constitutive-port",
+        itemId === "presentation.pressure-summary.SA",
     );
 
-    expect(aorticPressure).toMatchObject({
-      label: "大動脈圧 (AoP)",
+    expect(arterialPressure).toMatchObject({
+      label: "体動脈圧 (ABP)",
       displayValue: "94.6/63.8(73.1)",
       unit: "mmHg",
       availability: "available",
       quality: "accepted-derived",
     });
-    expect(aorticPressure?.description).toContain("固定上行大動脈断面まで");
+    expect(arterialPressure?.description).toContain("集中定数系");
     const outputMarkup = renderToStaticMarkup(
-      <ExperimentOutputGridV3 items={[aorticPressure!]} variant="pane" />,
+      <ExperimentOutputGridV3 items={[arterialPressure!]} variant="pane" />,
     );
     expect(outputMarkup).toContain(
       'data-testid="workbench-item-description-trigger-v3"',
     );
-    expect(outputMarkup).not.toContain(aorticPressure!.description!);
+    expect(outputMarkup).not.toContain(arterialPressure!.description!);
     expect(
       items.some(
         ({ itemId }) =>
-          itemId ===
-          "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
+          itemId === "hemodynamics.pressure.systolic.SA",
       ),
     ).toBe(false);
   });
@@ -616,14 +614,14 @@ describe("V3 Dockview Workbench", () => {
       items: [
         {
           outputId:
-            "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-          label: "Aortic systolic pressure",
+            "hemodynamics.pressure.systolic.SA",
+          label: "Systolic arterial pressure",
           order: 0,
         },
       ],
     };
     const outputId =
-      "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port";
+      "hemodynamics.pressure.systolic.SA";
     const frame: StudioSimulationFrameV2 = {
       modelId: contract.modelId,
       runtimeSessionId: "runtime/test",
@@ -655,7 +653,7 @@ describe("V3 Dockview Workbench", () => {
       value: 94.6,
       unit: "mmHg",
     });
-    expect(items[0]?.description).toContain("catheter-site pressure");
+    expect(items[0]?.description).toContain("arterial-line site");
     const outputMarkup = renderToStaticMarkup(
       <ExperimentOutputGridV3 items={items} variant="pane" />,
     );
@@ -666,8 +664,7 @@ describe("V3 Dockview Workbench", () => {
     expect(
       items.some(
         ({ itemId }) =>
-          itemId ===
-          "presentation.pressure-summary.aortic-proximal-constitutive-port",
+          itemId === "presentation.pressure-summary.SA",
       ),
     ).toBe(false);
   });
@@ -1347,9 +1344,9 @@ describe("V3 Dockview Workbench", () => {
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
       "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-      "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-      "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
+      "hemodynamics.pressure.systolic.SA",
+      "hemodynamics.pressure.diastolic.SA",
+      "hemodynamics.pressure.mean.SA",
       "hemodynamics.pressure.systolic.PA",
       "hemodynamics.pressure.diastolic.PA",
       "hemodynamics.pressure.mean.PA",

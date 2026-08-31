@@ -258,13 +258,14 @@ function assertSelectedSourceManifestV1(
   ].map(({ outputId }) => outputId);
   const uniqueOutputIds = new Set(outputIds);
   if (
-    outputIds.length !== 185
+    outputIds.length
+      !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1.length
     || uniqueOutputIds.size !== outputIds.length
     || MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1.some(
       (outputId) => !uniqueOutputIds.has(outputId),
     )
   ) {
-    fail("source release must expose all and only the 185 Standard66 outputs");
+    fail("source release must expose all and only the Standard66 outputs");
   }
 }
 
@@ -566,8 +567,11 @@ function assertAllOutputsAndProximalPressureV1(
   expectedAvailability: "available" | "not-evaluated-at-accepted-state",
   label: string,
 ): void {
-  if (Object.keys(frame.outputs).length !== 185) {
-    fail(`${label} does not project all 185 exact outputs`);
+  if (
+    Object.keys(frame.outputs).length
+      !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1.length
+  ) {
+    fail(`${label} does not project all Standard66 exact outputs`);
   }
   const proximal =
     frame.outputs[PROXIMAL_CONSTITUTIVE_PORT_PRESSURE_OUTPUT_ID_V1];
@@ -1020,7 +1024,7 @@ function readPriorBytesV1(
     {
       cwd: repositoryRoot,
       encoding: "buffer",
-      maxBuffer: 1_000_000,
+      maxBuffer: 10_000_000,
       stdio: ["ignore", "pipe", "inherit"],
     },
   ));

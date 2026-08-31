@@ -1,6 +1,3 @@
-import {
-  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID,
-} from "@/engine/myocardium/MainWireAorticRecoveredRootPortBeatMetricsV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
@@ -251,8 +248,10 @@ const SELECTED_METRIC_DEFINITIONS_V1 = Object.freeze(
       unit: definition.unit,
       significantDigits: definition.significantDigits,
       shape: "scalar",
-      scope: definition.scope ?? "beat",
-      dependencies: Object.freeze([...(definition.dependencies ?? [])]),
+      scope: "scope" in definition ? definition.scope : "beat",
+      dependencies: Object.freeze([
+        ...("dependencies" in definition ? definition.dependencies : []),
+      ]),
     })),
 );
 
@@ -895,7 +894,6 @@ export function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1():
           .aorticOutflowCirculationProfileId,
       acceptedStepBeatMetricOwners: Object.freeze([
         MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID,
-        MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_BEAT_METRICS_V1_ID,
       ]),
     }),
     runtime: Object.freeze({
@@ -949,7 +947,7 @@ export function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1():
         fixturePairing:
           "selected-aortic-outflow-complete-fixture-and-profile-identity",
         restoreSemantics:
-          "exact-object-both-beat-owners-no-migration-no-clock-rebase",
+          "exact-object-selected-identity-no-migration-no-clock-rebase",
       }),
     }),
     primitiveControlCatalog: SELECTED_CONTROL_CATALOG_V1,

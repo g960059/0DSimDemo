@@ -4,17 +4,6 @@ import {
   type MainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
-  MainWireAorticRecoveredRootPortBeatAccumulatorV1,
-  validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1,
-  type MainWireAorticRecoveredRootPortCompletedBeatMetricsV1,
-} from "@/engine/myocardium/MainWireAorticRecoveredRootPortBeatMetricsV1";
-import {
-  MainWireIntegratedModelBeatAccumulatorV3,
-  validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3,
-  type MainWireIntegratedModelBeatAccumulatorCheckpointV3,
-  type MainWireIntegratedModelCompletedBeatMetricsV3,
-} from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
-import {
   restoreMainWireIntegratedModelStandardV2,
   validateMainWireIntegratedModelStandardCheckpointV2,
   type MainWireIntegratedModelStandardCheckpointContextV2,
@@ -53,7 +42,6 @@ import {
 } from "@/engine/vnext/CanonicalFlatDataV1";
 import {
   MainWireSelectedAorticPortSessionExtensionV1,
-  type MainWireSelectedAorticPortExactBeatStateCheckpointV1,
 } from "@/engine/vnext/MainWireSelectedAorticPortSessionExtensionV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID =
@@ -82,11 +70,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1 =
 export type MainWireIntegratedModelStandard66SelectedIdentityV1 =
   typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1;
 
-/**
- * Construction identity supplied by the selected fixture owner. The returned
- * context owns the one fixed profile value, so a later caller mutation cannot
- * splice a different profile into an in-flight checkpoint.
- */
+/** Construction identity supplied by the fixed selected fixture owner. */
 export type MainWireIntegratedModelStandard66CheckpointContextV1 = Readonly<{
   fixedAssemblyId:
     typeof MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID;
@@ -105,8 +89,6 @@ export type MainWireIntegratedModelStandard66CheckpointPayloadV1 = Readonly<{
   selectedAorticOutflowProfileIdentitySha256: string;
   baseStandardCheckpointV2:
     MainWireIntegratedModelStandardCheckpointV2;
-  selectedAorticPortExactBeatState:
-    MainWireSelectedAorticPortExactBeatStateCheckpointV1;
 }>;
 
 export type MainWireIntegratedModelStandard66CheckpointV1 =
@@ -125,12 +107,6 @@ export type RestoredMainWireIntegratedModelStandard66CheckpointV1<TWallState> =
     selectedAorticPortExtension:
       MainWireSelectedAorticPortSessionExtensionV1;
   }>;
-
-type MainWireIntegratedModelStandard66BaseExactBeatStateV1 = Readonly<{
-  acceptedTimeSec: number;
-  beatAccumulator: MainWireIntegratedModelBeatAccumulatorCheckpointV3;
-  completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
-}>;
 
 export function createMainWireIntegratedModelStandard66CheckpointContextV1(
   input: Readonly<{
@@ -170,30 +146,20 @@ export function createMainWireIntegratedModelStandard66CheckpointContextV1(
 }
 
 /**
- * Wraps the unchanged Standard V2 numerical/exact-output checkpoint together
- * with the selected aortic analysis state. No 76-f64 instantaneous readback is
- * persisted; it is reconstructed only by a later accepted step.
+ * Wraps the unchanged Standard V2 numerical checkpoint with the selected
+ * construction identity. Instantaneous selected readback is not persisted,
+ * and no selected beat-derived analysis state belongs to this exact image.
  */
 export async function checkpointMainWireIntegratedModelStandard66V1(
   context: MainWireIntegratedModelStandard66CheckpointContextV1,
   baseStandardCheckpointV2: unknown,
-  selectedAorticPortExactBeatState: unknown,
 ): Promise<MainWireIntegratedModelStandard66CheckpointV1> {
   const ownedContext =
     createMainWireIntegratedModelStandard66CheckpointContextV1(context);
-  // Detach both caller-owned trees synchronously. The nested validators and
-  // SHA operations await WebCrypto, so retaining either input would permit a
-  // later task to splice a different accepted epoch into this checkpoint.
   const detachedBaseStandardCheckpointV2 =
     detachedFrozenCheckpointSnapshotV1<
       MainWireIntegratedModelStandardCheckpointV2
     >(baseStandardCheckpointV2);
-  const detachedSelectedExactBeatState = detachedFrozenCheckpointSnapshotV1<
-    MainWireSelectedAorticPortExactBeatStateCheckpointV1
-  >(selectedAorticPortExactBeatState);
-  const ownedSelectedExactBeatState = ownSelectedExactBeatStateV1(
-    detachedSelectedExactBeatState,
-  );
   const [ownedBaseStandardCheckpointV2, selectedProfileSha256] =
     await Promise.all([
       validateMainWireIntegratedModelStandardCheckpointV2(
@@ -201,10 +167,6 @@ export async function checkpointMainWireIntegratedModelStandard66V1(
       ),
       sha256CanonicalJsonHex(ownedContext.selectedAorticOutflowProfile),
     ]);
-  assertSynchronizedExactBeatStatesV1(
-    ownedBaseStandardCheckpointV2,
-    ownedSelectedExactBeatState,
-  );
   const payload = Object.freeze({
     checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID,
     schemaVersion: 1 as const,
@@ -214,7 +176,6 @@ export async function checkpointMainWireIntegratedModelStandard66V1(
       MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1,
     selectedAorticOutflowProfileIdentitySha256: selectedProfileSha256,
     baseStandardCheckpointV2: ownedBaseStandardCheckpointV2,
-    selectedAorticPortExactBeatState: detachedSelectedExactBeatState,
   }) satisfies MainWireIntegratedModelStandard66CheckpointPayloadV1;
   return Object.freeze({
     ...payload,
@@ -223,10 +184,9 @@ export async function checkpointMainWireIntegratedModelStandard66V1(
 }
 
 /**
- * Restores both exact owners of the selected Standard66 model. The embedded
- * Standard V2 checkpoint remains the sole owner of accepted numerical state;
- * the selected sidecar restores only exact beat analysis. Its instantaneous
- * 76-f64 readback is intentionally unavailable until the next accepted step.
+ * Restores the exact numerical owner and creates an empty transactional
+ * selected-readback owner. The latter is repopulated by the next accepted
+ * step and therefore contributes no persistent continuation semantics.
  */
 export async function restoreMainWireIntegratedModelStandard66V1<TWallState>(
   context: MainWireIntegratedModelStandard66RestoreContextV1<TWallState>,
@@ -237,16 +197,11 @@ export async function restoreMainWireIntegratedModelStandard66V1<TWallState>(
     ["base", "selected"],
     "Standard66 restore context",
   );
-  // Capture both context branches synchronously. The nested base context is a
-  // trusted immutable runtime construction under the existing Standard V2
-  // contract, but the public outer context object must not be retained across
-  // the wrapper digest await.
   const baseContext = contextRecord.base as
     MainWireIntegratedModelStandardCheckpointContextV2<TWallState>;
-  const selectedContext = contextRecord.selected as
-    MainWireIntegratedModelStandard66CheckpointContextV1;
   createMainWireIntegratedModelStandard66CheckpointContextV1(
-    selectedContext,
+    contextRecord.selected as
+      MainWireIntegratedModelStandard66CheckpointContextV1,
   );
   const checkpoint = await validateMainWireIntegratedModelStandard66CheckpointV1(
     input,
@@ -255,15 +210,6 @@ export async function restoreMainWireIntegratedModelStandard66V1<TWallState>(
     baseContext,
     checkpoint.baseStandardCheckpointV2,
   );
-  const selectedAorticPortExtension =
-    MainWireSelectedAorticPortSessionExtensionV1.restoreExactBeatStateV1(
-      checkpoint.selectedAorticPortExactBeatState,
-    );
-  if (selectedAorticPortExtension.acceptedReadbackClockV1() !== null) {
-    throw new Error(
-      "restored Standard66 selected instantaneous readback must be unavailable",
-    );
-  }
   if (
     restoredBase.acceptedState.revision !== checkpoint.revision
     || !Object.is(
@@ -273,32 +219,18 @@ export async function restoreMainWireIntegratedModelStandard66V1<TWallState>(
   ) {
     throw new Error("restored Standard66 owner clocks differ");
   }
-
-  const restoredBaseExactState = Object.freeze({
-    acceptedTimeSec: restoredBase.acceptedState.acceptedTimeSec,
-    beatAccumulator: restoredBase.beatAccumulator.checkpoint(),
-    completedBeatMetrics: restoredBase.completedBeatMetrics,
-  }) satisfies MainWireIntegratedModelStandard66BaseExactBeatStateV1;
-  assertSynchronizedExactBeatStatesV1(
-    restoredBaseExactState,
-    selectedAorticPortExtension.checkpointExactBeatStateV1(),
-  );
+  const selectedAorticPortExtension =
+    MainWireSelectedAorticPortSessionExtensionV1.createColdV1();
   return Object.freeze({
     ...restoredBase,
     selectedAorticPortExtension,
   });
 }
 
-/**
- * Owns and validates the complete object wrapper before either exact owner
- * is restored. This module never reinterprets the embedded Standard V2
- * numerical semantics.
- */
+/** Owns and validates the complete selected wrapper before restore. */
 export async function validateMainWireIntegratedModelStandard66CheckpointV1(
   input: unknown,
 ): Promise<MainWireIntegratedModelStandard66CheckpointV1> {
-  // Snapshot at function entry, before the first digest await. Validation
-  // returns this recursively frozen owner rather than the caller's object.
   const checkpoint = detachedFrozenCheckpointSnapshotV1<
     MainWireIntegratedModelStandard66CheckpointV1
   >(input);
@@ -317,133 +249,16 @@ export async function validateMainWireIntegratedModelStandard66CheckpointV1(
   ) {
     throw new Error("Standard66 checkpoint selected profile identity mismatch");
   }
-  const [ownedBase, ownedSelected] = await Promise.all([
-    validateMainWireIntegratedModelStandardCheckpointV2(
-      checkpoint.baseStandardCheckpointV2,
-    ),
-    Promise.resolve(
-      ownSelectedExactBeatStateV1(
-        checkpoint.selectedAorticPortExactBeatState,
-      ),
-    ),
-  ]);
+  const ownedBase = await validateMainWireIntegratedModelStandardCheckpointV2(
+    checkpoint.baseStandardCheckpointV2,
+  );
   if (
     checkpoint.revision !== ownedBase.revision
-    || !Object.is(
-      checkpoint.acceptedTimeSec,
-      ownedBase.acceptedTimeSec,
-    )
+    || !Object.is(checkpoint.acceptedTimeSec, ownedBase.acceptedTimeSec)
   ) {
     throw new Error("Standard66 checkpoint owner clocks differ");
   }
-  assertSynchronizedExactBeatStatesV1(ownedBase, ownedSelected);
   return checkpoint;
-}
-
-function ownSelectedExactBeatStateV1(
-  input: unknown,
-): MainWireSelectedAorticPortExactBeatStateCheckpointV1 {
-  return MainWireSelectedAorticPortSessionExtensionV1
-    .restoreExactBeatStateV1(input)
-    .checkpointExactBeatStateV1();
-}
-
-function assertSynchronizedExactBeatStatesV1(
-  base: MainWireIntegratedModelStandard66BaseExactBeatStateV1,
-  selected: MainWireSelectedAorticPortExactBeatStateCheckpointV1,
-): void {
-  const baseAccumulator = MainWireIntegratedModelBeatAccumulatorV3
-    .restore(base.beatAccumulator)
-    .checkpoint();
-  const selectedAccumulator = MainWireAorticRecoveredRootPortBeatAccumulatorV1
-    .restore(selected.selectedBeatAccumulator)
-    .checkpoint();
-  const baseLatest = ownBaseLatestMetricsV1(base.completedBeatMetrics);
-  const selectedLatest = ownSelectedLatestMetricsV1(
-    selected.latestCompletedBeatMetrics,
-  );
-  const baseActive = baseAccumulator.active;
-  const selectedActive = selectedAccumulator.active;
-
-  if ((baseActive === null) !== (selectedActive === null)) {
-    throw new Error("Standard66 base and selected active-beat availability differs");
-  }
-  if (baseActive !== null && selectedActive !== null) {
-    if (
-      baseActive.startAtrialCaptureId
-        !== selectedActive.startAtrialCaptureId
-      || !Object.is(baseActive.startTimeSec, selectedActive.startTimeSec)
-      || !Object.is(
-        baseActive.previous.timeSec,
-        selectedActive.previous.timeSec,
-      )
-      || !Object.is(baseActive.previous.timeSec, base.acceptedTimeSec)
-      || !Object.is(selectedActive.previous.timeSec, base.acceptedTimeSec)
-      || !Object.is(
-        baseActive.previous.aorticValveFlowMlPerSec,
-        selectedActive.previous.aorticValveFlowMlPerSec,
-      )
-      || !Object.is(
-        baseActive.valveForwardPressureGradientAccumulators.AoV
-          .forwardFlowDurationSec,
-        selectedActive.forwardFlowDurationSec,
-      )
-    ) {
-      throw new Error("Standard66 base and selected active beats differ");
-    }
-  }
-
-  if ((baseLatest === null) !== (selectedLatest === null)) {
-    throw new Error(
-      "Standard66 base and selected completed-beat availability differs",
-    );
-  }
-  if (baseLatest === null || selectedLatest === null) return;
-  if (
-    baseActive === null
-    || selectedActive === null
-    || baseLatest.startAtrialCaptureId
-      !== selectedLatest.startAtrialCaptureId
-    || baseLatest.endAtrialCaptureId !== selectedLatest.endAtrialCaptureId
-    || !Object.is(baseLatest.startTimeSec, selectedLatest.startTimeSec)
-    || !Object.is(baseLatest.endTimeSec, selectedLatest.endTimeSec)
-    || !Object.is(baseLatest.durationSec, selectedLatest.durationSec)
-    || baseLatest.endTimeSec > base.acceptedTimeSec
-    || baseActive.startAtrialCaptureId !== baseLatest.endAtrialCaptureId
-    || selectedActive.startAtrialCaptureId
-      !== selectedLatest.endAtrialCaptureId
-    || !Object.is(baseActive.startTimeSec, baseLatest.endTimeSec)
-    || !Object.is(selectedActive.startTimeSec, selectedLatest.endTimeSec)
-    || !Object.is(
-      baseLatest.valveForwardPressureGradients.AoV.forwardFlowDurationSec,
-      selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
-    )
-    || !Object.is(
-      selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
-      selectedLatest.venaContractaBernoulliForwardPressureGradient
-        .forwardFlowDurationSec,
-    )
-  ) {
-    throw new Error("Standard66 base and selected completed beats differ");
-  }
-}
-
-function ownBaseLatestMetricsV1(
-  input: unknown,
-): MainWireIntegratedModelCompletedBeatMetricsV3 | null {
-  return input === null
-    ? null
-    : validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(input);
-}
-
-function ownSelectedLatestMetricsV1(
-  input: unknown,
-): MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null {
-  return input === null
-    ? null
-    : validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1(
-      input,
-    );
 }
 
 function assertCheckpointEnvelopeV1(
@@ -459,7 +274,6 @@ function assertCheckpointEnvelopeV1(
       "selectedModelIdentity",
       "selectedAorticOutflowProfileIdentitySha256",
       "baseStandardCheckpointV2",
-      "selectedAorticPortExactBeatState",
       "checkpointSha256",
     ],
     "Standard66 checkpoint",
@@ -546,10 +360,8 @@ function deepFreezeV1<T>(value: T): T {
 }
 
 /**
- * Canonical-flat encode/decode provides a synchronous detached data owner and
- * preserves the complete IEEE-754 primitive, including signed zero. The
- * canonical-JSON preflight deliberately narrows this object checkpoint to its
- * existing JSON data model (no typed arrays, accessors, holes, or classes).
+ * Canonical-flat cloning detaches before async digest work and preserves the
+ * complete IEEE-754 primitive while keeping this wrapper in its JSON model.
  */
 function detachedFrozenCheckpointSnapshotV1<T>(input: unknown): T {
   canonicalJsonStringify(input);

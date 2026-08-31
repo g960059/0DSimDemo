@@ -36,7 +36,7 @@ const PROXIMAL_PRESSURE =
 const LAD_FOCAL_PRESSURE_LOSS = "coronary.pressure-loss.focal.LAD";
 
 describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
-  it("declares the selected identity, HR-only cold-restart control, and all 185 exact outputs", () => {
+  it("declares the selected identity, HR-only cold-restart control, and all 176 exact outputs", () => {
     const kernel =
       createMainWireIntegratedStudioSelectedAorticOutflowKernelV1();
 
@@ -77,7 +77,7 @@ describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
     );
     expect(
       kernel.primitiveSignalCatalog.length + kernel.modelMetricCatalog.length,
-    ).toBe(185);
+    ).toBe(176);
     expect(kernel.capabilities.some((capability) =>
       capability.startsWith("analysis/"))).toBe(false);
     expect(createSelectedArtifactReleaseV1().manifest.modelId).toBe(
@@ -105,7 +105,7 @@ describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
       acceptedRevision: 0,
       acceptedTimeSec: 0,
     });
-    expect(Object.keys(cold.outputs)).toHaveLength(185);
+    expect(Object.keys(cold.outputs)).toHaveLength(176);
     expect(cold.outputs[PROXIMAL_PRESSURE]).toMatchObject({
       value: null,
       availability: "not-evaluated-at-accepted-state",

@@ -159,7 +159,7 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     );
   }
 
-  /** Restores numerical state and both exact beat-analysis owners. */
+  /** Restores numerical state and the selected construction identity. */
   static async restoreStandard66ExactCheckpoint(
     checkpoint: unknown,
     inputs: MainWireIntegratedModelHemodynamicResearchInputsV3 =
@@ -290,23 +290,15 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     });
   }
 
-  /**
-   * Creates the object wrapper only. The 76-f64 instantaneous readback is not
-   * persisted; selected completed-beat analysis is the sole extension state.
-   */
+  /** Creates the object wrapper without persisting instantaneous readback. */
   async checkpointStandard66Exact():
     Promise<MainWireIntegratedModelStandard66CheckpointV1> {
-    // Both calls below are synchronous captures. Do not await the base digest
-    // before owning the selected sidecar, or a concurrent caller could splice
-    // two accepted epochs into one wrapper.
+    this.#selectedAorticPortExtension.assertReadyForExactCheckpointV1();
     const baseCheckpointPromise =
       this.checkpointSelectedAorticBaseStandardExactV1();
-    const selectedExactBeatState =
-      this.#selectedAorticPortExtension.checkpointExactBeatStateV1();
     return checkpointMainWireIntegratedModelStandard66V1(
       this.#checkpointContext,
       await baseCheckpointPromise,
-      selectedExactBeatState,
     );
   }
 
@@ -327,8 +319,6 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
     outputIds: readonly MainWireAorticRecoveredRootPortOutputIdV1[],
   ): Readonly<Record<string, MainWireAorticRecoveredRootPortOutputValueV1>> {
     const acceptedClock = this.selectedAorticAcceptedClockV1();
-    const completedBeatMetrics =
-      this.#selectedAorticPortExtension.latestCompletedBeatMetricsV1();
     const projected =
       this.#selectedAorticPortExtension.withAcceptedReadbackV3(
         acceptedClock,
@@ -337,7 +327,6 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
             Object.freeze({
               acceptedTimeSec: acceptedClock.acceptedTimeSec,
               acceptedNumericalReadbackV3,
-              completedBeatMetrics,
             }),
             outputIds,
           ),
@@ -347,7 +336,6 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
         Object.freeze({
           acceptedTimeSec: acceptedClock.acceptedTimeSec,
           acceptedNumericalReadbackV3: null,
-          completedBeatMetrics,
         }),
         outputIds,
       );

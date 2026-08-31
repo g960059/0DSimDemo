@@ -1,27 +1,15 @@
 import {
-  MainWireAorticRecoveredRootPortBeatAccumulatorV1,
-  validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1,
-  type MainWireAorticRecoveredRootPortBeatAccumulatorCheckpointV1,
-  type MainWireAorticRecoveredRootPortCompletedBeatMetricsV1,
-} from "@/engine/myocardium/MainWireAorticRecoveredRootPortBeatMetricsV1";
-import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
   writeMainWireFiveWallAcceptedNumericalReadbackV3,
   type MainWireFiveWallSelectedAorticValveReadbackV1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
-import {
-  validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3,
-  type MainWireIntegratedModelCompletedBeatMetricsV3,
-} from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 
 export const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_V1_ID =
   "main-wire-selected-aortic-port-session-extension-v1" as const;
 export const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_TICKET_V1_ID =
   "main-wire-selected-aortic-port-session-ticket-v1" as const;
-export const MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID =
-  "main-wire-selected-aortic-port-exact-beat-state-checkpoint-v1" as const;
 
 export const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_CLAIM_V1 =
   Object.freeze({
@@ -35,9 +23,9 @@ export const MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_CLAIM_V1 =
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
     readbackPublication:
       "committed-clock-and-revision-matched-ticket-promotion-only" as const,
-    failedSynchronizationAcceptedSideEffects: false as const,
+    failedPromotionAcceptedSideEffects: false as const,
     instantaneousReadbackCheckpointed: false as const,
-    exactBeatAnalysisStateCheckpointed: true as const,
+    exactBeatAnalysisStateCheckpointed: false as const,
     acceptedRevisionContinuityOwner: "outer-standard-session" as const,
     acceptedClockCheckpointOwner: "outer-standard-checkpoint" as const,
     restoredInstantaneousReadbackAvailability:
@@ -66,45 +54,24 @@ export type MainWireSelectedAorticPortCandidateStageInputV1 = Readonly<{
 export type MainWireSelectedAorticPortPromotionInputV1 = Readonly<{
   committedAcceptedTimeSec: number;
   committedRevision: number;
-  capturedAtrialActivationId: string | null;
-  baseCompletedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
 }>;
 
 export type MainWireSelectedAorticPortSessionTicketV1 = Readonly<{
   ticketId: typeof MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_TICKET_V1_ID;
   ticketOrdinal: number;
   candidateClock: MainWireSelectedAorticPortCandidateClockV1;
-  promote(
-    input: MainWireSelectedAorticPortPromotionInputV1,
-  ): MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null;
-  /**
-   * Idempotently aborts an unpromoted ticket, including one whose sole
-   * promotion attempt failed. Safe to call from a finally block.
-   */
+  promote(input: MainWireSelectedAorticPortPromotionInputV1): void;
+  /** Idempotently aborts an unpromoted ticket. Safe in a finally block. */
   close(): void;
 }>;
 
-export type MainWireSelectedAorticPortExactBeatStateCheckpointV1 = Readonly<{
-  checkpointId:
-    typeof MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID;
-  schemaVersion: 1;
-  selectedBeatAccumulator:
-    MainWireAorticRecoveredRootPortBeatAccumulatorCheckpointV1;
-  latestCompletedBeatMetrics:
-    MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null;
-}>;
-
-type TicketStateV1 =
-  | "open"
-  | "promotion-failed"
-  | "promoted"
-  | "closed";
+type TicketStateV1 = "open" | "promotion-failed" | "promoted" | "closed";
 
 /**
- * Standalone selected-model extension owned by the Standard66 typed-authority
- * Session. Standard65 does not instantiate it. Candidate staging is separate
- * from accepted publication, and selected beat analysis advances on a
- * checkpoint clone before synchronized promotion.
+ * Standard66-only transactional owner for the selected instantaneous readback.
+ * It does not own beat analysis or persistent checkpoint state. Candidate
+ * staging remains separate from accepted publication so a failed numerical
+ * transaction cannot expose a readback from an unaccepted state.
  */
 export class MainWireSelectedAorticPortSessionExtensionV1 {
   readonly extensionId = MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_EXTENSION_V1_ID;
@@ -117,40 +84,11 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
   );
   #acceptedReadbackClock: MainWireSelectedAorticPortAcceptedReadbackClockV1
     | null = null;
-  #selectedBeatAccumulator:
-    MainWireAorticRecoveredRootPortBeatAccumulatorV1;
-  #latestCompletedBeatMetrics:
-    MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null;
   #activeTicketOrdinal: number | null = null;
   #nextTicketOrdinal = 1;
 
-  private constructor(
-    selectedBeatAccumulator:
-      MainWireAorticRecoveredRootPortBeatAccumulatorV1,
-    latestCompletedBeatMetrics:
-      MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null,
-  ) {
-    this.#selectedBeatAccumulator = selectedBeatAccumulator;
-    this.#latestCompletedBeatMetrics = latestCompletedBeatMetrics;
-  }
-
   static createColdV1(): MainWireSelectedAorticPortSessionExtensionV1 {
-    return new MainWireSelectedAorticPortSessionExtensionV1(
-      new MainWireAorticRecoveredRootPortBeatAccumulatorV1(),
-      null,
-    );
-  }
-
-  static restoreExactBeatStateV1(
-    input: unknown,
-  ): MainWireSelectedAorticPortSessionExtensionV1 {
-    const checkpoint = ownExactBeatStateCheckpointV1(input);
-    return new MainWireSelectedAorticPortSessionExtensionV1(
-      MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-        checkpoint.selectedBeatAccumulator,
-      ),
-      checkpoint.latestCompletedBeatMetrics,
-    );
+    return new MainWireSelectedAorticPortSessionExtensionV1();
   }
 
   acceptedReadbackClockV1():
@@ -158,9 +96,13 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
     return this.#acceptedReadbackClock;
   }
 
-  latestCompletedBeatMetricsV1():
-    MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null {
-    return this.#latestCompletedBeatMetrics;
+  /** Guards a synchronous exact-checkpoint capture without persisting readback. */
+  assertReadyForExactCheckpointV1(): void {
+    if (this.#activeTicketOrdinal !== null) {
+      throw new Error(
+        "cannot checkpoint selected aortic session with an open ticket",
+      );
+    }
   }
 
   withAcceptedReadbackV3<T>(
@@ -175,9 +117,7 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
       throw new Error("selected aortic accepted readback borrow must be a function");
     }
     const available = this.#acceptedReadbackClock;
-    if (available === null) {
-      return null;
-    }
+    if (available === null) return null;
     if (
       available.acceptedTimeSec !== expectedClock.acceptedTimeSec
       || available.revision !== expectedClock.revision
@@ -243,24 +183,21 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
       candidateRevision: stage.candidateRevision,
     });
     let state: TicketStateV1 = "open";
-    const ticket = Object.freeze({
+    return Object.freeze({
       ticketId: MAIN_WIRE_SELECTED_AORTIC_PORT_SESSION_TICKET_V1_ID,
       ticketOrdinal,
       candidateClock,
-      promote: (
-        promotionInput: MainWireSelectedAorticPortPromotionInputV1,
-      ) => {
+      promote: (promotionInput: MainWireSelectedAorticPortPromotionInputV1) => {
         if (state !== "open") {
           throw new Error("selected aortic candidate ticket promotion is not open");
         }
         try {
-          const completed = this.#promoteCandidateV1(
+          this.#promoteCandidateV1(
             ticketOrdinal,
             candidateClock,
             promotionInput,
           );
           state = "promoted";
-          return completed;
         } catch (error) {
           state = "promotion-failed";
           throw error;
@@ -273,39 +210,13 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
         }
       },
     }) satisfies MainWireSelectedAorticPortSessionTicketV1;
-    return ticket;
-  }
-
-  checkpointExactBeatStateV1():
-    MainWireSelectedAorticPortExactBeatStateCheckpointV1 {
-    if (this.#activeTicketOrdinal !== null) {
-      throw new Error("cannot checkpoint selected aortic beat state with an open ticket");
-    }
-    const selectedBeatAccumulator = this.#selectedBeatAccumulator.checkpoint();
-    if (
-      this.#acceptedReadbackClock !== null
-      && selectedBeatAccumulator.active !== null
-      && selectedBeatAccumulator.active.previous.timeSec
-        !== this.#acceptedReadbackClock.acceptedTimeSec
-    ) {
-      throw new Error(
-        "selected aortic beat state clock differs from accepted readback",
-      );
-    }
-    return Object.freeze({
-      checkpointId:
-        MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID,
-      schemaVersion: 1 as const,
-      selectedBeatAccumulator,
-      latestCompletedBeatMetrics: this.#latestCompletedBeatMetrics,
-    });
   }
 
   #promoteCandidateV1(
     ticketOrdinal: number,
     candidateClock: MainWireSelectedAorticPortCandidateClockV1,
     input: MainWireSelectedAorticPortPromotionInputV1,
-  ): MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null {
+  ): void {
     if (this.#activeTicketOrdinal !== ticketOrdinal) {
       throw new Error("selected aortic candidate ticket is not the active ticket");
     }
@@ -324,38 +235,12 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
       throw new Error("selected aortic candidate readback clock does not match commit");
     }
 
-    const trialAccumulator =
-      MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-        this.#selectedBeatAccumulator.checkpoint(),
-      );
-    const selectedCompleted = trialAccumulator.acceptNumericalReadbackV3(
-      this.#candidateNumericalReadback,
-      promotion.capturedAtrialActivationId,
-    );
-    assertSynchronizedBeatCompletionV1(
-      promotion.baseCompletedBeatMetrics,
-      selectedCompleted,
-      promotion.capturedAtrialActivationId,
-    );
-    const trialCheckpoint = trialAccumulator.checkpoint();
-    if (
-      trialCheckpoint.active !== null
-      && trialCheckpoint.active.previous.timeSec
-        !== promotion.committedAcceptedTimeSec
-    ) {
-      throw new Error("selected aortic trial beat state clock differs from commit");
-    }
-
-    const nextLatest = selectedCompleted ?? this.#latestCompletedBeatMetrics;
     this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
     this.#acceptedReadbackClock = Object.freeze({
       acceptedTimeSec: promotion.committedAcceptedTimeSec,
       revision: promotion.committedRevision,
     });
-    this.#selectedBeatAccumulator = trialAccumulator;
-    this.#latestCompletedBeatMetrics = nextLatest;
     this.#activeTicketOrdinal = null;
-    return selectedCompleted;
   }
 
   #abortCandidateV1(ticketOrdinal: number): void {
@@ -363,53 +248,6 @@ export class MainWireSelectedAorticPortSessionExtensionV1 {
       throw new Error("selected aortic candidate ticket is not the active ticket");
     }
     this.#activeTicketOrdinal = null;
-  }
-}
-
-function assertSynchronizedBeatCompletionV1(
-  baseCompletedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null,
-  selectedCompletedBeatMetrics:
-    MainWireAorticRecoveredRootPortCompletedBeatMetricsV1 | null,
-  capturedAtrialActivationId: string | null,
-): void {
-  if (
-    (baseCompletedBeatMetrics === null)
-    !== (selectedCompletedBeatMetrics === null)
-  ) {
-    throw new Error("base and selected aortic beat completion availability differs");
-  }
-  if (
-    baseCompletedBeatMetrics === null
-    || selectedCompletedBeatMetrics === null
-  ) {
-    return;
-  }
-  if (
-    capturedAtrialActivationId === null
-    || baseCompletedBeatMetrics.endAtrialCaptureId
-      !== capturedAtrialActivationId
-    || selectedCompletedBeatMetrics.endAtrialCaptureId
-      !== capturedAtrialActivationId
-    || baseCompletedBeatMetrics.startAtrialCaptureId
-      !== selectedCompletedBeatMetrics.startAtrialCaptureId
-    || baseCompletedBeatMetrics.endAtrialCaptureId
-      !== selectedCompletedBeatMetrics.endAtrialCaptureId
-    || baseCompletedBeatMetrics.startTimeSec
-      !== selectedCompletedBeatMetrics.startTimeSec
-    || baseCompletedBeatMetrics.endTimeSec
-      !== selectedCompletedBeatMetrics.endTimeSec
-    || baseCompletedBeatMetrics.durationSec
-      !== selectedCompletedBeatMetrics.durationSec
-    || baseCompletedBeatMetrics.valveForwardPressureGradients.AoV
-      .forwardFlowDurationSec
-      !== selectedCompletedBeatMetrics.localValveForwardPressureGradient
-        .forwardFlowDurationSec
-    || selectedCompletedBeatMetrics.localValveForwardPressureGradient
-      .forwardFlowDurationSec
-      !== selectedCompletedBeatMetrics
-        .venaContractaBernoulliForwardPressureGradient.forwardFlowDurationSec
-  ) {
-    throw new Error("base and selected aortic beat completion is not synchronized");
   }
 }
 
@@ -438,7 +276,7 @@ function ownCandidateStageInputV1(
   ) {
     throw new RangeError(
       "selected aortic historical readback must contain exactly "
-      + `${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1} f64 values`,
+        + `${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1} f64 values`,
     );
   }
   if (
@@ -476,20 +314,9 @@ function ownPromotionInputV1(
   const label = "selected aortic candidate promotion input";
   const record = plainExactRecordV1(
     input,
-    [
-      "committedAcceptedTimeSec",
-      "committedRevision",
-      "capturedAtrialActivationId",
-      "baseCompletedBeatMetrics",
-    ],
+    ["committedAcceptedTimeSec", "committedRevision"],
     label,
   );
-  const capturedAtrialActivationId = record.capturedAtrialActivationId === null
-    ? null
-    : requiredNonemptyStringV1(
-      record.capturedAtrialActivationId,
-      `${label} captured atrial activation ID`,
-    );
   return Object.freeze({
     committedAcceptedTimeSec: nonnegativeFiniteV1(
       record.committedAcceptedTimeSec,
@@ -499,12 +326,6 @@ function ownPromotionInputV1(
       record.committedRevision,
       `${label} committed revision`,
     ),
-    capturedAtrialActivationId,
-    baseCompletedBeatMetrics: record.baseCompletedBeatMetrics === null
-      ? null
-      : validateAndOwnMainWireIntegratedModelCompletedBeatMetricsV3(
-        record.baseCompletedBeatMetrics,
-      ),
   });
 }
 
@@ -523,56 +344,6 @@ function ownAcceptedClockV1(
       `${label} accepted time`,
     ),
     revision: nonnegativeSafeIntegerV1(record.revision, `${label} revision`),
-  });
-}
-
-function ownExactBeatStateCheckpointV1(
-  input: unknown,
-): MainWireSelectedAorticPortExactBeatStateCheckpointV1 {
-  const label = "selected aortic exact beat state checkpoint";
-  const record = plainExactRecordV1(
-    input,
-    [
-      "checkpointId",
-      "schemaVersion",
-      "selectedBeatAccumulator",
-      "latestCompletedBeatMetrics",
-    ],
-    label,
-  );
-  if (
-    record.checkpointId
-      !== MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID
-    || record.schemaVersion !== 1
-  ) {
-    throw new Error("unsupported selected aortic exact beat state checkpoint");
-  }
-  const selectedBeatAccumulator =
-    MainWireAorticRecoveredRootPortBeatAccumulatorV1.restore(
-      record.selectedBeatAccumulator,
-    ).checkpoint();
-  const latestCompletedBeatMetrics =
-    record.latestCompletedBeatMetrics === null
-      ? null
-      : validateAndOwnMainWireAorticRecoveredRootPortCompletedBeatMetricsV1(
-        record.latestCompletedBeatMetrics,
-      );
-  const active = selectedBeatAccumulator.active;
-  if (
-    latestCompletedBeatMetrics !== null
-    && (active === null
-      || active.startAtrialCaptureId
-        !== latestCompletedBeatMetrics.endAtrialCaptureId
-      || active.startTimeSec !== latestCompletedBeatMetrics.endTimeSec)
-  ) {
-    throw new Error(`${label} latest metrics do not match active beat boundary`);
-  }
-  return Object.freeze({
-    checkpointId:
-      MAIN_WIRE_SELECTED_AORTIC_PORT_EXACT_BEAT_STATE_CHECKPOINT_V1_ID,
-    schemaVersion: 1 as const,
-    selectedBeatAccumulator,
-    latestCompletedBeatMetrics,
   });
 }
 
@@ -628,13 +399,6 @@ function nonnegativeSafeIntegerV1(value: unknown, label: string): number {
     || value < 0
   ) {
     throw new Error(`${label} must be a nonnegative safe integer`);
-  }
-  return value;
-}
-
-function requiredNonemptyStringV1(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} must be a nonempty string`);
   }
   return value;
 }

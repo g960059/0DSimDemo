@@ -28,10 +28,10 @@ const PROXIMAL_AORTIC_PRESSURE_OUTPUT_ID_V1 =
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
 const SYSTEMIC_ARTERIAL_PRESSURE_OUTPUT_ID_V1 =
   "hemodynamics.pressure.absolute.SA";
-const PROXIMAL_AORTIC_PRESSURE_SUMMARY_IDS_V1 = Object.freeze([
-  "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
-  "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
-  "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
+const SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_IDS_V1 = Object.freeze([
+  "hemodynamics.pressure.systolic.SA",
+  "hemodynamics.pressure.diastolic.SA",
+  "hemodynamics.pressure.mean.SA",
 ] as const);
 const HIDDEN_AMBIGUOUS_OUTPUT_IDS_V1 = Object.freeze([
   "hemodynamics.pressure.absolute.Ao",
@@ -51,7 +51,7 @@ const HIDDEN_AMBIGUOUS_OUTPUT_ID_SET_V1 = new Set<string>(
 );
 
 describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
-  it("exposes exactly 177 of 185 exact outputs by hiding only the eight ambiguous historical outputs", () => {
+  it("exposes exactly 168 of 176 exact outputs by hiding only the eight ambiguous historical outputs", () => {
     expect(selectedStandard66SurfaceV1.surfaceReleaseId).toBe(
       "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v1",
     );
@@ -61,12 +61,12 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     assertModelSurfaceReleaseManifestV1(selectedStandard66SurfaceV1);
 
     expect(MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1).toHaveLength(
-      185,
+      176,
     );
-    expect(selectedStandard66SurfaceV1.exposedExactOutputIds).toHaveLength(177);
+    expect(selectedStandard66SurfaceV1.exposedExactOutputIds).toHaveLength(168);
     expect(
       new Set(selectedStandard66SurfaceV1.exposedExactOutputIds).size,
-    ).toBe(177);
+    ).toBe(168);
 
     const exposed = new Set(
       selectedStandard66SurfaceV1.exposedExactOutputIds,
@@ -175,13 +175,13 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
       createMainWireIntegratedStudioSelectedAorticOutflowKernelV1(),
       selectedStandard66SurfaceV1,
     );
-    expect(composed.contract.outputCatalog).toHaveLength(177);
+    expect(composed.contract.outputCatalog).toHaveLength(168);
     expect(composed.contract.controlCatalog).toHaveLength(1);
     expect(composed.contract.graphCatalog).toHaveLength(5);
     expect(composed.surface.derivedOutputCatalog).toEqual([]);
   });
 
-  it("selects the proximal AoP summary and familiar waveform defaults in Workbench", () => {
+  it("selects the existing ABP summary and familiar waveform defaults in Workbench", () => {
     const contract = {
       graphCatalog: selectedStandard66SurfaceV1.graphCatalog,
       outputCatalog: selectedStandard66SurfaceV1.exposedExactOutputIds.map(
@@ -219,7 +219,7 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
       surface.outputPanes[0]?.items
         .slice(1, 4)
         .map(({ outputId }) => outputId),
-    ).toEqual(PROXIMAL_AORTIC_PRESSURE_SUMMARY_IDS_V1);
+    ).toEqual(SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_IDS_V1);
     expect(
       surface.outputPanes[0]?.items.some(({ outputId }) =>
         HIDDEN_AMBIGUOUS_OUTPUT_ID_SET_V1.has(outputId),
@@ -259,12 +259,13 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
       locale: "en",
       catalogFacts: { outputKind: "signal" },
     });
-    const forwardDuration = resolveStudioItemPresentationV1({
+    const venaContractaGradient = resolveStudioItemPresentationV1({
       kind: "output",
-      itemId: "hemodynamics.duration.valve-forward-flow.AoV",
-      fallbackEnglishLabel: "AV forward-flow duration",
+      itemId:
+        "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV",
+      fallbackEnglishLabel: "AV vena-contracta Bernoulli gradient",
       locale: "en",
-      catalogFacts: { outputKind: "metric" },
+      catalogFacts: { outputKind: "signal" },
     });
 
     expect(aopEn.label).toBe("Aortic pressure (AoP)");
@@ -281,19 +282,26 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     expect(abpEn.inlineDisclosure).toBe(true);
     expect(localGradient.description).toContain("LV − proximal AoP");
     expect(localGradient.description).not.toContain("pressure recovery before");
-    expect(forwardDuration.description).toContain(
-      "not a valve-event or clinical Doppler LV ejection time",
+    expect(localGradient.inlineDisclosure).toBe(true);
+    expect(venaContractaGradient.description).toContain(
+      "pressure recovery acts downstream",
     );
+    expect(venaContractaGradient.inlineDisclosure).toBe(true);
 
     expect(
       STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.find(
         ({ presentationId }) =>
           presentationId
-          === "presentation.pressure-summary.aortic-proximal-constitutive-port",
+          === "presentation.pressure-summary.SA",
       ),
     ).toMatchObject({
-      memberOutputIds: PROXIMAL_AORTIC_PRESSURE_SUMMARY_IDS_V1,
+      memberOutputIds: SYSTEMIC_ARTERIAL_PRESSURE_SUMMARY_IDS_V1,
     });
+    expect(STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1.some(
+      ({ presentationId }) =>
+        presentationId
+        === "presentation.pressure-summary.aortic-proximal-constitutive-port",
+    )).toBe(false);
 
     for (const itemId of
       MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1) {
