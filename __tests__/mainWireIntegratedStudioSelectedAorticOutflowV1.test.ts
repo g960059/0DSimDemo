@@ -30,6 +30,18 @@ import {
 import {
   createCircleHeartExactModelReleaseV1 as createSelectedArtifactReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.entry";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_PRESENTATION_INTERVAL_SEC_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  buildMainWireCardiacCycleMetricsV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
+import {
+  materializeStudioSimulationPresentationFramesV2,
+} from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
 const PROXIMAL_PRESSURE =
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
@@ -230,6 +242,82 @@ describe("selected-aortic-outflow Standard66 Studio exact adapter V1", () => {
     )).toBe(false);
     expect(Object.values(batch.terminalFrame.outputs).some((output) =>
       Object.is(output.value, -0))).toBe(false);
+  }, 120_000);
+
+  it("derives station-aware cycle metrics from every exact Standard66 presentation boundary", async () => {
+    const host =
+      new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1();
+    const runtimeSessionId = "selected-cardiac-cycle-analysis";
+    const scenarioId = "baseline";
+    await host.createSession(runtimeSessionId, [{
+      scenarioId,
+      fixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+    }]);
+    const store = new AcceptedScalarAnalysisWindowStoreV1({
+      expectedFrameIntervalSec:
+        MAIN_WIRE_CARDIAC_CYCLE_PRESENTATION_INTERVAL_SEC_V1,
+      requiredExactOutputIds:
+        MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    });
+    for (let batchIndex = 0; batchIndex < 5; batchIndex += 1) {
+      store.appendFrames(materializeStudioSimulationPresentationFramesV2(
+        host.advancePresentationBatch(
+          runtimeSessionId,
+          scenarioId,
+          256,
+          MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+        ),
+      ));
+    }
+    const result = buildMainWireCardiacCycleMetricsV1(
+      store.getScenarioSamples(scenarioId),
+    );
+    expect(result.status).toBe("available");
+    if (result.status !== "available") return;
+    const ids = MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1;
+    expect(result.source.timebase).toBe(
+      "every-exact-presentation-boundary-no-resampling",
+    );
+    expect(result.source.cycleDurationSec).toBeCloseTo(1, 12);
+    expect(result.source.acceptedSampleCount).toBe(502);
+    expect(result.source.analysisPointCount).toBe(501);
+    expect(result.aorticEjection.forwardVolumeMl).toBeCloseTo(
+      61.6466027593,
+      6,
+    );
+    expect(result.aorticEjection.thresholdDurationSec).toBeLessThanOrEqual(
+      result.aorticEjection.positiveFlowDurationSec,
+    );
+    expect(result.values[ids.aorticMeanLocalGradientMmHg]).toBeCloseTo(
+      1.86558411,
+      6,
+    );
+    expect(result.values[ids.aorticMeanVenaContractaGradientMmHg]).toBeCloseTo(
+      2.9048128513,
+      6,
+    );
+    expect(result.values[ids.leftVentricularEjectionTimeMs]).toBeCloseTo(
+      230,
+      9,
+    );
+    expect(result.values[ids.leftVentricularEjectionTimeThresholdMs])
+      .toBeCloseTo(226.068979077, 6);
+    expect(result.values[ids.leftVentricularIsovolumicContractionTimeMs])
+      .toBeCloseTo(96, 9);
+    expect(result.values[ids.leftVentricularIsovolumicRelaxationTimeMs])
+      .toBeCloseTo(120, 9);
+    expect(result.values[ids.leftVentricularMyocardialPerformanceIndex])
+      .toBeCloseTo(0.9391304348, 8);
+    expect(result.values[ids.aorticForwardFlowShapeFactor]).toBeCloseTo(
+      1.1889067159,
+      8,
+    );
+    expect(result.values[ids.leftVentricularMaximumPressureRate10Ms])
+      .toBeCloseTo(1454.7774995, 4);
+    expect(result.values[ids.leftVentricularMinimumPressureRate10Ms])
+      .toBeCloseTo(-654.8994829, 4);
+    host.closeSession(runtimeSessionId);
   }, 120_000);
 
   it("keeps complete-fixture validation and execution consistent over a deterministic hemodynamic covering matrix", async () => {
