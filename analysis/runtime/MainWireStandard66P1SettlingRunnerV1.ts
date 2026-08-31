@@ -38,8 +38,20 @@ export const MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID =
 export const MAIN_WIRE_STANDARD66_P1_SETTLING_PROTOCOL_IDENTITY_V1_ID =
   "main-wire-standard66-full-accepted-state-p1-settling-protocol-identity-v1" as const;
 
+export const MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID =
+  "main-wire-standard66-fresh-full-accepted-state-p1-confirmation-runner-v1" as const;
+
+export const MAIN_WIRE_STANDARD66_P1_CONFIRMATION_PROTOCOL_IDENTITY_V1_ID =
+  "main-wire-standard66-fresh-p1-confirmation-protocol-identity-v1" as const;
+
 const MAXIMUM_RETAINED_WINDOW_BOUNDARIES_V1 = 3 as const;
 const MAXIMUM_RETAINED_P1_OBSERVATIONS_V1 = 3 as const;
+
+/** Runtime-only provenance; deliberately absent from the serializable report. */
+const SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1 = new WeakMap<
+  MainWireStandard66P1SettlingResultV1,
+  MainWireStandard66SelectedTraceLiveSessionV1
+>();
 
 export type MainWireStandard66P1SettlingExecutionPurposeV1 =
   "preregistered-settling" | "bounded-smoke";
@@ -185,6 +197,99 @@ export type MainWireStandard66P1SettlingResultV1 = Readonly<{
   retainedPeriod1Observations: readonly MainWireStandard66P1SettlingObservationV1[];
   diagnosticConsecutivePeriod1Closures: number;
   numericalPeriod1Established: boolean;
+  physiologicalAcceptanceEstablished: false;
+  independentValidationEstablished: false;
+  releaseAcceptanceEstablished: false;
+  terminalAcceptedTimeSec: number;
+  terminalAcceptedRevision: number;
+  failure: MainWireStandard66P1SettlingFailureV1 | null;
+}>;
+
+export type MainWireStandard66P1ConfirmationInputV1 = Readonly<{
+  liveSession: MainWireStandard66SelectedTraceLiveSessionV1;
+  settled: MainWireStandard66P1SettlingResultV1;
+}>;
+
+export type MainWireStandard66P1ConfirmationProtocolIdentityV1 = Readonly<{
+  identityId: typeof MAIN_WIRE_STANDARD66_P1_CONFIRMATION_PROTOCOL_IDENTITY_V1_ID;
+  runnerId: typeof MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID;
+  liveSessionRouteIdentity: typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID;
+  settlementRunnerId: typeof MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID;
+  settlementProtocolIdentityHash: string;
+  clock: Readonly<{
+    armId: MainWireIntegratedModelStandard66ValidationClockArmIdV1;
+    requestedStepSec: number;
+    requestedGridOriginSec: 0;
+    requestedGridPhaseResetAtConfirmationStart: false;
+  }>;
+  freshFullAcceptedStatePeriod1: Readonly<{
+    comparatorId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID;
+    policyId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.policyId;
+    referenceScales: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3;
+    normalizedTolerance: number;
+    consecutiveClosuresRequired: number;
+    failedClosureResetsConsecutiveCount: true;
+    firstReferenceBoundary: "settling-terminal-if-exact-window-boundary-otherwise-first-following-window-boundary";
+    comparisonBoundary: "exact-empty-coronary-autoregulation-window-at-n-times-cycle-length";
+    maximumContinuationDurationSec: number;
+  }>;
+  exactConstruction: MainWireStandard66SelectedTraceLiveSessionConstructionV1;
+}>;
+
+export type MainWireStandard66P1ConfirmationObservationV1 = Readonly<{
+  windowIndex: number;
+  acceptedTimeSec: number;
+  acceptedRevision: number;
+  period1MaximumNormalizedDelta: number;
+  period1WorstGroup: MainWireIntegratedModelPeriodicClosureReportV3["overall"]["worstGroup"];
+  period1WorstPath: string;
+  withinPeriod1Tolerance: boolean;
+  consecutivePeriod1Closures: number;
+}>;
+
+export type MainWireStandard66P1ConfirmationResultV1 = Readonly<{
+  runnerId: typeof MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID;
+  protocolIdentity: MainWireStandard66P1ConfirmationProtocolIdentityV1;
+  protocolIdentityHash: string;
+  status:
+    "period1-confirmed" | "maximum-confirmation-duration-reached" | "failed";
+  source: Readonly<{
+    sameLiveSessionAsSettling: true;
+    sameCompiledExecutionPlanAsProduction: true;
+    sameCoupledNewtonWorkspaceBindingAsProduction: true;
+    exactModelMutation: false;
+    exactFrameOutputReserved: false;
+    registryOrModelSurfaceChanged: false;
+  }>;
+  clock: Readonly<{
+    armId: MainWireIntegratedModelStandard66ValidationClockArmIdV1;
+    requestedStepSec: number;
+    anchoredRequestedGridOriginSec: 0;
+    requestedGridPhaseResetAtConfirmationStart: false;
+    acceptedStepsMayBeShortenedAtModelEvents: true;
+  }>;
+  settlementTerminal: Readonly<{
+    acceptedTimeSec: number;
+    acceptedRevision: number;
+    wasExactCoronaryWindowBoundary: boolean;
+  }>;
+  freshSuffix: Readonly<{
+    firstReferenceBoundaryTimeSec: number | null;
+    firstReferenceBoundaryRevision: number | null;
+    comparisonCount: number;
+    consecutivePeriod1Closures: number;
+    requiredConsecutivePeriod1Closures: number;
+    failedClosureResetsConsecutiveCount: true;
+    observations: readonly MainWireStandard66P1ConfirmationObservationV1[];
+  }>;
+  counters: Readonly<{
+    advanceCallCount: number;
+    requestedGridLandingCount: number;
+    internalAcceptedCommitCount: number;
+    eventClippedAcceptedCommitCount: number;
+    completedCoronaryWindowCount: number;
+  }>;
+  numericalPeriod1Confirmed: boolean;
   physiologicalAcceptanceEstablished: false;
   independentValidationEstablished: false;
   releaseAcceptanceEstablished: false;
@@ -354,6 +459,328 @@ export async function runMainWireStandard66P1SettlingOnLiveSessionV1(
     ventricularContractilityScale: construction.ventricularContractilityScale,
   });
   return runOwnedMainWireStandard66P1SettlingV1(owned, input.liveSession);
+}
+
+/**
+ * Reconfirms a numerically settled arm on the same privately branded Session.
+ * The suffix is fresh: a boundary at the settling terminal may be its first
+ * reference, but no closure counted by settling is reused. If settling ended
+ * between coronary boundaries, the first following exact empty-window state
+ * becomes the reference and is not itself counted as a closure.
+ */
+export async function confirmMainWireStandard66P1OnLiveSessionV1(
+  input: MainWireStandard66P1ConfirmationInputV1,
+): Promise<MainWireStandard66P1ConfirmationResultV1> {
+  assertMainWireStandard66SelectedTraceLiveSessionV1(input.liveSession);
+  await assertSettledContinuationBindingV1(input.liveSession, input.settled);
+  const construction =
+    readMainWireStandard66SelectedTraceLiveSessionConstructionV1(
+      input.liveSession,
+    );
+  const arm =
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1.find(
+      (candidate) =>
+        candidate.armId === input.settled.protocolIdentity.clock.armId,
+    );
+  if (
+    arm === undefined ||
+    arm.requestedStepSec !==
+      input.settled.protocolIdentity.clock.requestedStepSec
+  ) {
+    throw new Error("Standard66 P1 confirmation clock binding is invalid");
+  }
+  const maximumContinuationDurationSec =
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.extensionSec;
+  const protocolIdentity: MainWireStandard66P1ConfirmationProtocolIdentityV1 =
+    Object.freeze({
+      identityId: MAIN_WIRE_STANDARD66_P1_CONFIRMATION_PROTOCOL_IDENTITY_V1_ID,
+      runnerId: MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID,
+      liveSessionRouteIdentity:
+        MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
+      settlementRunnerId: MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID,
+      settlementProtocolIdentityHash: input.settled.protocolIdentityHash,
+      clock: Object.freeze({
+        armId: arm.armId,
+        requestedStepSec: arm.requestedStepSec,
+        requestedGridOriginSec: 0 as const,
+        requestedGridPhaseResetAtConfirmationStart: false as const,
+      }),
+      freshFullAcceptedStatePeriod1: Object.freeze({
+        comparatorId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
+        policyId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.policyId,
+        referenceScales:
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+        normalizedTolerance:
+          MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
+        consecutiveClosuresRequired:
+          MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired,
+        failedClosureResetsConsecutiveCount: true as const,
+        firstReferenceBoundary:
+          "settling-terminal-if-exact-window-boundary-otherwise-first-following-window-boundary" as const,
+        comparisonBoundary:
+          "exact-empty-coronary-autoregulation-window-at-n-times-cycle-length" as const,
+        maximumContinuationDurationSec,
+      }),
+      exactConstruction: construction,
+    });
+  const protocolIdentityHash = await sha256CanonicalJsonHex(protocolIdentity);
+  const session = input.liveSession.session;
+  const startState = session.currentAcceptedState();
+  const settlementTerminalBoundary =
+    exactBoundaryAtCurrentTimeOrNullV1(startState);
+  const settlementTerminalWasExactBoundary =
+    settlementTerminalBoundary !== null;
+  let previousBoundary = settlementTerminalBoundary;
+  const firstReferenceBoundary = previousBoundary;
+  const regular = startState.composedRhythm.regularAtrialSourceState;
+  if (regular === null) {
+    throw new Error(
+      "Standard66 P1 confirmation requires a regular atrial source",
+    );
+  }
+  const cycleLengthSec = regular.configuration.cycleLengthSec;
+  const coronaryWindowDurationSec =
+    startState.coronary.coronaryAutoregulationBinding.windowPolicy.durationSec;
+  if (!nearlyEqualTimeV1(cycleLengthSec, coronaryWindowDurationSec)) {
+    throw new Error(
+      "Standard66 P1 confirmation coronary window does not equal the sinus cycle",
+    );
+  }
+
+  let currentAcceptedTimeSec = startState.acceptedTimeSec;
+  let currentAcceptedRevision = startState.revision;
+  let nextCoronaryWindowBoundaryTimeSec =
+    startState.coronary.coronaryAutoregulation.windowStartAcceptedTimeSec +
+    coronaryWindowDurationSec;
+  if (!(nextCoronaryWindowBoundaryTimeSec > currentAcceptedTimeSec)) {
+    if (
+      previousBoundary !== null &&
+      nearlyEqualTimeV1(
+        nextCoronaryWindowBoundaryTimeSec,
+        currentAcceptedTimeSec,
+      )
+    ) {
+      nextCoronaryWindowBoundaryTimeSec += coronaryWindowDurationSec;
+    } else {
+      throw new Error(
+        "Standard66 P1 confirmation next coronary boundary is invalid",
+      );
+    }
+  }
+  const confirmationDeadlineSec =
+    startState.acceptedTimeSec + maximumContinuationDurationSec;
+  let nextRequestedBoundaryOrdinal = 1;
+  while (
+    requestedGridTimeV1(
+      0,
+      nextRequestedBoundaryOrdinal,
+      arm.requestedStepSec,
+    ) <=
+    currentAcceptedTimeSec + timeToleranceV1(currentAcceptedTimeSec)
+  ) {
+    nextRequestedBoundaryOrdinal += 1;
+  }
+
+  const observations: MainWireStandard66P1ConfirmationObservationV1[] = [];
+  let firstReferenceBoundaryTimeSec =
+    firstReferenceBoundary?.acceptedTimeSec ?? null;
+  let firstReferenceBoundaryRevision =
+    firstReferenceBoundary?.acceptedRevision ?? null;
+  let consecutivePeriod1Closures = 0;
+  let comparisonCount = 0;
+  let advanceCallCount = 0;
+  let requestedGridLandingCount = 0;
+  let internalAcceptedCommitCount = 0;
+  let eventClippedAcceptedCommitCount = 0;
+  let completedCoronaryWindowCount = 0;
+  let status: MainWireStandard66P1ConfirmationResultV1["status"] =
+    "maximum-confirmation-duration-reached";
+  let failure: MainWireStandard66P1SettlingFailureV1 | null = null;
+
+  while (
+    currentAcceptedTimeSec <
+    confirmationDeadlineSec -
+      timeToleranceV1(currentAcceptedTimeSec, confirmationDeadlineSec)
+  ) {
+    while (
+      requestedGridTimeV1(
+        0,
+        nextRequestedBoundaryOrdinal,
+        arm.requestedStepSec,
+      ) <=
+      currentAcceptedTimeSec + timeToleranceV1(currentAcceptedTimeSec)
+    ) {
+      nextRequestedBoundaryOrdinal += 1;
+    }
+    const target = resolveMainWireStandard66AnchoredAdvanceTargetV1({
+      currentTimeSec: currentAcceptedTimeSec,
+      requestedGridOriginSec: 0,
+      requestedStepSec: arm.requestedStepSec,
+      nextRequestedBoundaryOrdinal,
+      nextCoronaryWindowBoundaryTimeSec,
+      nextEvaluationHorizonSec: confirmationDeadlineSec,
+    });
+    const projected =
+      session.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+        target.targetTimeSec,
+        Object.freeze([]),
+      );
+    const advanced = projected.advance;
+    advanceCallCount += 1;
+    if (advanced.status !== "advanced") {
+      failure = Object.freeze({
+        kind: "advance-failed" as const,
+        message:
+          advanced.status === "failed"
+            ? `${advanced.reason}: ${advanced.message}`
+            : `unexpected ${advanced.status} result`,
+        requestedTargetTimeSec: target.targetTimeSec,
+        acceptedTimeSec: advanced.acceptedTimeSec,
+        acceptedRevision: advanced.acceptedRevision,
+      });
+      status = "failed";
+      break;
+    }
+    internalAcceptedCommitCount += advanced.internalAcceptedSubstepCount;
+    eventClippedAcceptedCommitCount += advanced.boundaryClippedSubstepCount;
+    currentAcceptedTimeSec = advanced.acceptedTimeSec;
+    currentAcceptedRevision = advanced.acceptedRevision;
+    if (target.landsOnRequestedGrid) {
+      requestedGridLandingCount += 1;
+      nextRequestedBoundaryOrdinal += 1;
+    }
+    if (!nearlyEqualTimeV1(currentAcceptedTimeSec, target.targetTimeSec)) {
+      failure = Object.freeze({
+        kind: "boundary-validation-failed" as const,
+        message: "accepted clock did not land on the confirmation target",
+        requestedTargetTimeSec: target.targetTimeSec,
+        acceptedTimeSec: currentAcceptedTimeSec,
+        acceptedRevision: currentAcceptedRevision,
+      });
+      status = "failed";
+      break;
+    }
+
+    if (target.landsOnCoronaryWindowBoundary) {
+      const boundaryState = session.currentAcceptedState();
+      try {
+        const boundary = boundaryFromStateV1(boundaryState);
+        completedCoronaryWindowCount += 1;
+        if (previousBoundary === null) {
+          previousBoundary = boundary;
+          firstReferenceBoundaryTimeSec = boundary.acceptedTimeSec;
+          firstReferenceBoundaryRevision = boundary.acceptedRevision;
+        } else {
+          if (boundary.windowIndex !== previousBoundary.windowIndex + 1) {
+            throw new Error(
+              "Standard66 P1 confirmation window index did not advance by one",
+            );
+          }
+          const period1 = compareMainWireIntegratedModelAcceptedStatesV3(
+            boundary.acceptedState,
+            previousBoundary.acceptedState,
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+          );
+          const withinPeriod1Tolerance =
+            period1.overall.maximumNormalizedDelta <=
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance;
+          consecutivePeriod1Closures =
+            nextMainWireStandard66ConsecutiveP1CountV1(
+              consecutivePeriod1Closures,
+              withinPeriod1Tolerance,
+            );
+          comparisonCount += 1;
+          pushBoundedV1(
+            observations,
+            Object.freeze({
+              windowIndex: boundary.windowIndex,
+              acceptedTimeSec: boundary.acceptedTimeSec,
+              acceptedRevision: boundary.acceptedRevision,
+              period1MaximumNormalizedDelta:
+                period1.overall.maximumNormalizedDelta,
+              period1WorstGroup: period1.overall.worstGroup,
+              period1WorstPath: period1.overall.worstPath,
+              withinPeriod1Tolerance,
+              consecutivePeriod1Closures,
+            }),
+            MAXIMUM_RETAINED_P1_OBSERVATIONS_V1,
+          );
+          previousBoundary = boundary;
+          if (
+            consecutivePeriod1Closures >=
+            MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired
+          ) {
+            status = "period1-confirmed";
+          }
+        }
+        nextCoronaryWindowBoundaryTimeSec =
+          boundaryState.coronary.coronaryAutoregulation
+            .windowStartAcceptedTimeSec + coronaryWindowDurationSec;
+      } catch (error) {
+        failure = boundaryFailureV1(
+          error instanceof Error ? error.message : String(error),
+          target.targetTimeSec,
+          boundaryState,
+        );
+        status = "failed";
+      }
+    }
+    if (status !== "maximum-confirmation-duration-reached") break;
+    if (target.landsOnEvaluationHorizon) break;
+  }
+
+  const terminal = session.currentAcceptedState();
+  const numericalPeriod1Confirmed = status === "period1-confirmed";
+  return Object.freeze({
+    runnerId: MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID,
+    protocolIdentity,
+    protocolIdentityHash,
+    status,
+    source: Object.freeze({
+      sameLiveSessionAsSettling: true as const,
+      sameCompiledExecutionPlanAsProduction: true as const,
+      sameCoupledNewtonWorkspaceBindingAsProduction: true as const,
+      exactModelMutation: false as const,
+      exactFrameOutputReserved: false as const,
+      registryOrModelSurfaceChanged: false as const,
+    }),
+    clock: Object.freeze({
+      armId: arm.armId,
+      requestedStepSec: arm.requestedStepSec,
+      anchoredRequestedGridOriginSec: 0 as const,
+      requestedGridPhaseResetAtConfirmationStart: false as const,
+      acceptedStepsMayBeShortenedAtModelEvents: true as const,
+    }),
+    settlementTerminal: Object.freeze({
+      acceptedTimeSec: startState.acceptedTimeSec,
+      acceptedRevision: startState.revision,
+      wasExactCoronaryWindowBoundary: settlementTerminalWasExactBoundary,
+    }),
+    freshSuffix: Object.freeze({
+      firstReferenceBoundaryTimeSec,
+      firstReferenceBoundaryRevision,
+      comparisonCount,
+      consecutivePeriod1Closures,
+      requiredConsecutivePeriod1Closures:
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired,
+      failedClosureResetsConsecutiveCount: true as const,
+      observations: Object.freeze([...observations]),
+    }),
+    counters: Object.freeze({
+      advanceCallCount,
+      requestedGridLandingCount,
+      internalAcceptedCommitCount,
+      eventClippedAcceptedCommitCount,
+      completedCoronaryWindowCount,
+    }),
+    numericalPeriod1Confirmed,
+    physiologicalAcceptanceEstablished: false as const,
+    independentValidationEstablished: false as const,
+    releaseAcceptanceEstablished: false as const,
+    terminalAcceptedTimeSec: terminal.acceptedTimeSec,
+    terminalAcceptedRevision: terminal.revision,
+    failure,
+  });
 }
 
 async function runOwnedMainWireStandard66P1SettlingV1(
@@ -570,7 +997,7 @@ async function runOwnedMainWireStandard66P1SettlingV1(
     terminalStatus === "period1-settled" &&
     failure === null &&
     owned.executionPurpose === "preregistered-settling";
-  return Object.freeze({
+  const result: MainWireStandard66P1SettlingResultV1 = Object.freeze({
     runnerId: MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID,
     protocolIdentity,
     protocolIdentityHash,
@@ -638,6 +1065,8 @@ async function runOwnedMainWireStandard66P1SettlingV1(
     terminalAcceptedRevision: terminal.revision,
     failure,
   });
+  SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1.set(result, liveSession);
+  return result;
 }
 
 function buildProtocolIdentityV1(
@@ -760,6 +1189,74 @@ function boundaryFromStateV1(
     acceptedRevision: acceptedState.revision,
     acceptedState,
   });
+}
+
+function exactBoundaryAtCurrentTimeOrNullV1(
+  acceptedState: MainWireIntegratedModelPeriodicAcceptedStateV3,
+): MainWireStandard66P1SettlingWindowBoundaryV1 | null {
+  const window = acceptedState.coronary.coronaryAutoregulation;
+  if (
+    !nearlyEqualTimeV1(
+      window.windowStartAcceptedTimeSec,
+      acceptedState.acceptedTimeSec,
+    )
+  ) {
+    return null;
+  }
+  return boundaryFromStateV1(acceptedState);
+}
+
+async function assertSettledContinuationBindingV1(
+  liveSession: MainWireStandard66SelectedTraceLiveSessionV1,
+  settled: MainWireStandard66P1SettlingResultV1,
+): Promise<void> {
+  if (
+    settled.runnerId !== MAIN_WIRE_STANDARD66_P1_SETTLING_RUNNER_V1_ID ||
+    settled.status !== "period1-settled" ||
+    settled.executionPurpose !== "preregistered-settling" ||
+    settled.failure !== null ||
+    !settled.numericalPeriod1Established
+  ) {
+    throw new Error(
+      "Standard66 P1 confirmation requires an established preregistered settling result",
+    );
+  }
+  if (SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1.get(settled) !== liveSession) {
+    throw new Error(
+      "Standard66 P1 confirmation settling result is not privately bound to this live Session",
+    );
+  }
+  const recomputedSettlingIdentityHash = await sha256CanonicalJsonHex(
+    settled.protocolIdentity,
+  );
+  if (recomputedSettlingIdentityHash !== settled.protocolIdentityHash) {
+    throw new Error(
+      "Standard66 P1 confirmation settling protocol identity hash is invalid",
+    );
+  }
+  const construction =
+    readMainWireStandard66SelectedTraceLiveSessionConstructionV1(liveSession);
+  const [liveConstructionHash, settledConstructionHash] = await Promise.all([
+    sha256CanonicalJsonHex(construction),
+    sha256CanonicalJsonHex(settled.protocolIdentity.exactConstruction),
+  ]);
+  if (liveConstructionHash !== settledConstructionHash) {
+    throw new Error(
+      "Standard66 P1 confirmation live construction differs from settling",
+    );
+  }
+  const current = liveSession.session.currentAcceptedState();
+  if (
+    !nearlyEqualTimeV1(
+      current.acceptedTimeSec,
+      settled.terminalAcceptedTimeSec,
+    ) ||
+    current.revision !== settled.terminalAcceptedRevision
+  ) {
+    throw new Error(
+      "Standard66 P1 confirmation live Session is not at the settling terminal",
+    );
+  }
 }
 
 function boundaryFailureV1(

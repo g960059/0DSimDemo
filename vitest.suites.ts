@@ -164,6 +164,7 @@ export const regressionTests = [
   "__tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts",
   "__tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts",
   "__tests__/mainWireStandard66P1SettlingRunnerV1.test.ts",
+  "__tests__/mainWireStandard66ValidationArmRunnerV1.test.ts",
   "__tests__/mainWireStandard66SelectedTraceRunnerV1.test.ts",
   "__tests__/mainWireStandard66TerminalBeatValidationMeasurementsV1.test.ts",
   "__tests__/mainWireStandard66AorticOutflowShapeDiagnosticV1.test.ts",

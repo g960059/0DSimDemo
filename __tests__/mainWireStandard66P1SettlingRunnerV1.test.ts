@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildMainWireStandard66SettlingEvaluationHorizonsV1,
+  confirmMainWireStandard66P1OnLiveSessionV1,
   nextMainWireStandard66ConsecutiveP1CountV1,
   resolveMainWireStandard66AnchoredAdvanceTargetV1,
   runMainWireStandard66P1SettlingV1,
@@ -228,6 +229,30 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
         boundedSmokeHorizonSec: 0.01,
       }),
     ).rejects.toThrow(/privately branded production-route/);
+  });
+
+  it("rejects a public settled-result forgery that lacks same-session settling provenance", async () => {
+    const liveSession =
+      await createMainWireStandard66SelectedTraceLiveSessionV1();
+    const smoke = await runMainWireStandard66P1SettlingOnLiveSessionV1({
+      liveSession,
+      clockArmId: "dt-2ms-production",
+      executionPurpose: "bounded-smoke",
+      boundedSmokeHorizonSec: 0.01,
+    });
+    const forged = Object.freeze({
+      ...smoke,
+      executionPurpose: "preregistered-settling" as const,
+      status: "period1-settled" as const,
+      numericalPeriod1Established: true,
+    });
+
+    await expect(
+      confirmMainWireStandard66P1OnLiveSessionV1({
+        liveSession,
+        settled: forged,
+      }),
+    ).rejects.toThrow(/not privately bound to this live Session/);
   });
 
   it("fails closed when a smoke override is missing or enters the preregistered lane", async () => {
