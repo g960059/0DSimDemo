@@ -260,7 +260,7 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
 
     const discontinuous = [
       observation(6, closureAtBeat(6, 1, 5e-4)),
-      observation(7, closureAtBeat(7, 2, 5e-4)),
+      observation(7, closureAtBeat(8, 1, 5e-4)),
     ];
     expect(() =>
       classifyMainWireFiveWallCoronaryPeriodicityV3({
@@ -269,6 +269,30 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
         options: CLASSIFIER_OPTIONS,
       }),
     ).toThrow(/window provenance chain is discontinuous/);
+
+    expect(() =>
+      classifyMainWireFiveWallCoronaryPeriodicityV3({
+        rhythmInterpretation: "periodic-sinus-cycle-aligned",
+        observations: [
+          observation(9, closureAtBeat(9, 3, 5e-4)),
+        ],
+        options: CLASSIFIER_OPTIONS,
+      }),
+    ).toThrow(/period1 report does not advance exactly one window/);
+
+    expect(() =>
+      classifyMainWireFiveWallCoronaryPeriodicityV3({
+        rhythmInterpretation: "periodic-sinus-cycle-aligned",
+        observations: [Object.freeze({
+          beatIndex: 9,
+          evidenceRole: "canonical-periodic-protocol" as const,
+          protocolIdentityHash: PROTOCOL_IDENTITY_HASH,
+          period1: closureAtBeat(9, 1, 5e-4),
+          period2: closureAtBeat(9, 3, 5e-4),
+        })],
+        options: CLASSIFIER_OPTIONS,
+      }),
+    ).toThrow(/period2 report does not advance exactly two windows/);
   });
 });
 
@@ -498,7 +522,7 @@ function wallState() {
 
 function closureAtBeat(
   beatIndex: number,
-  period: 1 | 2,
+  period: 1 | 2 | 3,
   maximumNormalizedDelta: number,
 ) {
   return compareMainWireFiveWallCoronaryAcceptedStatesV3(

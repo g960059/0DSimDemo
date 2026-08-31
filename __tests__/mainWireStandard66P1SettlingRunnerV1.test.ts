@@ -4,6 +4,7 @@ import {
   buildMainWireStandard66SettlingEvaluationHorizonsV1,
   confirmMainWireStandard66P1OnLiveSessionV1,
   nextMainWireStandard66ConsecutiveP1CountV1,
+  readMainWireStandard66P1SettlingExactBoundarySuffixV1,
   resolveMainWireStandard66AnchoredAdvanceTargetV1,
   runMainWireStandard66P1SettlingV1,
   runMainWireStandard66P1SettlingOnLiveSessionV1,
@@ -11,6 +12,10 @@ import {
 import { createMainWireStandard66SelectedTraceLiveSessionV1 } from "@/analysis/runtime/MainWireStandard66SelectedTraceRunnerV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_STANDARD66_PHASE_LAG_DIAGNOSTIC_ARTIFACT_ROOT_V1,
+  parseMainWireStandard66PhaseLagDiagnosticCliArgumentsV1,
+} from "@/tools/scientific/runMainWireStandard66PhaseLagDiagnosticV1";
 
 describe("Standard66 full accepted-state P1 settling runner V1", () => {
   it("constructs the preregistered horizons with the explicit 250 s clamp", () => {
@@ -110,6 +115,10 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
     expect(result.counters.eventClippedAcceptedCommitCount).toBeGreaterThan(0);
     expect(result.retainedWindowBoundaries).toHaveLength(2);
     expect(result.retainedPeriod1Observations).toHaveLength(1);
+    expect(result.periodicBoundary).toMatchObject({
+      retainedWindowBoundaryLimit: 4,
+      retainedObservationLimit: 3,
+    });
     expect(result.retainedWindowBoundaries.at(-1)).toMatchObject({
       windowIndex: 1,
       acceptedTimeSec: 1,
@@ -146,6 +155,76 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
       }),
     ).rejects.toThrow(/unadvanced cold window-zero state/);
   }, 120_000);
+
+  it("retains four exact boundaries for same-live-run diagnostics without weakening the private binding", async () => {
+    const liveSession =
+      await createMainWireStandard66SelectedTraceLiveSessionV1();
+    const result = await runMainWireStandard66P1SettlingOnLiveSessionV1({
+      liveSession,
+      clockArmId: "dt-2ms-production",
+      executionPurpose: "bounded-smoke",
+      boundedSmokeHorizonSec: 3,
+    });
+    const suffix = readMainWireStandard66P1SettlingExactBoundarySuffixV1({
+      liveSession,
+      settling: result,
+    });
+
+    expect(suffix).toHaveLength(4);
+    expect(
+      suffix.map(({ windowIndex, acceptedTimeSec }) => ({
+        windowIndex,
+        acceptedTimeSec,
+      })),
+    ).toEqual([
+      { windowIndex: 0, acceptedTimeSec: 0 },
+      { windowIndex: 1, acceptedTimeSec: 1 },
+      { windowIndex: 2, acceptedTimeSec: 2 },
+      { windowIndex: 3, acceptedTimeSec: 3 },
+    ]);
+    expect(result.retainedPeriod1Observations).toHaveLength(3);
+    expect(() =>
+      readMainWireStandard66P1SettlingExactBoundarySuffixV1({
+        liveSession,
+        settling: { ...result },
+      }),
+    ).toThrow(/not privately bound/);
+  }, 120_000);
+
+  it("resolves the independent phase-lag CLI only through preregistered case and arm catalogs", () => {
+    expect(
+      parseMainWireStandard66PhaseLagDiagnosticCliArgumentsV1([
+        "--case",
+        "default",
+        "--arm",
+        "dt-2ms-production",
+      ]),
+    ).toEqual({
+      caseId: "default",
+      clockArmId: "dt-2ms-production",
+      outputPath: null,
+      forceOverwrite: false,
+    });
+    expect(MAIN_WIRE_STANDARD66_PHASE_LAG_DIAGNOSTIC_ARTIFACT_ROOT_V1).toBe(
+      "artifacts/standard66-phase-lag-diagnostic-v1",
+    );
+    expect(() =>
+      parseMainWireStandard66PhaseLagDiagnosticCliArgumentsV1([
+        "--case",
+        "unregistered",
+        "--arm",
+        "dt-2ms-production",
+      ]),
+    ).toThrow(/preregistered validation-envelope case/);
+    expect(() =>
+      parseMainWireStandard66PhaseLagDiagnosticCliArgumentsV1([
+        "--case",
+        "default",
+        "--arm",
+        "dt-3ms",
+      ]),
+    ).toThrow(/preregistered clock arm/);
+  });
 
   it.each([
     [50, 7.202],

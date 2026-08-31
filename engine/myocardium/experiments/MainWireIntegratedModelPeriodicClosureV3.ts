@@ -36,6 +36,9 @@ import { canonicalJsonStringify } from "@/engine/integrity";
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID =
   "main-wire-integrated-composed-rhythm-full-accepted-state-periodic-closure-v3" as const;
 
+export const MAIN_WIRE_INTEGRATED_MODEL_PHASE_LAG_DIAGNOSTIC_V1_ID =
+  "main-wire-integrated-composed-rhythm-full-accepted-state-phase-lag-diagnostic-v1" as const;
+
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V3 = deepFreeze({
   scope:
     "canonical-provider-main-v3-regular-sinus-composed-rhythm-and-all-off-dynamic-MCS" as const,
@@ -72,6 +75,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V3 = deepFreeze({
 
 export type MainWireIntegratedModelPeriodicAcceptedStateV3 =
   MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+
+export type MainWireIntegratedModelPhaseLagDiagnosticLagV1 = 1 | 2 | 3;
 
 export type MainWireIntegratedModelPeriodicClosureGroupV3 =
   | "coronary-v3"
@@ -123,6 +128,33 @@ export type MainWireIntegratedModelPeriodicClosureGroupReportV3 = Readonly<{
   worstEntry: MainWireIntegratedModelPeriodicDeltaEntryV3 | null;
 }>;
 
+type MainWireIntegratedModelComparisonProvenanceV3<
+  PeriodLag extends MainWireIntegratedModelPhaseLagDiagnosticLagV1,
+> = Readonly<{
+  sourcePeriodSec: number;
+  periodLag: PeriodLag;
+  currentAcceptedTimeSec: number;
+  referenceAcceptedTimeSec: number;
+  acceptedTimeAdvanceSec: number;
+  currentRevision: number;
+  referenceRevision: number;
+  revisionAdvance: number;
+  currentRegularNextSourceSequence: number;
+  referenceRegularNextSourceSequence: number;
+  regularSourceSequenceAdvance: PeriodLag;
+  atrialCaptureCountAdvance: PeriodLag;
+  ventricularCaptureCountAdvance: PeriodLag;
+  deliveredCalciumDepositCountAdvance: PeriodLag extends 1
+    ? 2
+    : PeriodLag extends 2
+      ? 4
+      : 6;
+  proximalAvAcceptedCountAdvance: PeriodLag;
+  distalAcceptedCountAdvance: PeriodLag;
+  ventricularBackupFeedbackCountAdvance: PeriodLag;
+  intervalStrengthCaptureCountAdvance: PeriodLag;
+}>;
+
 export type MainWireIntegratedModelPeriodicClosureReportV3 = Readonly<{
   closureId: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID;
   referenceScaleSetId: string;
@@ -140,26 +172,7 @@ export type MainWireIntegratedModelPeriodicClosureReportV3 = Readonly<{
     allDynamicMcsDevicesOff: true;
     allDynamicMcsInertancesZero: true;
   }>;
-  provenance: Readonly<{
-    sourcePeriodSec: number;
-    periodLag: 1 | 2;
-    currentAcceptedTimeSec: number;
-    referenceAcceptedTimeSec: number;
-    acceptedTimeAdvanceSec: number;
-    currentRevision: number;
-    referenceRevision: number;
-    revisionAdvance: number;
-    currentRegularNextSourceSequence: number;
-    referenceRegularNextSourceSequence: number;
-    regularSourceSequenceAdvance: 1 | 2;
-    atrialCaptureCountAdvance: 1 | 2;
-    ventricularCaptureCountAdvance: 1 | 2;
-    deliveredCalciumDepositCountAdvance: 2 | 4;
-    proximalAvAcceptedCountAdvance: 1 | 2;
-    distalAcceptedCountAdvance: 1 | 2;
-    ventricularBackupFeedbackCountAdvance: 1 | 2;
-    intervalStrengthCaptureCountAdvance: 1 | 2;
-  }>;
+  provenance: MainWireIntegratedModelComparisonProvenanceV3<1 | 2>;
   gates: Readonly<{
     ownerClocksAndRevisionsValid: true;
     modelConfigurationsExact: true;
@@ -192,6 +205,40 @@ export type MainWireIntegratedModelPeriodicClosureReportV3 = Readonly<{
   }>;
 }>;
 
+export type MainWireIntegratedModelPhaseLagDiagnosticReportV1 = Readonly<{
+  diagnosticId: typeof MAIN_WIRE_INTEGRATED_MODEL_PHASE_LAG_DIAGNOSTIC_V1_ID;
+  reportKind: "phase-lag-diagnostic";
+  expectedPeriodLag: MainWireIntegratedModelPhaseLagDiagnosticLagV1;
+  referenceScaleSetId: string;
+  coronaryStateProjection: Readonly<{
+    referenceScaleSetId: string;
+    provenance: MainWireFiveWallCoronaryPeriodicClosureReportV3["provenance"];
+    compatibility: MainWireFiveWallCoronaryPeriodicClosureReportV3["compatibility"];
+    groups: MainWireFiveWallCoronaryPeriodicClosureReportV3["groups"];
+    overall: MainWireFiveWallCoronaryPeriodicClosureReportV3["overall"];
+  }>;
+  compatibility: MainWireIntegratedModelPeriodicClosureReportV3["compatibility"];
+  provenance: MainWireIntegratedModelComparisonProvenanceV3<MainWireIntegratedModelPhaseLagDiagnosticLagV1>;
+  flags: Readonly<{
+    fullAcceptedStateProjectionComplete: true;
+    formalPeriodicClassifierEligible: false;
+    numericalPeriodicityEstablished: false;
+    physiologicalAcceptanceEstablished: false;
+    clinicalValidationClaimed: false;
+  }>;
+  groups: MainWireIntegratedModelPeriodicClosureReportV3["groups"];
+  overall: MainWireIntegratedModelPeriodicClosureReportV3["overall"];
+}>;
+
+type MainWireIntegratedModelComparisonProjectionV3 = Readonly<{
+  referenceScaleSetId: string;
+  coronaryClosure: MainWireFiveWallCoronaryPeriodicClosureReportV3;
+  compatibility: MainWireIntegratedModelPeriodicClosureReportV3["compatibility"];
+  provenance: MainWireIntegratedModelComparisonProvenanceV3<MainWireIntegratedModelPhaseLagDiagnosticLagV1>;
+  groups: MainWireIntegratedModelPeriodicClosureReportV3["groups"];
+  overall: MainWireIntegratedModelPeriodicClosureReportV3["overall"];
+}>;
+
 const GROUP_ORDER = Object.freeze([
   "coronary-v3",
   "dynamic-mcs-q",
@@ -213,6 +260,93 @@ export function compareMainWireIntegratedModelAcceptedStatesV3(
   scales: MainWireIntegratedModelPeriodicReferenceScalesV3 = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
   expectedAllOffConfig: MechanicalSupportConfigV1 = ALL_OFF_CONFIG,
 ): MainWireIntegratedModelPeriodicClosureReportV3 {
+  const projection = compareMainWireIntegratedModelAcceptedStatesCoreV3(
+    current,
+    reference,
+    scales,
+    expectedAllOffConfig,
+    Object.freeze({ kind: "formal-periodic-closure" as const }),
+  );
+  return deepFreeze({
+    closureId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
+    referenceScaleSetId: projection.referenceScaleSetId,
+    coronaryClosure: projection.coronaryClosure,
+    compatibility: projection.compatibility,
+    provenance:
+      projection.provenance as MainWireIntegratedModelPeriodicClosureReportV3["provenance"],
+    gates: {
+      ownerClocksAndRevisionsValid: true as const,
+      modelConfigurationsExact: true as const,
+      regularSinusLineageAdvancesByPeriodLag: true as const,
+      captureAvDistalBackupAndIntervalCountersAdvanceByPeriodLag: true as const,
+      withinStateVentricularLineageExact: true as const,
+      pendingQueuesCompletelyPaired: true as const,
+      dynamicMcsAllOffAndZero: true as const,
+      coronaryV3CompatibilityAndEmptyWindowsSatisfied: true as const,
+    },
+    groups: projection.groups,
+    overall: projection.overall,
+  });
+}
+
+export function compareMainWireIntegratedModelAcceptedStatesForPhaseLagDiagnosticV1(
+  current: MainWireIntegratedModelPeriodicAcceptedStateV3,
+  reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
+  expectedLag: MainWireIntegratedModelPhaseLagDiagnosticLagV1,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3 = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+  expectedAllOffConfig: MechanicalSupportConfigV1 = ALL_OFF_CONFIG,
+): MainWireIntegratedModelPhaseLagDiagnosticReportV1 {
+  validateExpectedDiagnosticLag(expectedLag);
+  const projection = compareMainWireIntegratedModelAcceptedStatesCoreV3(
+    current,
+    reference,
+    scales,
+    expectedAllOffConfig,
+    Object.freeze({
+      kind: "phase-lag-diagnostic" as const,
+      expectedLag,
+    }),
+  );
+  return deepFreeze({
+    diagnosticId: MAIN_WIRE_INTEGRATED_MODEL_PHASE_LAG_DIAGNOSTIC_V1_ID,
+    reportKind: "phase-lag-diagnostic" as const,
+    expectedPeriodLag: expectedLag,
+    referenceScaleSetId: projection.referenceScaleSetId,
+    coronaryStateProjection: {
+      referenceScaleSetId: projection.coronaryClosure.referenceScaleSetId,
+      provenance: projection.coronaryClosure.provenance,
+      compatibility: projection.coronaryClosure.compatibility,
+      groups: projection.coronaryClosure.groups,
+      overall: projection.coronaryClosure.overall,
+    },
+    compatibility: projection.compatibility,
+    provenance: projection.provenance,
+    groups: projection.groups,
+    overall: projection.overall,
+    flags: {
+      fullAcceptedStateProjectionComplete: true as const,
+      formalPeriodicClassifierEligible: false as const,
+      numericalPeriodicityEstablished: false as const,
+      physiologicalAcceptanceEstablished: false as const,
+      clinicalValidationClaimed: false as const,
+    },
+  });
+}
+
+type MainWireIntegratedModelComparisonModeV3 =
+  | Readonly<{ kind: "formal-periodic-closure" }>
+  | Readonly<{
+      kind: "phase-lag-diagnostic";
+      expectedLag: MainWireIntegratedModelPhaseLagDiagnosticLagV1;
+    }>;
+
+function compareMainWireIntegratedModelAcceptedStatesCoreV3(
+  current: MainWireIntegratedModelPeriodicAcceptedStateV3,
+  reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
+  scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
+  expectedAllOffConfig: MechanicalSupportConfigV1,
+  mode: MainWireIntegratedModelComparisonModeV3,
+): MainWireIntegratedModelComparisonProjectionV3 {
   validateScales(scales);
   assertAllOffConfig(expectedAllOffConfig);
   validateState(current, "current", expectedAllOffConfig);
@@ -231,6 +365,7 @@ export function compareMainWireIntegratedModelAcceptedStatesV3(
     current,
     reference,
     coronaryClosure.provenance.autoregulationWindowIndexAdvance,
+    mode,
   );
   validateWithinStateLineage(current, "current");
   validateWithinStateLineage(reference, "reference");
@@ -335,21 +470,10 @@ export function compareMainWireIntegratedModelAcceptedStatesV3(
     (entry) => entry.kind === "exact",
   ).length;
   return deepFreeze({
-    closureId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_V3_ID,
     referenceScaleSetId: scales.scaleSetId,
     coronaryClosure,
     compatibility,
     provenance,
-    gates: {
-      ownerClocksAndRevisionsValid: true as const,
-      modelConfigurationsExact: true as const,
-      regularSinusLineageAdvancesByPeriodLag: true as const,
-      captureAvDistalBackupAndIntervalCountersAdvanceByPeriodLag: true as const,
-      withinStateVentricularLineageExact: true as const,
-      pendingQueuesCompletelyPaired: true as const,
-      dynamicMcsAllOffAndZero: true as const,
-      coronaryV3CompatibilityAndEmptyWindowsSatisfied: true as const,
-    },
     groups,
     overall: {
       coronaryNumericEntryCount: coronaryClosure.overall.numericEntryCount,
@@ -517,7 +641,8 @@ function validateProvenance(
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
   ownedWindowIndexAdvance: number,
-): MainWireIntegratedModelPeriodicClosureReportV3["provenance"] {
+  mode: MainWireIntegratedModelComparisonModeV3,
+): MainWireIntegratedModelComparisonProvenanceV3<MainWireIntegratedModelPhaseLagDiagnosticLagV1> {
   const currentRhythm = current.composedRhythm;
   const referenceRhythm = reference.composedRhythm;
   const currentRegular = currentRhythm.regularAtrialSourceState!;
@@ -530,20 +655,31 @@ function validateProvenance(
   const referenceWindowBinding =
     reference.coronary.coronaryAutoregulationBinding.windowPolicy;
   const candidateLag = ownedWindowIndexAdvance;
+  const ownerPeriodsMatch =
+    period === currentWindowBinding.durationSec &&
+    period === referenceWindowBinding.durationSec;
   if (
-    (candidateLag !== 1 && candidateLag !== 2) ||
-    period !== currentWindowBinding.durationSec ||
-    period !== referenceWindowBinding.durationSec
+    mode.kind === "formal-periodic-closure" &&
+    ((candidateLag !== 1 && candidateLag !== 2) || !ownerPeriodsMatch)
   ) {
     throw new Error(
       "V3 periodic rhythm and coronary owner clocks must advance by exactly P1 or P2",
+    );
+  }
+  if (
+    mode.kind === "phase-lag-diagnostic" &&
+    (candidateLag !== mode.expectedLag || !ownerPeriodsMatch)
+  ) {
+    throw new Error(
+      `V1 phase-lag diagnostic requires an exact P${mode.expectedLag} rhythm and coronary owner-clock advance`,
     );
   }
   // A heart-rate warm start deliberately preserves the regular source phase
   // while rebasing the coronary window at the edit boundary. The two origins
   // therefore need not coincide; exact owner-window boundaries plus the
   // source/capture/deposit counter advances below establish the shared lag.
-  const periodLag = candidateLag as 1 | 2;
+  const periodLag =
+    candidateLag as MainWireIntegratedModelPhaseLagDiagnosticLagV1;
   const revisionAdvance = current.revision - reference.revision;
   if (!Number.isSafeInteger(revisionAdvance) || revisionAdvance <= 0) {
     throw new Error("V3 periodic outer revision must strictly advance");
@@ -805,7 +941,7 @@ function validateProvenance(
     regularSourceSequenceAdvance: periodLag,
     atrialCaptureCountAdvance: periodLag,
     ventricularCaptureCountAdvance: periodLag,
-    deliveredCalciumDepositCountAdvance: (2 * periodLag) as 2 | 4,
+    deliveredCalciumDepositCountAdvance: (2 * periodLag) as 2 | 4 | 6,
     proximalAvAcceptedCountAdvance: periodLag,
     distalAcceptedCountAdvance: periodLag,
     ventricularBackupFeedbackCountAdvance: periodLag,
@@ -1153,7 +1289,7 @@ function addPendingEntries(
   current: MainWireIntegratedModelPeriodicAcceptedStateV3,
   reference: MainWireIntegratedModelPeriodicAcceptedStateV3,
   scales: MainWireIntegratedModelPeriodicReferenceScalesV3,
-  periodLag: 1 | 2,
+  periodLag: MainWireIntegratedModelPhaseLagDiagnosticLagV1,
 ): void {
   const currentRhythm = current.composedRhythm;
   const referenceRhythm = reference.composedRhythm;
@@ -1572,6 +1708,16 @@ function projectCoronaryScales(
       ]),
     ),
   ) as unknown as MainWireFiveWallCoronaryPeriodicReferenceScalesV3;
+}
+
+function validateExpectedDiagnosticLag(
+  expectedLag: MainWireIntegratedModelPhaseLagDiagnosticLagV1,
+): void {
+  if (expectedLag !== 1 && expectedLag !== 2 && expectedLag !== 3) {
+    throw new Error(
+      "V1 phase-lag diagnostic expected lag must be P1, P2, or P3",
+    );
+  }
 }
 
 function validateScales(

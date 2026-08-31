@@ -836,6 +836,22 @@ function validateObservations(
         );
       }
     }
+    if (
+      observation.period1 !== null &&
+      observation.period1.provenance.autoregulationWindowIndexAdvance !== 1
+    ) {
+      throw new Error(
+        "coronary V3 period1 report does not advance exactly one window",
+      );
+    }
+    if (
+      observation.period2 !== null &&
+      observation.period2.provenance.autoregulationWindowIndexAdvance !== 2
+    ) {
+      throw new Error(
+        "coronary V3 period2 report does not advance exactly two windows",
+      );
+    }
     if (observation.period1 !== null && observation.period2 !== null
       && currentAutoregulationProvenance(observation.period1)
         !== currentAutoregulationProvenance(observation.period2)) {

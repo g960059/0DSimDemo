@@ -6,8 +6,14 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PHASE_LAG_DIAGNOSTIC_V1_ID,
+  compareMainWireIntegratedModelAcceptedStatesForPhaseLagDiagnosticV1,
+  compareMainWireIntegratedModelAcceptedStatesV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
@@ -95,6 +101,73 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       ),
     ).toEqual([0, 0, 0, 0]);
   });
+
+  it("keeps formal closure at P1/P2 while the ineligible diagnostic projects the same full-state dimension at P1/P2/P3", () => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const boundaries = [fixture.cold.acceptedState];
+    let accepted = fixture.cold.acceptedState;
+    for (let cycleIndex = 1; cycleIndex <= 3; cycleIndex += 1) {
+      accepted = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+        fixture,
+        accepted,
+        cycleIndex,
+        0.01,
+      ).terminalAcceptedState;
+      boundaries.push(accepted);
+    }
+
+    expect(() =>
+      compareMainWireIntegratedModelAcceptedStatesV3(
+        boundaries[3]!,
+        boundaries[0]!,
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+        fixture.config,
+      )
+    ).toThrow(/exactly P1 or P2/);
+
+    const reports = ([1, 2, 3] as const).map((expectedLag) =>
+      compareMainWireIntegratedModelAcceptedStatesForPhaseLagDiagnosticV1(
+        boundaries[3]!,
+        boundaries[3 - expectedLag]!,
+        expectedLag,
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
+        fixture.config,
+      )
+    );
+    for (const [index, report] of reports.entries()) {
+      expect(report).toMatchObject({
+        diagnosticId: MAIN_WIRE_INTEGRATED_MODEL_PHASE_LAG_DIAGNOSTIC_V1_ID,
+        reportKind: "phase-lag-diagnostic",
+        expectedPeriodLag: index + 1,
+        provenance: { periodLag: index + 1 },
+        flags: {
+          fullAcceptedStateProjectionComplete: true,
+          formalPeriodicClassifierEligible: false,
+          numericalPeriodicityEstablished: false,
+          physiologicalAcceptanceEstablished: false,
+          clinicalValidationClaimed: false,
+        },
+      });
+      expect("closureId" in report).toBe(false);
+      expect("coronaryClosure" in report).toBe(false);
+      expect("closureId" in report.coronaryStateProjection).toBe(false);
+      expect("baseClosure" in report.coronaryStateProjection).toBe(false);
+      expect(Number.isFinite(report.overall.maximumNormalizedDelta)).toBe(true);
+      expect(report.overall.worstPath.length).toBeGreaterThan(0);
+    }
+    expect(new Set(reports.map((report) => report.overall.entryCount)).size)
+      .toBe(1);
+    expect(new Set(reports.map((report) => report.overall.numericEntryCount)).size)
+      .toBe(1);
+    expect(new Set(reports.map((report) => report.overall.exactEntryCount)).size)
+      .toBe(1);
+    expect(new Set(reports.map((report) => report.overall.booleanEntryCount)).size)
+      .toBe(1);
+    expect(reports.map((report) =>
+      Object.values(report.groups).map((group) => group.entryCount)))
+      .toEqual([reports[0], reports[0], reports[0]].map((report) =>
+        Object.values(report.groups).map((group) => group.entryCount)));
+  }, 60_000);
 
   it("keeps the legacy fixture literal while the fixed selected assembly composes its compatible controls without adding hemodynamic state", async () => {
     const legacy = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();

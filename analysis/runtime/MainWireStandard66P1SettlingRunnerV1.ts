@@ -48,7 +48,7 @@ export const MAIN_WIRE_STANDARD66_P1_CONFIRMATION_RUNNER_V1_ID =
 export const MAIN_WIRE_STANDARD66_P1_CONFIRMATION_PROTOCOL_IDENTITY_V1_ID =
   "main-wire-standard66-fresh-p1-confirmation-protocol-identity-v1" as const;
 
-const MAXIMUM_RETAINED_WINDOW_BOUNDARIES_V1 = 3 as const;
+const MAXIMUM_RETAINED_WINDOW_BOUNDARIES_V1 = 4 as const;
 const MAXIMUM_RETAINED_P1_OBSERVATIONS_V1 = 3 as const;
 
 /** Runtime-only provenance; deliberately absent from the serializable report. */
@@ -182,7 +182,7 @@ export type MainWireStandard66P1SettlingResultV1 = Readonly<{
     period1NormalizedTolerance: number;
     consecutiveClosuresRequired: number;
     failedClosureResetsConsecutiveCount: true;
-    retainedWindowBoundaryLimit: 3;
+    retainedWindowBoundaryLimit: 4;
     retainedObservationLimit: 3;
   }>;
   horizons: Readonly<{
@@ -466,6 +466,51 @@ export async function runMainWireStandard66P1SettlingOnLiveSessionV1(
     ventricularContractilityScale: construction.ventricularContractilityScale,
   });
   return runOwnedMainWireStandard66P1SettlingV1(owned, input.liveSession);
+}
+
+/**
+ * Gives same-live-run secondary analyses fail-closed access to the bounded
+ * exact-boundary suffix. Accepted states remain runtime evidence: compact
+ * validation artifacts continue to project only the settlement summary.
+ */
+export function readMainWireStandard66P1SettlingExactBoundarySuffixV1(
+  input: Readonly<{
+    liveSession: MainWireStandard66SelectedTraceLiveSessionV1;
+    settling: MainWireStandard66P1SettlingResultV1;
+  }>,
+): readonly MainWireStandard66P1SettlingWindowBoundaryV1[] {
+  assertMainWireStandard66SelectedTraceLiveSessionV1(input.liveSession);
+  if (
+    SETTLING_RESULT_LIVE_SESSION_BINDINGS_V1.get(input.settling) !==
+    input.liveSession
+  ) {
+    throw new Error(
+      "Standard66 exact-boundary suffix is not privately bound to this live Session",
+    );
+  }
+  const terminal = input.liveSession.session.currentAcceptedState();
+  if (
+    terminal.acceptedTimeSec !== input.settling.terminalAcceptedTimeSec ||
+    terminal.revision !== input.settling.terminalAcceptedRevision
+  ) {
+    throw new Error(
+      "Standard66 exact-boundary suffix live Session is not at the settling terminal",
+    );
+  }
+  const verified = input.settling.retainedWindowBoundaries.map((boundary) => {
+    const rebuilt = boundaryFromStateV1(boundary.acceptedState);
+    if (
+      rebuilt.windowIndex !== boundary.windowIndex ||
+      rebuilt.acceptedTimeSec !== boundary.acceptedTimeSec ||
+      rebuilt.acceptedRevision !== boundary.acceptedRevision
+    ) {
+      throw new Error(
+        "Standard66 retained exact-boundary metadata differs from its accepted state",
+      );
+    }
+    return boundary;
+  });
+  return Object.freeze(verified);
 }
 
 /**
@@ -1064,7 +1109,7 @@ async function runOwnedMainWireStandard66P1SettlingV1(
       consecutiveClosuresRequired:
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SETTLING_PROTOCOL_V1.consecutiveP1ClosuresRequired,
       failedClosureResetsConsecutiveCount: true as const,
-      retainedWindowBoundaryLimit: 3 as const,
+      retainedWindowBoundaryLimit: 4 as const,
       retainedObservationLimit: 3 as const,
     }),
     horizons: Object.freeze({
