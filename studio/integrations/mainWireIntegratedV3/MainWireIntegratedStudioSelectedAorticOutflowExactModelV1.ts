@@ -822,8 +822,8 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       boundExecutionPlan,
     );
 
-    // The fixed matched-alpha assembly has no warm-rebinding contract. Build
-    // and validate the complete replacement before touching the live owner.
+    // The Model Surface does not expose the research-only warm route. Build
+    // and validate the complete cold replacement before touching the owner.
     const candidate =
       await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
         fixture.hemodynamicResearchInputs,

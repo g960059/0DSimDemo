@@ -150,7 +150,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM
       MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
     regularSinusProfileId:
       MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
-    assemblyScope: "cold-fixture-and-same-configuration-stepping" as const,
+    assemblyScope:
+      "cold-fixture-or-explicit-same-heart-rate-research-warm-epoch-and-same-configuration-stepping" as const,
     composedRhythmCalciumOwner:
       "accepted-exact-event-matched-alpha-state" as const,
     coronaryCalciumDriveParamsRole:
@@ -163,7 +164,15 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM
       "fixed-unit-only-to-preserve-selected-matched-alpha-law" as const,
     dynamicMechanicalSupport:
       "existing-explicit-all-off-zero-inertance" as const,
-    warmRuntimeRebindingSupported: false as const,
+    warmRuntimeRebindingSupported: true as const,
+    warmRuntimeRebindingScope:
+      "research-only-same-heart-rate-at-an-exact-empty-coronary-window-boundary" as const,
+    warmRuntimeHeartRateChangeSupported: false as const,
+    warmRuntimeTargetBundle:
+      "hemodynamics-mechanism-and-contractility-explicit" as const,
+    warmRuntimeRebindingStatePolicy:
+      "adapt-exact-model-state-reset-beat-analysis-readback-and-predictor" as const,
+    warmRuntimeRebindingFormalValidationEligible: false as const,
     newContinuousStateAdded: false as const,
     legacyDefaultFixtureSelection:
       "canonical-provider-and-absent-selected-aortic-outflow-profile" as const,

@@ -78,6 +78,9 @@ type RestoredStandard66V1 =
     MainWireNormalAdultFiveWallMechanicsStateV1
   >;
 
+type Standard66AcceptedStateV1 =
+  MainWireIntegratedModelSelectedAorticOutflowFixtureV1["cold"]["acceptedState"];
+
 /**
  * Public selected-model owner. Numerical advancement remains entirely in the
  * established typed-authority Session; this thin boundary only composes the
@@ -100,11 +103,21 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
       MainWireSelectedAorticPortSessionExtensionV1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
     restored: RestoredStandard66V1 | null = null,
+    warmAcceptedState: Standard66AcceptedStateV1 | null = null,
   ) {
+    if (restored !== null && warmAcceptedState !== null) {
+      throw new Error(
+        "Standard66 Session cannot restore and warm-start the same epoch",
+      );
+    }
     super(
       runtime,
-      restored?.acceptedState ?? runtime.cold.acceptedState,
-      restored === null ? "cold" : "standard-exact-checkpoint-restore",
+      warmAcceptedState ?? restored?.acceptedState ?? runtime.cold.acceptedState,
+      warmAcceptedState !== null
+        ? "hemodynamic-input-warm-start"
+        : restored === null
+          ? "cold"
+          : "standard-exact-checkpoint-restore",
       null,
       restored ?? undefined,
       executionPlanInitialization,
@@ -139,6 +152,45 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
       runtime,
       extension,
       executionPlanInitialization,
+    );
+  }
+
+  /**
+   * Starts a new selected-model research epoch from this exact accepted root.
+   * Numerical state is adapted by the established warm-start law. Beat
+   * accumulators, instantaneous readback, and predictor history intentionally
+   * restart so no derived result spans an authored-input edit.
+   */
+  override async warmStartWithHemodynamicResearchInputs(
+    inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+    ventricularContractilityScale?: number,
+    executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3,
+  ): Promise<MainWireIntegratedModelStandard66TypedAuthoritySessionV1> {
+    if (
+      ventricularContractilityScale === undefined
+      || mechanismResearchInputs === undefined
+    ) {
+      throw new Error(
+        "Standard66 research warm start requires an explicit complete target mechanism and contractility bundle",
+      );
+    }
+    const targetRuntime =
+      createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+        inputs,
+        ventricularContractilityScale,
+        mechanismResearchInputs,
+      );
+    const acceptedState =
+      this.warmStartSelectedAorticAcceptedStateV1(targetRuntime);
+    const extension =
+      MainWireSelectedAorticPortSessionExtensionV1.createColdV1();
+    return new MainWireIntegratedModelStandard66TypedAuthoritySessionV1(
+      targetRuntime,
+      extension,
+      executionPlanInitialization,
+      null,
+      acceptedState,
     );
   }
 

@@ -46,9 +46,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
-import type {
-  CoronaryAcceptedAutoregulationStateV3,
-  CoronaryAutoregulationWindowControlV3,
+import {
+  canonicalCoronaryAutoregulationWindowStartTimeV3,
+  type CoronaryAcceptedAutoregulationStateV3,
+  type CoronaryAutoregulationWindowControlV3,
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import {
   advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3,
@@ -835,6 +836,67 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       undefined,
       executionPlanInitialization,
     );
+  }
+
+  /**
+   * Adapts the selected Standard66 accepted root to another selected fixture.
+   * The selected subclass remains responsible for creating fresh exact-output
+   * owners and a fresh execution-plan workspace for the new authored epoch.
+   */
+  protected warmStartSelectedAorticAcceptedStateV1(
+    targetRuntime: MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+  ): AcceptedState {
+    this.assertSessionUsableV1();
+    if (!isSelectedAorticOutflowRuntimeV1(this.#runtime)) {
+      throw new Error(
+        "selected aortic warm start requires the selected Session owner",
+      );
+    }
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic warm start requires its Session extension owner",
+      );
+    }
+    if (
+      this.#runtime.hemodynamicResearchInputs.heartRateBpm
+        !== targetRuntime.hemodynamicResearchInputs.heartRateBpm
+      || this.#runtime.cycleLengthSec !== targetRuntime.cycleLengthSec
+    ) {
+      throw new Error(
+        "selected aortic research warm start requires the same heart rate",
+      );
+    }
+    const source = this.#authority.snapshot();
+    const window = source.coronary.coronaryAutoregulation;
+    const binding = source.coronary.coronaryAutoregulationBinding;
+    const canonicalWindowStartSec =
+      canonicalCoronaryAutoregulationWindowStartTimeV3(
+        binding,
+        window.windowIndex,
+      );
+    if (
+      source.acceptedTimeSec !== canonicalWindowStartSec
+      || window.windowStartAcceptedTimeSec !== canonicalWindowStartSec
+      || window.windowStartRevision !== source.revision
+      || window.acceptedDurationSec !== 0
+      || window.acceptedStepCount !== 0
+      || window.windowControl !== null
+      || Object.values(window.qmTimeIntegralMlByTerritoryLayer).some(
+        (layers) => Object.values(layers).some((value) => value !== 0),
+      )
+      || Object.values(
+        window.perfusionPressureTimeIntegralMmHgSecByTerritory,
+      ).some((value) => value !== 0)
+    ) {
+      throw new Error(
+        "selected aortic research warm start requires an exact empty coronary-window boundary",
+      );
+    }
+    return warmStartMainWireIntegratedModelV3({
+      source,
+      sourceRuntime: this.#runtime,
+      targetRuntime,
+    });
   }
 
   observe(): MainWireIntegratedModelObservationV3 {

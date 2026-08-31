@@ -10,11 +10,14 @@ import {
   measureMainWireStandard66TerminalBeatValidationV1,
 } from "@/analysis/methods/mainWire/MainWireStandard66TerminalBeatValidationMeasurementsV1";
 import {
+  assertMainWireStandard66ResearchContinuationLiveSessionV1,
   assertMainWireStandard66SelectedTraceLiveSessionV1,
   continueMainWireStandard66SelectedTraceFromLiveSessionV1,
+  createMainWireStandard66ResearchContinuationLiveSessionV1,
   createMainWireStandard66SelectedTraceLiveSessionV1,
   mainWireStandard66SelectedTraceLatestFlowTimingInputV1,
   mainWireStandard66SelectedTracePressureSamplesV1,
+  readMainWireStandard66ResearchContinuationConstructionV1,
   readMainWireStandard66SelectedTraceLiveSessionConstructionV1,
   runMainWireStandard66SelectedTraceV1,
   type MainWireStandard66SelectedTraceEndpointV1,
@@ -284,11 +287,7 @@ describe("Standard66 selected accepted-endpoint trace runner V1", () => {
     expect(Object.isFrozen(construction.mechanismResearchInputs)).toBe(true);
     expect(Object.isFrozen(construction.mechanismResearchInputs.valveAreas))
       .toBe(true);
-    const forged = Object.freeze({
-      routeIdentity: genuine.routeIdentity,
-      construction: genuine.construction,
-      session: genuine.session,
-    });
+    const forged = Object.freeze({ ...genuine });
 
     expect(() => assertMainWireStandard66SelectedTraceLiveSessionV1(forged))
       .toThrow(/privately branded production-route live-session handle/);
@@ -297,11 +296,168 @@ describe("Standard66 selected accepted-endpoint trace runner V1", () => {
         forged as unknown as MainWireStandard66SelectedTraceLiveSessionV1,
       requestedBoundaryIntervalSec: 0.002,
     })).toThrow(/privately branded production-route live-session handle/);
+    const other =
+      await createMainWireStandard66SelectedTraceLiveSessionV1();
+    const swapped = Object.freeze({
+      ...genuine,
+      session: other.session,
+    });
+    expect(() => assertMainWireStandard66SelectedTraceLiveSessionV1(swapped))
+      .toThrow(/privately branded production-route live-session handle/);
     expect(genuine.session.currentAcceptedState()).toMatchObject({
       acceptedTimeSec: 0,
       revision: 0,
     });
   });
+
+  it("brands a warm research epoch separately and installs a fresh production route", async () => {
+    const sourceMechanismInputs = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+      valveAreas: Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+          .valveAreas,
+        AoV: Object.freeze({
+          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+            .valveAreas.AoV,
+          maximumForwardEoaCm2: 3.4,
+        }),
+      }),
+    });
+    const source =
+      await createMainWireStandard66SelectedTraceLiveSessionV1({
+        mechanismResearchInputs: sourceMechanismInputs,
+        ventricularContractilityScale: 1.1,
+      });
+    const targetInputs = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      totalBloodVolumeMl: 5_000,
+    });
+    await expect(
+      createMainWireStandard66ResearchContinuationLiveSessionV1({
+        sourceLiveSession: source,
+        hemodynamicResearchInputs: Object.freeze({
+          ...targetInputs,
+          heartRateBpm: 90,
+        }),
+        sourceEvidenceReference: Object.freeze({
+          kind: "bounded-test-only" as const,
+          evidenceRunnerId: "selected-trace-heart-rate-rejection-test",
+          evidenceIdentityHash: null,
+          evidenceStatus: "cold-boundary-test",
+        }),
+      }),
+    ).rejects.toThrow(/requires the same heart rate/);
+    const continuation =
+      await createMainWireStandard66ResearchContinuationLiveSessionV1({
+        sourceLiveSession: source,
+        hemodynamicResearchInputs: targetInputs,
+        sourceEvidenceReference: Object.freeze({
+          kind: "bounded-test-only" as const,
+          evidenceRunnerId: "selected-trace-test",
+          evidenceIdentityHash: null,
+          evidenceStatus: "cold-boundary-test",
+        }),
+      });
+    const construction =
+      readMainWireStandard66ResearchContinuationConstructionV1(continuation);
+    expect(construction).toMatchObject({
+      initialization: "hemodynamic-research-continuation",
+      sourceEpoch: {
+        acceptedTimeSec: 0,
+        acceptedRevision: 0,
+        exactEmptyCoronaryWindowBoundary: true,
+      },
+      target: {
+        hemodynamicResearchInputs: targetInputs,
+        mechanismResearchInputs: sourceMechanismInputs,
+        ventricularContractilityScale: 1.1,
+      },
+      targetEpoch: {
+        acceptedTimeSec: 0,
+        acceptedRevision: 0,
+        exactEmptyCoronaryWindowBoundary: true,
+        initialWindowIndex: 0,
+      },
+      semantics: {
+        beatAnalysisEpochReset: true,
+        instantaneousReadbackReset: true,
+        coupledPredictorHistoryReset: true,
+        sourceEvidenceVerifiedByFactory: false,
+        heartRatePreserved: true,
+        coronaryWindowAtTarget:
+          "preserve-source-exact-boundary-origin-and-index",
+        freshProductionExecutionPlanRoute: true,
+        formalValidationEligible: false,
+      },
+    });
+    expect(construction.sourceEpoch.constructionIdentitySha256)
+      .toMatch(/^[0-9a-f]{64}$/);
+    expect(construction.sourceEpoch.acceptedStateIdentitySha256)
+      .toMatch(/^[0-9a-f]{64}$/);
+    expect(construction.targetEpoch.acceptedStateIdentitySha256)
+      .toMatch(/^[0-9a-f]{64}$/);
+    expect(continuation.session.currentAcceptedState()).toMatchObject({
+      acceptedTimeSec: 0,
+      revision: 0,
+      coronary: {
+        fixedGlobalTotalBloodVolumeMl: 5_000,
+        coronaryAutoregulation: {
+          windowIndex: 0,
+          acceptedDurationSec: 0,
+          acceptedStepCount: 0,
+        },
+      },
+    });
+    expect(continuation.session.coupledPredictorReport()).toMatchObject({
+      hasAcceptedPair: false,
+      historyDepth: 0,
+    });
+    expect(() =>
+      assertMainWireStandard66SelectedTraceLiveSessionV1(continuation),
+    ).toThrow(/privately branded production-route live-session handle/);
+
+    const chained =
+      await createMainWireStandard66ResearchContinuationLiveSessionV1({
+        sourceLiveSession: continuation,
+        hemodynamicResearchInputs: Object.freeze({
+          ...targetInputs,
+          totalBloodVolumeMl: 5_100,
+        }),
+        sourceEvidenceReference: Object.freeze({
+          kind: "bounded-test-only" as const,
+          evidenceRunnerId: "selected-trace-chained-test",
+          evidenceIdentityHash: null,
+          evidenceStatus: "exact-boundary-test",
+        }),
+      });
+    expect(readMainWireStandard66ResearchContinuationConstructionV1(chained)
+      .target).toMatchObject({
+        mechanismResearchInputs: sourceMechanismInputs,
+        ventricularContractilityScale: 1.1,
+      });
+
+    const advanced = continuation.session
+      .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+        0.002,
+        Object.freeze([]),
+      );
+    expect(advanced.advance).toMatchObject({
+      status: "advanced",
+      acceptedTimeSec: 0.002,
+      acceptedRevision: 1,
+    });
+    const forged = Object.freeze({ ...continuation });
+    expect(() =>
+      assertMainWireStandard66ResearchContinuationLiveSessionV1(forged),
+    ).toThrow(/private production-route brand/);
+    const swapped = Object.freeze({
+      ...continuation,
+      session: source.session,
+    });
+    expect(() =>
+      assertMainWireStandard66ResearchContinuationLiveSessionV1(swapped),
+    ).toThrow(/private production-route brand/);
+  }, 120_000);
 });
 
 function landingEndpointV1(

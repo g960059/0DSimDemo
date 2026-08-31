@@ -169,6 +169,7 @@ export const regressionTests = [
   "__tests__/mainWireStandard66ValidationTimestepComparisonArtifactV1.test.ts",
   "__tests__/mainWireStandard66ValidationEnvelopeSummaryV1.test.ts",
   "__tests__/mainWireStandard66SelectedTraceRunnerV1.test.ts",
+  "__tests__/mainWireStandard66ResearchContinuationPhaseScreenRunnerV1.test.ts",
   "__tests__/mainWireStandard66TerminalBeatValidationMeasurementsV1.test.ts",
   "__tests__/mainWireStandard66AorticOutflowShapeDiagnosticV1.test.ts",
   "__tests__/mainWireStandard66TimestepComparisonV1.test.ts",

@@ -34,6 +34,17 @@ type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
 
+type WarmStartRuntime = Pick<
+  MainWireIntegratedModelRuntimeV3,
+  | "hemodynamicResearchInputs"
+  | "runtime"
+  | "cycleLengthSec"
+  | "provider"
+  | "rhythm"
+  | "profile"
+  | "config"
+>;
+
 /**
  * Adapts one accepted `(revision, t, state)` tuple to a new bounded research
  * input fixture without returning to the cold operating point.
@@ -47,8 +58,8 @@ type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
  */
 export function warmStartMainWireIntegratedModelV3(input: Readonly<{
   source: AcceptedState;
-  sourceRuntime: MainWireIntegratedModelRuntimeV3;
-  targetRuntime: MainWireIntegratedModelRuntimeV3;
+  sourceRuntime: WarmStartRuntime;
+  targetRuntime: WarmStartRuntime;
 }>): AcceptedState {
   const { source, sourceRuntime, targetRuntime } = input;
   validateMainWireIntegratedModelAcceptedStateV3(

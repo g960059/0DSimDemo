@@ -31,6 +31,23 @@ export async function sha256TextHex(text: string): Promise<string> {
     byte.toString(16).padStart(2, "0")).join("");
 }
 
+/** Browser/Node-neutral SHA-256 for an already canonical binary image. */
+export async function sha256BytesHex(bytes: Uint8Array): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    throw new Sha256DigestUnavailableError(
+      "Web Crypto subtle.digest is required for SHA-256 integrity",
+    );
+  }
+  if (!(bytes instanceof Uint8Array)) {
+    throw new Error("SHA-256 binary input must be a Uint8Array");
+  }
+  const owned = new Uint8Array(bytes);
+  const digest = await subtle.digest(SHA256_DIGEST_ALGORITHM_V1, owned);
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0")).join("");
+}
+
 export async function sha256CanonicalJsonHex(value: unknown): Promise<string> {
   return sha256TextHex(canonicalJsonStringify(value));
 }

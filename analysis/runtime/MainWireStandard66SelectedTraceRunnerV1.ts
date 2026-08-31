@@ -20,6 +20,12 @@ import {
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
+  canonicalCoronaryAutoregulationWindowStartTimeV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_WARM_START_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard66ValidationPreregistrationV1";
 import type {
@@ -36,6 +42,10 @@ import {
 import {
   isTransitivelyFrozenPlainDataV1,
 } from "@/engine/validationStampModeV1";
+import {
+  sha256BytesHex,
+  sha256CanonicalJsonHex,
+} from "@/engine/integrity";
 import {
   MainWireIntegratedModelStandard66TypedAuthoritySessionV1,
   type MainWireIntegratedModelStandard66AcceptedEndpointProjectionV1,
@@ -61,12 +71,28 @@ export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID =
 export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_CONSTRUCTION_V1_ID =
   "main-wire-standard66-selected-trace-live-session-construction-v1" as const;
 
+export const MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID =
+  "main-wire-standard66-research-continuation-production-route-live-session-v1" as const;
+
+export const MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_CONSTRUCTION_V1_ID =
+  "main-wire-standard66-research-continuation-construction-v1" as const;
+
 export const MAIN_WIRE_STANDARD66_SELECTED_TRACE_TERMINAL_MARGIN_SEC_V1 =
   0.02 as const;
 
 const LIVE_SESSION_ROUTE_V1 = Symbol(
   MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
 );
+
+const RESEARCH_CONTINUATION_ROUTE_V1 = Symbol(
+  MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID,
+);
+
+// A Symbol property alone is copyable via object spread or Reflect. These
+// registries make the exact factory-minted handle object part of the trust
+// boundary, so a clone or a handle with a swapped Session cannot be accepted.
+const SELECTED_TRACE_LIVE_SESSION_HANDLES_V1 = new WeakSet<object>();
+const RESEARCH_CONTINUATION_LIVE_SESSION_HANDLES_V1 = new WeakSet<object>();
 
 export type MainWireStandard66SelectedTraceBoundaryIntervalSecV1 =
   (typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_VALIDATION_CLOCK_ARMS_V1)[number]["requestedStepSec"];
@@ -141,6 +167,92 @@ export type MainWireStandard66SelectedTraceLiveSessionV1 = Readonly<{
   [LIVE_SESSION_ROUTE_V1]: ReturnType<
     typeof createProductionExecutionPlanRouteV1
   >;
+}>;
+
+export type MainWireStandard66ResearchContinuationConstructionV1 =
+  Readonly<{
+    constructionId:
+      typeof MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_CONSTRUCTION_V1_ID;
+    initialization: "hemodynamic-research-continuation";
+    adaptationId: typeof MAIN_WIRE_INTEGRATED_MODEL_WARM_START_V3_ID;
+    sourceEpoch: Readonly<{
+      routeIdentity:
+        | typeof MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+        | typeof MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID;
+      constructionIdentitySha256: string;
+      acceptedStateIdentitySha256: string;
+      acceptedTimeSec: number;
+      acceptedRevision: number;
+      exactEmptyCoronaryWindowBoundary: true;
+      declaredEvidence: Readonly<{
+        kind:
+          | "research-p1-confirmed"
+          | "phase-lag-anchor"
+          | "bounded-test-only";
+        evidenceRunnerId: string;
+        evidenceIdentityHash: string | null;
+        evidenceStatus: string;
+      }>;
+    }>;
+    target: Readonly<{
+      hemodynamicResearchInputs:
+        MainWireIntegratedModelHemodynamicResearchInputsV3;
+      mechanismResearchInputs:
+        MainWireIntegratedModelMechanismResearchInputsV3;
+      ventricularContractilityScale: number;
+    }>;
+    targetEpoch: Readonly<{
+      acceptedStateIdentitySha256: string;
+      acceptedTimeSec: number;
+      acceptedRevision: number;
+      exactEmptyCoronaryWindowBoundary: true;
+      initialWindowIndex: number;
+    }>;
+    semantics: Readonly<{
+      acceptedClockPreserved: true;
+      acceptedModelStateAdapted: true;
+      beatAnalysisEpochReset: true;
+      instantaneousReadbackReset: true;
+      coupledPredictorHistoryReset: true;
+      sourceEvidenceVerifiedByFactory: false;
+      heartRatePreserved: true;
+      coronaryWindowAtTarget: "preserve-source-exact-boundary-origin-and-index";
+      freshProductionExecutionPlanRoute: true;
+      exactModelMutation: false;
+      formalValidationEligible: false;
+    }>;
+  }>;
+
+export type MainWireStandard66ResearchContinuationLiveSessionV1 = Readonly<{
+  routeIdentity:
+    typeof MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID;
+  construction: MainWireStandard66ResearchContinuationConstructionV1;
+  session: MainWireIntegratedModelStandard66TypedAuthoritySessionV1;
+  [RESEARCH_CONTINUATION_ROUTE_V1]: ReturnType<
+    typeof createProductionExecutionPlanRouteV1
+  >;
+}>;
+
+export type MainWireStandard66ResearchContinuationSourceLiveSessionV1 =
+  | MainWireStandard66SelectedTraceLiveSessionV1
+  | MainWireStandard66ResearchContinuationLiveSessionV1;
+
+export type MainWireStandard66ResearchContinuationCreateInputV1 = Readonly<{
+  sourceLiveSession:
+    MainWireStandard66ResearchContinuationSourceLiveSessionV1;
+  hemodynamicResearchInputs:
+    MainWireIntegratedModelHemodynamicResearchInputsV3;
+  mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
+  ventricularContractilityScale?: number;
+  sourceEvidenceReference: Readonly<{
+    kind:
+      | "research-p1-confirmed"
+      | "phase-lag-anchor"
+      | "bounded-test-only";
+    evidenceRunnerId: string;
+    evidenceIdentityHash: string | null;
+    evidenceStatus: string;
+  }>;
 }>;
 
 export type MainWireStandard66SelectedTraceLiveContinuationInputV1 =
@@ -301,7 +413,7 @@ export async function createMainWireStandard66SelectedTraceLiveSessionV1(
       route.initialization,
       owned.mechanismResearchInputs,
     );
-  return Object.freeze({
+  const handle = Object.freeze({
     routeIdentity:
       MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID,
     construction: Object.freeze({
@@ -314,6 +426,177 @@ export async function createMainWireStandard66SelectedTraceLiveSessionV1(
     session,
     [LIVE_SESSION_ROUTE_V1]: route,
   });
+  SELECTED_TRACE_LIVE_SESSION_HANDLES_V1.add(handle);
+  return handle;
+}
+
+/**
+ * Starts a separately branded research epoch from an exact empty coronary
+ * boundary. It reuses neither the source workspace nor any beat-analysis
+ * result, and it is intentionally ineligible for the cold formal P1 runner.
+ */
+export async function createMainWireStandard66ResearchContinuationLiveSessionV1(
+  input: MainWireStandard66ResearchContinuationCreateInputV1,
+): Promise<MainWireStandard66ResearchContinuationLiveSessionV1> {
+  assertMainWireStandard66ResearchContinuationSourceLiveSessionV1(
+    input.sourceLiveSession,
+  );
+  const sourceState = input.sourceLiveSession.session.currentAcceptedState();
+  assertExactEmptyCoronaryWindowBoundaryV1(
+    sourceState,
+    "Standard66 research continuation source",
+  );
+  const sourceAuthoredInputs =
+    readResearchContinuationSourceAuthoredInputsV1(input.sourceLiveSession);
+  const owned = ownLiveSessionCreateInputV1({
+    hemodynamicResearchInputs: input.hemodynamicResearchInputs,
+    mechanismResearchInputs:
+      input.mechanismResearchInputs
+      ?? sourceAuthoredInputs.mechanismResearchInputs,
+    ventricularContractilityScale:
+      input.ventricularContractilityScale
+      ?? sourceAuthoredInputs.ventricularContractilityScale,
+  });
+  if (
+    owned.hemodynamicResearchInputs.heartRateBpm
+      !== sourceAuthoredInputs.hemodynamicResearchInputs.heartRateBpm
+  ) {
+    throw new Error(
+      "Standard66 research continuation requires the same heart rate as its source epoch",
+    );
+  }
+  const sourceEvidenceReference = ownResearchContinuationEvidenceReferenceV1(
+    input.sourceEvidenceReference,
+  );
+  const sourceConstruction = input.sourceLiveSession.construction;
+  const sourceConstructionIdentityPromise = sha256CanonicalJsonHex(
+    sourceConstruction,
+  );
+  const sourceAcceptedStateIdentityPromise = sha256BytesHex(
+    input.sourceLiveSession.session.snapshotAcceptedStateBytes(),
+  );
+  const route = createProductionExecutionPlanRouteV1();
+  // Start the warm adaptation before the first digest can yield. The source
+  // accepted root used by the new Session is therefore the one hashed above.
+  const sessionPromise = input.sourceLiveSession.session
+      .warmStartWithHemodynamicResearchInputs(
+        owned.hemodynamicResearchInputs,
+        owned.ventricularContractilityScale,
+        route.initialization,
+        owned.mechanismResearchInputs,
+      );
+  const [
+    sourceConstructionIdentitySha256,
+    sourceAcceptedStateIdentitySha256,
+    session,
+  ] = await Promise.all([
+    sourceConstructionIdentityPromise,
+    sourceAcceptedStateIdentityPromise,
+    sessionPromise,
+  ]);
+  const sourceAfterAdaptation =
+    input.sourceLiveSession.session.currentAcceptedState();
+  if (
+    sourceAfterAdaptation.acceptedTimeSec !== sourceState.acceptedTimeSec
+    || sourceAfterAdaptation.revision !== sourceState.revision
+  ) {
+    throw new Error(
+      "Standard66 research continuation source epoch advanced during construction",
+    );
+  }
+  const targetState = session.currentAcceptedState();
+  if (
+    targetState.acceptedTimeSec !== sourceState.acceptedTimeSec
+    || targetState.revision !== sourceState.revision
+  ) {
+    throw new Error(
+      "Standard66 research continuation changed the accepted clock",
+    );
+  }
+  assertExactEmptyCoronaryWindowBoundaryV1(
+    targetState,
+    "Standard66 research continuation target",
+  );
+  const sourceWindowPolicy = sourceState.coronary
+    .coronaryAutoregulationBinding.windowPolicy;
+  const targetWindowPolicy = targetState.coronary
+    .coronaryAutoregulationBinding.windowPolicy;
+  if (
+    targetWindowPolicy.originAcceptedTimeSec
+      !== sourceWindowPolicy.originAcceptedTimeSec
+    || targetWindowPolicy.durationSec !== sourceWindowPolicy.durationSec
+    || targetWindowPolicy.interpretation !== sourceWindowPolicy.interpretation
+    || targetState.coronary.coronaryAutoregulation.windowIndex
+      !== sourceState.coronary.coronaryAutoregulation.windowIndex
+  ) {
+    throw new Error(
+      "Standard66 same-heart-rate continuation changed its coronary window owner",
+    );
+  }
+  const targetAcceptedStateIdentitySha256 = await sha256BytesHex(
+    session.snapshotAcceptedStateBytes(),
+  );
+  const sourceAfterTargetDigest =
+    input.sourceLiveSession.session.currentAcceptedState();
+  if (
+    sourceAfterTargetDigest.acceptedTimeSec !== sourceState.acceptedTimeSec
+    || sourceAfterTargetDigest.revision !== sourceState.revision
+  ) {
+    throw new Error(
+      "Standard66 research continuation source epoch advanced during target identity capture",
+    );
+  }
+  const construction = Object.freeze({
+    constructionId:
+      MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_CONSTRUCTION_V1_ID,
+    initialization: "hemodynamic-research-continuation" as const,
+    adaptationId: MAIN_WIRE_INTEGRATED_MODEL_WARM_START_V3_ID,
+    sourceEpoch: Object.freeze({
+      routeIdentity: input.sourceLiveSession.routeIdentity,
+      constructionIdentitySha256: sourceConstructionIdentitySha256,
+      acceptedStateIdentitySha256: sourceAcceptedStateIdentitySha256,
+      acceptedTimeSec: sourceState.acceptedTimeSec,
+      acceptedRevision: sourceState.revision,
+      exactEmptyCoronaryWindowBoundary: true as const,
+      declaredEvidence: sourceEvidenceReference,
+    }),
+    target: Object.freeze({
+      hemodynamicResearchInputs: owned.hemodynamicResearchInputs,
+      mechanismResearchInputs: owned.mechanismResearchInputs,
+      ventricularContractilityScale: owned.ventricularContractilityScale,
+    }),
+    targetEpoch: Object.freeze({
+      acceptedStateIdentitySha256: targetAcceptedStateIdentitySha256,
+      acceptedTimeSec: targetState.acceptedTimeSec,
+      acceptedRevision: targetState.revision,
+      exactEmptyCoronaryWindowBoundary: true as const,
+      initialWindowIndex:
+        targetState.coronary.coronaryAutoregulation.windowIndex,
+    }),
+    semantics: Object.freeze({
+      acceptedClockPreserved: true as const,
+      acceptedModelStateAdapted: true as const,
+      beatAnalysisEpochReset: true as const,
+      instantaneousReadbackReset: true as const,
+      coupledPredictorHistoryReset: true as const,
+      sourceEvidenceVerifiedByFactory: false as const,
+      heartRatePreserved: true as const,
+      coronaryWindowAtTarget:
+        "preserve-source-exact-boundary-origin-and-index" as const,
+      freshProductionExecutionPlanRoute: true as const,
+      exactModelMutation: false as const,
+      formalValidationEligible: false as const,
+    }),
+  }) satisfies MainWireStandard66ResearchContinuationConstructionV1;
+  const handle = Object.freeze({
+    routeIdentity:
+      MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID,
+    construction,
+    session,
+    [RESEARCH_CONTINUATION_ROUTE_V1]: route,
+  });
+  RESEARCH_CONTINUATION_LIVE_SESSION_HANDLES_V1.add(handle);
+  return handle;
 }
 
 /**
@@ -327,6 +610,7 @@ export function assertMainWireStandard66SelectedTraceLiveSessionV1(
   if (
     value === null
     || typeof value !== "object"
+    || !SELECTED_TRACE_LIVE_SESSION_HANDLES_V1.has(value)
     || !("routeIdentity" in value)
     || value.routeIdentity
       !== MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
@@ -342,6 +626,37 @@ export function assertMainWireStandard66SelectedTraceLiveSessionV1(
       "Standard66 analysis requires a privately branded production-route live-session handle",
     );
   }
+}
+
+export function assertMainWireStandard66ResearchContinuationLiveSessionV1(
+  value: unknown,
+): asserts value is MainWireStandard66ResearchContinuationLiveSessionV1 {
+  if (
+    value === null
+    || typeof value !== "object"
+    || !RESEARCH_CONTINUATION_LIVE_SESSION_HANDLES_V1.has(value)
+    || !("routeIdentity" in value)
+    || value.routeIdentity
+      !== MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID
+    || !(RESEARCH_CONTINUATION_ROUTE_V1 in value)
+    || value[RESEARCH_CONTINUATION_ROUTE_V1] === undefined
+    || !("construction" in value)
+    || !isOwnedResearchContinuationConstructionV1(value.construction)
+    || !("session" in value)
+    || !(value.session
+      instanceof MainWireIntegratedModelStandard66TypedAuthoritySessionV1)
+  ) {
+    throw new Error(
+      "Standard66 research continuation requires its private production-route brand",
+    );
+  }
+}
+
+export function readMainWireStandard66ResearchContinuationConstructionV1(
+  value: unknown,
+): MainWireStandard66ResearchContinuationConstructionV1 {
+  assertMainWireStandard66ResearchContinuationLiveSessionV1(value);
+  return value.construction;
 }
 
 /** Returns immutable factory inputs only after the private route-brand check. */
@@ -1294,6 +1609,225 @@ function isOwnedLiveSessionConstructionV1(
     && typeof record.ventricularContractilityScale === "number"
     && Number.isFinite(record.ventricularContractilityScale)
     && record.ventricularContractilityScale > 0;
+}
+
+function assertMainWireStandard66ResearchContinuationSourceLiveSessionV1(
+  value: unknown,
+): asserts value is MainWireStandard66ResearchContinuationSourceLiveSessionV1 {
+  if (
+    value !== null
+    && typeof value === "object"
+    && "routeIdentity" in value
+    && value.routeIdentity
+      === MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+  ) {
+    assertMainWireStandard66SelectedTraceLiveSessionV1(value);
+    return;
+  }
+  assertMainWireStandard66ResearchContinuationLiveSessionV1(value);
+}
+
+function readResearchContinuationSourceAuthoredInputsV1(
+  source: MainWireStandard66ResearchContinuationSourceLiveSessionV1,
+) {
+  if (
+    source.routeIdentity
+      === MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+  ) {
+    return source.construction;
+  }
+  return source.construction.target;
+}
+
+function ownResearchContinuationEvidenceReferenceV1(
+  value: MainWireStandard66ResearchContinuationCreateInputV1[
+    "sourceEvidenceReference"
+  ],
+): MainWireStandard66ResearchContinuationConstructionV1[
+  "sourceEpoch"
+]["declaredEvidence"] {
+  if (
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || Object.keys(value).sort().join("|")
+      !== [
+        "evidenceIdentityHash",
+        "evidenceRunnerId",
+        "evidenceStatus",
+        "kind",
+      ].sort().join("|")
+    || (
+      value.kind !== "research-p1-confirmed"
+      && value.kind !== "phase-lag-anchor"
+      && value.kind !== "bounded-test-only"
+    )
+    || typeof value.evidenceRunnerId !== "string"
+    || value.evidenceRunnerId.trim() === ""
+    || (
+      value.evidenceIdentityHash !== null
+      && (
+        typeof value.evidenceIdentityHash !== "string"
+        || !/^[0-9a-f]{64}$/.test(value.evidenceIdentityHash)
+      )
+    )
+    || typeof value.evidenceStatus !== "string"
+    || value.evidenceStatus.trim() === ""
+  ) {
+    throw new Error(
+      "Standard66 research continuation source evidence reference is invalid",
+    );
+  }
+  if (
+    value.kind !== "bounded-test-only"
+    && value.evidenceIdentityHash === null
+  ) {
+    throw new Error(
+      "Standard66 research continuation evidence reference requires an identity hash",
+    );
+  }
+  return Object.freeze({
+    kind: value.kind,
+    evidenceRunnerId: value.evidenceRunnerId,
+    evidenceIdentityHash: value.evidenceIdentityHash,
+    evidenceStatus: value.evidenceStatus,
+  });
+}
+
+function isOwnedResearchContinuationConstructionV1(
+  value: unknown,
+): value is MainWireStandard66ResearchContinuationConstructionV1 {
+  if (
+    value === null
+    || typeof value !== "object"
+    || !isTransitivelyFrozenPlainDataV1(value)
+  ) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  const actualKeys = Object.keys(record).sort();
+  const expectedKeys = [
+    "constructionId",
+    "initialization",
+    "adaptationId",
+    "sourceEpoch",
+    "target",
+    "targetEpoch",
+    "semantics",
+  ].sort();
+  if (
+    actualKeys.length !== expectedKeys.length
+    || actualKeys.some((key, index) => key !== expectedKeys[index])
+    || record.constructionId
+      !== MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_CONSTRUCTION_V1_ID
+    || record.initialization !== "hemodynamic-research-continuation"
+    || record.adaptationId !== MAIN_WIRE_INTEGRATED_MODEL_WARM_START_V3_ID
+  ) {
+    return false;
+  }
+  if (
+    record.sourceEpoch === null
+    || typeof record.sourceEpoch !== "object"
+    || record.target === null
+    || typeof record.target !== "object"
+    || record.targetEpoch === null
+    || typeof record.targetEpoch !== "object"
+    || record.semantics === null
+    || typeof record.semantics !== "object"
+  ) {
+    return false;
+  }
+  const source = record.sourceEpoch as Record<string, unknown>;
+  const target = record.target as Record<string, unknown>;
+  const targetEpoch = record.targetEpoch as Record<string, unknown>;
+  const semantics = record.semantics as Record<string, unknown>;
+  return (
+    Object.keys(source).length === 7
+    && (
+      source.routeIdentity
+        === MAIN_WIRE_STANDARD66_SELECTED_TRACE_LIVE_SESSION_ROUTE_V1_ID
+      || source.routeIdentity
+        === MAIN_WIRE_STANDARD66_RESEARCH_CONTINUATION_LIVE_SESSION_ROUTE_V1_ID
+    )
+    && typeof source.constructionIdentitySha256 === "string"
+    && /^[0-9a-f]{64}$/.test(source.constructionIdentitySha256)
+    && typeof source.acceptedStateIdentitySha256 === "string"
+    && /^[0-9a-f]{64}$/.test(source.acceptedStateIdentitySha256)
+    && typeof source.acceptedTimeSec === "number"
+    && Number.isFinite(source.acceptedTimeSec)
+    && source.acceptedTimeSec >= 0
+    && typeof source.acceptedRevision === "number"
+    && Number.isSafeInteger(source.acceptedRevision)
+    && source.acceptedRevision >= 0
+    && source.exactEmptyCoronaryWindowBoundary === true
+    && source.declaredEvidence !== null
+    && typeof source.declaredEvidence === "object"
+    && Object.keys(source.declaredEvidence).length === 4
+    && Object.keys(target).length === 3
+    && typeof target.ventricularContractilityScale === "number"
+    && Number.isFinite(target.ventricularContractilityScale)
+    && target.ventricularContractilityScale > 0
+    && Object.keys(targetEpoch).length === 5
+    && typeof targetEpoch.acceptedStateIdentitySha256 === "string"
+    && /^[0-9a-f]{64}$/.test(targetEpoch.acceptedStateIdentitySha256)
+    && typeof targetEpoch.acceptedTimeSec === "number"
+    && Number.isFinite(targetEpoch.acceptedTimeSec)
+    && targetEpoch.acceptedTimeSec >= 0
+    && typeof targetEpoch.acceptedRevision === "number"
+    && Number.isSafeInteger(targetEpoch.acceptedRevision)
+    && targetEpoch.acceptedRevision >= 0
+    && targetEpoch.exactEmptyCoronaryWindowBoundary === true
+    && typeof targetEpoch.initialWindowIndex === "number"
+    && Number.isSafeInteger(targetEpoch.initialWindowIndex)
+    && targetEpoch.initialWindowIndex >= 0
+    && Object.keys(semantics).length === 11
+    && semantics.acceptedClockPreserved === true
+    && semantics.acceptedModelStateAdapted === true
+    && semantics.beatAnalysisEpochReset === true
+    && semantics.instantaneousReadbackReset === true
+    && semantics.coupledPredictorHistoryReset === true
+    && semantics.sourceEvidenceVerifiedByFactory === false
+    && semantics.heartRatePreserved === true
+    && semantics.coronaryWindowAtTarget
+      === "preserve-source-exact-boundary-origin-and-index"
+    && semantics.freshProductionExecutionPlanRoute === true
+    && semantics.exactModelMutation === false
+    && semantics.formalValidationEligible === false
+  );
+}
+
+function assertExactEmptyCoronaryWindowBoundaryV1(
+  state: ReturnType<
+    MainWireIntegratedModelStandard66TypedAuthoritySessionV1[
+      "currentAcceptedState"
+    ]
+  >,
+  label: string,
+): void {
+  const window = state.coronary.coronaryAutoregulation;
+  const binding = state.coronary.coronaryAutoregulationBinding;
+  const canonicalStart = canonicalCoronaryAutoregulationWindowStartTimeV3(
+    binding,
+    window.windowIndex,
+  );
+  if (
+    window.windowStartRevision !== state.revision
+    || window.windowOriginAcceptedTimeSec
+      !== binding.windowPolicy.originAcceptedTimeSec
+    || window.windowStartAcceptedTimeSec !== canonicalStart
+    || state.acceptedTimeSec !== canonicalStart
+    || window.acceptedDurationSec !== 0
+    || window.acceptedStepCount !== 0
+    || window.windowControl !== null
+    || Object.values(window.qmTimeIntegralMlByTerritoryLayer).some((layers) =>
+      Object.values(layers).some((entry) => entry !== 0),
+    )
+    || Object.values(
+      window.perfusionPressureTimeIntegralMmHgSecByTerritory,
+    ).some((entry) => entry !== 0)
+  ) {
+    throw new Error(`${label} is not an exact empty coronary-window boundary`);
+  }
 }
 
 function requireSupportedBoundaryIntervalV1(

@@ -240,10 +240,157 @@ describe("Main Wire integrated Standard66 typed-authority Session V1", () => {
       .rejects.toThrow(/unavailable for the selected aortic Session owner/);
     await expect(session.checkpointCanonicalBinary())
       .rejects.toThrow(/unavailable for the selected aortic Session owner/);
-    await expect(session.warmStartWithHemodynamicResearchInputs(
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-    )).rejects.toThrow(/unavailable for the selected aortic Session owner/);
   }, 30_000);
+
+  it("warm-starts a fresh selected research epoch without spanning derived beat state", async () => {
+    const source =
+      await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create();
+    const targetInputs = Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      totalBloodVolumeMl: 5_000,
+    });
+
+    for (let ordinal = 1; ordinal <= 5; ordinal += 1) {
+      const advanced = source
+        .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+          ordinal * 0.002,
+          MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1,
+        );
+      expect(advanced.advance.status).toBe("advanced");
+    }
+    await expect(source.warmStartWithHemodynamicResearchInputs(
+      targetInputs,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    )).rejects.toThrow(/requires an exact empty coronary-window boundary/);
+    for (let ordinal = 6; ordinal <= 500; ordinal += 1) {
+      const advanced = source
+        .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+          ordinal * 0.002,
+          MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1,
+        );
+      expect(advanced.advance.status).toBe("advanced");
+    }
+    const sourceState = source.currentAcceptedState();
+    expect(sourceState.acceptedTimeSec).toBe(1);
+    expect(sourceState.coronary.coronaryAutoregulation).toMatchObject({
+      windowIndex: 1,
+      acceptedDurationSec: 0,
+      acceptedStepCount: 0,
+    });
+    await expect(source.warmStartWithHemodynamicResearchInputs(targetInputs))
+      .rejects.toThrow(/requires an explicit complete target/);
+    const warmed = await source.warmStartWithHemodynamicResearchInputs(
+      targetInputs,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    );
+    const accepted = warmed.currentAcceptedState();
+    expect(accepted).not.toBe(sourceState);
+    expect(accepted.acceptedTimeSec).toBe(sourceState.acceptedTimeSec);
+    expect(accepted.revision).toBe(sourceState.revision);
+    expect(accepted.coronary.fixedGlobalTotalBloodVolumeMl).toBe(5_000);
+    expect(accepted.coronary.coronaryAutoregulationBinding.windowPolicy)
+      .toEqual(
+        sourceState.coronary.coronaryAutoregulationBinding.windowPolicy,
+      );
+    expect(accepted.coronary.coronaryAutoregulation)
+      .toEqual(sourceState.coronary.coronaryAutoregulation);
+    expect(warmed.observe()).toMatchObject({
+      source: "hemodynamic-input-warm-start",
+      lastAcceptedStep: null,
+    });
+    expect(warmed.coupledPredictorReport()).toMatchObject({
+      hasAcceptedPair: false,
+      historyDepth: 0,
+    });
+    for (const outputId of
+      MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_OUTPUT_IDS_V1) {
+      expect(warmed.projectCurrentAcceptedStandard66ValuesV1([outputId])[
+        outputId
+      ]).toMatchObject({
+        value: null,
+        availability: "not-evaluated-at-accepted-state",
+      });
+    }
+
+    const firstTargetStep =
+      warmed.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+        sourceState.acceptedTimeSec + 0.002,
+        [PROXIMAL_PRESSURE_SIGNAL, LOCAL_GRADIENT_SIGNAL, VENA_CONTRACTA_SIGNAL],
+      );
+    expect(firstTargetStep.advance.status).toBe("advanced");
+    for (const outputId of [
+      PROXIMAL_PRESSURE_SIGNAL,
+      LOCAL_GRADIENT_SIGNAL,
+      VENA_CONTRACTA_SIGNAL,
+    ]) {
+      expect(firstTargetStep.projectedValues![outputId].availability)
+        .toBe("available");
+    }
+    expect(source.currentAcceptedState()).toEqual(sourceState);
+  }, 30_000);
+
+  it("rejects a selected warm heart-rate edit after interval-strength history exists", async () => {
+    const source =
+      await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create();
+    for (let ordinal = 1; ordinal <= 501; ordinal += 1) {
+      const advanced = source
+        .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
+          ordinal * 0.002,
+          Object.freeze([]),
+        );
+      expect(advanced.advance.status).toBe("advanced");
+    }
+    const sourceState = source.currentAcceptedState();
+    expect(sourceState.acceptedTimeSec).toBe(1.002);
+    expect(sourceState.composedRhythm.acceptedVentricularCaptureCount)
+      .toBeGreaterThan(0);
+    expect(
+      sourceState.composedRhythm.ventricularIntervalStrengthState
+        .lastDepositMetadata,
+    ).not.toBeNull();
+
+    await expect(source.warmStartWithHemodynamicResearchInputs(
+      Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        heartRateBpm: 90,
+      }),
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    )).rejects.toThrow(/requires the same heart rate/);
+    expect(source.currentAcceptedState()).toEqual(sourceState);
+  }, 120_000);
+
+  it("compares authored heart rate even when two rates round to one cycle length", async () => {
+    const sourceHeartRateBpm = 54.61579128408982;
+    const targetHeartRateBpm = 54.61579128408983;
+    expect(60 / sourceHeartRateBpm).toBe(60 / targetHeartRateBpm);
+    const source =
+      await MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
+        Object.freeze({
+          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+          heartRateBpm: sourceHeartRateBpm,
+        }),
+      );
+
+    await expect(source.warmStartWithHemodynamicResearchInputs(
+      Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        heartRateBpm: targetHeartRateBpm,
+      }),
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+    )).rejects.toThrow(/requires the same heart rate/);
+    expect(source.currentAcceptedState()).toMatchObject({
+      acceptedTimeSec: 0,
+      revision: 0,
+    });
+  });
 
   it("keeps inherited Standard65 restore factories fail-closed", async () => {
     await expect(
