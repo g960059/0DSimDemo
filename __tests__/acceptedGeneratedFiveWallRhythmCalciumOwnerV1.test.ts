@@ -9,10 +9,14 @@ import {
   type ExactEventCalciumParametersV1,
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import {
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
+import {
   createAcceptedDeterministicRhythmGeneratorConfigV1,
 } from "@/engine/myocardium/rhythm/acceptedDeterministicRhythmGeneratorV1";
 import {
   ACCEPTED_GENERATED_FIVE_WALL_RHYTHM_CALCIUM_CLAIM_V1,
+  GENERATED_FIVE_WALL_PERIODIC_SINUS_ALPHA_ABS_TOLERANCE_UM_V1,
   GENERATED_FIVE_WALL_PERIODIC_SINUS_ABS_TOLERANCE_UM_V1,
   checkpointAcceptedGeneratedFiveWallRhythmCalciumStateV1,
   commitAcceptedGeneratedFiveWallRhythmCalciumTrialV1,
@@ -112,6 +116,74 @@ describe("accepted generated five-wall rhythm-calcium owner V1", () => {
     expect(eventIds.filter((id) => id.endsWith("atria-calcium")))
       .toHaveLength(1);
     expect(owner.compatibility.exactBitParityClaimed).toBe(false);
+  });
+
+  it("matches and exactly resumes the generated equal-tau owner", async () => {
+    const params =
+      resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+        73.25,
+      );
+    const owner = createGeneratedPeriodicSinusFiveWallRhythmCalciumOwnerV1(
+      params,
+      {
+        bindingId: "generated-matched-alpha-binding-v1",
+        generatorConfigId: "generated-matched-alpha-config-v1",
+        generatorInstanceId: "generated-matched-alpha-instance-v1",
+        sourceId: "generated-matched-alpha-source-v1",
+      },
+    );
+    expect(owner.compatibility.absoluteToleranceUM).toBe(
+      GENERATED_FIVE_WALL_PERIODIC_SINUS_ALPHA_ABS_TOLERANCE_UM_V1,
+    );
+
+    let state = owner.acceptedState;
+    let maximumAbsoluteErrorUM = 0;
+    for (let index = 1; index <= 250; index += 1) {
+      const timeSec = params.cycleLengthSec * index / 250;
+      const trial = evaluateAcceptedGeneratedFiveWallRhythmCalciumTrialV1(
+        state,
+        timeSec,
+        owner.binding,
+      );
+      const direct = evaluateFiveWallNormalCalciumDriveV1(timeSec, params);
+      for (const wall of WALLS) {
+        maximumAbsoluteErrorUM = Math.max(
+          maximumAbsoluteErrorUM,
+          Math.abs(
+            trial.candidateFreeCalciumUMByWall[wall]
+              - direct.freeCalciumUMByWall[wall],
+          ),
+        );
+      }
+      state = commitAcceptedGeneratedFiveWallRhythmCalciumTrialV1(
+        state,
+        trial,
+        owner.binding,
+      );
+    }
+    expect(maximumAbsoluteErrorUM)
+      .toBeLessThanOrEqual(owner.compatibility.absoluteToleranceUM);
+    const checkpoint =
+      await checkpointAcceptedGeneratedFiveWallRhythmCalciumStateV1(
+        state,
+        owner.binding,
+      );
+    const restored =
+      await restoreAcceptedGeneratedFiveWallRhythmCalciumStateV1(
+        structuredClone(checkpoint),
+        owner.binding,
+      );
+    expect(restored).toEqual(state);
+    const continuationTimeSec = params.cycleLengthSec * 1.173;
+    expect(evaluateAcceptedGeneratedFiveWallRhythmCalciumTrialV1(
+      restored,
+      continuationTimeSec,
+      owner.binding,
+    )).toEqual(evaluateAcceptedGeneratedFiveWallRhythmCalciumTrialV1(
+      state,
+      continuationTimeSec,
+      owner.binding,
+    ));
   });
 
   it("is chunk invariant in physiological state while revision follows partitioning", () => {

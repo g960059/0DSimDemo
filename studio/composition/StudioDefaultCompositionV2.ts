@@ -31,6 +31,7 @@ import type { ExactModelFixtureProjectionV1 } from
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
@@ -40,10 +41,16 @@ import standardSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import standardRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
+import selectedAorticOutflowClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
+import selectedAorticOutflowSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -71,6 +78,8 @@ const browserSnapshotCompositionPromisesV2 = new Map<
 >();
 let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
+let browserLocalSelectedAorticOutflowCompositionPromiseV1:
+  Promise<StudioClientCompositionV2> | undefined;
 
 /**
  * Development inventory refreshes must observe active-bundle and lifecycle
@@ -94,21 +103,27 @@ async function createRegistryClientCompositionV2(
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
-      return loadStudioLocalStandardClientCompositionV1();
+      return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
     }
     if (
       modelId === standardClientDescriptorV1.manifest.modelId
       && surfacePin !== undefined
-      && surfacePin.surfaceSeriesId === standardSurfaceReleaseV1.surfaceSeriesId
-      && (
-        surfacePin.kind !== "release"
-        || surfacePin.surfaceReleaseId === standardSurfaceReleaseV1.surfaceReleaseId
-      )
+      && localSurfacePinMatchesV1(standardSurfaceReleaseV1, surfacePin)
     ) {
       // The unconfigured browser repository is intentionally local-only.
-      // Reuse the one committed Standard bundle without inventing another
-      // exact identity.
+      // Keep the historical Standard65 bundle reachable only through its
+      // explicit Model Lab or a saved-content identity pair.
       return loadStudioLocalStandardModelLabClientCompositionV1();
+    }
+    if (
+      modelId === selectedAorticOutflowClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        selectedAorticOutflowSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -166,9 +181,56 @@ Promise<StudioClientCompositionV2> {
   return pending;
 }
 
-/** Model Lab and the unconfigured local Workbench share one exact bundle. */
+/** Preserve the historical Standard65 Model Lab entry point. */
 export const loadStudioLocalStandardModelLabClientCompositionV1 =
   loadStudioLocalStandardClientCompositionV1;
+
+/** Local default Workbench composition for the selected Standard66 release. */
+export function loadStudioLocalSelectedAorticOutflowClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalSelectedAorticOutflowCompositionPromiseV1 !== undefined) {
+    return browserLocalSelectedAorticOutflowCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      selectedAorticOutflowClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error(
+        "Selected Standard66 client descriptor identity mismatch",
+      );
+    }
+    assertExactModelKernelManifestV3(
+      selectedAorticOutflowClientDescriptorV1.manifest,
+    );
+    assertModelSurfaceReleaseManifestV1(
+      selectedAorticOutflowSurfaceReleaseV1,
+    );
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: selectedAorticOutflowClientDescriptorV1.manifest.modelId,
+      artifactRevisionId:
+        selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: selectedAorticOutflowClientDescriptorV1.manifest,
+      surfaceRelease: selectedAorticOutflowSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: localSelectedAorticOutflowArtifactUrlV1(),
+    });
+    return composeStudioClientCompositionV2(Object.freeze({
+      defaultFixture: selectedAorticOutflowClientDescriptorV1.defaultFixture,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
+      surfaceStage: "dev" as const,
+    }));
+  });
+  browserLocalSelectedAorticOutflowCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalSelectedAorticOutflowCompositionPromiseV1 === pending) {
+      browserLocalSelectedAorticOutflowCompositionPromiseV1 = undefined;
+    }
+  });
+  return pending;
+}
 
 function localStandardArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
@@ -191,6 +253,32 @@ export function localStandardArtifactRevisionUrlV1(resolved: URL): URL {
   revisioned.searchParams.set(
     "revision",
     standardRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
+}
+
+function localSelectedAorticOutflowArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  return resolved.protocol === "file:"
+    ? new URL(
+        "__circleheart_local_selected_aortic_outflow_standard66_artifact__.mjs",
+        loopbackBase,
+      ).href
+    : localSelectedAorticOutflowArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localSelectedAorticOutflowArtifactRevisionUrlV1(
+  resolved: URL,
+): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
   );
   return revisioned;
 }
@@ -309,4 +397,18 @@ function composeStudioClientCompositionV2(
       ? {}
       : { activeBundleVersion: release.activeBundleVersion }),
   });
+}
+
+function localSurfacePinMatchesV1(
+  surfaceRelease: Readonly<{
+    surfaceSeriesId: string;
+    surfaceReleaseId: string;
+  }>,
+  surfacePin: StudioModelSurfacePinV1,
+): boolean {
+  return surfacePin.surfaceSeriesId === surfaceRelease.surfaceSeriesId
+    && (
+      surfacePin.kind !== "release"
+      || surfacePin.surfaceReleaseId === surfaceRelease.surfaceReleaseId
+    );
 }

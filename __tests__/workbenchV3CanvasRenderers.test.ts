@@ -984,7 +984,7 @@ describe("V3-neutral Workbench Canvas helpers", () => {
 
   it("builds compact Scenario groups without repeating Scenario names per trace", () => {
     const model = buildWorkbenchTraceLegendModelV3([
-      { traceKey: "a:lvp", scenarioId: "a", scenarioLabel: "Baseline", itemId: "lvp", itemLabel: "LVP", color: "#ff5a78" },
+      { traceKey: "a:lvp", scenarioId: "a", scenarioLabel: "Baseline", itemId: "lvp", itemLabel: "LVP", itemDescription: "Model LV pressure", itemDescriptionLabel: "About LVP", color: "#ff5a78" },
       { traceKey: "a:lap", scenarioId: "a", scenarioLabel: "Baseline", itemId: "lap", itemLabel: "LAP", color: "#b78bfa" },
       { traceKey: "b:lvp", scenarioId: "b", scenarioLabel: "Copy", itemId: "lvp", itemLabel: "LVP", color: "#d58a19" },
       { traceKey: "b:lap", scenarioId: "b", scenarioLabel: "Copy", itemId: "lap", itemLabel: "LAP", color: "#e0a645" },
@@ -997,6 +997,10 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       "Copy",
     ]);
     expect(model.items.map(({ label }) => label)).toEqual(["LVP", "LAP"]);
+    expect(model.items[0]).toMatchObject({
+      description: "Model LV pressure",
+      descriptionLabel: "About LVP",
+    });
     expect(model.traces).toHaveLength(4);
     expect(
       buildWorkbenchTraceLegendModelV3(model.traces.slice(0, 2)).mode,

@@ -9,6 +9,9 @@ import {
   resolveWorkbenchGraphScenarioIdsV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
+  resolveWorkbenchGraphSeriesPresentationV3,
+} from "@/components/workbench/WorkbenchItemPresentation";
+import {
   GuytonStarlingComparisonCanvasV3,
   PressureVolumeLoopCanvasV3,
   SweepingWaveformCanvasV3,
@@ -43,13 +46,27 @@ import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import type { StudioSimulationWorkerScenarioDescriptorV2 } from "@/studio/workers/StudioSimulationWorkerProtocolV2";
-
 const EMPTY_WORKBENCH_SCENARIO_PRESENTATION_SAMPLES_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioPresentationSamplesV3;
 const EMPTY_WORKBENCH_SCENARIO_ORBIT_HISTORY_V3 = Object.freeze(
   Object.create(null),
 ) as WorkbenchScenarioOrbitHistoryV3;
+
+export function workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+  renderer: ModelContractV2["graphCatalog"][number]["renderer"],
+  displayedSeriesIds: readonly string[],
+  periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null,
+  pressureVolumeAnalysisMode?:
+    ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"],
+): boolean {
+  return (
+    renderer === "pressure-volume" &&
+    periodicPvaDerivation !== null &&
+    pressureVolumeAnalysisMode !== "raw-exact-orbit" &&
+    displayedSeriesIds.some((seriesId) => seriesId === "LV" || seriesId === "RV")
+  );
+}
 
 export function GraphPaneBodyV3({
   activeScenarioId,
@@ -228,6 +245,7 @@ function SampledGraphPaneBodyV3({
   surface: ExperimentSurfaceV2;
   visibleScenarioIds: readonly string[];
 }>) {
+  const { i18n } = useTranslation();
   const { appTheme } = useAppTheme();
   const graphPresentation = useWorkbenchSampledGraphPresentationSamplesV3(
     sampleStore,
@@ -260,15 +278,17 @@ function SampledGraphPaneBodyV3({
   // longer select the retired multi-load support envelope.
   const pressureVolumeAnalysisId =
     MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID;
-  const pvaAnalysisScenarioIds =
-    graph.renderer === "pressure-volume" &&
-    displayedSeries.some(
-      ({ seriesId }) => seriesId === "LV" || seriesId === "RV",
-    )
-      ? scenarios
-          .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
-          .map(({ scenarioId }) => scenarioId)
-      : [];
+  const periodicPvaEnabled = workbenchPvGraphUsesPeriodicPvaAnalysisV3(
+    graph.renderer,
+    displayedSeries.map(({ seriesId }) => seriesId),
+    periodicPvaDerivation,
+    pane.pressureVolumeAnalysisMode,
+  );
+  const pvaAnalysisScenarioIds = periodicPvaEnabled
+    ? scenarios
+        .filter(({ scenarioId }) => visibleScenarioIds.includes(scenarioId))
+        .map(({ scenarioId }) => scenarioId)
+    : [];
   const missingPvaAnalysisScenarioIds = pvaAnalysisScenarioIds.filter(
     (scenarioId) => {
       const key = workbenchAnalysisHistoryKeyV3(
@@ -310,6 +330,7 @@ function SampledGraphPaneBodyV3({
     missingPvaAnalysisScenarioIds,
     onRequestAnalysis,
     operationPending,
+    periodicPvaDerivation,
     pressureVolumeAnalysisId,
     pvaAnalysisRequestKey,
   ]);
@@ -397,8 +418,11 @@ function SampledGraphPaneBodyV3({
         canvasClassName="h-full min-h-0"
       >
         <PressureVolumeLoopCanvasV3
+          periodicPvaSupported={periodicPvaEnabled}
           traces={traces}
-          showPressureEnvelope={pane.showPressureEnvelope}
+          showPressureEnvelope={
+            periodicPvaEnabled ? pane.showPressureEnvelope : false
+          }
         />
       </ExperimentGraphPresentationV3>
     );
@@ -419,6 +443,24 @@ function SampledGraphPaneBodyV3({
     outputs.length > 0 && outputs.every(({ unit }) => unit === outputs[0]!.unit)
       ? outputs[0]!.unit
       : undefined;
+  const locale = i18n.language.startsWith("ja") ? "ja" : "en";
+  const signalPresentationBySeriesId = new Map(
+    bindings.map(({ binding, series }) => {
+      const definition = contract.outputCatalog.find(
+        ({ outputId }) => outputId === binding.outputId,
+      );
+      return [
+        series.seriesId,
+        resolveWorkbenchGraphSeriesPresentationV3({
+          definition,
+          locale,
+          outputId: binding.outputId,
+          seriesId: series.seriesId,
+          storedLabel: series.label,
+        }),
+      ] as const;
+    }),
+  );
   const tracesForScenarios = (
     selectedScenarios: readonly StudioSimulationWorkerScenarioDescriptorV2[],
   ) =>
@@ -455,6 +497,8 @@ function SampledGraphPaneBodyV3({
           ),
           appTheme,
         });
+        const presentation = signalPresentationBySeriesId.get(series.seriesId);
+        const signalLabel = presentation?.label ?? series.label;
         return [
           {
             scenarioId: scenario.scenarioId,
@@ -463,7 +507,16 @@ function SampledGraphPaneBodyV3({
             scenarioStyleIndex,
             samples,
             outputId: binding.outputId,
-            signalLabel: series.label,
+            signalLabel,
+            ...(presentation?.inlineDisclosure !== true
+              ? {}
+              : {
+                  signalDescription: presentation.description,
+                  signalDescriptionLabel:
+                    locale === "ja"
+                      ? `${signalLabel}の説明`
+                      : `About ${signalLabel}`,
+                }),
             signalColor: style.color,
             ...(cyclePhaseOutputId === undefined ? {} : { cyclePhaseOutputId }),
           },

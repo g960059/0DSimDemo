@@ -9,6 +9,9 @@ import {
   vascularPvLawFromNodeV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_CIRCULATION_UNITS_V1,
   NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
@@ -39,8 +42,13 @@ import {
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryAcceptedNumericalSourceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
-import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
-  "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
+import {
+  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
+import {
+  MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
+  initialMainWireQuasiSteadyOrificeValveStateV2,
+} from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   composeMainWireFourValveDiseaseResearchInputV1,
@@ -77,6 +85,8 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     }
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveOwner)
       .toBe("MainWireQuasiSteadyOrificeValveV2");
+    expect(NON_CORONARY_CIRCULATION_SCOPE_V1.optionalSelectedAorticValveOwner)
+      .toBe("MainWireAorticRecoveredRootPortValveV1");
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveAcceptedMemory)
       .toBe("leaflet-opening-fraction-only");
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveFlow)
@@ -630,6 +640,263 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     const nonlinear = solveSignedLinearQuadraticFlowV1(-250, 0.04, 0.002);
     expect(Math.abs(0.04 * nonlinear + 0.002 * nonlinear * Math.abs(nonlinear) + 250))
       .toBeLessThan(1e-9);
+  });
+
+  it("keeps omitted and explicitly undefined selected profiles exactly equivalent", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const explicitAbsentRuntime: NonCoronaryCirculationRuntimeParamsV1 =
+      Object.freeze({
+        ...RUNTIME,
+        vascular: Object.freeze({
+          ...RUNTIME.vascular,
+          selectedAorticOutflowProfile: undefined,
+        }),
+      });
+    const callback = coupledElasticMechanicsCallback(initial, true);
+    const historical = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: callback,
+    });
+    const explicitAbsent = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: explicitAbsentRuntime,
+      evaluateCandidateMechanics: callback,
+    });
+    expect(explicitAbsent).toEqual(historical);
+  });
+
+  it("activates the recovered AoV and residual-R/fixed-L Ao_SA law without adding accepted state", () => {
+    const profile = MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1;
+    const systemicResistance = 1.2;
+    const protocolResistanceScale = 1.75;
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      vascular: Object.freeze({
+        ...RUNTIME.vascular,
+        selectedAorticOutflowProfile: profile,
+      }),
+      losses: Object.freeze({
+        ...RUNTIME.losses,
+        systemicResistance,
+      }),
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    expect(Object.keys(initial)).toEqual([
+      "transactionId",
+      "revision",
+      "acceptedTimeSec",
+      "totalBloodVolumeMl",
+      "nodeVolumesMl",
+      "dynamicEdgeFlowsMlPerSec",
+      "valveStates",
+    ]);
+    expect(Object.keys(initial.dynamicEdgeFlowsMlPerSec))
+      .toEqual([...NON_CORONARY_DYNAMIC_EDGE_NAMES_V1]);
+    expect(Object.keys(initial.valveStates))
+      .toEqual([...NON_CORONARY_VALVE_NAMES_V1]);
+    expect(restoreNonCoronaryCirculationStateV1(
+      checkpointNonCoronaryCirculationStateV1(initial),
+    )).toEqual(initial);
+
+    const zeroTangent = Object.freeze({
+      rowPressureOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+      columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+      units: "mmHg/mL" as const,
+      pressureKind: "absolute" as const,
+      derivativeSemantics:
+        "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive" as const,
+      dPressureDVolumeMmHgPerMl: Object.freeze([
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+      ] as const),
+    }) satisfies NonCoronaryAbsoluteChamberPressureTangentV1;
+    const dtSec = 0.002;
+    const evaluateCandidateMechanics = () => Object.freeze({
+      absolutePressuresMmHg: Object.freeze({
+        LV: 120,
+        LA: 10,
+        RV: 25,
+        RA: 5,
+      }),
+      absolutePressureTangent: zeroTangent,
+      evaluation: null,
+    });
+    const prepared = prepareNonCoronaryCandidateEvaluatorV1({
+      previousAcceptedState: initial,
+      dtSec,
+      runtime,
+      evaluateCandidateMechanics,
+    });
+    const independentVolumes = Float64Array.from(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+      (name) => initial.nodeVolumesMl[name],
+    );
+    const observe = (volumes: Float64Array) =>
+      withPreparedNonCoronaryCandidateV1(
+        prepared,
+        volumes,
+        (candidate) => {
+          const aorticValve = candidate.valveEvaluations[
+            NON_CORONARY_VALVE_NAMES_V1.indexOf("AoV")
+          ]!;
+          return Object.freeze({
+            aorticValve,
+            valveModelIds: candidate.valveEvaluations.map(
+              (evaluation) => evaluation.modelId,
+            ),
+            aorticValveFlowMlPerSec: candidate.edgeFlowsMlPerSec[
+              NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges.indexOf("AoV")
+            ]!,
+            aoSaFlowMlPerSec: candidate.dynamicEdgeFlowsMlPerSec[
+              NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.indexOf("Ao_SA")
+            ]!,
+            lvPressureMmHg: candidate.nodeAbsolutePressuresMmHg[
+              NON_CORONARY_NODE_NAMES_V1.indexOf("LV")
+            ]!,
+            aoPressureMmHg: candidate.nodeAbsolutePressuresMmHg[
+              NON_CORONARY_NODE_NAMES_V1.indexOf("Ao")
+            ]!,
+            saPressureMmHg: candidate.nodeAbsolutePressuresMmHg[
+              NON_CORONARY_NODE_NAMES_V1.indexOf("SA")
+            ]!,
+          });
+        },
+      );
+    const observed = observe(independentVolumes);
+    expect(observed.valveModelIds).toEqual([
+      MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
+      MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+      MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
+      MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
+    ]);
+    const aorticValve = observed.aorticValve;
+    if (
+      aorticValve.modelId
+      !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID
+    ) throw new Error("expected recovered-root AoV evaluation");
+    expect(observed.aorticValveFlowMlPerSec)
+      .toBe(aorticValve.flowMlPerSec);
+    expect(aorticValve.algebraicProximalConstitutivePortPressureMmHg)
+      .toBeCloseTo(
+        observed.aoPressureMmHg
+          + profile.characteristicImpedanceResistanceMmHgSecPerMl
+            * observed.aorticValveFlowMlPerSec,
+        12,
+      );
+    expect(aorticValve.localValvePressureGradientMmHg).toBeCloseTo(
+      observed.lvPressureMmHg
+        - aorticValve.algebraicProximalConstitutivePortPressureMmHg,
+      12,
+    );
+    expect(aorticValve.hydraulicPowerInputMmHgMlPerSec).toBeCloseTo(
+      (observed.lvPressureMmHg - observed.aoPressureMmHg)
+        * observed.aorticValveFlowMlPerSec,
+      10,
+    );
+    expect(Math.abs(aorticValve.powerBalanceResidualMmHgMlPerSec))
+      .toBeLessThan(1e-7);
+
+    const residualResistance =
+      profile.residualDownstreamResistanceMmHgSecPerMl
+      * systemicResistance;
+    const inertance = profile.ascendingAorticInertanceMmHgSec2PerMl;
+    const previousAoSaFlow = initial.dynamicEdgeFlowsMlPerSec.Ao_SA;
+    const aoSaPressureGradient =
+      observed.aoPressureMmHg - observed.saPressureMmHg;
+    const aoSaMomentumResidual = inertance
+      * (observed.aoSaFlowMlPerSec - previousAoSaFlow) / dtSec
+      + residualResistance * observed.aoSaFlowMlPerSec
+      - aoSaPressureGradient;
+    expect(Math.abs(aoSaMomentumResidual)).toBeLessThan(1e-11);
+    expect(aoSaPressureGradient * observed.aoSaFlowMlPerSec).toBeCloseTo(
+      residualResistance * observed.aoSaFlowMlPerSec ** 2
+        + inertance
+          * (observed.aoSaFlowMlPerSec - previousAoSaFlow) / dtSec
+          * observed.aoSaFlowMlPerSec,
+      10,
+    );
+
+    const aoVolumeIndex = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1.indexOf("Ao");
+    const volumeStepMl = 1e-4;
+    const lowerVolumes = independentVolumes.slice();
+    const upperVolumes = independentVolumes.slice();
+    lowerVolumes[aoVolumeIndex] -= volumeStepMl;
+    upperVolumes[aoVolumeIndex] += volumeStepMl;
+    const lower = observe(lowerVolumes);
+    const upper = observe(upperVolumes);
+    const finiteDifferenceDFlowDUpstreamPressure =
+      (upper.aoSaFlowMlPerSec - lower.aoSaFlowMlPerSec)
+      / (upper.aoPressureMmHg - lower.aoPressureMmHg);
+    expect(finiteDifferenceDFlowDUpstreamPressure).toBeCloseTo(
+      1 / (residualResistance + inertance / dtSec),
+      8,
+    );
+
+    const protocolProbe = evaluateNonCoronaryCirculationCandidateProbeV1({
+      previousAcceptedState: initial,
+      dtSec,
+      runtime,
+      protocolResistanceScaleByEdge: Object.freeze({
+        Ao_SA: protocolResistanceScale,
+      }),
+      evaluateCandidateMechanics,
+    }, independentVolumes);
+    const aorticValveEdgeIndex =
+      NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges.indexOf("AoV");
+    const aoSaEdgeIndex =
+      NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges.indexOf("Ao_SA");
+    const aoNodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf("Ao");
+    const saNodeIndex = NON_CORONARY_NODE_NAMES_V1.indexOf("SA");
+    const protocolAoSaFlow = protocolProbe.edgeFlowsMlPerSec[aoSaEdgeIndex]!;
+    const protocolGradient =
+      protocolProbe.nodeAbsolutePressuresMmHg[aoNodeIndex]!
+      - protocolProbe.nodeAbsolutePressuresMmHg[saNodeIndex]!;
+    expect(protocolProbe.edgeFlowsMlPerSec[aorticValveEdgeIndex])
+      .toBe(observed.aorticValveFlowMlPerSec);
+    expect(Math.abs(
+      inertance * (protocolAoSaFlow - previousAoSaFlow) / dtSec
+        + residualResistance * protocolResistanceScale * protocolAoSaFlow
+        - protocolGradient,
+    )).toBeLessThan(1e-11);
+
+    const analyticTrial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics,
+    });
+    expect(analyticTrial.converged).toBe(true);
+    if (analyticTrial.converged === false) {
+      throw new Error(analyticTrial.message);
+    }
+    expect(analyticTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(analyticTrial.diagnostics.analyticJacobianAssemblyCount)
+      .toBeGreaterThan(0);
+    expect(analyticTrial.diagnostics.finiteDifferenceJacobianShadowCount)
+      .toBe(analyticTrial.diagnostics.analyticJacobianAssemblyCount);
+    expect(
+      analyticTrial.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference,
+    ).not.toBeNull();
+    expect(
+      analyticTrial.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference!,
+    ).toBeLessThan(2e-5);
   });
 
   it("matches the full 14-volume finite-difference shadow with fixed-TBV SV chain rule", () => {

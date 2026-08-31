@@ -16,16 +16,36 @@ import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
+  createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1,
+  createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileV1,
   createMainWireNormalAdultFiveWallMaterialKernelsV1,
   createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularContractilityScaleV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
-import type {
-  LandSlsWallMaterialStateV1,
+import {
+  MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
+  withCommonVentricularActiveTensionScaleV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
+import {
+  initializeLandSlsWallAtFixedInputV1,
+  type LandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
 import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PARAMETER_SET_V1,
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_CLAIM,
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRelaxationProfileV1";
+import {
+  deriveLand2017DerivedParameters,
+  land2017ParameterSetHashInput,
+  stableHash as stableLandParameterHash,
+} from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
   checkpointWholeHeartMechanicsStateV1,
   commitWholeHeartMechanicsTrialV1,
@@ -37,6 +57,251 @@ import {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 describe("main-wire normal-adult five-wall provider adapter V1", () => {
+  it("owns the fixed effective ventricular Land profile and its provenance", () => {
+    const material =
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1;
+    const parameterSet =
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PARAMETER_SET_V1;
+    const canonical =
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+
+    expect(parameterSet.values).toMatchObject({
+      kuw: 104,
+      kws: 4.8,
+      nTm: 4,
+      Tref: 151_951.88225014097,
+      Aeff: 25,
+      beta1: -2.4,
+    });
+    expect(parameterSet.derived).toEqual(
+      deriveLand2017DerivedParameters(parameterSet.values),
+    );
+    expect(parameterSet.derived).toEqual({
+      kb: 40.01666666666666,
+      Aw: 10,
+      As: 10,
+      kwu: 99.2,
+      ksu: 7.199999999999999,
+      cw: 231.92,
+      cs: 16.055999999999997,
+    });
+    expect(parameterSet.strongBridgeDeactivationExit).toMatchObject({
+      maximumRatePerSec: 30,
+      cooperativeGatePower: 8,
+      deactivationDirectionGate: "none",
+      strongPopulationGate:
+        "positive-excess-over-zero-distortion-equilibrium",
+      exitDestination: "unbound",
+      sourceIdentityClaimed: false,
+    });
+    expect(stableLandParameterHash(
+      land2017ParameterSetHashInput(parameterSet),
+    )).toBe(parameterSet.parameterSetStableHash);
+    expect(parameterSet.parameterSetStableHash).toBe("d4ceedc1");
+    for (const entry of parameterSet.sourceParameters) {
+      expect(entry.runtime.value).toBe(parameterSet.values[entry.parameter]);
+    }
+    for (const parameter of ["kuw", "kws", "nTm", "Tref"] as const) {
+      expect(parameterSet.sourceParameters.find(
+        (entry) => entry.parameter === parameter,
+      )?.location).toMatch(/not |neither /i);
+    }
+    expect(material.landSlackStretch).toBe(1.05);
+    expect(
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
+        .targetFiberStretchAtLoadedReference * material.landSlackStretch,
+    ).toBeCloseTo(1.155, 15);
+    expect(material.sls).toBe(canonical.sls);
+    expect(material.orientationFraction01)
+      .toBe(canonical.orientationFraction01);
+    expect(material.viableActiveFraction01)
+      .toBe(canonical.viableActiveFraction01);
+    expect(canonical.landEquationParameters.parameterSetStableHash)
+      .toBe("b3d4e447");
+    expect(Object.hasOwn(
+      canonical.landEquationParameters,
+      "strongBridgeDeactivationExit",
+    )).toBe(false);
+    expect(MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_CLAIM)
+      .toMatchObject({
+        pureLand2017SourceParameterSetClaimed: false,
+        changedPrimitiveParameters: ["kuw", "kws", "nTm", "Tref"],
+        atrialMaterialChanged: false,
+        ventricularPassiveOrSlsChanged: false,
+        continuousStateCountChanged: false,
+        coldInitializationMaximumIterations: 1600,
+        coldInitializationPolicyRole:
+          "numerical-initialization-only-not-constitutive-dynamics",
+        numericOptimizerApplied: false,
+        clinicalValidationClaimed: false,
+      });
+    expect(Object.isFrozen(parameterSet)).toBe(true);
+    expect(Object.isFrozen(parameterSet.values)).toBe(true);
+    expect(Object.isFrozen(parameterSet.sourceParameters)).toBe(true);
+    expect(Object.isFrozen(material)).toBe(true);
+  });
+
+  it("cold-converges the selected material over its representative fixed-input grid", () => {
+    const selectedPolicyIterations: number[] = [];
+    const defaultPolicyFailures: string[] = [];
+    for (const fiberLogStrain of [-0.3, -0.15, 0, 0.15, 0.3]) {
+      for (const freeCalciumUM of [0.1, 0.164321, 0.592586, 1]) {
+        const defaultPolicy = initializeLandSlsWallAtFixedInputV1(
+          fiberLogStrain,
+          freeCalciumUM,
+          MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+        );
+        if (!defaultPolicy.converged) {
+          defaultPolicyFailures.push(`${fiberLogStrain}/${freeCalciumUM}`);
+        }
+        const selectedPolicy = initializeLandSlsWallAtFixedInputV1(
+          fiberLogStrain,
+          freeCalciumUM,
+          MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1,
+          {
+            maximumIterations:
+              MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+          },
+        );
+        expect(selectedPolicy.converged).toBe(true);
+        expect(selectedPolicy.maximumStateUpdate).toBeLessThanOrEqual(1e-10);
+        selectedPolicyIterations.push(selectedPolicy.fixedInputIterations);
+      }
+    }
+    expect(defaultPolicyFailures).toContain("-0.15/0.592586");
+    expect(defaultPolicyFailures).toHaveLength(11);
+    expect(Math.max(...selectedPolicyIterations)).toBe(1024);
+    expect(Math.max(...selectedPolicyIterations)).toBeLessThan(
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+    );
+  });
+
+  it("changes only ventricular material identities and cold-converges the selected profile", () => {
+    const canonical = createMainWireNormalAdultFiveWallMaterialKernelsV1();
+    const selected =
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileV1();
+
+    for (const atrium of ["LA", "RA"] as const) {
+      expect(selected[atrium].parameterIdentityHash)
+        .toBe(canonical[atrium].parameterIdentityHash);
+    }
+    for (const ventricle of ["LVFW", "SEP", "RVFW"] as const) {
+      expect(selected[ventricle].parameterIdentityHash)
+        .not.toBe(canonical[ventricle].parameterIdentityHash);
+    }
+
+    const fiberLogStrain = Math.log(
+      1 / MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1
+        .landSlackStretch,
+    );
+    const selectedCold = selected.LVFW.initializeColdAtFixedInput({
+      fiberLogStrain,
+      freeCalciumUM: 0.164321,
+    });
+    const canonicalCold = canonical.LVFW.initializeColdAtFixedInput({
+      fiberLogStrain,
+      freeCalciumUM: 0.164321,
+    });
+    const selectedReadback = wallReadback(selectedCold.readback);
+    const canonicalReadback = wallReadback(canonicalCold.readback);
+    expect(selectedCold.valid).toBe(true);
+    expect(selectedReadback.coldFixedInputIterations).not.toBeNull();
+    expect(selectedReadback.coldFixedInputIterations!)
+      .toBeLessThanOrEqual(
+        MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+      );
+    expect(selectedReadback.coldLandMaximumStateUpdate)
+      .toBeLessThanOrEqual(1e-10);
+    expect(selectedReadback.passiveParameterIdentityHash)
+      .toBe(canonicalReadback.passiveParameterIdentityHash);
+
+    const canonicalProvider =
+      createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const selectedProvider =
+      createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileV1();
+    expect(selectedProvider.parameterIdentityHash)
+      .not.toBe(canonicalProvider.parameterIdentityHash);
+    expect(selectedProvider.parameterSetId)
+      .toContain("ventricular-land-et-relaxation-profile-v1");
+  }, 60_000);
+
+  it("composes active scaling over the selected base without dropping its extension", () => {
+    const scaledInputs = withCommonVentricularActiveTensionScaleV1(
+      MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
+      1.2,
+    );
+    const base =
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileV1();
+    const scaled =
+      createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+        scaledInputs,
+      );
+    const fiberLogStrain = Math.log(
+      1 / MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1
+        .landSlackStretch,
+    );
+    for (const ventricle of ["LVFW", "SEP", "RVFW"] as const) {
+      const baseCold = base[ventricle].initializeColdAtFixedInput({
+        fiberLogStrain,
+        freeCalciumUM: 0.164321,
+      });
+      const scaledCold = scaled[ventricle].initializeColdAtFixedInput({
+        fiberLogStrain,
+        freeCalciumUM: 0.164321,
+      });
+      const baseReadback = wallReadback(baseCold.readback);
+      const scaledReadback = wallReadback(scaledCold.readback);
+      expect(Array.from(scaledCold.state.landState))
+        .toEqual(Array.from(baseCold.state.landState));
+      expect(scaledReadback.landActiveKirchhoffStressPa)
+        .toBeCloseTo(1.2 * baseReadback.landActiveKirchhoffStressPa, 10);
+      expect(scaledReadback.landParameterSetStableHash)
+        .not.toBe(baseReadback.landParameterSetStableHash);
+    }
+    const baseCold = base.LVFW.initializeColdAtFixedInput({
+      fiberLogStrain,
+      freeCalciumUM: 0.8,
+    });
+    const strongPopulationExcessState = Object.freeze({
+      ...baseCold.state,
+      landState: Float64Array.from([0.3, 0.2, 0.04, 0.12, 0.01, -0.1]),
+    });
+    const trialInput = Object.freeze({
+      previousAcceptedState: strongPopulationExcessState,
+      candidateFiberLogStrain: fiberLogStrain,
+      candidateFreeCalciumUM: 0.2,
+      stepDtSec: 0.002,
+    });
+    const baseTrial = base.LVFW.evaluateTrialFromAccepted(trialInput);
+    const scaledTrial = scaled.LVFW.evaluateTrialFromAccepted(trialInput);
+    expect(Array.from(scaledTrial.state.landState))
+      .toEqual(Array.from(baseTrial.state.landState));
+    expect(wallReadback(scaledTrial.readback).landActiveKirchhoffStressPa)
+      .toBeCloseTo(
+        1.2 * wallReadback(baseTrial.readback).landActiveKirchhoffStressPa,
+        10,
+      );
+    for (const atrium of ["LA", "RA"] as const) {
+      expect(scaled[atrium].parameterIdentityHash)
+        .toBe(base[atrium].parameterIdentityHash);
+    }
+
+    const baseProvider =
+      createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileV1();
+    const defaultInputProvider =
+      createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+        MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
+      );
+    const scaledProvider =
+      createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+        scaledInputs,
+      );
+    expect(defaultInputProvider.parameterIdentityHash)
+      .toBe(baseProvider.parameterIdentityHash);
+    expect(scaledProvider.parameterIdentityHash)
+      .not.toBe(baseProvider.parameterIdentityHash);
+  }, 60_000);
+
   it("scales only the three ventricular Land materials through the bounded contractility seam", () => {
     const canonical = createMainWireNormalAdultFiveWallMaterialKernelsV1();
     const identity =

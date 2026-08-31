@@ -6,10 +6,18 @@ import {
   type Page,
   type TestInfo,
 } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 import type {
   WorkbenchPerformanceSnapshotV3,
 } from "../components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
+
+const selectedAorticRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
+  "../studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
+  import.meta.url,
+), "utf8")) as Readonly<{ modelId: string }>;
+
+const PERFORMANCE_EXACT_MODEL_ID = selectedAorticRegistryAdmissionLock.modelId;
 
 type PerformanceBudgetV3 = Readonly<{
   minimumRootModelTimeRatio: number;
@@ -39,6 +47,12 @@ type MeasurementWindowV3 = Readonly<{
   modelTimeDeltaSec: number;
   rootModelTimeRatio: number;
   diagnostics: WorkbenchPerformanceSnapshotV3;
+}>;
+
+type AcceptedCheckpointV3 = Readonly<{
+  inputEpoch: number;
+  acceptedRevision: number;
+  acceptedTimeSec: number;
 }>;
 
 const PROFILES_V3: Readonly<Record<string, PerformanceProfileV3>> =
@@ -140,6 +154,10 @@ test("measures exact live Workbench throughput under background contention", asy
   await page.goto("/ja/experiments/new?workbenchPerf=1");
   const root = page.getByTestId("v3-dockview-workbench");
   await expect(root).toBeVisible();
+  await expect(root).toHaveAttribute(
+    "data-model-id",
+    PERFORMANCE_EXACT_MODEL_ID,
+  );
   await expect.poll(() => acceptedRevisionV3(page)).toBeGreaterThan(10);
   await ensureScenarioCountV3(page, scenarioCount);
   await expect.poll(() => acceptedRevisionV3(page)).toBeGreaterThan(20);
@@ -284,7 +302,10 @@ async function ensureScenarioCountV3(
   if (mobile) {
     await mobileTaskDeck.getByRole("tab", { name: "コントロール" }).click();
     await expect(
-      mobileTaskDeck.getByRole("slider", { name: "Heart rate" }),
+      mobileTaskDeck.getByRole("slider", {
+        name: "心拍数 (HR)",
+        exact: true,
+      }),
     ).toBeVisible();
   }
 }
@@ -391,18 +412,30 @@ async function measureWindowV3(
 }
 
 async function measureControlLatencyV3(page: Page): Promise<number> {
-  const root = page.getByTestId("v3-dockview-workbench");
-  const slider = page.getByRole("slider", { name: "Heart rate" }).first();
+  const slider = page.getByRole("slider", {
+    name: "心拍数 (HR)",
+    exact: true,
+  }).first();
   await slider.scrollIntoViewIfNeeded();
-  const initialEpoch = Number(await root.getAttribute("data-input-epoch"));
-  const initialModelTimeSec = await modelTimeV3(page);
+  const initial = await acceptedCheckpointV3(page);
   const startedAtMs = Date.now();
   await slider.press("ArrowRight");
-  await expect.poll(async () =>
-    Number(await root.getAttribute("data-input-epoch")))
-    .toBeGreaterThan(initialEpoch);
-  await expect.poll(() => modelTimeV3(page))
-    .toBeGreaterThan(initialModelTimeSec);
+
+  // Standard 66 replaces the exact trajectory at revision/time zero. The
+  // live scheduler may accept several 2 ms steps before the browser observes
+  // the replacement frame, so the E2E boundary detects the reset relative to
+  // the old checkpoint; adapter tests pin the exact zero-valued response.
+  await expect.poll(async () => {
+    const current = await acceptedCheckpointV3(page);
+    return current.inputEpoch > initial.inputEpoch
+      && current.acceptedTimeSec < initial.acceptedTimeSec;
+  }).toBe(true);
+  await expect.poll(async () => {
+    const current = await acceptedCheckpointV3(page);
+    return current.inputEpoch > initial.inputEpoch
+      && current.acceptedRevision > 0
+      && current.acceptedTimeSec > 0;
+  }).toBe(true);
   return Date.now() - startedAtMs;
 }
 
@@ -564,6 +597,36 @@ async function modelTimeV3(page: Page): Promise<number> {
   const value = Number(raw);
   if (!Number.isFinite(value)) throw new Error(`invalid model time ${raw}`);
   return value;
+}
+
+async function acceptedCheckpointV3(
+  page: Page,
+): Promise<AcceptedCheckpointV3> {
+  const attributes = await page.getByTestId("v3-dockview-workbench")
+    .evaluate((element) => Object.freeze({
+      inputEpoch: element.getAttribute("data-input-epoch"),
+      acceptedRevision: element.getAttribute("data-accepted-revision"),
+      acceptedTimeSec: element.getAttribute("data-model-time-sec"),
+    }));
+  if (attributes.inputEpoch === null
+      || attributes.acceptedRevision === null
+      || attributes.acceptedTimeSec === null) {
+    throw new Error(`missing accepted checkpoint ${JSON.stringify(attributes)}`);
+  }
+  const checkpoint = Object.freeze({
+    inputEpoch: Number(attributes.inputEpoch),
+    acceptedRevision: Number(attributes.acceptedRevision),
+    acceptedTimeSec: Number(attributes.acceptedTimeSec),
+  });
+  if (!Number.isSafeInteger(checkpoint.inputEpoch)
+      || checkpoint.inputEpoch < 0
+      || !Number.isSafeInteger(checkpoint.acceptedRevision)
+      || checkpoint.acceptedRevision < 0
+      || !Number.isFinite(checkpoint.acceptedTimeSec)
+      || checkpoint.acceptedTimeSec < 0) {
+    throw new Error(`invalid accepted checkpoint ${JSON.stringify(attributes)}`);
+  }
+  return checkpoint;
 }
 
 async function acceptedRevisionV3(page: Page): Promise<number> {

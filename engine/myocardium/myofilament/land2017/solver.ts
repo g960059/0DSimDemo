@@ -12,6 +12,10 @@ import { evaluateLand2017StepOutput } from "@/engine/myocardium/myofilament/land
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import { writeLand2017BackwardEulerResidual } from "@/engine/myocardium/myofilament/land2017/residual";
 import {
+  evaluateLand2017StrongBridgeDeactivationExitRateTermsV1,
+  land2017ZeroDistortionStrongToWeakRatioV1,
+} from "@/engine/myocardium/myofilament/land2017/strongBridgeDeactivationExitV1";
+import {
   LAND2017_SDIRK2_GAMMA,
   evaluateLand2017Sdirk2StageOutput,
   land2017Sdirk2Stage0ContinuousInput,
@@ -371,19 +375,37 @@ export function solveLand2017AffineStage(
   const weakLossRate =
     d.kwu + p.kws + land2017GammaWu(zetaW, p);
   const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
-  const population = solveLand2017PopulationBlock(
-    1 + implicitDtSec * (bindingRate + unbindingRate),
-    implicitDtSec * bindingRate,
-    implicitDtSec * bindingRate,
-    implicitDtSec * p.kuw,
-    1 + implicitDtSec * (p.kuw + weakLossRate),
-    implicitDtSec * p.kuw,
-    -implicitDtSec * p.kws,
-    1 + implicitDtSec * strongLossRate,
-    base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
-    base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
-    base[LAND2017_STATE_INDEX.S],
-  );
+  let population: readonly [number, number, number];
+  if (parameterSet.strongBridgeDeactivationExit === undefined) {
+    population = solveLand2017PopulationBlock(
+      1 + implicitDtSec * (bindingRate + unbindingRate),
+      implicitDtSec * bindingRate,
+      implicitDtSec * bindingRate,
+      implicitDtSec * p.kuw,
+      1 + implicitDtSec * (p.kuw + weakLossRate),
+      implicitDtSec * p.kuw,
+      -implicitDtSec * p.kws,
+      1 + implicitDtSec * strongLossRate,
+      base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
+      base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
+      base[LAND2017_STATE_INDEX.S],
+    );
+  } else {
+    const rate = evaluateLand2017StrongBridgeDeactivationExitRateTermsV1(
+      caTRPN,
+      parameterSet,
+    ).ratePerSec;
+    population = solveLand2017PopulationStageWithStrongBridgeExitV1(
+      base,
+      implicitDtSec,
+      bindingRate,
+      unbindingRate,
+      weakLossRate,
+      strongLossRate,
+      rate,
+      parameterSet,
+    );
+  }
   const next = new Float64Array(LAND2017_STATE_SIZE);
   next[LAND2017_STATE_INDEX.CaTRPN] = caTRPN;
   next[LAND2017_STATE_INDEX.B] = population[0];
@@ -393,6 +415,50 @@ export function solveLand2017AffineStage(
   next[LAND2017_STATE_INDEX.zetaS] = zetaS;
   validateLand2017EquationState(next);
   return next;
+}
+
+function solveLand2017PopulationStageWithStrongBridgeExitV1(
+  base: ArrayLike<number>,
+  implicitDtSec: number,
+  bindingRate: number,
+  unbindingRate: number,
+  weakLossRate: number,
+  strongLossRate: number,
+  deactivationRatePerSec: number,
+  parameterSet: Land2017EquationParameters,
+): readonly [number, number, number] {
+  const p = parameterSet.values;
+  const ratio = land2017ZeroDistortionStrongToWeakRatioV1(parameterSet);
+  const solveBranch = (
+    branchRatePerSec: number,
+  ): readonly [number, number, number] => solveLand2017PopulationBlock(
+    1 + implicitDtSec * (bindingRate + unbindingRate),
+    implicitDtSec * bindingRate,
+    implicitDtSec * bindingRate,
+    implicitDtSec * p.kuw,
+    1 + implicitDtSec * (p.kuw + weakLossRate),
+    implicitDtSec * p.kuw,
+    -implicitDtSec * (p.kws + branchRatePerSec * ratio),
+    1 + implicitDtSec * (strongLossRate + branchRatePerSec),
+    base[LAND2017_STATE_INDEX.B] + implicitDtSec * bindingRate,
+    base[LAND2017_STATE_INDEX.W] + implicitDtSec * p.kuw,
+    base[LAND2017_STATE_INDEX.S],
+  );
+
+  const inactive = solveBranch(0);
+  const inactiveExcess = inactive[2] - ratio * inactive[1];
+  // This is a floating-point branch tolerance, not a smoothing parameter.
+  // It prevents adjacent representations of the exact positive-part kink
+  // from producing two nominally inconsistent affine branch solutions.
+  const branchTolerance = 128 * Number.EPSILON;
+  if (inactiveExcess <= branchTolerance) return inactive;
+
+  const active = solveBranch(deactivationRatePerSec);
+  const activeExcess = active[2] - ratio * active[1];
+  if (activeExcess >= -branchTolerance) return active;
+  throw new Error(
+    "Land 2017 strong-bridge deactivation-exit population gate has no consistent affine branch",
+  );
 }
 
 /**

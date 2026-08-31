@@ -77,6 +77,11 @@ const AuthoringCliDocsPage = React.lazy(
     default: module.AuthoringCliDocsPage,
   })),
 );
+const ModelDocumentationPage = React.lazy(
+  () => import('./components/model/ModelDocumentationPage').then((module) => ({
+    default: module.ModelDocumentationPage,
+  })),
+);
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -203,6 +208,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading Authoring CLI guide…" />}>
           <AuthoringCliDocsPage />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="models/:modelId"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading model documentation…" />}>
+          <ModelDocumentationPage />
         </React.Suspense>
       )}
     />

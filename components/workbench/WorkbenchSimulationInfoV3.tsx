@@ -2,6 +2,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import {
   AlertTriangle,
+  ArrowUpRight,
   Check,
   ChevronDown,
   FileText,
@@ -18,6 +19,7 @@ export type WorkbenchSimulationInfoModelV3 = Readonly<{
   publicName: string;
   shortLabel: string;
   description: string;
+  documentationHref?: string;
 }>;
 
 export type WorkbenchSimulationInfoScenarioV3 = Readonly<{
@@ -366,6 +368,18 @@ export function WorkbenchSimulationInfoPanelV3({
               <p className="mt-3 text-xs leading-5 text-wb-muted">
                 {current.description}
               </p>
+              {current.documentationHref !== undefined && (
+                <a
+                  href={current.documentationHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-md text-xs font-semibold text-wb-accent transition-colors hover:text-wb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
+                  data-testid="workbench-model-documentation-link-v3"
+                >
+                  {t("workbench.editor.simulationInfo.modelDocumentation")}
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </a>
+              )}
             </section>
 
             <section>

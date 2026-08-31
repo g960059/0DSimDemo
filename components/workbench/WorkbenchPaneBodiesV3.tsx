@@ -12,7 +12,7 @@ import {
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
-  resolveWorkbenchPaneItemLabelV3,
+  resolveWorkbenchControlPresentationV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
@@ -243,6 +243,13 @@ export function ControlPaneBodyV3({
           <div className="workbench-control-list">
             {presentedControls.map(
               ({ definition: control, item, value, mixed }) => {
+                const presentation = resolveWorkbenchControlPresentationV3({
+                  definition: control,
+                  storedLabel: item.label,
+                  locale,
+                });
+                const discloseRestart =
+                  control.changeSemantics === "cold-restart";
                 return (
                   <ExperimentNumericControlV3
                     key={control.controlId}
@@ -252,12 +259,16 @@ export function ControlPaneBodyV3({
                       pendingControlId !== null ||
                       disabledByAnalysis
                     }
-                    label={resolveWorkbenchPaneItemLabelV3({
-                      kind: "control",
-                      itemId: control.controlId,
-                      storedLabel: item.label,
-                      locale,
-                    })}
+                    label={presentation.label}
+                    {...(discloseRestart
+                      ? {
+                          description: presentation.description,
+                          descriptionAriaLabel:
+                            locale === "ja"
+                              ? `${presentation.label}の説明`
+                              : `About ${presentation.label}`,
+                        }
+                      : {})}
                     mixed={mixed}
                     pending={pendingControlId === control.controlId}
                     presentation={item.presentation}

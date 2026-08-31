@@ -62,6 +62,38 @@ export type Land2017DerivedParameterProvenance = {
   readonly runtimeUnit: string;
 };
 
+/**
+ * Fixed reduced-order extension selected after the V9 deactivation ablation.
+ * It is not a Land et al. (2017) source equation, so the non-source identity is
+ * part of the exact parameter value rather than an external presentation claim.
+ */
+export type Land2017StrongBridgeDeactivationExitV1 = Readonly<{
+  readonly extensionId: "land2017-strong-bridge-deactivation-exit-v1";
+  readonly maximumRatePerSec: 30;
+  readonly calciumTroponinGate:
+    "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power";
+  readonly cooperativeGatePower: 8;
+  readonly deactivationDirectionGate: "none";
+  readonly strongPopulationGate:
+    "positive-excess-over-zero-distortion-equilibrium";
+  readonly exitDestination: "unbound";
+  readonly sourceIdentityClaimed: false;
+}>;
+
+export const LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1:
+  Land2017StrongBridgeDeactivationExitV1 = Object.freeze({
+    extensionId: "land2017-strong-bridge-deactivation-exit-v1",
+    maximumRatePerSec: 30,
+    calciumTroponinGate:
+      "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
+    cooperativeGatePower: 8,
+    deactivationDirectionGate: "none",
+    strongPopulationGate:
+      "positive-excess-over-zero-distortion-equilibrium",
+    exitDestination: "unbound",
+    sourceIdentityClaimed: false,
+  });
+
 export type Land2017SourceParameterSet = {
   readonly parameterSetId: string;
   readonly parameterSetStableHash: string;
@@ -71,6 +103,8 @@ export type Land2017SourceParameterSet = {
   readonly derived: Land2017DerivedParameters;
   readonly sourceParameters: readonly Land2017SourceParameterProvenance[];
   readonly derivedParameters: readonly Land2017DerivedParameterProvenance[];
+  readonly strongBridgeDeactivationExit?:
+    Land2017StrongBridgeDeactivationExitV1;
 };
 
 const runtimeValues: Land2017RuntimeParameters = {
@@ -221,6 +255,12 @@ export function land2017ParameterSetHashInput(parameterSet: Land2017SourceParame
     derived: parameterSet.derived,
     sourceParameters: parameterSet.sourceParameters,
     derivedParameters: parameterSet.derivedParameters,
+    ...(parameterSet.strongBridgeDeactivationExit === undefined
+      ? {}
+      : {
+        strongBridgeDeactivationExit:
+          parameterSet.strongBridgeDeactivationExit,
+      }),
   };
 }
 

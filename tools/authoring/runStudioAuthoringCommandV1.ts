@@ -41,6 +41,7 @@ import {
 } from "@/studio/infrastructure/auth/StudioLocalAuthoringCredentialsV1";
 import {
   createDefaultExperimentSurfaceV3,
+  reconcileWorkbenchPressureVolumeCapabilityV3,
   reconcileWorkbenchSurfaceScenariosV3,
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import {
@@ -219,6 +220,8 @@ function createAuthoringModelPortV1(
     return Object.freeze({
       contract: modelSurface.contract,
       defaultFixture: release.defaultFixture,
+      periodicPvaSupported:
+        modelSurface.analysis.periodicPvaDerivation !== null,
       runtime: await runtimes.load(release.ticket),
       surfaceReleaseId: modelSurface.identity.surfaceReleaseId,
       surfaceSeriesId: modelSurface.identity.surfaceSeriesId,
@@ -275,9 +278,15 @@ function createAuthoringModelPortV1(
         : createDefaultExperimentSurfaceV3(
             input.contract,
             input.scenarioIds[0],
+            { periodicPvaSupported: input.periodicPvaSupported },
           );
-      const reconciled = reconcileWorkbenchSurfaceScenariosV3(
+      const capabilitySurface = reconcileWorkbenchPressureVolumeCapabilityV3(
         initial,
+        input.contract,
+        input.periodicPvaSupported,
+      );
+      const reconciled = reconcileWorkbenchSurfaceScenariosV3(
+        capabilitySurface,
         input.scenarioIds.map((scenarioId) => Object.freeze({ scenarioId })),
       );
       return Object.freeze({

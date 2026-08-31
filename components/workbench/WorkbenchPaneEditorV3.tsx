@@ -36,6 +36,7 @@ import {
   resolveStudioSurfaceItemLabelV1,
   studioItemPresentationMatchesQueryV1,
   type ResolvedStudioItemPresentationV1,
+  type StudioItemPresentationCatalogFactsV1,
   type StudioItemPresentationCategoryV1,
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
 import {
@@ -56,6 +57,9 @@ import {
 } from "./presentation/WorkbenchGraphColorV3";
 import { ExperimentPaneAddItemButtonV3 } from "./ExperimentPanePresentationV3";
 import { WorkbenchPaneBindingEditorV3 } from "./WorkbenchPaneBindingV3";
+import {
+  resolveWorkbenchGraphSeriesPresentationV3,
+} from "./WorkbenchItemPresentation";
 import {
   findWorkbenchSurfacePaneV3,
   updateWorkbenchSurfacePaneV3,
@@ -239,11 +243,24 @@ export function canonicalWorkbenchColorHexV3(
     : fallback.toLowerCase();
 }
 
+export function workbenchGraphDisplaySettingsAvailableV3(
+  renderer: GraphDefinitionV2["renderer"] | undefined,
+  periodicPvaSupported: boolean,
+  pressureVolumeAnalysisMode?:
+    ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"],
+): boolean {
+  return renderer === "sweep" ||
+    (renderer === "pressure-volume" &&
+      periodicPvaSupported &&
+      pressureVolumeAnalysisMode !== "raw-exact-orbit");
+}
+
 export function WorkbenchPaneEditorV3({
   initialItemIntent,
   initialSection,
   locale,
   open,
+  periodicPvaSupported = true,
   selectedPane,
   contract,
   surface,
@@ -256,6 +273,7 @@ export function WorkbenchPaneEditorV3({
   initialItemIntent?: WorkbenchPaneEditorItemIntentV3;
   initialSection?: WorkbenchPaneEditorSectionV3;
   locale: "en" | "ja";
+  periodicPvaSupported?: boolean;
   selectedPane: WorkbenchPaneIdentityV3;
   contract: ModelContractV2;
   surface: ExperimentSurfaceV2;
@@ -428,6 +446,12 @@ export function WorkbenchPaneEditorV3({
             graphDefinition?.renderer !== "structural-return"
           ? strings.seriesCatalog
           : strings.dataSection;
+  const graphDisplaySettingsAvailable =
+    workbenchGraphDisplaySettingsAvailableV3(
+      graphDefinition?.renderer,
+      periodicPvaSupported,
+      pane?.role === "graph" ? pane.pressureVolumeAnalysisMode : undefined,
+    );
 
   const updateSelectedPane = (
     update: (candidate: WorkbenchSurfacePaneV3) => WorkbenchSurfacePaneV3,
@@ -497,7 +521,7 @@ export function WorkbenchPaneEditorV3({
                 label={strings.generalSection}
                 onNavigate={scrollToSection}
               />
-              {pane?.role === "graph" && (
+              {pane?.role === "graph" && graphDisplaySettingsAvailable && (
                 <PaneSettingsJumpV3
                   active={activeSectionId === "pane-settings-display-v3"}
                   targetId="pane-settings-display-v3"
@@ -557,7 +581,9 @@ export function WorkbenchPaneEditorV3({
                     <GraphPaneEditorV3
                       appTheme={appTheme}
                       contract={contract}
+                      locale={locale}
                       pane={pane}
+                      periodicPvaSupported={periodicPvaSupported}
                       scenarios={scenarios}
                       surface={draftSurface}
                       strings={strings}
@@ -686,7 +712,9 @@ function GraphPaneEditorV3({
   appTheme,
   contract,
   dataSectionTitle,
+  locale,
   pane,
+  periodicPvaSupported,
   scenarios,
   surface,
   strings,
@@ -695,7 +723,9 @@ function GraphPaneEditorV3({
   appTheme: "light" | "dark";
   contract: ModelContractV2;
   dataSectionTitle: string;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceGraphPaneV2;
+  periodicPvaSupported: boolean;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   surface: ExperimentSurfaceV2;
   strings: WorkbenchPaneEditorStringsV3;
@@ -706,81 +736,89 @@ function GraphPaneEditorV3({
   );
   return (
     <>
-      <section
-        id="pane-settings-display-v3"
-        className="workbench-pane-settings-section space-y-4"
-      >
-        <EditorSectionHeadingV3>
-          {strings.displaySection}
-        </EditorSectionHeadingV3>
-        {graph?.renderer === "sweep" && (
-          <div className="grid gap-1.5">
-            <PaneRangeInputV3
-              label={strings.windowSec}
-              value={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
-              minimum={WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3}
-              maximum={WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3}
-              step={WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3}
-              unit="s"
-              onCommit={(windowSec) => onChange({ ...pane, windowSec })}
-            />
-            <p className="text-[10px] text-wb-subtle">
-              {strings.windowSecHint}
-            </p>
-          </div>
-        )}
-        {graph?.renderer === "pressure-volume" && (
-          <button
-            type="button"
-            aria-pressed={
-              pane.showPressureEnvelope ??
-              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
-            }
-            className={`block w-full rounded-xl px-3 py-3 text-left transition-colors ${
-              (pane.showPressureEnvelope ??
-              WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                ? "bg-wb-selected text-wb-text"
-                : "bg-wb-soft/55 text-wb-muted hover:bg-wb-hover hover:text-wb-text"
-            }`}
-            onClick={() =>
-              onChange({
-                ...pane,
-                showPressureEnvelope: !(
+      {workbenchGraphDisplaySettingsAvailableV3(
+        graph?.renderer,
+        periodicPvaSupported,
+        pane.pressureVolumeAnalysisMode,
+      ) && (
+        <section
+          id="pane-settings-display-v3"
+          className="workbench-pane-settings-section space-y-4"
+        >
+          <EditorSectionHeadingV3>
+            {strings.displaySection}
+          </EditorSectionHeadingV3>
+          {graph?.renderer === "sweep" && (
+            <div className="grid gap-1.5">
+              <PaneRangeInputV3
+                label={strings.windowSec}
+                value={pane.windowSec ?? WORKBENCH_SWEEP_WINDOW_DEFAULT_SEC_V3}
+                minimum={WORKBENCH_SWEEP_WINDOW_MIN_SEC_V3}
+                maximum={WORKBENCH_SWEEP_WINDOW_MAX_SEC_V3}
+                step={WORKBENCH_SWEEP_WINDOW_STEP_SEC_V3}
+                unit="s"
+                onCommit={(windowSec) => onChange({ ...pane, windowSec })}
+              />
+              <p className="text-[10px] text-wb-subtle">
+                {strings.windowSecHint}
+              </p>
+            </div>
+          )}
+          {graph?.renderer === "pressure-volume" &&
+            periodicPvaSupported &&
+            pane.pressureVolumeAnalysisMode !== "raw-exact-orbit" && (
+              <button
+                type="button"
+                aria-pressed={
                   pane.showPressureEnvelope ??
                   WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
-                ),
-              })
-            }
-          >
-            <span className="flex items-center justify-between gap-3">
-              <span className="text-xs font-medium">
-                {strings.pressureEnvelopeOverlay}
-              </span>
-              <span
-                aria-hidden="true"
-                className={`relative h-4 w-7 rounded-full transition-colors ${
+                }
+                className={`block w-full rounded-xl px-3 py-3 text-left transition-colors ${
                   (pane.showPressureEnvelope ??
                   WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                    ? "bg-wb-accent"
-                    : "bg-wb-border"
+                    ? "bg-wb-selected text-wb-text"
+                    : "bg-wb-soft/55 text-wb-muted hover:bg-wb-hover hover:text-wb-text"
                 }`}
+                onClick={() =>
+                  onChange({
+                    ...pane,
+                    showPressureEnvelope: !(
+                      pane.showPressureEnvelope ??
+                      WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3
+                    ),
+                  })
+                }
               >
-                <span
-                  className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
-                    (pane.showPressureEnvelope ??
-                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
-                      ? "translate-x-3.5"
-                      : "translate-x-0.5"
-                  }`}
-                />
-              </span>
-            </span>
-            <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
-              {strings.pressureEnvelopeOverlayHint}
-            </span>
-          </button>
-        )}
-      </section>
+                <span className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-medium">
+                    {strings.pressureEnvelopeOverlay}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={`relative h-4 w-7 rounded-full transition-colors ${
+                      (pane.showPressureEnvelope ??
+                      WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                        ? "bg-wb-accent"
+                        : "bg-wb-border"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
+                        (pane.showPressureEnvelope ??
+                        WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3)
+                          ? "translate-x-3.5"
+                          : "translate-x-0.5"
+                      }`}
+                    />
+                  </span>
+                </span>
+                <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
+                  {strings.pressureEnvelopeOverlayHint}
+                </span>
+              </button>
+            )}
+        </section>
+      )}
 
       <section
         id="pane-settings-data-v3"
@@ -789,7 +827,9 @@ function GraphPaneEditorV3({
         <EditorSectionHeadingV3>{dataSectionTitle}</EditorSectionHeadingV3>
         {graph !== undefined && scenarios.length > 0 && (
           <GraphTraceVisibilityEditorV3
+            contract={contract}
             graph={graph}
+            locale={locale}
             pane={pane}
             scenarios={scenarios}
             strings={strings}
@@ -803,10 +843,20 @@ function GraphPaneEditorV3({
               const selectedItem = pane.series.find(
                 ({ seriesId }) => seriesId === series.seriesId,
               );
+              const presentation = resolveGraphSeriesPresentationV3({
+                contract,
+                graph,
+                locale,
+                seriesId: series.seriesId,
+                storedLabel: selectedItem?.label,
+              });
               return {
                 id: series.seriesId,
                 defaultLabel: graphSeriesLabelV3(series.seriesId),
-                label: selectedItem?.label,
+                ...(presentation === undefined
+                  ? {}
+                  : { description: presentation.description }),
+                label: presentation?.label ?? selectedItem?.label,
                 selected: selectedItem !== undefined,
                 disableDeselect:
                   selectedItem !== undefined && pane.series.length === 1,
@@ -865,7 +915,9 @@ function GraphPaneEditorV3({
           </EditorSectionHeadingV3>
           <ScenarioTraceColorEditorV3
             appTheme={appTheme}
+            contract={contract}
             graph={graph}
+            locale={locale}
             pane={pane}
             scenarios={scenarios}
             strings={strings}
@@ -878,14 +930,43 @@ function GraphPaneEditorV3({
   );
 }
 
+function resolveGraphSeriesPresentationV3(
+  input: Readonly<{
+    contract: ModelContractV2;
+    graph: GraphDefinitionV2;
+    locale: "en" | "ja";
+    seriesId: string;
+    storedLabel: string | undefined;
+  }>,
+): ResolvedStudioItemPresentationV1 | undefined {
+  if (!("seriesCatalog" in input.graph)) return undefined;
+  const binding = input.graph.seriesCatalog.find(
+    ({ seriesId }) => seriesId === input.seriesId,
+  );
+  if (binding === undefined || !("outputId" in binding)) return undefined;
+  return resolveWorkbenchGraphSeriesPresentationV3({
+    definition: input.contract.outputCatalog.find(
+      ({ outputId }) => outputId === binding.outputId,
+    ),
+    locale: input.locale,
+    outputId: binding.outputId,
+    seriesId: binding.seriesId,
+    storedLabel: input.storedLabel,
+  });
+}
+
 function GraphTraceVisibilityEditorV3({
+  contract,
   graph,
+  locale,
   pane,
   scenarios,
   strings,
   onChange,
 }: Readonly<{
+  contract: ModelContractV2;
   graph: GraphDefinitionV2;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceGraphPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   strings: WorkbenchPaneEditorStringsV3;
@@ -896,7 +977,17 @@ function GraphTraceVisibilityEditorV3({
       ? [{ seriesId: null, label: "Guyton / Starling" }]
       : [...pane.series]
           .sort((left, right) => left.order - right.order)
-          .map(({ seriesId, label }) => ({ seriesId, label }));
+          .map(({ seriesId, label }) => ({
+            seriesId,
+            label:
+              resolveGraphSeriesPresentationV3({
+                contract,
+                graph,
+                locale,
+                seriesId,
+                storedLabel: label,
+              })?.label ?? label,
+          }));
   const visibleTraceCount = scenarios.reduce((count, scenario) => {
     return (
       count +
@@ -1023,7 +1114,9 @@ export function updateWorkbenchGraphTraceCustomColorV3(
 
 function ScenarioTraceColorEditorV3({
   appTheme,
+  contract,
   graph,
+  locale,
   pane,
   scenarios,
   strings,
@@ -1031,7 +1124,9 @@ function ScenarioTraceColorEditorV3({
   onChange,
 }: Readonly<{
   appTheme: "light" | "dark";
+  contract: ModelContractV2;
   graph: GraphDefinitionV2;
+  locale: "en" | "ja";
   pane: ExperimentSurfaceGraphPaneV2;
   scenarios: readonly Readonly<{ scenarioId: string; label: string }>[];
   strings: WorkbenchPaneEditorStringsV3;
@@ -1133,7 +1228,15 @@ function ScenarioTraceColorEditorV3({
                         key={item.seriesId}
                         colorHex={resolved.color}
                         customized={exactTrace?.customColorHex !== undefined}
-                        label={item.label}
+                        label={
+                          resolveGraphSeriesPresentationV3({
+                            contract,
+                            graph,
+                            locale,
+                            seriesId: item.seriesId,
+                            storedLabel: item.label,
+                          })?.label ?? item.label
+                        }
                         resetLabel={strings.resetColor}
                         onChange={(colorHex) =>
                           onChange(
@@ -1496,6 +1599,9 @@ function ControlPaneEditorV3({
               id: control.controlId,
               storedLabel: selectedItem?.label,
               locale,
+              catalogFacts: {
+                controlChangeSemantics: control.changeSemantics,
+              },
             }),
             selected: selectedItem !== undefined,
             disableDeselect: false,
@@ -1598,9 +1704,7 @@ function resolvePaneItemManagerPresentationV3(
     id: string;
     storedLabel: string | undefined;
     locale: "en" | "ja";
-    catalogFacts?: Readonly<{
-      outputKind?: string;
-    }>;
+    catalogFacts?: StudioItemPresentationCatalogFactsV1;
   }>,
 ): Pick<
   PaneItemManagerEntryV3,
@@ -2898,6 +3002,7 @@ function reorderPaneItemIdsForDropV3(
 type CatalogSelectionEntryV3 = Readonly<{
   id: string;
   defaultLabel: string;
+  description?: string;
   label: string | undefined;
   selected: boolean;
   disableDeselect: boolean;
@@ -2957,13 +3062,14 @@ function CatalogSelectionV3({
                   type="button"
                   className="min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
                   disabled={entry.disableDeselect}
+                  title={entry.description}
                   onClick={() => onToggle(entry.id)}
                 >
                   <span className="block truncate text-xs font-medium">
                     {entry.label ?? entry.defaultLabel}
                   </span>
-                  <span className="block truncate font-mono text-[9px] text-wb-subtle">
-                    {entry.id}
+                  <span className="line-clamp-2 block text-[9px] leading-4 text-wb-subtle">
+                    {entry.description ?? entry.id}
                   </span>
                 </button>
               </div>

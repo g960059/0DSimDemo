@@ -6,6 +6,10 @@ import {
 } from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 import { createMechanicalSupportConfigV1 } from "@/engine/devices/defaultsV1";
 import {
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -33,8 +37,17 @@ import {
   type MainWireIntegratedModelStepInputV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
-import { createMainWireIntegratedRegularSinusRhythmV3 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
-import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  createMainWireIntegratedRegularSinusRhythmV3,
+} from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
+import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  type FiveWallNormalCalciumDriveParamsV1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaExactPersistenceV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
@@ -65,8 +78,14 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import { createMainWireCommonPericardiumWithResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireCommonPericardiumResearchInputsV1";
-import { createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1,
+  createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import { withCommonVentricularActiveTensionScaleV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRelaxationProfileV1";
 import { createMainWireFourValveContinuousAreaResearchInputV1 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   canonicalJsonStringify,
@@ -111,6 +130,45 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   releaseAcceptanceClaimed: false as const,
   releaseReadyClaimed: false as const,
 });
+
+export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID =
+  "main-wire-integrated-model-selected-aortic-outflow-fixture-v1" as const;
+
+/**
+ * Fixed opt-in assembly selected by the archived aortic-outflow investigation.
+ * This is one inseparable construction, not a catalog or an arbitrary runtime
+ * axis. The legacy default factory remains a separate explicit path.
+ */
+export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM =
+  Object.freeze({
+    fixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+    ventricularMaterialProfileId:
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+    aorticOutflowCirculationProfileId:
+      MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+    regularSinusProfileId:
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+    assemblyScope: "cold-fixture-and-same-configuration-stepping" as const,
+    composedRhythmCalciumOwner:
+      "accepted-exact-event-matched-alpha-state" as const,
+    coronaryCalciumDriveParamsRole:
+      "matched-alpha-descriptor-and-cycle-contract-not-calcium-state-owner" as const,
+    boundedHemodynamicResearchInputsRetained: true as const,
+    activeAndPassiveWallResearchInputsRetained: true as const,
+    valvePericardialAndCoronaryResearchInputsRetained: true as const,
+    oxygenTransportInputRetainedForAnalysis: true as const,
+    calciumDecayTimeScaleResearchInput:
+      "fixed-unit-only-to-preserve-selected-matched-alpha-law" as const,
+    dynamicMechanicalSupport:
+      "existing-explicit-all-off-zero-inertance" as const,
+    warmRuntimeRebindingSupported: false as const,
+    newContinuousStateAdded: false as const,
+    legacyDefaultFixtureSelection:
+      "canonical-provider-and-absent-selected-aortic-outflow-profile" as const,
+    parameterSearchOrFitting: false as const,
+    clinicalValidationClaimed: false as const,
+  });
 
 export type MainWireIntegratedModelPeriodicExecutionPurposeV3 =
   "canonical-evidence" | "bounded-smoke" | "fixed-horizon-characterization";
@@ -309,10 +367,136 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
 >;
 
+type MainWireIntegratedModelCheckpointFixtureViewV3 = Readonly<
+  Pick<
+    MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+    | "provider"
+    | "cold"
+    | "rhythm"
+    | "profile"
+    | "config"
+    | "hemodynamicResearchInputs"
+  > & {
+    coronaryStepInput: Pick<
+      MainWireIntegratedModelRegularSinusAllOffFixtureV3["coronaryStepInput"],
+      | "coronaryPrior"
+      | "collapseHydraulics"
+      | "impMechanism"
+      | "shorteningImpPrior"
+    >;
+  }
+>;
+
 export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   ventricularContractilityScale = 1,
   requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs,
+  );
+  return assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () =>
+        createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+          prepared.chamberMechanics,
+        ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness:
+          prepared.hemodynamicResearchInputs.arterialStiffness,
+      }),
+      createCalciumDriveParams: (cycleLengthSec) => Object.freeze({
+        ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        parameterSetId:
+          `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}` +
+          `-hr-${prepared.hemodynamicResearchInputs.heartRateBpm}-bpm`,
+        cycleLengthSec,
+        decayTimeScaleByWall:
+          prepared.chamberMechanics.calciumDecayTimeScaleByWall,
+      }),
+      createRhythm: (cycleLengthSec) =>
+        createMainWireIntegratedRegularSinusRhythmV3({
+          idPrefix: "periodic-v3",
+          parameterProvenanceSourceId: "bounded-periodic-v3-construction",
+          cycleLengthSec,
+        }),
+    },
+  );
+}
+
+export type MainWireIntegratedModelSelectedAorticOutflowFixtureV1 = ReturnType<
+  typeof createMainWireIntegratedModelSelectedAorticOutflowFixtureV1
+>;
+
+/**
+ * Opts into the fixed Land / recovered-root circulation / matched-alpha
+ * regular-sinus assembly while retaining its admitted cold-fixture coordinates.
+ * Non-unit calcium-decay scales are outside this matched-alpha construction.
+ */
+export function createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs,
+  );
+  assertSelectedMatchedAlphaCompatibleCalciumScalesV1(
+    prepared.chamberMechanics,
+  );
+  const fixture = assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () =>
+        createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+          prepared.chamberMechanics,
+        ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness:
+          prepared.hemodynamicResearchInputs.arterialStiffness,
+        selectedAorticOutflowProfile:
+          MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+      }),
+      createCalciumDriveParams: () =>
+        resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+          prepared.hemodynamicResearchInputs.heartRateBpm,
+        ),
+      createRhythm: (cycleLengthSec) =>
+        createMainWireIntegratedRegularSinusRhythmV3(
+          {
+            idPrefix: "selected-aortic-outflow-v1",
+            parameterProvenanceSourceId:
+              MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+            cycleLengthSec,
+          },
+          {
+            profileId:
+              MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+            heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm,
+          },
+        ),
+    },
+  );
+  return Object.freeze({
+    ...fixture,
+    fixedAssemblyId:
+      MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+    fixedAssemblyClaim:
+      MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
+  });
+}
+
+function prepareMainWireIntegratedModelFixtureInputsV3(
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+  ventricularContractilityScale: number,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ) {
   const hemodynamicResearchInputs =
     validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
@@ -333,26 +517,47 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
     ...requestedMechanismInputs,
     chamberMechanics,
   });
-  const provider =
-    createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
-      chamberMechanics,
-    );
+  return Object.freeze({
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    chamberMechanics,
+  });
+}
+
+function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
+  TVascularRuntime extends Readonly<{
+    venousTone: number;
+    arterialStiffness: number;
+  }>,
+  TCalciumDriveParams extends FiveWallNormalCalciumDriveParamsV1,
+  TRhythm extends ReturnType<
+    typeof createMainWireIntegratedRegularSinusRhythmV3
+  >,
+>(
+  prepared: ReturnType<typeof prepareMainWireIntegratedModelFixtureInputsV3>,
+  fixedAssembly: Readonly<{
+    createProvider: () => Provider;
+    createVascularRuntime: () => TVascularRuntime;
+    createCalciumDriveParams: (
+      cycleLengthSec: number,
+    ) => TCalciumDriveParams;
+    createRhythm: (cycleLengthSec: number) => TRhythm;
+  }>,
+) {
+  const {
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+  } = prepared;
+  const provider = fixedAssembly.createProvider();
   const canonicalRuntime = normalAdultMainWireRuntimeV1();
   const cycleLengthSec = 60 / hemodynamicResearchInputs.heartRateBpm;
   const peepMmHg = hemodynamicResearchInputs.peepCmH2O * 0.7355592401;
-  const calciumDriveParams = Object.freeze({
-    ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-    parameterSetId:
-      `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}` +
-      `-hr-${hemodynamicResearchInputs.heartRateBpm}-bpm`,
-    cycleLengthSec,
-    decayTimeScaleByWall: chamberMechanics.calciumDecayTimeScaleByWall,
-  });
+  const calciumDriveParams =
+    fixedAssembly.createCalciumDriveParams(cycleLengthSec);
   const runtime = Object.freeze({
-    vascular: Object.freeze({
-      venousTone: hemodynamicResearchInputs.venousTone,
-      arterialStiffness: hemodynamicResearchInputs.arterialStiffness,
-    }),
+    vascular: fixedAssembly.createVascularRuntime(),
     losses: Object.freeze({
       systemicResistance: hemodynamicResearchInputs.systemicResistance,
       pulmonaryResistance: hemodynamicResearchInputs.pulmonaryResistance,
@@ -371,11 +576,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
   const coronaryDisease = createMainWireCoronaryDiseaseInputV2(
     mechanismResearchInputs.coronaryDisease,
   );
-  const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
-    idPrefix: "periodic-v3",
-    parameterProvenanceSourceId: "bounded-periodic-v3-construction",
-    cycleLengthSec,
-  });
+  const rhythm = fixedAssembly.createRhythm(cycleLengthSec);
   const profile = createAllOffZeroInertanceProfileV3();
   const config = createMechanicalSupportConfigV1();
   assertAllOffConfig(config);
@@ -1490,7 +1691,7 @@ function stepInput(
 }
 
 export function createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  fixture: MainWireIntegratedModelCheckpointFixtureViewV3,
 ): MainWireIntegratedModelCheckpointContextV3<WallState> {
   return Object.freeze({
     provider: fixture.provider,
@@ -1588,6 +1789,21 @@ function assertPeriodicNominalDtSec(nominalDtSec: number): void {
   ) {
     throw new RangeError(
       `nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`,
+    );
+  }
+}
+
+function assertSelectedMatchedAlphaCompatibleCalciumScalesV1(
+  chamberMechanics: MainWireIntegratedModelMechanismResearchInputsV3["chamberMechanics"],
+): void {
+  const nonUnitWalls = Object.entries(
+    chamberMechanics.calciumDecayTimeScaleByWall,
+  ).filter(([, scale]) => scale !== 1).map(([wallId]) => wallId);
+  if (nonUnitWalls.length > 0) {
+    throw new Error(
+      "selected aortic-outflow fixture requires unit calcium decay-time "
+        + "scales to preserve its fixed matched-alpha calcium law; "
+        + `non-unit walls: ${nonUnitWalls.join(", ")}`,
     );
   }
 }

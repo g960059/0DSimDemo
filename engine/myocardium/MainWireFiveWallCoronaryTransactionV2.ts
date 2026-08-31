@@ -155,6 +155,9 @@ import {
   MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1,
   resolveMainWireNormalAdultBloodVolumeProtocolTargetV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
+import {
+  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
 
 export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID =
   "main-wire-five-wall-coronary-transaction-v2" as const;
@@ -572,6 +575,9 @@ export type MainWireFiveWallCoupledAcceptedCandidateBorrowV1<TWallState> =
     coronaryAutoregulationHydraulicObservables: Float64Array;
     /** Context-owned fixed signal/beat readback; copy before return. */
     acceptedNumericalReadback: Float64Array;
+    /** Present only for the selected recovered-root AoV evaluator. */
+    selectedAorticValveReadback?:
+      MainWireFiveWallSelectedAorticValveReadbackV1;
     mechanicsCandidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
     mechanicsMaterialState: TWallState;
     mechanicsMaterialStateFingerprint: string;
@@ -582,6 +588,12 @@ export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V1_ID =
   "main-wire-five-wall-accepted-numerical-readback-v2" as const;
 export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1 =
   73 as const;
+export type MainWireFiveWallSelectedAorticValveReadbackV1 = Readonly<{
+  modelId: typeof MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID;
+  algebraicProximalConstitutivePortPressureMmHg: number;
+  localValvePressureGradientMmHg: number;
+  venaContractaBernoulliPressureMmHg: number;
+}>;
 export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1 =
   Object.freeze(["LA", "LV", "RA", "RV"] as const);
 export const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1 =
@@ -629,6 +641,96 @@ export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1 =
     pericardialStoredEnergyMilliJ: 72,
   } as const);
 
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V3_ID =
+  "main-wire-five-wall-accepted-numerical-readback-v3" as const;
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3 =
+  76 as const;
+export const MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2 =
+  Object.freeze({
+    ...MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+    algebraicProximalConstitutivePortPressureMmHg: 73,
+    localValvePressureGradientMmHg: 74,
+    venaContractaBernoulliPressureMmHg: 75,
+  } as const);
+
+/**
+ * Writes the selected-model readback without changing the historical 73-f64
+ * owner. This writer is intentionally selected-only and fails closed if the
+ * recovered-root evaluator or either fixed buffer contract is absent.
+ */
+export function writeMainWireFiveWallAcceptedNumericalReadbackV3(
+  destination: Float64Array,
+  historicalPrefix: Float64Array,
+  selectedAorticValveReadback:
+    | MainWireFiveWallSelectedAorticValveReadbackV1
+    | undefined,
+): void {
+  if (
+    !(destination instanceof Float64Array)
+    || destination.length
+      !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3
+  ) {
+    throw new RangeError(
+      "selected aortic accepted numerical readback must contain exactly "
+      + `${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3} f64 values`,
+    );
+  }
+  if (
+    !(historicalPrefix instanceof Float64Array)
+    || historicalPrefix.length
+      !== MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
+  ) {
+    throw new RangeError(
+      "historical accepted numerical readback prefix must contain exactly "
+      + `${MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1} f64 values`,
+    );
+  }
+  if (selectedAorticValveReadback === undefined) {
+    throw new Error("selected aortic valve readback is required");
+  }
+  if (
+    selectedAorticValveReadback.modelId
+    !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID
+  ) {
+    throw new Error(
+      "selected aortic valve readback has the wrong evaluator model ID",
+    );
+  }
+  for (let index = 0; index < historicalPrefix.length; index += 1) {
+    requireFinite(
+      historicalPrefix[index]!,
+      `historical accepted numerical readback prefix[${index}]`,
+    );
+  }
+  const algebraicProximalConstitutivePortPressureMmHg =
+    selectedAorticValveReadback
+      .algebraicProximalConstitutivePortPressureMmHg;
+  const localValvePressureGradientMmHg =
+    selectedAorticValveReadback.localValvePressureGradientMmHg;
+  const venaContractaBernoulliPressureMmHg =
+    selectedAorticValveReadback.venaContractaBernoulliPressureMmHg;
+  requireFinite(
+    algebraicProximalConstitutivePortPressureMmHg,
+    "selected aortic algebraic proximal constitutive-port pressure",
+  );
+  requireFinite(
+    localValvePressureGradientMmHg,
+    "selected aortic local valve pressure gradient",
+  );
+  requireFinite(
+    venaContractaBernoulliPressureMmHg,
+    "selected aortic vena-contracta Bernoulli pressure",
+  );
+  destination.set(historicalPrefix);
+  const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2;
+  destination[layout.algebraicProximalConstitutivePortPressureMmHg] =
+    algebraicProximalConstitutivePortPressureMmHg;
+  destination[layout.localValvePressureGradientMmHg] =
+    localValvePressureGradientMmHg;
+  destination[layout.venaContractaBernoulliPressureMmHg] =
+    venaContractaBernoulliPressureMmHg;
+}
+
 function requiredOrderIndexV1(
   order: readonly string[],
   id: string,
@@ -666,6 +768,12 @@ const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_INDICES_V1 = Object.freeze(
     ),
   ),
 );
+const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_AORTIC_VALVE_INDEX_V1 =
+  requiredOrderIndexV1(
+    NON_CORONARY_VALVE_NAMES_V1,
+    "AoV",
+    "selected aortic readback valve",
+  );
 const MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_EDGE_INDICES_V1 =
   Object.freeze(
     MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VASCULAR_FLOW_ORDER_V1.map((edgeId) =>
@@ -680,6 +788,11 @@ type MutableNonCoronaryValveStateV1 = {
   -readonly [
     TKey in keyof NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"][number]
   ]: NonCoronaryPreparedCandidateBorrowV1<unknown>["valveStates"][number][TKey];
+};
+type MutableMainWireFiveWallSelectedAorticValveReadbackV1 = {
+  -readonly [
+    TKey in keyof MainWireFiveWallSelectedAorticValveReadbackV1
+  ]: MainWireFiveWallSelectedAorticValveReadbackV1[TKey];
 };
 
 /** Cold construction context for the first real 30-row coupled solve. */
@@ -1365,6 +1478,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
     dynamicEdgeFlowsMlPerSec: Float64Array;
     valveOpeningFractions01: Float64Array;
     valveFlowsMlPerSec: Float64Array;
+    selectedAorticValveReadback?:
+      MainWireFiveWallSelectedAorticValveReadbackV1;
     continuityResidualMlByNode: Float64Array;
     mixedContinuityResidualInfinityNorm: number;
     absoluteChamberPressureTangent: NonCoronaryAbsoluteChamberPressureTangentV1 | null;
@@ -1389,6 +1504,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
   let cachedNonCoronaryProbe: MutableCoupledNonCoronaryCandidateView | null =
     null;
   let cachedCandidate: MutableCoupledCandidateView | null = null;
+  let cachedSelectedAorticValveReadback:
+    | MutableMainWireFiveWallSelectedAorticValveReadbackV1
+    | null = null;
   const sameAsCachedCandidate = (unknownsMl: Float64Array): boolean => {
     if (cachedCandidate === null) return false;
     for (let index = 0; index < unknownsMl.length; index += 1) {
@@ -1511,6 +1629,62 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           cachedValveFlowsMlPerSec[index] =
             nonCoronaryProbe.valveEvaluations[index]!.flowMlPerSec;
         }
+        const selectedAorticValveEvaluation =
+          input.runtime.vascular.selectedAorticOutflowProfile === undefined
+            ? undefined
+            : nonCoronaryProbe.valveEvaluations[
+              MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_AORTIC_VALVE_INDEX_V1
+            ];
+        if (
+          input.runtime.vascular.selectedAorticOutflowProfile !== undefined
+          && selectedAorticValveEvaluation === undefined
+        ) {
+          throw new Error("coupled candidate selected aortic evaluation is absent");
+        }
+        if (selectedAorticValveEvaluation !== undefined) {
+          if (
+            selectedAorticValveEvaluation.modelId
+            !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID
+          ) {
+            throw new Error(
+              "coupled candidate selected aortic readback model ID drifted",
+            );
+          }
+          const algebraicProximalConstitutivePortPressureMmHg =
+            selectedAorticValveEvaluation
+              .algebraicProximalConstitutivePortPressureMmHg;
+          const localValvePressureGradientMmHg =
+            selectedAorticValveEvaluation.localValvePressureGradientMmHg;
+          const venaContractaBernoulliPressureMmHg =
+            selectedAorticValveEvaluation
+              .venaContractaBernoulliPressureMmHg;
+          requireFinite(
+            algebraicProximalConstitutivePortPressureMmHg,
+            "coupled candidate selected aortic proximal pressure",
+          );
+          requireFinite(
+            localValvePressureGradientMmHg,
+            "coupled candidate selected aortic local pressure gradient",
+          );
+          requireFinite(
+            venaContractaBernoulliPressureMmHg,
+            "coupled candidate selected aortic vena-contracta pressure",
+          );
+          cachedSelectedAorticValveReadback ??= {
+            modelId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+            algebraicProximalConstitutivePortPressureMmHg: 0,
+            localValvePressureGradientMmHg: 0,
+            venaContractaBernoulliPressureMmHg: 0,
+          };
+          cachedSelectedAorticValveReadback
+            .algebraicProximalConstitutivePortPressureMmHg =
+              algebraicProximalConstitutivePortPressureMmHg;
+          cachedSelectedAorticValveReadback.localValvePressureGradientMmHg =
+            localValvePressureGradientMmHg;
+          cachedSelectedAorticValveReadback
+            .venaContractaBernoulliPressureMmHg =
+              venaContractaBernoulliPressureMmHg;
+        }
         cachedContinuityResidual.set(
           nonCoronaryProbe.continuityResidualMlByNode,
         );
@@ -1524,6 +1698,12 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             dynamicEdgeFlowsMlPerSec: cachedDynamicEdgeFlows,
             valveOpeningFractions01: cachedValveOpeningFractions01,
             valveFlowsMlPerSec: cachedValveFlowsMlPerSec,
+            ...(selectedAorticValveEvaluation === undefined
+              ? {}
+              : {
+                  selectedAorticValveReadback:
+                    cachedSelectedAorticValveReadback!,
+                }),
             continuityResidualMlByNode: cachedContinuityResidual,
             mixedContinuityResidualInfinityNorm:
               nonCoronaryProbe.mixedContinuityResidualInfinityNorm,
@@ -1545,6 +1725,14 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             nonCoronaryProbe: cachedNonCoronaryProbe,
           };
         } else {
+          if (
+            (cachedNonCoronaryProbe.selectedAorticValveReadback === undefined)
+            !== (selectedAorticValveEvaluation === undefined)
+          ) {
+            throw new Error(
+              "coupled candidate selected aortic readback presence drifted",
+            );
+          }
           cachedCandidate.boundary = candidateBoundary;
           cachedCandidate.localIndependentResidualDIndependentVolumeMlPerMl =
             localIndependentResidualDIndependentVolumeMlPerMl === null
@@ -1856,6 +2044,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
             `accepted numerical readback[${index}]`,
           );
         }
+        const selectedAorticValveReadback =
+          candidate.nonCoronaryProbe.selectedAorticValveReadback;
         const visit = (mechanicsMaterialState: TWallState): TResult =>
           consume(
             Object.freeze({
@@ -1874,6 +2064,9 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
               coronaryAutoregulationHydraulicObservables:
                 cachedCoronaryAutoregulationHydraulicObservables,
               acceptedNumericalReadback,
+              ...(selectedAorticValveReadback === undefined
+                ? {}
+                : { selectedAorticValveReadback }),
               mechanicsCandidateVolumesMl:
                 mechanics.mechanicsView.candidateVolumesMl,
               mechanicsMaterialState,

@@ -19,7 +19,7 @@ export type ControlDefinitionV2 = Readonly<{
   maximum: number;
   step: number;
   defaultValue: number;
-  changeSemantics: "accepted-state-warm-start";
+  changeSemantics: "accepted-state-warm-start" | "cold-restart";
 }>;
 
 export type ScalarGraphSeriesDefinitionV2 = Readonly<{
@@ -465,10 +465,13 @@ export function assertControlCatalogV2(value: unknown, path: string): void {
         'must be "number"',
       );
     }
-    if (control.changeSemantics !== "accepted-state-warm-start") {
+    if (
+      control.changeSemantics !== "accepted-state-warm-start"
+      && control.changeSemantics !== "cold-restart"
+    ) {
       throw new ModelContractValidationErrorV2(
         `${definitionPath}.changeSemantics`,
-        'must be "accepted-state-warm-start"',
+        'must be "accepted-state-warm-start" or "cold-restart"',
       );
     }
     assertNonEmptyTrimmedStringV2(control.unit, `${definitionPath}.unit`, 128);

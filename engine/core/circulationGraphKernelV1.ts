@@ -13,6 +13,13 @@ import {
   type PtmFromStressedVolumeTangentBranch,
   type VascularPvLaw,
 } from "@/engine/vascularPv";
+import {
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+  validateMainWireSelectedAorticOutflowCirculationProfileV1,
+  type MainWireSelectedAorticOutflowCirculationProfileV1,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import { validationStampIssuanceEligibleV1 } from
+  "@/engine/validationStampModeV1";
 
 /**
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
@@ -51,13 +58,24 @@ export function buildAuthoritativeCirculationGraphV1(): AuthoritativeCirculation
 export type VascularPvRuntimeParameterViewV1 = {
   readonly venousTone: number;
   readonly arterialStiffness: number;
+  readonly selectedAorticOutflowProfile?:
+    MainWireSelectedAorticOutflowCirculationProfileV1;
 };
 
 export function effectiveUnstressedVolumeFromNodeV1(
   node: NodeSpec,
-  params: Pick<VascularPvRuntimeParameterViewV1, "venousTone">,
+  params: Pick<
+    VascularPvRuntimeParameterViewV1,
+    "venousTone" | "selectedAorticOutflowProfile"
+  >,
 ): number {
-  return (node.Vu ?? 0) - (node.venousToneGain ?? 0) * params.venousTone;
+  const topologyEffectiveVu = (node.Vu ?? 0)
+    - (node.venousToneGain ?? 0) * params.venousTone;
+  const stiffnessMultiplier =
+    selectedSystemicArterialStiffnessMultiplierV1(node, params);
+  if (stiffnessMultiplier === undefined) return topologyEffectiveVu;
+  return node.x0
+    - (node.x0 - topologyEffectiveVu) / stiffnessMultiplier;
 }
 
 export function vascularPvLawFromNodeV1(
@@ -66,6 +84,20 @@ export function vascularPvLawFromNodeV1(
 ): VascularPvLaw {
   const Vu = effectiveUnstressedVolumeFromNodeV1(node, params);
   if (node.kind === "arterial") {
+    const stiffnessMultiplier =
+      selectedSystemicArterialStiffnessMultiplierV1(node, params);
+    if (stiffnessMultiplier !== undefined) {
+      const baseVsEff = Math.max(
+        (node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25),
+        1,
+      );
+      return {
+        kind: "arterial",
+        Vu,
+        P0: node.P0 ?? 50,
+        VsEff: baseVsEff / stiffnessMultiplier,
+      };
+    }
     return {
       kind: "arterial",
       Vu,
@@ -95,6 +127,48 @@ export function vascularPvLawFromNodeV1(
   }
   throw new Error(`Node ${node.name} has no vascular PV law`);
 }
+
+function selectedSystemicArterialStiffnessMultiplierV1(
+  node: NodeSpec,
+  params: Pick<
+    VascularPvRuntimeParameterViewV1,
+    "selectedAorticOutflowProfile"
+  >,
+): 2 | undefined {
+  const selectedProfile = params.selectedAorticOutflowProfile;
+  if (selectedProfile === undefined || node.kind !== "arterial") {
+    return undefined;
+  }
+  if (
+    selectedProfile
+      !== MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
+    && !VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.has(
+      selectedProfile,
+    )
+  ) {
+    const issues = validateMainWireSelectedAorticOutflowCirculationProfileV1(
+      selectedProfile,
+    );
+    if (issues.length > 0) throw new Error(issues.join("; "));
+    if (validationStampIssuanceEligibleV1(selectedProfile)) {
+      VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.add(
+        selectedProfile,
+      );
+    }
+  }
+  if (
+    !selectedProfile.systemicArterialNodeIds.some(
+      (nodeId) => nodeId === node.name,
+    )
+  ) return undefined;
+  return selectedProfile.systemicArterialTangentStiffnessMultiplier;
+}
+
+// Structurally equal profile clones are admitted only after validation. A
+// proof is retained only for transitively frozen plain data, so mutable input
+// is revalidated on every constitutive entry and cannot mutate behind a stamp.
+const VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1 =
+  new WeakSet<object>();
 
 /**
  * Authoritative main-wire cold-seed volume rule. `x0` is a physical volume

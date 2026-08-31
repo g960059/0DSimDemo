@@ -36,6 +36,17 @@ export const WORKBENCH_GRAPH_HISTORY_MAX_DEPTH_V3 =
 export const WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3 =
   "formal-periodic" as const;
 export const WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3 = false;
+const WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3 =
+  Object.freeze([
+    "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port",
+    "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port",
+    "hemodynamics.pressure.mean.aortic-proximal-constitutive-port",
+  ]);
+const WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3 = Object.freeze([
+  "hemodynamics.pressure.systolic.Ao",
+  "hemodynamics.pressure.diastolic.Ao",
+  "hemodynamics.pressure.mean.Ao",
+]);
 
 /**
  * The Workbench exposes graph constructors, not registry graph presets. Each
@@ -161,6 +172,8 @@ const OUTPUT_COLOR_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.transmural.RA": "#167a82",
   "hemodynamics.pressure.transmural.RV": "#346fc0",
   "hemodynamics.pressure.absolute.Ao": "#167db8",
+  "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port":
+    "#167db8",
   "hemodynamics.pressure.absolute.SA": "#2d70ac",
   "hemodynamics.pressure.absolute.PA": "#6a61b6",
   "hemodynamics.pressure.absolute.PVein": "#8d52a7",
@@ -200,7 +213,9 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.transmural.RA": "RA transmural pressure",
   "hemodynamics.pressure.transmural.RV": "RV transmural pressure",
   "hemodynamics.pressure.absolute.Ao": "Aortic-root pressure",
-  "hemodynamics.pressure.absolute.SA": "Systemic arterial pressure",
+  "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port":
+    "Aortic pressure (AoP)",
+  "hemodynamics.pressure.absolute.SA": "Arterial blood pressure (ABP)",
   "hemodynamics.pressure.absolute.PA": "Pulmonary arterial pressure",
   "hemodynamics.pressure.absolute.PVein": "Pulmonary venous pressure",
   "hemodynamics.pressure.absolute.VC": "Vena cava pressure",
@@ -270,6 +285,14 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
   "hemodynamics.pressure.systolic.Ao": "Systolic aortic-root pressure",
   "hemodynamics.pressure.diastolic.Ao": "Diastolic aortic-root pressure",
   "hemodynamics.pressure.pulse.Ao": "Aortic-root pulse pressure",
+  "hemodynamics.pressure.mean.aortic-proximal-constitutive-port":
+    "Mean aortic pressure (AoP mean)",
+  "hemodynamics.pressure.maximum.aortic-proximal-constitutive-port":
+    "Aortic pressure (AoP max)",
+  "hemodynamics.pressure.minimum.aortic-proximal-constitutive-port":
+    "Aortic pressure (AoP min)",
+  "hemodynamics.pressure.pulse.aortic-proximal-constitutive-port":
+    "Aortic pulse pressure (AoPP)",
   "hemodynamics.pressure.mean.SA": "Mean systemic arterial pressure (MAP)",
   "hemodynamics.pressure.systolic.SA":
     "Systemic arterial systolic pressure (SBP)",
@@ -294,6 +317,20 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
     "Mean systemic circuit pressure difference (SA − RA)",
   "hemodynamics.pressure-gradient.mean.pulmonary-circuit":
     "Mean pulmonary circuit pressure difference (PA − PVein)",
+  "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV":
+    "AV local pressure gradient",
+  "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV":
+    "AV vena-contracta Bernoulli gradient",
+  "hemodynamics.pressure-gradient.valve.mean-local-hydraulic-forward.AoV":
+    "Mean AV local gradient",
+  "hemodynamics.pressure-gradient.valve.peak-local-hydraulic-forward.AoV":
+    "Peak AV local gradient",
+  "hemodynamics.pressure-gradient.valve.mean-vena-contracta-bernoulli-forward.AoV":
+    "Mean AV Bernoulli gradient",
+  "hemodynamics.pressure-gradient.valve.peak-vena-contracta-bernoulli-forward.AoV":
+    "Peak AV Bernoulli gradient",
+  "hemodynamics.duration.valve-forward-flow.AoV":
+    "AV forward-flow duration",
   "hemodynamics.volume.maximum.LV": "Maximum LV volume",
   "hemodynamics.volume.minimum.LV": "Minimum LV volume",
   "hemodynamics.stroke-volume.LV-extrema": "LV stroke volume (extrema)",
@@ -413,6 +450,9 @@ const OUTPUT_LABEL_BY_ID_V3: Readonly<Record<string, string>> = Object.freeze({
 export function createDefaultExperimentSurfaceV3(
   contract: ModelContractV2,
   initialScenarioId: string = WORKBENCH_SCENARIO_ID_V3,
+  options: Readonly<{
+    periodicPvaSupported?: boolean;
+  }> = Object.freeze({}),
 ): ExperimentSurfaceV2 {
   const defaultGraphs = Object.freeze([
     Object.freeze({
@@ -439,6 +479,7 @@ export function createDefaultExperimentSurfaceV3(
       ? []
       : [
           createDefaultGraphPaneV3(graph, index, {
+            periodicPvaSupported: options.periodicPvaSupported ?? true,
             ...("structuralSide" in defaultGraph
               ? { structuralSide: defaultGraph.structuralSide }
               : {}),
@@ -448,11 +489,18 @@ export function createDefaultExperimentSurfaceV3(
           }),
         ];
   });
+  const contractOutputIds = new Set(
+    contract.outputCatalog.map(({ outputId }) => outputId),
+  );
+  const defaultAorticPressureSummaryOutputIds =
+    WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3.every((outputId) =>
+      contractOutputIds.has(outputId),
+    )
+      ? WORKBENCH_PROXIMAL_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3
+      : WORKBENCH_LEGACY_AORTIC_PRESSURE_SUMMARY_OUTPUT_IDS_V3;
   const defaultOutputIds = Object.freeze([
     "rhythm.heart-rate.instantaneous",
-    "hemodynamics.pressure.systolic.Ao",
-    "hemodynamics.pressure.diastolic.Ao",
-    "hemodynamics.pressure.mean.Ao",
+    ...defaultAorticPressureSummaryOutputIds,
     "hemodynamics.pressure.systolic.PA",
     "hemodynamics.pressure.diastolic.PA",
     "hemodynamics.pressure.mean.PA",
@@ -541,10 +589,50 @@ export function createDefaultExperimentSurfaceV3(
   );
 }
 
+/**
+ * Canonicalize PV presentation against the analysis method pinned by the
+ * current Model Surface. This prevents a saved analysis-backed pane from
+ * retaining hidden formal/envelope claims when reopened on a raw-only pair.
+ */
+export function reconcileWorkbenchPressureVolumeCapabilityV3(
+  surface: ExperimentSurfaceV2,
+  contract: ModelContractV2,
+  periodicPvaSupported: boolean,
+): ExperimentSurfaceV2 {
+  if (periodicPvaSupported) return surface;
+  let changed = false;
+  const graphPanes = surface.graphPanes.map((pane) => {
+    const graph = contract.graphCatalog.find(
+      ({ graphId }) => graphId === pane.graphId,
+    );
+    if (
+      graph?.renderer !== "pressure-volume" ||
+      (pane.pressureVolumeAnalysisMode === "raw-exact-orbit" &&
+        pane.showPressureEnvelope === undefined)
+    )
+      return pane;
+    changed = true;
+    const {
+      showPressureEnvelope: _showPressureEnvelope,
+      ...withoutEnvelope
+    } = pane;
+    return Object.freeze({
+      ...withoutEnvelope,
+      pressureVolumeAnalysisMode: "raw-exact-orbit" as const,
+    });
+  });
+  if (!changed) return surface;
+  return Object.freeze({
+    ...surface,
+    graphPanes: Object.freeze(graphPanes),
+  });
+}
+
 function createDefaultGraphPaneV3(
   graph: GraphDefinitionV2,
   index: number,
   options: Readonly<{
+    periodicPvaSupported?: boolean;
     structuralSide?: "left" | "right";
     seriesIds?: readonly string[];
   }> = Object.freeze({}),
@@ -574,12 +662,16 @@ function createDefaultGraphPaneV3(
       : {
           historyDepth: WORKBENCH_GRAPH_HISTORY_DEFAULT_DEPTH_V3,
           ...(graph.renderer === "pressure-volume"
-            ? {
-                pressureVolumeAnalysisMode:
-                  WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
-                showPressureEnvelope:
-                  WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
-              }
+            ? options.periodicPvaSupported === false
+              ? {
+                  pressureVolumeAnalysisMode: "raw-exact-orbit" as const,
+                }
+              : {
+                  pressureVolumeAnalysisMode:
+                    WORKBENCH_PRESSURE_VOLUME_ANALYSIS_DEFAULT_MODE_V3,
+                  showPressureEnvelope:
+                    WORKBENCH_PRESSURE_VOLUME_ENVELOPE_DEFAULT_VISIBLE_V3,
+                }
             : {}),
           ...(graph.renderer === "structural-return" ? { structuralSide } : {}),
         }),
@@ -811,7 +903,8 @@ export function graphSeriesLabelV3(seriesId: string): string {
     LVP: "LVP",
     LAP: "LAP",
     AoP: "AoP",
-    SAP: "Systemic arterial pressure",
+    ABP: "ABP",
+    SAP: "ABP",
     RAP: "RAP",
     RVP: "RVP",
     PAP: "PAP",

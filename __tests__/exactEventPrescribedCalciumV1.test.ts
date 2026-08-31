@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyExactEventCalciumStimulusV1,
   canonicalizeDerivedExactEventCalciumParameterV1,
   advanceExactEventCalciumV1,
   convertPeriodicBiexponentialToExactEventCalciumV1,
@@ -13,7 +14,11 @@ import {
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
@@ -23,6 +28,13 @@ const PARAMETERS = Object.freeze({
   tauDecaySec: 0.2,
   calciumRestUM: 0.08,
   calciumGainUMPerUnitDrive: 0.5,
+}) satisfies ExactEventCalciumParametersV1;
+
+const ALPHA_PARAMETERS = Object.freeze({
+  tauRiseSec: 0.125,
+  tauDecaySec: 0.125,
+  calciumRestUM: 0.1,
+  calciumGainUMPerUnitDrive: 0.7,
 }) satisfies ExactEventCalciumParametersV1;
 
 describe("exact-event prescribed calcium V1", () => {
@@ -63,6 +75,85 @@ describe("exact-event prescribed calcium V1", () => {
     expect(split[1]).toBeCloseTo(direct[1], 15);
   });
 
+  it("uses the exact repeated-root semigroup at equal time constants", () => {
+    const strength = 2.5;
+    const afterEvent = applyExactEventCalciumStimulusV1(
+      zeroExactEventCalciumStateV1(),
+      strength,
+    );
+    const durationSec = 0.375;
+    const dimensionlessDuration =
+      durationSec / ALPHA_PARAMETERS.tauRiseSec;
+    const decay = Math.exp(-dimensionlessDuration);
+    const direct = propagateExactEventCalciumV1(
+      afterEvent,
+      durationSec,
+      ALPHA_PARAMETERS,
+    );
+    const split = propagateExactEventCalciumV1(
+      propagateExactEventCalciumV1(
+        afterEvent,
+        0.137,
+        ALPHA_PARAMETERS,
+      ),
+      durationSec - 0.137,
+      ALPHA_PARAMETERS,
+    );
+
+    expect(direct[0]).toBeCloseTo(strength * decay, 15);
+    expect(direct[1]).toBeCloseTo(
+      strength * (1 + dimensionlessDuration) * decay,
+      15,
+    );
+    expect(direct[1] - direct[0]).toBeCloseTo(
+      strength * dimensionlessDuration * decay,
+      15,
+    );
+    expect(split[0]).toBeCloseTo(direct[0], 15);
+    expect(split[1]).toBeCloseTo(direct[1], 15);
+  });
+
+  it("keeps calcium continuous across an equal-tau event", () => {
+    const before: ExactEventCalciumStateV1 = Object.freeze([0.25, 0.75]);
+    const beforeCalcium = evaluateExactEventCalciumV1(
+      before,
+      ALPHA_PARAMETERS,
+    );
+    const after = applyExactEventCalciumStimulusV1(before, 0.5);
+    const afterCalcium = evaluateExactEventCalciumV1(
+      after,
+      ALPHA_PARAMETERS,
+    );
+
+    expect(after).toEqual([0.75, 1.25]);
+    expect(afterCalcium.driveDifference).toBe(beforeCalcium.driveDifference);
+    expect(afterCalcium.freeCalciumUM).toBe(beforeCalcium.freeCalciumUM);
+  });
+
+  it("remains finite when duration divided by equal tau overflows", () => {
+    const extreme = Object.freeze({
+      ...ALPHA_PARAMETERS,
+      tauRiseSec: Number.MIN_VALUE,
+      tauDecaySec: Number.MIN_VALUE,
+    });
+    expect(propagateExactEventCalciumV1(
+      Object.freeze([1, 2]),
+      Number.MAX_VALUE,
+      extreme,
+    )).toEqual([0, 0]);
+  });
+
+  it("still rejects a decay time shorter than the rise time", () => {
+    expect(() => propagateExactEventCalciumV1(
+      Object.freeze([0, 0]),
+      0,
+      Object.freeze({
+        ...ALPHA_PARAMETERS,
+        tauDecaySec: ALPHA_PARAMETERS.tauRiseSec / 2,
+      }),
+    )).toThrow(/must not be shorter/);
+  });
+
   it("analytically preserves the periodic trough and peak excursion", () => {
     const periodic = Object.freeze({
       diastolicCalciumUM: 0.1,
@@ -90,6 +181,145 @@ describe("exact-event prescribed calcium V1", () => {
 
     expect(trough).toBeCloseTo(periodic.diastolicCalciumUM, 11);
     expect(peak - trough).toBeCloseTo(periodic.peakAmplitudeUM, 11);
+  });
+
+  it("analytically closes the equal-tau periodic fixed point", () => {
+    const periodic = Object.freeze({
+      diastolicCalciumUM: 0.164321,
+      peakAmplitudeUM: 0.592586 - 0.164321,
+      riseTimeConstantSec: 0.1234750900275888,
+      decayTimeConstantSec: 0.1234750900275888,
+    });
+    const converted = convertPeriodicBiexponentialToExactEventCalciumV1(
+      periodic,
+      1,
+    );
+    const beforeNextEvent = propagateExactEventCalciumV1(
+      converted.periodicStateImmediatelyAfterEvent,
+      1,
+      converted.parameters,
+    );
+    const nextPeriod = applyExactEventCalciumStimulusV1(beforeNextEvent, 1);
+    const trough = evaluateExactEventCalciumV1(
+      converted.periodicStateImmediatelyAfterEvent,
+      converted.parameters,
+    ).freeCalciumUM;
+    const peak = evaluateExactEventCalciumV1(
+      propagateExactEventCalciumV1(
+        converted.periodicStateImmediatelyAfterEvent,
+        converted.reference.timeToPeakSec,
+        converted.parameters,
+      ),
+      converted.parameters,
+    ).freeCalciumUM;
+
+    expect(nextPeriod[0]).toBeCloseTo(
+      converted.periodicStateImmediatelyAfterEvent[0],
+      15,
+    );
+    expect(nextPeriod[1]).toBeCloseTo(
+      converted.periodicStateImmediatelyAfterEvent[1],
+      15,
+    );
+    expect(trough).toBeCloseTo(periodic.diastolicCalciumUM, 11);
+    expect(peak - trough).toBeCloseTo(periodic.peakAmplitudeUM, 11);
+  });
+
+  it("remains finite and closed over many equal-tau periods", () => {
+    const params =
+      resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+        100,
+      );
+    const converted = convertPeriodicBiexponentialToExactEventCalciumV1(
+      {
+        diastolicCalciumUM: params.ventricular.diastolicCalciumUM,
+        peakAmplitudeUM: params.ventricular.peakAmplitudeUM,
+        riseTimeConstantSec: params.ventricular.riseTimeConstantSec,
+        decayTimeConstantSec: params.ventricular.decayTimeConstantSec,
+      },
+      params.cycleLengthSec,
+    );
+    let state = converted.periodicStateImmediatelyAfterEvent;
+    for (let cycleIndex = 0; cycleIndex < 10_000; cycleIndex += 1) {
+      state = applyExactEventCalciumStimulusV1(
+        propagateExactEventCalciumV1(
+          state,
+          params.cycleLengthSec,
+          converted.parameters,
+        ),
+        1,
+      );
+      if (
+        !Number.isFinite(state[0])
+        || !Number.isFinite(state[1])
+        || state[1] < state[0]
+      ) {
+        throw new Error("equal-tau periodic state lost its finite invariant");
+      }
+    }
+
+    expect(state[0]).toBeCloseTo(
+      converted.periodicStateImmediatelyAfterEvent[0],
+      15,
+    );
+    expect(state[1]).toBeCloseTo(
+      converted.periodicStateImmediatelyAfterEvent[1],
+      15,
+    );
+    expect(evaluateExactEventCalciumV1(
+      state,
+      converted.parameters,
+    ).freeCalciumUM).toBeCloseTo(
+      params.ventricular.diastolicCalciumUM,
+      11,
+    );
+  });
+
+  it("matches the direct periodic alpha evaluator across the HR envelope", () => {
+    let maximumAbsoluteErrorUM = 0;
+    for (
+      let heartRateBpm = 40;
+      heartRateBpm <= 100;
+      heartRateBpm += 0.25
+    ) {
+      const params =
+        resolveMainWireVentricularCalciumMatchedAlphaSaturatingHeartRateLawParamsV1(
+          heartRateBpm,
+        );
+      const converted = convertPeriodicBiexponentialToExactEventCalciumV1(
+        {
+          diastolicCalciumUM: params.ventricular.diastolicCalciumUM,
+          peakAmplitudeUM: params.ventricular.peakAmplitudeUM,
+          riseTimeConstantSec: params.ventricular.riseTimeConstantSec,
+          decayTimeConstantSec: params.ventricular.decayTimeConstantSec,
+        },
+        params.cycleLengthSec,
+      );
+      for (let phaseIndex = 0; phaseIndex <= 1_000; phaseIndex += 1) {
+        const phaseSec = params.cycleLengthSec * phaseIndex / 1_000;
+        const exactEventCalcium = evaluateExactEventCalciumV1(
+          propagateExactEventCalciumV1(
+            converted.periodicStateImmediatelyAfterEvent,
+            phaseSec,
+            converted.parameters,
+          ),
+          converted.parameters,
+        ).freeCalciumUM;
+        const directCalcium = evaluateFiveWallNormalCalciumDriveV1(
+          params.ventricular.electricalToCalciumDelaySec + phaseSec,
+          params,
+        ).freeCalciumUMByWall.LVFW;
+        maximumAbsoluteErrorUM = Math.max(
+          maximumAbsoluteErrorUM,
+          Math.abs(exactEventCalcium - directCalcium),
+        );
+      }
+    }
+
+    // Alpha conversion crosses the same 12-significant-digit persisted-
+    // parameter boundary as the unequal converter. This is alpha-only; the
+    // existing Standard-65 replay tolerance remains unchanged.
+    expect(maximumAbsoluteErrorUM).toBeLessThanOrEqual(3e-12);
   });
 
   it("bounds canonicalization error across every admitted heart rate", () => {

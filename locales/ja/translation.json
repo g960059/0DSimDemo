@@ -305,6 +305,7 @@
         "validationTitle": "検証と妥当性",
         "validationDescription": "現在の自動チェックは、数値の有限性、血液量の保存、イベント整合性などを確認します。これは生理学的・臨床的な妥当性を保証するものではありません。",
         "limitationsTitle": "制限事項",
+        "modelDocumentation": "数理モデルの詳細を見る",
         "chooseModel": "数理モデルを変更"
       },
       "home": "ホーム",
@@ -677,6 +678,14 @@
       "parameterとoutputは近似であり、目的とする科学的用途ごとのvalidationが必要です。",
       "PV paneの既定はresponsive fixed-TBV multi-load previewです。任意のformal modeは完全stateのP1周期収束を通過したloadだけを採用し、method-specificなSW／ESPVR／指数型EDPVR／PE／PVAと、文献係数によるLV MVO₂推定値を計算しますが、独立した生理学的・臨床的validationや実測酸素消費量ではありません。",
       "Guyton / Starling応答は、遅い冠血流toneを固定した局所period-1 settledの作動点から開始します。作動点以外は適応的preview dataであり、非収束またはperiod-2境界点は接続曲線から除外されます。canonical qualified evidenceではありません。"
+    ],
+    "standard66Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは圧回復後の近位大動脈constitutive port圧、ABPは体動脈compartment圧であり、実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "体動脈の空間的な波動伝播・反射を表現しないため、波形の時相や形態を部位別の動脈波形として解釈できません。",
+      "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
+      "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
+      "数値検証とbaseline characterizationは、生理学的・臨床的validationを保証しません。"
     ]
   }
 }

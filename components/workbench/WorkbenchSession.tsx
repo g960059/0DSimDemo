@@ -73,6 +73,7 @@ import {
 import {
   WORKBENCH_SCENARIO_ID_V3,
   createDefaultExperimentSurfaceV3,
+  reconcileWorkbenchPressureVolumeCapabilityV3,
   reconcileWorkbenchSurfaceScenariosV3,
   resolveWorkbenchOutputPaneScenarioIdV3,
   workbenchGraphPaneOptionsForContractV3,
@@ -86,10 +87,14 @@ import {
   experimentDetailHref,
   homeHref,
   loginHref,
+  modelDocumentationHref,
   myExperimentsHref,
   newExperimentHref,
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
+import {
+  resolveRegisteredModelDocumentationV1,
+} from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
@@ -194,6 +199,7 @@ import {
   resolveWorkbenchSurfaceAfterCommitV3,
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
+  workbenchInputMutationReplacedAcceptedClockV3,
   workbenchDurableContentAvailableV3,
   workbenchPaneIdentityForIdV3,
   workbenchPublicationAvailableV3,
@@ -467,6 +473,20 @@ export const WorkbenchSession = ({
   const pendingFeedbackAfterRuntimeRestartRef =
     React.useRef<WorkbenchRuntimeRestartFeedbackV3 | null>(null);
   const contract = status.kind === "live" ? status.contract : null;
+  const modelDocumentation = resolveRegisteredModelDocumentationV1(
+    contract?.modelId,
+    surfaceReleaseIdRef.current,
+  );
+  const modelDocumentationLink = modelDocumentation === null
+    ? undefined
+    : modelDocumentationHref({
+        locale: isLocale(locale) ? locale : undefined,
+        modelId: modelDocumentation.modelId,
+        surfaceReleaseId: modelDocumentation.surfaceReleaseId,
+      });
+  const modelLimitationsKey = modelDocumentation === null
+    ? "modelLimitations.items"
+    : "modelLimitations.standard66Items";
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -757,6 +777,10 @@ export const WorkbenchSession = ({
         createDefaultExperimentSurfaceV3(
           composition.modelSurface.contract,
           initialScenarioId,
+          {
+            periodicPvaSupported:
+              composition.modelSurface.analysis.periodicPvaDerivation !== null,
+          },
         );
       const baselineLabel = translationRef.current(
         "workbench.editor.scenarioManager.baselinePresetTitle",
@@ -777,8 +801,13 @@ export const WorkbenchSession = ({
                 }),
               ),
             );
-      const nextSurface = reconcileWorkbenchSurfaceScenariosV3(
+      const capabilitySurface = reconcileWorkbenchPressureVolumeCapabilityV3(
         candidateSurface,
+        composition.modelSurface.contract,
+        composition.modelSurface.analysis.periodicPvaDerivation !== null,
+      );
+      const nextSurface = reconcileWorkbenchSurfaceScenariosV3(
+        capabilitySurface,
         candidateScenarioDescriptors,
       );
       surfaceRef.current = nextSurface;
@@ -1151,6 +1180,9 @@ export const WorkbenchSession = ({
         graphOption !== undefined && "structuralSide" in graphOption
           ? graphOption.structuralSide
           : undefined,
+        {
+          periodicPvaSupported: periodicPvaDerivationRef.current !== null,
+        },
       );
       if (result.selectedPane === null || result.surface === surface) {
         return undefined;
@@ -1316,6 +1348,10 @@ export const WorkbenchSession = ({
         ownsControlOperation = true;
         await runtime.pauseAll();
         const uniqueScenarioIds = [...new Set(scenarioIds)];
+        const changeSemantics =
+          contract.controlCatalog.find(
+            (definition) => definition.controlId === controlId,
+          )?.changeSemantics ?? "accepted-state-warm-start";
         const acceptedFrames = uniqueScenarioIds.map((scenarioId) =>
           runtime.latestFrame(scenarioId),
         );
@@ -1405,6 +1441,21 @@ export const WorkbenchSession = ({
             ),
           ),
         );
+        for (const nextFrame of nextFrames) {
+          const previousFrame = acceptedFrames.find(
+            ({ scenarioId }) => scenarioId === nextFrame.scenarioId,
+          );
+          if (
+            previousFrame !== undefined &&
+            workbenchInputMutationReplacedAcceptedClockV3(
+              previousFrame,
+              nextFrame,
+              changeSemantics,
+            )
+          ) {
+            presentationSampleStore.resetScenario(nextFrame.scenarioId);
+          }
+        }
         appendFramesV3(nextFrames, presentationSampleStore);
         setStatus((current) =>
           current.kind === "live"
@@ -2494,6 +2545,7 @@ export const WorkbenchSession = ({
     saveState === "saving" ||
     snapshotState === "creating";
   const periodicPvaOutputScenarioIds = React.useMemo(() => {
+    if (periodicPvaDerivationRef.current === null) return Object.freeze([]);
     const analysisOutputIds = new Set<string>(
       MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
     );
@@ -3010,7 +3062,7 @@ export const WorkbenchSession = ({
             <WorkbenchSimulationInfoV3
               currentModelId={contract.modelId}
               limitations={
-                t("modelLimitations.items", {
+                t(modelLimitationsKey, {
                   returnObjects: true,
                 }) as string[]
               }
@@ -3035,6 +3087,9 @@ export const WorkbenchSession = ({
                   description: t(
                     "workbench.editor.simulationInfo.integratedModelDescription",
                   ),
+                  ...(modelDocumentationLink === undefined
+                    ? {}
+                    : { documentationHref: modelDocumentationLink }),
                 },
               ]}
               scenarios={simulationInfoScenarios}
@@ -3315,6 +3370,7 @@ export const WorkbenchSession = ({
             paneSettings.kind !== "graph" ? paneSettings.section : undefined
           }
           locale={resolvedLocale}
+          periodicPvaSupported={periodicPvaDerivationRef.current !== null}
           selectedPane={paneSettings}
           contract={contract}
           surface={surface}

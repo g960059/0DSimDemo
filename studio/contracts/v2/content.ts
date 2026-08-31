@@ -115,14 +115,14 @@ export type ExperimentSurfaceGraphTraceRefV2 = Readonly<{
 }>;
 
 /**
- * Numerical policy owned by one pressure-volume pane.
+ * Presentation/analysis policy owned by one pressure-volume pane.
  *
- * The responsive preview is the product default. Formal periodic analysis is
- * deliberately opt-in because it settles an independent fixed-TBV branch at
- * every load and can take substantially longer to complete.
+ * `raw-exact-orbit` renders only samples emitted by the exact model. The two
+ * analysis-backed modes remain readable for Surfaces that pin the required
+ * method; formal periodic analysis can take substantially longer to complete.
  */
 export type ExperimentSurfacePressureVolumeAnalysisModeV2 =
-  "responsive-preview" | "formal-periodic";
+  "raw-exact-orbit" | "responsive-preview" | "formal-periodic";
 
 export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   paneId: SurfacePaneIdV2;

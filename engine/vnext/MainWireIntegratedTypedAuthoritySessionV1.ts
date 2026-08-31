@@ -26,6 +26,10 @@ import {
   type MainWireIntegratedModelCompletedBeatMetricsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
   createMainWireFiveWallCoupledResidualWorkspaceV1,
@@ -61,6 +65,21 @@ import {
   mainWireIntegratedModelCheckpointContextV3,
   type MainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import {
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
+  MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
+  MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+  type MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+} from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
+import {
+  MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+} from "@/engine/myocardium/calcium/MainWireVentricularCalciumMatchedAlphaExactPersistenceV1";
+import {
+  MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+} from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRelaxationProfileV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_MAX_SUBSTEPS_PER_INTERVAL_V3,
   type MainWireIntegratedModelObservationV3,
@@ -152,6 +171,10 @@ import type {
   TransactionalTypedStateCurrentCursorV1,
   TransactionalTypedStatePromotionPlanV1,
 } from "@/engine/vnext/TransactionalTypedStateImageV1";
+import {
+  MainWireSelectedAorticPortSessionExtensionV1,
+  type MainWireSelectedAorticPortSessionTicketV1,
+} from "@/engine/vnext/MainWireSelectedAorticPortSessionExtensionV1";
 
 export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
   "main-wire-integrated-typed-authority-session-v1" as const;
@@ -178,6 +201,9 @@ export type MainWireFlatCoupledSolverProfileV1 = Readonly<{
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
 type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<WallState>;
+type SessionRuntime =
+  | MainWireIntegratedModelRuntimeV3
+  | MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
 type AdvanceFailureReason =
   | MainWireIntegratedModelStepFailureReasonV3
   | "substep-budget-exhausted"
@@ -259,7 +285,7 @@ function createExecutionPlanStateInitializationV1(
 export class MainWireIntegratedTypedAuthoritySessionV1 {
   readonly sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
 
-  readonly #runtime: MainWireIntegratedModelRuntimeV3;
+  readonly #runtime: SessionRuntime;
   readonly #provider: MainWireNormalAdultFiveWallProviderV1;
   readonly #rhythmInput: MainWireIntegratedComposedRhythmStepContextV3;
   readonly #dynamicMechanicalSupportConfig: MainWireIntegratedModelRuntimeV3["config"];
@@ -299,8 +325,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   #lastPresentationObservation: MainWireIntegratedModelObservationV3 | null;
   #lastPresentationSource: MainWireIntegratedModelObservationV3["source"];
   #lastPresentationRevision: number;
-  readonly #beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
+  #beatAccumulator: MainWireIntegratedModelBeatAccumulatorV3;
   #completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null;
+  readonly #selectedAorticPortExtension:
+    MainWireSelectedAorticPortSessionExtensionV1 | null;
+  #terminalPoison: Error | null = null;
   readonly #coupledSolverProfile = {
     solveCount: 0,
     convergedSolveCount: 0,
@@ -311,13 +340,15 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     jacobianResidualEvaluationCount: 0,
   };
 
-  private constructor(
-    runtime: MainWireIntegratedModelRuntimeV3,
+  protected constructor(
+    runtime: SessionRuntime,
     acceptedState: AcceptedState,
     observationSource: MainWireIntegratedModelObservationV3["source"],
-    authorityFactory: MainWireFlatReferenceAcceptedStateAuthorityFactoryV1,
+    authorityFactory: MainWireFlatReferenceAcceptedStateAuthorityFactoryV1 | null,
     exactBeatState?: ExactBeatState,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
+    selectedAorticPortExtension:
+      MainWireSelectedAorticPortSessionExtensionV1 | null = null,
   ) {
     const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> = (
       candidate,
@@ -361,6 +392,24 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       );
       return acceptedCandidate;
     };
+    const selectedRuntimeMarker =
+      hasSelectedAorticOutflowRuntimeMarkerV1(runtime);
+    const selectedRuntime = isSelectedAorticOutflowRuntimeV1(runtime);
+    if (selectedRuntimeMarker && !selectedRuntime) {
+      throw new Error(
+        "selected aortic runtime marker does not match the fixed assembly",
+      );
+    }
+    if (selectedAorticPortExtension !== null && !selectedRuntime) {
+      throw new Error(
+        "selected aortic Session extension requires typed authority and the fixed selected runtime",
+      );
+    }
+    if (selectedRuntime && selectedAorticPortExtension === null) {
+      throw new Error(
+        "fixed selected aortic runtime requires its Session extension owner",
+      );
+    }
     validateAcceptedState(acceptedState);
     this.#runtime = runtime;
     this.#provider = runtime.provider;
@@ -381,7 +430,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       externalAtrialSourceBatch: null,
     });
     this.#dynamicMechanicalSupportConfig = runtime.config;
-    this.#authority = authorityFactory(
+    this.#authority = (
+      authorityFactory ?? typedAuthorityFactory(runtime.cold.acceptedState)
+    )(
       acceptedState,
       validateAcceptedState,
       ownDecodedAcceptedState,
@@ -391,6 +442,22 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       this.#authority instanceof MainWireAcceptedTypedStateAuthorityV1
         ? this.#authority
         : null;
+    if (
+      selectedAorticPortExtension !== null
+      && this.#typedAuthority === null
+    ) {
+      throw new Error(
+        "selected aortic Session extension requires typed authority and the fixed selected runtime",
+      );
+    }
+    if (selectedAorticPortExtension !== null) {
+      if (selectedAorticPortExtension.acceptedReadbackClockV1() !== null) {
+        throw new Error(
+          "selected aortic Session extension must start without instantaneous accepted readback",
+        );
+      }
+    }
+    this.#selectedAorticPortExtension = selectedAorticPortExtension;
     this.#typedBoundaryBinding =
       this.#typedAuthority === null
         ? null
@@ -493,6 +560,14 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       exactBeatState?.beatAccumulator ??
       new MainWireIntegratedModelBeatAccumulatorV3();
     this.#completedBeatMetrics = exactBeatState?.completedBeatMetrics ?? null;
+    if (selectedAorticPortExtension !== null) {
+      assertSynchronizedSelectedAorticBeatRestoreV1(
+        acceptedState.acceptedTimeSec,
+        this.#beatAccumulator,
+        this.#completedBeatMetrics,
+        selectedAorticPortExtension,
+      );
+    }
     this.#lastPresentationSource = observationSource;
     this.#lastPresentationRevision = acceptedState.revision;
     this.#lastPresentationObservation = observation(
@@ -623,6 +698,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   currentAcceptedState(): AcceptedState {
+    this.assertSessionUsableV1();
     return this.#authority.snapshot();
   }
 
@@ -633,6 +709,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   installExecutionPlanAcceptedStateBindingV1(
     boundExecutionPlan: BoundExecutionPlanV1,
   ): void {
+    this.assertSessionUsableV1();
     if (
       this.#installedExecutionPlan === boundExecutionPlan &&
       this.#executionPlanAcceptedTypedStateBinding !== null
@@ -683,6 +760,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     workspace: MainWireFiveWallCoupledNewtonShadowWorkspaceV1,
     boundExecutionPlan: BoundExecutionPlanV1,
   ): void {
+    this.assertSessionUsableV1();
     assertMainWireFiveWallCoupledNewtonShadowWorkspaceV1(workspace);
     if (
       this.#installedExecutionPlanCoupledNewtonWorkspace === workspace &&
@@ -718,6 +796,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
     mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   ): Promise<MainWireIntegratedTypedAuthoritySessionV1> {
+    this.assertSessionUsableV1();
+    this.assertLegacySessionOperationAvailableV1("hemodynamic warm start");
     const targetRuntime = await createMainWireIntegratedModelRuntimeV3(
       inputs,
       ventricularContractilityScale,
@@ -725,7 +805,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     );
     const acceptedState = warmStartMainWireIntegratedModelV3({
       source: this.#authority.snapshot(),
-      sourceRuntime: this.#runtime,
+      sourceRuntime: this.requiredLegacyRuntimeV1(),
       targetRuntime,
     });
     return new MainWireIntegratedTypedAuthoritySessionV1(
@@ -739,6 +819,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   observe(): MainWireIntegratedModelObservationV3 {
+    this.assertSessionUsableV1();
     const cached = this.#lastPresentationObservation;
     if (cached !== null) return cached;
     const detached = this.detachedObservation();
@@ -755,6 +836,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   projectCurrentAcceptedValuesV1(
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>> {
+    this.assertSessionUsableV1();
     validateTypedProjectionOutputIds(outputIds);
     if (
       this.#typedAuthority !== null &&
@@ -805,6 +887,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   advanceToPresentationTime(
     targetTimeSec: number,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
+    this.assertSessionUsableV1();
     this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
   }
@@ -818,6 +901,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     targetTimeSec: number,
     outputIds: readonly MainWireIntegratedModelOutputIdV3[],
   ): MainWireFlatSelectedOutputProjectionAdvanceV1 {
+    this.assertSessionUsableV1();
     this.#executionPlanWorkspaceInstallationClosed = true;
     validateTypedProjectionOutputIds(outputIds);
     const direct = this.tryAdvanceTypedOrdinaryProjectionV1(
@@ -912,6 +996,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     const current = this.#typedAuthority.currentCursor();
     const candidate = this.#typedAuthority.beginDirectCandidate();
     let candidateOpen = true;
+    let hemodynamicAuthorityCommitted = false;
+    let selectedTicket: MainWireSelectedAorticPortSessionTicketV1 | null = null;
     try {
       const candidateClock = stageMainWireAcceptedTypedClockCandidateV1(
         current,
@@ -1013,6 +1099,24 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           this.#candidateNumericalReadback.set(
             candidateBorrow.acceptedNumericalReadback,
           );
+          if (this.#selectedAorticPortExtension !== null) {
+            if (candidateBorrow.selectedAorticValveReadback === undefined) {
+              throw new Error(
+                "selected aortic ordinary candidate readback is unavailable",
+              );
+            }
+            selectedTicket =
+              this.#selectedAorticPortExtension.stageCandidateV1({
+                expectedCandidateTimeSec: candidateClock.acceptedTimeSec,
+                expectedCandidateRevision: candidateClock.revision,
+                candidateTimeSec: candidateBorrow.candidateTimeSec,
+                candidateRevision: candidateBorrow.candidateRevision,
+                historicalAcceptedNumericalReadback:
+                  candidateBorrow.acceptedNumericalReadback,
+                selectedAorticValveReadback:
+                  candidateBorrow.selectedAorticValveReadback,
+              });
+          }
           const regulation =
             advanceMainWireFiveWallCoronaryAutoregulationOwnerFromPackedV3(
               this.#autoregulationOwner,
@@ -1053,6 +1157,23 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       if (!borrowed || nextAutoregulationOwner === null) {
         throw new Error("typed ordinary candidate borrow is unavailable");
       }
+      let trialBeatAccumulator: MainWireIntegratedModelBeatAccumulatorV3 | null =
+        null;
+      let trialCompletedBeatMetrics:
+        MainWireIntegratedModelCompletedBeatMetricsV3 | null = null;
+      if (this.#selectedAorticPortExtension !== null) {
+        if (selectedTicket === null) {
+          throw new Error("selected aortic ordinary candidate ticket is missing");
+        }
+        trialBeatAccumulator = MainWireIntegratedModelBeatAccumulatorV3.restore(
+          this.#beatAccumulator.checkpoint(),
+        );
+        trialCompletedBeatMetrics =
+          trialBeatAccumulator.acceptNumericalReadback(
+            this.#candidateNumericalReadback,
+            null,
+          );
+      }
       const acceptedRevisionSpanFromPrevious =
         candidateClock.revision - this.#lastPresentationRevision;
       if (acceptedRevisionSpanFromPrevious < 1) {
@@ -1062,19 +1183,35 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         this.requiredModelOwnedPromotionPlan(),
       );
       candidateOpen = false;
+      hemodynamicAuthorityCommitted = true;
+      if (this.#selectedAorticPortExtension !== null) {
+        selectedTicket!.promote({
+          committedAcceptedTimeSec: candidateClock.acceptedTimeSec,
+          committedRevision: candidateClock.revision,
+          capturedAtrialActivationId: null,
+          baseCompletedBeatMetrics: trialCompletedBeatMetrics,
+        });
+        this.#beatAccumulator = trialBeatAccumulator!;
+        this.#completedBeatMetrics =
+          trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
+        this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+        this.#acceptedNumericalReadbackAvailable = true;
+      }
       recordAcceptedMainWireFiveWallCoupledSolutionV1(
         solved.context,
         solverResult.solution,
         this.#coupledPredictorWorkspace,
       );
       this.#autoregulationOwner = nextAutoregulationOwner;
-      this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
-      this.#acceptedNumericalReadbackAvailable = true;
-      const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
-        this.#acceptedNumericalReadback,
-        null,
-      );
-      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
+      if (this.#selectedAorticPortExtension === null) {
+        this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+        this.#acceptedNumericalReadbackAvailable = true;
+        const completedBeat = this.#beatAccumulator.acceptNumericalReadback(
+          this.#acceptedNumericalReadback,
+          null,
+        );
+        this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
+      }
       this.#lastAcceptedStep = null;
       this.#lastPresentationSource = "typed-authority-readback";
       this.#lastPresentationRevision = candidateClock.revision;
@@ -1131,7 +1268,12 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       });
     } catch (error) {
       if (candidateOpen) this.#typedAuthority.abortDirectCandidate();
+      if (hemodynamicAuthorityCommitted) {
+        this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+      }
       throw error;
+    } finally {
+      selectedTicket?.close();
     }
   }
 
@@ -1215,6 +1357,19 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         null;
       let directCandidateCursor: TransactionalTypedStateCandidateCursorV1 | null =
         null;
+      let directCandidateClock: MainWireAcceptedTypedClockV1 | null = null;
+      let hemodynamicAuthorityCommitted = false;
+      let selectedTicket: MainWireSelectedAorticPortSessionTicketV1 | null =
+        null;
+      const abortDirectCandidateIfOpen = (): void => {
+        if (!directCandidateOpen) return;
+        if (this.#typedAuthority === null) {
+          throw new Error("open typed candidate has no typed authority");
+        }
+        this.#typedAuthority.abortDirectCandidate();
+        directCandidateOpen = false;
+      };
+      try {
       if (this.#typedAuthority !== null) {
         try {
           const current = this.#typedAuthority.currentCursor();
@@ -1222,7 +1377,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           directCurrentCursor = current;
           directCandidateCursor = candidate;
           directCandidateOpen = true;
-          stageMainWireAcceptedTypedClockCandidateV1(
+          directCandidateClock = stageMainWireAcceptedTypedClockCandidateV1(
             current,
             candidate,
             this.requiredTypedBoundaryBinding(),
@@ -1255,9 +1410,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
               this.#typedHemodynamicScratch,
             );
         } catch (error) {
-          if (directCandidateOpen) {
-            this.#typedAuthority.abortDirectCandidate();
-          }
+          abortDirectCandidateIfOpen();
           throw error;
         }
       }
@@ -1307,9 +1460,36 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
                       candidateBorrow,
                       this.#typedHemodynamicScratch,
                     );
-                    this.#acceptedNumericalReadback.set(
+                    const numericalReadbackDestination =
+                      this.#selectedAorticPortExtension === null
+                        ? this.#acceptedNumericalReadback
+                        : this.#candidateNumericalReadback;
+                    numericalReadbackDestination.set(
                       candidateBorrow.acceptedNumericalReadback,
                     );
+                    if (this.#selectedAorticPortExtension !== null) {
+                      if (
+                        directCandidateClock === null
+                        || candidateBorrow.selectedAorticValveReadback === undefined
+                      ) {
+                        throw new Error(
+                          "selected aortic full candidate clock or readback is unavailable",
+                        );
+                      }
+                      selectedTicket =
+                        this.#selectedAorticPortExtension.stageCandidateV1({
+                          expectedCandidateTimeSec:
+                            directCandidateClock.acceptedTimeSec,
+                          expectedCandidateRevision:
+                            directCandidateClock.revision,
+                          candidateTimeSec: candidateBorrow.candidateTimeSec,
+                          candidateRevision: candidateBorrow.candidateRevision,
+                          historicalAcceptedNumericalReadback:
+                            candidateBorrow.acceptedNumericalReadback,
+                          selectedAorticValveReadback:
+                            candidateBorrow.selectedAorticValveReadback,
+                        });
+                    }
                     acceptedNumericalReadbackAvailable = true;
                     const regulation =
                       advanceMainWireFiveWallCoronaryAutoregulationFromPackedV3(
@@ -1331,15 +1511,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
                 }),
               );
       } catch (error) {
-        if (directCandidateOpen) {
-          this.#typedAuthority?.abortDirectCandidate();
-        }
+        abortDirectCandidateIfOpen();
         throw error;
       }
       if (result.converged === false) {
-        if (directCandidateOpen) {
-          this.#typedAuthority?.abortDirectCandidate();
-        }
+        abortDirectCandidateIfOpen();
         return this.failedAdvance(
           result.reason,
           result.message,
@@ -1348,9 +1524,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         );
       }
       if (result.acceptedState.acceptedTimeSec !== limit.candidateTimeSec) {
-        if (directCandidateOpen) {
-          this.#typedAuthority?.abortDirectCandidate();
-        }
+        abortDirectCandidateIfOpen();
         return this.failedAdvance(
           "integrated-promotion-rejected",
           "Main Wire flat reference accepted clock differs from candidate",
@@ -1368,9 +1542,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           borrowedAutoregulationCompleted !==
             result.coronaryStep.autoregulationWindowCompleted)
       ) {
-        if (directCandidateOpen) {
-          this.#typedAuthority?.abortDirectCandidate();
-        }
+        abortDirectCandidateIfOpen();
         throw new Error(
           "Main Wire packed autoregulation readback differs from public promotion",
         );
@@ -1378,14 +1550,37 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       if (
         this.#typedAuthority !== null &&
         (!acceptedNumericalReadbackAvailable ||
-          this.#acceptedNumericalReadback[
+          (this.#selectedAorticPortExtension === null
+            ? this.#acceptedNumericalReadback
+            : this.#candidateNumericalReadback)[
             MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1.timeSec
           ] !== result.acceptedState.acceptedTimeSec)
       ) {
-        if (directCandidateOpen) this.#typedAuthority.abortDirectCandidate();
+        abortDirectCandidateIfOpen();
         throw new Error(
           "Main Wire accepted numerical readback is missing or clock-misaligned",
         );
+      }
+
+      const capturedAtrialActivationId =
+        result.composedRhythmCandidate.capturedAtrialActivation
+          ?.capturedActivationId ?? null;
+      let trialBeatAccumulator: MainWireIntegratedModelBeatAccumulatorV3 | null =
+        null;
+      let trialCompletedBeatMetrics:
+        MainWireIntegratedModelCompletedBeatMetricsV3 | null = null;
+      if (this.#selectedAorticPortExtension !== null) {
+        if (selectedTicket === null) {
+          throw new Error("selected aortic full candidate ticket is missing");
+        }
+        trialBeatAccumulator = MainWireIntegratedModelBeatAccumulatorV3.restore(
+          this.#beatAccumulator.checkpoint(),
+        );
+        trialCompletedBeatMetrics =
+          trialBeatAccumulator.acceptNumericalReadback(
+            this.#candidateNumericalReadback,
+            capturedAtrialActivationId,
+          );
       }
 
       let committedState: AcceptedState;
@@ -1450,14 +1645,17 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         } else {
           committedState = this.#authority.commit(result.acceptedState);
         }
+        hemodynamicAuthorityCommitted = true;
       } catch (error) {
-        if (directCandidateOpen) {
-          this.#typedAuthority?.abortDirectCandidate();
-        }
+        abortDirectCandidateIfOpen();
         throw error;
       }
       this.#acceptedState = committedState;
-      if (this.#typedAuthority !== null && acceptedNumericalReadbackAvailable) {
+      if (
+        this.#selectedAorticPortExtension === null
+        && this.#typedAuthority !== null
+        && acceptedNumericalReadbackAvailable
+      ) {
         this.#acceptedNumericalReadbackAvailable = true;
       }
       resetMainWireFiveWallCoupledPredictorV1(this.#coupledPredictorWorkspace);
@@ -1476,16 +1674,29 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         ...result,
         acceptedState: committedState,
       });
+      if (this.#selectedAorticPortExtension !== null) {
+        selectedTicket!.promote({
+          committedAcceptedTimeSec: committedState.acceptedTimeSec,
+          committedRevision: committedState.revision,
+          capturedAtrialActivationId,
+          baseCompletedBeatMetrics: trialCompletedBeatMetrics,
+        });
+        this.#beatAccumulator = trialBeatAccumulator!;
+        this.#completedBeatMetrics =
+          trialCompletedBeatMetrics ?? this.#completedBeatMetrics;
+        this.#acceptedNumericalReadback.set(this.#candidateNumericalReadback);
+        this.#acceptedNumericalReadbackAvailable = true;
+      } else {
+        const completedBeat =
+          this.#typedAuthority === null
+            ? this.#beatAccumulator.accept(committedResult)
+            : this.#beatAccumulator.acceptNumericalReadback(
+                this.#acceptedNumericalReadback,
+                capturedAtrialActivationId,
+              );
+        this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
+      }
       this.#lastAcceptedStep = committedResult;
-      const completedBeat =
-        this.#typedAuthority === null
-          ? this.#beatAccumulator.accept(committedResult)
-          : this.#beatAccumulator.acceptNumericalReadback(
-              this.#acceptedNumericalReadback,
-              committedResult.composedRhythmCandidate.capturedAtrialActivation
-                ?.capturedActivationId ?? null,
-            );
-      this.#completedBeatMetrics = completedBeat ?? this.#completedBeatMetrics;
       substepCount += 1;
       substeps.push(
         Object.freeze({
@@ -1499,6 +1710,15 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
           rhythmBoundaryOwners: Object.freeze([...limit.rhythmBoundaryOwners]),
         }),
       );
+      } catch (error) {
+        abortDirectCandidateIfOpen();
+        if (hemodynamicAuthorityCommitted) {
+          this.poisonAfterCommittedSelectedAnalysisFailureV1(error);
+        }
+        throw error;
+      } finally {
+        selectedTicket?.close();
+      }
     }
 
     if (acceptedClock.acceptedTimeSec !== targetTimeSec) {
@@ -1552,6 +1772,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   async checkpointStandardExact(): Promise<MainWireIntegratedModelStandardCheckpointV2> {
+    this.assertSessionUsableV1();
+    this.assertLegacySessionOperationAvailableV1("Standard 65 exact checkpoint");
     this.#acceptedState = this.#authority.current();
     this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
     return checkpointMainWireIntegratedModelStandardV2(
@@ -1562,7 +1784,82 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     );
   }
 
+  /**
+   * Synchronously captures the base half of a selected Standard66 checkpoint
+   * before its digest promise can yield. The selected subclass must capture
+   * its extension checkpoint immediately after calling this method and before
+   * awaiting the returned promise, so both owners describe one accepted
+   * epoch. This seam remains unavailable to Standard65 owners.
+   */
+  protected checkpointSelectedAorticBaseStandardExactV1(): Promise<
+    MainWireIntegratedModelStandardCheckpointV2
+  > {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic base checkpoint requires its Session extension owner",
+      );
+    }
+    this.#acceptedState = this.#authority.current();
+    this.#typedAuthority?.assertCurrentMatches(this.#acceptedState);
+    return checkpointMainWireIntegratedModelStandardV2(
+      this.selectedAorticCheckpointContextV1(),
+      this.#acceptedState,
+      this.#beatAccumulator,
+      this.#completedBeatMetrics,
+    );
+  }
+
+  /** Exact accepted clock for the selected subclass's readback borrow. */
+  protected selectedAorticAcceptedClockV1(): MainWireAcceptedTypedClockV1 {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic accepted clock requires its Session extension owner",
+      );
+    }
+    return this.currentAcceptedClock();
+  }
+
+  /** Captures the selected owner's algorithmic continuation history. */
+  protected checkpointSelectedAorticCoupledPredictorV1():
+    MainWireFiveWallCoupledPredictorCheckpointV2 {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic predictor checkpoint requires its Session extension owner",
+      );
+    }
+    return checkpointMainWireFiveWallCoupledPredictorV1(
+      this.#coupledPredictorWorkspace,
+    );
+  }
+
+  /** Restores predictor history against the already-restored accepted root. */
+  protected restoreSelectedAorticCoupledPredictorV1(
+    checkpoint: unknown,
+  ): void {
+    this.assertSessionUsableV1();
+    if (this.#selectedAorticPortExtension === null) {
+      throw new Error(
+        "selected aortic predictor restore requires its Session extension owner",
+      );
+    }
+    const acceptedState = this.#authority.current();
+    restoreMainWireFiveWallCoupledPredictorV1(
+      checkpoint,
+      Object.freeze({
+        revision: acceptedState.revision,
+        acceptedTimeSec: acceptedState.acceptedTimeSec,
+        unknownsMl: coupledUnknownsFromAcceptedStateV1(acceptedState),
+      }),
+      this.#coupledPredictorWorkspace,
+    );
+  }
+
   async checkpointCanonicalBinary(): Promise<Uint8Array> {
+    this.assertSessionUsableV1();
+    this.assertLegacySessionOperationAvailableV1("Standard 65 canonical checkpoint");
     return encodeCanonicalFlatCheckpointV1(
       Object.freeze({
         checkpointId: MAIN_WIRE_FLAT_AUTHORITATIVE_REFERENCE_CHECKPOINT_V2_ID,
@@ -1595,6 +1892,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   }
 
   snapshotAcceptedStateBytes(): Uint8Array {
+    this.assertSessionUsableV1();
     if (this.#typedAuthority === null) {
       throw new Error(
         "Typed authority Session uses a non-typed test authority",
@@ -1613,13 +1911,33 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
   private checkpointContext() {
     const base = mainWireIntegratedModelCheckpointContextV3(
-      this.#runtime,
+      this.requiredLegacyRuntimeV1(),
       this.#acceptedState,
     );
     return Object.freeze({
       ...base,
       provider: this.#provider,
       dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig,
+    });
+  }
+
+  private selectedAorticCheckpointContextV1() {
+    if (!isSelectedAorticOutflowRuntimeV1(this.#runtime)) {
+      throw new Error(
+        "selected aortic checkpoint context requires the fixed selected runtime",
+      );
+    }
+    const base =
+      createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+        this.#runtime,
+      );
+    return Object.freeze({
+      ...base,
+      provider: this.#provider,
+      coronaryAutoregulationBinding:
+        this.#acceptedState.coronary.coronaryAutoregulationBinding,
+      dynamicMechanicalSupportConfig: this.#dynamicMechanicalSupportConfig,
+      mechanismResearchInputs: this.#runtime.mechanismResearchInputs,
     });
   }
 
@@ -1735,6 +2053,177 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       requestedPresentationTimeSec: targetTimeSec,
     });
   }
+
+  private assertSessionUsableV1(): void {
+    if (this.#terminalPoison !== null) throw this.#terminalPoison;
+  }
+
+  private assertLegacySessionOperationAvailableV1(operation: string): void {
+    if (this.#selectedAorticPortExtension !== null) {
+      throw new Error(
+        `${operation} is unavailable for the selected aortic Session owner`,
+      );
+    }
+  }
+
+  private requiredLegacyRuntimeV1(): MainWireIntegratedModelRuntimeV3 {
+    if (isSelectedAorticOutflowRuntimeV1(this.#runtime)) {
+      throw new Error("selected aortic runtime is not a Standard 65 runtime");
+    }
+    return this.#runtime;
+  }
+
+  private poisonAfterCommittedSelectedAnalysisFailureV1(error: unknown): void {
+    if (
+      this.#selectedAorticPortExtension === null
+      || this.#terminalPoison !== null
+    ) {
+      return;
+    }
+    const poison = new Error(
+      "selected aortic Session is terminally poisoned after a committed analysis synchronization failure",
+    );
+    (poison as Error & { cause?: unknown }).cause = error;
+    this.#terminalPoison = poison;
+  }
+}
+
+function isSelectedAorticOutflowRuntimeV1(
+  runtime: SessionRuntime,
+): runtime is MainWireIntegratedModelSelectedAorticOutflowFixtureV1 {
+  const vascular = runtime.runtime.vascular as Readonly<Record<string, unknown>>;
+  const selectedProfile = vascular.selectedAorticOutflowProfile;
+  if (
+    !("fixedAssemblyId" in runtime)
+    || !("fixedAssemblyClaim" in runtime)
+  ) {
+    return false;
+  }
+  const selected = runtime as MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
+  const claim = selected.fixedAssemblyClaim;
+  const configuration = selected.rhythm.configuration;
+  return (
+    selected.fixedAssemblyId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && claim
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM
+    && claim.fixtureId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && claim.ventricularMaterialProfileId
+      === MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID
+    && claim.aorticOutflowCirculationProfileId
+      === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID
+    && claim.regularSinusProfileId
+      === MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID
+    && selected.runtime === selected.coronaryStepInput.runtime
+    && selectedProfile
+      === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
+    && selected.provider.parameterSetId.includes(
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+    )
+    && selected.coronaryStepInput.calciumDriveParams.parameterSetId
+      === MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID
+    && configuration.ventricularIntervalStrength.parameterProvenance.sourceId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && configuration.avGateParameters.parameterProvenance.sourceId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && configuration.distalGate.parameterProvenance.sourceId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && configuration.ventricularBackup.parameterProvenance.sourceId
+      === MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID
+    && configuration.ventricularIntervalStrength.referenceCycleLengthSec
+      === selected.cycleLengthSec
+    && selected.rhythm.state.configuration === configuration
+    && selected.cold.acceptedState.composedRhythm.configuration
+      === configuration
+  );
+}
+
+function hasSelectedAorticOutflowRuntimeMarkerV1(
+  runtime: SessionRuntime,
+): boolean {
+  const vascular = runtime.runtime.vascular as Readonly<Record<string, unknown>>;
+  return (
+    "fixedAssemblyId" in runtime
+    || "fixedAssemblyClaim" in runtime
+    || Object.prototype.hasOwnProperty.call(
+      vascular,
+      "selectedAorticOutflowProfile",
+    )
+  );
+}
+
+function assertSynchronizedSelectedAorticBeatRestoreV1(
+  acceptedTimeSec: number,
+  baseAccumulator: MainWireIntegratedModelBeatAccumulatorV3,
+  baseLatest: MainWireIntegratedModelCompletedBeatMetricsV3 | null,
+  selectedExtension: MainWireSelectedAorticPortSessionExtensionV1,
+): void {
+  const baseActive = baseAccumulator.checkpoint().active;
+  const selectedState = selectedExtension.checkpointExactBeatStateV1();
+  const selectedActive = selectedState.selectedBeatAccumulator.active;
+  const selectedLatest = selectedState.latestCompletedBeatMetrics;
+  if ((baseActive === null) !== (selectedActive === null)) {
+    throw new Error(
+      "base and selected aortic restored active beat availability differs",
+    );
+  }
+  if (baseActive !== null && selectedActive !== null) {
+    if (
+      !Object.is(baseActive.previous.timeSec, acceptedTimeSec)
+      || !Object.is(selectedActive.previous.timeSec, acceptedTimeSec)
+      || baseActive.startAtrialCaptureId
+        !== selectedActive.startAtrialCaptureId
+      || !Object.is(baseActive.startTimeSec, selectedActive.startTimeSec)
+      || !Object.is(
+        baseActive.previous.aorticValveFlowMlPerSec,
+        selectedActive.previous.aorticValveFlowMlPerSec,
+      )
+      || !Object.is(
+        baseActive.valveForwardPressureGradientAccumulators.AoV
+          .forwardFlowDurationSec,
+        selectedActive.forwardFlowDurationSec,
+      )
+    ) {
+      throw new Error(
+        "base and selected aortic restored active beat boundary differs",
+      );
+    }
+  }
+  if ((baseLatest === null) !== (selectedLatest === null)) {
+    throw new Error(
+      "base and selected aortic restored completed beat availability differs",
+    );
+  }
+  if (baseLatest === null || selectedLatest === null) return;
+  if (
+    baseActive === null
+    || selectedActive === null
+    || baseActive.startAtrialCaptureId !== baseLatest.endAtrialCaptureId
+    || selectedActive.startAtrialCaptureId
+      !== selectedLatest.endAtrialCaptureId
+    || !Object.is(baseActive.startTimeSec, baseLatest.endTimeSec)
+    || !Object.is(selectedActive.startTimeSec, selectedLatest.endTimeSec)
+    || baseLatest.startAtrialCaptureId
+      !== selectedLatest.startAtrialCaptureId
+    || baseLatest.endAtrialCaptureId !== selectedLatest.endAtrialCaptureId
+    || !Object.is(baseLatest.startTimeSec, selectedLatest.startTimeSec)
+    || !Object.is(baseLatest.endTimeSec, selectedLatest.endTimeSec)
+    || !Object.is(baseLatest.durationSec, selectedLatest.durationSec)
+    || !Object.is(
+      baseLatest.valveForwardPressureGradients.AoV.forwardFlowDurationSec,
+      selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
+    )
+    || !Object.is(
+      selectedLatest.localValveForwardPressureGradient.forwardFlowDurationSec,
+      selectedLatest.venaContractaBernoulliForwardPressureGradient
+        .forwardFlowDurationSec,
+    )
+  ) {
+    throw new Error(
+      "base and selected aortic restored completed beat boundary differs",
+    );
+  }
 }
 
 function isStrictlyOrdinaryTypedCandidate(
@@ -1806,7 +2295,7 @@ function autoregulationOwnerFromAcceptedState(
 
 function runtimeSignalsAtAcceptedTime(
   acceptedTimeSec: number,
-  runtime: MainWireIntegratedModelRuntimeV3,
+  runtime: SessionRuntime,
 ): MainWireIntegratedModelObservationV3["runtimeSignals"] {
   const respiratory = respiratoryExternalPressuresV1(
     acceptedTimeSec,
@@ -1835,7 +2324,7 @@ function observation(
   source: MainWireIntegratedModelObservationV3["source"],
   acceptedState: AcceptedState,
   lastAcceptedStep: SuccessfulStep | null,
-  runtime: MainWireIntegratedModelRuntimeV3,
+  runtime: SessionRuntime,
   completedBeatMetrics: MainWireIntegratedModelCompletedBeatMetricsV3 | null,
 ): MainWireIntegratedModelObservationV3 {
   const respiratory = respiratoryExternalPressuresV1(

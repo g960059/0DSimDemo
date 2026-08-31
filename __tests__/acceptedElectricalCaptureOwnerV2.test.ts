@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCEPTED_ELECTRICAL_CAPTURE_OWNER_CLAIM_V2,
+  HISTORICAL_CAPTURED_ELECTRICAL_ACTIVATION_SEED_CLAIM_V2,
   MAX_ELECTRICAL_CAPTURE_IMPULSES_PER_BATCH_V2,
   commitAcceptedElectricalCaptureBatchCandidateV2,
   createAcceptedElectricalCaptureOwnerConfigurationV2,
+  createHistoricalCapturedElectricalActivationV2,
   createSourceImpulseV2,
   evaluateAcceptedElectricalCaptureBatchCandidateV2,
   initializeAcceptedElectricalCaptureOwnerStateV2,
@@ -16,6 +18,88 @@ import {
 } from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
 
 describe("accepted electrical capture owner V2", () => {
+  it("declares signed initial history without mutating a live capture time", () => {
+    const configuration = initialState().configuration;
+    const atZero = impulse(
+      "history-live-equivalent",
+      "ventricular",
+      "escape",
+      "history-source",
+      0,
+      0,
+    );
+    const declaredAtZero = createHistoricalCapturedElectricalActivationV2(
+      configuration,
+      { sourceImpulse: atZero, captureOrdinal: 1, ownerRevision: 1 },
+    );
+    const liveAtZero = evaluateAcceptedElectricalCaptureBatchCandidateV2(
+      initializeAcceptedElectricalCaptureOwnerStateV2(configuration, {
+        acceptedTimeSec: 0,
+        atrialPriorCapture: null,
+        ventricularPriorCapture: null,
+      }),
+      { candidateTimeSec: 0, sourceImpulses: [atZero] },
+    ).capturedActivations[0];
+    expect(declaredAtZero).toEqual(liveAtZero);
+
+    const atrialSource = impulse(
+      "history-atrial",
+      "atrial",
+      "primary-intrinsic",
+      "history-sinus",
+      0,
+      -0.132,
+    );
+    const atrial = createHistoricalCapturedElectricalActivationV2(
+      configuration,
+      { sourceImpulse: atrialSource, captureOrdinal: 1, ownerRevision: 1 },
+    );
+    const ventricularSource = impulse(
+      "history-ventricular",
+      "ventricular",
+      "av-output",
+      "history-his",
+      0,
+      -0.012,
+      atrial.capturedActivationId,
+    );
+    const ventricular = createHistoricalCapturedElectricalActivationV2(
+      configuration,
+      {
+        sourceImpulse: ventricularSource,
+        captureOrdinal: 1,
+        ownerRevision: 2,
+      },
+    );
+    expect(ventricular).toMatchObject({
+      parentSourceImpulseId: ventricularSource.sourceImpulseId,
+      upstreamCapturedActivationId: atrial.capturedActivationId,
+      activationTimeSec: -0.012,
+      sourceKind: "av-output",
+      ownerRevision: 2,
+    });
+    expect(
+      HISTORICAL_CAPTURED_ELECTRICAL_ACTIVATION_SEED_CLAIM_V2
+        .captureArbitrationReplayed,
+    ).toBe(false);
+    expect(() => createHistoricalCapturedElectricalActivationV2(
+      configuration,
+      {
+        sourceImpulse: ventricularSource,
+        captureOrdinal: 0,
+        ownerRevision: 2,
+      },
+    )).toThrow(/captureOrdinal.*positive safe integer/);
+    expect(() => createHistoricalCapturedElectricalActivationV2(
+      configuration,
+      {
+        sourceImpulse: ventricularSource,
+        captureOrdinal: 3,
+        ownerRevision: 2,
+      },
+    )).toThrow(/captureOrdinal.*exceed ownerRevision/);
+  });
+
   it("canonically arbitrates a same-time batch independently of input order", () => {
     const state = initialState();
     const a = impulse("atrial-a", "atrial", "primary-intrinsic", "a-source", 7, 0.5);

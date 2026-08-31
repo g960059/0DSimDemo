@@ -12,7 +12,7 @@ import {
 } from "@/studio/application/authoring/StudioExperimentAuthoringApplicationV2";
 import {
   assertExperimentCapturesMatchModelV2,
-  assertExperimentContentMatchesModelV2,
+  assertExperimentContentMatchesModelSurfaceCapabilitiesV2,
   validateExperimentSnapshotV2,
 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import {
@@ -93,6 +93,7 @@ export type StudioAuthoringExactModelPinV1 = Readonly<{
 export type StudioAuthoringResolvedNumericalModelV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
+  periodicPvaSupported: boolean;
   runtime: ResolvedExactModelRuntimeV2;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -109,6 +110,7 @@ export interface StudioAuthoringNumericalModelPortV1 {
   prepareSurface(input: Readonly<{
     contract: ModelContractV2;
     currentSurface: ExperimentSurfaceV2 | null;
+    periodicPvaSupported: boolean;
     scenarioIds: readonly string[];
     presentation: StudioAuthoringPresentationSpecV1;
   }>): ExperimentSurfaceV2;
@@ -297,7 +299,10 @@ export async function applyStudioExperimentPlanV1(
     throw new Error("Experiment exact model identity changed after preview");
   }
   const resolved = await models.resolveExactNumericalModel(plan.exactModel);
-  assertResolvedMatchesPinV1(resolved, plan.exactModel);
+  assertStudioAuthoringResolvedNumericalModelMatchesPinV1(
+    resolved,
+    plan.exactModel,
+  );
   const planned = applyScenarioOperationsV1(current, plan.scenarioOperations);
   const prepared = await prepareExperimentCaptureV1(
     models,
@@ -343,7 +348,15 @@ export async function sealStudioExperimentSnapshotV1(
     throw new Error("Snapshot exact model pin does not match the Experiment");
   }
   const resolved = await models.resolveExactNumericalModel(input.exactModel);
-  assertResolvedMatchesPinV1(resolved, input.exactModel);
+  assertStudioAuthoringResolvedNumericalModelMatchesPinV1(
+    resolved,
+    input.exactModel,
+  );
+  assertExperimentContentMatchesModelSurfaceCapabilitiesV2(
+    current.content,
+    resolved.contract,
+    { periodicPvaSupported: resolved.periodicPvaSupported },
+  );
   const runtimeSessionId = `authoring/seal/${crypto.randomUUID()}`;
   const adapter = resolved.runtime.simulationAdapter;
   const sessionCreateInput = Object.freeze({
@@ -451,6 +464,7 @@ async function prepareExperimentCaptureV1(
   const surface = models.prepareSurface({
     contract: resolved.contract,
     currentSurface: current?.content.surface ?? null,
+    periodicPvaSupported: resolved.periodicPvaSupported,
     scenarioIds: scenarios.map(({ scenarioId }) => scenarioId),
     presentation: plan.presentation,
   });
@@ -592,7 +606,11 @@ async function captureDesiredContentV1(
     content,
     (message) => new StudioExperimentCaptureMutationErrorV2(message),
   );
-  assertExperimentContentMatchesModelV2(content, resolved.contract);
+  assertExperimentContentMatchesModelSurfaceCapabilitiesV2(
+    content,
+    resolved.contract,
+    { periodicPvaSupported: resolved.periodicPvaSupported },
+  );
   await assertExperimentCapturesMatchModelV2(
     content,
     resolved.contract,
@@ -819,7 +837,7 @@ function exactModelPinFromResolvedV1(
   });
 }
 
-function assertResolvedMatchesPinV1(
+export function assertStudioAuthoringResolvedNumericalModelMatchesPinV1(
   resolved: StudioAuthoringResolvedNumericalModelV1,
   pin: StudioAuthoringExactModelPinV1,
 ): void {
@@ -828,7 +846,9 @@ function assertResolvedMatchesPinV1(
     || resolved.surfaceSeriesId !== pin.surfaceSeriesId
     || resolved.surfaceReleaseId !== pin.surfaceReleaseId
   ) {
-    throw new Error("Resolved numerical model does not match the exact plan pin");
+    throw new Error(
+      "Resolved numerical model does not match the exact Model Surface pin",
+    );
   }
 }
 

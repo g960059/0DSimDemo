@@ -63,6 +63,10 @@ export const ACCEPTED_FIVE_WALL_RHYTHM_CALCIUM_CHECKPOINT_V1_ID =
 export const FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1 =
   2e-12 as const;
 
+/** Alpha replay envelope including repeated-root carry arithmetic. */
+export const FIVE_WALL_PERIODIC_SINUS_ALPHA_REPLAY_ABS_TOLERANCE_UM_V1 =
+  3e-12 as const;
+
 export const FIVE_WALL_RHYTHM_CALCIUM_WALL_IDS_V1 = Object.freeze([
   "LA",
   "RA",
@@ -240,7 +244,8 @@ export type PeriodicSinusFiveWallRhythmCalciumReplayV1 = Readonly<{
     referenceDriveId: "five-wall-normal-prescribed-calcium-drive-v1";
     exactBitParityClaimed: false;
     absoluteToleranceUM:
-      typeof FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1;
+      | typeof FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1
+      | typeof FIVE_WALL_PERIODIC_SINUS_ALPHA_REPLAY_ABS_TOLERANCE_UM_V1;
     floatingPointDifferenceSources: readonly [
       "expm1-versus-one-minus-exp-periodic-carry",
       "chunk-dependent-exponential-multiplication-grouping",
@@ -772,7 +777,11 @@ export function createPeriodicSinusFiveWallRhythmCalciumReplayV1(
       referenceDriveId: "five-wall-normal-prescribed-calcium-drive-v1",
       exactBitParityClaimed: false,
       absoluteToleranceUM:
-        FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1,
+        WALL_IDS.some((wall) =>
+          calciumParametersByWall[wall].tauDecaySec
+            === calciumParametersByWall[wall].tauRiseSec)
+          ? FIVE_WALL_PERIODIC_SINUS_ALPHA_REPLAY_ABS_TOLERANCE_UM_V1
+          : FIVE_WALL_PERIODIC_SINUS_REPLAY_ABS_TOLERANCE_UM_V1,
       floatingPointDifferenceSources: [
         "expm1-versus-one-minus-exp-periodic-carry",
         "chunk-dependent-exponential-multiplication-grouping",
@@ -1351,7 +1360,9 @@ function validatePeriodicClass(
     `${field}.riseTimeConstantSec`);
   const decay = requirePositiveFinite(value.decayTimeConstantSec,
     `${field}.decayTimeConstantSec`);
-  if (!(decay > rise)) throw new Error(`${field} decay must exceed rise`);
+  if (!(decay >= rise)) {
+    throw new Error(`${field} decay must not be shorter than rise`);
+  }
   const delay = requireNonnegativeFinite(value.electricalToCalciumDelaySec,
     `${field}.electricalToCalciumDelaySec`);
   if (!(delay < cycleLengthSec)) throw new Error(`${field} delay must be shorter than cycle`);

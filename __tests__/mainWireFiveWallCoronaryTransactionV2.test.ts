@@ -8,6 +8,9 @@ import {
   createNonCoronaryBackwardEulerScratchWorkspaceV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
+  MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+} from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
   buildAuthoritativeCirculationGraphV1,
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureAndVolumeTangentFromLawV1,
@@ -41,7 +44,12 @@ import {
 } from "@/engine/devices/defaultsV1";
 import {
   MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V1_ID,
+  MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V3_ID,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_ABSOLUTE_PRESSURE_ORDER_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_CHAMBER_ORDER_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_VALVE_ORDER_V1,
@@ -52,6 +60,7 @@ import {
   initializeMainWireFiveWallCoronaryV2,
   prepareMainWireFiveWallCoupledResidualContextV1,
   stepMainWireFiveWallCoronaryV2,
+  writeMainWireFiveWallAcceptedNumericalReadbackV3,
   type MainWireCoronaryMvcReferenceStateV2,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
@@ -81,6 +90,9 @@ import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
+  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+} from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
+import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -98,6 +110,7 @@ import {
   reportMainWireFiveWallCoupledPredictorV1,
   resetMainWireFiveWallCoupledPredictorV1,
   restoreMainWireFiveWallCoupledPredictorV1,
+  validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2,
 } from "@/engine/vnext/coupled/MainWireFiveWallCoupledPredictorV1";
 import {
   MainWireFlatCoupledAcceptedStateV1,
@@ -133,6 +146,107 @@ const RUNTIME = Object.freeze({
 });
 
 describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", () => {
+  it("packs the selected Standard-66 readback without changing the historical 73-f64 contract", () => {
+    expect(MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V1_ID).toBe(
+      "main-wire-five-wall-accepted-numerical-readback-v2",
+    );
+    expect(MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1).toBe(73);
+    expect(MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_V3_ID).toBe(
+      "main-wire-five-wall-accepted-numerical-readback-v3",
+    );
+    expect(MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3).toBe(76);
+    expect(
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
+    ).not.toHaveProperty("algebraicProximalConstitutivePortPressureMmHg");
+    expect(MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2).toMatchObject({
+      algebraicProximalConstitutivePortPressureMmHg: 73,
+      localValvePressureGradientMmHg: 74,
+      venaContractaBernoulliPressureMmHg: 75,
+    });
+
+    const prefix = Float64Array.from(
+      { length: MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1 },
+      (_, index) => index === 7 ? -0 : index + 0.125,
+    );
+    const selected = Object.freeze({
+      modelId: MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+      algebraicProximalConstitutivePortPressureMmHg: 84.25,
+      localValvePressureGradientMmHg: 3.5,
+      venaContractaBernoulliPressureMmHg: 5.75,
+    });
+    const destination = new Float64Array(
+      MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
+    );
+    writeMainWireFiveWallAcceptedNumericalReadbackV3(
+      destination,
+      prefix,
+      selected,
+    );
+    for (let index = 0; index < prefix.length; index += 1) {
+      expect(Object.is(destination[index], prefix[index])).toBe(true);
+    }
+    const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2;
+    expect(Object.is(
+      destination[layout.algebraicProximalConstitutivePortPressureMmHg],
+      selected.algebraicProximalConstitutivePortPressureMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      destination[layout.localValvePressureGradientMmHg],
+      selected.localValvePressureGradientMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      destination[layout.venaContractaBernoulliPressureMmHg],
+      selected.venaContractaBernoulliPressureMmHg,
+    )).toBe(true);
+
+    const shortDestination = new Float64Array(75).fill(-913.25);
+    const shortDestinationBefore = shortDestination.slice();
+    expect(() => writeMainWireFiveWallAcceptedNumericalReadbackV3(
+      shortDestination,
+      prefix,
+      selected,
+    )).toThrow(/76 f64/);
+    expect(Array.from(shortDestination)).toEqual(
+      Array.from(shortDestinationBefore),
+    );
+    const expectRejectWithoutWrite = (
+      rejectedPrefix: Float64Array,
+      rejectedSelected: Parameters<
+        typeof writeMainWireFiveWallAcceptedNumericalReadbackV3
+      >[2],
+      message: RegExp,
+    ) => {
+      const sentinel = new Float64Array(
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
+      ).fill(-913.25);
+      const before = sentinel.slice();
+      expect(() => writeMainWireFiveWallAcceptedNumericalReadbackV3(
+        sentinel,
+        rejectedPrefix,
+        rejectedSelected,
+      )).toThrow(message);
+      expect(Array.from(sentinel)).toEqual(Array.from(before));
+    };
+    expectRejectWithoutWrite(new Float64Array(72), selected, /73 f64/);
+    expectRejectWithoutWrite(prefix, undefined, /readback is required/);
+    expectRejectWithoutWrite(
+      prefix,
+      { ...selected, modelId: "wrong-model" } as never,
+      /wrong evaluator model ID/,
+    );
+    expectRejectWithoutWrite(
+      Float64Array.from(prefix, (value, index) =>
+        index === 11 ? Number.NaN : value),
+      selected,
+      /must be finite/,
+    );
+    expectRejectWithoutWrite(
+      prefix,
+      { ...selected, localValvePressureGradientMmHg: Number.NaN },
+      /must be finite/,
+    );
+  });
+
   it("cold-starts all 31 volume owners and six tone states on one exact 5600 mL ledger", () => {
     const cold = initializeMainWireFiveWallCoronaryV2({
       provider: testLandReadbackProvider(false),
@@ -1255,6 +1369,20 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       createMainWireFiveWallCoupledPredictorWorkspaceV1(),
     )).toThrow(/root differs/);
 
+    const signedZeroCurrent = new Array<number>(30).fill(1);
+    signedZeroCurrent[0] = -0;
+    const signedZeroCheckpoint = Object.freeze({
+      ...checkpoint,
+      currentAcceptedMl: Object.freeze(signedZeroCurrent),
+    });
+    const ownedSignedZero =
+      validateAndOwnMainWireFiveWallCoupledPredictorCheckpointV2(
+        signedZeroCheckpoint,
+      );
+    expect(Object.is(ownedSignedZero.currentAcceptedMl[0], -0)).toBe(true);
+    expect(ownedSignedZero.currentAcceptedMl)
+      .not.toBe(signedZeroCheckpoint.currentAcceptedMl);
+
     let getterCalls = 0;
     const accessorCheckpoint = { ...checkpoint } as Record<string, unknown>;
     Object.defineProperty(accessorCheckpoint, "currentAcceptedMl", {
@@ -2192,6 +2320,13 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       firstAcceptedTimeSec = candidate.candidateTimeSec;
       expect(candidate.candidateRevision).toBe(1);
       expect(candidate.acceptedNumericalReadback[0]).toBe(0.002);
+      expect(candidate.acceptedNumericalReadback).toHaveLength(
+        MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
+      );
+      expect(Object.keys(candidate)).not.toContain(
+        "selectedAorticValveReadback",
+      );
+      expect(candidate.selectedAorticValveReadback).toBeUndefined();
     });
     expect(firstAcceptedTimeSec).toBe(0.002);
 
@@ -2209,6 +2344,200 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       expect(finalized.acceptedState.acceptedTimeSec).toBe(0.002);
     }
   });
+
+  it("carries exact selected-AoV scalars across cache hits and excludes them after workspace reuse", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const selectedRuntime = Object.freeze({
+      ...RUNTIME,
+      vascular: Object.freeze({
+        ...RUNTIME.vascular,
+        selectedAorticOutflowProfile:
+          MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+      }),
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const baselineRuntime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const selectedStepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime: selectedRuntime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const selectedCold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: selectedRuntime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const residualWorkspace =
+      createMainWireFiveWallCoupledResidualWorkspaceV1();
+    const selectedSolved = solveMainWireFiveWallCoupledCandidateV1(
+      provider,
+      selectedCold.acceptedState,
+      selectedStepInput,
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(),
+      { residualWorkspace },
+    );
+    expect(selectedSolved.status).toBe("converged");
+    if (selectedSolved.status !== "converged") {
+      throw new Error(selectedSolved.solver.result.status === "failed"
+        ? selectedSolved.solver.result.message
+        : "selected candidate did not converge");
+    }
+    const selectedResult = selectedSolved.solver.result;
+    if (selectedResult.status !== "converged") {
+      throw new Error("selected coupled result did not converge");
+    }
+    const materialized = selectedSolved.context.materializeCandidateTrial(
+      selectedResult.solution,
+      Object.freeze({
+        iterations: selectedResult.iterations,
+        lineSearchBacktracks: selectedResult.lineSearchBacktrackCount,
+      }),
+    );
+    const evaluatorReadback =
+      materialized.circulationTrial.valveEvaluations.AoV;
+    expect(evaluatorReadback.modelId).toBe(
+      MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID,
+    );
+    if (
+      evaluatorReadback.modelId
+      !== MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_V1_ID
+    ) {
+      throw new Error("materialized candidate lost its recovered-root AoV");
+    }
+
+    // Overwrite the one-candidate cache with a non-converged nearby probe;
+    // restoring the admitted solution must recompute its own exact scalars.
+    const rejectedUnknowns = selectedResult.solution.slice();
+    rejectedUnknowns[0] = rejectedUnknowns[0]! + 1e-4;
+    const rejectedResidual =
+      new Float64Array(selectedSolved.context.dimension);
+    expect(selectedSolved.context.isResidualConverged(
+      rejectedUnknowns,
+      rejectedResidual,
+    )).toBe(false);
+    const acceptedResidual = new Float64Array(selectedSolved.context.dimension);
+    selectedSolved.context.evaluateResidualMl(
+      selectedResult.solution,
+      acceptedResidual,
+    );
+    const cacheHitResidual =
+      new Float64Array(selectedSolved.context.dimension);
+    selectedSolved.context.evaluateResidualMl(
+      selectedResult.solution,
+      cacheHitResidual,
+    );
+    expect(Array.from(cacheHitResidual)).toEqual(Array.from(acceptedResidual));
+
+    const acceptedProjection = selectedSolved.context.withConvergedCandidate(
+      selectedResult.solution,
+      (candidate) => {
+        const selected = candidate.selectedAorticValveReadback;
+        expect(Object.keys(candidate)).toContain("selectedAorticValveReadback");
+        expect(selected).toBeDefined();
+        if (selected === undefined) {
+          throw new Error("selected aortic evaluator readback is absent");
+        }
+        expect(Object.keys(selected)).toEqual([
+          "modelId",
+          "algebraicProximalConstitutivePortPressureMmHg",
+          "localValvePressureGradientMmHg",
+          "venaContractaBernoulliPressureMmHg",
+        ]);
+        const packed = new Float64Array(
+          MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V3,
+        );
+        writeMainWireFiveWallAcceptedNumericalReadbackV3(
+          packed,
+          candidate.acceptedNumericalReadback,
+          selected,
+        );
+        return Object.freeze({
+          packed: packed.slice(),
+          selected: Object.freeze({ ...selected }),
+        });
+      },
+    );
+    const layout = MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V2;
+    expect(Object.is(
+      acceptedProjection.selected
+        .algebraicProximalConstitutivePortPressureMmHg,
+      evaluatorReadback.algebraicProximalConstitutivePortPressureMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      acceptedProjection.selected.localValvePressureGradientMmHg,
+      evaluatorReadback.localValvePressureGradientMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      acceptedProjection.selected.venaContractaBernoulliPressureMmHg,
+      evaluatorReadback.venaContractaBernoulliPressureMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      acceptedProjection.packed[
+        layout.algebraicProximalConstitutivePortPressureMmHg
+      ],
+      evaluatorReadback.algebraicProximalConstitutivePortPressureMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      acceptedProjection.packed[layout.localValvePressureGradientMmHg],
+      evaluatorReadback.localValvePressureGradientMmHg,
+    )).toBe(true);
+    expect(Object.is(
+      acceptedProjection.packed[
+        layout.venaContractaBernoulliPressureMmHg
+      ],
+      evaluatorReadback.venaContractaBernoulliPressureMmHg,
+    )).toBe(true);
+
+    const baselineStepInput = Object.freeze({
+      dtSec: 0.002,
+      runtime: baselineRuntime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const baselineCold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: baselineRuntime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const baselineSolved = solveMainWireFiveWallCoupledCandidateV1(
+      provider,
+      baselineCold.acceptedState,
+      baselineStepInput,
+      createMainWireFiveWallCoupledNewtonShadowWorkspaceV1(),
+      { residualWorkspace },
+    );
+    expect(baselineSolved.status).toBe("converged");
+    if (baselineSolved.status !== "converged") {
+      throw new Error(baselineSolved.solver.result.status === "failed"
+        ? baselineSolved.solver.result.message
+        : "baseline candidate did not converge");
+    }
+    const baselineResult = baselineSolved.solver.result;
+    if (baselineResult.status !== "converged") {
+      throw new Error("baseline coupled result did not converge");
+    }
+    baselineSolved.context.withConvergedCandidate(
+      baselineResult.solution,
+      (candidate) => {
+        expect(candidate.acceptedNumericalReadback).toHaveLength(73);
+        expect(Object.keys(candidate)).not.toContain(
+          "selectedAorticValveReadback",
+        );
+        expect(candidate.selectedAorticValveReadback).toBeUndefined();
+      },
+    );
+    expect(() => selectedSolved.context.evaluateResidualMl(
+      selectedResult.solution,
+      new Float64Array(selectedSolved.context.dimension),
+    )).toThrow(/invalidated by a newer workspace borrow/);
+  }, 60_000);
 
   it("solves the real 30-row residual without either nested Newton loop", () => {
     const provider = testLandReadbackProvider(false);

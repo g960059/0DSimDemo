@@ -516,6 +516,23 @@ describe("Studio Experiment data V2", () => {
       pressureVolumeModel,
     )).not.toThrow();
 
+    const rawPressureVolume = structuredClone(pressureVolume);
+    rawPressureVolume.content.surface.graphPanes[0]
+      .pressureVolumeAnalysisMode = "raw-exact-orbit";
+    delete rawPressureVolume.content.surface.graphPanes[0]
+      .showPressureEnvelope;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(rawPressureVolume).content,
+      pressureVolumeModel,
+    )).not.toThrow();
+    const rawPressureVolumeWithEnvelope = structuredClone(rawPressureVolume);
+    rawPressureVolumeWithEnvelope.content.surface.graphPanes[0]
+      .showPressureEnvelope = true;
+    expect(() => assertExperimentContentMatchesModelV2(
+      validateExperimentV2(rawPressureVolumeWithEnvelope).content,
+      pressureVolumeModel,
+    )).toThrow(/raw-exact-orbit.*must not configure an analysis envelope/);
+
     for (const invalidDepth of [-1, 1.5, 4]) {
       const invalid = structuredClone(pressureVolume);
       invalid.content.surface.graphPanes[0].historyDepth = invalidDepth;
