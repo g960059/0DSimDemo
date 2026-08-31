@@ -164,6 +164,14 @@ export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2 = deepFreeze({
     exactBetweenEvents: true as const,
     depositsAdditive: true as const,
     ventricularDepositDelay: "explicit-strictly-positive" as const,
+    periodicSinusVentricularDepositClock: Object.freeze({
+      scope:
+        "regular-sinus-av-output-without-authored-ectopy-pacing-or-pac" as const,
+      boundary:
+        "initial-accepted-time-plus-safe-ordinal-times-cycle" as const,
+      canonicalization:
+        "raw-deposit-within-64-eps-of-boundary-uses-that-exact-clock" as const,
+    }),
     strength: "interval-owner-relative-strength-times-explicit-wall-strength" as const,
     coherentAtrialClasses: Object.freeze(["sinus", "captured-PAC"] as const),
     coherentFlutterCalciumClaimed: false as const,
@@ -991,6 +999,7 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
     pacMetadata,
     capturedVentricularActivation,
     ventricularIntervalStrengthCandidate,
+    regularSinusCycleBoundaryLatticeV2(state),
   );
   const pendingProximalAvOutputs = sortedPendingProximal([
     ...state.pendingProximalAvOutputs.filter((item) => item.proximalArrivalTimeSec > candidateTimeSec),
@@ -1477,6 +1486,32 @@ function createPendingProximal(
   });
 }
 
+type PeriodicSinusCycleBoundaryLatticeV2 = Readonly<{
+  originTimeSec: number;
+  cycleLengthSec: number;
+}>;
+
+function regularSinusCycleBoundaryLatticeV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+): PeriodicSinusCycleBoundaryLatticeV2 | null {
+  const regular = state.regularAtrialSourceState;
+  if (
+    regular === null
+    || state.configuration.atrialSource.mode !== "regular"
+    || regular.configuration.rhythmClass !== "sinus"
+    || state.configuration.authoredEctopySchedule.eventCount !== 0
+    || state.configuration.authoredVentricularPacingReplay !== null
+    || state.authoredVentricularPacingReplayState !== null
+    || regular.capturedPacResetCount !== 0
+    || regular.capturedPacPreserveCount !== 0
+    || regular.initialAcceptedTimeSec !== state.initialAcceptedTimeSec
+  ) return null;
+  return Object.freeze({
+    originTimeSec: state.initialAcceptedTimeSec,
+    cycleLengthSec: regular.configuration.cycleLengthSec,
+  });
+}
+
 function scheduleCalciumDeposits(
   configuration: AcceptedComposedRhythmTransactionConfigurationV2,
   candidateTimeSec: number,
@@ -1485,6 +1520,7 @@ function scheduleCalciumDeposits(
   pacMetadata: AuthoredPacSourceImpulseMetadataV2 | null,
   ventricular: CapturedElectricalActivationV2 | null,
   intervalCandidate: AcceptedVentricularIntervalStrengthCandidateV1 | null,
+  periodicSinusLattice: PeriodicSinusCycleBoundaryLatticeV2 | null,
 ): readonly ComposedRhythmPendingCalciumDepositV2[] {
   const deposits: ComposedRhythmPendingCalciumDepositV2[] = [];
   if (atrial !== null && dueRegularImpulse !== null && atrial.parentSourceImpulseId === dueRegularImpulse.sourceImpulseId && configuration.atrialSource.mode === "regular" && configuration.atrialSource.regularSourceConfiguration.rhythmClass === "sinus" && configuration.sinusAtrialCalciumDeposit !== null) {
@@ -1496,10 +1532,19 @@ function scheduleCalciumDeposits(
     if (intervalCandidate === null) throw new Error("captured ventricular activation requires interval-strength metadata");
     const relative = intervalCandidate.depositMetadata.futureExactCalciumDepositRelativeStrength;
     const profile = configuration.ventricularCalciumDeposit;
+    const rawDepositTimeSec = safeFutureTime(
+      candidateTimeSec,
+      profile.electricalToCalciumDelaySec,
+      "ventricular calcium deposit time",
+    );
     deposits.push(createPendingCalciumDeposit(
       "ventricular",
       ventricular,
-      safeFutureTime(candidateTimeSec, profile.electricalToCalciumDelaySec, "ventricular calcium deposit time"),
+      canonicalizePeriodicSinusVentricularDepositTimeV2(
+        ventricular,
+        rawDepositTimeSec,
+        periodicSinusLattice,
+      ),
       { LA: 0, RA: 0, LVFW: profile.lvFreeWallBaseStrength * relative, SEP: profile.septalBaseStrength * relative, RVFW: profile.rvFreeWallBaseStrength * relative },
     ));
   }
@@ -1821,6 +1866,36 @@ function safeFutureTime(timeSec: number, durationSec: number, field: string): nu
   const next = timeSec + durationSec;
   if (!Number.isFinite(next) || !(next > timeSec)) throw new Error(`${field} must be strictly future and finite`);
   return next;
+}
+
+function canonicalizePeriodicSinusVentricularDepositTimeV2(
+  activation: CapturedElectricalActivationV2,
+  rawDepositTimeSec: number,
+  lattice: PeriodicSinusCycleBoundaryLatticeV2 | null,
+): number {
+  if (lattice === null || activation.sourceKind !== "av-output") {
+    return rawDepositTimeSec;
+  }
+  const ordinal = Math.round(
+    (rawDepositTimeSec - lattice.originTimeSec) / lattice.cycleLengthSec,
+  );
+  if (!Number.isSafeInteger(ordinal)) return rawDepositTimeSec;
+  const canonicalTimeSec =
+    lattice.originTimeSec + ordinal * lattice.cycleLengthSec;
+  if (
+    !Number.isFinite(canonicalTimeSec)
+    || !(canonicalTimeSec > activation.activationTimeSec)
+  ) return rawDepositTimeSec;
+  const tolerance = 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(rawDepositTimeSec),
+    Math.abs(canonicalTimeSec),
+    Math.abs(lattice.originTimeSec),
+    Math.abs(lattice.cycleLengthSec),
+  );
+  return Math.abs(rawDepositTimeSec - canonicalTimeSec) <= tolerance
+    ? canonicalTimeSec
+    : rawDepositTimeSec;
 }
 
 function codeUnitCompare(left: string, right: string): number { return left < right ? -1 : left > right ? 1 : 0; }

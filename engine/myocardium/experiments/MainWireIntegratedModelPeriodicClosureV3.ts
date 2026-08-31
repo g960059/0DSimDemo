@@ -1604,7 +1604,11 @@ function expectAdvance(
     !Number.isSafeInteger(reference) ||
     current - reference !== expected
   ) {
-    throw new Error(`V3 periodic ${label} does not advance by ${expected}`);
+    throw new Error(
+      `V3 periodic ${label} does not advance by ${expected}; observed ${
+        current - reference
+      } (current ${current}, reference ${reference})`,
+    );
   }
 }
 

@@ -147,6 +147,33 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
     ).rejects.toThrow(/unadvanced cold window-zero state/);
   }, 120_000);
 
+  it("keeps the HR 50 first cycle boundary structurally empty", async () => {
+    const liveSession =
+      await createMainWireStandard66SelectedTraceLiveSessionV1({
+        hemodynamicResearchInputs: Object.freeze({
+          ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+          heartRateBpm: 50,
+        }),
+      });
+    const result = await runMainWireStandard66P1SettlingOnLiveSessionV1({
+      liveSession,
+      clockArmId: "dt-2ms-production",
+      executionPurpose: "bounded-smoke",
+      boundedSmokeHorizonSec: 1.202,
+    });
+
+    expect(result.status).toBe("bounded-smoke-complete");
+    expect(result.failure).toBeNull();
+    expect(result.counters.completedCoronaryWindowCount).toBe(1);
+    expect(result.retainedWindowBoundaries.at(-1)?.acceptedState.composedRhythm)
+      .toMatchObject({
+        acceptedAtrialCaptureCount: 1,
+        acceptedVentricularCaptureCount: 1,
+        deliveredCalciumDepositCount: 2,
+        pendingCalciumDeposits: [],
+      });
+  }, 120_000);
+
   it.each([
     ["dt-2ms-production", 0.002],
     ["dt-1ms-intermediate", 0.001],
@@ -166,7 +193,7 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
           hemodynamicResearchInputs,
         },
       );
-      const commonEndpointSec = 0.67;
+      const commonEndpointSec = 1.34;
       const splitResult = await runMainWireStandard66P1SettlingOnLiveSessionV1({
         liveSession: split,
         clockArmId,
@@ -182,10 +209,19 @@ describe("Standard66 full accepted-state P1 settling runner V1", () => {
         },
       });
       expect(splitResult.failure).toBeNull();
-      expect(splitResult.counters.completedCoronaryWindowCount).toBe(1);
+      expect(splitResult.counters.completedCoronaryWindowCount).toBe(2);
       expect(
         splitResult.retainedWindowBoundaries.at(-1)?.acceptedTimeSec,
-      ).toBeCloseTo(2 / 3, 14);
+      ).toBeCloseTo(4 / 3, 14);
+      expect(
+        splitResult.retainedWindowBoundaries.at(-1)?.acceptedState
+          .composedRhythm,
+      ).toMatchObject({
+        acceptedAtrialCaptureCount: 2,
+        acceptedVentricularCaptureCount: 2,
+        deliveredCalciumDepositCount: 4,
+        pendingCalciumDeposits: [],
+      });
 
       const requestedBoundaryCount = Math.round(
         commonEndpointSec / requestedStepSec,
