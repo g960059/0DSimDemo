@@ -160,7 +160,7 @@ for (let cycleIndex = 1; cycleIndex <= cycleCount; cycleIndex += 1) {
 const terminal = retainedCycleSummaries.at(-1)!;
 const penultimate = retainedCycleSummaries.at(-2) ?? null;
 const report = Object.freeze({
-  artifactSchemaVersion: 1 as const,
+  artifactSchemaVersion: 2 as const,
   experimentId: MAIN_WIRE_STANDARD65_TO_66_FACTORIZED_ABLATION_V1_ID,
   armId,
   construction,
@@ -183,6 +183,7 @@ const report = Object.freeze({
     forwardGradientDomain: "strictly-positive-flow" as const,
     eventThreshold:
       "max-of-1-mL-per-sec-and-1-percent-of-valve-cycle-peak-forward-flow" as const,
+    cyclicValveEpisodeSegmentation: true as const,
     acceptedEndpointQuadrature: true as const,
     smoothingApplied: false as const,
     parameterSearchOrFitting: false as const,
@@ -204,6 +205,8 @@ const report = Object.freeze({
     rawLvAoNodeGradientAlsoRetained: true as const,
     teiTimingUsesThresholdedValveFlowTransitions: true as const,
     pressureAndFlowMorphologyUsesRawAcceptedEndpoints: true as const,
+    normalizedEjectionContourIsDescriptiveWithoutClinicalThreshold:
+      true as const,
     morphologyPassFailThresholdApplied: false as const,
     clinicalValidationClaimed: false as const,
   }),
@@ -327,7 +330,6 @@ function summarizeValve(
       peakForwardGradientMmHg = Math.max(peakForwardGradientMmHg, gradient);
     }
   }
-  const episodes = linearTrueRuns(thresholdMask);
   const primary = primaryForwardEpisode(trace, valveId);
   const rawLvAo = valveId === "AoV"
     ? forwardGradientSummary(trace, "raw-lv-minus-ao-node")
@@ -347,14 +349,14 @@ function summarizeValve(
     peakForwardGradientMmHg,
     thresholdMlPerSec,
     thresholdEpisodeCount: cyclicTrueRunCount(thresholdMask),
-    thresholdEpisodeDurationSec: episodes.reduce(
-      (sum, [start, end]) => sum + integrateDt(trace, start, end),
-      0,
+    thresholdEpisodeDurationSec: integrateIndices(
+      trace,
+      thresholdMask.flatMap((active, index) => active ? [index] : []),
     ),
     primaryThresholdEpisode: Object.freeze({
       openingTimeSec: trace[primary.start]!.acceptedTimeSec,
       closingTimeSec: trace[primary.end]!.acceptedTimeSec,
-      durationSec: integrateDt(trace, primary.start, primary.end),
+      durationSec: integrateCyclicDt(trace, primary.start, primary.end),
     }),
     rawLvAoNodeForwardGradient: rawLvAo,
   });
@@ -430,7 +432,11 @@ function ventricularTiming(
     phaseTimeSec(trace, outlet.start, cycleDurationSec),
     cycleDurationSec,
   );
-  const ejectionTimeSec = integrateDt(trace, outlet.start, outlet.end);
+  const ejectionTimeSec = integrateCyclicDt(
+    trace,
+    outlet.start,
+    outlet.end,
+  );
   const ivrtSec = cyclicTimeDelta(
     phaseTimeSec(trace, outletClosure, cycleDurationSec),
     phaseTimeSec(trace, inletOpening, cycleDurationSec),
@@ -634,24 +640,84 @@ function segmentMorphology(
   end: number,
   selectedAorticOutflow: boolean,
 ) {
-  const values = trace.slice(start, end + 1).map((sample) =>
-    signal(sample, signalId, selectedAorticOutflow));
+  const indices = cyclicIndicesInclusive(trace.length, start, end);
+  const values = indices.map((index) =>
+    signal(trace[index]!, signalId, selectedAorticOutflow));
   const extrema = localExtrema(values).map((entry) => Object.freeze({
     ...entry,
-    timeSec: trace[start + entry.offset]!.acceptedTimeSec,
+    timeSec: trace[indices[entry.offset]!]!.acceptedTimeSec,
   }));
+  const contour = normalizedEjectionContour(trace, indices, values);
   return Object.freeze({
     minimum: Math.min(...values),
     maximum: Math.max(...values),
     extrema: Object.freeze(extrema),
-    largestPostPeakRebound: largestPostPeakRebound(values, trace, start),
+    normalizedContour: contour,
+    largestPostPeakRebound: largestPostPeakRebound(values, trace, indices),
   });
+}
+
+function normalizedEjectionContour(
+  trace: Trace,
+  indices: readonly number[],
+  values: readonly number[],
+) {
+  const durationSec = integrateIndices(trace, indices);
+  const phaseAtOffset = indices.map((_, offset) => {
+    const elapsedBeforeSec = integrateIndices(trace, indices.slice(0, offset));
+    const sampleMidpointSec = trace[indices[offset]!]!.acceptedDtSec / 2;
+    return Math.min(1, (elapsedBeforeSec + sampleMidpointSec) / durationSec);
+  });
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const range = maximum - minimum;
+  const peakOffset = values.indexOf(maximum);
+  const centralOffsets = phaseAtOffset.flatMap((phase, offset) =>
+    phase >= 0.25 && phase <= 0.75 ? [offset] : []);
+  const centralValues = centralOffsets.map((offset) => values[offset]!);
+  const topNinetyThreshold = minimum + 0.9 * range;
+  const topNinetyDurationSec = indices.reduce((sum, index, offset) =>
+    sum + (values[offset]! >= topNinetyThreshold
+      ? trace[index]!.acceptedDtSec
+      : 0), 0);
+  const phaseTargets = Object.freeze([0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]);
+  return Object.freeze({
+    durationSec,
+    range,
+    peakPhase01: phaseAtOffset[peakOffset]!,
+    centralHalfRange: centralValues.length === 0
+      ? null
+      : Math.max(...centralValues) - Math.min(...centralValues),
+    centralHalfRangeFractionOfFullRange: centralValues.length === 0 || range === 0
+      ? null
+      : (Math.max(...centralValues) - Math.min(...centralValues)) / range,
+    topNinetyPercentRangeDurationFraction:
+      topNinetyDurationSec / durationSec,
+    phaseSamples: Object.freeze(phaseTargets.map((phase01) => Object.freeze({
+      phase01,
+      value: linearlyInterpolateByPhase(phaseAtOffset, values, phase01),
+    }))),
+  });
+}
+
+function linearlyInterpolateByPhase(
+  phases: readonly number[],
+  values: readonly number[],
+  target: number,
+) {
+  if (target <= phases[0]!) return values[0]!;
+  if (target >= phases.at(-1)!) return values.at(-1)!;
+  const right = phases.findIndex((phase) => phase >= target);
+  const left = right - 1;
+  const span = phases[right]! - phases[left]!;
+  const fraction = span === 0 ? 0 : (target - phases[left]!) / span;
+  return values[left]! + fraction * (values[right]! - values[left]!);
 }
 
 function largestPostPeakRebound(
   values: readonly number[],
   trace: Trace,
-  traceOffset: number,
+  indices: readonly number[],
 ) {
   const globalPeak = values.indexOf(Math.max(...values));
   let minimumOffset = globalPeak;
@@ -667,9 +733,9 @@ function largestPostPeakRebound(
     const rise = values[offset]! - values[minimumOffset]!;
     if (best === null || rise > best.rise) {
       best = Object.freeze({
-        troughTimeSec: trace[traceOffset + minimumOffset]!.acceptedTimeSec,
+        troughTimeSec: trace[indices[minimumOffset]!]!.acceptedTimeSec,
         troughValue: values[minimumOffset]!,
-        reboundPeakTimeSec: trace[traceOffset + offset]!.acceptedTimeSec,
+        reboundPeakTimeSec: trace[indices[offset]!]!.acceptedTimeSec,
         reboundPeakValue: values[offset]!,
         rise,
       });
@@ -724,12 +790,12 @@ function primaryForwardEpisode(trace: Trace, valveId: ValveId) {
   const peak = Math.max(...trace.map((sample) =>
     sample.valveFlowMlPerSec[valveId]));
   const thresholdMlPerSec = Math.max(1, 0.01 * peak);
-  const runs = linearTrueRuns(trace.map((sample) =>
+  const runs = cyclicTrueRuns(trace.map((sample) =>
     sample.valveFlowMlPerSec[valveId] > thresholdMlPerSec));
   const run = runs.reduce<readonly [number, number] | null>((best, candidate) => {
     if (best === null) return candidate;
-    return integrateDt(trace, candidate[0], candidate[1])
-        > integrateDt(trace, best[0], best[1])
+    return integrateCyclicDt(trace, candidate[0], candidate[1])
+        > integrateCyclicDt(trace, best[0], best[1])
       ? candidate
       : best;
   }, null);
@@ -738,6 +804,25 @@ function primaryForwardEpisode(trace: Trace, valveId: ValveId) {
     start: run[0],
     end: run[1],
     thresholdMlPerSec,
+  });
+}
+
+function cyclicTrueRuns(mask: readonly boolean[]) {
+  if (mask.length === 0 || mask.every((active) => !active)) return [];
+  if (mask.every(Boolean)) {
+    return [Object.freeze([0, mask.length - 1] as const)];
+  }
+  const starts: number[] = [];
+  for (let index = 0; index < mask.length; index += 1) {
+    const previous = mask[(index - 1 + mask.length) % mask.length]!;
+    if (!previous && mask[index]) starts.push(index);
+  }
+  return starts.map((start) => {
+    let end = start;
+    while (mask[(end + 1) % mask.length]) {
+      end = (end + 1) % mask.length;
+    }
+    return Object.freeze([start, end] as const);
   });
 }
 
@@ -790,20 +875,6 @@ function aorticProximalPressure(
           .characteristicImpedanceResistanceMmHgSecPerMl
         * sample.valveFlowMlPerSec.AoV
       : 0);
-}
-
-function linearTrueRuns(mask: readonly boolean[]) {
-  const result: Array<readonly [number, number]> = [];
-  let start: number | null = null;
-  for (let index = 0; index < mask.length; index += 1) {
-    if (mask[index] && start === null) start = index;
-    if (!mask[index] && start !== null) {
-      result.push(Object.freeze([start, index - 1] as const));
-      start = null;
-    }
-  }
-  if (start !== null) result.push(Object.freeze([start, mask.length - 1] as const));
-  return result;
 }
 
 function cyclicTrueRunCount(mask: readonly boolean[]): number {
@@ -878,12 +949,15 @@ function localExtremaIndicesCircularWindow(
   return result;
 }
 
-function integrateDt(trace: Trace, start: number, end: number): number {
-  let total = 0;
-  for (let index = start; index <= end; index += 1) {
-    total += trace[index]!.acceptedDtSec;
-  }
-  return total;
+function integrateCyclicDt(trace: Trace, start: number, end: number): number {
+  return integrateIndices(
+    trace,
+    cyclicIndicesInclusive(trace.length, start, end),
+  );
+}
+
+function integrateIndices(trace: Trace, indices: readonly number[]): number {
+  return indices.reduce((sum, index) => sum + trace[index]!.acceptedDtSec, 0);
 }
 
 function integratePositiveIndices(
@@ -930,6 +1004,14 @@ function keyMetrics(summary: ReturnType<typeof summarizeCycle>) {
     rvMinimumDpDtMmHgPerSec: summary.pressureRateMmHgPerSec.RV.minimum,
     lvpEjectionReboundMmHg:
       summary.morphology.aorticEjection.LVP.largestPostPeakRebound?.rise ?? 0,
+    lvpEjectionCentralHalfRangeFraction:
+      summary.morphology.aorticEjection.LVP.normalizedContour
+        .centralHalfRangeFractionOfFullRange,
+    lvpEjectionTopNinetyDurationFraction:
+      summary.morphology.aorticEjection.LVP.normalizedContour
+        .topNinetyPercentRangeDurationFraction,
+    lvpEjectionPeakPhase01:
+      summary.morphology.aorticEjection.LVP.normalizedContour.peakPhase01,
     aopEjectionReboundMmHg:
       summary.morphology.aorticEjection.AoP.largestPostPeakRebound?.rise ?? 0,
     pvFlowEjectionReboundMlPerSec:

@@ -38,6 +38,27 @@ const metricDefinitions = Object.freeze({
     ["pressureRateMmHgPerSec", "LV", "minimum"],
   lvpEjectionReboundMmHg:
     ["morphology", "aorticEjection", "LVP", "largestPostPeakRebound", "rise"],
+  lvpEjectionCentralHalfRangeFraction: [
+    "morphology",
+    "aorticEjection",
+    "LVP",
+    "normalizedContour",
+    "centralHalfRangeFractionOfFullRange",
+  ],
+  lvpEjectionTopNinetyDurationFraction: [
+    "morphology",
+    "aorticEjection",
+    "LVP",
+    "normalizedContour",
+    "topNinetyPercentRangeDurationFraction",
+  ],
+  lvpEjectionPeakPhase01: [
+    "morphology",
+    "aorticEjection",
+    "LVP",
+    "normalizedContour",
+    "peakPhase01",
+  ],
   aopEjectionReboundMmHg:
     ["morphology", "aorticEjection", "AoP", "largestPostPeakRebound", "rise"],
   mvMeanGradientMmHg:
@@ -128,7 +149,7 @@ const perMetric = Object.freeze(Object.fromEntries(Object.entries(
 })));
 
 const summary = Object.freeze({
-  artifactSchemaVersion: 1 as const,
+  artifactSchemaVersion: 2 as const,
   summaryId: MAIN_WIRE_STANDARD65_TO_66_FACTORIZED_ABLATION_SUMMARY_V1_ID,
   inputDirectory,
   design: Object.freeze({
@@ -169,6 +190,9 @@ process.stdout.write(`${JSON.stringify({
     "avMeanLocalGradientMmHg",
     "lvTeiIndex",
     "lvpEjectionReboundMmHg",
+    "lvpEjectionCentralHalfRangeFraction",
+    "lvpEjectionTopNinetyDurationFraction",
+    "lvpEjectionPeakPhase01",
     "papDiastolicReboundMmHg",
     "pvFlowEjectionReboundMlPerSec",
   ].map((metricId) => [metricId, summary.perMetric[metricId]])),
