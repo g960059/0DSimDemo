@@ -10,6 +10,10 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -168,6 +172,39 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM
       "canonical-provider-and-absent-selected-aortic-outflow-profile" as const,
     parameterSearchOrFitting: false as const,
     clinicalValidationClaimed: false as const,
+  });
+
+export const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID =
+  "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1" as const;
+
+/** Fixed successor assembly; the only numerical change from Standard66 is L=0
+ * on Ao_SA and PA_PArt. Existing R, B, compliance, valve, calcium, rhythm,
+ * myocardial, coronary, and device semantics are retained exactly. */
+export const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM =
+  Object.freeze({
+    fixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+    predecessorFixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+    ventricularMaterialProfileId:
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+    aorticOutflowCirculationProfileId:
+      MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+    proximalArterialRootsProfileId:
+      MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+    regularSinusProfileId:
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+    composedRhythmCalciumOwner:
+      "accepted-exact-event-matched-alpha-state" as const,
+    calciumDecayTimeScaleResearchInput:
+      "fixed-unit-only-to-preserve-selected-matched-alpha-law" as const,
+    changedMomentumEdges: Object.freeze(["Ao_SA", "PA_PArt"] as const),
+    sourceResistanceAndQuadraticLossPreserved: true as const,
+    newContinuousStateAdded: false as const,
+    acceptedRootFlowRecords:
+      "same-step-exact-readback-not-next-step-memory" as const,
+    parameterSearchOrFitting: false as const,
+    physiologicalValidationClaimed: false as const,
   });
 
 export type MainWireIntegratedModelPeriodicExecutionPurposeV3 =
@@ -432,6 +469,10 @@ export type MainWireIntegratedModelSelectedAorticOutflowFixtureV1 = ReturnType<
   typeof createMainWireIntegratedModelSelectedAorticOutflowFixtureV1
 >;
 
+export type MainWireIntegratedModelAlgebraicProximalRootsFixtureV1 = ReturnType<
+  typeof createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1
+>;
+
 /**
  * Opts into the fixed Land / recovered-root circulation / matched-alpha
  * regular-sinus assembly while retaining its admitted cold-fixture coordinates.
@@ -490,6 +531,68 @@ export function createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
       MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
     fixedAssemblyClaim:
       MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
+  });
+}
+
+/**
+ * Production candidate distilled from the causal root-inertance ablation.
+ * This remains a fixed construction rather than a user-selectable model axis.
+ */
+export function createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs,
+  );
+  assertSelectedMatchedAlphaCompatibleCalciumScalesV1(
+    prepared.chamberMechanics,
+  );
+  const fixture = assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () =>
+        createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+          prepared.chamberMechanics,
+        ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness:
+          prepared.hemodynamicResearchInputs.arterialStiffness,
+        selectedAorticOutflowProfile:
+          MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+        algebraicProximalArterialRootsProfile:
+          MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+      }),
+      createCalciumDriveParams: () =>
+        resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+          prepared.hemodynamicResearchInputs.heartRateBpm,
+        ),
+      createRhythm: (cycleLengthSec) =>
+        createMainWireIntegratedRegularSinusRhythmV3(
+          {
+            idPrefix: "algebraic-proximal-roots-v1",
+            parameterProvenanceSourceId:
+              MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+            cycleLengthSec,
+          },
+          {
+            profileId:
+              MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+            heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm,
+          },
+        ),
+    },
+  );
+  return Object.freeze({
+    ...fixture,
+    fixedAssemblyId:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+    fixedAssemblyClaim:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM,
   });
 }
 
