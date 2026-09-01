@@ -24,6 +24,13 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import type {
+  MainWireStandard65To66VentricularMaterialByWallResearchV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  resolveMainWirePulmonaryValveLocalInertanceResearchProfileV1,
+  type MainWirePulmonaryValveLocalInertanceResearchProfileIdV1,
+} from "@/engine/valves/MainWirePulmonaryValveLocalInertanceResearchV1";
 
 export const MAIN_WIRE_STANDARD65_TO_66_FACTORIZED_ABLATION_V1_ID =
   "main-wire-standard65-to-66-factorized-ablation-v1" as const;
@@ -40,6 +47,8 @@ type SignalId =
 const requestedArmId = argument("--arm");
 const rootAblation = rootAblationArgument();
 const pulmonaryRootResistance = pulmonaryRootResistanceArgument();
+const pulmonaryValveLocalInertance = pulmonaryValveLocalInertanceArgument();
+const ventricularMaterialByWall = ventricularMaterialByWallArgument();
 const researchContext = resolveResearchContext(
   optionalArgument("--context") ?? "baseline",
 );
@@ -58,9 +67,18 @@ const mechanicsQualifiedArmId = rightHeartMechanicsScreen.isBaseline
   : `${resistanceQualifiedArmId}-rvfw-active-${scaleId(
       rightHeartMechanicsScreen.activeTensionScale,
     )}-passive-${scaleId(rightHeartMechanicsScreen.passiveStiffnessScale)}`;
-const armId = researchContext.contextId === "baseline"
+const localInertanceQualifiedArmId = pulmonaryValveLocalInertance === "off"
   ? mechanicsQualifiedArmId
-  : `${mechanicsQualifiedArmId}-context-${researchContext.contextId}`;
+  : `${mechanicsQualifiedArmId}-pv-local-${pulmonaryValveLocalInertance}`;
+const wallMaterialQualifiedArmId = ventricularMaterialByWall === null
+  ? localInertanceQualifiedArmId
+  : `${localInertanceQualifiedArmId}-material-by-wall-`
+    + `l${levelId(ventricularMaterialByWall.LVFW)}-`
+    + `s${levelId(ventricularMaterialByWall.SEP)}-`
+    + `r${levelId(ventricularMaterialByWall.RVFW)}`;
+const armId = researchContext.contextId === "baseline"
+  ? wallMaterialQualifiedArmId
+  : `${wallMaterialQualifiedArmId}-context-${researchContext.contextId}`;
 const nominalDtSec = numberArgument("--dt", 0.002);
 const cycleCount = integerArgument("--cycles", 12);
 const outputPath = path.resolve(argument(
@@ -71,6 +89,8 @@ const construction = resolveConstruction(
   requestedArmId,
   rootAblation,
   pulmonaryRootResistance,
+  pulmonaryValveLocalInertance,
+  ventricularMaterialByWall,
 );
 const fixture = construction.kind === "official-standard65-reference"
   ? createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
@@ -92,11 +112,17 @@ const fixture = construction.kind === "official-standard65-reference"
         construction.proximalRootResearchProfile ?? undefined,
         construction.pulmonaryCharacteristicResistanceResearchProfile
           ?? undefined,
+        construction.pulmonaryValveLocalInertanceResearchProfile ?? undefined,
+        construction.ventricularMaterialByWallResearch ?? undefined,
       );
 const cycleFixture = fixture as unknown as Parameters<
   typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
 >[0];
 let accepted = cycleFixture.cold.acceptedState;
+let pulmonaryValveLocalInertanceAcceptedFlowMlPerSec =
+  construction.pulmonaryValveLocalInertanceResearchProfile === null
+    ? undefined
+    : 0;
 const retainedCycleSummaries: ReturnType<typeof summarizeCycle>[] = [];
 for (let cycleIndex = 1; cycleIndex <= cycleCount; cycleIndex += 1) {
   let run: ReturnType<
@@ -108,6 +134,7 @@ for (let cycleIndex = 1; cycleIndex <= cycleCount; cycleIndex += 1) {
       accepted,
       cycleIndex,
       nominalDtSec,
+      pulmonaryValveLocalInertanceAcceptedFlowMlPerSec,
     );
   } catch (error) {
     const window = accepted.coronary.coronaryAutoregulation;
@@ -121,6 +148,8 @@ for (let cycleIndex = 1; cycleIndex <= cycleCount; cycleIndex += 1) {
     );
   }
   accepted = run.terminalAcceptedState;
+  pulmonaryValveLocalInertanceAcceptedFlowMlPerSec =
+    run.pulmonaryValveLocalInertanceTerminalAcceptedFlowMlPerSec;
   if (cycleIndex >= cycleCount - 2) {
     retainedCycleSummaries.push(summarizeCycle(
       run.traceSamples,
@@ -140,6 +169,16 @@ const report = Object.freeze({
     cycleCount,
     independentColdStart: true as const,
     fixedHorizonScreen: true as const,
+    pulmonaryValveLocalInertanceAcceptedStateOwner:
+      construction.pulmonaryValveLocalInertanceResearchProfile === null
+        ? null
+        : "research-runner-external-atomic-promotion" as const,
+    pulmonaryValveLocalInertanceInitialFlowMlPerSec:
+      construction.pulmonaryValveLocalInertanceResearchProfile === null
+        ? null
+        : 0,
+    pulmonaryValveLocalInertanceTerminalFlowMlPerSec:
+      pulmonaryValveLocalInertanceAcceptedFlowMlPerSec ?? null,
     periodicityClaimed: false as const,
     forwardGradientDomain: "strictly-positive-flow" as const,
     eventThreshold:
@@ -159,6 +198,7 @@ const report = Object.freeze({
   )),
   interpretationBoundary: Object.freeze({
     exactModelChangedByAnalysis: false as const,
+    canonicalAcceptedStateOrCheckpointChangedByPvLocalInertance: false as const,
     researchFixtureOnly: construction.kind === "factorized-research",
     localAorticGradientUsesRecoveredConstitutivePortWhenSelected: true as const,
     rawLvAoNodeGradientAlsoRetained: true as const,
@@ -430,10 +470,35 @@ function inflowWaveSummary(
   const window = cyclicIndices(trace.length, opening, closure);
   const peaks = localExtremaIndicesCircularWindow(flow, window, "maximum")
     .filter((index) => flow(index) > threshold);
+  const cycleDurationSec = trace.reduce((sum, sample) =>
+    sum + sample.acceptedDtSec, 0);
+  const detectedPeaks = Object.freeze(peaks.map((index, peakOffset) => {
+    const windowOffset = window.indexOf(index);
+    const leftBoundaryOffset = peakOffset === 0
+      ? 0
+      : window.indexOf(peaks[peakOffset - 1]!);
+    const rightBoundaryOffset = peakOffset === peaks.length - 1
+      ? window.length - 1
+      : window.indexOf(peaks[peakOffset + 1]!);
+    const leftMinimum = Math.min(...window
+      .slice(leftBoundaryOffset, windowOffset + 1).map(flow));
+    const rightMinimum = Math.min(...window
+      .slice(windowOffset, rightBoundaryOffset + 1).map(flow));
+    const prominenceMlPerSec = flow(index)
+      - Math.max(leftMinimum, rightMinimum);
+    return Object.freeze({
+      timeSec: trace[index]!.acceptedTimeSec,
+      phaseTimeSec: phaseTimeSec(trace, index, cycleDurationSec),
+      flowMlPerSec: flow(index),
+      prominenceMlPerSec,
+      prominenceFractionOfDominantInflowPeak: prominenceMlPerSec / peak,
+    });
+  }));
   if (peaks.length < 2) {
     return Object.freeze({
       status: "fused-or-unresolved" as const,
       detectedPeakCount: peaks.length,
+      detectedPeaks,
       peakEToA: null,
       forwardVolumeEToA: null,
       observedEPeakToInterwaveTroughSec: null,
@@ -449,11 +514,10 @@ function inflowWaveSummary(
   const aIndices = cyclicIndices(trace.length, trough, closure);
   const eVolume = integratePositiveIndices(trace, inletValve, eIndices);
   const aVolume = integratePositiveIndices(trace, inletValve, aIndices);
-  const cycleDurationSec = trace.reduce((sum, sample) =>
-    sum + sample.acceptedDtSec, 0);
   return Object.freeze({
     status: "separated" as const,
     detectedPeakCount: peaks.length,
+    detectedPeaks,
     peakEFlowMlPerSec: flow(ePeak),
     peakAFlowMlPerSec: flow(aPeak),
     peakEToA: flow(ePeak) / flow(aPeak),
@@ -902,9 +966,19 @@ function resolveConstruction(
     | "pulmonary-resistive"
     | "both-resistive",
   pulmonaryRootResistance: "source" | "normal-zc",
+  pulmonaryValveLocalInertance:
+    | "off"
+    | MainWirePulmonaryValveLocalInertanceResearchProfileIdV1,
+  ventricularMaterialByWall:
+    MainWireStandard65To66VentricularMaterialByWallResearchV1 | null,
 ) {
   if (arm === "official-standard65") {
-    if (rootAblation !== "source" || pulmonaryRootResistance !== "source") {
+    if (
+      rootAblation !== "source"
+      || pulmonaryRootResistance !== "source"
+      || pulmonaryValveLocalInertance !== "off"
+      || ventricularMaterialByWall !== null
+    ) {
       throw new Error(
         "official reference arms cannot enable root or resistance ablation",
       );
@@ -915,10 +989,17 @@ function resolveConstruction(
       selectedAorticOutflow: false,
       proximalRootResearchProfile: null,
       pulmonaryCharacteristicResistanceResearchProfile: null,
+      pulmonaryValveLocalInertanceResearchProfile: null,
+      ventricularMaterialByWallResearch: null,
     });
   }
   if (arm === "official-standard66") {
-    if (rootAblation !== "source" || pulmonaryRootResistance !== "source") {
+    if (
+      rootAblation !== "source"
+      || pulmonaryRootResistance !== "source"
+      || pulmonaryValveLocalInertance !== "off"
+      || ventricularMaterialByWall !== null
+    ) {
       throw new Error(
         "official reference arms cannot enable root or resistance ablation",
       );
@@ -929,6 +1010,8 @@ function resolveConstruction(
       selectedAorticOutflow: true,
       proximalRootResearchProfile: null,
       pulmonaryCharacteristicResistanceResearchProfile: null,
+      pulmonaryValveLocalInertanceResearchProfile: null,
+      ventricularMaterialByWallResearch: null,
     });
   }
   const match = /^m(65|66)-c(65|66)-t(65|66)-a(65|66)$/.exec(arm);
@@ -946,6 +1029,14 @@ function resolveConstruction(
       rhythmTimingAndPeriodicSeed: level(match[3]!),
       aorticOutflow: level(match[4]!),
     });
+  if (
+    ventricularMaterialByWall !== null
+    && axes.ventricularMaterial !== "standard66"
+  ) {
+    throw new Error(
+      "wall-factorized material research uses the m66 arm as its declared superseded axis",
+    );
+  }
   const proximalRootResearchProfile = rootAblation === "source"
     ? null
     : createMainWireProximalArterialRootInertanceResearchProfileV1({
@@ -969,6 +1060,15 @@ function resolveConstruction(
       "normal pulmonary Zc resistance requires pulmonary-resistive or both-resistive root mode",
     );
   }
+  if (
+    pulmonaryValveLocalInertance !== "off"
+    && rootAblation !== "pulmonary-resistive"
+    && rootAblation !== "both-resistive"
+  ) {
+    throw new Error(
+      "PV local inertance requires pulmonary-resistive or both-resistive root mode",
+    );
+  }
   return Object.freeze({
     kind: "factorized-research" as const,
     axes,
@@ -978,6 +1078,13 @@ function resolveConstruction(
       pulmonaryRootResistance === "normal-zc"
         ? MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1
         : null,
+    pulmonaryValveLocalInertanceResearchProfile:
+      pulmonaryValveLocalInertance === "off"
+        ? null
+        : resolveMainWirePulmonaryValveLocalInertanceResearchProfileV1(
+            pulmonaryValveLocalInertance,
+          ),
+    ventricularMaterialByWallResearch: ventricularMaterialByWall,
   });
 }
 
@@ -1008,6 +1115,42 @@ function pulmonaryRootResistanceArgument(): "source" | "normal-zc" {
     );
   }
   return value;
+}
+
+function pulmonaryValveLocalInertanceArgument():
+  | "off"
+  | MainWirePulmonaryValveLocalInertanceResearchProfileIdV1 {
+  const value = optionalArgument("--pulmonary-valve-local-inertance") ?? "off";
+  if (
+    value !== "off"
+    && value !== "rvot-2cm-column-local-inertance"
+    && value !== "rvot-4cm-column-local-inertance"
+    && value !== "rvot-7cm-column-local-inertance"
+  ) {
+    throw new Error(
+      "--pulmonary-valve-local-inertance must be off or a fixed rvot-{2,4,7}cm-column-local-inertance profile",
+    );
+  }
+  return value;
+}
+
+function ventricularMaterialByWallArgument():
+  MainWireStandard65To66VentricularMaterialByWallResearchV1 | null {
+  const value = optionalArgument("--ventricular-material-by-wall") ?? "off";
+  if (value === "off") return null;
+  const match = /^l(65|66)-s(65|66)-r(65|66)$/.exec(value);
+  if (match === null) {
+    throw new Error(
+      "--ventricular-material-by-wall must be off or l65-s65-r65 form",
+    );
+  }
+  const level = (token: string): AxisLevel =>
+    token === "65" ? "standard65" : "standard66";
+  return Object.freeze({
+    LVFW: level(match[1]!),
+    SEP: level(match[2]!),
+    RVFW: level(match[3]!),
+  });
 }
 
 function resolveResearchContext(contextId: string) {
@@ -1091,6 +1234,10 @@ function resolveRightHeartMechanicsScreen(
 
 function scaleId(value: number): string {
   return value.toFixed(2).replace(".", "p");
+}
+
+function levelId(value: AxisLevel): "65" | "66" {
+  return value === "standard65" ? "65" : "66";
 }
 
 function argument(name: string, fallback?: string): string {

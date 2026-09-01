@@ -16,6 +16,10 @@ import type {
   MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
 } from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
 import {
+  MAIN_WIRE_PULMONARY_VALVE_LOCAL_INERTANCE_RESEARCH_V1_ID,
+  type MainWirePulmonaryValveLocalInertanceResearchProfileV1,
+} from "@/engine/valves/MainWirePulmonaryValveLocalInertanceResearchV1";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -87,7 +91,9 @@ import {
 import { createMainWireCommonPericardiumWithResearchInputsV1 } from "@/engine/myocardium/mechanics/MainWireCommonPericardiumResearchInputsV1";
 import {
   createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1,
+  createMainWireNormalAdultFiveWallProviderWithStandard65To66VentricularMaterialByWallResearchV1,
   createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1,
+  type MainWireStandard65To66VentricularMaterialByWallResearchV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import { withCommonVentricularActiveTensionScaleV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
@@ -525,6 +531,10 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
     MainWireProximalArterialRootInertanceResearchProfileV1,
   pulmonaryCharacteristicResistanceResearchProfile?:
     MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
+  pulmonaryValveLocalInertanceResearchProfile?:
+    MainWirePulmonaryValveLocalInertanceResearchProfileV1,
+  ventricularMaterialByWallResearch?:
+    MainWireStandard65To66VentricularMaterialByWallResearchV1,
 ) {
   const ownedAxes = validateStandard65To66FactorizedResearchAxesV1(axes);
   const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
@@ -541,7 +551,12 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
     prepared,
     {
       createProvider: () =>
-        ownedAxes.ventricularMaterial === "standard66"
+        ventricularMaterialByWallResearch !== undefined
+          ? createMainWireNormalAdultFiveWallProviderWithStandard65To66VentricularMaterialByWallResearchV1(
+              ventricularMaterialByWallResearch,
+              prepared.chamberMechanics,
+            )
+          : ownedAxes.ventricularMaterial === "standard66"
           ? createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
               prepared.chamberMechanics,
             )
@@ -564,6 +579,9 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
         ...(pulmonaryCharacteristicResistanceResearchProfile === undefined
           ? {}
           : { pulmonaryCharacteristicResistanceResearchProfile }),
+        ...(pulmonaryValveLocalInertanceResearchProfile === undefined
+          ? {}
+          : { pulmonaryValveLocalInertanceResearchProfile }),
       }),
       createCalciumDriveParams: (cycleLengthSec) =>
         ownedAxes.calcium === "standard66"
@@ -607,6 +625,10 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
       proximalArterialRootInertanceResearchProfile ?? null,
     pulmonaryCharacteristicResistanceResearchProfile:
       pulmonaryCharacteristicResistanceResearchProfile ?? null,
+    pulmonaryValveLocalInertanceResearchProfile:
+      pulmonaryValveLocalInertanceResearchProfile ?? null,
+    ventricularMaterialByWallResearch:
+      ventricularMaterialByWallResearch ?? null,
   });
 }
 
@@ -1008,6 +1030,8 @@ export type MainWireIntegratedModelRegularSinusAllOffCycleRunV3 = Readonly<{
   allRawValuesFinite: boolean;
   oneComposedCalciumOwnerOnly: boolean;
   allDynamicMcsAcceptedFlowsExactlyZero: boolean;
+  /** Research-sidecar state; absent on the canonical cycle path. */
+  pulmonaryValveLocalInertanceTerminalAcceptedFlowMlPerSec?: number;
 }>;
 
 export type MainWireIntegratedModelRegularSinusAllOffAlignmentV3 = Readonly<{
@@ -1296,6 +1320,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   initial: AcceptedState,
   cycleIndex: number,
   nominalDtSec: number,
+  pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec?: number,
 ): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
   assertPeriodicNominalDtSec(nominalDtSec);
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
@@ -1321,7 +1346,32 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     );
   }
   const expectedWindowIndex = window.windowIndex;
+  const vascularRuntime = fixture.coronaryStepInput.runtime.vascular;
+  const pulmonaryValveLocalInertanceEnabled =
+    "pulmonaryValveLocalInertanceResearchProfile" in vascularRuntime
+    && vascularRuntime.pulmonaryValveLocalInertanceResearchProfile !== undefined;
+  if (
+    pulmonaryValveLocalInertanceEnabled
+    !== (pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec !== undefined)
+  ) {
+    throw new Error(
+      "V3 periodic PV local-inertance profile and external accepted flow differ",
+    );
+  }
+  if (
+    pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec !== undefined
+    && (!(pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec >= 0)
+      || !Number.isFinite(
+        pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec,
+      ))
+  ) {
+    throw new Error(
+      "V3 periodic PV local-inertance accepted flow must be finite and nonnegative",
+    );
+  }
   let accepted = initial;
+  let pulmonaryValveLocalInertanceAcceptedFlowMlPerSec =
+    pulmonaryValveLocalInertanceInitialAcceptedFlowMlPerSec;
   let acceptedStepCount = 0;
   let nominalGridIndex = 1;
   let maximumGlobalTotalBloodVolumeErrorMl = 0;
@@ -1377,12 +1427,30 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     const stepped = stepMainWireIntegratedModelV3(
       fixture.provider,
       accepted,
-      stepInput(fixture, maximum.candidateTimeSec),
+      stepInput(
+        fixture,
+        maximum.candidateTimeSec,
+        pulmonaryValveLocalInertanceAcceptedFlowMlPerSec,
+      ),
     );
     if (stepped.converged === false) {
       throw new Error(
         `V3 periodic step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`,
       );
+    }
+    if (pulmonaryValveLocalInertanceEnabled) {
+      const pulmonaryValveEvaluation = stepped.coronaryStep.baseStep
+        .circulationTrial.valveEvaluations.PV;
+      if (
+        pulmonaryValveEvaluation.modelId
+        !== MAIN_WIRE_PULMONARY_VALVE_LOCAL_INERTANCE_RESEARCH_V1_ID
+      ) {
+        throw new Error(
+          "V3 periodic PV local-inertance profile returned another valve model",
+        );
+      }
+      pulmonaryValveLocalInertanceAcceptedFlowMlPerSec =
+        pulmonaryValveEvaluation.flowMlPerSec;
     }
     accepted = stepped.acceptedState;
     acceptedStepCount += 1;
@@ -1513,6 +1581,12 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     allRawValuesFinite,
     oneComposedCalciumOwnerOnly,
     allDynamicMcsAcceptedFlowsExactlyZero,
+    ...(pulmonaryValveLocalInertanceAcceptedFlowMlPerSec === undefined
+      ? {}
+      : {
+          pulmonaryValveLocalInertanceTerminalAcceptedFlowMlPerSec:
+            pulmonaryValveLocalInertanceAcceptedFlowMlPerSec,
+        }),
   });
 }
 
@@ -1825,10 +1899,17 @@ function allOffBinding(deviceId: RotarySupportDeviceIdV1, digit: string) {
 function stepInput(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
   candidateTimeSec: number,
+  pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec?: number,
 ): MainWireIntegratedModelStepInputV3 {
   return Object.freeze({
     candidateTimeSec,
-    coronary: fixture.coronaryStepInput,
+    coronary:
+      pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec === undefined
+        ? fixture.coronaryStepInput
+        : Object.freeze({
+            ...fixture.coronaryStepInput,
+            pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec,
+          }),
     rhythm: Object.freeze({
       configuration: fixture.rhythm.configuration,
       externalAfNextBoundaryTimeSec: null,

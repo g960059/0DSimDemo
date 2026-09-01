@@ -46,6 +46,11 @@ import {
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
+  stepMainWirePulmonaryValveLocalInertanceScalarsV1,
+  validateMainWirePulmonaryValveLocalInertanceResearchProfileV1,
+  type MainWirePulmonaryValveLocalInertanceEvaluationV1,
+} from "@/engine/valves/MainWirePulmonaryValveLocalInertanceResearchV1";
+import {
   stressedVolumeFromPtm,
   type VascularPvLaw,
 } from "@/engine/vascularPv";
@@ -101,7 +106,8 @@ export type NonCoronaryValveNameV1 =
 
 export type NonCoronaryValveEvaluationV1 =
   | MainWireQuasiSteadyOrificeValveEvaluationV2
-  | MainWireAorticRecoveredRootPortValveEvaluationV1;
+  | MainWireAorticRecoveredRootPortValveEvaluationV1
+  | MainWirePulmonaryValveLocalInertanceEvaluationV1;
 
 const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
   NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index]),
@@ -432,6 +438,8 @@ export type NonCoronaryCirculationTrialInputV1<
   options?: NonCoronaryCirculationNewtonOptionsV1;
   protocolResistanceScaleByEdge?:
     NonCoronaryProtocolResistanceScaleByEdgeV1;
+  /** Research-runner-owned accepted q_n; required only by the PV local-L profile. */
+  pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec?: number;
   conservativeCompanion?: NonCoronaryConservativeCompanionAdapterV1<
     TEvaluation,
     TCompanionTrial
@@ -1363,6 +1371,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
   try {
     requirePositive(input.dtSec, "dtSec");
     validateRuntime(input.runtime);
+    validatePulmonaryValveLocalInertanceTrialInputV1(input);
     validateProtocolResistanceScaleByEdge(
       input.protocolResistanceScaleByEdge,
     );
@@ -1424,6 +1433,7 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validatePulmonaryValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -1637,6 +1647,7 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validatePulmonaryValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -1790,6 +1801,7 @@ export function materializeNonCoronaryCirculationCandidateTrialV1<
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
+  validatePulmonaryValveLocalInertanceTrialInputV1(input);
   validateProtocolResistanceScaleByEdge(
     input.protocolResistanceScaleByEdge,
   );
@@ -2695,6 +2707,8 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       ]!;
       const selectedAorticOutflowProfile =
         input.runtime.vascular.selectedAorticOutflowProfile;
+      const pulmonaryValveLocalInertanceResearchProfile =
+        input.runtime.vascular.pulmonaryValveLocalInertanceResearchProfile;
       const evaluation: NonCoronaryValveEvaluationV1 =
         valveName === "AoV" && selectedAorticOutflowProfile !== undefined
           ? stepMainWireAorticRecoveredRootPortValveScalarsV1(
@@ -2705,6 +2719,18 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
               valveResearchInput.valves.AoV,
               selectedAorticOutflowProfile.aorticValveProfile,
             )
+          : valveName === "PV"
+              && pulmonaryValveLocalInertanceResearchProfile !== undefined
+            ? stepMainWirePulmonaryValveLocalInertanceScalarsV1(
+                previousOpening01,
+                input
+                  .pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec!,
+                input.dtSec,
+                upstreamPressure,
+                downstreamPressure,
+                valveResearchInput.valves.PV,
+                pulmonaryValveLocalInertanceResearchProfile,
+              )
           : stepMainWireQuasiSteadyOrificeValveScalarsV2(
               previousOpening01,
               input.dtSec,
@@ -4568,6 +4594,29 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  const pulmonaryValveLocalInertanceResearchProfile = runtime.vascular
+    .pulmonaryValveLocalInertanceResearchProfile;
+  if (pulmonaryValveLocalInertanceResearchProfile !== undefined) {
+    const issues =
+      validateMainWirePulmonaryValveLocalInertanceResearchProfileV1(
+        pulmonaryValveLocalInertanceResearchProfile,
+      );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid pulmonaryValveLocalInertanceResearchProfile: ${issues.join("; ")}`,
+      );
+    }
+    if (proximalRootResearchProfile?.pulmonaryRootMode !== "resistive-root") {
+      throw new Error(
+        "PV local-inertance research requires a resistive pulmonary root",
+      );
+    }
+    if (runtime.valveResearchInput.valves.PV.closedReverseEroaCm2 !== 0) {
+      throw new Error(
+        "PV local-inertance research requires a competent pulmonary valve",
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
@@ -4595,6 +4644,34 @@ function validateMechanicalSupportInput(
   if (input === undefined) return;
   requirePositive(input.heartRateBpm, "mechanicalSupport.heartRateBpm");
   validateMechanicalSupportConfigV1(input.config);
+}
+
+function validatePulmonaryValveLocalInertanceTrialInputV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+): void {
+  const enabled = input.runtime.vascular
+    .pulmonaryValveLocalInertanceResearchProfile !== undefined;
+  const previousFlow =
+    input.pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec;
+  if (!enabled) {
+    if (previousFlow !== undefined) {
+      throw new Error(
+        "previous PV local-inertance flow requires the matching research profile",
+      );
+    }
+    return;
+  }
+  if (
+    !(previousFlow !== undefined && previousFlow >= 0)
+    || !Number.isFinite(previousFlow)
+  ) {
+    throw new Error(
+      "PV local-inertance research requires finite nonnegative previous accepted flow",
+    );
+  }
 }
 
 function validateDynamicMechanicalSupportInput(

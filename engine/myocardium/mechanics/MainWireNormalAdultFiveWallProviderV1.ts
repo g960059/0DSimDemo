@@ -124,6 +124,9 @@ export type MainWireNormalAdultFiveWallProviderV1 =
 
 export type MainWireNormalAdultLaSlsModeV1 = "on" | "exact-off";
 
+export type MainWireStandard65To66VentricularMaterialByWallResearchV1 =
+  Readonly<Record<"LVFW" | "SEP" | "RVFW", "standard65" | "standard66">>;
+
 /**
  * Bounded global ventricular active-tension scale used by the Standard Studio
  * ABI. The scale owns one honest material operation: Land 2017 `Tref` is
@@ -303,6 +306,50 @@ export function createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRe
   );
 }
 
+/**
+ * Research-only wall factorization of the Standard65 -> Standard66 ventricular
+ * material change. SEP remains explicit because it is shared by both chambers;
+ * this function is not a chamber-specific contractility control.
+ */
+export function createMainWireNormalAdultFiveWallProviderWithStandard65To66VentricularMaterialByWallResearchV1(
+  requestedSelection:
+    MainWireStandard65To66VentricularMaterialByWallResearchV1,
+  requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  const selection = validateStandard65To66VentricularMaterialByWallResearchV1(
+    requestedSelection,
+  );
+  const inputs =
+    validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs);
+  const baseline =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+  const selectedMaterialByWall = Object.freeze({
+    LVFW: selection.LVFW === "standard66"
+      ? MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1
+      : baseline,
+    SEP: selection.SEP === "standard66"
+      ? MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1
+      : baseline,
+    RVFW: selection.RVFW === "standard66"
+      ? MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1
+      : baseline,
+  });
+  const identity = stableHash(sanitizeForStableHash(Object.freeze({
+    selection,
+    activeTensionScaleByWall: inputs.activeTensionScaleByWall,
+    passiveStiffnessScaleByWall: inputs.passiveStiffnessScaleByWall,
+  })));
+  return createNormalAdultProviderFromKernels(
+    "on",
+    createMaterialKernelsWithMechanicsResearchInputsV1(
+      inputs,
+      selectedMaterialByWall,
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1,
+    ),
+    `-standard65-to-66-material-by-wall-research-${identity}`,
+  );
+}
+
 export function createMainWireNormalAdultFiveWallMaterialKernelsWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
   requestedInputs: MainWireFiveWallMechanicsResearchInputsV1,
 ): MainWireFiveWallRecordV1<
@@ -459,7 +506,9 @@ function createMaterialKernelsFromMaterial(
 
 function createMaterialKernelsWithMechanicsResearchInputsV1(
   inputs: MainWireFiveWallMechanicsResearchInputsV1,
-  selectedVentricularWallMaterial?: LandSlsWallMaterialParamsV1,
+  selectedVentricularWallMaterial?:
+    | LandSlsWallMaterialParamsV1
+    | Readonly<Record<"LVFW" | "SEP" | "RVFW", LandSlsWallMaterialParamsV1>>,
   selectedVentricularColdMaximumIterations?: number,
 ): MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
@@ -479,7 +528,9 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
         : scaledPassiveEvaluatorV1(basePassive, passiveScale, wallId);
     const baseline = isAtrium || selectedVentricularWallMaterial === undefined
       ? prior.active.wallMaterialByWall[wallId]
-      : selectedVentricularWallMaterial;
+      : "LVFW" in selectedVentricularWallMaterial
+        ? selectedVentricularWallMaterial[wallId]
+        : selectedVentricularWallMaterial;
     const materialParams =
       activeScale === 1 && passiveScale === 1
         ? baseline
@@ -519,6 +570,26 @@ function createMaterialKernelsWithMechanicsResearchInputsV1(
       isAtrium ? undefined : selectedVentricularColdMaximumIterations,
     );
   });
+}
+
+function validateStandard65To66VentricularMaterialByWallResearchV1(
+  input: MainWireStandard65To66VentricularMaterialByWallResearchV1,
+): MainWireStandard65To66VentricularMaterialByWallResearchV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("wall-factorized ventricular material input must be an object");
+  }
+  const keys = Object.keys(input).sort();
+  if (keys.join(",") !== "LVFW,RVFW,SEP") {
+    throw new Error(
+      "wall-factorized ventricular material input must own LVFW, SEP, and RVFW",
+    );
+  }
+  for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+    if (input[wallId] !== "standard65" && input[wallId] !== "standard66") {
+      throw new Error(`wall-factorized ventricular material ${wallId} is invalid`);
+    }
+  }
+  return Object.freeze({ ...input });
 }
 
 function createNormalAdultProvider(

@@ -14,6 +14,12 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  createMainWireProximalArterialRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
+import {
+  MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1,
+} from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
@@ -38,6 +44,9 @@ import {
 import {
   MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
+import {
+  resolveMainWirePulmonaryValveLocalInertanceResearchProfileV1,
+} from "@/engine/valves/MainWirePulmonaryValveLocalInertanceResearchV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
@@ -469,6 +478,46 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
         rhythmTimingAndPeriodicSeed: "standard66",
         aorticOutflow: "standard66",
       });
+    const wallFactorized65 =
+      createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1(
+        Object.freeze({
+          ventricularMaterial: "standard66",
+          calcium: "standard65",
+          rhythmTimingAndPeriodicSeed: "standard65",
+          aorticOutflow: "standard65",
+        }),
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        1,
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+        undefined,
+        undefined,
+        undefined,
+        Object.freeze({
+          LVFW: "standard65",
+          SEP: "standard65",
+          RVFW: "standard65",
+        }),
+      );
+    const wallFactorized66 =
+      createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1(
+        Object.freeze({
+          ventricularMaterial: "standard66",
+          calcium: "standard66",
+          rhythmTimingAndPeriodicSeed: "standard66",
+          aorticOutflow: "standard66",
+        }),
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        1,
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+        undefined,
+        undefined,
+        undefined,
+        Object.freeze({
+          LVFW: "standard66",
+          SEP: "standard66",
+          RVFW: "standard66",
+        }),
+      );
     const runOne = (fixture: unknown) => {
       const cycleFixture = fixture as Parameters<
         typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
@@ -488,6 +537,10 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       .toEqual(numericalTrace(runOne(official65).traceSamples));
     expect(numericalTrace(runOne(factorized66).traceSamples))
       .toEqual(numericalTrace(runOne(official66).traceSamples));
+    expect(numericalTrace(runOne(wallFactorized65).traceSamples))
+      .toEqual(numericalTrace(runOne(factorized65).traceSamples));
+    expect(numericalTrace(runOne(wallFactorized66).traceSamples))
+      .toEqual(numericalTrace(runOne(factorized66).traceSamples));
   }, 60_000);
 
   it("continues canonical coronary/rhythm boundaries at the 0.6-second HR100 cycle", () => {
@@ -517,6 +570,65 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       accepted = cycle.terminalAcceptedState;
     }
     expect(accepted.acceptedTimeSec).toBeCloseTo(7.2, 14);
+  }, 60_000);
+
+  it("promotes research-only PV local-inertance flow outside the exact accepted state", () => {
+    const fixture =
+      createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1(
+        Object.freeze({
+          ventricularMaterial: "standard66",
+          calcium: "standard66",
+          rhythmTimingAndPeriodicSeed: "standard66",
+          aorticOutflow: "standard66",
+        }),
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        1,
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+        createMainWireProximalArterialRootInertanceResearchProfileV1({
+          aorticRootMode: "resistive-root",
+          pulmonaryRootMode: "resistive-root",
+        }),
+        MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1,
+        resolveMainWirePulmonaryValveLocalInertanceResearchProfileV1(
+          "rvot-2cm-column-local-inertance",
+        ),
+      );
+    const cycleFixture = fixture as unknown as Parameters<
+      typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
+    >[0];
+    expect(() => runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      cycleFixture,
+      cycleFixture.cold.acceptedState,
+      1,
+      0.002,
+    )).toThrow(/profile and external accepted flow differ/);
+
+    const first = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      cycleFixture,
+      cycleFixture.cold.acceptedState,
+      1,
+      0.002,
+      0,
+    );
+    const firstTerminalFlow =
+      first.pulmonaryValveLocalInertanceTerminalAcceptedFlowMlPerSec;
+    expect(firstTerminalFlow).toBeTypeOf("number");
+    expect(firstTerminalFlow).toBeGreaterThanOrEqual(0);
+    expect("pulmonaryValveLocalInertanceAcceptedFlowMlPerSec" in
+      first.terminalAcceptedState).toBe(false);
+
+    const second = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      cycleFixture,
+      first.terminalAcceptedState,
+      2,
+      0.002,
+      firstTerminalFlow,
+    );
+    expect(second.startTimeSec).toBe(first.endTimeSec);
+    expect(second.pulmonaryValveLocalInertanceTerminalAcceptedFlowMlPerSec)
+      .toBeGreaterThanOrEqual(0);
+    expect(Object.keys(second.terminalAcceptedState))
+      .toEqual(Object.keys(first.terminalAcceptedState));
   }, 60_000);
 
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {

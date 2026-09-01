@@ -26,6 +26,9 @@ import type {
 import type {
   MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
 } from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
+import type {
+  MainWirePulmonaryValveLocalInertanceResearchProfileV1,
+} from "@/engine/valves/MainWirePulmonaryValveLocalInertanceResearchV1";
 
 /**
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
@@ -70,6 +73,8 @@ export type VascularPvRuntimeParameterViewV1 = {
     MainWireProximalArterialRootInertanceResearchProfileV1;
   readonly pulmonaryCharacteristicResistanceResearchProfile?:
     MainWirePulmonaryCharacteristicResistanceResearchProfileV1;
+  readonly pulmonaryValveLocalInertanceResearchProfile?:
+    MainWirePulmonaryValveLocalInertanceResearchProfileV1;
 };
 
 export function effectiveUnstressedVolumeFromNodeV1(

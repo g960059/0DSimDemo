@@ -470,6 +470,8 @@ export type MainWireFiveWallCoronaryStepInputV2 = Readonly<{
    * only returns q_(n+1); a wider transaction owns atomic promotion.
    */
   dynamicMechanicalSupport?: NonCoronaryDynamicMechanicalSupportInputV1;
+  /** Research-runner-owned q_n for the optional coupled PV local inertance. */
+  pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec?: number;
   protocolResistanceScaleByEdge?: NonCoronaryProtocolResistanceScaleByEdgeV1;
   /** Opt-in measurement only; omitted on the production/default hot path. */
   evaluationCounterCollection?: "enabled";
@@ -1402,6 +1404,8 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
       previousAcceptedState: previous.circulation,
       dtSec: input.dtSec,
       runtime: input.runtime,
+      pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec:
+        input.pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec,
       evaluateCandidateMechanics: (volumesMl) =>
         evaluatePreparedCoupledCandidateMechanicsV1(
           numericalMechanicsStep === null ? obtainPublicMechanicsStep() : null,
@@ -2410,6 +2414,8 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         runtime: input.runtime,
         mechanicalSupport: input.mechanicalSupport,
         dynamicMechanicalSupport: input.dynamicMechanicalSupport,
+        pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec:
+          input.pulmonaryValveLocalInertancePreviousAcceptedFlowMlPerSec,
         options: input.circulationNewtonOptions,
         scratchWorkspace: nonCoronaryScratchWorkspace,
         protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
