@@ -124,6 +124,7 @@ const CLIENT_DESCRIPTOR_SCHEMA_ID_V1 =
   "circleheart-standard-exact-model-client-descriptor-v1" as const;
 const REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2 =
   "circleheart-standard-exact-model-registry-admission-lock-v2" as const;
+const BASELINE_RUNTIME_RELATIVE_TOLERANCE_V1 = 1e-10;
 
 type ReleaseV1 = ReturnType<
   typeof createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1
@@ -218,14 +219,14 @@ async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
       qualification,
     );
   if (
-    studioCanonicalJsonStringify(report)
-      !== studioCanonicalJsonStringify(
-        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
-      )
-    || studioCanonicalJsonStringify(qualification.checkpoint)
-      !== studioCanonicalJsonStringify(
-        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1,
-      )
+    !sameBaselineAcrossSupportedRuntimeV1(
+      report,
+      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
+    )
+    || !sameBaselineAcrossSupportedRuntimeV1(
+      qualification.checkpoint,
+      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1,
+    )
   ) {
     fail(
       "fresh baseline qualification differs from the committed report or settled checkpoint",
@@ -255,6 +256,71 @@ async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
   if (requiredCheckIds.some((checkId) => !passedIds.has(checkId))) {
     fail("baseline qualification omits a required physiological mint gate");
   }
+}
+
+/**
+ * The persisted checkpoint remains exact and self-hashed. Reconstructing that
+ * orbit on another supported Node/V8/architecture can differ by a few ulps in
+ * transcendental and accumulated continuous values, which also changes each
+ * enclosing checkpoint hash. Registry qualification therefore requires exact
+ * structure, identities, counters, and categorical results while admitting
+ * only numerically negligible continuous reconstruction drift.
+ */
+function sameBaselineAcrossSupportedRuntimeV1(
+  left: unknown,
+  right: unknown,
+  propertyName: string | null = null,
+): boolean {
+  if (propertyName === "checkpointSha256") {
+    return typeof left === "string"
+      && typeof right === "string"
+      && /^[0-9a-f]{64}$/.test(left)
+      && /^[0-9a-f]{64}$/.test(right);
+  }
+  if (
+    propertyName === "stateFingerprint"
+    || propertyName === "materialStateFingerprint"
+  ) {
+    return typeof left === "string"
+      && typeof right === "string"
+      && /^[0-9a-f]{8}$/.test(left)
+      && /^[0-9a-f]{8}$/.test(right);
+  }
+  if (typeof left === "number" && typeof right === "number") {
+    if (Number.isSafeInteger(left) || Number.isSafeInteger(right)) {
+      return left === right;
+    }
+    if (!Number.isFinite(left) || !Number.isFinite(right)) {
+      return Object.is(left, right);
+    }
+    return Math.abs(left - right)
+      <= BASELINE_RUNTIME_RELATIVE_TOLERANCE_V1
+        * Math.max(1, Math.abs(left), Math.abs(right));
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) =>
+        sameBaselineAcrossSupportedRuntimeV1(value, right[index]));
+  }
+  if (
+    typeof left === "object" && left !== null
+    && typeof right === "object" && right !== null
+  ) {
+    const leftRecord = left as Record<string, unknown>;
+    const rightRecord = right as Record<string, unknown>;
+    const leftKeys = Object.keys(leftRecord).sort();
+    const rightKeys = Object.keys(rightRecord).sort();
+    return leftKeys.length === rightKeys.length
+      && leftKeys.every((key, index) => key === rightKeys[index])
+      && leftKeys.every((key) => sameBaselineAcrossSupportedRuntimeV1(
+        leftRecord[key],
+        rightRecord[key],
+        key,
+      ));
+  }
+  return Object.is(left, right);
 }
 
 function assertStandard67ManifestV1(

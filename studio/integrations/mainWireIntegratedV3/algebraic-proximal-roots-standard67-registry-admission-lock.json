@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67",
-  "artifactRevisionId": "fff5ad7824e67ea7303cc82beb1db2b6bc96f20ae0772093ec63527b379cd472",
-  "artifactSha256": "cb80ab4ef237d343972ffc4a65830dd0b3149fb25a7a76b91f2c2a34b0ebea64",
+  "artifactRevisionId": "a34f6a00754d93aad62749df784404b47e2552b1f27d31ef6fb3df35a6791225",
+  "artifactSha256": "7152f032fba3f4a9452f74ea4a92ff91dc83b0bbec88bd5d24ad5bfb66afed44",
   "predecessorArtifactRevisionId": null,
   "equivalenceReportSha256": null
 }

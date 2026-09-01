@@ -13,42 +13,42 @@
       133,
       134
     ],
-    "latestPeriod1MaximumNormalizedDelta": 0.0009682797878169946
+    "latestPeriod1MaximumNormalizedDelta": 0.0009682797878171057
   },
   "checkpoint": {
     "checkpointId": "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
     "revision": 67036,
     "acceptedTimeSec": 134,
-    "checkpointSha256": "97af3be302509ce5cd7c099bad85549780e79cb4e3d6812613c28d766007c5e2"
+    "checkpointSha256": "6aad37a3146c61cd1df8b50354cd35d49663c183c587cbc2c607ea33e90a32d7"
   },
   "measurements": {
     "LVP": {
       "forwardEpisodeCount": 1,
       "significantPeakCount": 1,
-      "totalVariationRatio": 1.3911313531178195,
-      "centralRangeFraction": 0.16583543693415165,
+      "totalVariationRatio": 1.3911313531178273,
+      "centralRangeFraction": 0.16583543693412667,
       "peakPhase01": 0.5203252032520326
     },
     "RVP": {
       "forwardEpisodeCount": 1,
       "significantPeakCount": 1,
-      "totalVariationRatio": 1.6576911211436727,
-      "centralRangeFraction": 0.27179538208819226,
+      "totalVariationRatio": 1.6576911211436807,
+      "centralRangeFraction": 0.27179538208819604,
       "peakPhase01": 0.5524475524475524
     },
     "aorticValve": {
       "ejectionTimeSec": 0.25200000000000955,
-      "meanGradientMmHg": 4.019803398857298,
-      "peakGradientMmHg": 7.380527220933928
+      "meanGradientMmHg": 4.01980339885752,
+      "peakGradientMmHg": 7.380527220932905
     },
     "leftVentricle": {
-      "maximumDpDtMmHgPerSec": 1765.9868939041187,
-      "minimumDpDtMmHgPerSec": -979.5305858974804
+      "maximumDpDtMmHgPerSec": 1765.9868939041967,
+      "minimumDpDtMmHgPerSec": -979.5305858975763
     },
     "mitralFlow": {
-      "peakEMlPerSec": 388.8828286971083,
-      "peakAMlPerSec": 416.54281879360065,
-      "peakEToA": 0.9335962862675158
+      "peakEMlPerSec": 388.88282869710673,
+      "peakAMlPerSec": 416.54281879360263,
+      "peakEToA": 0.9335962862675075
     },
     "timing": {
       "ictSec": 0.040000000000020464,
@@ -76,7 +76,7 @@
     {
       "checkId": "waveform.LVP.rounded-not-plateau",
       "status": "passed",
-      "actual": 0.16583543693415165,
+      "actual": 0.16583543693412667,
       "minimum": 0.08,
       "maximum": 0.35,
       "unit": "fraction"
@@ -92,7 +92,7 @@
     {
       "checkId": "waveform.RVP.rounded-not-plateau",
       "status": "passed",
-      "actual": 0.27179538208819226,
+      "actual": 0.27179538208819604,
       "minimum": 0.08,
       "maximum": 0.35,
       "unit": "fraction"
@@ -100,7 +100,7 @@
     {
       "checkId": "aortic-valve.mean-gradient",
       "status": "passed",
-      "actual": 4.019803398857298,
+      "actual": 4.01980339885752,
       "minimum": 0,
       "maximum": 5,
       "unit": "mmHg"
@@ -108,7 +108,7 @@
     {
       "checkId": "aortic-valve.peak-gradient",
       "status": "passed",
-      "actual": 7.380527220933928,
+      "actual": 7.380527220932905,
       "minimum": 0,
       "maximum": 10,
       "unit": "mmHg"
@@ -124,7 +124,7 @@
     {
       "checkId": "left-ventricle.maximum-dpdt",
       "status": "passed",
-      "actual": 1765.9868939041187,
+      "actual": 1765.9868939041967,
       "minimum": 1200,
       "maximum": 2500,
       "unit": "mmHg/s"
@@ -132,7 +132,7 @@
     {
       "checkId": "left-ventricle.minimum-dpdt",
       "status": "passed",
-      "actual": -979.5305858974804,
+      "actual": -979.5305858975763,
       "minimum": -1400,
       "maximum": -700,
       "unit": "mmHg/s"
@@ -140,7 +140,7 @@
     {
       "checkId": "mitral-flow.peak-e-to-a",
       "status": "passed",
-      "actual": 0.9335962862675158,
+      "actual": 0.9335962862675075,
       "minimum": 0.8,
       "maximum": 2,
       "unit": "ratio"

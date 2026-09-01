@@ -160,7 +160,7 @@ describe("accepted ventricular interval-strength owner V1", () => {
       .depositMetadata.releasedRelativeStrengthR).toBeGreaterThan(1);
   });
 
-  it("rebinds only reference-cycle normalization without losing accepted memory", () => {
+  it("starts a target-reference epoch without rewriting accepted memory", () => {
     const sourceConfiguration = configuration();
     const initial = initialState(sourceConfiguration);
     const source = commitAcceptedVentricularIntervalStrengthCandidateV1(
@@ -182,19 +182,35 @@ describe("accepted ventricular interval-strength owner V1", () => {
     expect(rebound.revision).toBe(source.revision);
     expect(rebound.acceptedVentricularCaptureCount)
       .toBe(source.acceptedVentricularCaptureCount);
-    expect(Math.abs(
-      rebound.normalizedSrLoadState - source.normalizedSrLoadState,
-    )).toBeLessThanOrEqual(
-      8 * Number.EPSILON * Math.max(1, source.normalizedSrLoadState),
-    );
+    expect(rebound.normalizedSrLoadState).toBe(source.normalizedSrLoadState);
     expect(rebound.lastAcceptedVentricularActivation)
       .toEqual(source.lastAcceptedVentricularActivation);
+    expect(rebound.initialAcceptedTimeSec).toBe(source.initialAcceptedTimeSec);
+    expect(rebound.initialNormalizedSrLoadState)
+      .toBe(source.initialNormalizedSrLoadState);
+    expect(rebound.initialPriorAcceptedVentricularActivation)
+      .toEqual(source.initialPriorAcceptedVentricularActivation);
+    expect(rebound.lastDepositMetadata).toBeNull();
     expect(rebound.configuration.referenceCycleLengthSec).toBe(0.8);
     expect(() => validateAcceptedVentricularIntervalStrengthStateV1(rebound))
       .not.toThrow();
-    expect(evaluate(rebound, capture("target-cycle", 0.8, 3))
-      .depositMetadata.futureExactCalciumDepositRelativeStrength)
-      .toBeGreaterThan(0);
+    const targetCandidate = evaluate(
+      rebound,
+      capture("target-cycle", 0.8, 3),
+    );
+    expect(targetCandidate.depositMetadata
+      .futureExactCalciumDepositRelativeStrength).toBeGreaterThan(0);
+    const targetCommitted =
+      commitAcceptedVentricularIntervalStrengthCandidateV1(
+        rebound,
+        targetCandidate,
+      );
+    expect(targetCommitted.revision).toBe(source.revision + 1);
+    expect(targetCommitted.acceptedVentricularCaptureCount)
+      .toBe(source.acceptedVentricularCaptureCount + 1);
+    expect(targetCommitted.lastDepositMetadata
+      ?.acceptedVentricularCaptureOrdinal)
+      .toBe(source.acceptedVentricularCaptureCount + 1);
 
     expect(() => rebindAcceptedVentricularIntervalStrengthReferenceV1(
       source,

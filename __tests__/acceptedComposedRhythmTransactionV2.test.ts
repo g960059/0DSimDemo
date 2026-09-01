@@ -392,18 +392,16 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
 
     expect(rebound.acceptedTimeSec).toBe(source.acceptedTimeSec);
     expect(rebound.revision).toBe(source.revision);
-    expect(Math.abs(
-      rebound.ventricularIntervalStrengthState.normalizedSrLoadState
-        - sourceLoad,
-    )).toBeLessThanOrEqual(
-      8 * Number.EPSILON * Math.max(1, sourceLoad),
-    );
+    expect(rebound.ventricularIntervalStrengthState.normalizedSrLoadState)
+      .toBe(sourceLoad);
     expect(rebound.ventricularIntervalStrengthState
       .acceptedVentricularCaptureCount)
       .toBe(source.ventricularIntervalStrengthState
         .acceptedVentricularCaptureCount);
     expect(rebound.ventricularIntervalStrengthState.configuration
       .referenceCycleLengthSec).toBe(0.8);
+    expect(rebound.ventricularIntervalStrengthState.lastDepositMetadata)
+      .toBeNull();
     expect(rebound.regularAtrialSourceState!.nextActivationTimeSec)
       .toBeCloseTo(
         source.acceptedTimeSec
@@ -413,6 +411,70 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     expect(() => validateAcceptedComposedRhythmTransactionBoundaryV2(
       rebound,
     )).not.toThrow();
+  });
+
+  it("does not rewrite an accepted calcium deposit across an HR warm rebind", async () => {
+    const identity = {
+      idPrefix: "pending-calcium-warm-rebind",
+      parameterProvenanceSourceId: "pending-calcium-warm-rebind-source",
+    } as const;
+    const sourceRhythm = createMainWireIntegratedRegularSinusRhythmV3(
+      { ...identity, cycleLengthSec: 1 },
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 60,
+      },
+    );
+    const source = advanceThroughOwnedBoundaries(sourceRhythm.state, 0.99);
+    expect(source.pendingCalciumDeposits).toHaveLength(1);
+    const acceptedPendingDeposit = canonicalJsonStringify(
+      source.pendingCalciumDeposits,
+    );
+    const sourceLoad = source.ventricularIntervalStrengthState
+      .normalizedSrLoadState;
+
+    const targetRhythm = createMainWireIntegratedRegularSinusRhythmV3(
+      { ...identity, cycleLengthSec: 0.8 },
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 75,
+      },
+    );
+    const rebound = rebindAcceptedComposedRegularSinusStateV2(
+      source,
+      targetRhythm.configuration,
+    );
+
+    expect(canonicalJsonStringify(rebound.pendingCalciumDeposits))
+      .toBe(acceptedPendingDeposit);
+    expect(rebound.ventricularIntervalStrengthState.normalizedSrLoadState)
+      .toBe(sourceLoad);
+    expect(rebound.ventricularIntervalStrengthState.lastDepositMetadata)
+      .toBeNull();
+    expect(rebound.ventricularIntervalStrengthState
+      .acceptedVentricularCaptureCount)
+      .toBe(source.ventricularIntervalStrengthState
+        .acceptedVentricularCaptureCount);
+
+    const checkpoint =
+      await checkpointAcceptedComposedRhythmTransactionStateV2(rebound);
+    const restored = await restoreAcceptedComposedRhythmTransactionStateV2(
+      JSON.parse(JSON.stringify(checkpoint)),
+      targetRhythm.configuration,
+    );
+    expect(canonicalJsonStringify(restored))
+      .toBe(canonicalJsonStringify(rebound));
+
+    const depositTimeSec = rebound.pendingCalciumDeposits[0]!.depositTimeSec;
+    const uninterrupted = advanceAt(rebound, depositTimeSec);
+    const resumed = advanceAt(restored, depositTimeSec);
+    expect(canonicalJsonStringify(resumed))
+      .toBe(canonicalJsonStringify(uninterrupted));
+    expect(resumed.deliveredCalciumDepositCount)
+      .toBe(rebound.deliveredCalciumDepositCount + 1);
+    expect(resumed.pendingCalciumDeposits).toEqual([]);
   });
 
   it("activates the selected fixed profile with exact event timing and one-cycle calcium closure", () => {

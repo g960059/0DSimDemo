@@ -15,124 +15,124 @@
     "acceptedTimeSec": 134,
     "beatAccumulator": {
       "active": {
-        "aorticPressureIntegralMmHgSec": 9.366905346745629,
-        "leftAtrialPressureIntegralMmHgSec": 2.3191202685944483,
-        "leftVentricularTransmuralPressureVolumePathIntegralMmHgMl": 416.0988554787189,
-        "maximumAorticPressureMmHg": 71.63424733830037,
+        "aorticPressureIntegralMmHgSec": 9.366905346745614,
+        "leftAtrialPressureIntegralMmHgSec": 2.3191202685944456,
+        "leftVentricularTransmuralPressureVolumePathIntegralMmHgMl": 416.0988554787163,
+        "maximumAorticPressureMmHg": 71.63424733830027,
         "maximumLeftVentricularLandmark": {
           "event": "maximum-volume",
-          "pressureMmHg": 20.570355492759944,
-          "volumeMl": 164.62567008106245
+          "pressureMmHg": 20.5703554927599,
+          "volumeMl": 164.6256700810623
         },
-        "maximumLeftVentricularVolumeMl": 164.62567008106245,
+        "maximumLeftVentricularVolumeMl": 164.6256700810623,
         "maximumRightVentricularLandmark": {
           "event": "maximum-volume",
-          "pressureMmHg": 5.533391262623625,
-          "volumeMl": 184.165573079783
+          "pressureMmHg": 5.533391262623666,
+          "volumeMl": 184.1655730797832
         },
-        "minimumAorticPressureMmHg": 70.29483221233696,
+        "minimumAorticPressureMmHg": 70.29483221233686,
         "minimumLeftVentricularLandmark": {
           "event": "minimum-volume-fallback",
-          "pressureMmHg": 9.096195852464957,
-          "volumeMl": 134.9315283764495
+          "pressureMmHg": 9.096195852464955,
+          "volumeMl": 134.93152837644948
         },
-        "minimumLeftVentricularVolumeMl": 134.9315283764495,
+        "minimumLeftVentricularVolumeMl": 134.93152837644948,
         "minimumRightVentricularLandmark": {
           "event": "minimum-volume-fallback",
-          "pressureMmHg": 3.3580143327840037,
-          "volumeMl": 166.2137194916678
+          "pressureMmHg": 3.358014332784005,
+          "volumeMl": 166.21371949166786
         },
         "pressureSummaryAccumulators": {
           "Ao": {
-            "integralMmHgSec": 9.366905346745629,
-            "maximumMmHg": 71.63424733830037,
-            "minimumMmHg": 70.29483221233696
+            "integralMmHgSec": 9.366905346745614,
+            "maximumMmHg": 71.63424733830027,
+            "minimumMmHg": 70.29483221233686
           },
           "LA": {
-            "integralMmHgSec": 2.3191202685944483,
-            "maximumMmHg": 21.87406495039621,
-            "minimumMmHg": 11.186249823408902
+            "integralMmHgSec": 2.3191202685944456,
+            "maximumMmHg": 21.874064950396185,
+            "minimumMmHg": 11.186249823408872
           },
           "LV": {
-            "integralMmHgSec": 1.995685422364454,
-            "maximumMmHg": 21.374483060367233,
-            "minimumMmHg": 10.487488633012122
+            "integralMmHgSec": 1.9956854223644491,
+            "maximumMmHg": 21.374483060367183,
+            "minimumMmHg": 10.487488633012113
           },
           "PA": {
-            "integralMmHgSec": 1.7058023879182822,
-            "maximumMmHg": 14.548459125690192,
-            "minimumMmHg": 12.236900075613343
+            "integralMmHgSec": 1.7058023879182787,
+            "maximumMmHg": 14.548459125690169,
+            "minimumMmHg": 12.23690007561332
           },
           "PVein": {
-            "integralMmHgSec": 1.953566231482059,
-            "maximumMmHg": 17.375219291297483,
-            "minimumMmHg": 12.790227508665144
+            "integralMmHgSec": 1.9535662314820559,
+            "maximumMmHg": 17.375219291297455,
+            "minimumMmHg": 12.79022750866512
           },
           "RA": {
-            "integralMmHgSec": 0.8584827711376707,
-            "maximumMmHg": 8.283380269021437,
-            "minimumMmHg": 5.023543708009868
+            "integralMmHgSec": 0.8584827711376715,
+            "maximumMmHg": 8.283380269021436,
+            "minimumMmHg": 5.023543708009866
           },
           "RV": {
-            "integralMmHgSec": 0.770347069401321,
-            "maximumMmHg": 6.7305422438537725,
-            "minimumMmHg": 4.749307113331169
+            "integralMmHgSec": 0.7703470694013217,
+            "maximumMmHg": 6.73054224385378,
+            "minimumMmHg": 4.749307113331163
           },
           "SA": {
-            "integralMmHgSec": 9.279590853402132,
-            "maximumMmHg": 70.96774532557401,
-            "minimumMmHg": 69.64160313039108
+            "integralMmHgSec": 9.27959085340212,
+            "maximumMmHg": 70.96774532557393,
+            "minimumMmHg": 69.64160313039099
           },
           "VC": {
-            "integralMmHgSec": 0.9831899453738098,
+            "integralMmHgSec": 0.9831899453738145,
             "maximumMmHg": 7.535220227103519,
-            "minimumMmHg": 7.3612945969223365
+            "minimumMmHg": 7.361294596922335
           }
         },
         "previous": {
-          "aorticPressureMmHg": 70.29483221233696,
+          "aorticPressureMmHg": 70.29483221233686,
           "aorticValveFlowMlPerSec": 0,
-          "leftAtrialPressureMmHg": 21.87406495039621,
-          "leftVentricularAbsolutePressureMmHg": 21.374483060367233,
-          "leftVentricularTransmuralPressureMmHg": 20.570355492759944,
-          "leftVentricularVolumeMl": 164.62567008106245,
-          "mitralValveFlowMlPerSec": 54.04285868068961,
-          "pulmonaryArterialPressureMmHg": 14.548459125690192,
+          "leftAtrialPressureMmHg": 21.874064950396185,
+          "leftVentricularAbsolutePressureMmHg": 21.374483060367183,
+          "leftVentricularTransmuralPressureMmHg": 20.5703554927599,
+          "leftVentricularVolumeMl": 164.6256700810623,
+          "mitralValveFlowMlPerSec": 54.04285868069236,
+          "pulmonaryArterialPressureMmHg": 14.548459125690169,
           "pulmonaryFlowMlPerSec": -81.33976048043571,
           "pulmonaryValveFlowMlPerSec": 0,
-          "pulmonaryVenousPressureMmHg": 17.375219291297483,
-          "pulmonaryVenousReturnMlPerSec": -148.72217054871825,
-          "rightAtrialPressureMmHg": 5.031150345786348,
-          "rightVentricularAbsolutePressureMmHg": 6.7305422438537725,
-          "rightVentricularTransmuralPressureMmHg": 5.926414676246484,
-          "rightVentricularVolumeMl": 184.165573079783,
-          "systemicArterialPressureMmHg": 69.64160313039108,
-          "systemicTissueFlowMlPerSec": 58.03723543009179,
-          "systemicVenousReturnMlPerSec": 63.76734598182868,
+          "pulmonaryVenousPressureMmHg": 17.375219291297455,
+          "pulmonaryVenousReturnMlPerSec": -148.72217054871837,
+          "rightAtrialPressureMmHg": 5.031150345786351,
+          "rightVentricularAbsolutePressureMmHg": 6.73054224385378,
+          "rightVentricularTransmuralPressureMmHg": 5.926414676246498,
+          "rightVentricularVolumeMl": 184.1655730797832,
+          "systemicArterialPressureMmHg": 69.64160313039099,
+          "systemicTissueFlowMlPerSec": 58.0372354300916,
+          "systemicVenousReturnMlPerSec": 63.767345981828605,
           "timeSec": 134,
           "tricuspidValveFlowMlPerSec": 0,
           "venaCavaPressureMmHg": 7.535220227103519
         },
-        "pulmonaryArterialPressureIntegralMmHgSec": 1.7058023879182822,
-        "pulmonaryVenousReturnVolumeMl": -12.084430978921954,
-        "pulmonaryVolumeMl": -4.870948061242747,
-        "rightAtrialPressureIntegralMmHgSec": 0.8584827711376707,
-        "rightVentricularTransmuralPressureVolumePathIntegralMmHgMl": 77.51479434920049,
+        "pulmonaryArterialPressureIntegralMmHgSec": 1.7058023879182787,
+        "pulmonaryVenousReturnVolumeMl": -12.08443097892194,
+        "pulmonaryVolumeMl": -4.870948061242741,
+        "rightAtrialPressureIntegralMmHgSec": 0.8584827711376715,
+        "rightVentricularTransmuralPressureVolumePathIntegralMmHgMl": 77.51479434920122,
         "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:267:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner3:133",
         "startTimeSec": 133.868,
-        "systemicTissueVolumeMl": 7.767416143075271,
-        "systemicVenousReturnVolumeMl": 3.185181680515441,
+        "systemicTissueVolumeMl": 7.767416143075253,
+        "systemicVenousReturnVolumeMl": 3.1851816805155413,
         "valveClosureLandmarks": {
           "AoV": null,
           "MV": null,
           "PV": null,
           "TV": {
-            "absolutePressureMmHg": 6.5480012361451605,
+            "absolutePressureMmHg": 6.548001236145174,
             "event": "valve-closure-zero-flow-crossing",
             "timeSec": 133.97,
-            "transmuralPressureMmHg": 5.557395887288621,
+            "transmuralPressureMmHg": 5.557395887288641,
             "valveId": "TV",
-            "volumeMl": 184.165573079783
+            "volumeMl": 184.1655730797832
           }
         },
         "valveFlowVolumes": {
@@ -141,7 +141,7 @@
             "reverseVolumeMl": 0
           },
           "MV": {
-            "forwardVolumeMl": 29.661389623040485,
+            "forwardVolumeMl": 29.661389623040503,
             "reverseVolumeMl": 0
           },
           "PV": {
@@ -149,7 +149,7 @@
             "reverseVolumeMl": 0
           },
           "TV": {
-            "forwardVolumeMl": 18.000326992614397,
+            "forwardVolumeMl": 18.00032699261446,
             "reverseVolumeMl": 0
           }
         },
@@ -161,8 +161,8 @@
           },
           "MV": {
             "forwardFlowDurationSec": 0.132000000000005,
-            "peakMmHg": 5.395300520452475,
-            "pressureIntegralMmHgSec": 0.3234348462299954
+            "peakMmHg": 5.395300520452505,
+            "pressureIntegralMmHgSec": 0.3234348462299965
           },
           "PV": {
             "forwardFlowDurationSec": 0,
@@ -171,18 +171,18 @@
           },
           "TV": {
             "forwardFlowDurationSec": 0.10200000000000387,
-            "peakMmHg": 2.6557544930719574,
-            "pressureIntegralMmHgSec": 0.11476345112343626
+            "peakMmHg": 2.6557544930719548,
+            "pressureIntegralMmHgSec": 0.11476345112343656
           }
         },
         "ventricularAbsolutePressureRateExtrema": {
           "LV": {
-            "maximumMmHgPerSec": 128.0205880895827,
-            "minimumMmHgPerSec": 10.78700216601903
+            "maximumMmHgPerSec": 128.02058808959424,
+            "minimumMmHgPerSec": 10.787002166019919
           },
           "RV": {
-            "maximumMmHgPerSec": 30.385898791208295,
-            "minimumMmHgPerSec": 4.712604669250422
+            "maximumMmHgPerSec": 30.385898791215844,
+            "minimumMmHgPerSec": 4.712604669236655
           }
         }
       },
@@ -190,185 +190,185 @@
       "schemaVersion": 1
     },
     "checkpointId": "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2",
-    "checkpointSha256": "ddc739ccae8ac6e2cd51f2ed69ce56bf47c537f688b670e6b974186caadd0613",
+    "checkpointSha256": "c1ef4c7eb5c653fc2f90fb1deb6d12fb2c5aec54c36bdef07e52ccdf20c67fa7",
     "completedBeatMetrics": {
-      "diastolicAorticPressureMmHg": 69.81262090623004,
+      "diastolicAorticPressureMmHg": 69.8126209062301,
       "durationSec": 1,
-      "effectiveNativeLeftCardiacOutputLPerMin": 4.6072889889161175,
-      "effectiveNativeRightCardiacOutputLPerMin": 4.607325123874462,
+      "effectiveNativeLeftCardiacOutputLPerMin": 4.607288988916212,
+      "effectiveNativeRightCardiacOutputLPerMin": 4.607325123874458,
       "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:267:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner3:133",
       "endTimeSec": 133.868,
-      "extremaLeftVentricularEjectionFraction01": 0.46571265561035696,
-      "extremaLeftVentricularStrokeVolumeMl": 76.78815031367571,
+      "extremaLeftVentricularEjectionFraction01": 0.46571265561035585,
+      "extremaLeftVentricularStrokeVolumeMl": 76.78815031367537,
       "leftVentricularPressureVolumeLandmarks": {
         "endDiastolic": {
           "event": "maximum-volume",
-          "pressureMmHg": 21.15445563583968,
-          "volumeMl": 164.8831084760584
+          "pressureMmHg": 21.15445563583935,
+          "volumeMl": 164.88310847605806
         },
         "endSystolic": {
           "event": "semilunar-valve-closure",
-          "pressureMmHg": 82.6509044963051,
+          "pressureMmHg": 82.65090449630524,
           "volumeMl": 88.09495816238268
         },
         "pressureBasis": "transmural"
       },
-      "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 6042.8288984189085,
+      "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 6042.828898418898,
       "leftVentricularValveEventMetrics": {
         "endDiastolic": {
-          "absolutePressureMmHg": 22.15635739702819,
+          "absolutePressureMmHg": 22.156357397027985,
           "event": "valve-closure-zero-flow-crossing",
           "timeSec": 133.01,
-          "transmuralPressureMmHg": 21.39955975251159,
+          "transmuralPressureMmHg": 21.39955975251142,
           "valveId": "MV",
-          "volumeMl": 164.8831084760584
+          "volumeMl": 164.88310847605803
         },
         "endSystolic": {
-          "absolutePressureMmHg": 82.6509044963051,
+          "absolutePressureMmHg": 82.65090449630524,
           "event": "valve-closure-zero-flow-crossing",
           "timeSec": 133.3,
-          "transmuralPressureMmHg": 82.6509044963051,
+          "transmuralPressureMmHg": 82.65090449630524,
           "valveId": "AoV",
           "volumeMl": 88.09495816238268
         },
-        "eventDefinedEjectionFraction01": 0.46571265561035696,
-        "eventDefinedStrokeVolumeMl": 76.78815031367571,
+        "eventDefinedEjectionFraction01": 0.4657126556103558,
+        "eventDefinedStrokeVolumeMl": 76.78815031367535,
         "inletValveId": "MV",
         "pressureBasis": "absolute-and-transmural",
         "semilunarValveId": "AoV"
       },
-      "maximumLeftVentricularVolumeMl": 164.8831084760584,
-      "meanAorticPressureMmHg": 76.35930836429385,
-      "meanLeftAtrialPressureMmHg": 12.622545270078328,
-      "meanPulmonaryArterialPressureMmHg": 20.41757751368413,
-      "meanRightAtrialPressureMmHg": 4.50368767270842,
+      "maximumLeftVentricularVolumeMl": 164.88310847605806,
+      "meanAorticPressureMmHg": 76.35930836429382,
+      "meanLeftAtrialPressureMmHg": 12.622545270078266,
+      "meanPulmonaryArterialPressureMmHg": 20.41757751368409,
+      "meanRightAtrialPressureMmHg": 4.503687672708413,
       "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
       "minimumLeftVentricularVolumeMl": 88.09495816238268,
-      "nativeLeftCardiacOutputLPerMin": 4.6072889889161175,
-      "nativeRightCardiacOutputLPerMin": 4.607325123874462,
+      "nativeLeftCardiacOutputLPerMin": 4.607288988916212,
+      "nativeRightCardiacOutputLPerMin": 4.607325123874458,
       "pressureSummaries": {
         "Ao": {
-          "maximumMmHg": 88.27677651543851,
-          "minimumMmHg": 69.81262090623004,
-          "pulseMmHg": 18.464155609208476,
-          "timeWeightedMeanMmHg": 76.35930836429385
+          "maximumMmHg": 88.27677651543858,
+          "minimumMmHg": 69.8126209062301,
+          "pulseMmHg": 18.46415560920849,
+          "timeWeightedMeanMmHg": 76.35930836429382
         },
         "LA": {
-          "maximumMmHg": 22.16075305371898,
-          "minimumMmHg": 8.383163536264844,
-          "pulseMmHg": 13.777589517454137,
-          "timeWeightedMeanMmHg": 12.622545270078328
+          "maximumMmHg": 22.16075305371885,
+          "minimumMmHg": 8.383163536264826,
+          "pulseMmHg": 13.777589517454023,
+          "timeWeightedMeanMmHg": 12.622545270078266
         },
         "LV": {
-          "maximumMmHg": 92.28813999863318,
-          "minimumMmHg": 5.050914590889696,
-          "pulseMmHg": 87.2372254077435,
-          "timeWeightedMeanMmHg": 34.13401471585209
+          "maximumMmHg": 92.28813999863424,
+          "minimumMmHg": 5.050914590889712,
+          "pulseMmHg": 87.23722540774452,
+          "timeWeightedMeanMmHg": 34.134014715852096
         },
         "PA": {
-          "maximumMmHg": 31.889980174420987,
-          "minimumMmHg": 12.236857992286897,
-          "pulseMmHg": 19.65312218213409,
-          "timeWeightedMeanMmHg": 20.41757751368413
+          "maximumMmHg": 31.889980174420913,
+          "minimumMmHg": 12.236857992286833,
+          "pulseMmHg": 19.65312218213408,
+          "timeWeightedMeanMmHg": 20.41757751368409
         },
         "PVein": {
-          "maximumMmHg": 18.328545425194402,
+          "maximumMmHg": 18.32854542519429,
           "minimumMmHg": 12.078000980854537,
-          "pulseMmHg": 6.250544444339866,
-          "timeWeightedMeanMmHg": 14.94538944325577
+          "pulseMmHg": 6.250544444339752,
+          "timeWeightedMeanMmHg": 14.94538944325572
         },
         "RA": {
-          "maximumMmHg": 8.28328463258452,
-          "minimumMmHg": 2.8469467542312317,
-          "pulseMmHg": 5.436337878353289,
-          "timeWeightedMeanMmHg": 4.50368767270842
+          "maximumMmHg": 8.283284632584486,
+          "minimumMmHg": 2.846946754231226,
+          "pulseMmHg": 5.43633787835326,
+          "timeWeightedMeanMmHg": 4.503687672708413
         },
         "RV": {
-          "maximumMmHg": 35.44863007891576,
-          "minimumMmHg": 1.8734966143307177,
-          "pulseMmHg": 33.57513346458504,
-          "timeWeightedMeanMmHg": 12.164077831041178
+          "maximumMmHg": 35.44863007891562,
+          "minimumMmHg": 1.8734966143307124,
+          "pulseMmHg": 33.57513346458491,
+          "timeWeightedMeanMmHg": 12.16407783104115
         },
         "SA": {
-          "maximumMmHg": 77.39730153135851,
+          "maximumMmHg": 77.3973015313584,
           "minimumMmHg": 68.93710472132028,
-          "pulseMmHg": 8.460196810038227,
-          "timeWeightedMeanMmHg": 72.89839070899822
+          "pulseMmHg": 8.460196810038113,
+          "timeWeightedMeanMmHg": 72.89839070899818
         },
         "VC": {
-          "maximumMmHg": 7.607435306120545,
-          "minimumMmHg": 7.341676812976821,
-          "pulseMmHg": 0.265758493143724,
-          "timeWeightedMeanMmHg": 7.484012711962638
+          "maximumMmHg": 7.607435306120542,
+          "minimumMmHg": 7.341676812976819,
+          "pulseMmHg": 0.26575849314372313,
+          "timeWeightedMeanMmHg": 7.484012711962634
         }
       },
-      "pulmonaryOutputLPerMin": 4.607320118654066,
-      "pulmonaryVenousReturnLPerMin": 4.607294227789972,
-      "pulseAorticPressureMmHg": 18.464155609208476,
+      "pulmonaryOutputLPerMin": 4.607320118654069,
+      "pulmonaryVenousReturnLPerMin": 4.607294227789991,
+      "pulseAorticPressureMmHg": 18.46415560920849,
       "rightVentricularPressureVolumeLandmarks": {
         "endDiastolic": {
           "event": "maximum-volume",
-          "pressureMmHg": 5.5333405617600935,
-          "volumeMl": 184.16511966455116
+          "pressureMmHg": 5.533340561760093,
+          "volumeMl": 184.16511966455133
         },
         "endSystolic": {
           "event": "semilunar-valve-closure",
-          "pressureMmHg": 22.461869578036612,
-          "volumeMl": 107.3763674444246
+          "pressureMmHg": 22.46186957803644,
+          "volumeMl": 107.37636744442445
         },
         "pressureBasis": "transmural"
       },
-      "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2165.511152478551,
+      "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2165.5111524785575,
       "rightVentricularValveEventMetrics": {
         "endDiastolic": {
-          "absolutePressureMmHg": 6.54791254760892,
+          "absolutePressureMmHg": 6.547912547608907,
           "event": "valve-closure-zero-flow-crossing",
           "timeSec": 132.97,
-          "transmuralPressureMmHg": 5.5573444952260465,
+          "transmuralPressureMmHg": 5.557344495226068,
           "valveId": "TV",
-          "volumeMl": 184.16511966455116
+          "volumeMl": 184.16511966455133
         },
         "endSystolic": {
-          "absolutePressureMmHg": 22.461869578036612,
+          "absolutePressureMmHg": 22.46186957803644,
           "event": "valve-closure-zero-flow-crossing",
           "timeSec": 133.33,
-          "transmuralPressureMmHg": 22.461869578036612,
+          "transmuralPressureMmHg": 22.46186957803644,
           "valveId": "PV",
-          "volumeMl": 107.3763674444246
+          "volumeMl": 107.37636744442445
         },
-        "eventDefinedEjectionFraction01": 0.41695600317798487,
-        "eventDefinedStrokeVolumeMl": 76.78875222012655,
+        "eventDefinedEjectionFraction01": 0.41695600317798626,
+        "eventDefinedStrokeVolumeMl": 76.78875222012688,
         "inletValveId": "TV",
         "pressureBasis": "absolute-and-transmural",
         "semilunarValveId": "PV"
       },
       "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:265:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner3:132",
       "startTimeSec": 132.868,
-      "systemicTissueOutputLPerMin": 4.464961924407441,
-      "systemicVenousReturnLPerMin": 4.607359913950211,
-      "systolicAorticPressureMmHg": 88.27677651543851,
+      "systemicTissueOutputLPerMin": 4.464961924407429,
+      "systemicVenousReturnLPerMin": 4.60735991395022,
+      "systolicAorticPressureMmHg": 88.27677651543858,
       "valveFlowVolumes": {
         "AoV": {
-          "forwardVolumeMl": 76.78814981526862,
-          "netVolumeMl": 76.78814981526862,
+          "forwardVolumeMl": 76.78814981527019,
+          "netVolumeMl": 76.78814981527019,
           "reverseVolumeMl": 0,
           "sameValveRegurgitantFraction": 0
         },
         "MV": {
-          "forwardVolumeMl": 76.78813111711166,
-          "netVolumeMl": 76.78813111711166,
+          "forwardVolumeMl": 76.78813111711172,
+          "netVolumeMl": 76.78813111711172,
           "reverseVolumeMl": 0,
           "sameValveRegurgitantFraction": 0
         },
         "PV": {
-          "forwardVolumeMl": 76.78875206457437,
-          "netVolumeMl": 76.78875206457437,
+          "forwardVolumeMl": 76.7887520645743,
+          "netVolumeMl": 76.7887520645743,
           "reverseVolumeMl": 0,
           "sameValveRegurgitantFraction": 0
         },
         "TV": {
-          "forwardVolumeMl": 76.78913470103807,
-          "netVolumeMl": 76.78913470103807,
+          "forwardVolumeMl": 76.789134701038,
+          "netVolumeMl": 76.789134701038,
           "reverseVolumeMl": 0,
           "sameValveRegurgitantFraction": 0
         }
@@ -377,36 +377,36 @@
         "AoV": {
           "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
           "forwardFlowDurationSec": 0.25200000000000955,
-          "peakMmHg": 7.380527220933928,
-          "timeWeightedMeanMmHg": 4.019803398857298
+          "peakMmHg": 7.380527220932905,
+          "timeWeightedMeanMmHg": 4.01980339885752
         },
         "MV": {
           "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
           "forwardFlowDurationSec": 0.6099999999999852,
-          "peakMmHg": 5.395304930276421,
-          "timeWeightedMeanMmHg": 1.4644555300396456
+          "peakMmHg": 5.39530493027646,
+          "timeWeightedMeanMmHg": 1.4644555300396518
         },
         "PV": {
           "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
           "forwardFlowDurationSec": 0.29000000000002046,
-          "peakMmHg": 4.033886080299705,
-          "timeWeightedMeanMmHg": 3.282509413149913
+          "peakMmHg": 4.033886080299528,
+          "timeWeightedMeanMmHg": 3.2825094131499024
         },
         "TV": {
           "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
           "forwardFlowDurationSec": 0.5819999999999936,
-          "peakMmHg": 2.6557347370460365,
-          "timeWeightedMeanMmHg": 0.7819261579252471
+          "peakMmHg": 2.6557347370460596,
+          "timeWeightedMeanMmHg": 0.7819261579252474
         }
       },
       "ventricularAbsolutePressureRateExtrema": {
         "LV": {
-          "maximumMmHgPerSec": 1765.9868939041187,
-          "minimumMmHgPerSec": -979.5305858974804
+          "maximumMmHgPerSec": 1765.9868939041967,
+          "minimumMmHgPerSec": -979.5305858975763
         },
         "RV": {
-          "maximumMmHgPerSec": 507.3359754106476,
-          "minimumMmHgPerSec": -348.93338356750917
+          "maximumMmHgPerSec": 507.3359754107746,
+          "minimumMmHgPerSec": -348.93338356750024
         }
       }
     },
@@ -414,7 +414,7 @@
     "numericalCheckpoint": {
       "acceptedTimeSec": 134,
       "checkpointId": "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v5",
-      "checkpointSha256": "c2d85b5d707d2c6b8157cd1e96d9fd2449f2aaf2ef717f7b5c783725cca60b8d",
+      "checkpointSha256": "f5202563dd2e9b98b1ae5a8451a3983f9c30aa04e7432470ae96b59478d97579",
       "composedRhythm": {
         "acceptedState": {
           "acceptedAtrialCaptureCount": 134,
@@ -1130,52 +1130,52 @@
         "baseCheckpointV2": {
           "acceptedTimeSec": 134,
           "checkpointId": "circleheart.main-wire-five-wall-coronary-checkpoint.v2",
-          "checkpointSha256": "2494bc973f33a8d8ad3b88830ad27849978e32ad8a8193ca4486f96bbf778000",
+          "checkpointSha256": "6e683d2ec7b5fbd09631e8e133ff1eb57d03cd985d9316bdcb93328e08501169",
           "circulation": {
             "checkpointId": "main-wire-noncoronary-circulation-checkpoint-v1",
             "schemaVersion": 1,
             "state": {
               "acceptedTimeSec": 134,
               "dynamicEdgeFlowsMlPerSec": {
-                "Ao_SA": 14.159751785935109,
+                "Ao_SA": 14.159751785934803,
                 "PA_PArt": -81.33976048043571
               },
               "nodeVolumesMl": {
-                "Ao": 175.58453182527074,
-                "Art": 143.4797225537278,
-                "Cap": 335.6626166237007,
-                "LA": 44.31344817580975,
-                "LV": 164.62567008106245,
-                "PA": 43.730454182161814,
-                "PArt": 68.54855141398191,
-                "PCap": 132.99523248220038,
-                "PVein": 273.2413802635055,
-                "PVen": 202.77219816878554,
+                "Ao": 175.58453182527057,
+                "Art": 143.4797225537277,
+                "Cap": 335.66261662370067,
+                "LA": 44.31344817580953,
+                "LV": 164.6256700810623,
+                "PA": 43.73045418216176,
+                "PArt": 68.54855141398181,
+                "PCap": 132.99523248220035,
+                "PVein": 273.24138026350545,
+                "PVen": 202.77219816878548,
                 "RA": 33.2755707140367,
-                "RV": 184.165573079783,
-                "SA": 465.32140152672486,
-                "SV": 2861.173572172219,
+                "RV": 184.1655730797832,
+                "SA": 465.32140152672446,
+                "SV": 2861.17357217222,
                 "VC": 458.2971800201163
               },
               "revision": 67036,
-              "totalBloodVolumeMl": 5587.187103283087,
+              "totalBloodVolumeMl": 5587.187103283086,
               "transactionId": "main-wire-derived-noncoronary-experimental-backward-euler-v1",
               "valveStates": {
                 "AoV": {
-                  "leafletOpeningFraction01": 4.178642357089647e-35
+                  "leafletOpeningFraction01": 4.17864235709333e-35
                 },
                 "MV": {
-                  "leafletOpeningFraction01": 0.3294316013256153
+                  "leafletOpeningFraction01": 0.32943160132562394
                 },
                 "PV": {
-                  "leafletOpeningFraction01": 6.241520299300363e-43
+                  "leafletOpeningFraction01": 6.241520299300076e-43
                 },
                 "TV": {
-                  "leafletOpeningFraction01": 0.02330528790249925
+                  "leafletOpeningFraction01": 0.02330528790249929
                 }
               }
             },
-            "stateFingerprint": "5fa850ce"
+            "stateFingerprint": "3d9577be"
           },
           "coronary": {
             "acceptedState": {
@@ -1183,35 +1183,35 @@
               "revision": 67036,
               "toneResistanceScaleByTerritoryLayer": {
                 "LAD": {
-                  "subendocardial": 0.592758102590213,
-                  "subepicardial": 0.7054914807977932
+                  "subendocardial": 0.5927581025902127,
+                  "subepicardial": 0.7054914807977928
                 },
                 "LCx": {
                   "subendocardial": 0.5974043186937846,
-                  "subepicardial": 0.7164176167005081
+                  "subepicardial": 0.7164176167005079
                 },
                 "RCA": {
                   "subendocardial": 0.6916933249514079,
-                  "subepicardial": 0.7087483164339086
+                  "subepicardial": 0.708748316433908
                 }
               },
               "volumeMlByNode": {
                 "CV": 4.772367797650748,
-                "LAD.Art": 1.5060713605774094,
-                "LAD.IM.Art.subendocardial": 0.5398310198811019,
-                "LAD.IM.Art.subepicardial": 0.5415161975786607,
-                "LAD.IM.Ven.subendocardial": 0.27272192185628524,
-                "LAD.IM.Ven.subepicardial": 0.44231608569845976,
+                "LAD.Art": 1.506071360577409,
+                "LAD.IM.Art.subendocardial": 0.5398310198811016,
+                "LAD.IM.Art.subepicardial": 0.5415161975786604,
+                "LAD.IM.Ven.subendocardial": 0.2727219218562859,
+                "LAD.IM.Ven.subepicardial": 0.4423160856984606,
                 "LCx.Art": 0.9909991278845006,
-                "LCx.IM.Art.subendocardial": 0.35541691739878384,
+                "LCx.IM.Art.subendocardial": 0.3554169173987839,
                 "LCx.IM.Art.subepicardial": 0.3569384567265172,
-                "LCx.IM.Ven.subendocardial": 0.18841644436823846,
-                "LCx.IM.Ven.subepicardial": 0.32469329777305467,
-                "RCA.Art": 1.0611830883571622,
-                "RCA.IM.Art.subendocardial": 0.3831410337450881,
-                "RCA.IM.Art.subepicardial": 0.38336279230279063,
-                "RCA.IM.Ven.subendocardial": 0.3350938700134022,
-                "RCA.IM.Ven.subepicardial": 0.3588273051018125
+                "LCx.IM.Ven.subendocardial": 0.18841644436823907,
+                "LCx.IM.Ven.subepicardial": 0.32469329777305506,
+                "RCA.Art": 1.061183088357162,
+                "RCA.IM.Art.subendocardial": 0.383141033745088,
+                "RCA.IM.Art.subepicardial": 0.3833627923027905,
+                "RCA.IM.Ven.subendocardial": 0.3350938700134021,
+                "RCA.IM.Ven.subepicardial": 0.35882730510181243
               }
             },
             "collapseHydraulicsFingerprint": "fnv1a32-8adfa7d9",
@@ -1232,97 +1232,97 @@
           "mechanics": {
             "acceptedTimeSec": 134,
             "acceptedVolumesMl": {
-              "LA": 44.31344817580975,
-              "LV": 164.62567008106245,
+              "LA": 44.31344817580953,
+              "LV": 164.6256700810623,
               "RA": 33.2755707140367,
-              "RV": 184.165573079783
+              "RV": 184.1655730797832
             },
             "contractId": "whole-heart-mechanics-contract-v1",
             "materialState": {
               "schemaVersion": 2,
               "trisegCoordinates": {
-                "junctionRadiusM": 0.03567212910692139,
-                "septalMidwallCapVolumeM3": 0.00004033611336038967
+                "junctionRadiusM": 0.0356721291069214,
+                "septalMidwallCapVolumeM3": 0.00004033611336038956
               },
               "wallStateByWall": {
                 "LA": {
                   "landState": [
-                    0.5667986825498508,
-                    0.07698843323252381,
-                    0.33186238337416174,
-                    0.22314029519505482,
-                    -0.03568812121420319,
-                    -0.13568982969281332
+                    0.5667986825498474,
+                    0.07698843323252566,
+                    0.33186238337416113,
+                    0.22314029519505457,
+                    -0.03568812121420263,
+                    -0.135689829692813
                   ],
-                  "previousFiberLogStrain": 0.1560548122857127,
+                  "previousFiberLogStrain": 0.1560548122857115,
                   "previousFreeCalciumUM": 0.49646375333648846,
                   "slsState": {
-                    "viscousLogStrain": 0.278437441722523
+                    "viscousLogStrain": 0.2784374417225221
                   }
                 },
                 "LVFW": {
                   "landState": [
                     0.20344389094715748,
                     0.9509940206480519,
-                    0.021297471769955542,
-                    0.004369824248114424,
-                    0.004120122809035361,
-                    0.22218895156146326
+                    0.021297471769955507,
+                    0.004369824248114412,
+                    0.004120122809035999,
+                    0.2221889515614644
                   ],
-                  "previousFiberLogStrain": 0.1369481317726674,
+                  "previousFiberLogStrain": 0.13694813177266724,
                   "previousFreeCalciumUM": 0.16432100000042535,
                   "slsState": {
-                    "viscousLogStrain": 0.08346280292006798
+                    "viscousLogStrain": 0.08346280292006783
                   }
                 },
                 "RA": {
                   "landState": [
-                    0.26014365456453964,
-                    0.7807910498557268,
-                    0.07590462412961449,
-                    0.06988135161758269,
-                    0.011263397726205259,
-                    0.03199061529563625
+                    0.2601436545645397,
+                    0.7807910498557261,
+                    0.07590462412961473,
+                    0.06988135161758287,
+                    0.011263397726205132,
+                    0.03199061529563576
                   ],
                   "previousFiberLogStrain": 0.0050684855078309875,
                   "previousFreeCalciumUM": 0.49646375333648846,
                   "slsState": {
-                    "viscousLogStrain": 0.07438844075469785
+                    "viscousLogStrain": 0.07438844075469782
                   }
                 },
                 "RVFW": {
                   "landState": [
-                    0.18352241823384594,
-                    0.9687193309070307,
-                    0.013380300283754545,
-                    0.003649932300389728,
-                    0.0021423539547390435,
-                    0.14690134336352778
+                    0.1835224182338463,
+                    0.9687193309070301,
+                    0.013380300283754854,
+                    0.0036499323003897667,
+                    0.0021423539547379953,
+                    0.14690134336352628
                   ],
-                  "previousFiberLogStrain": 0.1263022166829274,
+                  "previousFiberLogStrain": 0.1263022166829275,
                   "previousFreeCalciumUM": 0.16432100000042535,
                   "slsState": {
-                    "viscousLogStrain": 0.08127777395693833
+                    "viscousLogStrain": 0.08127777395693839
                   }
                 },
                 "SEP": {
                   "landState": [
-                    0.16241902578733244,
-                    0.9839856314312856,
-                    0.006471975549768678,
-                    0.0017638021897300362,
-                    0.01010606758034418,
+                    0.16241902578733194,
+                    0.9839856314312858,
+                    0.006471975549768611,
+                    0.0017638021897300312,
+                    0.010106067580344841,
                     0.2540807796996893
                   ],
-                  "previousFiberLogStrain": 0.1184207341769121,
+                  "previousFiberLogStrain": 0.11842073417691185,
                   "previousFreeCalciumUM": 0.16432100000042535,
                   "slsState": {
-                    "viscousLogStrain": 0.06105480694066842
+                    "viscousLogStrain": 0.06105480694066827
                   }
                 }
               }
             },
-            "materialStateFingerprint": "e24f5675",
+            "materialStateFingerprint": "2f708a3c",
             "parameterIdentityHash": "2bfd724f",
             "parameterSetId": "normal-adult-five-wall-fixed-prior-v1-canonical-main-wire-ventricular-rounded-ejection-profile-v1",
             "providerId": "main-wire-five-wall-land-triseg-provider-v1",
@@ -1334,9 +1334,9 @@
             "mitralForwardFlowActive": true,
             "reference": {
               "referenceFiberLogStrainByWall": {
-                "LVFW": 0.13699635069356794,
+                "LVFW": 0.13699635069356744,
                 "RVFW": 0.12655242949509649,
-                "SEP": 0.1195853064265654
+                "SEP": 0.11958530642656472
               }
             },
             "referenceAcceptedTimeSec": 133.01,
@@ -1347,7 +1347,7 @@
           "transactionId": "main-wire-five-wall-coronary-transaction-v2"
         },
         "checkpointId": "circleheart.main-wire-five-wall-coronary-checkpoint.v3",
-        "checkpointSha256": "4a4132679cf5c65ea14cdc88e19d374caefe0b90c220b9495ba8f45eff34daed",
+        "checkpointSha256": "7a10cb240d9ba808fff0da7626cd31db7c38ecc8b2287ea72d93367b136d7bd4",
         "coronaryAutoregulation": {
           "acceptedDurationSec": 0,
           "acceptedStepCount": 0,
@@ -1696,5 +1696,5 @@
     "revision": 67036,
     "schemaVersion": 2
   },
-  "checkpointSha256": "97af3be302509ce5cd7c099bad85549780e79cb4e3d6812613c28d766007c5e2"
+  "checkpointSha256": "6aad37a3146c61cd1df8b50354cd35d49663c183c587cbc2c607ea33e90a32d7"
 }

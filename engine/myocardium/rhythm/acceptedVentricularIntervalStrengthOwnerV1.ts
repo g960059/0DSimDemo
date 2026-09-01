@@ -216,6 +216,7 @@ export type AcceptedVentricularIntervalStrengthStateV1 = Readonly<{
   acceptedVentricularCaptureCount: number;
   normalizedSrLoadState: number;
   lastAcceptedVentricularActivation: CapturedElectricalActivationV2;
+  /** Null only at initialization or an accepted reference-rebind boundary. */
   lastDepositMetadata: VentricularIntervalStrengthDepositMetadataV1 | null;
 }>;
 
@@ -495,11 +496,11 @@ export function initializeAcceptedVentricularIntervalStrengthSteadyReferenceStat
 }
 
 /**
- * Rebinds only the cycle-length reference normalization at one accepted
- * boundary. Capture lineage, counters, and clock are retained. The current
- * normalized SR-load is retained to the nearest target-coordinate Float64,
- * and the last-transition audit is expressed in that target normalization so
- * the rebound state remains independently exact-validatable.
+ * Starts a new reference-normalization epoch at one accepted boundary.
+ * The accepted clock, cumulative counters, current SR load, and last captured
+ * activation are retained exactly. The completed transition audit is closed
+ * rather than rewritten under the target reference; any already-emitted
+ * calcium deposit remains owned unchanged by the composed transaction queue.
  */
 export function rebindAcceptedVentricularIntervalStrengthReferenceV1(
   state: AcceptedVentricularIntervalStrengthStateV1,
@@ -518,113 +519,10 @@ export function rebindAcceptedVentricularIntervalStrengthReferenceV1(
   }
 
   const ownedTarget = copyConfiguration(targetConfiguration);
-  if (state.lastDepositMetadata === null) {
-    const rebound = Object.freeze({
-      ...state,
-      configuration: ownedTarget,
-    });
-    validateAcceptedVentricularIntervalStrengthStateV1(rebound);
-    return rebound;
-  }
-
-  const sourceMetadata = state.lastDepositMetadata;
-  const currentLoad = state.normalizedSrLoadState;
-  const intervalSec = requirePositiveComputedFinite(
-    sourceMetadata.capturedVentricularActivation.activationTimeSec
-      - sourceMetadata.previousCapturedActivationTimeSec,
-    "interval-strength rebound captured interval",
-  );
-  const recoveryFractionA = computeRecoveryFraction(
-    intervalSec,
-    ownedTarget.recoveryTimeConstantSec,
-    "interval-strength rebound recovery fraction",
-  );
-  const retainedLoadGain = requirePositiveComputedFinite(
-    1 - (1 - ownedTarget.releasedLoadReturnFractionR)
-      * recoveryFractionA * ownedTarget.releaseFractionBeta,
-    "interval-strength rebound retained-load gain",
-  );
-  const intervalInflux = requirePositiveComputedFinite(
-    ownedTarget.normalizedIntervalInfluxGamma
-      * (1 - ownedTarget.intervalInfluxInhibitionFractionH
-        * recoveryFractionA),
-    "interval-strength rebound interval influx",
-  );
-  let normalizedSrLoadBefore = requirePositiveComputedFinite(
-    (currentLoad - intervalInflux) / retainedLoadGain,
-    "interval-strength rebound prior normalized SR load",
-  );
-  let reboundMetadata = buildDepositMetadataFromPriorLineage(
-    ownedTarget,
-    state.revision,
-    state.acceptedVentricularCaptureCount,
-    sourceMetadata.previousCapturedActivationId,
-    sourceMetadata.previousCapturedActivationTimeSec,
-    state.lastAcceptedVentricularActivation,
-    normalizedSrLoadBefore,
-  );
-  for (
-    let correction = 0;
-    reboundMetadata.normalizedSrLoadAfter !== currentLoad && correction < 8;
-    correction += 1
-  ) {
-    normalizedSrLoadBefore = requirePositiveComputedFinite(
-      normalizedSrLoadBefore
-        + (currentLoad - reboundMetadata.normalizedSrLoadAfter)
-          / retainedLoadGain,
-      "interval-strength rebound corrected prior normalized SR load",
-    );
-    reboundMetadata = buildDepositMetadataFromPriorLineage(
-      ownedTarget,
-      state.revision,
-      state.acceptedVentricularCaptureCount,
-      sourceMetadata.previousCapturedActivationId,
-      sourceMetadata.previousCapturedActivationTimeSec,
-      state.lastAcceptedVentricularActivation,
-      normalizedSrLoadBefore,
-    );
-  }
-  let lowerBefore = normalizedSrLoadBefore;
-  let upperBefore = normalizedSrLoadBefore;
-  for (
-    let adjacent = 0;
-    reboundMetadata.normalizedSrLoadAfter !== currentLoad && adjacent < 64;
-    adjacent += 1
-  ) {
-    lowerBefore = adjacentFiniteFloat64V1(lowerBefore, -1);
-    upperBefore = adjacentFiniteFloat64V1(upperBefore, 1);
-    for (const candidateBefore of [lowerBefore, upperBefore]) {
-      if (!(candidateBefore > 0)) continue;
-      const candidateMetadata = buildDepositMetadataFromPriorLineage(
-        ownedTarget,
-        state.revision,
-        state.acceptedVentricularCaptureCount,
-        sourceMetadata.previousCapturedActivationId,
-        sourceMetadata.previousCapturedActivationTimeSec,
-        state.lastAcceptedVentricularActivation,
-        candidateBefore,
-      );
-      if (candidateMetadata.normalizedSrLoadAfter === currentLoad) {
-        normalizedSrLoadBefore = candidateBefore;
-        reboundMetadata = candidateMetadata;
-        break;
-      }
-    }
-  }
-  const reboundLoad = reboundMetadata.normalizedSrLoadAfter;
-  const reboundLoadTolerance = 8 * Number.EPSILON
-    * Math.max(1, Math.abs(currentLoad), Math.abs(reboundLoad));
-  if (Math.abs(reboundLoad - currentLoad) > reboundLoadTolerance) {
-    throw new Error(
-      "interval-strength reference rebind cannot retain the accepted SR load",
-    );
-  }
-
   const rebound = Object.freeze({
     ...state,
     configuration: ownedTarget,
-    normalizedSrLoadState: reboundLoad,
-    lastDepositMetadata: reboundMetadata,
+    lastDepositMetadata: null,
   });
   validateAcceptedVentricularIntervalStrengthStateV1(rebound);
   return rebound;
@@ -873,17 +771,21 @@ export function validateAcceptedVentricularIntervalStrengthStateV1(
     throw new Error("last accepted ventricular activation exceeds owner clock");
   }
 
-  if (count === 0) {
-    if (acceptedTimeSec !== initialAcceptedTimeSec
-      || load !== initialLoad
-      || canonicalJsonStringify(last) !== canonicalJsonStringify(initialPrior)
-      || state.lastDepositMetadata !== null) {
-      throw new Error("unadvanced interval-strength state is inconsistent");
+  if (state.lastDepositMetadata === null) {
+    if (count === 0) {
+      if (acceptedTimeSec !== initialAcceptedTimeSec
+        || load !== initialLoad
+        || canonicalJsonStringify(last)
+          !== canonicalJsonStringify(initialPrior)
+      ) {
+        throw new Error("unadvanced interval-strength state is inconsistent");
+      }
+    } else if (last.activationTimeSec !== acceptedTimeSec) {
+      throw new Error(
+        "interval-strength reference epoch must start at its last capture",
+      );
     }
     return;
-  }
-  if (state.lastDepositMetadata === null) {
-    throw new Error("advanced interval-strength state requires deposit metadata");
   }
   if (last.activationTimeSec !== acceptedTimeSec) {
     throw new Error(
@@ -1281,26 +1183,6 @@ function computeRecoveryFraction(
     ),
     field,
   );
-}
-
-function adjacentFiniteFloat64V1(value: number, direction: -1 | 1): number {
-  if (!Number.isFinite(value)) {
-    throw new Error("adjacent float64 source must be finite");
-  }
-  if (value === 0) return direction > 0 ? Number.MIN_VALUE : -Number.MIN_VALUE;
-  const bytes = new ArrayBuffer(8);
-  const view = new DataView(bytes);
-  view.setFloat64(0, value, false);
-  const bits = view.getBigUint64(0, false);
-  const nextBits = value > 0
-    ? bits + BigInt(direction)
-    : bits - BigInt(direction);
-  view.setBigUint64(0, nextBits, false);
-  const adjacent = view.getFloat64(0, false);
-  if (!Number.isFinite(adjacent)) {
-    throw new Error("adjacent float64 result must be finite");
-  }
-  return adjacent;
 }
 
 function requirePlainRecord(value: unknown, field: string): Record<string, unknown> {
