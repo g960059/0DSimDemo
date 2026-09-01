@@ -6,7 +6,9 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+  createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1,
   runMainWireIntegratedModelPeriodicSteadyV3,
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
@@ -448,6 +450,73 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     expect(result.terminalCheckpoint.checkpointSha256).toMatch(
       /^[0-9a-f]{64}$/,
     );
+  }, 60_000);
+
+  it("reconstructs Standard65 and Standard66 numerical traces with independently switchable research axes", () => {
+    const official65 = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const factorized65 =
+      createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1({
+        ventricularMaterial: "standard65",
+        calcium: "standard65",
+        rhythmTimingAndPeriodicSeed: "standard65",
+        aorticOutflow: "standard65",
+      });
+    const official66 = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1();
+    const factorized66 =
+      createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1({
+        ventricularMaterial: "standard66",
+        calcium: "standard66",
+        rhythmTimingAndPeriodicSeed: "standard66",
+        aorticOutflow: "standard66",
+      });
+    const runOne = (fixture: unknown) => {
+      const cycleFixture = fixture as Parameters<
+        typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
+      >[0];
+      return runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+        cycleFixture,
+        cycleFixture.cold.acceptedState,
+        1,
+        0.002,
+      );
+    };
+
+    const numericalTrace = (
+      trace: ReturnType<typeof runOne>["traceSamples"],
+    ) => trace.map(({ acceptedEventIdentity: _identity, ...sample }) => sample);
+    expect(numericalTrace(runOne(factorized65).traceSamples))
+      .toEqual(numericalTrace(runOne(official65).traceSamples));
+    expect(numericalTrace(runOne(factorized66).traceSamples))
+      .toEqual(numericalTrace(runOne(official66).traceSamples));
+  }, 60_000);
+
+  it("continues canonical coronary/rhythm boundaries at the 0.6-second HR100 cycle", () => {
+    const fixture = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+      Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        heartRateBpm: 100,
+      }),
+    );
+    let accepted = fixture.cold.acceptedState;
+    for (let cycleIndex = 1; cycleIndex <= 12; cycleIndex += 1) {
+      const cycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+        fixture as unknown as Parameters<
+          typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
+        >[0],
+        accepted,
+        cycleIndex,
+        0.002,
+      );
+      expect(cycle.startTimeSec).toBeCloseTo((cycleIndex - 1) * 0.6, 14);
+      expect(cycle.endTimeSec).toBeCloseTo(cycleIndex * 0.6, 14);
+      expect(cycle.coronaryAutoregulationWindow.windowIndex)
+        .toBe(cycleIndex - 1);
+      expect(cycle.acceptedAtrialCaptureIds).toHaveLength(1);
+      expect(cycle.acceptedVentricularCaptureIds).toHaveLength(1);
+      expect(cycle.deliveredCalciumDepositIds).toHaveLength(2);
+      accepted = cycle.terminalAcceptedState;
+    }
+    expect(accepted.acceptedTimeSec).toBeCloseTo(7.2, 14);
   }, 60_000);
 
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {

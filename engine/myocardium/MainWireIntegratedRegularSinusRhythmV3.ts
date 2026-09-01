@@ -69,6 +69,23 @@ export type MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1 =
     heartRateBpm: number;
   }>;
 
+export const MAIN_WIRE_INTEGRATED_STANDARD65_TO_66_FACTORIZED_REGULAR_SINUS_RESEARCH_PROFILE_V1_ID =
+  "main-wire-integrated-standard65-to-66-factorized-regular-sinus-research-profile-v1" as const;
+
+/**
+ * Research-only decomposition of the two rhythm changes promoted together in
+ * Standard66. It is deliberately absent from model identity, checkpoint, and
+ * Model Surface contracts; its only purpose is causal ablation.
+ */
+export type MainWireIntegratedStandard65To66FactorizedRegularSinusResearchProfileV1 =
+  Readonly<{
+    profileId:
+      typeof MAIN_WIRE_INTEGRATED_STANDARD65_TO_66_FACTORIZED_REGULAR_SINUS_RESEARCH_PROFILE_V1_ID;
+    heartRateBpm: number;
+    calciumProfile: "standard65" | "standard66";
+    timingAndPeriodicSeedProfile: "standard65" | "standard66";
+  }>;
+
 export const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_CLAIM =
   Object.freeze({
     calciumLawId:
@@ -93,13 +110,15 @@ export const MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_C
     clinicalValidationClaimed: false as const,
   });
 
-type ResolvedMatchedAlphaFixedProfileV1 = Readonly<{
+type ResolvedRegularSinusFixedProfileV1 = Readonly<{
   calcium: FiveWallNormalCalciumDriveParamsV1;
-  proximalAvDelaySec: 0.08;
-  distalHvDelaySec: 0.04;
-  aggregateAvDelaySec: 0.12;
-  atrialElectricalToCalciumDelaySec: 0.012;
-  ventricularElectricalToCalciumDelaySec: 0.012;
+  proximalAvDelaySec: number;
+  distalHvDelaySec: number;
+  aggregateAvDelaySec: number;
+  atrialElectricalToCalciumDelaySec: number;
+  ventricularElectricalToCalciumDelaySec: number;
+  intervalReferenceCycleLengthSec: number;
+  analyticPeriodicInitialization: boolean;
 }>;
 
 /**
@@ -108,7 +127,9 @@ type ResolvedMatchedAlphaFixedProfileV1 = Readonly<{
  */
 export function createMainWireIntegratedRegularSinusRhythmV3(
   identity: MainWireIntegratedRegularSinusRhythmIdentityV3,
-  fixedProfile?: MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1,
+  fixedProfile?:
+    | MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1
+    | MainWireIntegratedStandard65To66FactorizedRegularSinusResearchProfileV1,
 ): MainWireIntegratedRegularSinusRhythmV3 {
   const idPrefix = requireIdentityString(identity.idPrefix, "idPrefix");
   const parameterProvenanceSourceId = requireIdentityString(
@@ -118,7 +139,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
   const cycleLengthSec = requireCycleLengthSec(identity.cycleLengthSec);
   const selected = fixedProfile === undefined
     ? null
-    : resolveMatchedAlphaFixedProfile(fixedProfile, cycleLengthSec);
+    : resolveRegularSinusFixedProfile(fixedProfile, cycleLengthSec);
   const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
     configurationId: `${idPrefix}-capture-configuration`,
     ownerInstanceId: `${idPrefix}-capture-owner`,
@@ -142,7 +163,8 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     releaseFractionBeta: 0.8,
     releasedLoadReturnFractionR: 0.5,
     intervalInfluxInhibitionFractionH: 0.2,
-    referenceCycleLengthSec: selected === null ? 1 : cycleLengthSec,
+    referenceCycleLengthSec:
+      selected?.intervalReferenceCycleLengthSec ?? 1,
   });
   const regular = createRegularAtrialSourceConfigurationV1({
     configurationId: `${idPrefix}-regular-sinus-configuration`,
@@ -250,7 +272,7 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
     },
   });
   const zero = zeroExactEventCalciumStateV1();
-  const calciumStateByWall = selected === null
+  const calciumStateByWall = selected?.analyticPeriodicInitialization !== true
     ? Object.freeze({
         LA: zero,
         LVFW: zero,
@@ -273,14 +295,15 @@ export function createMainWireIntegratedRegularSinusRhythmV3(
           atrialCalcium.parameters,
         ),
       });
-  const selectedHistory = selected === null
+  const selectedHistory = selected?.analyticPeriodicInitialization !== true
     ? null
     : selectedPeriodicCaptureHistory(capture, idPrefix, selected);
   const state = initializeAcceptedComposedRhythmTransactionStateV2(
     configuration,
     {
       acceptedTimeSec: 0,
-      regularFirstFutureActivationTimeSec: selected === null
+      regularFirstFutureActivationTimeSec:
+        selected?.analyticPeriodicInitialization !== true
         ? 0.625 * cycleLengthSec
         : cycleLengthSec - 0.132,
       regularFirstSourceSequence: 0,
@@ -332,7 +355,7 @@ function selectedPeriodicCaptureHistory(
     typeof createAcceptedElectricalCaptureOwnerConfigurationV2
   >,
   idPrefix: string,
-  profile: ResolvedMatchedAlphaFixedProfileV1,
+  profile: ResolvedRegularSinusFixedProfileV1,
 ): Readonly<{
   atrial: CapturedElectricalActivationV2;
   ventricular: CapturedElectricalActivationV2;
@@ -376,12 +399,23 @@ function selectedPeriodicCaptureHistory(
   return Object.freeze({ atrial, ventricular });
 }
 
-function resolveMatchedAlphaFixedProfile(
-  input: MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1,
+function resolveRegularSinusFixedProfile(
+  input:
+    | MainWireIntegratedMatchedAlphaFixedRegularSinusProfileV1
+    | MainWireIntegratedStandard65To66FactorizedRegularSinusResearchProfileV1,
   cycleLengthSec: number,
-): ResolvedMatchedAlphaFixedProfileV1 {
+): ResolvedRegularSinusFixedProfileV1 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("integrated regular-sinus fixed profile must be an object");
+  }
+  if (
+    input.profileId
+      === MAIN_WIRE_INTEGRATED_STANDARD65_TO_66_FACTORIZED_REGULAR_SINUS_RESEARCH_PROFILE_V1_ID
+  ) {
+    return resolveStandard65To66FactorizedResearchProfile(
+      input,
+      cycleLengthSec,
+    );
   }
   const keys = Object.keys(input).sort();
   if (keys.length !== 2 || keys[0] !== "heartRateBpm" || keys[1] !== "profileId") {
@@ -409,6 +443,62 @@ function resolveMatchedAlphaFixedProfile(
     aggregateAvDelaySec: 0.12 as const,
     atrialElectricalToCalciumDelaySec: 0.012 as const,
     ventricularElectricalToCalciumDelaySec: 0.012 as const,
+    intervalReferenceCycleLengthSec: cycleLengthSec,
+    analyticPeriodicInitialization: true,
+  });
+}
+
+function resolveStandard65To66FactorizedResearchProfile(
+  input: MainWireIntegratedStandard65To66FactorizedRegularSinusResearchProfileV1,
+  cycleLengthSec: number,
+): ResolvedRegularSinusFixedProfileV1 {
+  const keys = Object.keys(input).sort();
+  if (
+    keys.length !== 4
+    || keys[0] !== "calciumProfile"
+    || keys[1] !== "heartRateBpm"
+    || keys[2] !== "profileId"
+    || keys[3] !== "timingAndPeriodicSeedProfile"
+  ) {
+    throw new Error(
+      "factorized integrated regular-sinus research profile keys are invalid",
+    );
+  }
+  if (
+    input.calciumProfile !== "standard65"
+    && input.calciumProfile !== "standard66"
+  ) {
+    throw new Error("factorized calcium profile is invalid");
+  }
+  if (
+    input.timingAndPeriodicSeedProfile !== "standard65"
+    && input.timingAndPeriodicSeedProfile !== "standard66"
+  ) {
+    throw new Error("factorized timing and periodic-seed profile is invalid");
+  }
+  const calcium = input.calciumProfile === "standard66"
+    ? resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+        input.heartRateBpm,
+      )
+    : FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  if (
+    input.calciumProfile === "standard66"
+    && calcium.cycleLengthSec !== cycleLengthSec
+  ) {
+    throw new Error(
+      "factorized integrated regular-sinus heart rate and cycle split",
+    );
+  }
+  const selectedTiming = input.timingAndPeriodicSeedProfile === "standard66";
+  return Object.freeze({
+    calcium,
+    proximalAvDelaySec: selectedTiming ? 0.08 : 0.125,
+    distalHvDelaySec: selectedTiming ? 0.04 : 0.0625,
+    aggregateAvDelaySec: selectedTiming ? 0.12 : 0.1875,
+    atrialElectricalToCalciumDelaySec: selectedTiming ? 0.012 : 0.0625,
+    ventricularElectricalToCalciumDelaySec: selectedTiming ? 0.012 : 0.0625,
+    intervalReferenceCycleLengthSec: selectedTiming ? cycleLengthSec : 1,
+    analyticPeriodicInitialization: selectedTiming,
   });
 }
 

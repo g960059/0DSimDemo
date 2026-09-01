@@ -21,6 +21,12 @@ import {
 import {
   validateMainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
+  validateMainWireProximalArterialRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
+import {
+  validateMainWirePulmonaryCharacteristicResistanceResearchProfileV1,
+} from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   fullHotPathInvariantsEnabledV1,
@@ -2737,7 +2743,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     );
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
-      const inertance = requirePositive(
+      const inertance = requireNonnegative(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           dynamicName,
@@ -2746,14 +2752,20 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
         ),
         `${name} inertanceMmHgSec2PerMl`,
       );
-      const flow = solveSignedLinearQuadraticFlowV1(
-        gradientMmHg + inertance
-          * previous.dynamicEdgeFlowsMlPerSec[
-            NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
-          ]! / input.dtSec,
-        losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
-        losses.quadraticLossMmHgSec2PerMl2,
-      );
+      const flow = inertance === 0
+        ? solveSignedLinearQuadraticFlowV1(
+            gradientMmHg,
+            losses.resistanceMmHgSecPerMl,
+            losses.quadraticLossMmHgSec2PerMl2,
+          )
+        : solveSignedLinearQuadraticFlowV1(
+            gradientMmHg + inertance
+              * previous.dynamicEdgeFlowsMlPerSec[
+                NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
+              ]! / input.dtSec,
+            losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
+            losses.quadraticLossMmHgSec2PerMl2,
+          );
       dynamicFlows[
         NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
       ] = flow;
@@ -3089,7 +3101,7 @@ function analyticEdgeFlowPressureDerivativesV1<
     let dInertanceDDownstreamPressureSec2PerMl = 0;
     let previousFlowMlPerSec = flowMlPerSec;
     if (edge.kind === "dynamic") {
-      inertanceMmHgSec2PerMl = requirePositive(
+      inertanceMmHgSec2PerMl = requireNonnegative(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           edgeName as NonCoronaryDynamicEdgeNameV1,
@@ -4523,6 +4535,39 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  const proximalRootResearchProfile =
+    runtime.vascular.proximalArterialRootInertanceResearchProfile;
+  if (proximalRootResearchProfile !== undefined) {
+    const issues =
+      validateMainWireProximalArterialRootInertanceResearchProfileV1(
+        proximalRootResearchProfile,
+      );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid proximalArterialRootInertanceResearchProfile: ${issues.join("; ")}`,
+      );
+    }
+  }
+  const pulmonaryCharacteristicResistanceResearchProfile = runtime.vascular
+    .pulmonaryCharacteristicResistanceResearchProfile;
+  if (pulmonaryCharacteristicResistanceResearchProfile !== undefined) {
+    const issues =
+      validateMainWirePulmonaryCharacteristicResistanceResearchProfileV1(
+        pulmonaryCharacteristicResistanceResearchProfile,
+      );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid pulmonaryCharacteristicResistanceResearchProfile: ${issues.join("; ")}`,
+      );
+    }
+    if (
+      proximalRootResearchProfile?.pulmonaryRootMode !== "resistive-root"
+    ) {
+      throw new Error(
+        "pulmonary characteristic-resistance research requires a resistive pulmonary root",
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
@@ -4949,6 +4994,19 @@ function selectedAorticOutflowDynamicEdgeActiveV1(
     && edgeName === selectedProfile.sourceDynamicEdgeId;
 }
 
+function pulmonaryCharacteristicResistanceResearchEdgeActiveV1(
+  edgeName: NonCoronaryEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): boolean {
+  const profile = runtime.vascular
+    .pulmonaryCharacteristicResistanceResearchProfile;
+  return profile !== undefined
+    && (
+      edgeName === profile.sourceRootEdgeId
+      || edgeName === profile.residualDownstreamEdgeId
+    );
+}
+
 /**
  * Selected Ao_SA resistance is the residual downstream loss only. The fixed
  * characteristic impedance is already inside the recovered-root AoV port and
@@ -4962,6 +5020,25 @@ function nonCoronaryNonValveEdgeLossV1(
   downstreamPressureMmHg: number,
   edgeExternalPressureMmHg: number,
 ): NonValveEdgeLossV1 {
+  const pulmonaryProfile = runtime.vascular
+    .pulmonaryCharacteristicResistanceResearchProfile;
+  if (
+    pulmonaryProfile !== undefined
+    && (
+      edgeName === pulmonaryProfile.sourceRootEdgeId
+      || edgeName === pulmonaryProfile.residualDownstreamEdgeId
+    )
+  ) {
+    return Object.freeze({
+      resistanceMmHgSecPerMl: edgeName === pulmonaryProfile.sourceRootEdgeId
+        ? pulmonaryProfile.characteristicResistanceMmHgSecPerMl
+        : pulmonaryProfile.residualDownstreamTopologyResistanceMmHgSecPerMl
+          * runtime.losses.pulmonaryResistance,
+      quadraticLossMmHgSec2PerMl2: 0,
+      areaRatio: 1,
+      collapsibleTubeApplied: false,
+    });
+  }
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (
     selectedProfile === undefined
@@ -4995,7 +5072,13 @@ function nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(
   downstreamPressureMmHg: number,
   edgeExternalPressureMmHg: number,
 ): NonValveEdgeLossAndPressureDerivativesV1 {
-  if (!selectedAorticOutflowDynamicEdgeActiveV1(edgeName, runtime)) {
+  if (
+    !selectedAorticOutflowDynamicEdgeActiveV1(edgeName, runtime)
+    && !pulmonaryCharacteristicResistanceResearchEdgeActiveV1(
+      edgeName,
+      runtime,
+    )
+  ) {
     return nonValveEdgeLossAndPressureDerivativesV1({
       edge,
       params: runtime.losses,
@@ -5030,6 +5113,17 @@ function nonCoronaryDynamicEdgeInertanceV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   areaRatio: number,
 ): number {
+  const rootResearch = runtime.vascular
+    .proximalArterialRootInertanceResearchProfile;
+  if (
+    rootResearch !== undefined
+    && (
+      (edgeName === "Ao_SA"
+        && rootResearch.aorticRootMode === "resistive-root")
+      || (edgeName === "PA_PArt"
+        && rootResearch.pulmonaryRootMode === "resistive-root")
+    )
+  ) return 0;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (
     selectedProfile !== undefined

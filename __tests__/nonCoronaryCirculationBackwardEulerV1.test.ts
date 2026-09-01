@@ -12,6 +12,12 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  createMainWireProximalArterialRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
+import {
+  MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1,
+} from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
+import {
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_CIRCULATION_UNITS_V1,
   NON_CORONARY_ACCEPTED_NUMERICAL_SOURCE_V1_ID,
@@ -654,6 +660,8 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
         vascular: Object.freeze({
           ...RUNTIME.vascular,
           selectedAorticOutflowProfile: undefined,
+          proximalArterialRootInertanceResearchProfile: undefined,
+          pulmonaryCharacteristicResistanceResearchProfile: undefined,
         }),
       });
     const callback = coupledElasticMechanicsCallback(initial, true);
@@ -897,6 +905,219 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       analyticTrial.diagnostics
         .jacobianMaximumRelativeFrobeniusShadowDifference!,
     ).toBeLessThan(2e-5);
+  });
+
+  it("makes each research resistive root algebraic in both primal and analytic tangent", () => {
+    const selectedProfile =
+      MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1;
+    const systemicResistance = 1.2;
+    const pulmonaryResistance = 0.625;
+    const rootProfile =
+      createMainWireProximalArterialRootInertanceResearchProfileV1({
+        aorticRootMode: "resistive-root",
+        pulmonaryRootMode: "resistive-root",
+      });
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      vascular: Object.freeze({
+        ...RUNTIME.vascular,
+        selectedAorticOutflowProfile: selectedProfile,
+        proximalArterialRootInertanceResearchProfile: rootProfile,
+      }),
+      losses: Object.freeze({
+        systemicResistance,
+        pulmonaryResistance,
+      }),
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const previousFlowPerturbed = Object.freeze({
+      ...initial,
+      dynamicEdgeFlowsMlPerSec: Object.freeze({
+        ...initial.dynamicEdgeFlowsMlPerSec,
+        Ao_SA: -317,
+        PA_PArt: 611,
+      }),
+    });
+    const zeroTangent = Object.freeze({
+      rowPressureOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+      columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+      units: "mmHg/mL" as const,
+      pressureKind: "absolute" as const,
+      derivativeSemantics:
+        "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive" as const,
+      dPressureDVolumeMmHgPerMl: Object.freeze([
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+        Object.freeze([0, 0, 0, 0] as const),
+      ] as const),
+    }) satisfies NonCoronaryAbsoluteChamberPressureTangentV1;
+    const evaluateCandidateMechanics = () => Object.freeze({
+      absolutePressuresMmHg: Object.freeze({
+        LV: 120,
+        LA: 10,
+        RV: 25,
+        RA: 5,
+      }),
+      absolutePressureTangent: zeroTangent,
+      evaluation: null,
+    });
+    const independentVolumes = Float64Array.from(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+      (name) => initial.nodeVolumesMl[name],
+    );
+    const probe = (previousAcceptedState: typeof initial) =>
+      evaluateNonCoronaryCirculationCandidateProbeV1({
+        previousAcceptedState,
+        dtSec: 0.002,
+        runtime,
+        evaluateCandidateMechanics,
+      }, independentVolumes);
+    const baseline = probe(initial);
+    const perturbed = probe(previousFlowPerturbed);
+    const graph = buildNonCoronaryCirculationGraphV1();
+    for (const name of ["Ao_SA", "PA_PArt"] as const) {
+      const edgeIndex =
+        NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges.indexOf(name);
+      const edge = graph.edges[graph.edgeIndex.get(name)!];
+      const upstreamIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+        edge.up as (typeof NON_CORONARY_NODE_NAMES_V1)[number],
+      );
+      const downstreamIndex = NON_CORONARY_NODE_NAMES_V1.indexOf(
+        edge.down as (typeof NON_CORONARY_NODE_NAMES_V1)[number],
+      );
+      const resistance = name === "Ao_SA"
+        ? selectedProfile.residualDownstreamResistanceMmHgSecPerMl
+          * systemicResistance
+        : edge.R * pulmonaryResistance;
+      const gradient = baseline.nodeAbsolutePressuresMmHg[upstreamIndex]!
+        - baseline.nodeAbsolutePressuresMmHg[downstreamIndex]!;
+      expect(baseline.edgeFlowsMlPerSec[edgeIndex]).toBeCloseTo(
+        gradient / resistance,
+        11,
+      );
+      expect(perturbed.edgeFlowsMlPerSec[edgeIndex])
+        .toBe(baseline.edgeFlowsMlPerSec[edgeIndex]);
+    }
+
+    const analyticTrial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics,
+    });
+    expect(analyticTrial.converged).toBe(true);
+    if (analyticTrial.converged === false) {
+      throw new Error(analyticTrial.message);
+    }
+    expect(analyticTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(analyticTrial.diagnostics.finiteDifferenceJacobianShadowCount)
+      .toBe(analyticTrial.diagnostics.analyticJacobianAssemblyCount);
+    expect(
+      analyticTrial.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference,
+    ).not.toBeNull();
+    expect(
+      analyticTrial.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference!,
+    ).toBeLessThan(2e-5);
+  });
+
+  it("allocates normal pulmonary Zc without changing reference proximal series resistance", () => {
+    const pulmonaryProfile =
+      MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1;
+    const rootProfile =
+      createMainWireProximalArterialRootInertanceResearchProfileV1({
+        aorticRootMode: "source-inertance",
+        pulmonaryRootMode: "resistive-root",
+      });
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      vascular: Object.freeze({
+        ...RUNTIME.vascular,
+        proximalArterialRootInertanceResearchProfile: rootProfile,
+        pulmonaryCharacteristicResistanceResearchProfile: pulmonaryProfile,
+      }),
+      losses: Object.freeze({
+        systemicResistance: 1,
+        pulmonaryResistance: pulmonaryProfile.referencePulmonaryResistanceScale,
+      }),
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const evaluateCandidateMechanics = () => Object.freeze({
+      absolutePressuresMmHg: Object.freeze({
+        LV: 120,
+        LA: 10,
+        RV: 25,
+        RA: 5,
+      }),
+      evaluation: null,
+    });
+    const independentVolumes = Float64Array.from(
+      NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
+      (name) => initial.nodeVolumesMl[name],
+    );
+    const candidate = evaluateNonCoronaryCirculationCandidateProbeV1({
+      previousAcceptedState: initial,
+      dtSec: 0.002,
+      runtime,
+      evaluateCandidateMechanics,
+    }, independentVolumes);
+    const edgeFlow = (edgeId: "PA_PArt" | "PArt_PCap") =>
+      candidate.edgeFlowsMlPerSec[
+        NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges.indexOf(edgeId)
+      ]!;
+    const pressure = (nodeId: "PA" | "PArt" | "PCap") =>
+      candidate.nodeAbsolutePressuresMmHg[
+        NON_CORONARY_NODE_NAMES_V1.indexOf(nodeId)
+      ]!;
+    expect(edgeFlow("PA_PArt")).toBeCloseTo(
+      (pressure("PA") - pressure("PArt"))
+        / pulmonaryProfile.characteristicResistanceMmHgSecPerMl,
+      11,
+    );
+    expect(edgeFlow("PArt_PCap")).toBeCloseTo(
+      (pressure("PArt") - pressure("PCap"))
+        / (
+          pulmonaryProfile.residualDownstreamTopologyResistanceMmHgSecPerMl
+            * pulmonaryProfile.referencePulmonaryResistanceScale
+        ),
+      11,
+    );
+    const sourceProximalSeriesResistance = (0.01 + 0.04)
+      * pulmonaryProfile.referencePulmonaryResistanceScale;
+    const candidateProximalSeriesResistance =
+      pulmonaryProfile.characteristicResistanceMmHgSecPerMl
+      + pulmonaryProfile.residualDownstreamTopologyResistanceMmHgSecPerMl
+        * pulmonaryProfile.referencePulmonaryResistanceScale;
+    expect(candidateProximalSeriesResistance)
+      .toBe(sourceProximalSeriesResistance);
+
+    const invalidRuntime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...runtime,
+      vascular: Object.freeze({
+        ...runtime.vascular,
+        proximalArterialRootInertanceResearchProfile: undefined,
+      }),
+    });
+    expect(() => evaluateNonCoronaryCirculationCandidateProbeV1({
+      previousAcceptedState: initial,
+      dtSec: 0.002,
+      runtime: invalidRuntime,
+      evaluateCandidateMechanics,
+    }, independentVolumes)).toThrow(
+      /requires a resistive pulmonary root/,
+    );
   });
 
   it("matches the full 14-volume finite-difference shadow with fixed-TBV SV chain rule", () => {

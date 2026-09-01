@@ -9,6 +9,12 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import type {
+  MainWireProximalArterialRootInertanceResearchProfileV1,
+} from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
+import type {
+  MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
+} from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
 import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
@@ -39,6 +45,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
   MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  MAIN_WIRE_INTEGRATED_STANDARD65_TO_66_FACTORIZED_REGULAR_SINUS_RESEARCH_PROFILE_V1_ID,
   createMainWireIntegratedRegularSinusRhythmV3,
 } from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
 import {
@@ -432,6 +439,17 @@ export type MainWireIntegratedModelSelectedAorticOutflowFixtureV1 = ReturnType<
   typeof createMainWireIntegratedModelSelectedAorticOutflowFixtureV1
 >;
 
+export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD65_TO_66_FACTORIZED_RESEARCH_FIXTURE_V1_ID =
+  "main-wire-integrated-model-standard65-to-66-factorized-research-fixture-v1" as const;
+
+export type MainWireIntegratedModelStandard65To66FactorizedResearchAxesV1 =
+  Readonly<{
+    ventricularMaterial: "standard65" | "standard66";
+    calcium: "standard65" | "standard66";
+    rhythmTimingAndPeriodicSeed: "standard65" | "standard66";
+    aorticOutflow: "standard65" | "standard66";
+  }>;
+
 /**
  * Opts into the fixed Land / recovered-root circulation / matched-alpha
  * regular-sinus assembly while retaining its admitted cold-fixture coordinates.
@@ -491,6 +509,129 @@ export function createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
     fixedAssemblyClaim:
       MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
   });
+}
+
+/**
+ * Research-only full-factorial reconstruction of the four independently
+ * switchable Standard65 -> Standard66 mechanism groups. This factory is not
+ * an exact model, checkpoint schema, registry entry, or Model Surface.
+ */
+export function createMainWireIntegratedModelStandard65To66FactorizedResearchFixtureV1(
+  axes: MainWireIntegratedModelStandard65To66FactorizedResearchAxesV1,
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  proximalArterialRootInertanceResearchProfile?:
+    MainWireProximalArterialRootInertanceResearchProfileV1,
+  pulmonaryCharacteristicResistanceResearchProfile?:
+    MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
+) {
+  const ownedAxes = validateStandard65To66FactorizedResearchAxesV1(axes);
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs,
+  );
+  if (ownedAxes.calcium === "standard66") {
+    assertSelectedMatchedAlphaCompatibleCalciumScalesV1(
+      prepared.chamberMechanics,
+    );
+  }
+  const fixture = assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () =>
+        ownedAxes.ventricularMaterial === "standard66"
+          ? createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+              prepared.chamberMechanics,
+            )
+          : createMainWireNormalAdultFiveWallProviderWithMechanicsResearchInputsV1(
+              prepared.chamberMechanics,
+            ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness:
+          prepared.hemodynamicResearchInputs.arterialStiffness,
+        ...(ownedAxes.aorticOutflow === "standard66"
+          ? {
+              selectedAorticOutflowProfile:
+                MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+            }
+          : {}),
+        ...(proximalArterialRootInertanceResearchProfile === undefined
+          ? {}
+          : { proximalArterialRootInertanceResearchProfile }),
+        ...(pulmonaryCharacteristicResistanceResearchProfile === undefined
+          ? {}
+          : { pulmonaryCharacteristicResistanceResearchProfile }),
+      }),
+      createCalciumDriveParams: (cycleLengthSec) =>
+        ownedAxes.calcium === "standard66"
+          ? resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+              prepared.hemodynamicResearchInputs.heartRateBpm,
+            )
+          : Object.freeze({
+              ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+              parameterSetId:
+                `${FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId}`
+                + `-hr-${prepared.hemodynamicResearchInputs.heartRateBpm}-bpm`,
+              cycleLengthSec,
+              decayTimeScaleByWall:
+                prepared.chamberMechanics.calciumDecayTimeScaleByWall,
+            }),
+      createRhythm: (cycleLengthSec) =>
+        createMainWireIntegratedRegularSinusRhythmV3(
+          {
+            idPrefix: "standard65-to-66-factorized-research-v1",
+            parameterProvenanceSourceId:
+              MAIN_WIRE_INTEGRATED_MODEL_STANDARD65_TO_66_FACTORIZED_RESEARCH_FIXTURE_V1_ID,
+            cycleLengthSec,
+          },
+          {
+            profileId:
+              MAIN_WIRE_INTEGRATED_STANDARD65_TO_66_FACTORIZED_REGULAR_SINUS_RESEARCH_PROFILE_V1_ID,
+            heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm,
+            calciumProfile: ownedAxes.calcium,
+            timingAndPeriodicSeedProfile:
+              ownedAxes.rhythmTimingAndPeriodicSeed,
+          },
+        ),
+    },
+  );
+  return Object.freeze({
+    ...fixture,
+    researchFixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD65_TO_66_FACTORIZED_RESEARCH_FIXTURE_V1_ID,
+    researchAxes: ownedAxes,
+    proximalArterialRootInertanceResearchProfile:
+      proximalArterialRootInertanceResearchProfile ?? null,
+    pulmonaryCharacteristicResistanceResearchProfile:
+      pulmonaryCharacteristicResistanceResearchProfile ?? null,
+  });
+}
+
+function validateStandard65To66FactorizedResearchAxesV1(
+  input: MainWireIntegratedModelStandard65To66FactorizedResearchAxesV1,
+): MainWireIntegratedModelStandard65To66FactorizedResearchAxesV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Standard65-to-66 factorized research axes must be an object");
+  }
+  const keys = Object.keys(input).sort();
+  if (
+    keys.length !== 4
+    || keys[0] !== "aorticOutflow"
+    || keys[1] !== "calcium"
+    || keys[2] !== "rhythmTimingAndPeriodicSeed"
+    || keys[3] !== "ventricularMaterial"
+  ) {
+    throw new Error("Standard65-to-66 factorized research axes are invalid");
+  }
+  for (const [name, value] of Object.entries(input)) {
+    if (value !== "standard65" && value !== "standard66") {
+      throw new Error(`Standard65-to-66 factorized ${name} axis is invalid`);
+    }
+  }
+  return Object.freeze({ ...input });
 }
 
 function prepareMainWireIntegratedModelFixtureInputsV3(
@@ -961,9 +1102,9 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
         "V3 qualification alignment exceeded accepted-step bound",
       );
     }
-    const nominalTargetTimeSec = Math.min(
-      boundaryAcceptedTimeSec,
+    const nominalTargetTimeSec = snapNominalTargetToBoundaryV3(
       sourceAcceptedTimeSec + nominalGridIndex * nominalDtSec,
+      boundaryAcceptedTimeSec,
     );
     if (!(nominalTargetTimeSec > accepted.acceptedTimeSec)) {
       nominalGridIndex += 1;
@@ -1164,9 +1305,13 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   const windowPolicy =
     initial.coronary.coronaryAutoregulationBinding.windowPolicy;
   const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  // Use the accepted window owner's canonical origin-based arithmetic. At
+  // cycle lengths such as 0.6 s, repeatedly adding one cycle can differ by an
+  // ulp from origin + windowIndex * duration and miss the exact completion.
+  const endTimeSec = windowPolicy.originAcceptedTimeSec
+    + (window.windowIndex + 1) * windowPolicy.durationSec;
   if (
-    startTimeSec !== window.windowStartAcceptedTimeSec ||
+    !nearlyEqual(startTimeSec, window.windowStartAcceptedTimeSec) ||
     window.acceptedDurationSec !== 0 ||
     window.acceptedStepCount !== 0 ||
     !nearlyEqual(windowPolicy.durationSec, fixture.cycleLengthSec)
@@ -1193,16 +1338,19 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   const completions: MainWireIntegratedModelPeriodicSteadyCycleV3["coronaryAutoregulationWindow"][] =
     [];
 
-  while (accepted.acceptedTimeSec < endTimeSec) {
+  while (
+    completions.length === 0
+    && accepted.acceptedTimeSec < endTimeSec
+  ) {
     if (
       acceptedStepCount >=
       MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
     ) {
       throw new Error("V3 periodic cycle exceeded accepted-step bound");
     }
-    const nominalTargetTimeSec = Math.min(
-      endTimeSec,
+    const nominalTargetTimeSec = snapNominalTargetToBoundaryV3(
       startTimeSec + nominalGridIndex * nominalDtSec,
+      endTimeSec,
     );
     const requestedStepSec = nominalTargetTimeSec - accepted.acceptedTimeSec;
     if (!(requestedStepSec > 0)) {
@@ -1312,11 +1460,11 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     );
   }
   if (
-    accepted.acceptedTimeSec !== endTimeSec ||
+    !nearlyEqual(accepted.acceptedTimeSec, endTimeSec) ||
     completions.length !== 1 ||
     completions[0]!.windowIndex !== expectedWindowIndex ||
-    completions[0]!.startTimeSec !== startTimeSec ||
-    completions[0]!.endTimeSec !== endTimeSec ||
+    !nearlyEqual(completions[0]!.startTimeSec, startTimeSec) ||
+    !nearlyEqual(completions[0]!.endTimeSec, endTimeSec) ||
     !nearlyEqual(completions[0]!.acceptedDurationSec, fixture.cycleLengthSec)
   ) {
     throw new Error("V3 periodic cycle/coronary window boundary differs");
@@ -1864,6 +2012,15 @@ function nearlyEqual(left: number, right: number): boolean {
     Math.abs(left - right) <=
     64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right))
   );
+}
+
+function snapNominalTargetToBoundaryV3(
+  nominalTargetTimeSec: number,
+  boundaryTimeSec: number,
+): number {
+  return nearlyEqual(nominalTargetTimeSec, boundaryTimeSec)
+    ? boundaryTimeSec
+    : Math.min(nominalTargetTimeSec, boundaryTimeSec);
 }
 
 function deepFreeze<T>(value: T): T {
