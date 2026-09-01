@@ -4995,6 +4995,14 @@ function selectedAorticOutflowDynamicEdgeActiveV1(
     && edgeName === selectedProfile.sourceDynamicEdgeId;
 }
 
+function algebraicPulmonaryRootEdgeActiveV1(
+  edgeName: NonCoronaryEdgeNameV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): boolean {
+  const profile = runtime.vascular.algebraicPulmonaryArterialRootProfile;
+  return profile !== undefined && edgeName === profile.pulmonaryRootEdgeId;
+}
+
 /**
  * Selected Ao_SA resistance is the residual downstream loss only. The fixed
  * characteristic impedance is already inside the recovered-root AoV port and
@@ -5009,6 +5017,28 @@ function nonCoronaryNonValveEdgeLossV1(
   edgeExternalPressureMmHg: number,
 ): NonValveEdgeLossV1 {
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
+  const pulmonaryRootProfile = runtime.vascular
+    .algebraicPulmonaryArterialRootProfile;
+  if (
+    pulmonaryRootProfile !== undefined
+    && edgeName === pulmonaryRootProfile.pulmonaryRootEdgeId
+  ) {
+    const sourceLoss = nonValveEdgeLossV1({
+      edge,
+      params: runtime.losses,
+      upstreamPressureMmHg,
+      downstreamPressureMmHg,
+      edgeExternalPressureMmHg,
+    });
+    return Object.freeze({
+      ...sourceLoss,
+      resistanceMmHgSecPerMl: requirePositive(
+        pulmonaryRootProfile.rootResistanceMmHgSecPerMl
+          * runtime.losses.pulmonaryResistance,
+        `${edgeName} characteristic resistance`,
+      ),
+    });
+  }
   if (
     selectedProfile === undefined
     || edgeName !== selectedProfile.sourceDynamicEdgeId
@@ -5041,7 +5071,10 @@ function nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(
   downstreamPressureMmHg: number,
   edgeExternalPressureMmHg: number,
 ): NonValveEdgeLossAndPressureDerivativesV1 {
-  if (!selectedAorticOutflowDynamicEdgeActiveV1(edgeName, runtime)) {
+  if (
+    !selectedAorticOutflowDynamicEdgeActiveV1(edgeName, runtime)
+    && !algebraicPulmonaryRootEdgeActiveV1(edgeName, runtime)
+  ) {
     return nonValveEdgeLossAndPressureDerivativesV1({
       edge,
       params: runtime.losses,

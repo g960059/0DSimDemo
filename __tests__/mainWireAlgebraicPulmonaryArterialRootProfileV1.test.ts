@@ -29,7 +29,8 @@ describe("fixed algebraic pulmonary arterial-root profile", () => {
     } as unknown as typeof MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1))
       .toEqual(expect.arrayContaining([
         "algebraic pulmonary arterial-root profile fields differ",
-        "algebraic pulmonary arterial-root profile inertanceMmHgSec2PerMl differs",
+        "algebraic pulmonary arterial-root profile flow law differs",
+        "algebraic pulmonary arterial-root profile accepted-flow role differs",
       ]));
   });
 });

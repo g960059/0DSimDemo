@@ -2,8 +2,8 @@ import checkpointV1 from
   "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
 
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
-} from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+  createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1,
+} from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
 import {
   warmStartMainWireIntegratedModelV3,
 } from "@/engine/myocardium/MainWireIntegratedModelWarmStartV3";
@@ -42,38 +42,47 @@ const restored =
     .restoreStandard68ExactCheckpoint(checkpointV1);
 const sourceAccepted = restored.currentAcceptedState();
 const results = [];
-let scale1Continuation: Readonly<{
+let priorContinuation: Readonly<{
   accepted: typeof sourceAccepted;
   fixture: ReturnType<
     typeof createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1
   >;
 }> | null = null;
-let priorContinuation: typeof scale1Continuation = null;
 
-for (const rvfwActiveTensionScale of [1, 0.9, 0.8, 0.75, 1.1]) {
-  const base = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3;
-  const mechanism = Object.freeze({
-    ...base,
-    chamberMechanics: Object.freeze({
-      ...base.chamberMechanics,
-      activeTensionScaleByWall: Object.freeze({
-        ...base.chamberMechanics.activeTensionScaleByWall,
-        RVFW: rvfwActiveTensionScale,
-      }),
-    }),
-  });
+const preregisteredCandidates = Object.freeze([
+  { rootResistanceMmHgSecPerMl: 0.01, inertanceMmHgSec2PerMl: 0 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.0001 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.00025 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.0005 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.001 },
+  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.001 },
+  { rootResistanceMmHgSecPerMl: 0.08, inertanceMmHgSec2PerMl: 0.001 },
+  { rootResistanceMmHgSecPerMl: 0.08, inertanceMmHgSec2PerMl: 0.0005 },
+  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.0005 },
+  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.00025 },
+  { rootResistanceMmHgSecPerMl: 0.03, inertanceMmHgSec2PerMl: 0.00025 },
+] as const);
+
+for (const {
+  rootResistanceMmHgSecPerMl,
+  inertanceMmHgSec2PerMl,
+} of preregisteredCandidates) {
+  const rootProfile =
+    createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
+      rootResistanceMmHgSecPerMl,
+      inertanceMmHgSec2PerMl,
+    );
   const targetFixture =
     createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1(
     undefined,
     1,
-    mechanism,
+    undefined,
+    rootProfile,
   );
-  const continuationSource = rvfwActiveTensionScale === 1.1
-    ? scale1Continuation
-    : priorContinuation;
   let accepted = warmStartMainWireIntegratedModelV3({
-    source: continuationSource?.accepted ?? sourceAccepted,
-    sourceRuntime: (continuationSource?.fixture ?? sourceFixture) as unknown as
+    source: priorContinuation?.accepted ?? sourceAccepted,
+    sourceRuntime: (priorContinuation?.fixture ?? sourceFixture) as unknown as
       MainWireIntegratedModelRuntimeV3,
     targetRuntime: targetFixture as unknown as MainWireIntegratedModelRuntimeV3,
   });
@@ -106,28 +115,40 @@ for (const rvfwActiveTensionScale of [1, 0.9, 0.8, 0.75, 1.1]) {
     if (consecutivePeriod1Passes >= 3) break;
   }
   const completedContinuation = Object.freeze({ accepted, fixture: targetFixture });
-  if (rvfwActiveTensionScale === 1) scale1Continuation = completedContinuation;
   priorContinuation = completedContinuation;
   results.push(Object.freeze({
-    rvfwActiveTensionScale,
+    rootResistanceMmHgSecPerMl,
+    inertanceMmHgSec2PerMl,
+    effectiveRootResistanceMmHgSecPerMl:
+      rootResistanceMmHgSecPerMl *
+        targetFixture.hemodynamicResearchInputs.pulmonaryResistance,
     completedCycles,
     consecutivePeriod1Passes,
     latestPeriod1MaximumNormalizedDelta,
-    ...rightHeartSummaryV1(trace),
+    ...rightHeartSummaryV1(
+      trace,
+      rootResistanceMmHgSecPerMl *
+        targetFixture.hemodynamicResearchInputs.pulmonaryResistance,
+      inertanceMmHgSec2PerMl,
+    ),
   }));
 }
 
 process.stdout.write(`${JSON.stringify({
   sweepId:
-    "main-wire-rounded-ejection-pulmonary-root-ablation-rvfw-active-tension-sweep-v1",
-  rootTreatment: "PA_PArt-momentum-memory-removed",
+    "main-wire-rounded-ejection-pulmonary-root-impedance-factor-sweep-v1",
+  rootTreatment:
+    "PA_PArt source L=0.004 replaced by bounded low-L and characteristic-resistance factor candidates",
   continuationPolicy:
-    "nearest prior scale except 1.1 branches from converged scale 1; stop after three period1 deltas <=0.001 or 30 cycles",
-  results: [...results].sort((left, right) =>
-    left.rvfwActiveTensionScale - right.rvfwActiveTensionScale),
+    "listed nearest-neighbor continuation; stop after three period1 deltas <=0.001 or 30 cycles",
+  results,
 }, null, 2)}\n`);
 
-function rightHeartSummaryV1(samples: readonly Sample[]) {
+function rightHeartSummaryV1(
+  samples: readonly Sample[],
+  effectiveRootResistanceMmHgSecPerMl: number,
+  inertanceMmHgSec2PerMl: number,
+) {
   const baseline = measureMainWireIntegratedModelBaselineValidationV1(samples);
   const timing = rightTimingV1(samples);
   const rvRates = samples.slice(1).map((sample, index) =>
@@ -139,6 +160,29 @@ function rightHeartSummaryV1(samples: readonly Sample[]) {
   const pulmonaryPeakIndex = pulmonaryFlow.indexOf(Math.max(...pulmonaryFlow));
   const pulmonaryOpen = thresholdOpenV1(pulmonaryFlow);
   const pulmonaryOpening = transitionV1(pulmonaryOpen, false, true);
+  const pulmonaryClosure = nextTransitionV1(
+    pulmonaryOpen,
+    pulmonaryOpening,
+    true,
+    false,
+  );
+  const gradients = samples.map((sample) =>
+    sample.absolutePressureMmHg.RV - sample.absolutePressureMmHg.PA);
+  const forwardDurationSec = samples.reduce((sum, sample, index) =>
+    sum + (pulmonaryOpen[index] ? sample.acceptedDtSec : 0), 0);
+  const pulmonaryPressure = samples.map((sample) =>
+    sample.absolutePressureMmHg.PA);
+  const durationSec = samples.reduce((sum, sample) =>
+    sum + sample.acceptedDtSec, 0);
+  const meanPa = samples.reduce((sum, sample, index) =>
+    sum + pulmonaryPressure[index]! * sample.acceptedDtSec, 0) / durationSec;
+  const cPa = 60 / (meanPa + 20);
+  const cPArt = 90 / (meanPa + 20);
+  const differentialCompliance = cPa * cPArt / (cPa + cPArt);
+  const dampingRatio = inertanceMmHgSec2PerMl === 0
+    ? null
+    : effectiveRootResistanceMmHgSecPerMl / 2
+      * Math.sqrt(differentialCompliance / inertanceMmHgSec2PerMl);
   return Object.freeze({
     rvp: baseline.RVP,
     rvDpDtMmHgPerSec: Object.freeze({
@@ -148,18 +192,73 @@ function rightHeartSummaryV1(samples: readonly Sample[]) {
     rightTiming: timing,
     pulmonaryAccelerationTimeSec:
       cyclicDurationV1(samples, pulmonaryOpening, pulmonaryPeakIndex),
+    pulmonaryValve: Object.freeze({
+      forwardDurationSec,
+      maximumFlowMlPerSec: Math.max(...pulmonaryFlow),
+      meanGradientMmHg: samples.reduce((sum, sample, index) =>
+        sum + (pulmonaryOpen[index]
+          ? gradients[index]! * sample.acceptedDtSec
+          : 0), 0) / forwardDurationSec,
+      peakGradientMmHg: Math.max(
+        ...gradients.filter((_, index) => pulmonaryOpen[index]),
+      ),
+    }),
     pulmonaryValveProminentPeakCount:
       prominentPeakCountV1(pulmonaryFlow),
     pulmonaryArteryProminentPeakCount: prominentPeakCountV1(
       samples.map((sample) => sample.absolutePressureMmHg.PA),
     ),
     pulmonaryArteryMmHg: Object.freeze({
-      minimum: Math.min(...samples.map((sample) =>
-        sample.absolutePressureMmHg.PA)),
-      maximum: Math.max(...samples.map((sample) =>
-        sample.absolutePressureMmHg.PA)),
+      minimum: Math.min(...pulmonaryPressure),
+      maximum: Math.max(...pulmonaryPressure),
+      postClosureRebound: postClosureReboundV1(
+        samples,
+        pulmonaryPressure,
+        pulmonaryClosure,
+        pulmonaryOpening,
+      ),
+    }),
+    localLinearizedRootMode: Object.freeze({
+      meanPaMmHg: meanPa,
+      partPressureApproximation:
+        "mean PArt approximated by mean PA for local screening only",
+      differentialComplianceMlPerMmHg: differentialCompliance,
+      dampingRatio,
+      dampedNaturalPeriodSec:
+        inertanceMmHgSec2PerMl === 0 || dampingRatio === null
+          ? null
+          : dampingRatio >= 1
+            ? null
+            : 2 * Math.PI / (
+                Math.sqrt(1 / (
+                  inertanceMmHgSec2PerMl * differentialCompliance
+                )) * Math.sqrt(1 - dampingRatio ** 2)
+              ),
+    }),
+    leftGateReadback: Object.freeze({
+      aorticValve: baseline.aorticValve,
+      leftVentricle: baseline.leftVentricle,
+      mitralFlow: baseline.mitralFlow,
+      timing: baseline.timing,
     }),
   });
+}
+
+function postClosureReboundV1(
+  samples: readonly Sample[],
+  pressure: readonly number[],
+  closure: number,
+  nextOpening: number,
+) {
+  let runningMinimum = Number.POSITIVE_INFINITY;
+  let rebound = 0;
+  for (let offset = 0; offset < samples.length; offset += 1) {
+    const index = (closure + offset) % samples.length;
+    if (index === nextOpening) break;
+    runningMinimum = Math.min(runningMinimum, pressure[index]!);
+    rebound = Math.max(rebound, pressure[index]! - runningMinimum);
+  }
+  return rebound;
 }
 
 function rightTimingV1(samples: readonly Sample[]) {

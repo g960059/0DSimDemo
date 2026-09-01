@@ -1,6 +1,7 @@
 import {
   MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1,
   MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1_ID,
+  type MainWireAlgebraicPulmonaryArterialRootProfileV1,
 } from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
@@ -66,6 +67,7 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
   requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   ventricularContractilityScale = 1,
   requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+  pulmonaryRootProfile: MainWireAlgebraicPulmonaryArterialRootProfileV1 = MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1,
 ) {
   const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
     requestedHemodynamicResearchInputs,
@@ -94,7 +96,7 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
         arterialStiffness:
           prepared.hemodynamicResearchInputs.arterialStiffness,
         algebraicPulmonaryArterialRootProfile:
-          MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1,
+          pulmonaryRootProfile,
       }),
       createCalciumDriveParams: () =>
         resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
