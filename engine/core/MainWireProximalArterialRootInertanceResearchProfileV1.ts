@@ -3,7 +3,22 @@ export const MAIN_WIRE_PROXIMAL_ARTERIAL_ROOT_INERTANCE_RESEARCH_PROFILE_V1_ID =
 
 export type MainWireProximalArterialRootInertanceResearchModeV1 =
   | "source-inertance"
+  | "three-quarter-inertance"
+  | "one-half-inertance"
+  | "one-quarter-inertance"
+  | "one-eighth-inertance"
   | "resistive-root";
+
+export const MAIN_WIRE_PROXIMAL_ARTERIAL_ROOT_INERTANCE_RESEARCH_MODES_V1 =
+  Object.freeze([
+    "source-inertance",
+    "three-quarter-inertance",
+    "one-half-inertance",
+    "one-quarter-inertance",
+    "one-eighth-inertance",
+    "resistive-root",
+  ] as const satisfies readonly
+    MainWireProximalArterialRootInertanceResearchModeV1[]);
 
 export type MainWireProximalArterialRootInertanceResearchProfileV1 =
   Readonly<{
@@ -16,11 +31,11 @@ export type MainWireProximalArterialRootInertanceResearchProfileV1 =
   }>;
 
 /**
- * Research-only causal ablation. A resistive root uses the same R and B but
- * sets L=0 in both the primal flow law and analytic tangent. The V1 accepted
- * record still carries the resulting algebraic flow as a compatibility cache;
- * it is not used as q_n by a resistive root. A promotable exact model requires
- * a new state/checkpoint schema that removes that redundant cache.
+ * Research-only causal bracket. Every non-source level scales the single
+ * graph-owned proximal-root inertance in both the primal flow law and analytic
+ * tangent while preserving R, B, compliance, and the valve law. A resistive
+ * root sets L=0. Its accepted record still carries the resulting algebraic
+ * flow as a compatibility cache; it is not used as q_n by that root.
  */
 export function createMainWireProximalArterialRootInertanceResearchProfileV1(
   input: Readonly<{
@@ -79,7 +94,8 @@ export function validateMainWireProximalArterialRootInertanceResearchProfileV1(
     ["aorticRootMode", input.aorticRootMode],
     ["pulmonaryRootMode", input.pulmonaryRootMode],
   ] as const) {
-    if (value !== "source-inertance" && value !== "resistive-root") {
+    if (!MAIN_WIRE_PROXIMAL_ARTERIAL_ROOT_INERTANCE_RESEARCH_MODES_V1
+      .includes(value)) {
       issues.push(`proximal arterial root research ${name} is invalid`);
     }
   }
@@ -90,7 +106,21 @@ function requireMode(
   value: MainWireProximalArterialRootInertanceResearchModeV1,
   name: string,
 ): void {
-  if (value !== "source-inertance" && value !== "resistive-root") {
+  if (!MAIN_WIRE_PROXIMAL_ARTERIAL_ROOT_INERTANCE_RESEARCH_MODES_V1
+    .includes(value)) {
     throw new Error(`proximal arterial root research ${name} is invalid`);
+  }
+}
+
+export function mainWireProximalArterialRootInertanceScaleFromModeV1(
+  mode: MainWireProximalArterialRootInertanceResearchModeV1,
+): number {
+  switch (mode) {
+    case "source-inertance": return 1;
+    case "three-quarter-inertance": return 0.75;
+    case "one-half-inertance": return 0.5;
+    case "one-quarter-inertance": return 0.25;
+    case "one-eighth-inertance": return 0.125;
+    case "resistive-root": return 0;
   }
 }

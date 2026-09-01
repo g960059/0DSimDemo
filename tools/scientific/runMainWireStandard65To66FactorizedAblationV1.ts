@@ -6,6 +6,7 @@ import {
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
   createMainWireProximalArterialRootInertanceResearchProfileV1,
+  type MainWireProximalArterialRootInertanceResearchModeV1,
 } from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
 import {
   MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1,
@@ -46,6 +47,15 @@ type SignalId =
 
 const requestedArmId = argument("--arm");
 const rootAblation = rootAblationArgument();
+const customAorticRootMode = optionalRootModeArgument("--aortic-root-mode");
+const customPulmonaryRootMode = optionalRootModeArgument(
+  "--pulmonary-root-mode",
+);
+const rootModes = resolveRootModes(
+  rootAblation,
+  customAorticRootMode,
+  customPulmonaryRootMode,
+);
 const pulmonaryRootResistance = pulmonaryRootResistanceArgument();
 const pulmonaryValveLocalInertance = pulmonaryValveLocalInertanceArgument();
 const ventricularMaterialByWall = ventricularMaterialByWallArgument();
@@ -56,9 +66,13 @@ const rightHeartMechanicsScreen = resolveRightHeartMechanicsScreen(
   numberArgument("--rvfw-active-scale", 1),
   numberArgument("--rvfw-passive-scale", 1),
 );
-const rootQualifiedArmId = rootAblation === "source"
-  ? requestedArmId
-  : `${requestedArmId}-root-${rootAblation}`;
+const rootQualifiedArmId =
+  customAorticRootMode === null && customPulmonaryRootMode === null
+    ? rootAblation === "source"
+      ? requestedArmId
+      : `${requestedArmId}-root-${rootAblation}`
+    : `${requestedArmId}-aortic-root-${rootModes.aorticRootMode}`
+      + `-pulmonary-root-${rootModes.pulmonaryRootMode}`;
 const resistanceQualifiedArmId = pulmonaryRootResistance === "source"
   ? rootQualifiedArmId
   : `${rootQualifiedArmId}-pulmonary-r-${pulmonaryRootResistance}`;
@@ -87,7 +101,7 @@ const outputPath = path.resolve(argument(
 ));
 const construction = resolveConstruction(
   requestedArmId,
-  rootAblation,
+  rootModes,
   pulmonaryRootResistance,
   pulmonaryValveLocalInertance,
   ventricularMaterialByWall,
@@ -1042,11 +1056,10 @@ function keyMetricChange(
 
 function resolveConstruction(
   arm: string,
-  rootAblation:
-    | "source"
-    | "aortic-resistive"
-    | "pulmonary-resistive"
-    | "both-resistive",
+  rootModes: Readonly<{
+    aorticRootMode: MainWireProximalArterialRootInertanceResearchModeV1;
+    pulmonaryRootMode: MainWireProximalArterialRootInertanceResearchModeV1;
+  }>,
   pulmonaryRootResistance: "source" | "normal-zc",
   pulmonaryValveLocalInertance:
     | "off"
@@ -1056,7 +1069,8 @@ function resolveConstruction(
 ) {
   if (arm === "official-standard65") {
     if (
-      rootAblation !== "source"
+      rootModes.aorticRootMode !== "source-inertance"
+      || rootModes.pulmonaryRootMode !== "source-inertance"
       || pulmonaryRootResistance !== "source"
       || pulmonaryValveLocalInertance !== "off"
       || ventricularMaterialByWall !== null
@@ -1077,7 +1091,8 @@ function resolveConstruction(
   }
   if (arm === "official-standard66") {
     if (
-      rootAblation !== "source"
+      rootModes.aorticRootMode !== "source-inertance"
+      || rootModes.pulmonaryRootMode !== "source-inertance"
       || pulmonaryRootResistance !== "source"
       || pulmonaryValveLocalInertance !== "off"
       || ventricularMaterialByWall !== null
@@ -1119,24 +1134,14 @@ function resolveConstruction(
       "wall-factorized material research uses the m66 arm as its declared superseded axis",
     );
   }
-  const proximalRootResearchProfile = rootAblation === "source"
+  const proximalRootResearchProfile =
+    rootModes.aorticRootMode === "source-inertance"
+      && rootModes.pulmonaryRootMode === "source-inertance"
     ? null
-    : createMainWireProximalArterialRootInertanceResearchProfileV1({
-        aorticRootMode:
-          rootAblation === "aortic-resistive"
-            || rootAblation === "both-resistive"
-            ? "resistive-root"
-            : "source-inertance",
-        pulmonaryRootMode:
-          rootAblation === "pulmonary-resistive"
-            || rootAblation === "both-resistive"
-            ? "resistive-root"
-            : "source-inertance",
-      });
+    : createMainWireProximalArterialRootInertanceResearchProfileV1(rootModes);
   if (
     pulmonaryRootResistance === "normal-zc"
-    && rootAblation !== "pulmonary-resistive"
-    && rootAblation !== "both-resistive"
+    && rootModes.pulmonaryRootMode !== "resistive-root"
   ) {
     throw new Error(
       "normal pulmonary Zc resistance requires pulmonary-resistive or both-resistive root mode",
@@ -1144,8 +1149,7 @@ function resolveConstruction(
   }
   if (
     pulmonaryValveLocalInertance !== "off"
-    && rootAblation !== "pulmonary-resistive"
-    && rootAblation !== "both-resistive"
+    && rootModes.pulmonaryRootMode !== "resistive-root"
   ) {
     throw new Error(
       "PV local inertance requires pulmonary-resistive or both-resistive root mode",
@@ -1184,6 +1188,59 @@ function rootAblationArgument():
   ) {
     throw new Error(
       "--root must be source, aortic-resistive, pulmonary-resistive, or both-resistive",
+    );
+  }
+  return value;
+}
+
+function resolveRootModes(
+  rootAblation: ReturnType<typeof rootAblationArgument>,
+  customAorticRootMode:
+    MainWireProximalArterialRootInertanceResearchModeV1 | null,
+  customPulmonaryRootMode:
+    MainWireProximalArterialRootInertanceResearchModeV1 | null,
+) {
+  if (
+    rootAblation !== "source"
+    && (customAorticRootMode !== null || customPulmonaryRootMode !== null)
+  ) {
+    throw new Error(
+      "--root cannot be combined with explicit --aortic-root-mode or --pulmonary-root-mode",
+    );
+  }
+  if (customAorticRootMode !== null || customPulmonaryRootMode !== null) {
+    return Object.freeze({
+      aorticRootMode: customAorticRootMode ?? "source-inertance",
+      pulmonaryRootMode: customPulmonaryRootMode ?? "source-inertance",
+    });
+  }
+  return Object.freeze({
+    aorticRootMode:
+      rootAblation === "aortic-resistive" || rootAblation === "both-resistive"
+        ? "resistive-root" as const
+        : "source-inertance" as const,
+    pulmonaryRootMode:
+      rootAblation === "pulmonary-resistive" || rootAblation === "both-resistive"
+        ? "resistive-root" as const
+        : "source-inertance" as const,
+  });
+}
+
+function optionalRootModeArgument(
+  name: "--aortic-root-mode" | "--pulmonary-root-mode",
+): MainWireProximalArterialRootInertanceResearchModeV1 | null {
+  const value = optionalArgument(name);
+  if (value === null) return null;
+  if (
+    value !== "source-inertance"
+    && value !== "three-quarter-inertance"
+    && value !== "one-half-inertance"
+    && value !== "one-quarter-inertance"
+    && value !== "one-eighth-inertance"
+    && value !== "resistive-root"
+  ) {
+    throw new Error(
+      `${name} must be source, three-quarter, one-half, one-quarter, one-eighth, or resistive`,
     );
   }
   return value;

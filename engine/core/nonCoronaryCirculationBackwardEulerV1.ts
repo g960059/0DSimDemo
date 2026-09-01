@@ -22,6 +22,7 @@ import {
   validateMainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  mainWireProximalArterialRootInertanceScaleFromModeV1,
   validateMainWireProximalArterialRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
 import {
@@ -5190,25 +5191,26 @@ function nonCoronaryDynamicEdgeInertanceV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   areaRatio: number,
 ): number {
-  const rootResearch = runtime.vascular
-    .proximalArterialRootInertanceResearchProfile;
-  if (
-    rootResearch !== undefined
-    && (
-      (edgeName === "Ao_SA"
-        && rootResearch.aorticRootMode === "resistive-root")
-      || (edgeName === "PA_PArt"
-        && rootResearch.pulmonaryRootMode === "resistive-root")
-    )
-  ) return 0;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
-  if (
+  const sourceInertanceMmHgSec2PerMl =
     selectedProfile !== undefined
     && edgeName === selectedProfile.sourceDynamicEdgeId
-  ) return selectedProfile.ascendingAorticInertanceMmHgSec2PerMl;
-  return (edge.L ?? 0) / (
-    edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1
-  );
+      ? selectedProfile.ascendingAorticInertanceMmHgSec2PerMl
+      : (edge.L ?? 0) / (
+          edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1
+        );
+  const rootResearch = runtime.vascular
+    .proximalArterialRootInertanceResearchProfile;
+  if (rootResearch === undefined) return sourceInertanceMmHgSec2PerMl;
+  const mode = edgeName === "Ao_SA"
+    ? rootResearch.aorticRootMode
+    : edgeName === "PA_PArt"
+      ? rootResearch.pulmonaryRootMode
+      : null;
+  return mode === null
+    ? sourceInertanceMmHgSec2PerMl
+    : sourceInertanceMmHgSec2PerMl
+      * mainWireProximalArterialRootInertanceScaleFromModeV1(mode);
 }
 
 function applyProtocolResistanceScale<
