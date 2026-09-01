@@ -49584,7 +49584,7 @@ const SELECTED_STANDARD66_EXACT_VARIANT_V1 = Object.freeze({
   checkpointFixturePairing: "selected-aortic-outflow-complete-fixture-and-profile-identity",
   proximalArterialRootsProfileId: null
 });
-Object.freeze({
+const SELECTED_STANDARD67_EXACT_VARIANT_V1 = Object.freeze({
   generation: 67,
   label: "Standard67",
   modelId: MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
@@ -50167,17 +50167,17 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     return this.currentFrame(runtimeSessionId, scenarioId);
   }
 }
-function createCircleHeartExactModelReleaseV1() {
+function createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1() {
   const host = new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
-    SELECTED_STANDARD66_EXACT_VARIANT_V1
+    SELECTED_STANDARD67_EXACT_VARIANT_V1
   );
   return Object.freeze({
     manifest: createSelectedExactKernelV1(
-      SELECTED_STANDARD66_EXACT_VARIANT_V1
+      SELECTED_STANDARD67_EXACT_VARIANT_V1
     ),
     executables: selectedExecutableBundleV1(
       host,
-      SELECTED_STANDARD66_EXACT_VARIANT_V1
+      SELECTED_STANDARD67_EXACT_VARIANT_V1
     )
   });
 }
@@ -50665,5 +50665,5 @@ function selectedAdvanceFailureMessageV1(advance) {
   return advance.status === "failed" ? `Selected Standard66 presentation step failed: ${advance.reason}: ${advance.message}` : "Selected Standard66 presentation step did not advance";
 }
 export {
-  createCircleHeartExactModelReleaseV1
+  createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1 as createCircleHeartExactModelReleaseV1
 };
