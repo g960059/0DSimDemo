@@ -18,13 +18,18 @@ const UUID_RESOURCE_ID =
 const EXPERIMENT_RESOURCE_ID =
   `(?:${UUID_RESOURCE_ID}|experiment-[A-Za-z0-9_-]+)`;
 
-async function expectFormalPvaDrawingAvailable(
+async function expectFormalPvaProgressOrResult(
   pvCanvas: Locator,
 ): Promise<void> {
-  await expect.poll(async () => pvCanvas.evaluate((element) => (
-    Number(element.getAttribute("data-pva-result-count")) > 0
-      || Number(element.getAttribute("data-pva-drawing-count")) > 0
-  )), { timeout: 90_000 }).toBe(true);
+  await expect.poll(async () => pvCanvas.evaluate((element) => {
+    if (Number(element.getAttribute("data-pva-result-count")) > 0) {
+      return true;
+    }
+    const status = element.querySelector('[role="status"]')?.textContent ?? "";
+    return /(?:PVA analysis|PVA preview ·|ESPVR \/ EDPVR preview ·|PVA ready · Starling extension) [1-9]\d* settled points/.test(
+      status,
+    );
+  }), { timeout: 90_000 }).toBe(true);
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
@@ -147,9 +152,10 @@ test("@desktop production Standard68 inherits the complete analysis Surface", as
     "area-max-common-isochrone-espvr-exponential-edpvr",
     { timeout: 90_000 },
   );
-  // Browser smoke owns a visible formal relation, not a wall-clock completion
-  // SLA for the full family. Exact integration tests own the completed result.
-  await expectFormalPvaDrawingAvailable(pvCanvas);
+  // Browser smoke owns worker wiring and at least one settled formal branch,
+  // not a wall-clock completion SLA for the full family. Exact integration
+  // tests own the complete relation and pressure-volume loops.
+  await expectFormalPvaProgressOrResult(pvCanvas);
 
   await pressureTab.locator(".workbench-dock-tab").click();
   await expect(pressureTab).toHaveClass(/dv-active-tab/);
@@ -355,7 +361,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
       '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
     ),
   ).toBeVisible();
-  await expectFormalPvaDrawingAvailable(
+  await expectFormalPvaProgressOrResult(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
   );
 
