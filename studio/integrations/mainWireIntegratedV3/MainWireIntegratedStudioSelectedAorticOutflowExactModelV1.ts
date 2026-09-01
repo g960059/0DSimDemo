@@ -839,6 +839,9 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
                 `Selected ${this.#variant.label} analysis partition is not registered: ${analysisPartition}`,
               );
             })();
+    let acceptedStepReadbackObservation:
+      MainWireIntegratedModelObservationV3 | undefined =
+      observation.lastAcceptedStep === null ? undefined : observation;
     const toAnalysis = (
       starling:
         | Awaited<ReturnType<
@@ -850,11 +853,15 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         | null,
       sourceObservation?: MainWireIntegratedModelObservationV3,
     ): StudioSimulationAnalysisV2 => {
+      const anchorObservation = starling?.anchorObservation;
+      const analysisObservation =
+        anchorObservation !== undefined &&
+          anchorObservation.lastAcceptedStep !== null
+          ? anchorObservation
+          : sourceObservation ?? acceptedStepReadbackObservation ?? observation;
       const payload = validateAndOwnStudioSimulationPortableJsonV2(
         buildMainWireIntegratedModelGuytonStarlingOrientationV3(
-          starling?.anchorObservation
-            ?? sourceObservation
-            ?? observation,
+          analysisObservation,
           scenario.fixture.hemodynamicResearchInputs,
           starling === null
             ? undefined
@@ -901,6 +908,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         previewAcceptedTimeSec + SELECTED_PRESENTATION_DT_SEC_V1,
       );
       if (previewAdvance.status === "advanced") {
+        acceptedStepReadbackObservation = previewAdvance.observation;
         onProgress?.(toAnalysis(null, previewAdvance.observation));
       }
       analysisSource = await restoreSelectedAnalysisSessionV1(
@@ -917,15 +925,19 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
           analysisSource,
           scenario.fixture.hemodynamicResearchInputs,
-          (progress) => onProgress?.(toAnalysis(progress)),
+          (progress) => onProgress?.(
+            toAnalysis(progress, acceptedStepReadbackObservation),
+          ),
           responsivePartition,
         )
       : runMainWireIntegratedModelResponsiveStarlingProtocolV3(
           analysisSource,
-          (progress) => onProgress?.(toAnalysis(progress)),
+          (progress) => onProgress?.(
+            toAnalysis(progress, acceptedStepReadbackObservation),
+          ),
           responsivePartition,
         );
-    return toAnalysis(starling);
+    return toAnalysis(starling, acceptedStepReadbackObservation);
   }
 
   async captureDesiredContent(

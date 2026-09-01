@@ -10,6 +10,10 @@ import type {
   MainWireIntegratedModelPressureVolumeLandmarkV3,
   MainWireIntegratedModelVentricularPressureVolumeLandmarksV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import type {
+  MainWireIntegratedModelOutputIdV3,
+  MainWireIntegratedModelOutputValueV3,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   type MainWireIntegratedModelObservationV3,
   type MainWireIntegratedModelSessionV3,
@@ -71,6 +75,14 @@ export interface MainWireIntegratedModelStructuralAnalysisSessionV3 {
   advanceStructuralAnalysisToPresentationTimeV1?(
     targetTimeSec: number,
   ): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>;
+  /**
+   * Optional exact-model projection seam for lean accepted steps, where the
+   * large internal step object is deliberately not retained. Analysis owns
+   * the derived loop; the model only supplies clock-matched primitive values.
+   */
+  projectCurrentAcceptedValuesV1?(
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>>;
   forkAtFixedGlobalTotalBloodVolume(
     targetGlobalTotalBloodVolumeMl: number,
   ): MainWireIntegratedModelStructuralAnalysisSessionV3;
@@ -86,6 +98,32 @@ function advanceStructuralAnalysisSessionV3(
   return session.advanceStructuralAnalysisToPresentationTimeV1?.(
     targetTimeSec,
   ) ?? session.advanceToPresentationTime(targetTimeSec);
+}
+
+type AdvancedStructuralAnalysisStepV3 = Extract<
+  ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>,
+  Readonly<{ status: "advanced" }>
+>;
+
+function attemptStructuralAnalysisAdvanceV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  targetTimeSec: number,
+):
+  | Readonly<{ status: "advanced"; advance: AdvancedStructuralAnalysisStepV3 }>
+  | RejectedBranchV3 {
+  try {
+    const advance = advanceStructuralAnalysisSessionV3(session, targetTimeSec);
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed"
+          ? advance.message
+          : `unexpected structural analysis advance status ${advance.status}`,
+      );
+    }
+    return Object.freeze({ status: "advanced" as const, advance });
+  } catch (error) {
+    return rejectedV3(error);
+  }
 }
 
 /**
@@ -191,6 +229,12 @@ const DESCENDING_LIMB_ABSOLUTE_DROP_L_PER_MIN_V3 = 0.15;
 const DESCENDING_LIMB_RELATIVE_DROP_V3 = 0.03;
 const DESCENDING_LIMB_STEP_TOLERANCE_L_PER_MIN_V3 = 0.01;
 const MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 = 12;
+const STRUCTURAL_PRESSURE_VOLUME_OUTPUT_IDS_V3 = Object.freeze([
+  "hemodynamics.volume.LV",
+  "hemodynamics.pressure.transmural.LV",
+  "hemodynamics.volume.RV",
+  "hemodynamics.pressure.transmural.RV",
+] as const satisfies readonly MainWireIntegratedModelOutputIdV3[]);
 
 type StarlingPairV3 = Readonly<{
   right: MainWireIntegratedModelStarlingPointV3;
@@ -214,8 +258,9 @@ class FixedTbvPressureVolumeLoopCollectorV3 {
 
   accept(
     observation: MainWireIntegratedModelObservationV3,
+    session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
   ): PressureVolumeLoopPairV3 | null {
-    const sample = pressureVolumeSamplePairV3(observation);
+    const sample = pressureVolumeSamplePairV3(observation, session);
     const nextCompletedBeatId =
       observation.completedBeatMetrics?.endAtrialCaptureId ?? null;
     if (sample === null || nextCompletedBeatId === null) return null;
@@ -253,8 +298,9 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
 
   accept(
     observation: MainWireIntegratedModelObservationV3,
+    session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
   ): CompletedPressureVolumeBeatPairV3 | null {
-    const sample = formalPressureVolumeSamplePairV3(observation);
+    const sample = formalPressureVolumeSamplePairV3(observation, session);
     if (sample === null) return null;
     if (this.previousPhase01 === null) {
       this.previousPhase01 = sample.left.phase01!;
@@ -290,10 +336,13 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
 
 function pressureVolumeSamplePairV3(
   observation: MainWireIntegratedModelObservationV3,
+  session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
 ): Readonly<{
   left: MainWireIntegratedModelPressureVolumeLoopPointV3;
   right: MainWireIntegratedModelPressureVolumeLoopPointV3;
 }> | null {
+  const projected = projectedPressureVolumeSamplePairV3(session);
+  if (projected !== null) return projected;
   const step = observation.lastAcceptedStep;
   if (step === null) return null;
   const volumes = observation.acceptedState.coronary.circulation.nodeVolumesMl;
@@ -321,15 +370,54 @@ function pressureVolumeSamplePairV3(
   return pair;
 }
 
+function projectedPressureVolumeSamplePairV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3 | undefined,
+): Readonly<{
+  left: MainWireIntegratedModelPressureVolumeLoopPointV3;
+  right: MainWireIntegratedModelPressureVolumeLoopPointV3;
+}> | null {
+  if (session?.projectCurrentAcceptedValuesV1 === undefined) return null;
+  const values = session.projectCurrentAcceptedValuesV1(
+    STRUCTURAL_PRESSURE_VOLUME_OUTPUT_IDS_V3,
+  );
+  const scalar = (outputId: MainWireIntegratedModelOutputIdV3) => {
+    const value = values[outputId];
+    return value?.availability === "available" &&
+        typeof value.value === "number" && Number.isFinite(value.value)
+      ? value.value
+      : null;
+  };
+  const leftVolumeMl = scalar("hemodynamics.volume.LV");
+  const leftPressureMmHg = scalar("hemodynamics.pressure.transmural.LV");
+  const rightVolumeMl = scalar("hemodynamics.volume.RV");
+  const rightPressureMmHg = scalar("hemodynamics.pressure.transmural.RV");
+  if (
+    leftVolumeMl === null || leftPressureMmHg === null ||
+    rightVolumeMl === null || rightPressureMmHg === null
+  )
+    return null;
+  return Object.freeze({
+    left: Object.freeze({
+      volumeMl: leftVolumeMl,
+      pressureMmHg: leftPressureMmHg,
+    }),
+    right: Object.freeze({
+      volumeMl: rightVolumeMl,
+      pressureMmHg: rightPressureMmHg,
+    }),
+  });
+}
+
 function formalPressureVolumeSamplePairV3(
   observation: MainWireIntegratedModelObservationV3,
+  session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
 ): Readonly<{
   left: MainWireIntegratedModelPressureVolumeLoopPointV3 &
     Readonly<{ phase01: number }>;
   right: MainWireIntegratedModelPressureVolumeLoopPointV3 &
     Readonly<{ phase01: number }>;
 }> | null {
-  const pair = pressureVolumeSamplePairV3(observation);
+  const pair = pressureVolumeSamplePairV3(observation, session);
   const completedBeat = observation.completedBeatMetrics;
   if (pair === null || completedBeat === null) return null;
   const elapsedSinceLastCaptureSec =
@@ -626,17 +714,12 @@ function settleFormalPressureVolumeSourceV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = advanceStructuralAnalysisSessionV3(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
       branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected formal source-settlement status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (
@@ -1023,17 +1106,12 @@ async function advanceFormalHotStartBridgeV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = advanceStructuralAnalysisSessionV3(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
       branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected formal bridge status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (
@@ -1359,17 +1437,12 @@ async function measureFormalPressureVolumeBranchV3(
         MAXIMUM_MEASUREMENT_DURATION_SEC_V3
       )
         break;
-      const advance = advanceStructuralAnalysisSessionV3(
+      const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
         branch,
         acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
       );
-      if (advance.status !== "advanced") {
-        return rejectedV3(
-          advance.status === "failed"
-            ? advance.message
-            : `unexpected formal measurement advance status ${advance.status}`,
-        );
-      }
+      if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+      const advance = attemptedAdvance.advance;
       const acceptedTbvMl =
         advance.observation.acceptedState.coronary
           .fixedGlobalTotalBloodVolumeMl;
@@ -1380,6 +1453,7 @@ async function measureFormalPressureVolumeBranchV3(
       }
       const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
         advance.observation,
+        branch,
       );
       if (completedPressureVolumeLoop !== null) {
         pressureVolumeBeats.push(completedPressureVolumeLoop);
@@ -1393,12 +1467,19 @@ async function measureFormalPressureVolumeBranchV3(
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+      if (locallyConverged) {
+        // An exact checkpoint intentionally omits the analysis-only completed
+        // beat readback.  In that case the formal phase collector must first
+        // discard a partial cycle and can lag the closure gate by one beat.
+        // Preserve strict period-1 evidence, but continue for the one bounded
+        // cycle needed to retain an actual pressure-volume loop.
+        if (pressureVolumeBeats.length > 0) break;
+      } else if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
         if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
           locallyConverged = true;
-          break;
+          if (pressureVolumeBeats.length > 0) break;
         }
-        if (
+        else if (
           beats.length >= 5 &&
           period2DetectedV3(beats, formalBeatPairClosureScoreV3)
         ) {
@@ -1411,7 +1492,11 @@ async function measureFormalPressureVolumeBranchV3(
         role === "operating-anchor"
           ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
           : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
-      if (beats.length >= maximumBeatCount) break;
+      if (
+        beats.length >= maximumBeatCount &&
+        (!locallyConverged || pressureVolumeBeats.length > 0)
+      )
+        break;
     }
     if (!locallyConverged) {
       const previousScore =
@@ -1523,17 +1608,12 @@ function measureBranchV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = advanceStructuralAnalysisSessionV3(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
       branch,
       acceptedTimeSec + RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected advance status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3)
@@ -1541,6 +1621,7 @@ function measureBranchV3(
 
     const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
       advance.observation,
+      branch,
     );
     if (completedPressureVolumeLoop !== null) {
       pressureVolumeLoops.push(completedPressureVolumeLoop);

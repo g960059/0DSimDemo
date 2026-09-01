@@ -308,63 +308,163 @@ describe("algebraic proximal-roots Standard67 Studio exact adapter V1", () => {
     }
   }, 120_000);
 
-  it("measures the Standard67 formal lower-preload PV family on an isolated checkpoint fork", async () => {
-    const release =
-      createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1();
-    const runtimeSessionId = "formal-pv/standard67";
-    const scenarioId = "baseline";
-    await release.executables.simulationAdapter.createSession({
-      runtimeSessionId,
-      scenarios: [{
-        scenarioId,
-        fixture:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
-      }],
-    });
-    const source =
-      await release.executables.simulationAdapter.advanceOnePresentationStep({
-        runtimeSessionId,
+  it.each([
+    {
+      label: "lower-preload",
+      partition:
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      minimumProgressCount: 4,
+      minimumPointCount: 4,
+    },
+    {
+      label: "upper-preload",
+      partition:
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+      minimumProgressCount: 2,
+      minimumPointCount: 2,
+    },
+  ] as const)(
+    "measures the Standard67 formal $label PV family after an exact checkpoint restore",
+    async ({ label, partition, minimumProgressCount, minimumPointCount }) => {
+      const artifactModule = await import(
+        /* @vite-ignore */
+        new URL(
+          "../studio/integrations/mainWireIntegratedV3/" +
+            "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.artifact.mjs",
+          import.meta.url,
+        ).href
+      );
+      const release = artifactModule.createCircleHeartExactModelReleaseV1() as
+        ReturnType<typeof createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1>;
+      const model = exactContractV1();
+      const sourceRuntimeSessionId = `formal-pv/standard67/${label}/source`;
+      const scenarioId = "baseline";
+      await release.executables.simulationAdapter.createSession({
+        runtimeSessionId: sourceRuntimeSessionId,
+        scenarios: [{
+          scenarioId,
+          fixture:
+            MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+        }],
+      });
+      let source = release.executables.simulationAdapter.currentFrame({
+        runtimeSessionId: sourceRuntimeSessionId,
         scenarioId,
       });
-    const progress: unknown[] = [];
-    const analysis = await release.executables.simulationAdapter.requestAnalysis({
-      runtimeSessionId,
-      scenarioId,
-      analysisId:
-        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-      expectedInputEpoch: source.inputEpoch,
-      expectedAcceptedRevision: source.acceptedRevision,
-      expectedAcceptedTimeSec: source.acceptedTimeSec,
-      analysisPartition:
-        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-      onProgress: (partial) => progress.push(partial),
-    });
-    const payload = analysis.payload as unknown as Readonly<{
-      left: Readonly<{
-        starlingLocus: Readonly<{
-          status: string;
-          points: readonly Readonly<{
-            ventricularPressureVolumeLoop: readonly unknown[];
-          }>[];
+      let previousPhase = source.outputs["rhythm.phase.regular-sinus"]!
+        .value as number;
+      let completedCycleCount = 0;
+      for (
+        let ordinal = 0;
+        ordinal < 2_000 && completedCycleCount < 3;
+        ordinal += 1
+      ) {
+        const next =
+          await release.executables.simulationAdapter.advanceOnePresentationStep({
+            runtimeSessionId: sourceRuntimeSessionId,
+            scenarioId,
+          });
+        const nextPhase = next.outputs["rhythm.phase.regular-sinus"]!
+          .value as number;
+        if (nextPhase + 0.5 < previousPhase) completedCycleCount += 1;
+        previousPhase = nextPhase;
+        source = next;
+      }
+      expect(completedCycleCount).toBe(3);
+      const captured = await release.executables.experimentCapture
+        .captureAcceptedCandidate({
+          experimentId: `formal-pv-standard67-${label}-experiment`,
+          model,
+          desiredContent: {
+            modelId:
+              MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+            surfaceSeriesId: "standard67-surface-series",
+            scenarios: [{
+              scenarioId,
+              label: "Baseline",
+              fixture:
+                MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+            }],
+            surface: emptySurfaceV1(),
+          },
+          correlation: {
+            runtimeSessionId: sourceRuntimeSessionId,
+            scenarios: [{ scenarioId, expectedInputEpoch: source.inputEpoch }],
+          },
+        });
+      const restoredRuntimeSessionId = `formal-pv/standard67/${label}/restored`;
+      await release.executables.simulationAdapter.createSession({
+        runtimeSessionId: restoredRuntimeSessionId,
+        scenarios: [{
+          scenarioId,
+          fixture: captured.content.scenarios[0]!.capture.fixture,
+          checkpoint: captured.content.scenarios[0]!.capture.checkpoint,
+        }],
+      });
+      const restored = release.executables.simulationAdapter.currentFrame({
+        runtimeSessionId: restoredRuntimeSessionId,
+        scenarioId,
+      });
+      expect(restored).toMatchObject({
+        modelId: source.modelId,
+        runtimeSessionId: restoredRuntimeSessionId,
+        scenarioId,
+        inputEpoch: source.inputEpoch,
+        acceptedRevision: source.acceptedRevision,
+        acceptedTimeSec: source.acceptedTimeSec,
+      });
+      const progress: unknown[] = [];
+      const analysis =
+        await release.executables.simulationAdapter.requestAnalysis({
+          runtimeSessionId: restoredRuntimeSessionId,
+          scenarioId,
+          analysisId:
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+          expectedInputEpoch: restored.inputEpoch,
+          expectedAcceptedRevision: restored.acceptedRevision,
+          expectedAcceptedTimeSec: restored.acceptedTimeSec,
+          analysisPartition: partition,
+          onProgress: (partial) => progress.push(partial),
+        });
+      const payload = analysis.payload as unknown as Readonly<{
+        left: Readonly<{
+          starlingLocus: Readonly<{
+            status: string;
+            points: readonly Readonly<{
+              ventricularPressureVolumeLoop: readonly unknown[];
+            }>[];
+          }>;
         }>;
       }>;
-    }>;
 
-    expect(progress.length).toBeGreaterThan(3);
-    expect(payload.left.starlingLocus.status).toBe(
-      "measured-fixed-tbv-protocol",
-    );
-    expect(payload.left.starlingLocus.points.length).toBeGreaterThanOrEqual(4);
-    expect(payload.left.starlingLocus.points.every(
-      ({ ventricularPressureVolumeLoop }) =>
-        ventricularPressureVolumeLoop.length >= 12,
-    )).toBe(true);
-    expect(release.executables.simulationAdapter.currentFrame({
-      runtimeSessionId,
-      scenarioId,
-    })).toEqual(source);
-    release.executables.simulationAdapter.disposeSession(runtimeSessionId);
-  }, 240_000);
+      expect(progress.length).toBeGreaterThanOrEqual(minimumProgressCount);
+      expect(payload.left.starlingLocus.status).toBe(
+        "measured-fixed-tbv-protocol",
+      );
+      expect(payload.left.starlingLocus.points.length).toBeGreaterThanOrEqual(
+        minimumPointCount,
+      );
+      expect(
+        payload.left.starlingLocus.points.every(
+          ({ ventricularPressureVolumeLoop }) =>
+            ventricularPressureVolumeLoop.length >= 12,
+        ),
+      ).toBe(true);
+      expect(
+        release.executables.simulationAdapter.currentFrame({
+          runtimeSessionId: restoredRuntimeSessionId,
+          scenarioId,
+        }),
+      ).toEqual(restored);
+      release.executables.simulationAdapter.disposeSession(
+        sourceRuntimeSessionId,
+      );
+      release.executables.simulationAdapter.disposeSession(
+        restoredRuntimeSessionId,
+      );
+    },
+    240_000,
+  );
 });
 
 function exactContractV1(): ModelContractV2 {
