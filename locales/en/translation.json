@@ -686,6 +686,14 @@
       "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
       "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
       "Numerical verification and baseline characterization do not establish physiological or clinical validation."
+    ],
+    "standard67Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the recovered proximal aortic constitutive-port pressure and ABP is systemic arterial compartment pressure; neither is a literal catheter or cuff measurement station.",
+      "The Ao–SA and PA–PArt roots use algebraic flow laws retaining resistance and quadratic loss. They contain no local inertance, spatial wave travel, or reflection and must not be interpreted as site-resolved arterial traces.",
+      "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
+      "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
+      "Removal of root ringing, numerical verification, and baseline characterization do not establish physiological or clinical validation."
     ]
   }
 }

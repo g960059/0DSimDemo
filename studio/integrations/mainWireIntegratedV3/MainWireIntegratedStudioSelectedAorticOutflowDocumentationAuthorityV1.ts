@@ -1,5 +1,5 @@
 /**
- * Explicit engine-to-Studio integration seam for Standard66 documentation.
+ * Explicit engine-to-Studio integration seam for Standard66/67 documentation.
  *
  * The exact owners remain authoritative. Presentation code may inspect these
  * claims and catalogs only through this concrete integration boundary.
@@ -17,3 +17,7 @@ export {
 export {
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_CLAIM_V1,
 } from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
+export {
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+  validateMainWireAlgebraicProximalArterialRootsProfileV1,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";

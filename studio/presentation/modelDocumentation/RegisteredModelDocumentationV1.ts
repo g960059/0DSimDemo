@@ -1,4 +1,5 @@
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
@@ -7,9 +8,13 @@ import {
 } from "@/studio/contracts/v2/modelSurface";
 import selectedAorticOutflowStandard66SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import algebraicProximalRootsStandard67SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
-  kind: "main-wire-selected-aortic-outflow-standard66";
+  kind:
+    | "main-wire-selected-aortic-outflow-standard66"
+    | "main-wire-algebraic-proximal-roots-standard67";
   modelId: string;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -21,7 +26,8 @@ export type RegisteredModelDisclosureV1 = Readonly<{
   shortLabel: string | null;
   limitationsTranslationKey:
     | "modelLimitations.items"
-    | "modelLimitations.standard66Items";
+    | "modelLimitations.standard66Items"
+    | "modelLimitations.standard67Items";
 }>;
 
 const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
@@ -32,6 +38,16 @@ const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
     selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId,
   surfaceSeriesId:
     selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
+});
+
+const STANDARD67_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
+  kind: "main-wire-algebraic-proximal-roots-standard67" as const,
+  modelId:
+    MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  surfaceReleaseId:
+    algebraicProximalRootsStandard67SurfaceV1.surfaceReleaseId,
+  surfaceSeriesId:
+    algebraicProximalRootsStandard67SurfaceV1.surfaceSeriesId,
 });
 
 /**
@@ -45,27 +61,30 @@ export function resolveRegisteredModelDocumentationV1(
   modelId: string | undefined,
   surfaceReleaseId: string | null | undefined,
 ): RegisteredModelDocumentationIdentityV1 | null {
-  if (
-    modelId !== STANDARD66_DOCUMENTATION_IDENTITY_V1.modelId
-    || surfaceReleaseId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
-  ) {
-    return null;
-  }
-
-  const surface = selectedAorticOutflowStandard66SurfaceV1;
+  const identity = modelId === STANDARD66_DOCUMENTATION_IDENTITY_V1.modelId
+      && surfaceReleaseId
+        === STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
+    ? STANDARD66_DOCUMENTATION_IDENTITY_V1
+    : modelId === STANDARD67_DOCUMENTATION_IDENTITY_V1.modelId
+        && surfaceReleaseId
+          === STANDARD67_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
+      ? STANDARD67_DOCUMENTATION_IDENTITY_V1
+      : null;
+  if (identity === null) return null;
+  const surface = identity.kind
+      === "main-wire-algebraic-proximal-roots-standard67"
+    ? algebraicProximalRootsStandard67SurfaceV1
+    : selectedAorticOutflowStandard66SurfaceV1;
   if (
     surface.schemaId !== STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID
     || surface.modelFamilyId !== MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3
-    || surface.surfaceReleaseId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
-    || surface.surfaceSeriesId
-      !== STANDARD66_DOCUMENTATION_IDENTITY_V1.surfaceSeriesId
+    || surface.surfaceReleaseId !== identity.surfaceReleaseId
+    || surface.surfaceSeriesId !== identity.surfaceSeriesId
   ) {
     return null;
   }
 
-  return STANDARD66_DOCUMENTATION_IDENTITY_V1;
+  return identity;
 }
 
 /** One presentation resolver shared by Workbench and Article Reader. */
@@ -77,12 +96,21 @@ export function resolveRegisteredModelDisclosureV1(
     modelId,
     surfaceReleaseId,
   );
-  return documentation === null
+  if (documentation === null) {
+    return Object.freeze({
+      documentation: null,
+      badgeLabel: "MW V3",
+      shortLabel: null,
+      limitationsTranslationKey: "modelLimitations.items" as const,
+    });
+  }
+  return documentation.kind === "main-wire-algebraic-proximal-roots-standard67"
     ? Object.freeze({
-        documentation: null,
-        badgeLabel: "MW V3",
-        shortLabel: null,
-        limitationsTranslationKey: "modelLimitations.items" as const,
+        documentation,
+        badgeLabel: "MW 67",
+        shortLabel: "Main Wire Standard 67",
+        limitationsTranslationKey:
+          "modelLimitations.standard67Items" as const,
       })
     : Object.freeze({
         documentation,

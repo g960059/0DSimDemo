@@ -686,6 +686,14 @@
       "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
       "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
       "数値検証とbaseline characterizationは、生理学的・臨床的validationを保証しません。"
+    ],
+    "standard67Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは圧回復後の近位大動脈constitutive port圧、ABPは体動脈compartment圧であり、実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "Ao–SAとPA–PArtの根部は抵抗・二次損失を保った代数的flow lawです。局所inertance、空間的な波動伝播・反射を表現しないため、部位別の動脈波形とは解釈できません。",
+      "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
+      "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
+      "根部振動の除去、数値検証、baseline characterizationは、生理学的・臨床的validationを保証しません。"
     ]
   }
 }

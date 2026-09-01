@@ -199,6 +199,37 @@ const COPY = Object.freeze({
   }),
 } as const);
 
+const STANDARD67_COPY_OVERRIDES = Object.freeze({
+  ja: Object.freeze({
+    title: "Main Wire Standard 67",
+    subtitle:
+      "代数的な近位動脈根部を備えた統合0D循環動態モデル",
+    scopeBody:
+      "Standard 66の心室相互作用、弁、冠循環、regular sinus rhythm、呼吸・心膜圧、選択大動脈流出路を保ち、Ao–SAとPA–PArtの根部だけを同一candidate内の代数的flow lawへ変更した集中定数モデルです。元の抵抗と二次損失は維持し、根部のmomentum memoryのみを除いています。",
+    memoryItems: Object.freeze([
+      ...COPY.ja.memoryItems,
+      "Ao–SAとPA–PArtの根部flowは同一candidate圧から代数的に解き、局所inertanceは0です。accepted flow値は同一stepのexact readbackとして保持しますが、次stepのmomentum memoryには使用しません。",
+      "この変更は根部の人工的なexchange-mode振動を除くための数理構造変更です。分布定数動脈の生理的inertance、伝播遅延、進行波、反射波を再現したという意味ではありません。",
+    ]),
+    evidenceBody:
+      "以下はenergy-loss coefficientとDoppler/catheter差を理解するためのequation/interpretation anchorです。Standard 67そのものの臨床validation evidenceではありません。",
+  }),
+  en: Object.freeze({
+    title: "Main Wire Standard 67",
+    subtitle:
+      "Integrated 0D haemodynamic model with algebraic proximal arterial roots",
+    scopeBody:
+      "This lumped model retains Standard 66 ventricular interaction, valves, coronary circulation, regular sinus rhythm, respiration, pericardial pressure, and selected aortic outflow. Only the Ao–SA and PA–PArt roots use a same-candidate algebraic flow law: their original resistance and quadratic loss remain, while root momentum memory is removed.",
+    memoryItems: Object.freeze([
+      ...COPY.en.memoryItems,
+      "Ao–SA and PA–PArt root flows are solved algebraically from same-candidate pressures with zero local inertance. Their accepted values are exact same-step readbacks, not momentum memory consumed by the next step.",
+      "This mathematical-structure change removes an artificial root exchange mode. It does not reproduce physiological distributed-arterial inertance, propagation delay, travelling waves, or reflections.",
+    ]),
+    evidenceBody:
+      "These sources anchor the energy-loss coefficient and interpretation of Doppler/catheter differences. They are not clinical validation evidence for Standard 67 itself.",
+  }),
+} as const);
+
 export function MainWireStandard66DocumentationV1({
   facts,
   locale,
@@ -206,14 +237,19 @@ export function MainWireStandard66DocumentationV1({
   facts: MainWireStandard66DocumentationFactsV1;
   locale: Locale;
 }>) {
-  const text = COPY[locale];
+  const text = facts.generation === 67
+    ? Object.freeze({
+        ...COPY[locale],
+        ...STANDARD67_COPY_OVERRIDES[locale],
+      })
+    : COPY[locale];
   const number = (value: number, maximumFractionDigits: number) =>
     new Intl.NumberFormat(locale, { maximumFractionDigits }).format(value);
 
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
-      data-testid="standard66-model-documentation-v1"
+      data-testid={`standard${facts.generation}-model-documentation-v1`}
     >
       <main className="mx-auto w-full max-w-5xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
         <Link

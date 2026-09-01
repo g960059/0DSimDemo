@@ -31,6 +31,7 @@ import type { ExactModelFixtureProjectionV1 } from
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -47,10 +48,16 @@ import selectedAorticOutflowSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 import selectedAorticOutflowRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
+import algebraicProximalRootsClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
+import algebraicProximalRootsSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
+import algebraicProximalRootsRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -80,6 +87,8 @@ let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
 let browserLocalSelectedAorticOutflowCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
+let browserLocalAlgebraicProximalRootsCompositionPromiseV1:
+  Promise<StudioClientCompositionV2> | undefined;
 
 /**
  * Development inventory refreshes must observe active-bundle and lifecycle
@@ -103,7 +112,7 @@ async function createRegistryClientCompositionV2(
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
-      return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
+      return loadStudioLocalAlgebraicProximalRootsClientCompositionV1();
     }
     if (
       modelId === standardClientDescriptorV1.manifest.modelId
@@ -124,6 +133,16 @@ async function createRegistryClientCompositionV2(
       )
     ) {
       return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
+    }
+    if (
+      modelId === algebraicProximalRootsClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        algebraicProximalRootsSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalAlgebraicProximalRootsClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -232,6 +251,51 @@ Promise<StudioClientCompositionV2> {
   return pending;
 }
 
+/** Local default Workbench composition for the Standard67 successor. */
+export function loadStudioLocalAlgebraicProximalRootsClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalAlgebraicProximalRootsCompositionPromiseV1 !== undefined) {
+    return browserLocalAlgebraicProximalRootsCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      algebraicProximalRootsClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error("Standard67 client descriptor identity mismatch");
+    }
+    assertExactModelKernelManifestV3(
+      algebraicProximalRootsClientDescriptorV1.manifest,
+    );
+    assertModelSurfaceReleaseManifestV1(
+      algebraicProximalRootsSurfaceReleaseV1,
+    );
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: algebraicProximalRootsClientDescriptorV1.manifest.modelId,
+      artifactRevisionId:
+        algebraicProximalRootsRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: algebraicProximalRootsClientDescriptorV1.manifest,
+      surfaceRelease: algebraicProximalRootsSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: localAlgebraicProximalRootsArtifactUrlV1(),
+    });
+    return composeStudioClientCompositionV2(Object.freeze({
+      defaultFixture: algebraicProximalRootsClientDescriptorV1.defaultFixture,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
+      surfaceStage: "dev" as const,
+    }));
+  });
+  browserLocalAlgebraicProximalRootsCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalAlgebraicProximalRootsCompositionPromiseV1 === pending) {
+      browserLocalAlgebraicProximalRootsCompositionPromiseV1 = undefined;
+    }
+  });
+  return pending;
+}
+
 function localStandardArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
@@ -279,6 +343,32 @@ export function localSelectedAorticOutflowArtifactRevisionUrlV1(
   revisioned.searchParams.set(
     "revision",
     selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
+}
+
+function localAlgebraicProximalRootsArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  return resolved.protocol === "file:"
+    ? new URL(
+        "__circleheart_local_algebraic_proximal_roots_standard67_artifact__.mjs",
+        loopbackBase,
+      ).href
+    : localAlgebraicProximalRootsArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localAlgebraicProximalRootsArtifactRevisionUrlV1(
+  resolved: URL,
+): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    algebraicProximalRootsRegistryAdmissionLockV1.artifactRevisionId,
   );
   return revisioned;
 }
