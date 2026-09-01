@@ -31,6 +31,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FIXED_TBV_FORK_V3_ID =
 
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
+export type MainWireIntegratedModelFixedTbvForkRuntimeV3 = Pick<
+  MainWireIntegratedModelRuntimeV3,
+  "runtime" | "rhythm" | "profile" | "config"
+>;
 
 const TARGET_TOLERANCE_ML_V3 = 1e-6;
 const RESPONSIVE_STARLING_FROZEN_TONE_WINDOW_SEC_V3 = 60;
@@ -44,7 +48,7 @@ const RESPONSIVE_STARLING_FROZEN_TONE_WINDOW_SEC_V3 = 60;
  */
 export function forkMainWireIntegratedModelAtFixedTbvV3(input: Readonly<{
   source: AcceptedState;
-  runtime: MainWireIntegratedModelRuntimeV3;
+  runtime: MainWireIntegratedModelFixedTbvForkRuntimeV3;
   targetGlobalTotalBloodVolumeMl: number;
 }>): AcceptedState {
   const { source, runtime, targetGlobalTotalBloodVolumeMl } = input;
@@ -113,7 +117,7 @@ export function forkMainWireIntegratedModelAtFixedTbvV3(input: Readonly<{
 export function forkMainWireIntegratedModelResponsiveStarlingV3(input:
 Readonly<{
   source: AcceptedState;
-  runtime: MainWireIntegratedModelRuntimeV3;
+  runtime: MainWireIntegratedModelFixedTbvForkRuntimeV3;
   targetGlobalTotalBloodVolumeMl: number;
 }>): AcceptedState {
   const forked = forkMainWireIntegratedModelAtFixedTbvV3(input);

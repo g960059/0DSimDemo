@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+} from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_CHECKPOINT_V1_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard67CheckpointV1";
 import {
@@ -11,7 +17,11 @@ import {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_TYPED_AUTHORITY_SESSION_V1_ID,
+  MainWireIntegratedModelStandard67TypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedModelStandard67TypedAuthoritySessionV1";
+import {
+  MainWireIntegratedModelStandard66TypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedModelStandard66TypedAuthoritySessionV1";
 import type { ModelContractV2 } from "@/studio/contracts/v2/model";
 import {
   STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
@@ -22,6 +32,7 @@ import {
   createMainWireIntegratedStudioAlgebraicProximalRootsKernelV1,
   createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
   createMainWireIntegratedStudioSelectedAorticOutflowKernelV1,
+  createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
@@ -173,6 +184,187 @@ describe("algebraic proximal-roots Standard67 Studio exact adapter V1", () => {
     expect(continued.inputEpoch).toBe(uninterrupted.inputEpoch);
     expect(continued.outputs).toEqual(uninterrupted.outputs);
   }, 120_000);
+
+  it("runs checkpoint-forked structural analysis for Standard66 and Standard67 without mutating either source orbit", async () => {
+    const variants = [
+      {
+        label: "standard66",
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        release: createMainWireIntegratedStudioSelectedAorticOutflowReleaseV1(),
+      },
+      {
+        label: "standard67",
+        modelId:
+          MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+        release: createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1(),
+      },
+    ] as const;
+
+    await Promise.all(variants.map(async ({ label, modelId, release }) => {
+      const runtimeSessionId = `structural-analysis/${label}`;
+      const scenarioId = "baseline";
+      await release.executables.simulationAdapter.createSession({
+        runtimeSessionId,
+        scenarios: [{
+          scenarioId,
+          fixture:
+            MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+        }],
+      });
+      const source =
+        await release.executables.simulationAdapter.advanceOnePresentationStep({
+          runtimeSessionId,
+          scenarioId,
+        });
+      const progress: unknown[] = [];
+      const analysis = await release.executables.simulationAdapter
+        .requestAnalysis({
+          runtimeSessionId,
+          scenarioId,
+          analysisId:
+            MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+          expectedInputEpoch: source.inputEpoch,
+          expectedAcceptedRevision: source.acceptedRevision,
+          expectedAcceptedTimeSec: source.acceptedTimeSec,
+          analysisPartition:
+            MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
+          onProgress: (partial) => progress.push(partial),
+        }).catch((error: unknown) => {
+          throw new Error(
+            `${label}: ${error instanceof Error ? error.message : String(error)}`,
+            { cause: error },
+          );
+        });
+      const payload = analysis.payload as unknown as Readonly<{
+        left: Readonly<{
+          starlingLocus: Readonly<{
+            status: string;
+            points: readonly unknown[];
+          }>;
+        }>;
+      }>;
+
+      expect(analysis).toMatchObject({
+        modelId,
+        runtimeSessionId,
+        scenarioId,
+        inputEpoch: source.inputEpoch,
+        sourceAcceptedRevision: source.acceptedRevision,
+        sourceAcceptedTimeSec: source.acceptedTimeSec,
+      });
+      expect(progress.length).toBeGreaterThan(0);
+      expect(payload.left.starlingLocus.status).toBe(
+        "responsive-fixed-tbv-preview",
+      );
+      expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
+      expect(release.executables.simulationAdapter.currentFrame({
+        runtimeSessionId,
+        scenarioId,
+      })).toEqual(source);
+      release.executables.simulationAdapter.disposeSession(runtimeSessionId);
+    }));
+  }, 120_000);
+
+  it("keeps selected-model analysis advancement on the one-tick typed path", async () => {
+    const fixture =
+      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1;
+    const sessions = await Promise.all([
+      MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
+        fixture.hemodynamicResearchInputs,
+        1,
+        undefined,
+        fixture.mechanismResearchInputs,
+      ),
+      MainWireIntegratedModelStandard67TypedAuthoritySessionV1.create(
+        fixture.hemodynamicResearchInputs,
+        1,
+        undefined,
+        fixture.mechanismResearchInputs,
+      ),
+    ]);
+    for (const source of sessions) {
+      expect(source.advanceToPresentationTime(0.002).status).toBe("advanced");
+      const accepted = source.currentAcceptedState();
+      const branch = source.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+        accepted.coronary.fixedGlobalTotalBloodVolumeMl,
+      );
+      const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+      for (let ordinal = 0; ordinal < 50; ordinal += 1) {
+        const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+        const advance = branch.advanceStructuralAnalysisToPresentationTimeV1(
+          originTimeSec + (ordinal + 1) * 0.02,
+        );
+        if (advance.status !== "advanced") {
+          throw new Error(
+            `responsive fork failed at ${acceptedTimeSec}: ${
+              advance.status === "failed" ? advance.message : advance.status
+            }; accepted=${advance.acceptedTimeSec}; partial=${
+              advance.status === "failed" ? advance.partiallyAdvanced : "n/a"
+            }`,
+          );
+        }
+      }
+    }
+  }, 120_000);
+
+  it("measures the Standard67 formal lower-preload PV family on an isolated checkpoint fork", async () => {
+    const release =
+      createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1();
+    const runtimeSessionId = "formal-pv/standard67";
+    const scenarioId = "baseline";
+    await release.executables.simulationAdapter.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture:
+          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    const source =
+      await release.executables.simulationAdapter.advanceOnePresentationStep({
+        runtimeSessionId,
+        scenarioId,
+      });
+    const progress: unknown[] = [];
+    const analysis = await release.executables.simulationAdapter.requestAnalysis({
+      runtimeSessionId,
+      scenarioId,
+      analysisId:
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+      expectedInputEpoch: source.inputEpoch,
+      expectedAcceptedRevision: source.acceptedRevision,
+      expectedAcceptedTimeSec: source.acceptedTimeSec,
+      analysisPartition:
+        MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
+      onProgress: (partial) => progress.push(partial),
+    });
+    const payload = analysis.payload as unknown as Readonly<{
+      left: Readonly<{
+        starlingLocus: Readonly<{
+          status: string;
+          points: readonly Readonly<{
+            ventricularPressureVolumeLoop: readonly unknown[];
+          }>[];
+        }>;
+      }>;
+    }>;
+
+    expect(progress.length).toBeGreaterThan(3);
+    expect(payload.left.starlingLocus.status).toBe(
+      "measured-fixed-tbv-protocol",
+    );
+    expect(payload.left.starlingLocus.points.length).toBeGreaterThanOrEqual(4);
+    expect(payload.left.starlingLocus.points.every(
+      ({ ventricularPressureVolumeLoop }) =>
+        ventricularPressureVolumeLoop.length >= 12,
+    )).toBe(true);
+    expect(release.executables.simulationAdapter.currentFrame({
+      runtimeSessionId,
+      scenarioId,
+    })).toEqual(source);
+    release.executables.simulationAdapter.disposeSession(runtimeSessionId);
+  }, 240_000);
 });
 
 function exactContractV1(): ModelContractV2 {

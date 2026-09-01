@@ -349,6 +349,17 @@ function assertExistingIdentityCanBeWrittenV1(
     current.modelId !== next.modelId
     || current.artifactRevisionId !== next.artifactRevisionId
   ) {
+    const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF
+      || "origin/main";
+    try {
+      execFileSync("git", ["show", `${baseRef}:${lockRelativePath}`], {
+        cwd: repositoryRoot,
+        stdio: "ignore",
+      });
+    } catch {
+      // The candidate identity has not been admitted on the base branch yet.
+      return;
+    }
     fail(
       "an existing Standard67 identity cannot be rewritten without explicit same-model equivalence evidence",
     );

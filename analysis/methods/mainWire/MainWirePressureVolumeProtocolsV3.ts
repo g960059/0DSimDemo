@@ -12,7 +12,7 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
   type MainWireIntegratedModelObservationV3,
-  MainWireIntegratedModelSessionV3,
+  type MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
@@ -54,6 +54,39 @@ export const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PE
 
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1" as const;
+
+/**
+ * Minimal numerical seam required by structural preload-family analyses.
+ * Exact model generations may implement it without exposing analysis results
+ * in their accepted state or checkpoint ABI.
+ */
+export interface MainWireIntegratedModelStructuralAnalysisSessionV3 {
+  currentAcceptedState(): ReturnType<
+    MainWireIntegratedModelSessionV3["currentAcceptedState"]
+  >;
+  observe(): MainWireIntegratedModelObservationV3;
+  advanceToPresentationTime(
+    targetTimeSec: number,
+  ): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>;
+  advanceStructuralAnalysisToPresentationTimeV1?(
+    targetTimeSec: number,
+  ): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>;
+  forkAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStructuralAnalysisSessionV3;
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStructuralAnalysisSessionV3;
+}
+
+function advanceStructuralAnalysisSessionV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  targetTimeSec: number,
+): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]> {
+  return session.advanceStructuralAnalysisToPresentationTimeV1?.(
+    targetTimeSec,
+  ) ?? session.advanceToPresentationTime(targetTimeSec);
+}
 
 /**
  * PVA becomes available after one settled anchor, three lower-preload points,
@@ -320,7 +353,7 @@ function formalPressureVolumeSamplePairV3(
 
 type AcceptedBranchV3 = Readonly<{
   status: "accepted";
-  branch: MainWireIntegratedModelSessionV3;
+  branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   observation: MainWireIntegratedModelObservationV3;
   pair: StarlingPairV3;
 }>;
@@ -360,7 +393,7 @@ export type MainWireIntegratedModelFormalPressureVolumeResultV3 = Readonly<{
  * retained load to pass the same complete-beat closure gate.
  */
 export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   onProgress?: (
     result: MainWireIntegratedModelResponsiveStarlingResultV3,
   ) => void,
@@ -449,7 +482,7 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  * uniformly.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   onProgress?: (
     result: MainWireIntegratedModelFormalPressureVolumeResultV3,
@@ -567,15 +600,15 @@ function formalExpectedPointCountV3(
  * the subsequent fixed-tone family always starts from its period-1 endpoint.
  */
 function settleFormalPressureVolumeSourceV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   sourceGlobalTbvMl: number,
 ):
   | Readonly<{
       status: "settled";
-      branch: MainWireIntegratedModelSessionV3;
+      branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
     }>
   | RejectedBranchV3 {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch = sourceSession.forkAtFixedGlobalTotalBloodVolume(sourceGlobalTbvMl);
   } catch (error) {
@@ -593,7 +626,8 @@ function settleFormalPressureVolumeSourceV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
     if (advance.status !== "advanced") {
@@ -648,7 +682,7 @@ type FormalCoverageSampleV3 = Readonly<{
 }>;
 
 type FormalCoverageBoundaryV3 = Readonly<{
-  branch: MainWireIntegratedModelSessionV3;
+  branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   scale: number;
   pair: StarlingPairV3;
 }>;
@@ -660,7 +694,7 @@ type FormalCoverageAdvanceV3 = Readonly<{
 }>;
 
 async function runFormalHypovolemicCoverageChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -801,7 +835,7 @@ function adaptiveFormalCoverageScaleStepV3(
 }
 
 async function runFormalHypervolemicStarlingChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -960,16 +994,16 @@ async function advanceFormalCoverageTowardScaleV3(
 }
 
 async function advanceFormalHotStartBridgeV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
 ): Promise<
   | Readonly<{
       status: "accepted";
-      branch: MainWireIntegratedModelSessionV3;
+      branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
     }>
   | RejectedBranchV3
 > {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch =
       sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
@@ -989,7 +1023,8 @@ async function advanceFormalHotStartBridgeV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
     if (advance.status !== "advanced") {
@@ -1114,7 +1149,7 @@ function responsiveSettledAnchorPairV3(pair: StarlingPairV3): boolean {
 }
 
 function runHypovolemicChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
 ): void {
@@ -1185,7 +1220,7 @@ function starlingPairReachedLowFlowTargetV3(pair: StarlingPairV3): boolean {
 }
 
 function runHypervolemicChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -1291,11 +1326,11 @@ export function mainWireIntegratedModelStarlingDescendingLimbV3(
 }
 
 async function measureFormalPressureVolumeBranchV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
   role: MainWireIntegratedModelStarlingPointV3["role"],
 ): Promise<MeasuredBranchV3> {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     // A preload-reduction PVA family is a short mechanical perturbation, not a
     // sequence of 25-second coronary-controller re-equilibrations. Preserve
@@ -1324,7 +1359,8 @@ async function measureFormalPressureVolumeBranchV3(
         MAXIMUM_MEASUREMENT_DURATION_SEC_V3
       )
         break;
-      const advance = branch.advanceToPresentationTime(
+      const advance = advanceStructuralAnalysisSessionV3(
+        branch,
         acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
       );
       if (advance.status !== "advanced") {
@@ -1453,7 +1489,7 @@ async function measureFormalPressureVolumeBranchV3(
 }
 
 function measureBranchV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
   options: Readonly<{
     role: MainWireIntegratedModelStarlingPointV3["role"];
@@ -1461,7 +1497,7 @@ function measureBranchV3(
     requireLocalConvergence: boolean;
   }>,
 ): MeasuredBranchV3 {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch =
       sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
@@ -1487,7 +1523,8 @@ function measureBranchV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
       acceptedTimeSec + RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
     if (advance.status !== "advanced") {

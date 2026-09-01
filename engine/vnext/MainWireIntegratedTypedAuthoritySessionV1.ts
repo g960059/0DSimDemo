@@ -181,6 +181,9 @@ import {
   MainWireSelectedAorticPortSessionExtensionV1,
   type MainWireSelectedAorticPortSessionTicketV1,
 } from "@/engine/vnext/MainWireSelectedAorticPortSessionExtensionV1";
+import {
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+} from "@/engine/executionPlan/MainWireNumericalClockV1";
 
 export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
   "main-wire-integrated-typed-authority-session-v1" as const;
@@ -358,6 +361,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
     selectedAorticPortExtension:
       MainWireSelectedAorticPortSessionExtensionV1 | null = null,
+    typedManifestTemplateAcceptedState?: AcceptedState,
   ) {
     const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> = (
       candidate,
@@ -440,7 +444,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     });
     this.#dynamicMechanicalSupportConfig = runtime.config;
     this.#authority = (
-      authorityFactory ?? typedAuthorityFactory(runtime.cold.acceptedState)
+      authorityFactory ?? typedAuthorityFactory(
+        typedManifestTemplateAcceptedState ?? runtime.cold.acceptedState,
+      )
     )(
       acceptedState,
       validateAcceptedState,
@@ -891,6 +897,78 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     this.assertSessionUsableV1();
     this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
+  }
+
+  /**
+   * Analysis-only readback path. Selected exact models need the same
+   * one-base-tick typed promotion used by their live presentation adapter;
+   * requesting a multi-tick public-object interval would bypass that admitted
+   * path. The analysis branch is ephemeral and still returns an ordinary
+   * observation without placing derived results in exact state.
+   */
+  advanceStructuralAnalysisToPresentationTimeV1(
+    targetTimeSec: number,
+  ): MainWireIntegratedModelPresentationAdvanceV3 {
+    const initial = this.currentAcceptedState();
+    if (targetTimeSec === initial.acceptedTimeSec) {
+      return Object.freeze({
+        status: "already-at-target" as const,
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: initial.acceptedTimeSec,
+        acceptedRevision: initial.revision,
+        internalAcceptedSubstepCount: 0 as const,
+        observation: this.observe(),
+      });
+    }
+    if (!Number.isFinite(targetTimeSec) || targetTimeSec < initial.acceptedTimeSec) {
+      return this.advanceToPresentationTime(targetTimeSec);
+    }
+
+    let ordinal = 1;
+    let internalAcceptedSubstepCount = 0;
+    let boundaryClippedSubstepCount = 0;
+    const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
+    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedState();
+      const ordinalTargetTimeSec = initial.acceptedTimeSec
+        + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
+      const nextTargetTimeSec = Math.min(
+        targetTimeSec,
+        ordinalTargetTimeSec,
+      );
+      if (!(nextTargetTimeSec > current.acceptedTimeSec)) {
+        return this.advanceToPresentationTime(targetTimeSec);
+      }
+      const projected = this.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        nextTargetTimeSec,
+        Object.freeze([]),
+      );
+      const advance = projected.advance;
+      if (advance.status !== "advanced") {
+        return advance.status === "already-at-target"
+          ? Object.freeze({
+              ...advance,
+              observation: this.observe(),
+            })
+          : advance;
+      }
+      internalAcceptedSubstepCount += advance.internalAcceptedSubstepCount;
+      boundaryClippedSubstepCount += advance.boundaryClippedSubstepCount;
+      substeps.push(...advance.substeps);
+      ordinal += 1;
+    }
+    const accepted = this.currentAcceptedState();
+    return Object.freeze({
+      status: "advanced" as const,
+      presentationTimeSec: targetTimeSec,
+      acceptedTimeSec: accepted.acceptedTimeSec,
+      acceptedRevision: accepted.revision,
+      acceptedRevisionSpanFromPrevious: accepted.revision - initial.revision,
+      internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount,
+      substeps: Object.freeze(substeps),
+      observation: this.observe(),
+    });
   }
 
   /**

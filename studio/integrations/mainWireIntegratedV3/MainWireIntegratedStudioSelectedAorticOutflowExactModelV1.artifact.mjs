@@ -1,3 +1,7 @@
+const MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID = "main-wire-integrated-v3-guyton-starling-structural-orientation-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID = "main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3 = "hypovolemic";
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3 = "hypervolemic";
 function clamp$3(x, lo, hi) {
   return Math.min(hi, Math.max(lo, x));
 }
@@ -7984,6 +7988,1856 @@ function requireInteger(value, label) {
     throw new Error(`${label} must be a nonnegative integer`);
   }
   return value;
+}
+const MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3 = "frozen-accepted-step-volume-constrained-structural-orientation-not-simulated-response";
+const MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3 = "persistent-fixed-tone-preload-reduction-chain-with-complete-beat-period1-settlement";
+const SYSTEMIC_NODE_PATH_V3 = Object.freeze([
+  "VC",
+  "SV",
+  "Cap",
+  "Art",
+  "SA",
+  "Ao"
+]);
+const SYSTEMIC_EDGE_PATH_V3 = Object.freeze([
+  "VC_RA",
+  "SV_VC",
+  "Cap_SV",
+  "Art_Cap",
+  "SA_Art",
+  "Ao_SA"
+]);
+const PULMONARY_NODE_PATH_V3 = Object.freeze([
+  "PVein",
+  "PVen",
+  "PCap"
+]);
+const PULMONARY_EDGE_PATH_V3 = Object.freeze([
+  "PVein_LA",
+  "PVen_PVein",
+  "PCap_PVen"
+]);
+const CURVE_SAMPLE_COUNT_V3 = 121;
+const MAXIMUM_ORIENTATION_FLOW_ML_PER_SEC_V3 = 350;
+const ROOT_TOLERANCE_ML_V3 = 1e-4;
+const ANCHOR_VOLUME_TOLERANCE_ML_V3 = 1e-6;
+const ANCHOR_PRESSURE_TOLERANCE_MMHG_V3 = 1e-12;
+const MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3 = 160;
+function buildMainWireIntegratedModelGuytonStarlingOrientationV3(observation2, hemodynamicInputs, starlingLoci) {
+  const accepted = observation2.acceptedState;
+  const step = observation2.lastAcceptedStep;
+  if (step === null) {
+    return Object.freeze({
+      analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+      status: "accepted-step-readback-required",
+      sourceAcceptedRevision: accepted.revision,
+      sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+      right: null,
+      left: null
+    });
+  }
+  assertObservationPairV3(observation2);
+  return Object.freeze({
+    analysisId: MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
+    status: "available",
+    sourceAcceptedRevision: accepted.revision,
+    sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+    right: buildSideOrientationV3(
+      "right",
+      observation2,
+      hemodynamicInputs,
+      starlingLoci?.right
+    ),
+    left: buildSideOrientationV3(
+      "left",
+      observation2,
+      hemodynamicInputs,
+      starlingLoci?.left
+    )
+  });
+}
+function buildSideOrientationV3(side, observation2, hemodynamicInputs, starlingLocus) {
+  const accepted = observation2.acceptedState;
+  const circulation = observation2.lastAcceptedStep.coronaryStep.baseStep.circulationTrial;
+  const path = structuralPathV3(side, observation2, hemodynamicInputs);
+  const downstreamNode = side === "right" ? "RA" : "LA";
+  const returnPath = side === "right" ? "VC_RA+CS_RA" : "PVein_LA";
+  const acceptedDownstreamPressureMmHg = circulation.nodeAbsolutePressuresMmHg[downstreamNode];
+  const acceptedReturnFlowLPerMin = side === "right" ? (circulation.edgeFlowsMlPerSec.VC_RA + observation2.lastAcceptedStep.coronaryStep.baseStep.coronaryTrial.diagnostics.hydraulics.commonCoronaryVenousOutletFlowMlPerSec) * 60 / 1e3 : circulation.edgeFlowsMlPerSec.PVein_LA * 60 / 1e3;
+  const starlingAnchor = responsiveStarlingAnchorV3(starlingLocus);
+  const downstreamPressureMmHg = starlingAnchor?.downstreamPressureMmHg ?? acceptedDownstreamPressureMmHg;
+  const returnFlowLPerMin = starlingAnchor?.returnFlowLPerMin ?? acceptedReturnFlowLPerMin;
+  const anchorCalibration = starlingAnchor === null ? null : calibrateStructuralPressureOffsetV3(path, starlingAnchor);
+  const downstreamPressureOffsetMmHg = anchorCalibration?.downstreamPressureOffsetMmHg ?? 0;
+  const fillingPressureMmHg = solveUniformFillingPressureV3(path) - downstreamPressureOffsetMmHg;
+  const [domainMinimum, domainMaximum] = pressureDomainV3(
+    side,
+    downstreamPressureMmHg,
+    fillingPressureMmHg
+  );
+  const samplePressures = structuralCurveSamplePressuresV3(
+    domainMinimum,
+    domainMaximum,
+    starlingAnchor?.downstreamPressureMmHg ?? null
+  );
+  const curve = Object.freeze(samplePressures.map((pressureMmHg) => starlingAnchor !== null && pressureMmHg === starlingAnchor.downstreamPressureMmHg ? Object.freeze({
+    downstreamPressureMmHg: pressureMmHg,
+    returnFlowLPerMin: starlingAnchor.returnFlowLPerMin,
+    flowLimited: false
+  }) : remapStructuralPressureV3(
+    solveStructuralReturnAtPressureV3(
+      path,
+      pressureMmHg + downstreamPressureOffsetMmHg
+    ),
+    pressureMmHg
+  )));
+  return Object.freeze({
+    side,
+    semantics: MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3,
+    pressureBasis: "absolute",
+    sourceAcceptedRevision: accepted.revision,
+    sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+    downstreamNode,
+    downstreamPressureLabel: side === "right" ? "RAP" : "LAP",
+    fillingPressureLabel: side === "right" ? "Pmsf orientation" : "Pmpf orientation",
+    fillingPressureMmHg,
+    operatingPoint: Object.freeze({
+      downstreamPressureMmHg,
+      returnFlowLPerMin,
+      returnPath
+    }),
+    anchoring: anchorCalibration === null ? Object.freeze({
+      status: "accepted-step-readback",
+      method: "none",
+      downstreamPressureOffsetMmHg: 0,
+      volumeResidualMl: null
+    }) : Object.freeze({
+      status: "starling-operating-anchor",
+      method: "downstream-pressure-translation",
+      downstreamPressureOffsetMmHg: anchorCalibration.downstreamPressureOffsetMmHg,
+      volumeResidualMl: anchorCalibration.volumeResidualMl
+    }),
+    curve,
+    starlingLocus: starlingLocus ?? Object.freeze({
+      status: "requires-protocol",
+      requirement: MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,
+      points: Object.freeze([])
+    }),
+    limitations: Object.freeze([
+      "Structural return orientation only; not a simulated pressure intervention.",
+      "Edge losses and external pressures are frozen at the accepted step; inertance is omitted from the steady map.",
+      side === "right" ? "The displayed systemic operating return includes VC-to-RA plus coronary-sinus return; the structural curve represents their effective aggregate." : "The pulmonary venous PCap-to-LA return path is shown.",
+      starlingAnchor === null ? "The pressure coordinate is the exact accepted-step structural readback." : "The frozen-volume structural shape and positive edge losses are retained, while its pressure coordinate is translated to the complete-beat mean operating anchor.",
+      starlingLocus?.status === "responsive-fixed-tbv-preview" ? "The operating anchor is locally period-1-settled in the frozen-tone responsive regime; off-centre Starling points remain adaptive preview data rather than canonical settled periodic evidence." : starlingLocus?.status === "measured-fixed-tbv-protocol" ? "The shared formal locus settles one active-controller source, freezes its coronary tone, and uses repeated complete-beat closure along hot-started TBV branches; it is numerical analysis, not physiological or clinical validation." : "A qualified Starling locus requires independent fixed-TBV V3 fixture forks, settlement, and numerical qualification at every point."
+    ])
+  });
+}
+function structuralPathV3(side, observation2, hemodynamicInputs) {
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const acceptedVolumes = observation2.acceptedState.coronary.circulation.nodeVolumesMl;
+  const readback = observation2.lastAcceptedStep.coronaryStep.baseStep.circulationTrial;
+  const nodeNames = side === "right" ? SYSTEMIC_NODE_PATH_V3 : PULMONARY_NODE_PATH_V3;
+  const edgeNames = side === "right" ? SYSTEMIC_EDGE_PATH_V3 : PULMONARY_EDGE_PATH_V3;
+  const nodes = Object.freeze(nodeNames.map((name) => {
+    const node = graph.nodes[graph.nodeIndex.get(name)];
+    const volumeMl = acceptedVolumes[name];
+    const law = vascularPvLawFromNodeV1(node, hemodynamicInputs);
+    const transmuralPressureMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
+      node,
+      volumeMl,
+      hemodynamicInputs
+    );
+    const externalPressureMmHg = readback.nodeAbsolutePressuresMmHg[name] - transmuralPressureMmHg;
+    return Object.freeze({
+      name,
+      externalPressureMmHg,
+      stressedVolumeMl: volumeMl - law.Vu,
+      complianceMlPerMmHg: complianceFromPtm(law, transmuralPressureMmHg),
+      law
+    });
+  }));
+  const nodeByName = new Map(nodes.map((node) => [node.name, node]));
+  const edges = Object.freeze(edgeNames.map((name) => {
+    const edge = graph.edges[graph.edgeIndex.get(name)];
+    const externalPressureMmHg = edge.ext === "palv" ? nodeByName.get("PCap")?.externalPressureMmHg ?? 0 : edge.ext === "pth" ? inferThoracicPressureV3(observation2) : 0;
+    const loss = nonValveEdgeLossV1({
+      edge,
+      params: hemodynamicInputs,
+      upstreamPressureMmHg: readback.nodeAbsolutePressuresMmHg[edge.up],
+      downstreamPressureMmHg: readback.nodeAbsolutePressuresMmHg[edge.down],
+      edgeExternalPressureMmHg: externalPressureMmHg
+    });
+    return Object.freeze({
+      upstreamNode: edge.up,
+      resistanceMmHgSecPerMl: loss.resistanceMmHgSecPerMl,
+      quadraticLossMmHgSec2PerMl2: loss.quadraticLossMmHgSec2PerMl2,
+      waterfall: Boolean(edge.waterfall),
+      collapsePressureMmHg: externalPressureMmHg + (edge.Pcrit ?? 0)
+    });
+  }));
+  if (edges.length !== nodes.length || edges.some((edge, index) => edge.upstreamNode !== nodes[index]?.name)) throw new Error("integrated V3 structural return path topology changed");
+  const totalStressedVolumeMl = nodes.reduce(
+    (sum, node) => sum + node.stressedVolumeMl,
+    0
+  );
+  if (!(totalStressedVolumeMl > 0)) {
+    throw new Error("integrated V3 structural return path has no stressed volume");
+  }
+  return Object.freeze({ nodes, edges, totalStressedVolumeMl });
+}
+function inferThoracicPressureV3(observation2) {
+  const step = observation2.lastAcceptedStep;
+  const absoluteRa = step.coronaryStep.baseStep.circulationTrial.nodeAbsolutePressuresMmHg.RA;
+  const transmuralRa = step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg.RA;
+  return absoluteRa - transmuralRa;
+}
+function solveUniformFillingPressureV3(path) {
+  return bisectOrNearestV3(
+    (pressureMmHg) => totalStressedVolumeAtUniformPressureV3(
+      path,
+      pressureMmHg
+    ) - path.totalStressedVolumeMl,
+    -40,
+    120,
+    1e-7,
+    96
+  );
+}
+function solveStructuralReturnAtPressureV3(path, downstreamPressureMmHg) {
+  const residual = (flowMlPerSec2) => totalStressedVolumeAtFlowV3(
+    path,
+    downstreamPressureMmHg,
+    flowMlPerSec2
+  ) - path.totalStressedVolumeMl;
+  if (residual(0) >= 0) {
+    return Object.freeze({
+      downstreamPressureMmHg,
+      returnFlowLPerMin: 0,
+      flowLimited: false
+    });
+  }
+  if (residual(MAXIMUM_ORIENTATION_FLOW_ML_PER_SEC_V3) < 0) {
+    return Object.freeze({
+      downstreamPressureMmHg,
+      returnFlowLPerMin: MAXIMUM_ORIENTATION_FLOW_ML_PER_SEC_V3 * 60 / 1e3,
+      flowLimited: true
+    });
+  }
+  const flowMlPerSec = bisectOrNearestV3(
+    residual,
+    0,
+    MAXIMUM_ORIENTATION_FLOW_ML_PER_SEC_V3,
+    ROOT_TOLERANCE_ML_V3,
+    80
+  );
+  return Object.freeze({
+    downstreamPressureMmHg,
+    returnFlowLPerMin: flowMlPerSec * 60 / 1e3,
+    flowLimited: false
+  });
+}
+function totalStressedVolumeAtUniformPressureV3(path, absolutePressureMmHg) {
+  return path.nodes.reduce((sum, node) => sum + stressedVolumeFromPtm(
+    node.law,
+    absolutePressureMmHg - node.externalPressureMmHg
+  ), 0);
+}
+function totalStressedVolumeAtFlowV3(path, downstreamPressureMmHg, flowMlPerSec) {
+  let currentDownstreamPressureMmHg = downstreamPressureMmHg;
+  let totalStressedVolumeMl = 0;
+  for (let index = 0; index < path.edges.length; index += 1) {
+    const edge = path.edges[index];
+    const node = path.nodes[index];
+    const effectiveDownstreamPressureMmHg = edge.waterfall ? smoothMax(
+      currentDownstreamPressureMmHg,
+      edge.collapsePressureMmHg,
+      0.25
+    ) : currentDownstreamPressureMmHg;
+    const upstreamPressureMmHg = effectiveDownstreamPressureMmHg + edge.resistanceMmHgSecPerMl * flowMlPerSec + edge.quadraticLossMmHgSec2PerMl2 * flowMlPerSec * Math.abs(flowMlPerSec);
+    totalStressedVolumeMl += stressedVolumeFromPtm(
+      node.law,
+      upstreamPressureMmHg - node.externalPressureMmHg
+    );
+    currentDownstreamPressureMmHg = upstreamPressureMmHg;
+  }
+  return totalStressedVolumeMl;
+}
+function responsiveStarlingAnchorV3(locus) {
+  if (locus?.status !== "responsive-fixed-tbv-preview" && locus?.status !== "measured-fixed-tbv-protocol") return null;
+  const point = locus.points.find((candidate) => candidate.role === "operating-anchor" && candidate.curveEligible);
+  return point === void 0 ? null : Object.freeze({
+    downstreamPressureMmHg: point.fillingPressureMmHg,
+    returnFlowLPerMin: point.cardiacOutputLPerMin
+  });
+}
+function calibrateStructuralPressureOffsetV3(path, anchor) {
+  const anchorFlowMlPerSec = anchor.returnFlowLPerMin * 1e3 / 60;
+  const residual = (downstreamPressureOffsetMmHg2) => totalStressedVolumeAtFlowV3(
+    path,
+    anchor.downstreamPressureMmHg + downstreamPressureOffsetMmHg2,
+    anchorFlowMlPerSec
+  ) - path.totalStressedVolumeMl;
+  const zeroResidual = residual(0);
+  if (Math.abs(zeroResidual) <= ANCHOR_VOLUME_TOLERANCE_ML_V3) {
+    return Object.freeze({
+      downstreamPressureOffsetMmHg: 0,
+      volumeResidualMl: zeroResidual
+    });
+  }
+  let lower = zeroResidual > 0 ? -1 : 0;
+  let upper = zeroResidual > 0 ? 0 : 1;
+  let lowerResidual = residual(lower);
+  let upperResidual = residual(upper);
+  while (Math.sign(lowerResidual) === Math.sign(upperResidual) && Math.max(Math.abs(lower), Math.abs(upper)) < MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3) {
+    if (lowerResidual > 0 && upperResidual > 0) {
+      lower = Math.max(
+        -MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3,
+        lower * 2
+      );
+      lowerResidual = residual(lower);
+    } else {
+      upper = Math.min(
+        MAXIMUM_ANCHOR_PRESSURE_OFFSET_MMHG_V3,
+        upper * 2
+      );
+      upperResidual = residual(upper);
+    }
+  }
+  if (Math.sign(lowerResidual) === Math.sign(upperResidual)) {
+    throw new Error(
+      "integrated V3 structural return cannot align to the complete-beat operating anchor"
+    );
+  }
+  const downstreamPressureOffsetMmHg = bisectResidualV3(
+    residual,
+    lower,
+    upper,
+    ANCHOR_VOLUME_TOLERANCE_ML_V3,
+    ANCHOR_PRESSURE_TOLERANCE_MMHG_V3,
+    128
+  );
+  return Object.freeze({
+    downstreamPressureOffsetMmHg,
+    volumeResidualMl: residual(downstreamPressureOffsetMmHg)
+  });
+}
+function remapStructuralPressureV3(point, downstreamPressureMmHg) {
+  return Object.freeze({
+    ...point,
+    downstreamPressureMmHg
+  });
+}
+function bisectResidualV3(evaluate, lower, upper, residualTolerance, valueTolerance, maximumIterations) {
+  let low = lower;
+  let high = upper;
+  let lowResidual = evaluate(low);
+  let highResidual = evaluate(high);
+  for (let iteration = 0; iteration < maximumIterations; iteration += 1) {
+    const midpoint = 0.5 * (low + high);
+    const midpointResidual = evaluate(midpoint);
+    if (!Number.isFinite(midpointResidual)) {
+      throw new Error("integrated V3 anchor-alignment residual is not finite");
+    }
+    if (Math.abs(midpointResidual) <= residualTolerance) return midpoint;
+    if (Math.sign(midpointResidual) === Math.sign(lowResidual)) {
+      low = midpoint;
+      lowResidual = midpointResidual;
+    } else {
+      high = midpoint;
+      highResidual = midpointResidual;
+    }
+    if (Math.abs(high - low) <= valueTolerance * Math.max(1, Math.abs(midpoint))) break;
+  }
+  return Math.abs(lowResidual) <= Math.abs(highResidual) ? low : high;
+}
+function structuralCurveSamplePressuresV3(minimumMmHg, maximumMmHg, anchorMmHg) {
+  const values2 = Array.from({ length: CURVE_SAMPLE_COUNT_V3 }, (_, index) => minimumMmHg + index / (CURVE_SAMPLE_COUNT_V3 - 1) * (maximumMmHg - minimumMmHg));
+  if (anchorMmHg !== null && anchorMmHg > minimumMmHg && anchorMmHg < maximumMmHg) {
+    let nearestIndex = 0;
+    for (let index = 1; index < values2.length; index += 1) {
+      if (Math.abs(values2[index] - anchorMmHg) < Math.abs(values2[nearestIndex] - anchorMmHg)) nearestIndex = index;
+    }
+    values2[nearestIndex] = anchorMmHg;
+    values2.sort((left, right) => left - right);
+  }
+  return Object.freeze(values2);
+}
+function pressureDomainV3(side, operatingPressureMmHg, fillingPressureMmHg) {
+  const baselineMinimum = side === "right" ? -8 : -5;
+  const baselineMaximum = side === "right" ? 20 : 30;
+  return Object.freeze([
+    Math.min(baselineMinimum, operatingPressureMmHg - 4),
+    Math.max(baselineMaximum, fillingPressureMmHg + 4)
+  ]);
+}
+function bisectOrNearestV3(evaluate, lower, upper, tolerance, maximumIterations) {
+  let low = lower;
+  let high = upper;
+  let lowResidual = evaluate(low);
+  let highResidual = evaluate(high);
+  if (!Number.isFinite(lowResidual) || !Number.isFinite(highResidual)) {
+    throw new Error("integrated V3 structural return root is not finite");
+  }
+  if (Math.abs(lowResidual) <= tolerance) return low;
+  if (Math.abs(highResidual) <= tolerance) return high;
+  if (Math.sign(lowResidual) === Math.sign(highResidual)) {
+    return Math.abs(lowResidual) <= Math.abs(highResidual) ? low : high;
+  }
+  for (let iteration = 0; iteration < maximumIterations; iteration += 1) {
+    const midpoint = 0.5 * (low + high);
+    const midpointResidual = evaluate(midpoint);
+    if (!Number.isFinite(midpointResidual)) {
+      throw new Error("integrated V3 structural return midpoint is not finite");
+    }
+    if (Math.abs(midpointResidual) <= tolerance || Math.abs(high - low) <= tolerance) return midpoint;
+    if (Math.sign(midpointResidual) === Math.sign(lowResidual)) {
+      low = midpoint;
+      lowResidual = midpointResidual;
+    } else {
+      high = midpoint;
+      highResidual = midpointResidual;
+    }
+  }
+  return Math.abs(lowResidual) <= Math.abs(highResidual) ? low : high;
+}
+function assertObservationPairV3(observation2) {
+  const accepted = observation2.acceptedState;
+  const step = observation2.lastAcceptedStep;
+  if (step.acceptedState.revision !== accepted.revision || step.acceptedState.acceptedTimeSec !== accepted.acceptedTimeSec || step.coronaryStep.baseStep.circulationTrial.candidateTimeSec !== accepted.acceptedTimeSec) {
+    throw new Error(
+      "integrated V3 structural return observation/readback clocks differ"
+    );
+  }
+}
+const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID = "main-wire-normal-adult-blood-volume-operating-point-v1";
+const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID = "main-wire-noncoronary-15-node-no-coronary-v1";
+const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 = Object.freeze({
+  fullGraphReferenceBaselineId: "normal-adult-active-v1",
+  fullGraphReferenceTotalBloodVolumeMl: 5600,
+  pinnedExcludedCoronaryColdSeedVolumeMl: 77.89,
+  nonCoronaryFixedTotalBloodVolumeMl: 5522.11
+});
+const ADJUSTED_NODES = Object.freeze(["SV", "VC"]);
+const TARGET_TOLERANCE_ML = 1e-6;
+const PRESSURE_AUDIT_TOLERANCE_MMHG = 1e-8;
+function resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(runtime, fixedTotalBloodVolumeMl) {
+  if (!Number.isFinite(fixedTotalBloodVolumeMl) || fixedTotalBloodVolumeMl <= 0) {
+    throw new Error("protocol fixed total blood volume must be positive and finite");
+  }
+  const identity = Object.freeze({
+    ownerId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID,
+    parameterSetId: `main-wire-normal-adult-protocol-fixed-tbv-${fixedTotalBloodVolumeMl.toFixed(6).replace(".", "p")}ml-v1`,
+    topologyScopeId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID,
+    fixedTotalBloodVolumeMl,
+    initialDistributionPolicyId: "shared-SV-VC-transmural-offset"
+  });
+  return resolveBloodVolumeOperatingPoint(runtime, identity);
+}
+function resolveBloodVolumeOperatingPoint(runtime, identity, requireCanonicalFullGraphReference) {
+  const provenance = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1;
+  const excludedCoronaryColdSeedVolumeMl = authoritativeExcludedCoronaryColdSeedVolumeMl(runtime);
+  const excludedCoronaryColdSeedResidualMl = excludedCoronaryColdSeedVolumeMl - provenance.pinnedExcludedCoronaryColdSeedVolumeMl;
+  if (Math.abs(excludedCoronaryColdSeedResidualMl) > 1e-12) {
+    throw new Error(
+      "authoritative excluded-coronary cold-seed ledger drifted from its pinned provenance"
+    );
+  }
+  const provenanceResidual = identity.fixedTotalBloodVolumeMl + excludedCoronaryColdSeedVolumeMl - provenance.fullGraphReferenceTotalBloodVolumeMl;
+  const graph = buildNonCoronaryCirculationGraphV1();
+  if (graph.scope.coronaryBloodVolumeIncluded !== false || graph.nodes.length !== NON_CORONARY_NODE_NAMES_V1.length) throw new Error("blood-volume operating point topology scope mismatch");
+  const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
+  const targetAdditionalVolumeMl = identity.fixedTotalBloodVolumeMl - coldSeed.fixedTotalBloodVolumeMl;
+  const baselineTransmuralPressuresMmHg = Object.freeze({
+    SV: baselineTransmuralPressureMmHg(
+      "SV",
+      coldSeed.nodeVolumesMl,
+      runtime,
+      graph
+    ),
+    VC: baselineTransmuralPressureMmHg(
+      "VC",
+      coldSeed.nodeVolumesMl,
+      runtime,
+      graph
+    )
+  });
+  const targetMatchesColdSeed = Math.abs(targetAdditionalVolumeMl) <= TARGET_TOLERANCE_ML;
+  const sharedTransmuralPressureOffsetMmHg = targetMatchesColdSeed ? 0 : solveSharedTransmuralPressureOffsetMmHg(
+    coldSeed.nodeVolumesMl,
+    targetAdditionalVolumeMl,
+    runtime,
+    graph,
+    baselineTransmuralPressuresMmHg
+  );
+  const nodeVolumesMl = targetMatchesColdSeed ? coldSeed.nodeVolumesMl : nodeRecord((nodeName) => {
+    if (nodeName !== "SV" && nodeName !== "VC") {
+      return coldSeed.nodeVolumesMl[nodeName];
+    }
+    return physicalVolumeAtTransmuralPressureMmHg(
+      nodeName,
+      baselineTransmuralPressuresMmHg[nodeName] + sharedTransmuralPressureOffsetMmHg,
+      runtime,
+      graph
+    );
+  });
+  const resolvedTotalBloodVolumeMl = sumNodeVolumes(nodeVolumesMl);
+  const targetResidualMl = resolvedTotalBloodVolumeMl - identity.fixedTotalBloodVolumeMl;
+  if (Math.abs(targetResidualMl) > TARGET_TOLERANCE_ML) {
+    throw new Error(`blood-volume operating point missed target by ${targetResidualMl} mL`);
+  }
+  const unchangedNodeMaximumAbsoluteDeltaMl = Math.max(
+    ...NON_CORONARY_NODE_NAMES_V1.filter((nodeName) => nodeName !== "SV" && nodeName !== "VC").map((nodeName) => Math.abs(
+      nodeVolumesMl[nodeName] - coldSeed.nodeVolumesMl[nodeName]
+    ))
+  );
+  if (unchangedNodeMaximumAbsoluteDeltaMl !== 0) {
+    throw new Error("blood-volume operating point changed a cold-seed node outside SV/VC");
+  }
+  const changedNodes = Object.freeze(ADJUSTED_NODES.filter((nodeName) => nodeVolumesMl[nodeName] !== coldSeed.nodeVolumesMl[nodeName]));
+  const resolvedTransmuralPressuresMmHg = Object.freeze({
+    SV: baselineTransmuralPressureMmHg(
+      "SV",
+      nodeVolumesMl,
+      runtime,
+      graph
+    ),
+    VC: baselineTransmuralPressureMmHg(
+      "VC",
+      nodeVolumesMl,
+      runtime,
+      graph
+    )
+  });
+  const resolvedTransmuralPressureOffsetsMmHg = Object.freeze({
+    SV: resolvedTransmuralPressuresMmHg.SV - baselineTransmuralPressuresMmHg.SV,
+    VC: resolvedTransmuralPressuresMmHg.VC - baselineTransmuralPressuresMmHg.VC
+  });
+  const maximumSharedTransmuralPressureOffsetResidualMmHg = Math.max(
+    Math.abs(
+      resolvedTransmuralPressureOffsetsMmHg.SV - sharedTransmuralPressureOffsetMmHg
+    ),
+    Math.abs(
+      resolvedTransmuralPressureOffsetsMmHg.VC - sharedTransmuralPressureOffsetMmHg
+    )
+  );
+  if (maximumSharedTransmuralPressureOffsetResidualMmHg > PRESSURE_AUDIT_TOLERANCE_MMHG) {
+    throw new Error(
+      "blood-volume operating point forward/inverse pressure audit failed"
+    );
+  }
+  const audit = Object.freeze({
+    coldSeedTotalBloodVolumeMl: coldSeed.fixedTotalBloodVolumeMl,
+    resolvedTotalBloodVolumeMl,
+    addedBloodVolumeMl: resolvedTotalBloodVolumeMl - coldSeed.fixedTotalBloodVolumeMl,
+    targetResidualMl,
+    sharedTransmuralPressureOffsetMmHg,
+    baselineTransmuralPressuresMmHg,
+    resolvedTransmuralPressuresMmHg,
+    resolvedTransmuralPressureOffsetsMmHg,
+    maximumSharedTransmuralPressureOffsetResidualMmHg,
+    changedNodes,
+    unchangedNodeMaximumAbsoluteDeltaMl,
+    fullGraphReferenceTotalBloodVolumeMl: provenance.fullGraphReferenceTotalBloodVolumeMl,
+    excludedCoronaryColdSeedVolumeMl,
+    pinnedExcludedCoronaryColdSeedVolumeMl: provenance.pinnedExcludedCoronaryColdSeedVolumeMl,
+    excludedCoronaryColdSeedResidualMl,
+    fullGraphReferenceReconstructionResidualMl: provenanceResidual
+  });
+  return Object.freeze({
+    identity,
+    fixedTotalBloodVolumeMl: identity.fixedTotalBloodVolumeMl,
+    nodeVolumesMl,
+    audit
+  });
+}
+function baselineTransmuralPressureMmHg(nodeName, coldSeedVolumesMl, runtime, graph) {
+  const node = graph.nodes[graph.nodeIndex.get(nodeName)];
+  if (node.kind !== "venousPressure") {
+    throw new Error(`${nodeName} is no longer a venous-pressure node`);
+  }
+  return vascularTransmuralPressureFromPhysicalVolumeV1(
+    node,
+    coldSeedVolumesMl[nodeName],
+    runtime.vascular
+  );
+}
+function physicalVolumeAtTransmuralPressureMmHg(nodeName, transmuralPressureMmHg, runtime, graph) {
+  const node = graph.nodes[graph.nodeIndex.get(nodeName)];
+  if (node.kind !== "venousPressure") {
+    throw new Error(`${nodeName} is no longer a venous-pressure node`);
+  }
+  const law = vascularPvLawFromNodeV1(node, runtime.vascular);
+  return effectiveUnstressedVolumeFromNodeV1(node, runtime.vascular) + stressedVolumeFromPtm(law, transmuralPressureMmHg);
+}
+function solveSharedTransmuralPressureOffsetMmHg(coldSeedVolumesMl, targetAdditionalVolumeMl, runtime, graph, baselineTransmuralPressuresMmHg) {
+  const addedVolumeAtOffsetMl = (offsetMmHg) => ADJUSTED_NODES.reduce((sum, nodeName) => sum + physicalVolumeAtTransmuralPressureMmHg(
+    nodeName,
+    baselineTransmuralPressuresMmHg[nodeName] + offsetMmHg,
+    runtime,
+    graph
+  ) - coldSeedVolumesMl[nodeName], 0);
+  let lowerMmHg;
+  let upperMmHg;
+  if (targetAdditionalVolumeMl > 0) {
+    const maximumSharedOffsetMmHg = Math.min(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum - baselineTransmuralPressuresMmHg[nodeName]
+    ));
+    if (addedVolumeAtOffsetMl(maximumSharedOffsetMmHg) < targetAdditionalVolumeMl) {
+      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
+    }
+    lowerMmHg = 0;
+    upperMmHg = Math.min(1, maximumSharedOffsetMmHg);
+    while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
+      upperMmHg = Math.min(2 * upperMmHg, maximumSharedOffsetMmHg);
+    }
+  } else {
+    upperMmHg = 0;
+    const minimumSharedOffsetMmHg = Math.max(...ADJUSTED_NODES.map(
+      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum - baselineTransmuralPressuresMmHg[nodeName]
+    ));
+    lowerMmHg = Math.max(-1, minimumSharedOffsetMmHg);
+    while (addedVolumeAtOffsetMl(lowerMmHg) > targetAdditionalVolumeMl) {
+      if (lowerMmHg === minimumSharedOffsetMmHg) {
+        throw new Error("fixed normal-adult TBV falls below SV/VC PV-law support");
+      }
+      lowerMmHg = Math.max(2 * lowerMmHg, minimumSharedOffsetMmHg);
+    }
+  }
+  for (let iteration = 0; iteration < 96; iteration += 1) {
+    const midpointMmHg = 0.5 * (lowerMmHg + upperMmHg);
+    if (addedVolumeAtOffsetMl(midpointMmHg) < targetAdditionalVolumeMl) {
+      lowerMmHg = midpointMmHg;
+    } else {
+      upperMmHg = midpointMmHg;
+    }
+  }
+  return 0.5 * (lowerMmHg + upperMmHg);
+}
+function nodeRecord(build) {
+  return Object.freeze(Object.fromEntries(
+    NON_CORONARY_NODE_NAMES_V1.map((nodeName) => [nodeName, build(nodeName)])
+  ));
+}
+function sumNodeVolumes(volumes) {
+  return NON_CORONARY_NODE_NAMES_V1.reduce(
+    (sum, nodeName) => sum + volumes[nodeName],
+    0
+  );
+}
+function authoritativeExcludedCoronaryColdSeedVolumeMl(runtime) {
+  const graph = buildAuthoritativeCirculationGraphV1();
+  return NON_CORONARY_CIRCULATION_SCOPE_V1.excludedCoronaryNodes.reduce(
+    (sum, nodeName) => {
+      const node = graph.nodes[graph.nodeIndex.get(nodeName)];
+      if (node === void 0) {
+        throw new Error(`excluded coronary node ${nodeName} is absent from the authoritative graph`);
+      }
+      return sum + physicalColdSeedVolumeFromNodeV1(node, runtime.vascular);
+    },
+    0
+  );
+}
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_PROTOCOL_V3_ID = "main-wire-integrated-model-responsive-fixed-tone-tbv-starling-preview-v3";
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_TBV_SCALES_V3 = Object.freeze([
+  0.23,
+  0.27,
+  0.31,
+  0.36,
+  0.42,
+  0.48,
+  0.54,
+  0.6,
+  0.66,
+  0.72,
+  0.78,
+  0.84,
+  0.9,
+  0.95,
+  1,
+  1.08,
+  1.16,
+  1.24,
+  1.32,
+  1.4
+]);
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_TBV_SCALES_V3 = Object.freeze([
+  0.95,
+  0.9,
+  0.84,
+  0.78,
+  0.72,
+  0.66,
+  0.6,
+  0.54,
+  0.48,
+  0.42,
+  0.36,
+  0.31,
+  0.27,
+  0.23
+]);
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = Object.freeze([1.08, 1.16, 1.24, 1.32, 1.4]);
+const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3 = 0.5;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID = "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1";
+function advanceStructuralAnalysisSessionV3(session, targetTimeSec) {
+  return session.advanceStructuralAnalysisToPresentationTimeV1?.(
+    targetTimeSec
+  ) ?? session.advanceToPresentationTime(targetTimeSec);
+}
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3 = 5;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3 = 0.7;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3 = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl * 0.6;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 = 0.18;
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 = 1.6;
+function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl) {
+  if (!Number.isFinite(sourceGlobalTbvMl) || !(sourceGlobalTbvMl > 0)) {
+    throw new Error("formal PVA source TBV must be positive and finite");
+  }
+  return Math.min(
+    sourceGlobalTbvMl,
+    Math.max(
+      sourceGlobalTbvMl * MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_TBV_SCALE_V3,
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_ABSOLUTE_TBV_ML_V3
+    )
+  );
+}
+const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
+const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
+const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
+const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
+const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
+const RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.02;
+const FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 = 0.01;
+const FIXED_TBV_TOLERANCE_ML_V3 = 1e-6;
+const MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3 = 1e3;
+const MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3 = 4e3;
+const MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3 = 8;
+const MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3 = 8;
+const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
+const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
+const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
+const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 5e-3;
+const FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 = 0.16;
+const FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3 = 0.2;
+const FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3 = 0.06;
+const FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3 = 12;
+const FORMAL_SMOOTH_CHORD_ERROR_V3 = 0.12;
+const FORMAL_CURVED_CHORD_ERROR_V3 = 0.35;
+const FORMAL_CURVED_SCALE_STEP_MULTIPLIER_V3 = 0.8;
+const FORMAL_HIGH_ESV_SATURATION_GAIN_ML_V3 = 4;
+const FORMAL_HIGH_ESV_SATURATION_STEP_MULTIPLIER_V3 = 1.35;
+const FORMAL_MINIMUM_TERMINAL_COVERAGE_STEP_V3 = 0.02;
+const FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3 = 0.05;
+const FLOW_RELATIVE_CLOSURE_V3 = 0.01;
+const ATRIAL_PRESSURE_CLOSURE_MMHG_V3 = 0.15;
+const AORTIC_PRESSURE_CLOSURE_MMHG_V3 = 0.5;
+const VENTRICULAR_VOLUME_CLOSURE_ML_V3 = 1;
+const VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3 = 1;
+const VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3 = 1;
+const EARLY_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3 = 2;
+const FINAL_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3 = 4;
+const DESCENDING_LIMB_ABSOLUTE_DROP_L_PER_MIN_V3 = 0.15;
+const DESCENDING_LIMB_RELATIVE_DROP_V3 = 0.03;
+const DESCENDING_LIMB_STEP_TOLERANCE_L_PER_MIN_V3 = 0.01;
+const MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 = 12;
+class FixedTbvPressureVolumeLoopCollectorV3 {
+  constructor() {
+    this.completedBeatId = null;
+    this.left = [];
+    this.right = [];
+  }
+  accept(observation2) {
+    const sample = pressureVolumeSamplePairV3(observation2);
+    const nextCompletedBeatId = observation2.completedBeatMetrics?.endAtrialCaptureId ?? null;
+    if (sample === null || nextCompletedBeatId === null) return null;
+    if (this.completedBeatId === null) {
+      this.completedBeatId = nextCompletedBeatId;
+      this.left = [sample.left];
+      this.right = [sample.right];
+      return null;
+    }
+    if (nextCompletedBeatId === this.completedBeatId) {
+      this.left.push(sample.left);
+      this.right.push(sample.right);
+      return null;
+    }
+    const completed = this.left.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 && this.right.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 ? Object.freeze({
+      left: Object.freeze([...this.left, sample.left]),
+      right: Object.freeze([...this.right, sample.right])
+    }) : null;
+    this.completedBeatId = nextCompletedBeatId;
+    this.left = [sample.left];
+    this.right = [sample.right];
+    return completed;
+  }
+}
+class FormalFixedTbvPressureVolumeLoopCollectorV3 {
+  constructor() {
+    this.previousPhase01 = null;
+    this.fullCycleStarted = false;
+    this.left = [];
+    this.right = [];
+  }
+  accept(observation2) {
+    const sample = formalPressureVolumeSamplePairV3(observation2);
+    if (sample === null) return null;
+    if (this.previousPhase01 === null) {
+      this.previousPhase01 = sample.left.phase01;
+      this.left = [sample.left];
+      this.right = [sample.right];
+      return null;
+    }
+    if (sample.left.phase01 >= this.previousPhase01) {
+      this.left.push(sample.left);
+      this.right.push(sample.right);
+      this.previousPhase01 = sample.left.phase01;
+      return null;
+    }
+    const completed = this.fullCycleStarted && this.left.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 && this.right.length >= MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 ? Object.freeze({
+      loops: Object.freeze({
+        left: Object.freeze([...this.left]),
+        right: Object.freeze([...this.right])
+      }),
+      completedBeatMetrics: observation2.completedBeatMetrics
+    }) : null;
+    this.fullCycleStarted = true;
+    this.previousPhase01 = sample.left.phase01;
+    this.left = [sample.left];
+    this.right = [sample.right];
+    return completed;
+  }
+}
+function pressureVolumeSamplePairV3(observation2) {
+  const step = observation2.lastAcceptedStep;
+  if (step === null) return null;
+  const volumes = observation2.acceptedState.coronary.circulation.nodeVolumesMl;
+  const pressures = step.coronaryStep.baseStep.mechanicsTrial.transmuralPressuresMmHg;
+  const pair = Object.freeze({
+    left: Object.freeze({
+      volumeMl: volumes.LV,
+      pressureMmHg: pressures.LV
+    }),
+    right: Object.freeze({
+      volumeMl: volumes.RV,
+      pressureMmHg: pressures.RV
+    })
+  });
+  if (![
+    pair.left.volumeMl,
+    pair.left.pressureMmHg,
+    pair.right.volumeMl,
+    pair.right.pressureMmHg
+  ].every(Number.isFinite))
+    throw new Error("fixed-TBV pressure-volume loop sample is not finite");
+  return pair;
+}
+function formalPressureVolumeSamplePairV3(observation2) {
+  const pair = pressureVolumeSamplePairV3(observation2);
+  const completedBeat = observation2.completedBeatMetrics;
+  if (pair === null || completedBeat === null) return null;
+  const elapsedSinceLastCaptureSec = observation2.acceptedState.acceptedTimeSec - completedBeat.endTimeSec;
+  const phase01 = elapsedSinceLastCaptureSec / completedBeat.durationSec;
+  if (!Number.isFinite(phase01) || phase01 < -1e-12 || phase01 >= 1 + 1e-12) {
+    throw new Error("fixed-TBV pressure-volume loop phase is outside one beat");
+  }
+  const ownedPhase01 = Math.max(0, Math.min(1 - Number.EPSILON, phase01));
+  return Object.freeze({
+    left: Object.freeze({
+      ...pair.left,
+      phase01: ownedPhase01
+    }),
+    right: Object.freeze({
+      ...pair.right,
+      phase01: ownedPhase01
+    })
+  });
+}
+function runMainWireIntegratedModelResponsiveStarlingProtocolV3(sourceSession, onProgress, partition) {
+  const sourceGlobalTbvMl = sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
+  const paired = [];
+  let anchorObservation = null;
+  const result = (protocolComplete = false) => Object.freeze({
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_PROTOCOL_V3_ID,
+    anchorObservation: requiredAnchorObservationV3(anchorObservation),
+    right: responsiveLocusV3(
+      paired.map(({ right }) => right),
+      protocolComplete
+    ),
+    left: responsiveLocusV3(
+      paired.map(({ left }) => left),
+      protocolComplete
+    )
+  });
+  const append = (pair) => {
+    paired.push(pair);
+    onProgress?.(result());
+  };
+  const center = measureBranchV3(sourceSession, sourceGlobalTbvMl, {
+    role: "operating-anchor",
+    maximumBeatCount: CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3,
+    requireLocalConvergence: true
+  });
+  if (center.status === "rejected" || !responsiveSettledAnchorPairV3(center.pair)) {
+    throw new Error(
+      center.status === "rejected" ? `responsive Starling settled center rejected: ${center.reason}` : "responsive Starling center did not establish local period-1 closure"
+    );
+  }
+  anchorObservation = center.observation;
+  append(center.pair);
+  if (!center.pair.left.curveEligible || !center.pair.right.curveEligible) {
+    return result(true);
+  }
+  if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3)
+    runHypovolemicChainV3(center.branch, sourceGlobalTbvMl, append);
+  if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3)
+    runHypervolemicChainV3(
+      center.branch,
+      center.pair,
+      sourceGlobalTbvMl,
+      append
+    );
+  return result(true);
+}
+async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(sourceSession, hemodynamicResearchInputs, onProgress, partition) {
+  const sourceGlobalTbvMl = sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
+  if (Math.abs(sourceGlobalTbvMl - hemodynamicResearchInputs.totalBloodVolumeMl) > FIXED_TBV_TOLERANCE_ML_V3) {
+    throw new Error("formal PVA source and Scenario TBV differ");
+  }
+  const paired = [];
+  let anchorObservation = null;
+  const expectedPointCount = formalExpectedPointCountV3(partition);
+  const result = (protocolComplete = false) => Object.freeze({
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    anchorObservation: requiredAnchorObservationV3(anchorObservation),
+    right: formalPressureVolumeLocusV3(
+      paired.map(({ right }) => right),
+      protocolComplete,
+      expectedPointCount
+    ),
+    left: formalPressureVolumeLocusV3(
+      paired.map(({ left }) => left),
+      protocolComplete,
+      expectedPointCount
+    )
+  });
+  const append = (pair) => {
+    paired.push(pair);
+    onProgress?.(result());
+  };
+  const settledSource = settleFormalPressureVolumeSourceV3(
+    sourceSession,
+    sourceGlobalTbvMl
+  );
+  if (settledSource.status === "rejected") {
+    throw new Error(
+      `formal pressure-volume source rejected: ${settledSource.reason}`
+    );
+  }
+  const center = await measureFormalPressureVolumeBranchV3(
+    settledSource.branch,
+    sourceGlobalTbvMl,
+    "operating-anchor"
+  );
+  if (center.status === "rejected" || !formalPairQualifiedV3(center.pair)) {
+    throw new Error(
+      center.status === "rejected" ? `formal pressure-volume center rejected: ${center.reason}` : "formal pressure-volume center did not establish periodic closure"
+    );
+  }
+  anchorObservation = center.observation;
+  append(center.pair);
+  if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3) {
+    await runFormalHypervolemicStarlingChainV3(
+      center.branch,
+      center.pair,
+      sourceGlobalTbvMl,
+      append
+    );
+  }
+  if (partition === void 0 || partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3) {
+    await runFormalHypovolemicCoverageChainV3(
+      center.branch,
+      center.pair,
+      sourceGlobalTbvMl,
+      append
+    );
+  }
+  return result(true);
+}
+function formalExpectedPointCountV3(partition) {
+  if (partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3) {
+    return 1 + FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+  }
+  if (partition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3) {
+    return 2;
+  }
+  return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
+}
+function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
+  let branch;
+  try {
+    branch = sourceSession.forkAtFixedGlobalTotalBloodVolume(sourceGlobalTbvMl);
+  } catch (error) {
+    return rejectedV3(error);
+  }
+  const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+  const beats = [];
+  let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
+  for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+    const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      break;
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
+      acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3
+    );
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed" ? advance.message : `unexpected formal source-settlement status ${advance.status}`
+      );
+    }
+    const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+    if (Math.abs(acceptedTbvMl - sourceGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3) {
+      return rejectedV3(
+        "global TBV changed during active-controller source settlement"
+      );
+    }
+    const completed = advance.observation.completedBeatMetrics;
+    if (completed === null || completed.endAtrialCaptureId === lastCompletedBeatId) {
+      continue;
+    }
+    lastCompletedBeatId = completed.endAtrialCaptureId;
+    beats.push(completed);
+    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
+      return Object.freeze({ status: "settled", branch });
+    }
+    if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+      return rejectedV3("active-controller source reached a period-2 boundary");
+    }
+    if (beats.length >= FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3) break;
+  }
+  return rejectedV3(
+    "active-controller source did not establish complete-beat period-1 closure"
+  );
+}
+async function runFormalHypovolemicCoverageChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
+  const samples = [
+    Object.freeze({ scale: 1, pair: centerPair })
+  ];
+  let boundary2 = Object.freeze({
+    branch: centerBranch,
+    scale: 1,
+    pair: centerPair
+  });
+  const accept = (nextBoundary) => {
+    samples.push(
+      Object.freeze({ scale: nextBoundary.scale, pair: nextBoundary.pair })
+    );
+    append(nextBoundary.pair);
+  };
+  const coreMinimumScale = mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl) / sourceGlobalTbvMl;
+  for (let ordinal = 1; ordinal <= FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3; ordinal += 1) {
+    const requestedScale = 1 - (1 - coreMinimumScale) * ordinal / FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary2,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept
+    );
+    boundary2 = advanced.boundary;
+    if (advanced.status !== "reached") {
+      throw new Error(
+        `formal PVA bootstrap below scale ${boundary2.scale} rejected: ${advanced.reason ?? "numerical boundary"}`
+      );
+    }
+  }
+  if (starlingPairReachedLowFlowTargetV3(boundary2.pair)) return;
+  let desiredScaleStep = FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  while (boundary2.scale > MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 + 1e-12 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
+    const priorScale = boundary2.scale;
+    const requestedScale = Math.max(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3,
+      boundary2.scale - desiredScaleStep
+    );
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary2,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept,
+      (pair) => starlingPairReachedLowFlowTargetV3(pair)
+    );
+    boundary2 = advanced.boundary;
+    if (!(boundary2.scale < priorScale - 1e-12)) return;
+    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
+      "hypovolemic",
+      recentAcceptedScaleStepV3(samples),
+      samples
+    );
+    if (advanced.status !== "reached") return;
+  }
+}
+function adaptiveFormalCoverageScaleStepV3(direction, acceptedScaleStep, samples) {
+  const pair = samples.at(-1).pair;
+  const completedBeatCount = Math.max(
+    pair.left.completedBeatCount,
+    pair.right.completedBeatCount
+  );
+  const closureScore = Math.max(
+    pair.left.maximumNormalizedBeatDelta,
+    pair.right.maximumNormalizedBeatDelta
+  );
+  const easySettlement = completedBeatCount <= 5 && closureScore <= 0.6;
+  const difficultSettlement = completedBeatCount >= 10 || closureScore > 0.9;
+  const chordError = formalCoverageChordErrorV3(samples);
+  let multiplier = chordError === null ? easySettlement ? 1.2 : 1 : chordError <= FORMAL_SMOOTH_CHORD_ERROR_V3 ? easySettlement ? 1.35 : 1.15 : chordError >= FORMAL_CURVED_CHORD_ERROR_V3 ? FORMAL_CURVED_SCALE_STEP_MULTIPLIER_V3 : 1;
+  if (difficultSettlement) multiplier = Math.min(multiplier, 1);
+  const highEsvGainMl = direction === "hypervolemic" ? formalCoverageMinimumEndSystolicVolumeGainV3(samples) : null;
+  if (highEsvGainMl !== null && highEsvGainMl < FORMAL_HIGH_ESV_SATURATION_GAIN_ML_V3) {
+    multiplier = Math.max(
+      multiplier,
+      FORMAL_HIGH_ESV_SATURATION_STEP_MULTIPLIER_V3
+    );
+  }
+  const maximumScaleStep = direction === "hypovolemic" ? FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 : FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3;
+  return Math.min(
+    maximumScaleStep,
+    Math.max(FORMAL_PVA_MINIMUM_SCALE_STEP_V3, acceptedScaleStep * multiplier)
+  );
+}
+async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
+  const samples = [
+    Object.freeze({ scale: 1, pair: centerPair })
+  ];
+  let boundary2 = Object.freeze({
+    branch: centerBranch,
+    scale: 1,
+    pair: centerPair
+  });
+  const accept = (nextBoundary) => {
+    samples.push(
+      Object.freeze({ scale: nextBoundary.scale, pair: nextBoundary.pair })
+    );
+    append(nextBoundary.pair);
+  };
+  let desiredScaleStep = FORMAL_HIGH_INITIAL_SCALE_STEP_V3;
+  while (boundary2.scale < MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 - 1e-12 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
+    const priorScale = boundary2.scale;
+    const remainingCoverageScale = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 - boundary2.scale;
+    if (remainingCoverageScale < Math.max(FORMAL_MINIMUM_TERMINAL_COVERAGE_STEP_V3, 0.5 * desiredScaleStep)) {
+      return;
+    }
+    const requestedScale = Math.min(
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3,
+      boundary2.scale + desiredScaleStep
+    );
+    const advanced = await advanceFormalCoverageTowardScaleV3(
+      boundary2,
+      requestedScale,
+      sourceGlobalTbvMl,
+      accept
+    );
+    boundary2 = advanced.boundary;
+    if (!(boundary2.scale > priorScale + 1e-12)) {
+      return;
+    }
+    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
+      "hypervolemic",
+      recentAcceptedScaleStepV3(samples),
+      samples
+    );
+    if (advanced.status !== "reached") {
+      return;
+    }
+  }
+}
+async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false) {
+  const boundary2 = initialBoundary;
+  let continuationBranch = initialBoundary.branch;
+  let continuationScale = initialBoundary.scale;
+  let bridgeMaximumScaleStep = FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3;
+  let forceBridgeBeforeTarget = false;
+  let lastRejectedReason = "formal coverage target was not attempted";
+  for (let attempt = 0; attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3; attempt += 1) {
+    const remainingScale = requestedScale - continuationScale;
+    const minimumScaleStep = Math.max(
+      FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
+      MINIMUM_FORMAL_TBV_BRACKET_ML_V3 / sourceGlobalTbvMl
+    );
+    if (Math.abs(remainingScale) <= 1e-12) break;
+    if (forceBridgeBeforeTarget || Math.abs(remainingScale) > bridgeMaximumScaleStep + 1e-12) {
+      const bridgeScaleStep = forceBridgeBeforeTarget ? 0.5 * Math.abs(remainingScale) : Math.min(Math.abs(remainingScale), bridgeMaximumScaleStep);
+      const bridgeScale = continuationScale + Math.sign(remainingScale) * bridgeScaleStep;
+      const bridged = await advanceFormalHotStartBridgeV3(
+        continuationBranch,
+        sourceGlobalTbvMl * bridgeScale
+      );
+      if (bridged.status === "accepted") {
+        continuationBranch = bridged.branch;
+        continuationScale = bridgeScale;
+        forceBridgeBeforeTarget = false;
+        continue;
+      }
+      lastRejectedReason = bridged.reason;
+      bridgeMaximumScaleStep *= 0.5;
+      forceBridgeBeforeTarget = false;
+      if (bridgeMaximumScaleStep < minimumScaleStep) break;
+      continue;
+    }
+    const measured = await measureFormalPressureVolumeBranchV3(
+      continuationBranch,
+      sourceGlobalTbvMl * requestedScale,
+      "continuation"
+    );
+    if (measured.status === "accepted" && formalPairQualifiedV3(measured.pair)) {
+      const acceptedBoundary = Object.freeze({
+        branch: measured.branch,
+        scale: requestedScale,
+        pair: measured.pair
+      });
+      accept(acceptedBoundary);
+      if (stopAfterAccepted(measured.pair)) {
+        return Object.freeze({
+          status: "stopped",
+          boundary: acceptedBoundary,
+          reason: null
+        });
+      }
+      return Object.freeze({
+        status: "reached",
+        boundary: acceptedBoundary,
+        reason: null
+      });
+    }
+    lastRejectedReason = measured.status === "rejected" ? measured.reason : "formal coverage target did not retain a settled fixed-tone pair";
+    if (Math.abs(remainingScale) <= minimumScaleStep) break;
+    forceBridgeBeforeTarget = true;
+  }
+  return Object.freeze({
+    status: "boundary",
+    boundary: boundary2,
+    reason: lastRejectedReason
+  });
+}
+async function advanceFormalHotStartBridgeV3(sourceSession, targetGlobalTbvMl) {
+  let branch;
+  try {
+    branch = sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+      targetGlobalTbvMl
+    );
+  } catch (error) {
+    return rejectedV3(error);
+  }
+  const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+  let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
+  for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+    const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      break;
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
+      acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3
+    );
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed" ? advance.message : `unexpected formal bridge status ${advance.status}`
+      );
+    }
+    const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+    if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3) {
+      return rejectedV3("fixed global TBV changed during a hot-start bridge");
+    }
+    const completed = advance.observation.completedBeatMetrics;
+    if (completed !== null && completed.endAtrialCaptureId !== lastCompletedBeatId) {
+      lastCompletedBeatId = completed.endAtrialCaptureId;
+      return Object.freeze({ status: "accepted", branch });
+    }
+  }
+  return rejectedV3("hot-start bridge did not complete one beat");
+}
+function recentAcceptedScaleStepV3(samples) {
+  if (samples.length < 2) return FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  return Math.abs(samples.at(-1).scale - samples.at(-2).scale);
+}
+function formalCoverageMinimumEndSystolicVolumeGainV3(samples) {
+  if (samples.length < 2) return null;
+  const previous = samples.at(-2).pair;
+  const current = samples.at(-1).pair;
+  const gain = (prior, next) => Math.abs(
+    next.ventricularPressureVolumeLandmarks.endSystolic.volumeMl - prior.ventricularPressureVolumeLandmarks.endSystolic.volumeMl
+  );
+  return Math.min(
+    gain(previous.left, current.left),
+    gain(previous.right, current.right)
+  );
+}
+function formalCoverageChordErrorV3(samples) {
+  if (samples.length < 3) return null;
+  const [first, middle, last] = samples.slice(-3);
+  if (first === void 0 || middle === void 0 || last === void 0) {
+    return null;
+  }
+  const denominator = last.scale - first.scale;
+  if (!Number.isFinite(denominator) || Math.abs(denominator) < 1e-12) {
+    return null;
+  }
+  const fraction2 = (middle.scale - first.scale) / denominator;
+  const firstValues = formalCoverageShapeVectorV3(first.pair);
+  const middleValues = formalCoverageShapeVectorV3(middle.pair);
+  const lastValues = formalCoverageShapeVectorV3(last.pair);
+  const normalizationFloors = [
+    1,
+    0.25,
+    5,
+    5,
+    5,
+    1,
+    1,
+    0.25,
+    5,
+    5,
+    5,
+    1
+  ];
+  return Math.max(
+    ...middleValues.map((value, index) => {
+      const predicted = firstValues[index] + fraction2 * (lastValues[index] - firstValues[index]);
+      const localSpan = Math.abs(lastValues[index] - firstValues[index]);
+      return Math.abs(value - predicted) / Math.max(normalizationFloors[index], localSpan);
+    })
+  );
+}
+function formalCoverageShapeVectorV3(pair) {
+  const side = (point) => [
+    point.fillingPressureMmHg,
+    point.cardiacOutputLPerMin,
+    point.ventricularPressureVolumeLandmarks.endSystolic.volumeMl,
+    point.ventricularPressureVolumeLandmarks.endSystolic.pressureMmHg,
+    point.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl,
+    point.ventricularPressureVolumeLandmarks.endDiastolic.pressureMmHg
+  ];
+  return Object.freeze([...side(pair.left), ...side(pair.right)]);
+}
+function formalPairQualifiedV3(pair) {
+  return pair.left.settled && pair.right.settled && pair.left.evidence === "fixed-tone-periodic" && pair.right.evidence === "fixed-tone-periodic" && pair.left.curveEligible && pair.right.curveEligible;
+}
+function responsiveSettledAnchorPairV3(pair) {
+  return [pair.left, pair.right].every(
+    (point) => point.role === "operating-anchor" && point.quality === "locally-converged" && point.curveEligible === true && point.settled === true && point.evidence === "responsive-settled-anchor" && point.measurementWindowStatus === "responsive-period1-settled"
+  );
+}
+function runHypovolemicChainV3(centerBranch, sourceGlobalTbvMl, append) {
+  let reliableBranch = centerBranch;
+  let reliableScale = 1;
+  for (const requestedScale of MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_TBV_SCALES_V3) {
+    let targetScale = requestedScale;
+    let unsafeScale = null;
+    let boundaryCandidate = null;
+    let reachedRequestedScale = false;
+    for (let attempt = 0; attempt < MAXIMUM_LOW_TARGET_ATTEMPTS_PER_POINT_V3; attempt += 1) {
+      const measured = measureBranchV3(
+        reliableBranch,
+        sourceGlobalTbvMl * targetScale,
+        {
+          role: "continuation",
+          maximumBeatCount: targetScale <= 0.54 ? DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 : STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3,
+          requireLocalConvergence: false
+        }
+      );
+      if (measured.status === "accepted" && measured.pair.left.curveEligible && measured.pair.right.curveEligible) {
+        append(measured.pair);
+        reliableBranch = measured.branch;
+        reliableScale = targetScale;
+        if (starlingPairReachedLowFlowTargetV3(measured.pair)) return;
+        if (Math.abs(targetScale - requestedScale) < 1e-12) {
+          reachedRequestedScale = true;
+          break;
+        }
+        targetScale = requestedScale;
+        continue;
+      }
+      unsafeScale = targetScale;
+      if (measured.status === "accepted") boundaryCandidate = measured.pair;
+      if (reliableScale - unsafeScale <= MINIMUM_LOW_SCALE_BRACKET_V3) break;
+      targetScale = midpointV3(reliableScale, unsafeScale);
+    }
+    if (reachedRequestedScale) continue;
+    if (boundaryCandidate !== null) append(boundaryCandidate);
+    break;
+  }
+}
+function starlingPairReachedLowFlowTargetV3(pair) {
+  return Math.max(pair.left.cardiacOutputLPerMin, pair.right.cardiacOutputLPerMin) <= MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3;
+}
+function runHypervolemicChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
+  let reliableBranch = centerBranch;
+  const reliablePairs = [centerPair];
+  for (const scale of MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3) {
+    const measured = measureBranchV3(
+      reliableBranch,
+      sourceGlobalTbvMl * scale,
+      {
+        role: "continuation",
+        maximumBeatCount: STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3,
+        requireLocalConvergence: false
+      }
+    );
+    if (measured.status === "rejected") break;
+    append(measured.pair);
+    if (!measured.pair.left.curveEligible || !measured.pair.right.curveEligible) {
+      break;
+    }
+    reliableBranch = measured.branch;
+    reliablePairs.push(measured.pair);
+    if (reliablePairs.length >= 4 && mainWireIntegratedModelStarlingDescendingLimbV3(
+      reliablePairs.map(({ right }) => right)
+    ) !== null && mainWireIntegratedModelStarlingDescendingLimbV3(
+      reliablePairs.map(({ left }) => left)
+    ) !== null)
+      break;
+  }
+}
+function mainWireIntegratedModelStarlingDescendingLimbV3(points) {
+  const ordered = points.filter(
+    ({ cardiacOutputLPerMin, curveEligible, fillingPressureMmHg }) => curveEligible && Number.isFinite(cardiacOutputLPerMin) && Number.isFinite(fillingPressureMmHg)
+  ).sort(
+    (left, right) => left.fillingPressureMmHg - right.fillingPressureMmHg
+  );
+  if (ordered.length < 4) return null;
+  const peakFlowLPerMin = Math.max(
+    ...ordered.map(({ cardiacOutputLPerMin }) => cardiacOutputLPerMin)
+  );
+  const plateauToleranceLPerMin = Math.max(0.05, 0.01 * peakFlowLPerMin);
+  let peakIndex = 0;
+  ordered.forEach((point, index) => {
+    if (point.cardiacOutputLPerMin >= peakFlowLPerMin - plateauToleranceLPerMin)
+      peakIndex = index;
+  });
+  const requiredDropLPerMin = Math.max(
+    DESCENDING_LIMB_ABSOLUTE_DROP_L_PER_MIN_V3,
+    DESCENDING_LIMB_RELATIVE_DROP_V3 * peakFlowLPerMin
+  );
+  for (let index = peakIndex + 2; index < ordered.length; index += 1) {
+    const peak = ordered[peakIndex];
+    const firstDeclining = ordered[index - 1];
+    const confirmation = ordered[index];
+    if (firstDeclining.cardiacOutputLPerMin > peak.cardiacOutputLPerMin - DESCENDING_LIMB_STEP_TOLERANCE_L_PER_MIN_V3 || confirmation.cardiacOutputLPerMin > firstDeclining.cardiacOutputLPerMin - DESCENDING_LIMB_STEP_TOLERANCE_L_PER_MIN_V3 || peakFlowLPerMin - confirmation.cardiacOutputLPerMin < requiredDropLPerMin)
+      continue;
+    return Object.freeze({
+      peakPressureMmHg: peak.fillingPressureMmHg,
+      firstDecliningPressureMmHg: firstDeclining.fillingPressureMmHg,
+      confirmedDecliningPressureMmHg: confirmation.fillingPressureMmHg
+    });
+  }
+  return null;
+}
+async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTbvMl, role) {
+  let branch;
+  try {
+    branch = sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+      targetGlobalTbvMl
+    );
+    const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    const beats = [];
+    const pressureVolumeBeats = [];
+    const pressureVolumeLoopCollector = new FormalFixedTbvPressureVolumeLoopCollectorV3();
+    let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
+    let locallyConverged = false;
+    for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+      const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+      if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+        break;
+      const advance = advanceStructuralAnalysisSessionV3(
+        branch,
+        acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3
+      );
+      if (advance.status !== "advanced") {
+        return rejectedV3(
+          advance.status === "failed" ? advance.message : `unexpected formal measurement advance status ${advance.status}`
+        );
+      }
+      const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+      if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3) {
+        return rejectedV3("fixed global TBV changed during PVA settlement");
+      }
+      const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
+        advance.observation
+      );
+      if (completedPressureVolumeLoop !== null) {
+        pressureVolumeBeats.push(completedPressureVolumeLoop);
+      }
+      const completed = advance.observation.completedBeatMetrics;
+      if (completed === null || completed.endAtrialCaptureId === lastCompletedBeatId) {
+        continue;
+      }
+      lastCompletedBeatId = completed.endAtrialCaptureId;
+      beats.push(completed);
+      if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+        if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
+          locallyConverged = true;
+          break;
+        }
+        if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+          return rejectedV3(
+            "fixed-tone PVA branch reached a period-2 boundary"
+          );
+        }
+      }
+      const maximumBeatCount = role === "operating-anchor" ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
+      if (beats.length >= maximumBeatCount) break;
+    }
+    if (!locallyConverged) {
+      const previousScore = beats.length >= 3 ? formalBeatPairClosureScoreV3(beats.at(-3), beats.at(-2)) : Number.POSITIVE_INFINITY;
+      const latestScore = latestBeatClosureScoreV3(
+        beats,
+        formalBeatPairClosureScoreV3
+      );
+      return rejectedV3(
+        `fixed-tone PVA branch did not establish strict period-1 closure (beats=${beats.length}, previous=${previousScore}, latest=${latestScore})`
+      );
+    }
+    const pressureVolumeBeat = pressureVolumeBeats.at(-1);
+    if (pressureVolumeBeat === void 0) {
+      return rejectedV3(
+        "formal fixed-TBV branch did not retain a complete pressure-volume loop"
+      );
+    }
+    const averaged = averageBeatMetricsV3(beats.slice(-2));
+    const selectedBeat = pressureVolumeBeat.completedBeatMetrics;
+    const common = Object.freeze({
+      totalBloodVolumeMl: targetGlobalTbvMl,
+      role,
+      quality: "locally-converged",
+      curveEligible: true,
+      completedBeatCount: beats.length,
+      maximumNormalizedBeatDelta: recentBeatClosureScoreV3(
+        beats,
+        formalBeatPairClosureScoreV3
+      ),
+      settled: true,
+      finiteAndFixedTbvPassed: true,
+      evidence: "fixed-tone-periodic",
+      measurementWindowStatus: "fixed-tone-period1-settled",
+      acceptedMeasurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec,
+      acceptedBeatDurationSec: selectedBeat.durationSec
+    });
+    return Object.freeze({
+      status: "accepted",
+      branch,
+      observation: branch.observe(),
+      pair: Object.freeze({
+        right: Object.freeze({
+          ...common,
+          fillingPressureMmHg: averaged.meanRightAtrialPressureMmHg,
+          cardiacOutputLPerMin: averaged.nativeRightCardiacOutputLPerMin,
+          acceptedTransmuralPathWorkMmHgMl: selectedBeat.rightVentricularTransmuralPressureVolumePathWorkMmHgMl,
+          ventricularPressureVolumeLoop: pressureVolumeBeat.loops.right,
+          ventricularPressureVolumeLandmarks: selectedBeat.rightVentricularPressureVolumeLandmarks
+        }),
+        left: Object.freeze({
+          ...common,
+          fillingPressureMmHg: averaged.meanLeftAtrialPressureMmHg,
+          cardiacOutputLPerMin: averaged.nativeLeftCardiacOutputLPerMin,
+          acceptedTransmuralPathWorkMmHgMl: selectedBeat.leftVentricularTransmuralPressureVolumePathWorkMmHgMl,
+          ventricularPressureVolumeLoop: pressureVolumeBeat.loops.left,
+          ventricularPressureVolumeLandmarks: selectedBeat.leftVentricularPressureVolumeLandmarks
+        })
+      })
+    });
+  } catch (error) {
+    return rejectedV3(error);
+  }
+}
+function measureBranchV3(sourceSession, targetGlobalTbvMl, options) {
+  let branch;
+  try {
+    branch = sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+      targetGlobalTbvMl
+    );
+  } catch (error) {
+    return rejectedV3(error);
+  }
+  const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+  const beats = [];
+  const pressureVolumeLoops = [];
+  const pressureVolumeLoopCollector = new FixedTbvPressureVolumeLoopCollectorV3();
+  let lastCompletedBeatId = null;
+  let quality = "convergence-cap";
+  for (let ordinal = 1; ordinal <= MAXIMUM_RESPONSIVE_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+    const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
+    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      break;
+    const advance = advanceStructuralAnalysisSessionV3(
+      branch,
+      acceptedTimeSec + RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3
+    );
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed" ? advance.message : `unexpected advance status ${advance.status}`
+      );
+    }
+    const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
+    if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3)
+      return rejectedV3("fixed global TBV changed during the branch");
+    const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
+      advance.observation
+    );
+    if (completedPressureVolumeLoop !== null) {
+      pressureVolumeLoops.push(completedPressureVolumeLoop);
+    }
+    const completed = advance.observation.completedBeatMetrics;
+    if (completed === null || completed.endAtrialCaptureId === lastCompletedBeatId)
+      continue;
+    lastCompletedBeatId = completed.endAtrialCaptureId;
+    beats.push(completed);
+    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats)) {
+      quality = "locally-converged";
+      break;
+    }
+    if (beats.length >= 5 && period2DetectedV3(beats)) {
+      quality = "period-2-boundary";
+      break;
+    }
+    if (!options.requireLocalConvergence && beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && recentBeatClosureScoreV3(beats) <= EARLY_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3) {
+      quality = "adaptive-preview";
+      break;
+    }
+    if (beats.length >= options.maximumBeatCount) break;
+  }
+  if (beats.length < MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+    return rejectedV3(
+      `fewer than ${MINIMUM_COMPLETE_BEAT_COUNT_V3} complete beats were accepted`
+    );
+  }
+  if (quality === "convergence-cap" && period2DetectedV3(beats)) {
+    quality = "period-2-boundary";
+  } else if (quality === "convergence-cap" && !options.requireLocalConvergence && recentBeatClosureScoreV3(beats) <= FINAL_PREVIEW_MAXIMUM_CLOSURE_SCORE_V3) {
+    quality = "adaptive-preview";
+  }
+  const measurementBeats = beats.slice(-2);
+  const pressureVolumeLoop = pressureVolumeLoops.at(-1);
+  if (pressureVolumeLoop === void 0) {
+    return rejectedV3(
+      "fixed-TBV branch did not retain a complete pressure-volume loop"
+    );
+  }
+  const averaged = averageBeatMetricsV3(measurementBeats);
+  const lastBeatDelta = recentBeatClosureScoreV3(beats);
+  const acceptedMeasurementDurationSec = branch.currentAcceptedState().acceptedTimeSec - originTimeSec;
+  const curveEligible = quality === "locally-converged" || quality === "adaptive-preview";
+  const responsiveSettledAnchor = options.role === "operating-anchor" && quality === "locally-converged";
+  const common = Object.freeze({
+    totalBloodVolumeMl: targetGlobalTbvMl,
+    role: options.role,
+    quality,
+    curveEligible,
+    completedBeatCount: beats.length,
+    maximumNormalizedBeatDelta: lastBeatDelta,
+    settled: responsiveSettledAnchor,
+    finiteAndFixedTbvPassed: true,
+    evidence: responsiveSettledAnchor ? "responsive-settled-anchor" : "responsive-preview",
+    measurementWindowStatus: responsiveSettledAnchor ? "responsive-period1-settled" : quality === "locally-converged" ? "complete-beat-converged" : quality === "adaptive-preview" ? "complete-beat-preview" : quality === "period-2-boundary" ? "period-2-detected" : "complete-beat-cap",
+    acceptedMeasurementDurationSec
+  });
+  return Object.freeze({
+    status: "accepted",
+    branch,
+    observation: branch.observe(),
+    pair: Object.freeze({
+      right: Object.freeze({
+        ...common,
+        fillingPressureMmHg: averaged.meanRightAtrialPressureMmHg,
+        cardiacOutputLPerMin: averaged.nativeRightCardiacOutputLPerMin,
+        ventricularPressureVolumeLoop: pressureVolumeLoop.right,
+        ventricularPressureVolumeLandmarks: averaged.rightVentricularPressureVolumeLandmarks
+      }),
+      left: Object.freeze({
+        ...common,
+        fillingPressureMmHg: averaged.meanLeftAtrialPressureMmHg,
+        cardiacOutputLPerMin: averaged.nativeLeftCardiacOutputLPerMin,
+        ventricularPressureVolumeLoop: pressureVolumeLoop.left,
+        ventricularPressureVolumeLandmarks: averaged.leftVentricularPressureVolumeLandmarks
+      })
+    })
+  });
+}
+function period1ConvergedV3(beats, closureScore = beatPairClosureScoreV3) {
+  const consecutiveComparisonCount = 2;
+  if (beats.length < consecutiveComparisonCount + 1) return false;
+  const suffix = beats.slice(-3);
+  return suffix.slice(1).every((beat, index) => closureScore(suffix[index], beat) <= 1);
+}
+function latestBeatClosureScoreV3(beats, closureScore = beatPairClosureScoreV3) {
+  if (beats.length < 2) return Number.POSITIVE_INFINITY;
+  return closureScore(beats.at(-2), beats.at(-1));
+}
+function recentBeatClosureScoreV3(beats, closureScore = beatPairClosureScoreV3) {
+  if (beats.length < 2) return Number.POSITIVE_INFINITY;
+  const adjacent = closureScore(beats.at(-2), beats.at(-1));
+  return beats.length < 3 ? adjacent : Math.max(closureScore(beats.at(-3), beats.at(-2)), adjacent);
+}
+function period2DetectedV3(beats, closureScore = beatPairClosureScoreV3) {
+  if (beats.length < 5) return false;
+  const p2 = closureScore(beats.at(-5), beats.at(-3)) <= 1 && closureScore(beats.at(-4), beats.at(-2)) <= 1 && closureScore(beats.at(-3), beats.at(-1)) <= 1;
+  const adjacent = closureScore(beats.at(-2), beats.at(-1));
+  return p2 && adjacent > 1;
+}
+function beatPairClosureScoreV3(left, right) {
+  const flowScore = (leftValue, rightValue) => Math.abs(leftValue - rightValue) / Math.max(
+    FLOW_ABSOLUTE_CLOSURE_L_PER_MIN_V3,
+    FLOW_RELATIVE_CLOSURE_V3 * Math.max(Math.abs(leftValue), Math.abs(rightValue))
+  );
+  return Math.max(
+    flowScore(
+      left.nativeLeftCardiacOutputLPerMin,
+      right.nativeLeftCardiacOutputLPerMin
+    ),
+    flowScore(
+      left.nativeRightCardiacOutputLPerMin,
+      right.nativeRightCardiacOutputLPerMin
+    ),
+    Math.abs(
+      left.meanLeftAtrialPressureMmHg - right.meanLeftAtrialPressureMmHg
+    ) / ATRIAL_PRESSURE_CLOSURE_MMHG_V3,
+    Math.abs(
+      left.meanRightAtrialPressureMmHg - right.meanRightAtrialPressureMmHg
+    ) / ATRIAL_PRESSURE_CLOSURE_MMHG_V3,
+    Math.abs(left.meanAorticPressureMmHg - right.meanAorticPressureMmHg) / AORTIC_PRESSURE_CLOSURE_MMHG_V3,
+    Math.abs(
+      left.maximumLeftVentricularVolumeMl - right.maximumLeftVentricularVolumeMl
+    ) / VENTRICULAR_VOLUME_CLOSURE_ML_V3,
+    Math.abs(
+      left.minimumLeftVentricularVolumeMl - right.minimumLeftVentricularVolumeMl
+    ) / VENTRICULAR_VOLUME_CLOSURE_ML_V3
+  );
+}
+function formalBeatPairClosureScoreV3(left, right) {
+  const landmarkScore = (leftLandmark, rightLandmark) => Math.max(
+    Math.abs(leftLandmark.volumeMl - rightLandmark.volumeMl) / VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3,
+    Math.abs(leftLandmark.pressureMmHg - rightLandmark.pressureMmHg) / VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3
+  );
+  return Math.max(
+    beatPairClosureScoreV3(left, right),
+    landmarkScore(
+      left.leftVentricularPressureVolumeLandmarks.endDiastolic,
+      right.leftVentricularPressureVolumeLandmarks.endDiastolic
+    ),
+    landmarkScore(
+      left.leftVentricularPressureVolumeLandmarks.endSystolic,
+      right.leftVentricularPressureVolumeLandmarks.endSystolic
+    ),
+    landmarkScore(
+      left.rightVentricularPressureVolumeLandmarks.endDiastolic,
+      right.rightVentricularPressureVolumeLandmarks.endDiastolic
+    ),
+    landmarkScore(
+      left.rightVentricularPressureVolumeLandmarks.endSystolic,
+      right.rightVentricularPressureVolumeLandmarks.endSystolic
+    )
+  );
+}
+function averageBeatMetricsV3(beats) {
+  if (beats.length === 0) throw new Error("Starling beat average is empty");
+  const mean = (read) => beats.reduce((sum, beat) => sum + read(beat), 0) / beats.length;
+  return Object.freeze({
+    meanLeftAtrialPressureMmHg: mean((beat) => beat.meanLeftAtrialPressureMmHg),
+    meanRightAtrialPressureMmHg: mean(
+      (beat) => beat.meanRightAtrialPressureMmHg
+    ),
+    nativeLeftCardiacOutputLPerMin: mean(
+      (beat) => beat.nativeLeftCardiacOutputLPerMin
+    ),
+    nativeRightCardiacOutputLPerMin: mean(
+      (beat) => beat.nativeRightCardiacOutputLPerMin
+    ),
+    leftVentricularPressureVolumeLandmarks: averagePressureVolumeLandmarksV3(
+      beats.map((beat) => beat.leftVentricularPressureVolumeLandmarks)
+    ),
+    rightVentricularPressureVolumeLandmarks: averagePressureVolumeLandmarksV3(
+      beats.map((beat) => beat.rightVentricularPressureVolumeLandmarks)
+    )
+  });
+}
+function averagePressureVolumeLandmarksV3(landmarks) {
+  if (landmarks.length === 0) {
+    throw new Error("pressure-volume landmark average is empty");
+  }
+  const average = (selected, event) => Object.freeze({
+    volumeMl: selected.reduce((sum, point) => sum + point.volumeMl, 0) / selected.length,
+    pressureMmHg: selected.reduce((sum, point) => sum + point.pressureMmHg, 0) / selected.length,
+    event
+  });
+  const endSystolic = landmarks.map(({ endSystolic: endSystolic2 }) => endSystolic2);
+  return Object.freeze({
+    pressureBasis: "transmural",
+    endDiastolic: average(
+      landmarks.map(({ endDiastolic }) => endDiastolic),
+      "maximum-volume"
+    ),
+    endSystolic: average(
+      endSystolic,
+      endSystolic.every(({ event }) => event === "semilunar-valve-closure") ? "semilunar-valve-closure" : "minimum-volume-fallback"
+    )
+  });
+}
+function responsiveLocusV3(points, protocolComplete) {
+  return Object.freeze({
+    status: "responsive-fixed-tbv-preview",
+    points: Object.freeze(
+      [...points].sort(
+        (left, right) => left.fillingPressureMmHg - right.fillingPressureMmHg
+      )
+    ),
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_PROTOCOL_V3_ID,
+    warmupDurationSec: 0,
+    measurementDurationSec: MAXIMUM_MEASUREMENT_DURATION_SEC_V3,
+    minimumBeatCount: MINIMUM_COMPLETE_BEAT_COUNT_V3,
+    maximumBeatCount: CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3,
+    slowControllerPolicy: "coronary-tone-frozen-at-branch-source",
+    completedPointCount: points.length,
+    totalPointCount: protocolComplete ? points.length : Math.max(
+      points.length,
+      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_TBV_SCALES_V3.length
+    )
+  });
+}
+function formalPressureVolumeLocusV3(points, protocolComplete, expectedPointCount) {
+  const settled = points.filter(
+    (point) => point.quality === "locally-converged" && point.curveEligible === true && point.settled === true && point.evidence === "fixed-tone-periodic" && point.measurementWindowStatus === "fixed-tone-period1-settled"
+  );
+  return Object.freeze({
+    status: "measured-fixed-tbv-protocol",
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    requirement: MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,
+    minimumBeatCount: MINIMUM_COMPLETE_BEAT_COUNT_V3,
+    maximumBeatCount: CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3,
+    completedPointCount: settled.length,
+    totalPointCount: protocolComplete ? settled.length : Math.max(settled.length + 1, expectedPointCount),
+    slowControllerPolicy: "active-source-period1-then-coronary-tone-frozen",
+    convergencePolicy: "complete-beat-output-period1-closure",
+    points: Object.freeze(
+      [...settled].sort(
+        (left, right) => left.fillingPressureMmHg - right.fillingPressureMmHg
+      )
+    )
+  });
+}
+function rejectedV3(error) {
+  return Object.freeze({
+    status: "rejected",
+    reason: error instanceof Error ? error.message : String(error)
+  });
+}
+function midpointV3(left, right) {
+  return 0.5 * (left + right);
+}
+function requiredAnchorObservationV3(observation2) {
+  if (observation2 === null) {
+    throw new Error("responsive Starling anchor observation is unavailable");
+  }
+  return observation2;
 }
 function evaluateVolumeDependentCoronaryResistanceScaleV1(volumeMl, referenceVolumeMl, residualHydraulicAreaFraction) {
   validateVolumeDependentCoronaryResistanceScalarsV1(
@@ -18771,234 +20625,6 @@ function evaluateMainWireCommonPericardiumBindingV1(binding, chamberBloodVolumes
     smoothingBranch: evaluated.smoothingBranch,
     elasticConstraintEngaged: evaluated.smoothingBranch !== "zero" || evaluated.excessPressurePa > 0
   });
-}
-const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID = "main-wire-normal-adult-blood-volume-operating-point-v1";
-const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID = "main-wire-noncoronary-15-node-no-coronary-v1";
-const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 = Object.freeze({
-  fullGraphReferenceBaselineId: "normal-adult-active-v1",
-  fullGraphReferenceTotalBloodVolumeMl: 5600,
-  pinnedExcludedCoronaryColdSeedVolumeMl: 77.89,
-  nonCoronaryFixedTotalBloodVolumeMl: 5522.11
-});
-const ADJUSTED_NODES = Object.freeze(["SV", "VC"]);
-const TARGET_TOLERANCE_ML = 1e-6;
-const PRESSURE_AUDIT_TOLERANCE_MMHG = 1e-8;
-function resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(runtime, fixedTotalBloodVolumeMl) {
-  if (!Number.isFinite(fixedTotalBloodVolumeMl) || fixedTotalBloodVolumeMl <= 0) {
-    throw new Error("protocol fixed total blood volume must be positive and finite");
-  }
-  const identity = Object.freeze({
-    ownerId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID,
-    parameterSetId: `main-wire-normal-adult-protocol-fixed-tbv-${fixedTotalBloodVolumeMl.toFixed(6).replace(".", "p")}ml-v1`,
-    topologyScopeId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID,
-    fixedTotalBloodVolumeMl,
-    initialDistributionPolicyId: "shared-SV-VC-transmural-offset"
-  });
-  return resolveBloodVolumeOperatingPoint(runtime, identity);
-}
-function resolveBloodVolumeOperatingPoint(runtime, identity, requireCanonicalFullGraphReference) {
-  const provenance = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1;
-  const excludedCoronaryColdSeedVolumeMl = authoritativeExcludedCoronaryColdSeedVolumeMl(runtime);
-  const excludedCoronaryColdSeedResidualMl = excludedCoronaryColdSeedVolumeMl - provenance.pinnedExcludedCoronaryColdSeedVolumeMl;
-  if (Math.abs(excludedCoronaryColdSeedResidualMl) > 1e-12) {
-    throw new Error(
-      "authoritative excluded-coronary cold-seed ledger drifted from its pinned provenance"
-    );
-  }
-  const provenanceResidual = identity.fixedTotalBloodVolumeMl + excludedCoronaryColdSeedVolumeMl - provenance.fullGraphReferenceTotalBloodVolumeMl;
-  const graph = buildNonCoronaryCirculationGraphV1();
-  if (graph.scope.coronaryBloodVolumeIncluded !== false || graph.nodes.length !== NON_CORONARY_NODE_NAMES_V1.length) throw new Error("blood-volume operating point topology scope mismatch");
-  const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
-  const targetAdditionalVolumeMl = identity.fixedTotalBloodVolumeMl - coldSeed.fixedTotalBloodVolumeMl;
-  const baselineTransmuralPressuresMmHg = Object.freeze({
-    SV: baselineTransmuralPressureMmHg(
-      "SV",
-      coldSeed.nodeVolumesMl,
-      runtime,
-      graph
-    ),
-    VC: baselineTransmuralPressureMmHg(
-      "VC",
-      coldSeed.nodeVolumesMl,
-      runtime,
-      graph
-    )
-  });
-  const targetMatchesColdSeed = Math.abs(targetAdditionalVolumeMl) <= TARGET_TOLERANCE_ML;
-  const sharedTransmuralPressureOffsetMmHg = targetMatchesColdSeed ? 0 : solveSharedTransmuralPressureOffsetMmHg(
-    coldSeed.nodeVolumesMl,
-    targetAdditionalVolumeMl,
-    runtime,
-    graph,
-    baselineTransmuralPressuresMmHg
-  );
-  const nodeVolumesMl = targetMatchesColdSeed ? coldSeed.nodeVolumesMl : nodeRecord((nodeName) => {
-    if (nodeName !== "SV" && nodeName !== "VC") {
-      return coldSeed.nodeVolumesMl[nodeName];
-    }
-    return physicalVolumeAtTransmuralPressureMmHg(
-      nodeName,
-      baselineTransmuralPressuresMmHg[nodeName] + sharedTransmuralPressureOffsetMmHg,
-      runtime,
-      graph
-    );
-  });
-  const resolvedTotalBloodVolumeMl = sumNodeVolumes(nodeVolumesMl);
-  const targetResidualMl = resolvedTotalBloodVolumeMl - identity.fixedTotalBloodVolumeMl;
-  if (Math.abs(targetResidualMl) > TARGET_TOLERANCE_ML) {
-    throw new Error(`blood-volume operating point missed target by ${targetResidualMl} mL`);
-  }
-  const unchangedNodeMaximumAbsoluteDeltaMl = Math.max(
-    ...NON_CORONARY_NODE_NAMES_V1.filter((nodeName) => nodeName !== "SV" && nodeName !== "VC").map((nodeName) => Math.abs(
-      nodeVolumesMl[nodeName] - coldSeed.nodeVolumesMl[nodeName]
-    ))
-  );
-  if (unchangedNodeMaximumAbsoluteDeltaMl !== 0) {
-    throw new Error("blood-volume operating point changed a cold-seed node outside SV/VC");
-  }
-  const changedNodes = Object.freeze(ADJUSTED_NODES.filter((nodeName) => nodeVolumesMl[nodeName] !== coldSeed.nodeVolumesMl[nodeName]));
-  const resolvedTransmuralPressuresMmHg = Object.freeze({
-    SV: baselineTransmuralPressureMmHg(
-      "SV",
-      nodeVolumesMl,
-      runtime,
-      graph
-    ),
-    VC: baselineTransmuralPressureMmHg(
-      "VC",
-      nodeVolumesMl,
-      runtime,
-      graph
-    )
-  });
-  const resolvedTransmuralPressureOffsetsMmHg = Object.freeze({
-    SV: resolvedTransmuralPressuresMmHg.SV - baselineTransmuralPressuresMmHg.SV,
-    VC: resolvedTransmuralPressuresMmHg.VC - baselineTransmuralPressuresMmHg.VC
-  });
-  const maximumSharedTransmuralPressureOffsetResidualMmHg = Math.max(
-    Math.abs(
-      resolvedTransmuralPressureOffsetsMmHg.SV - sharedTransmuralPressureOffsetMmHg
-    ),
-    Math.abs(
-      resolvedTransmuralPressureOffsetsMmHg.VC - sharedTransmuralPressureOffsetMmHg
-    )
-  );
-  if (maximumSharedTransmuralPressureOffsetResidualMmHg > PRESSURE_AUDIT_TOLERANCE_MMHG) {
-    throw new Error(
-      "blood-volume operating point forward/inverse pressure audit failed"
-    );
-  }
-  const audit = Object.freeze({
-    coldSeedTotalBloodVolumeMl: coldSeed.fixedTotalBloodVolumeMl,
-    resolvedTotalBloodVolumeMl,
-    addedBloodVolumeMl: resolvedTotalBloodVolumeMl - coldSeed.fixedTotalBloodVolumeMl,
-    targetResidualMl,
-    sharedTransmuralPressureOffsetMmHg,
-    baselineTransmuralPressuresMmHg,
-    resolvedTransmuralPressuresMmHg,
-    resolvedTransmuralPressureOffsetsMmHg,
-    maximumSharedTransmuralPressureOffsetResidualMmHg,
-    changedNodes,
-    unchangedNodeMaximumAbsoluteDeltaMl,
-    fullGraphReferenceTotalBloodVolumeMl: provenance.fullGraphReferenceTotalBloodVolumeMl,
-    excludedCoronaryColdSeedVolumeMl,
-    pinnedExcludedCoronaryColdSeedVolumeMl: provenance.pinnedExcludedCoronaryColdSeedVolumeMl,
-    excludedCoronaryColdSeedResidualMl,
-    fullGraphReferenceReconstructionResidualMl: provenanceResidual
-  });
-  return Object.freeze({
-    identity,
-    fixedTotalBloodVolumeMl: identity.fixedTotalBloodVolumeMl,
-    nodeVolumesMl,
-    audit
-  });
-}
-function baselineTransmuralPressureMmHg(nodeName, coldSeedVolumesMl, runtime, graph) {
-  const node = graph.nodes[graph.nodeIndex.get(nodeName)];
-  if (node.kind !== "venousPressure") {
-    throw new Error(`${nodeName} is no longer a venous-pressure node`);
-  }
-  return vascularTransmuralPressureFromPhysicalVolumeV1(
-    node,
-    coldSeedVolumesMl[nodeName],
-    runtime.vascular
-  );
-}
-function physicalVolumeAtTransmuralPressureMmHg(nodeName, transmuralPressureMmHg, runtime, graph) {
-  const node = graph.nodes[graph.nodeIndex.get(nodeName)];
-  if (node.kind !== "venousPressure") {
-    throw new Error(`${nodeName} is no longer a venous-pressure node`);
-  }
-  const law = vascularPvLawFromNodeV1(node, runtime.vascular);
-  return effectiveUnstressedVolumeFromNodeV1(node, runtime.vascular) + stressedVolumeFromPtm(law, transmuralPressureMmHg);
-}
-function solveSharedTransmuralPressureOffsetMmHg(coldSeedVolumesMl, targetAdditionalVolumeMl, runtime, graph, baselineTransmuralPressuresMmHg) {
-  const addedVolumeAtOffsetMl = (offsetMmHg) => ADJUSTED_NODES.reduce((sum, nodeName) => sum + physicalVolumeAtTransmuralPressureMmHg(
-    nodeName,
-    baselineTransmuralPressuresMmHg[nodeName] + offsetMmHg,
-    runtime,
-    graph
-  ) - coldSeedVolumesMl[nodeName], 0);
-  let lowerMmHg;
-  let upperMmHg;
-  if (targetAdditionalVolumeMl > 0) {
-    const maximumSharedOffsetMmHg = Math.min(...ADJUSTED_NODES.map(
-      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum - baselineTransmuralPressuresMmHg[nodeName]
-    ));
-    if (addedVolumeAtOffsetMl(maximumSharedOffsetMmHg) < targetAdditionalVolumeMl) {
-      throw new Error("fixed normal-adult TBV exceeds SV/VC PV-law support");
-    }
-    lowerMmHg = 0;
-    upperMmHg = Math.min(1, maximumSharedOffsetMmHg);
-    while (addedVolumeAtOffsetMl(upperMmHg) < targetAdditionalVolumeMl) {
-      upperMmHg = Math.min(2 * upperMmHg, maximumSharedOffsetMmHg);
-    }
-  } else {
-    upperMmHg = 0;
-    const minimumSharedOffsetMmHg = Math.max(...ADJUSTED_NODES.map(
-      (nodeName) => MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum - baselineTransmuralPressuresMmHg[nodeName]
-    ));
-    lowerMmHg = Math.max(-1, minimumSharedOffsetMmHg);
-    while (addedVolumeAtOffsetMl(lowerMmHg) > targetAdditionalVolumeMl) {
-      if (lowerMmHg === minimumSharedOffsetMmHg) {
-        throw new Error("fixed normal-adult TBV falls below SV/VC PV-law support");
-      }
-      lowerMmHg = Math.max(2 * lowerMmHg, minimumSharedOffsetMmHg);
-    }
-  }
-  for (let iteration = 0; iteration < 96; iteration += 1) {
-    const midpointMmHg = 0.5 * (lowerMmHg + upperMmHg);
-    if (addedVolumeAtOffsetMl(midpointMmHg) < targetAdditionalVolumeMl) {
-      lowerMmHg = midpointMmHg;
-    } else {
-      upperMmHg = midpointMmHg;
-    }
-  }
-  return 0.5 * (lowerMmHg + upperMmHg);
-}
-function nodeRecord(build) {
-  return Object.freeze(Object.fromEntries(
-    NON_CORONARY_NODE_NAMES_V1.map((nodeName) => [nodeName, build(nodeName)])
-  ));
-}
-function sumNodeVolumes(volumes) {
-  return NON_CORONARY_NODE_NAMES_V1.reduce(
-    (sum, nodeName) => sum + volumes[nodeName],
-    0
-  );
-}
-function authoritativeExcludedCoronaryColdSeedVolumeMl(runtime) {
-  const graph = buildAuthoritativeCirculationGraphV1();
-  return NON_CORONARY_CIRCULATION_SCOPE_V1.excludedCoronaryNodes.reduce(
-    (sum, nodeName) => {
-      const node = graph.nodes[graph.nodeIndex.get(nodeName)];
-      if (node === void 0) {
-        throw new Error(`excluded coronary node ${nodeName} is absent from the authoritative graph`);
-      }
-      return sum + physicalColdSeedVolumeFromNodeV1(node, runtime.vascular);
-    },
-    0
-  );
 }
 const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID = "main-wire-five-wall-coronary-transaction-v2";
 const PA_PER_MMHG = 133.322;
@@ -45069,22 +46695,8 @@ function ownDataValueV3$1(record, key) {
   }
   return descriptor.value;
 }
-async function createMainWireIntegratedModelRuntimeV3(hemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
-  return createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
-    hemodynamicResearchInputs,
-    ventricularContractilityScale,
-    mechanismResearchInputs
-  );
-}
-function mainWireIntegratedModelCheckpointContextV3(runtime, state) {
-  const base2 = createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(runtime);
-  return Object.freeze({
-    ...base2,
-    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
-    mechanismResearchInputs: runtime.mechanismResearchInputs
-  });
-}
 const TARGET_TOLERANCE_ML_V3 = 1e-6;
+const RESPONSIVE_STARLING_FROZEN_TONE_WINDOW_SEC_V3 = 60;
 function forkMainWireIntegratedModelAtFixedTbvV3(input) {
   const { source, runtime, targetGlobalTotalBloodVolumeMl } = input;
   if (!Number.isFinite(targetGlobalTotalBloodVolumeMl) || !(targetGlobalTotalBloodVolumeMl > 0)) {
@@ -45128,6 +46740,37 @@ function forkMainWireIntegratedModelAtFixedTbvV3(input) {
     { configuration: runtime.rhythm.configuration },
     runtime.profile,
     runtime.config
+  );
+}
+function forkMainWireIntegratedModelResponsiveStarlingV3(input) {
+  const forked = forkMainWireIntegratedModelAtFixedTbvV3(input);
+  const binding = createCoronaryAutoregulationWindowBindingV3({
+    originAcceptedTimeSec: forked.acceptedTimeSec,
+    durationSec: RESPONSIVE_STARLING_FROZEN_TONE_WINDOW_SEC_V3,
+    interpretation: "irregular-rhythm-stationary"
+  });
+  const previousAutoregulation = forked.coronary.coronaryAutoregulation;
+  const desiredControl = previousAutoregulation.desiredControl ?? previousAutoregulation.windowControl ?? void 0;
+  const autoregulation = createCoronaryAcceptedAutoregulationStateV3(
+    binding,
+    {
+      acceptedTimeSec: forked.acceptedTimeSec,
+      revision: forked.revision,
+      ...desiredControl === void 0 ? {} : { desiredControl }
+    }
+  );
+  const coronary = wrapMainWireFiveWallCoronaryAcceptedStateV3(
+    mainWireFiveWallCoronaryBaseStateV2(forked.coronary),
+    binding,
+    autoregulation
+  );
+  return wrapMainWireIntegratedModelAcceptedStateV3(
+    coronary,
+    forked.composedRhythm,
+    forked.dynamicMechanicalSupport,
+    { configuration: input.runtime.rhythm.configuration },
+    input.runtime.profile,
+    input.runtime.config
   );
 }
 function forkVenousReservoirVolumesV3(sourceVolumesMl, runtime, targetDeltaMl) {
@@ -45182,6 +46825,21 @@ function forkVenousReservoirVolumesV3(sourceVolumesMl, runtime, targetDeltaMl) {
     ...sourceVolumesMl,
     SV: changed.SV,
     VC: changed.VC
+  });
+}
+async function createMainWireIntegratedModelRuntimeV3(hemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+  return createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs
+  );
+}
+function mainWireIntegratedModelCheckpointContextV3(runtime, state) {
+  const base2 = createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(runtime);
+  return Object.freeze({
+    ...base2,
+    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
+    mechanismResearchInputs: runtime.mechanismResearchInputs
   });
 }
 function warmStartMainWireIntegratedModelV3(input) {
@@ -46598,7 +48256,7 @@ function createExecutionPlanStateInitializationV1(boundExecutionPlan, typedAutho
   });
 }
 class MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState, executionPlanInitialization, selectedAorticPortExtension = null) {
+  constructor(runtime, acceptedState2, observationSource, authorityFactory, exactBeatState, executionPlanInitialization, selectedAorticPortExtension = null, typedManifestTemplateAcceptedState) {
     this.sessionId = MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID;
     this.#acceptedNumericalReadback = new Float64Array(
       MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1
@@ -46690,7 +48348,9 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       externalAtrialSourceBatch: null
     });
     this.#dynamicMechanicalSupportConfig = runtime.config;
-    this.#authority = (authorityFactory ?? typedAuthorityFactory(runtime.cold.acceptedState))(
+    this.#authority = (authorityFactory ?? typedAuthorityFactory(
+      typedManifestTemplateAcceptedState ?? runtime.cold.acceptedState
+    ))(
       acceptedState2,
       validateAcceptedState2,
       ownDecodedAcceptedState,
@@ -47044,6 +48704,71 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     this.assertSessionUsableV1();
     this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
+  }
+  /**
+   * Analysis-only readback path. Selected exact models need the same
+   * one-base-tick typed promotion used by their live presentation adapter;
+   * requesting a multi-tick public-object interval would bypass that admitted
+   * path. The analysis branch is ephemeral and still returns an ordinary
+   * observation without placing derived results in exact state.
+   */
+  advanceStructuralAnalysisToPresentationTimeV1(targetTimeSec) {
+    const initial = this.currentAcceptedState();
+    if (targetTimeSec === initial.acceptedTimeSec) {
+      return Object.freeze({
+        status: "already-at-target",
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: initial.acceptedTimeSec,
+        acceptedRevision: initial.revision,
+        internalAcceptedSubstepCount: 0,
+        observation: this.observe()
+      });
+    }
+    if (!Number.isFinite(targetTimeSec) || targetTimeSec < initial.acceptedTimeSec) {
+      return this.advanceToPresentationTime(targetTimeSec);
+    }
+    let ordinal = 1;
+    let internalAcceptedSubstepCount = 0;
+    let boundaryClippedSubstepCount = 0;
+    const substeps = [];
+    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedState();
+      const ordinalTargetTimeSec = initial.acceptedTimeSec + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
+      const nextTargetTimeSec = Math.min(
+        targetTimeSec,
+        ordinalTargetTimeSec
+      );
+      if (!(nextTargetTimeSec > current.acceptedTimeSec)) {
+        return this.advanceToPresentationTime(targetTimeSec);
+      }
+      const projected = this.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        nextTargetTimeSec,
+        Object.freeze([])
+      );
+      const advance = projected.advance;
+      if (advance.status !== "advanced") {
+        return advance.status === "already-at-target" ? Object.freeze({
+          ...advance,
+          observation: this.observe()
+        }) : advance;
+      }
+      internalAcceptedSubstepCount += advance.internalAcceptedSubstepCount;
+      boundaryClippedSubstepCount += advance.boundaryClippedSubstepCount;
+      substeps.push(...advance.substeps);
+      ordinal += 1;
+    }
+    const accepted = this.currentAcceptedState();
+    return Object.freeze({
+      status: "advanced",
+      presentationTimeSec: targetTimeSec,
+      acceptedTimeSec: accepted.acceptedTimeSec,
+      acceptedRevision: accepted.revision,
+      acceptedRevisionSpanFromPrevious: accepted.revision - initial.revision,
+      internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount,
+      substeps: Object.freeze(substeps),
+      observation: this.observe()
+    });
   }
   /**
    * Model-owned output projection seam. The exact solver mirror never escapes:
@@ -48247,17 +49972,20 @@ function errorMessage(error) {
 }
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-model-standard66-typed-authority-session-v1";
 class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime, selectedAorticPortExtension, executionPlanInitialization, restored = null) {
+  constructor(runtime, selectedAorticPortExtension, executionPlanInitialization, restored = null, analysisForkAcceptedState = null) {
     super(
       runtime,
-      restored?.acceptedState ?? runtime.cold.acceptedState,
-      restored === null ? "cold" : "standard-exact-checkpoint-restore",
+      analysisForkAcceptedState ?? restored?.acceptedState ?? runtime.cold.acceptedState,
+      analysisForkAcceptedState !== null ? "fixed-tbv-protocol-fork" : restored === null ? "cold" : "standard-exact-checkpoint-restore",
       null,
-      restored ?? void 0,
+      analysisForkAcceptedState === null ? restored ?? void 0 : void 0,
       executionPlanInitialization,
-      selectedAorticPortExtension
+      selectedAorticPortExtension,
+      analysisForkAcceptedState ?? void 0
     );
     this.standard66SessionId = MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_TYPED_AUTHORITY_SESSION_V1_ID;
+    this.#runtime = runtime;
+    this.#executionPlanInitialization = executionPlanInitialization;
     this.#selectedAorticPortExtension = selectedAorticPortExtension;
     this.#checkpointContext = createMainWireIntegratedModelStandard66CheckpointContextV1({
       fixedAssemblyId: runtime.fixedAssemblyId,
@@ -48265,6 +49993,8 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
     });
   }
   #selectedAorticPortExtension;
+  #runtime;
+  #executionPlanInitialization;
   #checkpointContext;
   static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
     const runtime = createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
@@ -48400,6 +50130,43 @@ class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends MainWireI
       await standard66CheckpointPromise,
       coupledPredictor
     );
+  }
+  forkAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelAtFixedTbvV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      }),
+      targetGlobalTotalBloodVolumeMl === source.coronary.fixedGlobalTotalBloodVolumeMl
+    );
+  }
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelResponsiveStarlingV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      }),
+      targetGlobalTotalBloodVolumeMl === source.coronary.fixedGlobalTotalBloodVolumeMl
+    );
+  }
+  #analysisForkV1(acceptedState2, retainCoupledPredictor) {
+    const fork = new MainWireIntegratedModelStandard66TypedAuthoritySessionV1(
+      this.#runtime,
+      MainWireSelectedAorticPortSessionExtensionV1.createColdV1(),
+      this.#executionPlanInitialization,
+      null,
+      acceptedState2
+    );
+    if (retainCoupledPredictor) {
+      fork.restoreSelectedAorticCoupledPredictorV1(
+        this.checkpointSelectedAorticCoupledPredictorV1()
+      );
+    }
+    return fork;
   }
   #projectCurrentSelectedAorticPortValuesV1(outputIds) {
     const acceptedClock = this.selectedAorticAcceptedClockV1();
@@ -48550,17 +50317,20 @@ function ownDataValueV3(record, key) {
 }
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-model-standard67-typed-authority-session-v1";
 class MainWireIntegratedModelStandard67TypedAuthoritySessionV1 extends MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime, selectedAorticPortExtension, executionPlanInitialization, restored = null) {
+  constructor(runtime, selectedAorticPortExtension, executionPlanInitialization, restored = null, analysisForkAcceptedState = null) {
     super(
       runtime,
-      restored?.acceptedState ?? runtime.cold.acceptedState,
-      restored === null ? "cold" : "standard-exact-checkpoint-restore",
+      analysisForkAcceptedState ?? restored?.acceptedState ?? runtime.cold.acceptedState,
+      analysisForkAcceptedState !== null ? "fixed-tbv-protocol-fork" : restored === null ? "cold" : "standard-exact-checkpoint-restore",
       null,
-      restored ?? void 0,
+      analysisForkAcceptedState === null ? restored ?? void 0 : void 0,
       executionPlanInitialization,
-      selectedAorticPortExtension
+      selectedAorticPortExtension,
+      analysisForkAcceptedState ?? void 0
     );
     this.standard67SessionId = MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_TYPED_AUTHORITY_SESSION_V1_ID;
+    this.#runtime = runtime;
+    this.#executionPlanInitialization = executionPlanInitialization;
     this.#selectedAorticPortExtension = selectedAorticPortExtension;
     this.#checkpointContext = createMainWireIntegratedModelStandard67CheckpointContextV1({
       fixedAssemblyId: runtime.fixedAssemblyId,
@@ -48569,6 +50339,8 @@ class MainWireIntegratedModelStandard67TypedAuthoritySessionV1 extends MainWireI
     });
   }
   #selectedAorticPortExtension;
+  #runtime;
+  #executionPlanInitialization;
   #checkpointContext;
   static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
     const runtime = createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
@@ -48705,6 +50477,43 @@ class MainWireIntegratedModelStandard67TypedAuthoritySessionV1 extends MainWireI
       coupledPredictor
     );
   }
+  forkAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelAtFixedTbvV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      }),
+      targetGlobalTotalBloodVolumeMl === source.coronary.fixedGlobalTotalBloodVolumeMl
+    );
+  }
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelResponsiveStarlingV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      }),
+      targetGlobalTotalBloodVolumeMl === source.coronary.fixedGlobalTotalBloodVolumeMl
+    );
+  }
+  #analysisForkV1(acceptedState2, retainCoupledPredictor) {
+    const fork = new MainWireIntegratedModelStandard67TypedAuthoritySessionV1(
+      this.#runtime,
+      MainWireSelectedAorticPortSessionExtensionV1.createColdV1(),
+      this.#executionPlanInitialization,
+      null,
+      acceptedState2
+    );
+    if (retainCoupledPredictor) {
+      fork.restoreSelectedAorticCoupledPredictorV1(
+        this.checkpointSelectedAorticCoupledPredictorV1()
+      );
+    }
+    return fork;
+  }
   #projectCurrentSelectedAorticPortValuesV1(outputIds) {
     const acceptedClock = this.selectedAorticAcceptedClockV1();
     const projected = this.#selectedAorticPortExtension.withAcceptedReadbackV3(
@@ -48839,7 +50648,7 @@ function assertPortableStudioJsonValueV2(value, path, ancestors, depth) {
     return;
   }
   if (typeof value === "string") {
-    assertUnicodeScalarSequenceV2(value, path);
+    assertUnicodeScalarSequenceV2$1(value, path);
     return;
   }
   if (typeof value === "number") {
@@ -48884,7 +50693,7 @@ function assertPortableStudioJsonValueV2(value, path, ancestors, depth) {
           "portable JSON must not contain symbol properties"
         );
       }
-      assertUnicodeScalarSequenceV2(key, `${path} property name`);
+      assertUnicodeScalarSequenceV2$1(key, `${path} property name`);
       const descriptor = descriptors[key];
       if (descriptor === void 0 || !descriptor.enumerable || !("value" in descriptor)) {
         throw new ModelContractValidationErrorV2(
@@ -49200,7 +51009,7 @@ function finiteNumberV2(value, path) {
   }
   return value;
 }
-function assertUnicodeScalarSequenceV2(value, path) {
+function assertUnicodeScalarSequenceV2$1(value, path) {
   for (let index = 0; index < value.length; index += 1) {
     const codeUnit = value.charCodeAt(index);
     if (codeUnit >= 55296 && codeUnit <= 56319) {
@@ -49388,6 +51197,146 @@ function assertNonemptyObjectV1(value, path) {
   }
 }
 const STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 = "runtime/exact-presentation-batch-v1";
+const MAXIMUM_STUDIO_SIMULATION_JSON_DEPTH_V2 = 256;
+class StudioSimulationContractValidationErrorV2 extends Error {
+  constructor(path, message) {
+    super(`Studio simulation V2 rejected ${path}: ${message}`);
+    this.name = "StudioSimulationContractValidationErrorV2";
+  }
+}
+function validateAndOwnStudioSimulationPortableJsonV2(value, path = "$.value") {
+  return clonePortableJsonV2(value, path, /* @__PURE__ */ new Set(), 0);
+}
+function clonePortableJsonV2(value, path, ancestors = /* @__PURE__ */ new Set(), depth = 0) {
+  if (depth > MAXIMUM_STUDIO_SIMULATION_JSON_DEPTH_V2) {
+    throw validationErrorV2(path, "portable JSON nesting limit exceeded");
+  }
+  if (value === null) return null;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    assertUnicodeScalarSequenceV2(value, path);
+    return value;
+  }
+  if (typeof value === "number") return portableNumberV2(value, path);
+  if (typeof value !== "object") {
+    throw validationErrorV2(path, "must be portable JSON");
+  }
+  if (ancestors.has(value)) {
+    throw validationErrorV2(path, "portable JSON must not be cyclic");
+  }
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const entries = arrayDataValuesV2(value, path);
+      const result2 = [];
+      for (let index = 0; index < entries.length; index += 1) {
+        result2.push(clonePortableJsonV2(
+          entries[index],
+          `${path}[${index}]`,
+          ancestors,
+          depth + 1
+        ));
+      }
+      return Object.freeze(result2);
+    }
+    const record = dataRecordV2(value, path);
+    const result = {};
+    for (const key of Object.keys(record)) {
+      assertUnicodeScalarSequenceV2(key, `${path} property name`);
+      Object.defineProperty(result, key, {
+        configurable: false,
+        enumerable: true,
+        value: clonePortableJsonV2(
+          record[key],
+          `${path}[${JSON.stringify(key)}]`,
+          ancestors,
+          depth + 1
+        ),
+        writable: false
+      });
+    }
+    return Object.freeze(result);
+  } finally {
+    ancestors.delete(value);
+  }
+}
+function dataRecordV2(value, path) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw validationErrorV2(path, "must be a plain data object");
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw validationErrorV2(path, "must not use a custom prototype");
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string") {
+      throw validationErrorV2(path, "must not contain symbol fields");
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (descriptor === void 0 || !descriptor.enumerable || !("value" in descriptor)) {
+      throw validationErrorV2(
+        `${path}[${JSON.stringify(key)}]`,
+        "must be an enumerable data property"
+      );
+    }
+  }
+  return value;
+}
+function arrayDataValuesV2(value, path) {
+  if (!Array.isArray(value)) {
+    throw validationErrorV2(path, "must be an array");
+  }
+  if (Object.getPrototypeOf(value) !== Array.prototype) {
+    throw validationErrorV2(path, "array must not use a custom prototype");
+  }
+  const expected = /* @__PURE__ */ new Set(["length"]);
+  for (let index = 0; index < value.length; index += 1) {
+    expected.add(String(index));
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string" || !expected.has(key)) {
+      throw validationErrorV2(path, "array must not have custom properties");
+    }
+  }
+  const result = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+    if (descriptor === void 0 || !descriptor.enumerable || !("value" in descriptor)) {
+      throw validationErrorV2(
+        `${path}[${index}]`,
+        "must be a dense enumerable data property"
+      );
+    }
+    result.push(descriptor.value);
+  }
+  return Object.freeze(result);
+}
+function portableNumberV2(value, path) {
+  if (typeof value !== "number" || !Number.isFinite(value) || Object.is(value, -0)) {
+    throw validationErrorV2(
+      path,
+      "must be finite and must not be negative zero"
+    );
+  }
+  return value;
+}
+function assertUnicodeScalarSequenceV2(value, path) {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit >= 55296 && codeUnit <= 56319) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 56320 && next <= 57343)) {
+        throw validationErrorV2(path, "contains an unpaired high surrogate");
+      }
+      index += 1;
+    } else if (codeUnit >= 56320 && codeUnit <= 57343) {
+      throw validationErrorV2(path, "contains an unpaired low surrogate");
+    }
+  }
+}
+function validationErrorV2(path, message) {
+  return new StudioSimulationContractValidationErrorV2(path, message);
+}
 const MAXIMUM_STUDIO_JSON_DEPTH = 256;
 class StudioCanonicalJsonError extends Error {
   constructor(path, message) {
@@ -49715,6 +51664,24 @@ function advanceSelectedNumericalProjectionV1(session, targetTimeSec, outputIds)
 function checkpointSelectedNumericalSessionV1(session) {
   return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67Exact() : session.checkpointStandard66Exact();
 }
+function checkpointSelectedAnalysisSessionV1(session) {
+  return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67CanonicalBinaryV3() : session.checkpointStandard66CanonicalBinaryV3();
+}
+function restoreSelectedAnalysisSessionV1(variant, checkpointBytes, inputs, ventricularContractilityScale, mechanismResearchInputs, executionPlanInitialization) {
+  return variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.restoreStandard67CanonicalBinaryV3(
+    checkpointBytes,
+    inputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    executionPlanInitialization
+  ) : MainWireIntegratedModelStandard66TypedAuthoritySessionV1.restoreStandard66CanonicalBinaryV3(
+    checkpointBytes,
+    inputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    executionPlanInitialization
+  );
+}
 function createSelectedNumericalFixtureV1(variant, inputs, mechanismResearchInputs) {
   return variant.generation === 67 ? createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
     inputs,
@@ -49941,15 +51908,90 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     );
     return scenario.inputEpoch;
   }
-  async requestAnalysis(runtimeSessionId, scenarioId, analysisId, expectedInputEpoch, expectedAcceptedRevision, expectedAcceptedTimeSec) {
+  async requestAnalysis(runtimeSessionId, scenarioId, analysisId, expectedInputEpoch, expectedAcceptedRevision, expectedAcceptedTimeSec, analysisPartition, onProgress) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    const accepted = scenario.modelSession.currentAcceptedState();
+    const observation2 = scenario.modelSession.observe();
+    const accepted = observation2.acceptedState;
     if (scenario.inputEpoch !== expectedInputEpoch || accepted.revision !== expectedAcceptedRevision || accepted.acceptedTimeSec !== expectedAcceptedTimeSec) {
       throw new Error("Selected Standard66 analysis source clocks are stale");
     }
-    throw new Error(
-      `Selected Standard66 exact model analysis is not registered: ${analysisId}`
+    if (analysisId !== MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID && analysisId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID) {
+      throw new Error(
+        `Selected ${this.#variant.label} exact model analysis is not registered: ${analysisId}`
+      );
+    }
+    const responsivePartition = analysisPartition === void 0 ? void 0 : analysisPartition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3 || analysisPartition === MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3 ? analysisPartition : (() => {
+      throw new Error(
+        `Selected ${this.#variant.label} analysis partition is not registered: ${analysisPartition}`
+      );
+    })();
+    const toAnalysis = (starling2, sourceObservation) => {
+      const payload = validateAndOwnStudioSimulationPortableJsonV2(
+        buildMainWireIntegratedModelGuytonStarlingOrientationV3(
+          starling2?.anchorObservation ?? sourceObservation ?? observation2,
+          scenario.fixture.hemodynamicResearchInputs,
+          starling2 === null ? void 0 : Object.freeze({
+            right: starling2.right,
+            left: starling2.left
+          })
+        ),
+        `$.mainWireIntegrated${this.#variant.label}Analysis.payload`
+      );
+      return Object.freeze({
+        modelId: this.#variant.modelId,
+        runtimeSessionId,
+        scenarioId,
+        inputEpoch: scenario.inputEpoch,
+        sourceAcceptedRevision: accepted.revision,
+        sourceAcceptedTimeSec: accepted.acceptedTimeSec,
+        analysisId,
+        payload
+      });
+    };
+    const exactCheckpoint = await checkpointSelectedAnalysisSessionV1(scenario.modelSession);
+    const analysisExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      `${scenarioId}/analysis/${analysisId}/${analysisPartition ?? "complete"}`,
+      bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1()
     );
+    let analysisSource = await restoreSelectedAnalysisSessionV1(
+      this.#variant,
+      exactCheckpoint,
+      scenario.fixture.hemodynamicResearchInputs,
+      1,
+      scenario.fixture.mechanismResearchInputs,
+      analysisExecutionPlan.initialization
+    );
+    if (observation2.lastAcceptedStep !== null) {
+      onProgress?.(toAnalysis(null));
+    } else {
+      const previewAcceptedTimeSec = analysisSource.currentAcceptedState().acceptedTimeSec;
+      const previewAdvance = analysisSource.advanceToPresentationTime(
+        previewAcceptedTimeSec + SELECTED_PRESENTATION_DT_SEC_V1
+      );
+      if (previewAdvance.status === "advanced") {
+        onProgress?.(toAnalysis(null, previewAdvance.observation));
+      }
+      analysisSource = await restoreSelectedAnalysisSessionV1(
+        this.#variant,
+        exactCheckpoint,
+        scenario.fixture.hemodynamicResearchInputs,
+        1,
+        scenario.fixture.mechanismResearchInputs,
+        analysisExecutionPlan.initialization
+      );
+    }
+    const starling = analysisId === MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID ? await runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
+      analysisSource,
+      scenario.fixture.hemodynamicResearchInputs,
+      (progress) => onProgress?.(toAnalysis(progress)),
+      responsivePartition
+    ) : runMainWireIntegratedModelResponsiveStarlingProtocolV3(
+      analysisSource,
+      (progress) => onProgress?.(toAnalysis(progress)),
+      responsivePartition
+    );
+    return toAnalysis(starling);
   }
   async captureDesiredContent(input) {
     assertSelectedModelV1(input.model, this.#variant);
@@ -50364,7 +52406,9 @@ function selectedExecutableBundleV1(host, variant) {
       input.analysisId,
       input.expectedInputEpoch,
       input.expectedAcceptedRevision,
-      input.expectedAcceptedTimeSec
+      input.expectedAcceptedTimeSec,
+      input.analysisPartition,
+      input.onProgress
     ),
     replaceFixture: (input) => host.replaceFixture(
       input.runtimeSessionId,
