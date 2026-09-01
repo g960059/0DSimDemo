@@ -13,6 +13,9 @@ import type {
   MainWireProximalArterialRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
 import type {
+  MainWireAorticOutflowComponentFactorialResearchProfileV1,
+} from "@/engine/core/MainWireAorticOutflowComponentFactorialResearchProfileV1";
+import type {
   MainWirePulmonaryCharacteristicResistanceResearchProfileV1,
 } from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
 import {
@@ -535,6 +538,8 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
     MainWirePulmonaryValveLocalInertanceResearchProfileV1,
   ventricularMaterialByWallResearch?:
     MainWireStandard65To66VentricularMaterialByWallResearchV1,
+  aorticOutflowComponentFactorialResearchProfile?:
+    MainWireAorticOutflowComponentFactorialResearchProfileV1,
 ) {
   const ownedAxes = validateStandard65To66FactorizedResearchAxesV1(axes);
   const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
@@ -582,6 +587,9 @@ export function createMainWireIntegratedModelStandard65To66FactorizedResearchFix
         ...(pulmonaryValveLocalInertanceResearchProfile === undefined
           ? {}
           : { pulmonaryValveLocalInertanceResearchProfile }),
+        ...(aorticOutflowComponentFactorialResearchProfile === undefined
+          ? {}
+          : { aorticOutflowComponentFactorialResearchProfile }),
       }),
       createCalciumDriveParams: (cycleLengthSec) =>
         ownedAxes.calcium === "standard66"

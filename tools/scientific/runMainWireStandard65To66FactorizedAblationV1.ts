@@ -9,6 +9,10 @@ import {
   type MainWireProximalArterialRootInertanceResearchModeV1,
 } from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
 import {
+  createMainWireAorticOutflowComponentFactorialResearchProfileV1,
+  type MainWireAorticOutflowComponentFactorialResearchProfileV1,
+} from "@/engine/core/MainWireAorticOutflowComponentFactorialResearchProfileV1";
+import {
   MAIN_WIRE_PULMONARY_CHARACTERISTIC_RESISTANCE_RESEARCH_PROFILE_V1,
 } from "@/engine/core/MainWirePulmonaryCharacteristicResistanceResearchProfileV1";
 import {
@@ -59,8 +63,13 @@ const rootModes = resolveRootModes(
 const pulmonaryRootResistance = pulmonaryRootResistanceArgument();
 const pulmonaryValveLocalInertance = pulmonaryValveLocalInertanceArgument();
 const ventricularMaterialByWall = ventricularMaterialByWallArgument();
+const aorticOutflowComponents = aorticOutflowComponentArgument();
+const explicitVentricularContractilityScale = optionalNumberArgument(
+  "--ventricular-contractility-scale",
+);
 const researchContext = resolveResearchContext(
   optionalArgument("--context") ?? "baseline",
+  explicitVentricularContractilityScale,
 );
 const rightHeartMechanicsScreen = resolveRightHeartMechanicsScreen(
   numberArgument("--rvfw-active-scale", 1),
@@ -90,9 +99,20 @@ const wallMaterialQualifiedArmId = ventricularMaterialByWall === null
     + `l${levelId(ventricularMaterialByWall.LVFW)}-`
     + `s${levelId(ventricularMaterialByWall.SEP)}-`
     + `r${levelId(ventricularMaterialByWall.RVFW)}`;
-const armId = researchContext.contextId === "baseline"
+const aorticComponentQualifiedArmId = aorticOutflowComponents === null
   ? wallMaterialQualifiedArmId
-  : `${wallMaterialQualifiedArmId}-context-${researchContext.contextId}`;
+  : `${wallMaterialQualifiedArmId}-aortic-components-`
+    + `v${levelId(
+      aorticOutflowComponents.valvePressureStationAndResistancePlacement,
+    )}-s${levelId(aorticOutflowComponents.systemicArterialPvLaw)}`
+    + `-l${levelId(aorticOutflowComponents.aorticRootInertance)}`;
+const contextQualifiedArmId = researchContext.contextId === "baseline"
+  ? aorticComponentQualifiedArmId
+  : `${aorticComponentQualifiedArmId}-context-${researchContext.contextId}`;
+const armId = explicitVentricularContractilityScale === null
+  ? contextQualifiedArmId
+  : `${contextQualifiedArmId}-ventricular-contractility-`
+    + scaleId(explicitVentricularContractilityScale);
 const nominalDtSec = numberArgument("--dt", 0.002);
 const cycleCount = integerArgument("--cycles", 12);
 const outputPath = path.resolve(argument(
@@ -105,6 +125,7 @@ const construction = resolveConstruction(
   pulmonaryRootResistance,
   pulmonaryValveLocalInertance,
   ventricularMaterialByWall,
+  aorticOutflowComponents,
 );
 const fixture = construction.kind === "official-standard65-reference"
   ? createMainWireIntegratedModelRegularSinusAllOffFixtureV3(
@@ -128,6 +149,8 @@ const fixture = construction.kind === "official-standard65-reference"
           ?? undefined,
         construction.pulmonaryValveLocalInertanceResearchProfile ?? undefined,
         construction.ventricularMaterialByWallResearch ?? undefined,
+        construction.aorticOutflowComponentFactorialResearchProfile
+          ?? undefined,
       );
 const cycleFixture = fixture as unknown as Parameters<
   typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
@@ -1066,6 +1089,8 @@ function resolveConstruction(
     | MainWirePulmonaryValveLocalInertanceResearchProfileIdV1,
   ventricularMaterialByWall:
     MainWireStandard65To66VentricularMaterialByWallResearchV1 | null,
+  aorticOutflowComponentFactorialResearchProfile:
+    MainWireAorticOutflowComponentFactorialResearchProfileV1 | null,
 ) {
   if (arm === "official-standard65") {
     if (
@@ -1074,6 +1099,7 @@ function resolveConstruction(
       || pulmonaryRootResistance !== "source"
       || pulmonaryValveLocalInertance !== "off"
       || ventricularMaterialByWall !== null
+      || aorticOutflowComponentFactorialResearchProfile !== null
     ) {
       throw new Error(
         "official reference arms cannot enable root or resistance ablation",
@@ -1087,6 +1113,7 @@ function resolveConstruction(
       pulmonaryCharacteristicResistanceResearchProfile: null,
       pulmonaryValveLocalInertanceResearchProfile: null,
       ventricularMaterialByWallResearch: null,
+      aorticOutflowComponentFactorialResearchProfile: null,
     });
   }
   if (arm === "official-standard66") {
@@ -1096,6 +1123,7 @@ function resolveConstruction(
       || pulmonaryRootResistance !== "source"
       || pulmonaryValveLocalInertance !== "off"
       || ventricularMaterialByWall !== null
+      || aorticOutflowComponentFactorialResearchProfile !== null
     ) {
       throw new Error(
         "official reference arms cannot enable root or resistance ablation",
@@ -1109,6 +1137,7 @@ function resolveConstruction(
       pulmonaryCharacteristicResistanceResearchProfile: null,
       pulmonaryValveLocalInertanceResearchProfile: null,
       ventricularMaterialByWallResearch: null,
+      aorticOutflowComponentFactorialResearchProfile: null,
     });
   }
   const match = /^m(65|66)-c(65|66)-t(65|66)-a(65|66)$/.exec(arm);
@@ -1132,6 +1161,14 @@ function resolveConstruction(
   ) {
     throw new Error(
       "wall-factorized material research uses the m66 arm as its declared superseded axis",
+    );
+  }
+  if (
+    aorticOutflowComponentFactorialResearchProfile !== null
+    && axes.aorticOutflow !== "standard66"
+  ) {
+    throw new Error(
+      "aortic component factorization requires the a66 selected-profile arm",
     );
   }
   const proximalRootResearchProfile =
@@ -1158,7 +1195,12 @@ function resolveConstruction(
   return Object.freeze({
     kind: "factorized-research" as const,
     axes,
-    selectedAorticOutflow: axes.aorticOutflow === "standard66",
+    selectedAorticOutflow: axes.aorticOutflow === "standard66"
+      && (
+        aorticOutflowComponentFactorialResearchProfile === null
+        || aorticOutflowComponentFactorialResearchProfile
+          .valvePressureStationAndResistancePlacement === "standard66"
+      ),
     proximalRootResearchProfile,
     pulmonaryCharacteristicResistanceResearchProfile:
       pulmonaryRootResistance === "normal-zc"
@@ -1171,6 +1213,7 @@ function resolveConstruction(
             pulmonaryValveLocalInertance,
           ),
     ventricularMaterialByWallResearch: ventricularMaterialByWall,
+    aorticOutflowComponentFactorialResearchProfile,
   });
 }
 
@@ -1292,7 +1335,29 @@ function ventricularMaterialByWallArgument():
   });
 }
 
-function resolveResearchContext(contextId: string) {
+function aorticOutflowComponentArgument():
+  MainWireAorticOutflowComponentFactorialResearchProfileV1 | null {
+  const value = optionalArgument("--aortic-outflow-components") ?? "off";
+  if (value === "off") return null;
+  const match = /^v(65|66)-s(65|66)-l(65|66)$/.exec(value);
+  if (match === null) {
+    throw new Error(
+      "--aortic-outflow-components must be off or v65-s65-l65 form",
+    );
+  }
+  const level = (token: string): AxisLevel =>
+    token === "65" ? "standard65" : "standard66";
+  return createMainWireAorticOutflowComponentFactorialResearchProfileV1({
+    valvePressureStationAndResistancePlacement: level(match[1]!),
+    systemicArterialPvLaw: level(match[2]!),
+    aorticRootInertance: level(match[3]!),
+  });
+}
+
+function resolveResearchContext(
+  contextId: string,
+  explicitVentricularContractilityScale: number | null,
+) {
   const baseline = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3;
   const contexts = Object.freeze({
     baseline: Object.freeze({}),
@@ -1315,12 +1380,33 @@ function resolveResearchContext(contextId: string) {
   if (!(contextId in contexts)) {
     throw new Error(`unsupported fixed research context ${contextId}`);
   }
+  if (
+    explicitVentricularContractilityScale !== null
+    && (
+      contextId === "contractility-0p75"
+      || contextId === "contractility-1p33"
+    )
+  ) {
+    throw new Error(
+      "--ventricular-contractility-scale cannot be combined with a contractility context",
+    );
+  }
   const hemodynamicOverride = contexts[contextId as keyof typeof contexts];
-  const ventricularContractilityScale = contextId === "contractility-0p75"
-    ? 0.75
-    : contextId === "contractility-1p33"
-      ? 1.33
-      : 1;
+  const ventricularContractilityScale =
+    explicitVentricularContractilityScale
+    ?? (contextId === "contractility-0p75"
+      ? 0.75
+      : contextId === "contractility-1p33"
+        ? 1.33
+        : 1);
+  if (
+    ventricularContractilityScale < 0.5
+    || ventricularContractilityScale > 1.5
+  ) {
+    throw new Error(
+      "ventricular contractility scale must be within the fixed [0.5, 1.5] research bracket",
+    );
+  }
   return Object.freeze({
     contextId,
     oneFactorAtATimeAroundBaseline: contextId !== "baseline",
@@ -1404,6 +1490,16 @@ function numberArgument(name: string, fallback: number): number {
     throw new Error(`${name} must be positive and finite`);
   }
   return value;
+}
+
+function optionalNumberArgument(name: string): number | null {
+  const value = optionalArgument(name);
+  if (value === null) return null;
+  const parsed = Number(value);
+  if (!(parsed > 0) || !Number.isFinite(parsed)) {
+    throw new Error(`${name} must be positive and finite`);
+  }
+  return parsed;
 }
 
 function integerArgument(name: string, fallback: number): number {

@@ -22,6 +22,10 @@ import {
   validateMainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  mainWireAorticOutflowComponentUsesStandard66V1,
+  validateMainWireAorticOutflowComponentFactorialResearchProfileV1,
+} from "@/engine/core/MainWireAorticOutflowComponentFactorialResearchProfileV1";
+import {
   mainWireProximalArterialRootInertanceScaleFromModeV1,
   validateMainWireProximalArterialRootInertanceResearchProfileV1,
 } from "@/engine/core/MainWireProximalArterialRootInertanceResearchProfileV1";
@@ -2711,7 +2715,9 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       const pulmonaryValveLocalInertanceResearchProfile =
         input.runtime.vascular.pulmonaryValveLocalInertanceResearchProfile;
       const evaluation: NonCoronaryValveEvaluationV1 =
-        valveName === "AoV" && selectedAorticOutflowProfile !== undefined
+        valveName === "AoV"
+          && selectedAorticOutflowProfile !== undefined
+          && selectedAorticRecoveredValvePackageActiveV1(input.runtime)
           ? stepMainWireAorticRecoveredRootPortValveScalarsV1(
               previousOpening01,
               input.dtSec,
@@ -4562,6 +4568,24 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  const aorticOutflowComponentFactorialResearchProfile = runtime.vascular
+    .aorticOutflowComponentFactorialResearchProfile;
+  if (aorticOutflowComponentFactorialResearchProfile !== undefined) {
+    if (selectedAorticOutflowProfile === undefined) {
+      throw new Error(
+        "aortic outflow component research requires selectedAorticOutflowProfile",
+      );
+    }
+    const issues =
+      validateMainWireAorticOutflowComponentFactorialResearchProfileV1(
+        aorticOutflowComponentFactorialResearchProfile,
+      );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid aorticOutflowComponentFactorialResearchProfile: ${issues.join("; ")}`,
+      );
+    }
+  }
   const proximalRootResearchProfile =
     runtime.vascular.proximalArterialRootInertanceResearchProfile;
   if (proximalRootResearchProfile !== undefined) {
@@ -5069,7 +5093,17 @@ function selectedAorticOutflowDynamicEdgeActiveV1(
 ): boolean {
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   return selectedProfile !== undefined
+    && selectedAorticRecoveredValvePackageActiveV1(runtime)
     && edgeName === selectedProfile.sourceDynamicEdgeId;
+}
+
+function selectedAorticRecoveredValvePackageActiveV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): boolean {
+  return mainWireAorticOutflowComponentUsesStandard66V1(
+    runtime.vascular.aorticOutflowComponentFactorialResearchProfile,
+    "valvePressureStationAndResistancePlacement",
+  );
 }
 
 function pulmonaryCharacteristicResistanceResearchEdgeActiveV1(
@@ -5120,6 +5154,7 @@ function nonCoronaryNonValveEdgeLossV1(
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (
     selectedProfile === undefined
+    || !selectedAorticRecoveredValvePackageActiveV1(runtime)
     || edgeName !== selectedProfile.sourceDynamicEdgeId
   ) {
     return nonValveEdgeLossV1({
@@ -5194,6 +5229,10 @@ function nonCoronaryDynamicEdgeInertanceV1(
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   const sourceInertanceMmHgSec2PerMl =
     selectedProfile !== undefined
+    && mainWireAorticOutflowComponentUsesStandard66V1(
+      runtime.vascular.aorticOutflowComponentFactorialResearchProfile,
+      "aorticRootInertance",
+    )
     && edgeName === selectedProfile.sourceDynamicEdgeId
       ? selectedProfile.ascendingAorticInertanceMmHgSec2PerMl
       : (edge.L ?? 0) / (

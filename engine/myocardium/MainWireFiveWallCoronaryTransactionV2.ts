@@ -36,6 +36,9 @@ import {
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
+  mainWireAorticOutflowComponentUsesStandard66V1,
+} from "@/engine/core/MainWireAorticOutflowComponentFactorialResearchProfileV1";
+import {
   CoronaryBackwardEulerTransactionV2,
   CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
   CORONARY_ACCEPTED_READBACK_HYDRAULIC_OBSERVABLE_COUNT_V2,
@@ -1633,14 +1636,21 @@ export function prepareMainWireFiveWallCoupledResidualContextV1<TWallState>(
           cachedValveFlowsMlPerSec[index] =
             nonCoronaryProbe.valveEvaluations[index]!.flowMlPerSec;
         }
+        const selectedAorticRecoveredValveActive =
+          input.runtime.vascular.selectedAorticOutflowProfile !== undefined
+          && mainWireAorticOutflowComponentUsesStandard66V1(
+            input.runtime.vascular
+              .aorticOutflowComponentFactorialResearchProfile,
+            "valvePressureStationAndResistancePlacement",
+          );
         const selectedAorticValveEvaluation =
-          input.runtime.vascular.selectedAorticOutflowProfile === undefined
+          !selectedAorticRecoveredValveActive
             ? undefined
             : nonCoronaryProbe.valveEvaluations[
               MAIN_WIRE_FIVE_WALL_ACCEPTED_READBACK_AORTIC_VALVE_INDEX_V1
             ];
         if (
-          input.runtime.vascular.selectedAorticOutflowProfile !== undefined
+          selectedAorticRecoveredValveActive
           && selectedAorticValveEvaluation === undefined
         ) {
           throw new Error("coupled candidate selected aortic evaluation is absent");

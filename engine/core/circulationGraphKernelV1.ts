@@ -18,6 +18,10 @@ import {
   validateMainWireSelectedAorticOutflowCirculationProfileV1,
   type MainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
+  mainWireAorticOutflowComponentUsesStandard66V1,
+  type MainWireAorticOutflowComponentFactorialResearchProfileV1,
+} from "@/engine/core/MainWireAorticOutflowComponentFactorialResearchProfileV1";
 import { validationStampIssuanceEligibleV1 } from
   "@/engine/validationStampModeV1";
 import type {
@@ -69,6 +73,8 @@ export type VascularPvRuntimeParameterViewV1 = {
   readonly arterialStiffness: number;
   readonly selectedAorticOutflowProfile?:
     MainWireSelectedAorticOutflowCirculationProfileV1;
+  readonly aorticOutflowComponentFactorialResearchProfile?:
+    MainWireAorticOutflowComponentFactorialResearchProfileV1;
   readonly proximalArterialRootInertanceResearchProfile?:
     MainWireProximalArterialRootInertanceResearchProfileV1;
   readonly pulmonaryCharacteristicResistanceResearchProfile?:
@@ -147,11 +153,19 @@ function selectedSystemicArterialStiffnessMultiplierV1(
   node: NodeSpec,
   params: Pick<
     VascularPvRuntimeParameterViewV1,
-    "selectedAorticOutflowProfile"
+    | "selectedAorticOutflowProfile"
+    | "aorticOutflowComponentFactorialResearchProfile"
   >,
 ): 2 | undefined {
   const selectedProfile = params.selectedAorticOutflowProfile;
-  if (selectedProfile === undefined || node.kind !== "arterial") {
+  if (
+    selectedProfile === undefined
+    || node.kind !== "arterial"
+    || !mainWireAorticOutflowComponentUsesStandard66V1(
+      params.aorticOutflowComponentFactorialResearchProfile,
+      "systemicArterialPvLaw",
+    )
+  ) {
     return undefined;
   }
   if (
