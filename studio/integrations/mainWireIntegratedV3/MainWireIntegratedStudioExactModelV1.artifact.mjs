@@ -16604,7 +16604,8 @@ function requireSelectedExtension(parameterSet) {
       "Land 2017 strong-bridge deactivation-exit sidecar requires the active extension"
     );
   }
-  if (extension.extensionId !== "land2017-strong-bridge-deactivation-exit-v1" || extension.maximumRatePerSec !== 30 || extension.calciumTroponinGate !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" || extension.cooperativeGatePower !== 8 || extension.deactivationDirectionGate !== "none" || extension.strongPopulationGate !== "positive-excess-over-zero-distortion-equilibrium" || extension.exitDestination !== "unbound" || extension.sourceIdentityClaimed !== false) {
+  const identityValid = extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1" ? extension.maximumRatePerSec === 30 : extension.extensionId === "land2017-strong-bridge-deactivation-exit-v2" && Number.isFinite(extension.maximumRatePerSec) && extension.maximumRatePerSec > 0 && extension.maximumRatePerSec <= 500 && Number.isFinite(extension.cooperativeGatePower) && extension.cooperativeGatePower >= 0.5 && extension.cooperativeGatePower <= 16;
+  if (!identityValid || extension.calciumTroponinGate !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" || extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1" && extension.cooperativeGatePower !== 8 || extension.deactivationDirectionGate !== "none" || extension.strongPopulationGate !== "positive-excess-over-zero-distortion-equilibrium" || extension.exitDestination !== "unbound" || extension.sourceIdentityClaimed !== false) {
     throw new Error(
       "Land 2017 strong-bridge deactivation exit must match the fixed V1 mechanism"
     );
@@ -28131,6 +28132,110 @@ function initializeAcceptedVentricularIntervalStrengthStateV1(configuration, inp
   validateAcceptedVentricularIntervalStrengthStateV1(state);
   return state;
 }
+function rebindAcceptedVentricularIntervalStrengthReferenceV1(state, targetConfiguration) {
+  validateAcceptedVentricularIntervalStrengthStateV1(state);
+  validateAcceptedVentricularIntervalStrengthConfigurationV1(
+    targetConfiguration
+  );
+  assertReferenceOnlyRebindV1(state.configuration, targetConfiguration);
+  if (canonicalJsonStringify(state.configuration) === canonicalJsonStringify(targetConfiguration)) {
+    return state;
+  }
+  const ownedTarget = copyConfiguration(targetConfiguration);
+  if (state.lastDepositMetadata === null) {
+    const rebound2 = Object.freeze({
+      ...state,
+      configuration: ownedTarget
+    });
+    validateAcceptedVentricularIntervalStrengthStateV1(rebound2);
+    return rebound2;
+  }
+  const sourceMetadata = state.lastDepositMetadata;
+  const currentLoad = state.normalizedSrLoadState;
+  const intervalSec = requirePositiveComputedFinite(
+    sourceMetadata.capturedVentricularActivation.activationTimeSec - sourceMetadata.previousCapturedActivationTimeSec,
+    "interval-strength rebound captured interval"
+  );
+  const recoveryFractionA = computeRecoveryFraction(
+    intervalSec,
+    ownedTarget.recoveryTimeConstantSec,
+    "interval-strength rebound recovery fraction"
+  );
+  const retainedLoadGain = requirePositiveComputedFinite(
+    1 - (1 - ownedTarget.releasedLoadReturnFractionR) * recoveryFractionA * ownedTarget.releaseFractionBeta,
+    "interval-strength rebound retained-load gain"
+  );
+  const intervalInflux = requirePositiveComputedFinite(
+    ownedTarget.normalizedIntervalInfluxGamma * (1 - ownedTarget.intervalInfluxInhibitionFractionH * recoveryFractionA),
+    "interval-strength rebound interval influx"
+  );
+  let normalizedSrLoadBefore = requirePositiveComputedFinite(
+    (currentLoad - intervalInflux) / retainedLoadGain,
+    "interval-strength rebound prior normalized SR load"
+  );
+  let reboundMetadata = buildDepositMetadataFromPriorLineage(
+    ownedTarget,
+    state.revision,
+    state.acceptedVentricularCaptureCount,
+    sourceMetadata.previousCapturedActivationId,
+    sourceMetadata.previousCapturedActivationTimeSec,
+    state.lastAcceptedVentricularActivation,
+    normalizedSrLoadBefore
+  );
+  for (let correction = 0; reboundMetadata.normalizedSrLoadAfter !== currentLoad && correction < 8; correction += 1) {
+    normalizedSrLoadBefore = requirePositiveComputedFinite(
+      normalizedSrLoadBefore + (currentLoad - reboundMetadata.normalizedSrLoadAfter) / retainedLoadGain,
+      "interval-strength rebound corrected prior normalized SR load"
+    );
+    reboundMetadata = buildDepositMetadataFromPriorLineage(
+      ownedTarget,
+      state.revision,
+      state.acceptedVentricularCaptureCount,
+      sourceMetadata.previousCapturedActivationId,
+      sourceMetadata.previousCapturedActivationTimeSec,
+      state.lastAcceptedVentricularActivation,
+      normalizedSrLoadBefore
+    );
+  }
+  let lowerBefore = normalizedSrLoadBefore;
+  let upperBefore = normalizedSrLoadBefore;
+  for (let adjacent = 0; reboundMetadata.normalizedSrLoadAfter !== currentLoad && adjacent < 64; adjacent += 1) {
+    lowerBefore = adjacentFiniteFloat64V1(lowerBefore, -1);
+    upperBefore = adjacentFiniteFloat64V1(upperBefore, 1);
+    for (const candidateBefore of [lowerBefore, upperBefore]) {
+      if (!(candidateBefore > 0)) continue;
+      const candidateMetadata = buildDepositMetadataFromPriorLineage(
+        ownedTarget,
+        state.revision,
+        state.acceptedVentricularCaptureCount,
+        sourceMetadata.previousCapturedActivationId,
+        sourceMetadata.previousCapturedActivationTimeSec,
+        state.lastAcceptedVentricularActivation,
+        candidateBefore
+      );
+      if (candidateMetadata.normalizedSrLoadAfter === currentLoad) {
+        normalizedSrLoadBefore = candidateBefore;
+        reboundMetadata = candidateMetadata;
+        break;
+      }
+    }
+  }
+  const reboundLoad = reboundMetadata.normalizedSrLoadAfter;
+  const reboundLoadTolerance = 8 * Number.EPSILON * Math.max(1, Math.abs(currentLoad), Math.abs(reboundLoad));
+  if (Math.abs(reboundLoad - currentLoad) > reboundLoadTolerance) {
+    throw new Error(
+      "interval-strength reference rebind cannot retain the accepted SR load"
+    );
+  }
+  const rebound = Object.freeze({
+    ...state,
+    configuration: ownedTarget,
+    normalizedSrLoadState: reboundLoad,
+    lastDepositMetadata: reboundMetadata
+  });
+  validateAcceptedVentricularIntervalStrengthStateV1(rebound);
+  return rebound;
+}
 function evaluateAcceptedVentricularIntervalStrengthCandidateV1(acceptedState2, input) {
   validateAcceptedVentricularIntervalStrengthStateV1(acceptedState2);
   const record = requirePlainRecord$3(input, "interval-strength candidate input");
@@ -28316,8 +28421,19 @@ function validateAcceptedVentricularIntervalStrengthStateV1(state) {
   }
 }
 function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, captured, normalizedSrLoadBefore) {
+  return buildDepositMetadataFromPriorLineage(
+    configuration,
+    ownerRevision,
+    ordinal,
+    previous.capturedActivationId,
+    previous.activationTimeSec,
+    captured,
+    normalizedSrLoadBefore
+  );
+}
+function buildDepositMetadataFromPriorLineage(configuration, ownerRevision, ordinal, previousCapturedActivationId, previousCapturedActivationTimeSec, captured, normalizedSrLoadBefore) {
   const intervalSec = requirePositiveComputedFinite(
-    captured.activationTimeSec - previous.activationTimeSec,
+    captured.activationTimeSec - previousCapturedActivationTimeSec,
     "interval-strength captured interval"
   );
   const isExactReferenceFixedPoint = intervalSec === configuration.referenceCycleLengthSec && normalizedSrLoadBefore === configuration.referenceNormalizedSrLoadState;
@@ -28349,8 +28465,8 @@ function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, c
     ownerInstanceId: configuration.ownerInstanceId,
     ownerRevision,
     acceptedVentricularCaptureOrdinal: ordinal,
-    previousCapturedActivationId: previous.capturedActivationId,
-    previousCapturedActivationTimeSec: previous.activationTimeSec,
+    previousCapturedActivationId,
+    previousCapturedActivationTimeSec,
     capturedVentricularActivation: captured,
     intervalSec,
     recoveryFractionA,
@@ -28362,6 +28478,26 @@ function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, c
     futureExactCalciumDepositRelativeStrength: releasedRelativeStrengthR,
     calciumStateMutation: "none-metadata-only"
   });
+}
+function assertReferenceOnlyRebindV1(source, target) {
+  const allowedTarget = createAcceptedVentricularIntervalStrengthConfigurationV1({
+    configurationId: source.configurationId,
+    ownerInstanceId: source.ownerInstanceId,
+    parameterProvenance: {
+      kind: source.parameterProvenance.kind,
+      sourceId: source.parameterProvenance.sourceId
+    },
+    recoveryTimeConstantSec: source.recoveryTimeConstantSec,
+    releaseFractionBeta: source.releaseFractionBeta,
+    releasedLoadReturnFractionR: source.releasedLoadReturnFractionR,
+    intervalInfluxInhibitionFractionH: source.intervalInfluxInhibitionFractionH,
+    referenceCycleLengthSec: target.referenceCycleLengthSec
+  });
+  if (canonicalJsonStringify(allowedTarget) !== canonicalJsonStringify(target)) {
+    throw new Error(
+      "interval-strength warm start changed more than reference-cycle normalization"
+    );
+  }
 }
 function validateDepositMetadata(metadata, configuration) {
   const record = requirePlainRecord$3(metadata, "interval-strength deposit metadata");
@@ -28545,6 +28681,23 @@ function computeRecoveryFraction(intervalSec, tauSec, field) {
     ),
     field
   );
+}
+function adjacentFiniteFloat64V1(value, direction) {
+  if (!Number.isFinite(value)) {
+    throw new Error("adjacent float64 source must be finite");
+  }
+  if (value === 0) return direction > 0 ? Number.MIN_VALUE : -Number.MIN_VALUE;
+  const bytes = new ArrayBuffer(8);
+  const view = new DataView(bytes);
+  view.setFloat64(0, value, false);
+  const bits = view.getBigUint64(0, false);
+  const nextBits = value > 0 ? bits + BigInt(direction) : bits - BigInt(direction);
+  view.setBigUint64(0, nextBits, false);
+  const adjacent = view.getFloat64(0, false);
+  if (!Number.isFinite(adjacent)) {
+    throw new Error("adjacent float64 result must be finite");
+  }
+  return adjacent;
 }
 function requirePlainRecord$3(value, field) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -29034,6 +29187,10 @@ function rebindAcceptedComposedRegularSinusStateV2(state, targetConfiguration) {
     state.configuration,
     targetConfiguration
   );
+  const ventricularIntervalStrengthState = rebindAcceptedVentricularIntervalStrengthReferenceV1(
+    state.ventricularIntervalStrengthState,
+    targetConfiguration.ventricularIntervalStrength
+  );
   const sourceRegular = state.regularAtrialSourceState;
   const sourceCycleSec = sourceAtrial.regularSourceConfiguration.cycleLengthSec;
   const targetCycleSec = targetAtrial.regularSourceConfiguration.cycleLengthSec;
@@ -29057,7 +29214,8 @@ function rebindAcceptedComposedRegularSinusStateV2(state, targetConfiguration) {
       ...sourceRegular,
       configuration: targetAtrial.regularSourceConfiguration,
       nextActivationTimeSec
-    }
+    },
+    ventricularIntervalStrengthState
   });
   validateAcceptedComposedRhythmTransactionStateV2(rebound);
   stampInternallyValidatedAcceptedComposedRhythmStateV2(rebound);
@@ -29480,7 +29638,8 @@ function assertRegularSinusWarmStartConfigurationV2(source, target) {
         cycleLengthSec: target.atrialSource.regularSourceConfiguration.cycleLengthSec
       }
     },
-    calciumParametersByWall: target.calciumParametersByWall
+    calciumParametersByWall: target.calciumParametersByWall,
+    ventricularIntervalStrength: target.ventricularIntervalStrength
   };
   if (canonicalJsonStringify(allowedProjection) !== canonicalJsonStringify(target)) {
     throw new Error(
@@ -42667,7 +42826,7 @@ function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(fixture, init
     allDynamicMcsAcceptedFlowsExactlyZero: true
   });
 }
-function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, cycleIndex, nominalDtSec) {
+function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, cycleIndex, nominalDtSec, acceptedStepObserver) {
   assertPeriodicNominalDtSec(nominalDtSec);
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
     throw new Error("V3 periodic cycle index must be a positive integer");

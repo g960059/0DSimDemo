@@ -10807,6 +10807,28 @@ const LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1 = Object.freeze({
   exitDestination: "unbound",
   sourceIdentityClaimed: false
 });
+function createLand2017StrongBridgeDeactivationExitV2(maximumRatePerSec, cooperativeGatePower = 8) {
+  if (!Number.isFinite(maximumRatePerSec) || maximumRatePerSec <= 0 || maximumRatePerSec > 500) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation V2 rate must be in (0, 500] 1/s"
+    );
+  }
+  if (!Number.isFinite(cooperativeGatePower) || cooperativeGatePower < 0.5 || cooperativeGatePower > 16) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation V2 gate power must be in [0.5, 16]"
+    );
+  }
+  return Object.freeze({
+    extensionId: "land2017-strong-bridge-deactivation-exit-v2",
+    maximumRatePerSec,
+    calciumTroponinGate: "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power",
+    cooperativeGatePower,
+    deactivationDirectionGate: "none",
+    strongPopulationGate: "positive-excess-over-zero-distortion-equilibrium",
+    exitDestination: "unbound",
+    sourceIdentityClaimed: false
+  });
+}
 const runtimeValues = {
   kTRPN: 100,
   nTRPN: 2,
@@ -17628,7 +17650,8 @@ function requireSelectedExtension(parameterSet) {
       "Land 2017 strong-bridge deactivation-exit sidecar requires the active extension"
     );
   }
-  if (extension.extensionId !== "land2017-strong-bridge-deactivation-exit-v1" || extension.maximumRatePerSec !== 30 || extension.calciumTroponinGate !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" || extension.cooperativeGatePower !== 8 || extension.deactivationDirectionGate !== "none" || extension.strongPopulationGate !== "positive-excess-over-zero-distortion-equilibrium" || extension.exitDestination !== "unbound" || extension.sourceIdentityClaimed !== false) {
+  const identityValid = extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1" ? extension.maximumRatePerSec === 30 : extension.extensionId === "land2017-strong-bridge-deactivation-exit-v2" && Number.isFinite(extension.maximumRatePerSec) && extension.maximumRatePerSec > 0 && extension.maximumRatePerSec <= 500 && Number.isFinite(extension.cooperativeGatePower) && extension.cooperativeGatePower >= 0.5 && extension.cooperativeGatePower <= 16;
+  if (!identityValid || extension.calciumTroponinGate !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" || extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1" && extension.cooperativeGatePower !== 8 || extension.deactivationDirectionGate !== "none" || extension.strongPopulationGate !== "positive-excess-over-zero-distortion-equilibrium" || extension.exitDestination !== "unbound" || extension.sourceIdentityClaimed !== false) {
     throw new Error(
       "Land 2017 strong-bridge deactivation exit must match the fixed V1 mechanism"
     );
@@ -32241,6 +32264,110 @@ function initializeAcceptedVentricularIntervalStrengthStateV1(configuration, inp
   validateAcceptedVentricularIntervalStrengthStateV1(state);
   return state;
 }
+function rebindAcceptedVentricularIntervalStrengthReferenceV1(state, targetConfiguration) {
+  validateAcceptedVentricularIntervalStrengthStateV1(state);
+  validateAcceptedVentricularIntervalStrengthConfigurationV1(
+    targetConfiguration
+  );
+  assertReferenceOnlyRebindV1(state.configuration, targetConfiguration);
+  if (canonicalJsonStringify(state.configuration) === canonicalJsonStringify(targetConfiguration)) {
+    return state;
+  }
+  const ownedTarget = copyConfiguration(targetConfiguration);
+  if (state.lastDepositMetadata === null) {
+    const rebound2 = Object.freeze({
+      ...state,
+      configuration: ownedTarget
+    });
+    validateAcceptedVentricularIntervalStrengthStateV1(rebound2);
+    return rebound2;
+  }
+  const sourceMetadata = state.lastDepositMetadata;
+  const currentLoad = state.normalizedSrLoadState;
+  const intervalSec = requirePositiveComputedFinite(
+    sourceMetadata.capturedVentricularActivation.activationTimeSec - sourceMetadata.previousCapturedActivationTimeSec,
+    "interval-strength rebound captured interval"
+  );
+  const recoveryFractionA = computeRecoveryFraction(
+    intervalSec,
+    ownedTarget.recoveryTimeConstantSec,
+    "interval-strength rebound recovery fraction"
+  );
+  const retainedLoadGain = requirePositiveComputedFinite(
+    1 - (1 - ownedTarget.releasedLoadReturnFractionR) * recoveryFractionA * ownedTarget.releaseFractionBeta,
+    "interval-strength rebound retained-load gain"
+  );
+  const intervalInflux = requirePositiveComputedFinite(
+    ownedTarget.normalizedIntervalInfluxGamma * (1 - ownedTarget.intervalInfluxInhibitionFractionH * recoveryFractionA),
+    "interval-strength rebound interval influx"
+  );
+  let normalizedSrLoadBefore = requirePositiveComputedFinite(
+    (currentLoad - intervalInflux) / retainedLoadGain,
+    "interval-strength rebound prior normalized SR load"
+  );
+  let reboundMetadata = buildDepositMetadataFromPriorLineage(
+    ownedTarget,
+    state.revision,
+    state.acceptedVentricularCaptureCount,
+    sourceMetadata.previousCapturedActivationId,
+    sourceMetadata.previousCapturedActivationTimeSec,
+    state.lastAcceptedVentricularActivation,
+    normalizedSrLoadBefore
+  );
+  for (let correction = 0; reboundMetadata.normalizedSrLoadAfter !== currentLoad && correction < 8; correction += 1) {
+    normalizedSrLoadBefore = requirePositiveComputedFinite(
+      normalizedSrLoadBefore + (currentLoad - reboundMetadata.normalizedSrLoadAfter) / retainedLoadGain,
+      "interval-strength rebound corrected prior normalized SR load"
+    );
+    reboundMetadata = buildDepositMetadataFromPriorLineage(
+      ownedTarget,
+      state.revision,
+      state.acceptedVentricularCaptureCount,
+      sourceMetadata.previousCapturedActivationId,
+      sourceMetadata.previousCapturedActivationTimeSec,
+      state.lastAcceptedVentricularActivation,
+      normalizedSrLoadBefore
+    );
+  }
+  let lowerBefore = normalizedSrLoadBefore;
+  let upperBefore = normalizedSrLoadBefore;
+  for (let adjacent = 0; reboundMetadata.normalizedSrLoadAfter !== currentLoad && adjacent < 64; adjacent += 1) {
+    lowerBefore = adjacentFiniteFloat64V1(lowerBefore, -1);
+    upperBefore = adjacentFiniteFloat64V1(upperBefore, 1);
+    for (const candidateBefore of [lowerBefore, upperBefore]) {
+      if (!(candidateBefore > 0)) continue;
+      const candidateMetadata = buildDepositMetadataFromPriorLineage(
+        ownedTarget,
+        state.revision,
+        state.acceptedVentricularCaptureCount,
+        sourceMetadata.previousCapturedActivationId,
+        sourceMetadata.previousCapturedActivationTimeSec,
+        state.lastAcceptedVentricularActivation,
+        candidateBefore
+      );
+      if (candidateMetadata.normalizedSrLoadAfter === currentLoad) {
+        normalizedSrLoadBefore = candidateBefore;
+        reboundMetadata = candidateMetadata;
+        break;
+      }
+    }
+  }
+  const reboundLoad = reboundMetadata.normalizedSrLoadAfter;
+  const reboundLoadTolerance = 8 * Number.EPSILON * Math.max(1, Math.abs(currentLoad), Math.abs(reboundLoad));
+  if (Math.abs(reboundLoad - currentLoad) > reboundLoadTolerance) {
+    throw new Error(
+      "interval-strength reference rebind cannot retain the accepted SR load"
+    );
+  }
+  const rebound = Object.freeze({
+    ...state,
+    configuration: ownedTarget,
+    normalizedSrLoadState: reboundLoad,
+    lastDepositMetadata: reboundMetadata
+  });
+  validateAcceptedVentricularIntervalStrengthStateV1(rebound);
+  return rebound;
+}
 function evaluateAcceptedVentricularIntervalStrengthCandidateV1(acceptedState2, input) {
   validateAcceptedVentricularIntervalStrengthStateV1(acceptedState2);
   const record = requirePlainRecord$3(input, "interval-strength candidate input");
@@ -32426,8 +32553,19 @@ function validateAcceptedVentricularIntervalStrengthStateV1(state) {
   }
 }
 function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, captured, normalizedSrLoadBefore) {
+  return buildDepositMetadataFromPriorLineage(
+    configuration,
+    ownerRevision,
+    ordinal,
+    previous.capturedActivationId,
+    previous.activationTimeSec,
+    captured,
+    normalizedSrLoadBefore
+  );
+}
+function buildDepositMetadataFromPriorLineage(configuration, ownerRevision, ordinal, previousCapturedActivationId, previousCapturedActivationTimeSec, captured, normalizedSrLoadBefore) {
   const intervalSec = requirePositiveComputedFinite(
-    captured.activationTimeSec - previous.activationTimeSec,
+    captured.activationTimeSec - previousCapturedActivationTimeSec,
     "interval-strength captured interval"
   );
   const isExactReferenceFixedPoint = intervalSec === configuration.referenceCycleLengthSec && normalizedSrLoadBefore === configuration.referenceNormalizedSrLoadState;
@@ -32459,8 +32597,8 @@ function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, c
     ownerInstanceId: configuration.ownerInstanceId,
     ownerRevision,
     acceptedVentricularCaptureOrdinal: ordinal,
-    previousCapturedActivationId: previous.capturedActivationId,
-    previousCapturedActivationTimeSec: previous.activationTimeSec,
+    previousCapturedActivationId,
+    previousCapturedActivationTimeSec,
     capturedVentricularActivation: captured,
     intervalSec,
     recoveryFractionA,
@@ -32472,6 +32610,26 @@ function buildDepositMetadata(configuration, ownerRevision, ordinal, previous, c
     futureExactCalciumDepositRelativeStrength: releasedRelativeStrengthR,
     calciumStateMutation: "none-metadata-only"
   });
+}
+function assertReferenceOnlyRebindV1(source, target) {
+  const allowedTarget = createAcceptedVentricularIntervalStrengthConfigurationV1({
+    configurationId: source.configurationId,
+    ownerInstanceId: source.ownerInstanceId,
+    parameterProvenance: {
+      kind: source.parameterProvenance.kind,
+      sourceId: source.parameterProvenance.sourceId
+    },
+    recoveryTimeConstantSec: source.recoveryTimeConstantSec,
+    releaseFractionBeta: source.releaseFractionBeta,
+    releasedLoadReturnFractionR: source.releasedLoadReturnFractionR,
+    intervalInfluxInhibitionFractionH: source.intervalInfluxInhibitionFractionH,
+    referenceCycleLengthSec: target.referenceCycleLengthSec
+  });
+  if (canonicalJsonStringify(allowedTarget) !== canonicalJsonStringify(target)) {
+    throw new Error(
+      "interval-strength warm start changed more than reference-cycle normalization"
+    );
+  }
 }
 function validateDepositMetadata(metadata, configuration) {
   const record = requirePlainRecord$3(metadata, "interval-strength deposit metadata");
@@ -32655,6 +32813,23 @@ function computeRecoveryFraction(intervalSec, tauSec, field) {
     ),
     field
   );
+}
+function adjacentFiniteFloat64V1(value, direction) {
+  if (!Number.isFinite(value)) {
+    throw new Error("adjacent float64 source must be finite");
+  }
+  if (value === 0) return direction > 0 ? Number.MIN_VALUE : -Number.MIN_VALUE;
+  const bytes = new ArrayBuffer(8);
+  const view = new DataView(bytes);
+  view.setFloat64(0, value, false);
+  const bits = view.getBigUint64(0, false);
+  const nextBits = value > 0 ? bits + BigInt(direction) : bits - BigInt(direction);
+  view.setBigUint64(0, nextBits, false);
+  const adjacent = view.getFloat64(0, false);
+  if (!Number.isFinite(adjacent)) {
+    throw new Error("adjacent float64 result must be finite");
+  }
+  return adjacent;
 }
 function requirePlainRecord$3(value, field) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
@@ -33144,6 +33319,10 @@ function rebindAcceptedComposedRegularSinusStateV2(state, targetConfiguration) {
     state.configuration,
     targetConfiguration
   );
+  const ventricularIntervalStrengthState = rebindAcceptedVentricularIntervalStrengthReferenceV1(
+    state.ventricularIntervalStrengthState,
+    targetConfiguration.ventricularIntervalStrength
+  );
   const sourceRegular = state.regularAtrialSourceState;
   const sourceCycleSec = sourceAtrial.regularSourceConfiguration.cycleLengthSec;
   const targetCycleSec = targetAtrial.regularSourceConfiguration.cycleLengthSec;
@@ -33167,7 +33346,8 @@ function rebindAcceptedComposedRegularSinusStateV2(state, targetConfiguration) {
       ...sourceRegular,
       configuration: targetAtrial.regularSourceConfiguration,
       nextActivationTimeSec
-    }
+    },
+    ventricularIntervalStrengthState
   });
   validateAcceptedComposedRhythmTransactionStateV2(rebound);
   stampInternallyValidatedAcceptedComposedRhythmStateV2(rebound);
@@ -33590,7 +33770,8 @@ function assertRegularSinusWarmStartConfigurationV2(source, target) {
         cycleLengthSec: target.atrialSource.regularSourceConfiguration.cycleLengthSec
       }
     },
-    calciumParametersByWall: target.calciumParametersByWall
+    calciumParametersByWall: target.calciumParametersByWall,
+    ventricularIntervalStrength: target.ventricularIntervalStrength
   };
   if (canonicalJsonStringify(allowedProjection) !== canonicalJsonStringify(target)) {
     throw new Error(
@@ -38035,7 +38216,7 @@ const PARAMETER_HASH_INPUT = {
   derivedParameters: Object.freeze(
     BASE_LAND.derivedParameters.map((entry) => Object.freeze({ ...entry }))
   ),
-  strongBridgeDeactivationExit: LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1
+  strongBridgeDeactivationExit: createLand2017StrongBridgeDeactivationExitV2(60, 12)
 };
 const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1 = Object.freeze({
   ...PARAMETER_HASH_INPUT,
@@ -38099,6 +38280,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM = Object.free
   valveOpeningStateAdded: false,
   pressureRecoveryCorrectionApplied: false,
   numericOptimizerApplied: false,
+  boundedFactorizedPhysiologyScreenApplied: true,
   clinicalValidationClaimed: false
 });
 function createMainWireIntegratedModelRoundedEjectionFixtureV1(requestedHemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, requestedMechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
@@ -52048,6 +52230,366 @@ const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 = "circleh
 const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67";
 const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 = "circleheart.main-wire-integrated-transaction";
 const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1";
+const HEMODYNAMIC_CONTROL_BY_INPUT_V1 = Object.freeze({
+  systemicResistance: "hemodynamics.systemic-resistance",
+  pulmonaryResistance: "hemodynamics.pulmonary-resistance",
+  venousTone: "hemodynamics.venous-tone",
+  arterialStiffness: "hemodynamics.arterial-stiffness",
+  heartRateBpm: "rhythm.heart-rate-bpm",
+  totalBloodVolumeMl: "hemodynamics.total-blood-volume-ml",
+  peepCmH2O: "ventilation.peep-cm-h2o"
+});
+const MECHANICS_PREFIX_BY_KIND_V1 = Object.freeze({
+  activeTensionScaleByWall: "myocardium.active-tension-scale",
+  passiveStiffnessScaleByWall: "myocardium.passive-stiffness-scale"
+});
+const PERICARDIUM_CONTROL_BY_INPUT_V1 = Object.freeze({
+  referenceCapacityScale: "pericardium.reference-capacity-scale",
+  pressureScale: "pericardium.pressure-scale",
+  exponentialStiffnessScale: "pericardium.exponential-stiffness-scale",
+  prescribedFluidVolumeMl: "pericardium.prescribed-fluid-volume-ml"
+});
+const OXYGEN_CONTROL_BY_INPUT_V1 = Object.freeze({
+  hemoglobinGPerDl: "oxygen.hemoglobin-g-per-dl",
+  inspiredOxygenFraction01: "oxygen.inspired-oxygen-fraction",
+  arterialCarbonDioxidePressureMmHg: "oxygen.arterial-carbon-dioxide-pressure-mm-hg",
+  respiratoryExchangeRatio: "oxygen.respiratory-exchange-ratio",
+  barometricPressureMmHg: "oxygen.barometric-pressure-mm-hg",
+  trueShuntFraction01: "oxygen.true-shunt-fraction",
+  targetOxygenConsumptionMlPerMin: "oxygen.target-consumption-ml-per-min"
+});
+const CORONARY_TERRITORIES_V1 = Object.freeze(["LAD", "LCx", "RCA"]);
+const CORONARY_LAYERS_V1 = Object.freeze([
+  "subepicardial",
+  "subendocardial"
+]);
+const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1 = Object.freeze([
+  ...["heartRateBpm", "totalBloodVolumeMl", "systemicResistance"].map(hemodynamicDefinitionV1),
+  definitionV1(
+    "myocardium.contractility",
+    "1",
+    MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1.activeTensionScaleByWall,
+    1
+  ),
+  ...["venousTone", "peepCmH2O", "pulmonaryResistance", "arterialStiffness"].map(hemodynamicDefinitionV1),
+  ...Object.entries(MECHANICS_PREFIX_BY_KIND_V1).flatMap(
+    ([scaleKind, prefix]) => MAIN_WIRE_FIVE_WALL_IDS_V1.map((wallId) => {
+      const kind = scaleKind;
+      return definitionV1(
+        `${prefix}.${wallId}`,
+        "1",
+        MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind],
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.chamberMechanics[kind][wallId]
+      );
+    })
+  ),
+  ...MAIN_WIRE_FOUR_VALVE_IDS_V1.flatMap((valveId) => [
+    definitionV1(
+      `valve.maximum-forward-eoa-cm2.${valveId}`,
+      "cm2",
+      MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1[valveId].maximumForwardEoaCm2,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.valveAreas[valveId].maximumForwardEoaCm2
+    ),
+    definitionV1(
+      `valve.closed-reverse-eroa-cm2.${valveId}`,
+      "cm2",
+      MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1[valveId].closedReverseEroaCm2,
+      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.valveAreas[valveId].closedReverseEroaCm2
+    )
+  ]),
+  ...Object.entries(OXYGEN_CONTROL_BY_INPUT_V1).map(
+    ([inputKey, controlId]) => {
+      const key = inputKey;
+      return definitionV1(
+        controlId,
+        oxygenUnitV1(key),
+        OXYGEN_TRANSPORT_INPUT_RANGES_V1[key],
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.oxygenTransport[key]
+      );
+    }
+  ),
+  ...Object.entries(PERICARDIUM_CONTROL_BY_INPUT_V1).map(
+    ([inputKey, controlId]) => {
+      const key = inputKey;
+      return definitionV1(
+        controlId,
+        key === "prescribedFluidVolumeMl" ? "mL" : "1",
+        MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1[key],
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.pericardium[key]
+      );
+    }
+  ),
+  ...CORONARY_TERRITORIES_V1.map((territoryId) => definitionV1(
+    `coronary.focal-diameter-loss-fraction.${territoryId}`,
+    "1",
+    MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.focalDiameterLossFraction01,
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.coronaryDisease.focalDiameterLossFraction01ByTerritory[territoryId]
+  )),
+  ...["r1", "rm"].flatMap(
+    (resistanceKind) => CORONARY_TERRITORIES_V1.flatMap(
+      (territoryId) => CORONARY_LAYERS_V1.map((layerId) => {
+        const field = resistanceKind === "r1" ? "structuralR1ResistanceScaleByTerritoryLayer" : "structuralRmResistanceScaleByTerritoryLayer";
+        const range = resistanceKind === "r1" ? MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralR1ResistanceScale : MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2.structuralRmResistanceScale;
+        return definitionV1(
+          `coronary.structural-${resistanceKind}-resistance-scale.${territoryId}.${layerId}`,
+          "1",
+          range,
+          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3.coronaryDisease[field][territoryId][layerId]
+        );
+      })
+    )
+  )
+]);
+const CONTROL_BY_ID_V1 = new Map(
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1.map(
+    (definition2) => [definition2.controlId, definition2]
+  )
+);
+if (MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1.length !== 52 || CONTROL_BY_ID_V1.size !== 52) {
+  throw new Error("Standard68 must expose exactly 52 non-calcium controls");
+}
+function applyMainWireIntegratedStudioRoundedEjectionControlV1(fixture, controlId, value) {
+  const definition2 = CONTROL_BY_ID_V1.get(controlId);
+  if (definition2 === void 0) {
+    throw new Error(`Standard68 control is not registered: ${controlId}`);
+  }
+  const issue = studioNumericControlValueIssueV2(value, definition2);
+  if (issue !== void 0) {
+    throw new Error(`Standard68 control ${controlId} value ${issue}`);
+  }
+  const hemodynamicEntry = Object.entries(HEMODYNAMIC_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (hemodynamicEntry !== void 0) {
+    return Object.freeze({
+      ...fixture,
+      hemodynamicResearchInputs: Object.freeze({
+        ...fixture.hemodynamicResearchInputs,
+        [hemodynamicEntry[0]]: value
+      })
+    });
+  }
+  const mechanics = fixture.mechanismResearchInputs.chamberMechanics;
+  if (controlId === "myocardium.contractility") {
+    return withMechanicsV1(fixture, {
+      ...mechanics,
+      activeTensionScaleByWall: {
+        ...mechanics.activeTensionScaleByWall,
+        LVFW: value,
+        SEP: value,
+        RVFW: value
+      }
+    });
+  }
+  for (const [kind, prefix] of Object.entries(MECHANICS_PREFIX_BY_KIND_V1)) {
+    if (!controlId.startsWith(`${prefix}.`)) continue;
+    const wallId = controlId.slice(prefix.length + 1);
+    const scaleKind = kind;
+    return withMechanicsV1(fixture, {
+      ...mechanics,
+      [scaleKind]: { ...mechanics[scaleKind], [wallId]: value }
+    });
+  }
+  const valve = /^(valve\.(maximum-forward-eoa-cm2|closed-reverse-eroa-cm2))\.(MV|AoV|TV|PV)$/.exec(controlId);
+  if (valve !== null) {
+    const valveId = valve[3];
+    const field = valve[2] === "maximum-forward-eoa-cm2" ? "maximumForwardEoaCm2" : "closedReverseEroaCm2";
+    return withMechanismV1(fixture, {
+      ...fixture.mechanismResearchInputs,
+      valveAreas: {
+        ...fixture.mechanismResearchInputs.valveAreas,
+        [valveId]: {
+          ...fixture.mechanismResearchInputs.valveAreas[valveId],
+          [field]: value
+        }
+      }
+    });
+  }
+  const oxygenEntry = Object.entries(OXYGEN_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (oxygenEntry !== void 0) {
+    return withMechanismV1(fixture, {
+      ...fixture.mechanismResearchInputs,
+      oxygenTransport: {
+        ...fixture.mechanismResearchInputs.oxygenTransport,
+        [oxygenEntry[0]]: value
+      }
+    });
+  }
+  const pericardiumEntry = Object.entries(PERICARDIUM_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (pericardiumEntry !== void 0) {
+    return withMechanismV1(fixture, {
+      ...fixture.mechanismResearchInputs,
+      pericardium: {
+        ...fixture.mechanismResearchInputs.pericardium,
+        [pericardiumEntry[0]]: value
+      }
+    });
+  }
+  const focal = /^coronary\.focal-diameter-loss-fraction\.(LAD|LCx|RCA)$/.exec(controlId);
+  if (focal !== null) {
+    const territoryId = focal[1];
+    const disease = fixture.mechanismResearchInputs.coronaryDisease;
+    return withMechanismV1(fixture, {
+      ...fixture.mechanismResearchInputs,
+      coronaryDisease: {
+        ...disease,
+        focalDiameterLossFraction01ByTerritory: {
+          ...disease.focalDiameterLossFraction01ByTerritory,
+          [territoryId]: value
+        }
+      }
+    });
+  }
+  const structural = /^coronary\.structural-(r1|rm)-resistance-scale\.(LAD|LCx|RCA)\.(subepicardial|subendocardial)$/.exec(controlId);
+  if (structural !== null) {
+    const field = structural[1] === "r1" ? "structuralR1ResistanceScaleByTerritoryLayer" : "structuralRmResistanceScaleByTerritoryLayer";
+    const territoryId = structural[2];
+    const layerId = structural[3];
+    const disease = fixture.mechanismResearchInputs.coronaryDisease;
+    return withMechanismV1(fixture, {
+      ...fixture.mechanismResearchInputs,
+      coronaryDisease: {
+        ...disease,
+        [field]: {
+          ...disease[field],
+          [territoryId]: {
+            ...disease[field][territoryId],
+            [layerId]: value
+          }
+        }
+      }
+    });
+  }
+  throw new Error(`Standard68 control reducer is unavailable: ${controlId}`);
+}
+function reduceMainWireIntegratedStudioRoundedEjectionControlV1(fixture, controlId, value) {
+  applyMainWireIntegratedStudioRoundedEjectionControlV1(
+    fixture,
+    controlId,
+    value
+  );
+  const hemodynamic = Object.entries(HEMODYNAMIC_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (hemodynamic !== void 0) {
+    return numericPatchV1([
+      ["hemodynamicResearchInputs", hemodynamic[0]]
+    ], value);
+  }
+  if (controlId === "myocardium.contractility") {
+    return numericPatchV1(
+      ["LVFW", "SEP", "RVFW"].map((wallId) => [
+        "mechanismResearchInputs",
+        "chamberMechanics",
+        "activeTensionScaleByWall",
+        wallId
+      ]),
+      value
+    );
+  }
+  for (const [kind, prefix] of Object.entries(MECHANICS_PREFIX_BY_KIND_V1)) {
+    if (!controlId.startsWith(`${prefix}.`)) continue;
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "chamberMechanics",
+      kind,
+      controlId.slice(prefix.length + 1)
+    ]], value);
+  }
+  const valve = /^(valve\.(maximum-forward-eoa-cm2|closed-reverse-eroa-cm2))\.(MV|AoV|TV|PV)$/.exec(controlId);
+  if (valve !== null) {
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "valveAreas",
+      valve[3],
+      valve[2] === "maximum-forward-eoa-cm2" ? "maximumForwardEoaCm2" : "closedReverseEroaCm2"
+    ]], value);
+  }
+  const oxygen = Object.entries(OXYGEN_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (oxygen !== void 0) {
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "oxygenTransport",
+      oxygen[0]
+    ]], value);
+  }
+  const pericardium = Object.entries(PERICARDIUM_CONTROL_BY_INPUT_V1).find(([, id]) => id === controlId);
+  if (pericardium !== void 0) {
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "pericardium",
+      pericardium[0]
+    ]], value);
+  }
+  const focal = /^coronary\.focal-diameter-loss-fraction\.(LAD|LCx|RCA)$/.exec(controlId);
+  if (focal !== null) {
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "coronaryDisease",
+      "focalDiameterLossFraction01ByTerritory",
+      focal[1]
+    ]], value);
+  }
+  const structural = /^coronary\.structural-(r1|rm)-resistance-scale\.(LAD|LCx|RCA)\.(subepicardial|subendocardial)$/.exec(controlId);
+  if (structural !== null) {
+    return numericPatchV1([[
+      "mechanismResearchInputs",
+      "coronaryDisease",
+      structural[1] === "r1" ? "structuralR1ResistanceScaleByTerritoryLayer" : "structuralRmResistanceScaleByTerritoryLayer",
+      structural[2],
+      structural[3]
+    ]], value);
+  }
+  throw new Error(`Standard68 control patch is unavailable: ${controlId}`);
+}
+function numericPatchV1(paths, value) {
+  return Object.freeze({
+    changes: Object.freeze(paths.map((path) => Object.freeze({
+      path: Object.freeze([...path]),
+      value
+    })))
+  });
+}
+function withMechanicsV1(fixture, chamberMechanics) {
+  return withMechanismV1(fixture, {
+    ...fixture.mechanismResearchInputs,
+    chamberMechanics
+  });
+}
+function withMechanismV1(fixture, mechanismResearchInputs) {
+  return Object.freeze({
+    ...fixture,
+    mechanismResearchInputs: Object.freeze(mechanismResearchInputs)
+  });
+}
+function definitionV1(controlId, unit, range, defaultValue) {
+  return Object.freeze({
+    controlId,
+    valueType: "number",
+    unit,
+    minimum: range.minimum,
+    maximum: range.maximum,
+    step: range.step,
+    defaultValue,
+    changeSemantics: "accepted-state-warm-start"
+  });
+}
+function hemodynamicDefinitionV1(key) {
+  return definitionV1(
+    HEMODYNAMIC_CONTROL_BY_INPUT_V1[key],
+    hemodynamicUnitV1(key),
+    MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[key],
+    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3[key]
+  );
+}
+function hemodynamicUnitV1(inputKey) {
+  if (inputKey === "heartRateBpm") return "bpm";
+  if (inputKey === "totalBloodVolumeMl") return "mL";
+  if (inputKey === "peepCmH2O") return "cmH2O";
+  return "1";
+}
+function oxygenUnitV1(inputKey) {
+  if (inputKey === "hemoglobinGPerDl") return "g/dL";
+  if (inputKey === "arterialCarbonDioxidePressureMmHg" || inputKey === "barometricPressureMmHg") return "mmHg";
+  if (inputKey === "targetOxygenConsumptionMlPerMin") return "mL O2/min";
+  return "1";
+}
 const schemaId = "circleheart-execution-plan-descriptor-v1";
 const definitionId = "main-wire-hemodynamic-model-definition-v1";
 const policyId = "main-wire-static-condensed-be-policy-v1";
@@ -52069,6 +52611,16 @@ const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_CHECKPOINT_CODEC_ID_V
 const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_HOT_PATH_INTEGRITY_TIER_V1 = "hot-path-lean";
 const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1 = Object.freeze({
   heartRateBpm: "rhythm.heart-rate-bpm"
+});
+const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1 = Object.freeze({
+  schemaId: MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
+  rhythm: Object.freeze({ mode: "regular-sinus-v3" }),
+  coronary: Object.freeze({ topologyProfile: "coronary-network-v2" }),
+  dynamicMechanicalSupport: Object.freeze({
+    mode: "all-off-zero-inertance-v3"
+  }),
+  hemodynamicResearchInputs: MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  mechanismResearchInputs: MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
 });
 const SELECTED_STANDARD66_EXACT_VARIANT_V1 = Object.freeze({
   generation: 66,
@@ -52145,6 +52697,9 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
     changeSemantics: "cold-restart"
   })
 ]);
+function selectedControlCatalogV1(variant) {
+  return variant.generation === 68 ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1 : SELECTED_CONTROL_CATALOG_V1;
+}
 function selectedOutputCatalogV1(variant) {
   return variant.generation === 68 ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1 : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1;
 }
@@ -52282,11 +52837,18 @@ function createSelectedNumericalFixtureV1(variant, inputs, mechanismResearchInpu
 }
 class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   #variant;
+  #defaultBaselineCheckpoint;
   #sessions = /* @__PURE__ */ new Map();
   #retiredSessionIds = /* @__PURE__ */ new Set();
   #executionPlanScenarioOwners = /* @__PURE__ */ new WeakMap();
-  constructor(variant = SELECTED_STANDARD66_EXACT_VARIANT_V1) {
+  constructor(variant = SELECTED_STANDARD66_EXACT_VARIANT_V1, defaultBaselineCheckpoint) {
     this.#variant = variant;
+    if (defaultBaselineCheckpoint !== void 0 && variant.generation !== 68) {
+      throw new Error(
+        "A settled Standard68 baseline cannot be installed in an older exact variant"
+      );
+    }
+    this.#defaultBaselineCheckpoint = defaultBaselineCheckpoint;
   }
   async createSession(runtimeSessionId, scenarioInputs, suppliedExecutionPlans) {
     requiredSelectedIdV1(runtimeSessionId, "runtimeSessionId");
@@ -52315,6 +52877,9 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       }
       const fixture = validateAndOwnSelectedFixtureV1(input.fixture, this.#variant);
       const checkpoint = input.checkpoint === void 0 ? void 0 : validateSelectedScenarioCheckpointV1(input.checkpoint);
+      const defaultBaselineCheckpoint = checkpoint === void 0 && this.#variant.generation === 68 && this.#defaultBaselineCheckpoint !== void 0 && studioCanonicalJsonStringify(fixture) === studioCanonicalJsonStringify(
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1
+      ) ? this.#defaultBaselineCheckpoint : void 0;
       const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId) ?? bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1();
       if (suppliedExecutionPlans !== void 0 && !suppliedExecutionPlans.has(input.scenarioId)) {
         throw new Error(
@@ -52326,7 +52891,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         input.scenarioId,
         boundExecutionPlan
       );
-      const modelSession = checkpoint === void 0 ? await createSelectedNumericalSessionV1(
+      const modelSession = checkpoint === void 0 && defaultBaselineCheckpoint === void 0 ? await createSelectedNumericalSessionV1(
         this.#variant,
         fixture.hemodynamicResearchInputs,
         1,
@@ -52334,14 +52899,18 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         fixture.mechanismResearchInputs
       ) : await restoreSelectedNumericalSessionV1(
         this.#variant,
-        checkpoint.payload,
+        checkpoint?.payload ?? defaultBaselineCheckpoint,
         fixture.hemodynamicResearchInputs,
         1,
         preparedExecutionPlan.initialization,
         fixture.mechanismResearchInputs
       );
       const accepted = modelSession.currentAcceptedState();
-      if (checkpoint !== void 0 && (accepted.revision !== checkpoint.acceptedRevision || accepted.acceptedTimeSec !== checkpoint.acceptedTimeSec)) {
+      const expectedCheckpointClock = checkpoint === void 0 ? defaultBaselineCheckpoint === void 0 ? void 0 : Object.freeze({
+        acceptedRevision: defaultBaselineCheckpoint.revision,
+        acceptedTimeSec: defaultBaselineCheckpoint.acceptedTimeSec
+      }) : checkpoint;
+      if (expectedCheckpointClock !== void 0 && (accepted.revision !== expectedCheckpointClock.acceptedRevision || accepted.acceptedTimeSec !== expectedCheckpointClock.acceptedTimeSec)) {
         throw new Error(
           `Selected Standard66 Scenario ${input.scenarioId} checkpoint clock mismatch`
         );
@@ -52473,6 +53042,22 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         `Selected Standard66 control input epoch is stale: expected ${expectedInputEpoch}, current ${scenario.inputEpoch}`
       );
     }
+    if (this.#variant.generation === 68) {
+      const fixture2 = validateAndOwnSelectedFixtureV1(
+        applyMainWireIntegratedStudioRoundedEjectionControlV1(
+          scenario.fixture,
+          controlId,
+          value
+        ),
+        this.#variant
+      );
+      return this.#warmStartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture2,
+        expectedInputEpoch
+      );
+    }
     if (controlId !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1.heartRateBpm) {
       throw new Error(
         `Selected Standard66 control is not registered: ${controlId}`
@@ -52492,12 +53077,25 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   }
   async replaceFixture(runtimeSessionId, scenarioId, fixtureValue) {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    await this.#coldRestartFixtureAtomically(
-      runtimeSessionId,
-      scenarioId,
-      validateAndOwnSelectedFixtureV1(fixtureValue, this.#variant),
-      scenario.inputEpoch
+    const fixture = validateAndOwnSelectedFixtureV1(
+      fixtureValue,
+      this.#variant
     );
+    if (this.#variant.generation === 68) {
+      await this.#warmStartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture,
+        scenario.inputEpoch
+      );
+    } else {
+      await this.#coldRestartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture,
+        scenario.inputEpoch
+      );
+    }
     return scenario.inputEpoch;
   }
   async requestAnalysis(runtimeSessionId, scenarioId, analysisId, expectedInputEpoch, expectedAcceptedRevision, expectedAcceptedTimeSec, analysisPartition, onProgress) {
@@ -52771,6 +53369,90 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       projectedValues: projection.projectedValues
     });
   }
+  async #warmStartFixtureAtomically(runtimeSessionId, scenarioId, fixture, expectedInputEpoch) {
+    if (this.#variant.generation !== 68) {
+      throw new Error("Accepted-state warm start is owned only by Standard68");
+    }
+    const original = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (original.inputEpoch !== expectedInputEpoch) {
+      throw new Error("Standard68 fixture warm start input epoch is stale");
+    }
+    const preparedExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      scenarioId,
+      bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1()
+    );
+    const candidate = await original.modelSession.warmStartWithHemodynamicResearchInputs(
+      fixture.hemodynamicResearchInputs,
+      1,
+      preparedExecutionPlan.initialization,
+      fixture.mechanismResearchInputs
+    );
+    if (!(candidate instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1)) {
+      throw new Error("Standard68 warm start returned the wrong exact owner");
+    }
+    const accepted = candidate.currentAcceptedState();
+    const sourceAccepted = original.modelSession.currentAcceptedState();
+    if (accepted.revision !== sourceAccepted.revision || accepted.acceptedTimeSec !== sourceAccepted.acceptedTimeSec) {
+      throw new Error("Standard68 fixture warm start changed the accepted clock");
+    }
+    if (fixture.hemodynamicResearchInputs.totalBloodVolumeMl !== original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl) {
+      const preflightExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        scenarioId,
+        bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1()
+      );
+      const preflight = await restoreSelectedNumericalSessionV1(
+        this.#variant,
+        await candidate.checkpointStandard68Exact(),
+        fixture.hemodynamicResearchInputs,
+        1,
+        preflightExecutionPlan.initialization,
+        fixture.mechanismResearchInputs
+      );
+      const originBaseTick = executionPlanBaseTickAtTimeV1(
+        preflightExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec
+      );
+      const endTimeSec = accepted.acceptedTimeSec + 60 / fixture.hemodynamicResearchInputs.heartRateBpm;
+      for (let ordinal = 1; ; ordinal += 1) {
+        const targetBaseTick = executionPlanPresentationBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          originBaseTick,
+          ordinal
+        );
+        const targetTimeSec = executionPlanTimeAtBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          targetBaseTick
+        );
+        if (targetTimeSec > endTimeSec + 1e-12) break;
+        const advance = preflight.advanceToPresentationTime(targetTimeSec);
+        if (advance.status !== "advanced") {
+          throw new Error(
+            `Standard68 TBV warm start rejected before commit: ${selectedAdvanceFailureMessageV1(advance)}`
+          );
+        }
+      }
+    }
+    const current = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (current !== original || current.inputEpoch !== expectedInputEpoch) {
+      throw new Error("Standard68 fixture warm start became stale before swap");
+    }
+    current.fixture = fixture;
+    current.modelSession = candidate;
+    current.executionPlanBinding = Object.freeze({
+      boundExecutionPlan: preparedExecutionPlan.initialization.boundExecutionPlan,
+      modelSession: candidate,
+      updateSchedule: preparedExecutionPlan.updateSchedule,
+      presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+        preparedExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec
+      )
+    });
+    current.presentationOrdinal = 0;
+    current.inputEpoch += 1;
+    return this.currentFrame(runtimeSessionId, scenarioId);
+  }
   async #coldRestartFixtureAtomically(runtimeSessionId, scenarioId, fixture, expectedInputEpoch) {
     const original = this.#requiredScenario(runtimeSessionId, scenarioId);
     if (original.inputEpoch !== expectedInputEpoch) {
@@ -52829,6 +53511,7 @@ function createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1() {
 function createSelectedExactKernelV1(variant) {
   const signalDefinitions = selectedSignalDefinitionsV1(variant);
   const metricDefinitions = selectedMetricDefinitionsV1(variant);
+  const controlCatalog = selectedControlCatalogV1(variant);
   const manifest = Object.freeze({
     schemaId: STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
     modelId: variant.modelId,
@@ -52853,7 +53536,7 @@ function createSelectedExactKernelV1(variant) {
       presentationDtSec: SELECTED_PRESENTATION_DT_SEC_V1,
       hotPathIntegrityTier: MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_HOT_PATH_INTEGRITY_TIER_V1,
       acceptedBoundaryCapture: true,
-      fixtureChangeSemantics: "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
+      fixtureChangeSemantics: variant.generation === 68 ? "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch" : "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
       scope: variant.runtimeScope
     }),
     solver: Object.freeze({
@@ -52887,14 +53570,14 @@ function createSelectedExactKernelV1(variant) {
         restoreSemantics: "exact-object-selected-identity-no-migration-no-clock-rebase"
       })
     }),
-    primitiveControlCatalog: SELECTED_CONTROL_CATALOG_V1,
+    primitiveControlCatalog: controlCatalog,
     primitiveSignalCatalog: signalDefinitions,
     modelMetricCatalog: metricDefinitions,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
       EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
-      ...SELECTED_CONTROL_CATALOG_V1.map(
+      ...controlCatalog.map(
         ({ controlId }) => `control/${controlId}`
       ),
       ...signalDefinitions.map(
@@ -52969,6 +53652,13 @@ function selectedExecutableBundleV1(host, variant) {
     reduceControlAction(input) {
       assertSelectedRuntimeContextV1(input.context, variant);
       const fixture = validateAndOwnSelectedFixtureV1(input.fixture, variant);
+      if (variant.generation === 68) {
+        return reduceMainWireIntegratedStudioRoundedEjectionControlV1(
+          fixture,
+          input.action.controlId,
+          input.action.value
+        );
+      }
       if (input.action.controlId !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1.heartRateBpm) {
         throw new Error(
           `Selected Standard66 control is not registered: ${input.action.controlId}`

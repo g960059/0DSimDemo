@@ -94,6 +94,7 @@ import {
   createAcceptedVentricularIntervalStrengthConfigurationV1,
   evaluateAcceptedVentricularIntervalStrengthCandidateV1,
   initializeAcceptedVentricularIntervalStrengthStateV1,
+  rebindAcceptedVentricularIntervalStrengthReferenceV1,
   validateAcceptedVentricularIntervalStrengthConfigurationV1,
   validateAcceptedVentricularIntervalStrengthStateV1,
   type AcceptedVentricularIntervalStrengthCandidateV1,
@@ -752,8 +753,9 @@ export function initializeAcceptedComposedRhythmTransactionStateV2(
  * preserved, so a heart-rate edit changes the next interval continuously
  * instead of restarting the rhythm owner at its cold phase.
  *
- * Only the regular-source cycle and its cycle-derived calcium parameters may
- * differ. Every other composed-rhythm owner contract must remain identical.
+ * Only the regular-source cycle, its cycle-derived calcium parameters, and
+ * the interval-strength reference normalization may differ. Every other
+ * composed-rhythm owner contract must remain identical.
  */
 export function rebindAcceptedComposedRegularSinusStateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
@@ -780,6 +782,11 @@ export function rebindAcceptedComposedRegularSinusStateV2(
     state.configuration,
     targetConfiguration,
   );
+  const ventricularIntervalStrengthState =
+    rebindAcceptedVentricularIntervalStrengthReferenceV1(
+      state.ventricularIntervalStrengthState,
+      targetConfiguration.ventricularIntervalStrength,
+    );
 
   const sourceRegular = state.regularAtrialSourceState;
   const sourceCycleSec =
@@ -816,6 +823,7 @@ export function rebindAcceptedComposedRegularSinusStateV2(
       configuration: targetAtrial.regularSourceConfiguration,
       nextActivationTimeSec,
     },
+    ventricularIntervalStrengthState,
   }) satisfies AcceptedComposedRhythmTransactionStateV2;
   validateAcceptedComposedRhythmTransactionStateV2(rebound);
   stampInternallyValidatedAcceptedComposedRhythmStateV2(rebound);
@@ -1379,6 +1387,7 @@ function assertRegularSinusWarmStartConfigurationV2(
       },
     },
     calciumParametersByWall: target.calciumParametersByWall,
+    ventricularIntervalStrength: target.ventricularIntervalStrength,
   };
   if (
     canonicalJsonStringify(allowedProjection)

@@ -611,12 +611,24 @@ async function updateArtifactAndLockV1(
   artifact: Uint8Array,
   clientDescriptor: SelectedAorticOutflowClientDescriptorV1,
 ): Promise<SelectedAorticOutflowRegistryAdmissionLockV1> {
-  const prior = existsSync(lockPath)
+  const currentPrior = existsSync(lockPath)
     ? parseLockV1(
         readFileSync(lockPath, "utf8"),
         "existing selected-aortic-outflow Standard66 lock",
       )
     : null;
+  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
+  const baseLockBytes = baseRef === undefined || baseRef === ""
+      || /^0+$/.test(baseRef)
+    ? null
+    : readPriorBytesV1(baseRef, lockRelativePath);
+  const basePrior = baseLockBytes === null
+    ? null
+    : parseLockV1(
+        new TextDecoder().decode(baseLockBytes),
+        `selected-aortic-outflow Standard66 lock at ${baseRef}`,
+      );
+  const prior = basePrior ?? currentPrior;
   let predecessorArtifactRevisionId: string | null = null;
   let equivalenceReportSha256: string | null = null;
 
@@ -632,16 +644,27 @@ async function updateArtifactAndLockV1(
       if (prior.artifactSha256 !== artifactSha256) {
         fail("the existing Standard66 lock disagrees with identical revision bytes");
       }
-      readCurrentEquivalenceReportV1(prior);
+      if (basePrior === null) readCurrentEquivalenceReportV1(prior);
       predecessorArtifactRevisionId = prior.predecessorArtifactRevisionId;
       equivalenceReportSha256 = prior.equivalenceReportSha256;
     } else {
-      if (!existsSync(artifactPath) || !existsSync(clientDescriptorPath)) {
+      if (
+        basePrior === null
+        && (!existsSync(artifactPath) || !existsSync(clientDescriptorPath))
+      ) {
         fail("the predecessor Standard66 artifact or client descriptor is missing");
       }
-      const predecessorArtifact = new Uint8Array(readFileSync(artifactPath));
+      const predecessorArtifact = basePrior === null
+        ? new Uint8Array(readFileSync(artifactPath))
+        : readPriorBytesV1(baseRef!, artifactRelativePath);
+      const predecessorClientBytes = basePrior === null
+        ? new Uint8Array(readFileSync(clientDescriptorPath))
+        : readPriorBytesV1(baseRef!, clientDescriptorRelativePath);
+      if (predecessorArtifact === null || predecessorClientBytes === null) {
+        fail("the base predecessor Standard66 artifact or client descriptor is missing");
+      }
       const predecessorClient = parseClientDescriptorV1(
-        readFileSync(clientDescriptorPath, "utf8"),
+        new TextDecoder().decode(predecessorClientBytes),
         "predecessor selected-aortic-outflow Standard66 client descriptor",
       );
       const predecessorManifest = studioCanonicalJsonStringify(

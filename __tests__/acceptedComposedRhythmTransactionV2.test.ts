@@ -31,6 +31,7 @@ import {
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
   initializeAcceptedComposedRhythmTransactionStateV2,
   limitAcceptedComposedRhythmTransactionCandidateTimeV2,
+  rebindAcceptedComposedRegularSinusStateV2,
   rollbackAcceptedComposedRhythmTransactionCandidateV2,
   validateAcceptedComposedRhythmTransactionBoundaryV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
@@ -357,6 +358,61 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     });
     expect(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.cycleLengthSec)
       .toBe(1);
+  });
+
+  it("warm-rebinds a matched-alpha HR coordinate at the accepted clock", () => {
+    const identity = {
+      idPrefix: "matched-alpha-warm-rebind",
+      parameterProvenanceSourceId: "matched-alpha-warm-rebind-source",
+    } as const;
+    const sourceRhythm = createMainWireIntegratedRegularSinusRhythmV3(
+      { ...identity, cycleLengthSec: 1 },
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 60,
+      },
+    );
+    const source = advanceThroughOwnedBoundaries(sourceRhythm.state, 1.1);
+    const targetRhythm = createMainWireIntegratedRegularSinusRhythmV3(
+      { ...identity, cycleLengthSec: 0.8 },
+      {
+        profileId:
+          MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+        heartRateBpm: 75,
+      },
+    );
+    const sourceLoad = source.ventricularIntervalStrengthState
+      .normalizedSrLoadState;
+    const sourceNext = source.regularAtrialSourceState!.nextActivationTimeSec;
+    const rebound = rebindAcceptedComposedRegularSinusStateV2(
+      source,
+      targetRhythm.configuration,
+    );
+
+    expect(rebound.acceptedTimeSec).toBe(source.acceptedTimeSec);
+    expect(rebound.revision).toBe(source.revision);
+    expect(Math.abs(
+      rebound.ventricularIntervalStrengthState.normalizedSrLoadState
+        - sourceLoad,
+    )).toBeLessThanOrEqual(
+      8 * Number.EPSILON * Math.max(1, sourceLoad),
+    );
+    expect(rebound.ventricularIntervalStrengthState
+      .acceptedVentricularCaptureCount)
+      .toBe(source.ventricularIntervalStrengthState
+        .acceptedVentricularCaptureCount);
+    expect(rebound.ventricularIntervalStrengthState.configuration
+      .referenceCycleLengthSec).toBe(0.8);
+    expect(rebound.regularAtrialSourceState!.nextActivationTimeSec)
+      .toBeCloseTo(
+        source.acceptedTimeSec
+          + (sourceNext - source.acceptedTimeSec) * 0.8,
+        12,
+      );
+    expect(() => validateAcceptedComposedRhythmTransactionBoundaryV2(
+      rebound,
+    )).not.toThrow();
   });
 
   it("activates the selected fixed profile with exact event timing and one-cycle calcium closure", () => {

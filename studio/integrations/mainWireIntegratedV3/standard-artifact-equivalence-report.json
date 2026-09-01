@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.regular-sinus-all-off.standard-65",
-  "predecessorArtifactRevisionId": "346a47bc9bc825cf1e8fc876176f73bdbcf58638618a9da9757fe8ea280d5ffa",
-  "candidateArtifactRevisionId": "6f189c34f7c2e7fbf62dafc5cd5766c68fbeb4a6d3aa2178b939d4b4d5ad72c6",
+  "predecessorArtifactRevisionId": "127ad25f77994bc9a81dbdbed74de79e72d7ffe9c8e86cb8ee83006b33938ead",
+  "candidateArtifactRevisionId": "3a0adff4c8abe01704721dede61dfdc736b594485640164efa2f718ba9ef6e62",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [

@@ -9,6 +9,9 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  measureMainWireIntegratedModelBaselineValidationV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
+import {
   MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularRoundedEjectionProfileV1";
 
@@ -84,6 +87,8 @@ describe("fixed rounded-ejection construction V1", () => {
     const centralRangeFraction =
       (Math.max(...central) - Math.min(...central)) / fullRange;
     const lvPressureRate = pressureRateExtremaV1(trace, "LV");
+    const baselineMeasurements =
+      measureMainWireIntegratedModelBaselineValidationV1(trace);
 
     // Qualitative morphology gate, not a point-wise fit. Human high-fidelity
     // LV/aortic examples show one broad, gently rounded systolic crest whose
@@ -121,6 +126,10 @@ describe("fixed rounded-ejection construction V1", () => {
     expect(lvPressureRate.maximum).toBeLessThanOrEqual(2_500);
     expect(lvPressureRate.minimum).toBeLessThanOrEqual(-790);
     expect(lvPressureRate.minimum).toBeGreaterThanOrEqual(-1_400);
+    expect(baselineMeasurements.leftVentricle).toEqual({
+      maximumDpDtMmHgPerSec: lvPressureRate.maximum,
+      minimumDpDtMmHgPerSec: lvPressureRate.minimum,
+    });
   }, 60_000);
 });
 
@@ -245,9 +254,10 @@ function pressureRateExtremaV1(
   samples: readonly Sample[],
   chamber: "LV",
 ) {
-  const rates = samples.slice(1).map((sample, index) =>
+  const rates = samples.map((sample, index) =>
     (sample.absolutePressureMmHg[chamber] -
-      samples[index]!.absolutePressureMmHg[chamber]) /
+      samples[(index - 1 + samples.length) % samples.length]!
+        .absolutePressureMmHg[chamber]) /
     sample.acceptedDtSec);
   return Object.freeze({
     maximum: Math.max(...rates),

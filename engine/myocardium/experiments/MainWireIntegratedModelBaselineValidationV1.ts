@@ -502,9 +502,10 @@ function pressureRateExtremaV1(
   samples: readonly Sample[],
   chamber: VentricularPressureId,
 ) {
-  const rates = samples.slice(1).map((sample, index) =>
+  const rates = samples.map((sample, index) =>
     (sample.absolutePressureMmHg[chamber] -
-      samples[index]!.absolutePressureMmHg[chamber]) /
+      samples[(index - 1 + samples.length) % samples.length]!
+        .absolutePressureMmHg[chamber]) /
     sample.acceptedDtSec);
   return Object.freeze({
     maximum: Math.max(...rates),
