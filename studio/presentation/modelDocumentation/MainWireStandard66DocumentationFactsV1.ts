@@ -22,7 +22,7 @@ import {
 import selectedAorticOutflowStandard66DescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import algebraicProximalRootsStandard67DescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
 import algebraicProximalRootsStandard67SurfaceV1 from
@@ -30,6 +30,9 @@ import algebraicProximalRootsStandard67SurfaceV1 from
 import type {
   RegisteredModelDocumentationIdentityV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
+import {
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 export type MainWireStandard66DocumentationFactsV1 = Readonly<{
   identity: RegisteredModelDocumentationIdentityV1;
@@ -65,8 +68,8 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
   }>;
   surface: Readonly<{
     rawPressureVolumeLoop: true;
-    formalPressureVolumeAnalysisExposed: false;
-    structuralReturnAnalysisExposed: false;
+    formalPressureVolumeAnalysisExposed: true;
+    structuralReturnAnalysisExposed: true;
   }>;
 }>;
 
@@ -115,7 +118,14 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     ) {
       return null;
     }
-    composeStandardModelContractV1(manifest, surface);
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+      surface,
+    );
+    const composed = composeStandardModelContractV1(
+      manifest,
+      surface,
+      analysisMethods.capabilities,
+    );
 
     const proximalArterialRoots = generation === 67
       ? MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1
@@ -254,9 +264,9 @@ export function resolveMainWireStandard66DocumentationFactsV1(
 
     const rawPressureVolumeLoop = surface.graphCatalog.some((graph) =>
       graph.renderer === "pressure-volume"
-      && graph.requiredCapabilities.every(
-        (capability) => !capability.startsWith("analysis/"),
-      ));
+      && "seriesCatalog" in graph
+      && graph.seriesCatalog.some((series) =>
+        series.kind === "pressure-volume"));
     const formalPressureVolumeAnalysisExposed =
       surface.derivedOutputCatalog.length > 0
       || surface.graphCatalog.some((graph) =>
@@ -267,8 +277,12 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     );
     if (
       !rawPressureVolumeLoop
-      || formalPressureVolumeAnalysisExposed
-      || structuralReturnAnalysisExposed
+      || !formalPressureVolumeAnalysisExposed
+      || !structuralReturnAnalysisExposed
+      || analysisMethods.periodicPvaDerivation === null
+      || composed.surface.derivedOutputCatalog.length
+        !== surface.derivedOutputCatalog.length
+      || composed.surface.graphCatalog.length !== surface.graphCatalog.length
     ) {
       return null;
     }
@@ -315,8 +329,8 @@ export function resolveMainWireStandard66DocumentationFactsV1(
       }),
       surface: Object.freeze({
         rawPressureVolumeLoop: true as const,
-        formalPressureVolumeAnalysisExposed: false as const,
-        structuralReturnAnalysisExposed: false as const,
+        formalPressureVolumeAnalysisExposed: true as const,
+        structuralReturnAnalysisExposed: true as const,
       }),
     });
   } catch {

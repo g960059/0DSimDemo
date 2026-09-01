@@ -86,7 +86,7 @@ const COPY = Object.freeze({
     runtimeTitle: "PV loopとcontrol semantics",
     pvTitle: "PV loop",
     pvBody:
-      "このSurfaceのPV loopはexact accepted trajectoryから描くraw loopです。formal PVA/ESPVR/EDPVRやGuyton/Starling structural analysisは、このSurfaceでは計算・表示しません。",
+      "PV loopのraw orbitはexact accepted trajectoryから描きます。formal PVA/ESPVR/EDPVRとGuyton/Starlingは、checkpointから分岐するversioned structural analysisとして別計算され、exact stateやcheckpointを変更しません。",
     hrTitle: "Heart rate",
     hrBody:
       "Heart rate変更はwarm perturbationではありません。新しいfixture epochを作り、accepted clockとtrajectoryを0から置き換えるatomic cold restartです。",
@@ -175,7 +175,7 @@ const COPY = Object.freeze({
     runtimeTitle: "PV loop and control semantics",
     pvTitle: "PV loop",
     pvBody:
-      "This Surface draws a raw loop from the exact accepted trajectory. It does not compute or present formal PVA/ESPVR/EDPVR or Guyton/Starling structural analysis.",
+      "The raw PV orbit is drawn from the exact accepted trajectory. Formal PVA/ESPVR/EDPVR and Guyton/Starling are computed separately by versioned structural analyses forked from a checkpoint; they do not alter exact state or checkpoints.",
     hrTitle: "Heart rate",
     hrBody:
       "Changing heart rate is not a warm perturbation. It creates a new fixture epoch and atomically replaces the accepted clock and trajectory from zero.",

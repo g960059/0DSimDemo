@@ -16,13 +16,18 @@ import {
   composeStandardModelContractV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
+  createMainWireIntegratedStudioAlgebraicProximalRootsKernelV1,
   createMainWireIntegratedStudioSelectedAorticOutflowKernelV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
-import selectedStandard66SurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import algebraicStandard67SurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
+import selectedStandard66SurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import {
   STUDIO_OUTPUT_PRESSURE_SUMMARIES_V1,
   resolveStudioItemPresentationV1,
 } from "@/studio/presentation/StudioItemPresentationCatalogV1";
+import {
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 const PROXIMAL_AORTIC_PRESSURE_OUTPUT_ID_V1 =
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port";
@@ -49,11 +54,17 @@ const STANDARD_66_EXACT_OUTPUT_ID_SET_V1 = new Set<string>(
 const HIDDEN_AMBIGUOUS_OUTPUT_ID_SET_V1 = new Set<string>(
   HIDDEN_AMBIGUOUS_OUTPUT_IDS_V1,
 );
+const STRUCTURAL_DERIVED_OUTPUT_IDS_V1 = Object.freeze([
+  "myocardium.energy.potential.LV-pressure-volume-area",
+  "myocardium.energy.pressure-volume-area.LV",
+  "oxygen.consumption.estimated-myocardial.LV-per-beat-per-100g",
+  "oxygen.consumption.estimated-myocardial.LV-per-min-per-100g",
+] as const);
 
 describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
   it("exposes exactly 168 of 176 exact outputs by hiding only the eight ambiguous historical outputs", () => {
     expect(selectedStandard66SurfaceV1.surfaceReleaseId).toBe(
-      "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v1",
+      "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v2",
     );
     expect(selectedStandard66SurfaceV1.surfaceSeriesId).toBe(
       "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench",
@@ -84,6 +95,7 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     ).toEqual([]);
 
     for (const graph of selectedStandard66SurfaceV1.graphCatalog) {
+      if (!("seriesCatalog" in graph)) continue;
       for (const series of graph.seriesCatalog) {
         const referencedOutputIds = "outputId" in series
           ? [series.outputId]
@@ -133,7 +145,7 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     expect(graphSeriesLabelV3("ABP")).toBe("ABP");
   });
 
-  it("publishes only implemented capabilities while retaining the exact raw LV PV loop", () => {
+  it("pins structural analyses outside the unchanged exact output catalog", () => {
     expect(selectedStandard66SurfaceV1.controlCatalog).toEqual([
       {
         controlId: "rhythm.heart-rate-bpm",
@@ -141,12 +153,16 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
         requiredCapabilities: ["control/rhythm.heart-rate-bpm"],
       },
     ]);
-    expect(selectedStandard66SurfaceV1.derivedOutputCatalog).toEqual([]);
+    expect(
+      selectedStandard66SurfaceV1.derivedOutputCatalog.map(
+        ({ outputId }) => outputId,
+      ),
+    ).toEqual(STRUCTURAL_DERIVED_OUTPUT_IDS_V1);
     expect(
       selectedStandard66SurfaceV1.graphCatalog.some(
         ({ graphId }) => graphId === "hemodynamics.guyton-starling",
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       selectedStandard66SurfaceV1.graphCatalog.flatMap(
         ({ requiredCapabilities }) =>
@@ -154,7 +170,17 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
             capability.startsWith("analysis/"),
           ),
       ),
-    ).toEqual([]);
+    ).toEqual(expect.arrayContaining([
+      "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+    ]));
+
+    const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
+      selectedStandard66SurfaceV1,
+    );
+    expect(methods.capabilities).toEqual(expect.arrayContaining([
+      "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1",
+    ]));
 
     const pressureVolume = selectedStandard66SurfaceV1.graphCatalog.find(
       ({ graphId }) => graphId === "hemodynamics.pressure-volume",
@@ -174,11 +200,12 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     const composed = composeStandardModelContractV1(
       createMainWireIntegratedStudioSelectedAorticOutflowKernelV1(),
       selectedStandard66SurfaceV1,
+      methods.capabilities,
     );
-    expect(composed.contract.outputCatalog).toHaveLength(168);
+    expect(composed.contract.outputCatalog).toHaveLength(172);
     expect(composed.contract.controlCatalog).toHaveLength(1);
-    expect(composed.contract.graphCatalog).toHaveLength(5);
-    expect(composed.surface.derivedOutputCatalog).toEqual([]);
+    expect(composed.contract.graphCatalog).toHaveLength(6);
+    expect(composed.surface.derivedOutputCatalog).toHaveLength(4);
   });
 
   it("selects the existing ABP summary and familiar waveform defaults in Workbench", () => {
@@ -192,20 +219,21 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
     const surface = createDefaultExperimentSurfaceV3(
       contract,
       undefined,
-      { periodicPvaSupported: false },
+      { periodicPvaSupported: true },
     );
 
     expect(surface.graphPanes.map(({ graphId }) => graphId)).toEqual([
       "hemodynamics.pressure-volume",
+      "hemodynamics.guyton-starling",
       "hemodynamics.pressure.waveform.comprehensive-v1",
     ]);
     const pressureVolumePane = surface.graphPanes.find(
       ({ graphId }) => graphId === "hemodynamics.pressure-volume",
     )!;
     expect(pressureVolumePane.pressureVolumeAnalysisMode).toBe(
-      "raw-exact-orbit",
+      "formal-periodic",
     );
-    expect("showPressureEnvelope" in pressureVolumePane).toBe(false);
+    expect(pressureVolumePane.showPressureEnvelope).toBe(false);
     const pressurePane = surface.graphPanes.find(
       ({ graphId }) =>
         graphId === "hemodynamics.pressure.waveform.comprehensive-v1",
@@ -317,5 +345,61 @@ describe("Main Wire Standard66 selected-aortic Model Surface V1", () => {
         expect(presentation.description).not.toMatch(/[。.!]$/u);
       }
     }
+  });
+});
+
+describe("Main Wire Standard67 algebraic-roots Model Surface V1", () => {
+  it("retains the formal PV, PVA/PE, and Guyton/Starling analysis surface", () => {
+    assertModelSurfaceReleaseManifestV1(algebraicStandard67SurfaceV1);
+    expect(
+      algebraicStandard67SurfaceV1.derivedOutputCatalog.map(
+        ({ outputId }) => outputId,
+      ),
+    ).toEqual(STRUCTURAL_DERIVED_OUTPUT_IDS_V1);
+    expect(
+      algebraicStandard67SurfaceV1.graphCatalog.some(
+        ({ graphId }) => graphId === "hemodynamics.guyton-starling",
+      ),
+    ).toBe(true);
+
+    const pressureVolume = algebraicStandard67SurfaceV1.graphCatalog.find(
+      ({ graphId }) => graphId === "hemodynamics.pressure-volume",
+    );
+    expect(pressureVolume).toMatchObject({
+      renderer: "pressure-volume",
+      defaultSeriesIds: ["LV"],
+    });
+    expect(pressureVolume?.requiredCapabilities.some(
+      (capability) => capability.startsWith("analysis/"),
+    )).toBe(false);
+
+    const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
+      algebraicStandard67SurfaceV1,
+    );
+    expect(methods.capabilities).toEqual(expect.arrayContaining([
+      "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1",
+    ]));
+    const composed = composeStandardModelContractV1(
+      createMainWireIntegratedStudioAlgebraicProximalRootsKernelV1(),
+      algebraicStandard67SurfaceV1,
+      methods.capabilities,
+    );
+    expect(composed.surface.derivedOutputCatalog).toHaveLength(4);
+    expect(composed.contract.graphCatalog).toHaveLength(6);
+
+    const defaultSurface = createDefaultExperimentSurfaceV3(
+      composed.contract,
+      undefined,
+      { periodicPvaSupported: true },
+    );
+    expect(defaultSurface.graphPanes.map(({ graphId }) => graphId)).toEqual([
+      "hemodynamics.pressure-volume",
+      "hemodynamics.guyton-starling",
+      "hemodynamics.pressure.waveform.comprehensive-v1",
+    ]);
+    expect(defaultSurface.graphPanes[0]?.pressureVolumeAnalysisMode).toBe(
+      "formal-periodic",
+    );
   });
 });

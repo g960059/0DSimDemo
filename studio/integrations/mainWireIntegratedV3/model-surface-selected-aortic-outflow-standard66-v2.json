@@ -1,10 +1,10 @@
 {
   "schemaId": "circleheart-studio-model-surface-release-v1",
-  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-proximal-roots.standard-67.workbench-v1",
-  "surfaceSeriesId": "circleheart.main-wire.surface.algebraic-proximal-roots.standard-67.workbench",
-  "predecessorSurfaceReleaseId": null,
+  "surfaceReleaseId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v2",
+  "surfaceSeriesId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench",
+  "predecessorSurfaceReleaseId": "circleheart.main-wire.surface.selected-aortic-outflow.standard-66.workbench-v1",
   "modelFamilyId": "circleheart.main-wire-integrated-transaction",
-  "displayName": "Main Wire Standard 67",
+  "displayName": "Main Wire Standard 66",
   "exposedExactOutputIds": [
     "hemodynamics.volume.LA",
     "hemodynamics.volume.LV",

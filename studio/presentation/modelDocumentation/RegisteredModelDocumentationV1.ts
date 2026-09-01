@@ -7,7 +7,7 @@ import {
   STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID,
 } from "@/studio/contracts/v2/modelSurface";
 import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import algebraicProximalRootsStandard67SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 

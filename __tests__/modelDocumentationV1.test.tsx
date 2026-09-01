@@ -16,7 +16,7 @@ import {
 } from "@/domain/model/MainWireStandardIdentityV1";
 import { modelDocumentationHref } from "@/homeLinks";
 import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import algebraicProximalRootsStandard67SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import {
@@ -128,8 +128,8 @@ describe("model documentation V1", () => {
     });
     expect(facts?.surface).toEqual({
       rawPressureVolumeLoop: true,
-      formalPressureVolumeAnalysisExposed: false,
-      structuralReturnAnalysisExposed: false,
+      formalPressureVolumeAnalysisExposed: true,
+      structuralReturnAnalysisExposed: true,
     });
   });
 
@@ -187,7 +187,7 @@ describe("model documentation V1", () => {
     expect(ja).toContain("局所static pressure recovery");
     expect(ja).toContain("特定距離のcatheter tip");
     expect(ja).toContain("進行波");
-    expect(ja).toContain("raw loop");
+    expect(ja).toContain("raw orbit");
     expect(ja).toContain("atomic cold restart");
     expect(ja).toContain("臨床的validation");
     expect(ja).toContain(MODEL_ID);
@@ -201,7 +201,7 @@ describe("model documentation V1", () => {
     expect(en).toContain("after the valve law accounts for local static recovery");
     expect(en).toContain("catheter tip at a specified distance");
     expect(en).toContain("travelling wave");
-    expect(en).toContain("raw loop");
+    expect(en).toContain("raw PV orbit");
     expect(en).toContain("atomically replaces the accepted clock");
     expect(en).toContain("not physiological or clinical validation");
     expect(en).toContain(

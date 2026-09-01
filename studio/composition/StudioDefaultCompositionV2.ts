@@ -45,7 +45,7 @@ import standardRegistryAdmissionLockV1 from
 import selectedAorticOutflowClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import selectedAorticOutflowSurfaceReleaseV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import selectedAorticOutflowRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import algebraicProximalRootsClientDescriptorV1 from

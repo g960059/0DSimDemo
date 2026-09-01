@@ -82,7 +82,7 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
-import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
