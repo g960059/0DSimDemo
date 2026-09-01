@@ -15,8 +15,9 @@ import {
  * Standard68 intentionally reuses the established source-topology clinical
  * Workbench surface. It must not inherit Standard67's selected proximal-root
  * outputs because the rounded-ejection exact model deliberately returns to the
- * source aortic topology. Only the release identity and exact ET exposure
- * differ; numerical semantics remain in the exact model.
+ * source aortic topology. Controls, derived analyses, and graph presentation
+ * otherwise inherit the latest compatible source-topology production Surface;
+ * numerical semantics remain in the exact model.
  */
 const predecessor = algebraicProximalRootsSurfaceV1 as unknown as
   ModelSurfaceReleaseManifestV1;
@@ -42,7 +43,10 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SURFACE_V1 =
           !controlId.startsWith("myocardium.calcium-decay-time-scale."),
       ),
     ),
+    derivedOutputCatalog: sourceTopologyWorkbench.derivedOutputCatalog,
     graphCatalog: sourceTopologyWorkbench.graphCatalog,
+    knobCatalog: sourceTopologyWorkbench.knobCatalog,
+    protocolCatalog: sourceTopologyWorkbench.protocolCatalog,
   }) satisfies ModelSurfaceReleaseManifestV1;
 
 assertModelSurfaceReleaseManifestV1(

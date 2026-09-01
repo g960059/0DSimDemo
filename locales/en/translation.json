@@ -705,6 +705,14 @@
       "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
       "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
       "Removal of root ringing, numerical verification, and baseline characterization do not establish physiological or clinical validation."
+    ],
+    "standard68Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
+      "The proximal systemic and pulmonary arteries use the source 0D momentum/compliance topology. It does not represent spatial wave travel or reflection and must not be interpreted as site-resolved arterial traces.",
+      "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
+      "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
+      "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
     ]
   }
 }

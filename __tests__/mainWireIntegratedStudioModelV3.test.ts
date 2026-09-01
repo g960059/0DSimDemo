@@ -77,6 +77,7 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+import mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
 import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import mainWireIntegratedStudioRoundedEjectionSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
@@ -775,6 +776,32 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
                 .surfaceReleaseId,
             surfaceSeriesId:
               mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+                .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
+            .surfaceSeriesId,
+          mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
+            .surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
                 .surfaceSeriesId,
           },
         },

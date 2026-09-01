@@ -37,6 +37,8 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import roundedSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import sourceTopologyWorkbenchSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
@@ -110,6 +112,14 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     expect(kernel.primitiveControlCatalog).toHaveLength(52);
     expect(roundedSurfaceV1.controlCatalog.map(({ controlId }) => controlId))
       .toEqual(kernel.primitiveControlCatalog.map(({ controlId }) => controlId));
+    expect(roundedSurfaceV1.derivedOutputCatalog)
+      .toEqual(sourceTopologyWorkbenchSurfaceV1.derivedOutputCatalog);
+    expect(roundedSurfaceV1.graphCatalog)
+      .toEqual(sourceTopologyWorkbenchSurfaceV1.graphCatalog);
+    expect(roundedSurfaceV1.knobCatalog)
+      .toEqual(sourceTopologyWorkbenchSurfaceV1.knobCatalog);
+    expect(roundedSurfaceV1.protocolCatalog)
+      .toEqual(sourceTopologyWorkbenchSurfaceV1.protocolCatalog);
     expect(kernel.primitiveControlCatalog.some(({ controlId }) =>
       controlId.startsWith("myocardium.calcium-decay-time-scale."),
     )).toBe(false);
@@ -175,6 +185,27 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       expect(changed.inputEpoch).toBe(frame.inputEpoch + 1);
       expect(changed.acceptedTimeSec).toBe(frame.acceptedTimeSec);
       expect(changed.acceptedRevision).toBe(frame.acceptedRevision);
+      const rateChanged = await release.executables.simulationAdapter
+        .applyControl({
+          runtimeSessionId,
+          scenarioId,
+          controlId: "rhythm.heart-rate-bpm",
+          value: 59,
+          expectedInputEpoch: changed.inputEpoch,
+        });
+      expect(rateChanged.inputEpoch).toBe(changed.inputEpoch + 1);
+      expect(rateChanged.acceptedTimeSec).toBe(changed.acceptedTimeSec);
+      expect(rateChanged.acceptedRevision).toBe(changed.acceptedRevision);
+      const advanced = await release.executables.simulationAdapter
+        .advancePresentationBatch!({
+          runtimeSessionId,
+          scenarioId,
+          stepCount: 1,
+          presentationOutputIds: ["rhythm.heart-rate.instantaneous"],
+        });
+      expect(advanced.terminalFrame.inputEpoch).toBe(rateChanged.inputEpoch);
+      expect(advanced.terminalFrame.acceptedTimeSec)
+        .toBeGreaterThan(rateChanged.acceptedTimeSec);
     } finally {
       release.executables.simulationAdapter.disposeSession(runtimeSessionId);
     }

@@ -705,6 +705,14 @@
       "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
       "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
       "根部振動の除去、数値検証、baseline characterizationは、生理学的・臨床的validationを保証しません。"
+    ],
+    "standard68Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは大動脈弁直後の大動脈基部compliance node圧、ABPは体動脈compartment圧です。局所圧回復はAoPに適用せず、いずれも実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "近位体・肺動脈はsourceの0D momentum/compliance topologyです。空間的な波動伝播・反射を表現せず、部位別の動脈波形とは解釈できません。",
+      "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
+      "control変更はaccepted stateとmodel clockを保持するwarm startです。自律神経反射や実測の変時性応答を再現したものではありません。",
+      "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
     ]
   }
 }

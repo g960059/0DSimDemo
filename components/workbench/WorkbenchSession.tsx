@@ -1918,9 +1918,24 @@ export const WorkbenchSession = ({
     ): Promise<boolean> => {
       const runtime = runtimeRef.current;
       const frame = latestFrameRef.current;
+      const exclusiveOperation = exclusiveOperationRef.current;
       if (
         runtime === null ||
         frame === null ||
+        (exclusiveOperation !== null && exclusiveOperation !== "analysis")
+      )
+        return false;
+      if (exclusiveOperation === "analysis") {
+        // Scenario edits are explicit foreground actions. Revoke detached
+        // structural work and wait only for its exact-source capture to
+        // release the live lane before changing the Scenario set.
+        runtime.cancelAnalysisJobs();
+        await analysisCaptureReleaseRef.current?.promise;
+        runtime.cancelAnalysisJobs();
+      }
+      if (
+        runtimeRef.current !== runtime ||
+        latestFrameRef.current === null ||
         exclusiveOperationRef.current !== null
       )
         return false;

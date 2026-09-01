@@ -4,11 +4,16 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 
 import { MainWireStandard66DocumentationV1 } from
   "@/components/model/MainWireStandard66DocumentationV1";
+import { MainWireStandard68DocumentationV1 } from
+  "@/components/model/MainWireStandard68DocumentationV1";
 import { homeHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
   resolveMainWireStandard66DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
+import {
+  resolveMainWireStandard68DocumentationFactsV1,
+} from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
 import {
   resolveRegisteredModelDocumentationV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
@@ -37,11 +42,14 @@ export function ModelDocumentationPage() {
     modelId,
     search.get("surface"),
   );
-  const facts = identity === null
+  const standard68Facts = identity === null
+    ? null
+    : resolveMainWireStandard68DocumentationFactsV1(identity);
+  const legacyFacts = identity === null || standard68Facts !== null
     ? null
     : resolveMainWireStandard66DocumentationFactsV1(identity);
 
-  if (facts === null) {
+  if (standard68Facts === null && legacyFacts === null) {
     const text = UNAVAILABLE_COPY[locale];
     return (
       <div
@@ -64,7 +72,9 @@ export function ModelDocumentationPage() {
     );
   }
 
-  return <MainWireStandard66DocumentationV1 facts={facts} locale={locale} />;
+  return standard68Facts !== null
+    ? <MainWireStandard68DocumentationV1 facts={standard68Facts} locale={locale} />
+    : <MainWireStandard66DocumentationV1 facts={legacyFacts!} locale={locale} />;
 }
 
 export default ModelDocumentationPage;
