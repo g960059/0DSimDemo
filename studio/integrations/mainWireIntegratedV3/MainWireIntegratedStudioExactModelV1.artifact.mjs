@@ -7018,6 +7018,47 @@ function uniqueNameIndex(values2, kind) {
   }
   return index;
 }
+const MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID = "main-wire-algebraic-proximal-arterial-roots-profile-v1";
+const sourceEdges = buildEdges();
+for (const edgeId of ["Ao_SA", "PA_PArt"]) {
+  const edge = sourceEdges.find((candidate) => candidate.name === edgeId);
+  if (edge === void 0 || edge.kind !== "dynamic" || !(edge.L !== void 0 && edge.L > 0)) {
+    throw new Error(
+      `algebraic proximal-root profile requires source dynamic edge ${edgeId}`
+    );
+  }
+}
+const MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1 = Object.freeze({
+  profileId: MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+  aorticRootEdgeId: "Ao_SA",
+  pulmonaryRootEdgeId: "PA_PArt",
+  flowLaw: "same-candidate-algebraic-linear-quadratic",
+  inertanceMmHgSec2PerMl: 0,
+  sourceResistanceAndQuadraticLossPreserved: true,
+  acceptedRootFlowRecordRole: "exact-accepted-algebraic-flow-readback-not-continuation-memory",
+  parameterSearchOrFitting: false,
+  physiologicalValidationClaimed: false
+});
+function validateMainWireAlgebraicProximalArterialRootsProfileV1(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return Object.freeze([
+      "algebraic proximal arterial roots profile must be an object"
+    ]);
+  }
+  const expected = MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1;
+  const actualKeys = Object.keys(input).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  const issues = [];
+  if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    issues.push("algebraic proximal arterial roots profile fields differ");
+  }
+  for (const key of expectedKeys) {
+    if (input[key] !== expected[key]) {
+      issues.push(`algebraic proximal arterial roots profile ${key} differs`);
+    }
+  }
+  return Object.freeze(issues);
+}
 const MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID = "main-wire-four-valve-disease-research-input-v1";
 const MAIN_WIRE_FOUR_VALVE_IDS_V1 = Object.freeze([
   "MV",
@@ -9758,7 +9799,7 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
     );
     if (edge.kind === "dynamic") {
       const dynamicName = name;
-      const inertance = requirePositive$4(
+      const inertance = requireNonnegative$4(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           dynamicName,
@@ -9767,7 +9808,11 @@ function evaluateCandidate$1(graph, input, previous, scaledIndependentVolumes, v
         ),
         `${name} inertanceMmHgSec2PerMl`
       );
-      const flow = solveSignedLinearQuadraticFlowV1(
+      const flow = inertance === 0 ? solveSignedLinearQuadraticFlowV1(
+        gradientMmHg,
+        losses.resistanceMmHgSecPerMl,
+        losses.quadraticLossMmHgSec2PerMl2
+      ) : solveSignedLinearQuadraticFlowV1(
         gradientMmHg + inertance * previous.dynamicEdgeFlowsMlPerSec[NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]] / input.dtSec,
         losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
         losses.quadraticLossMmHgSec2PerMl2
@@ -9993,7 +10038,7 @@ function analyticEdgeFlowPressureDerivativesV1(graph, input, current, respirator
     let dInertanceDDownstreamPressureSec2PerMl = 0;
     let previousFlowMlPerSec = flowMlPerSec;
     if (edge.kind === "dynamic") {
-      inertanceMmHgSec2PerMl = requirePositive$4(
+      inertanceMmHgSec2PerMl = requireNonnegative$4(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           edgeName,
@@ -10895,6 +10940,22 @@ function validateRuntimeOnceV1(runtime) {
       );
     }
   }
+  const algebraicProximalArterialRootsProfile = runtime.vascular.algebraicProximalArterialRootsProfile;
+  if (algebraicProximalArterialRootsProfile !== void 0) {
+    const issues = validateMainWireAlgebraicProximalArterialRootsProfileV1(
+      algebraicProximalArterialRootsProfile
+    );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid algebraicProximalArterialRootsProfile: ${issues.join("; ")}`
+      );
+    }
+    if (selectedAorticOutflowProfile === void 0) {
+      throw new Error(
+        "algebraic proximal arterial roots require selected aortic outflow"
+      );
+    }
+  }
   requirePositive$4(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive$4(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (runtime.losses.useChiResistance !== void 0 && typeof runtime.losses.useChiResistance !== "boolean") {
@@ -11214,6 +11275,8 @@ function nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(edge, edgeName, run
   });
 }
 function nonCoronaryDynamicEdgeInertanceV1(edge, edgeName, runtime, areaRatio) {
+  const algebraicRoots = runtime.vascular.algebraicProximalArterialRootsProfile;
+  if (algebraicRoots !== void 0 && (edgeName === algebraicRoots.aorticRootEdgeId || edgeName === algebraicRoots.pulmonaryRootEdgeId)) return algebraicRoots.inertanceMmHgSec2PerMl;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (selectedProfile !== void 0 && edgeName === selectedProfile.sourceDynamicEdgeId) return selectedProfile.ascendingAorticInertanceMmHgSec2PerMl;
   return (edge.L ?? 0) / (edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1);
@@ -42239,6 +42302,23 @@ const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM = Obje
   parameterSearchOrFitting: false,
   clinicalValidationClaimed: false
 });
+const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID = "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM = Object.freeze({
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+  predecessorFixtureId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+  ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+  aorticOutflowCirculationProfileId: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+  proximalArterialRootsProfileId: MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+  regularSinusProfileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  composedRhythmCalciumOwner: "accepted-exact-event-matched-alpha-state",
+  calciumDecayTimeScaleResearchInput: "fixed-unit-only-to-preserve-selected-matched-alpha-law",
+  changedMomentumEdges: Object.freeze(["Ao_SA", "PA_PArt"]),
+  sourceResistanceAndQuadraticLossPreserved: true,
+  newContinuousStateAdded: false,
+  acceptedRootFlowRecords: "same-step-exact-readback-not-next-step-memory",
+  parameterSearchOrFitting: false,
+  physiologicalValidationClaimed: false
+});
 function createMainWireIntegratedModelRegularSinusAllOffFixtureV3(requestedHemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, requestedMechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
   const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
     requestedHemodynamicResearchInputs,
@@ -47857,6 +47937,14 @@ function isSelectedAorticOutflowRuntimeV1(runtime) {
   const selectedProfile = vascular.selectedAorticOutflowProfile;
   if (!("fixedAssemblyId" in runtime) || !("fixedAssemblyClaim" in runtime)) {
     return false;
+  }
+  if (runtime.fixedAssemblyId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID) {
+    const selected2 = runtime;
+    const claim2 = selected2.fixedAssemblyClaim;
+    const configuration2 = selected2.rhythm.configuration;
+    return claim2 === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM && claim2.fixtureId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID && claim2.ventricularMaterialProfileId === MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID && claim2.aorticOutflowCirculationProfileId === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID && selected2.runtime === selected2.coronaryStepInput.runtime && selectedProfile === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1 && vascular.algebraicProximalArterialRootsProfile === MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1 && selected2.provider.parameterSetId.includes(
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID
+    ) && selected2.coronaryStepInput.calciumDriveParams.parameterSetId === MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID && configuration2.ventricularIntervalStrength.parameterProvenance.sourceId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID && configuration2.avGateParameters.parameterProvenance.sourceId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID && configuration2.distalGate.parameterProvenance.sourceId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID && configuration2.ventricularBackup.parameterProvenance.sourceId === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID && configuration2.ventricularIntervalStrength.referenceCycleLengthSec === selected2.cycleLengthSec && selected2.rhythm.state.configuration === configuration2 && selected2.cold.acceptedState.composedRhythm.configuration === configuration2;
   }
   const selected = runtime;
   const claim = selected.fixedAssemblyClaim;
