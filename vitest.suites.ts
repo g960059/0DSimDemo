@@ -6,7 +6,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 88;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 47;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 49;
 
 export const fastTests = [
   "__tests__/analysisMethodRegistryV1.test.ts",
@@ -43,6 +43,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
+  "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
   "__tests__/mainWireSelectedAorticOutflowCirculationProfileV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
   "__tests__/mainWireIntegratedModelGuytonStarlingOrientationV3.test.ts",
@@ -130,6 +131,8 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
+  "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
+  "__tests__/mainWireIntegratedStudioAlgebraicProximalRootsV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
   "__tests__/modelDocumentationV1.test.tsx",
@@ -157,6 +160,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/mainWireIntegratedStudioAlgebraicProximalRootsV1.test.ts",
   "__tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts",
   "__tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts",
   "__tests__/studioNumericalAuthoringV1.test.ts",
@@ -223,6 +227,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireFullLandMembranePericardiumArtifactsV1.test.ts",
   "__tests__/mainWireHeartMateIiStanfieldMeanOperatingPointContextV1.test.ts",
   "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
+  "__tests__/mainWireIntegratedModelStandard67WaveformMorphologyV1.test.ts",
   "__tests__/mainWireIntegratedModelExternalAfTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicClassifierV3.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicSteadyArtifactSvgV3.test.ts",

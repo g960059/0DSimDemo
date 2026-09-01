@@ -46,6 +46,7 @@ import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/ma
 import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
+import mainWireIntegratedStudioAlgebraicProximalRootsClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -54,6 +55,7 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -81,8 +83,10 @@ import {
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
+import mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -534,7 +538,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses selected Standard66 by default and resolves only exact local pairs", async () => {
+  it("uses Standard67 by default while preserving exact Standard65/66 local pairs", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -577,15 +581,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1
           .artifactRevisionId,
       );
+      expect(
+        composition
+          .localAlgebraicProximalRootsArtifactRevisionUrlV1(
+            new URL(
+              "http://127.0.0.1:4176/algebraic-roots-standard67.artifact.mjs",
+            ),
+          )
+          .searchParams.get("revision"),
+      ).toBe(
+        mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1
+          .artifactRevisionId,
+      );
       expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
-        mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest.modelId,
+        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
       );
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
         exactModel: {
           modelId:
-            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
+            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
               .modelId,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
@@ -594,10 +610,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelSurface: {
           identity: {
             surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
                 .surfaceReleaseId,
             surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
                 .surfaceSeriesId,
           },
         },
@@ -632,6 +648,30 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
               mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
             surfaceSeriesId:
               mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+            .surfaceSeriesId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+                .surfaceSeriesId,
           },
         },
       });
@@ -675,6 +715,32 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
               mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
             surfaceSeriesId:
               mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioSnapshotClientCompositionV2(
+          mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
+            .modelId,
+          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+            .surfaceSeriesId,
+          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+            .surfaceReleaseId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
+              .modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+                .surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+                .surfaceSeriesId,
           },
         },
       });
