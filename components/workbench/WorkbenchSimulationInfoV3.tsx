@@ -20,6 +20,15 @@ export type WorkbenchSimulationInfoModelV3 = Readonly<{
   shortLabel: string;
   description: string;
   documentationHref?: string;
+  baselineValidation?: Readonly<{
+    summary: string;
+    items: readonly Readonly<{
+      itemId: string;
+      label: string;
+      value: string;
+      detail: string;
+    }>[];
+  }>;
 }>;
 
 export type WorkbenchSimulationInfoScenarioV3 = Readonly<{
@@ -381,6 +390,48 @@ export function WorkbenchSimulationInfoPanelV3({
                 </a>
               )}
             </section>
+
+            {current.baselineValidation !== undefined && (
+              <section
+                data-testid="workbench-baseline-validation-v3"
+                className="overflow-hidden rounded-xl border border-wb-line bg-wb-soft"
+              >
+                <div className="flex items-start gap-2.5 border-b border-wb-line px-4 py-3">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-wb-accent/15 text-wb-accent">
+                    <Check className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-semibold text-wb-text">
+                      {t("workbench.editor.simulationInfo.baselineValidationTitle")}
+                    </h3>
+                    <p className="mt-0.5 text-[10px] leading-4 text-wb-subtle">
+                      {current.baselineValidation.summary}
+                    </p>
+                  </div>
+                </div>
+                <dl className="grid grid-cols-1 sm:grid-cols-2">
+                  {current.baselineValidation.items.map((item, index) => (
+                    <div
+                      key={item.itemId}
+                      title={item.detail}
+                      className={`flex min-h-9 items-center justify-between gap-3 px-4 py-2 text-[11px] ${
+                        index > 0 ? "border-t border-wb-line" : ""
+                      } ${
+                        index === 1
+                          ? "sm:border-t-0"
+                          : ""
+                      } ${index % 2 === 1 ? "sm:border-l sm:border-wb-line" : ""}`}
+                    >
+                      <dt className="text-wb-muted">{item.label}</dt>
+                      <dd className="flex shrink-0 items-center gap-1.5 font-medium tabular-nums text-wb-text">
+                        <Check className="h-3 w-3 text-wb-accent" aria-hidden="true" />
+                        {item.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
 
             <section>
               <h3 className="text-xs font-semibold text-wb-text">

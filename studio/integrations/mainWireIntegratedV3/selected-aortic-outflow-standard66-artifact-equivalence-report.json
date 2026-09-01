@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.selected-aortic-outflow.standard-66",
-  "predecessorArtifactRevisionId": "0fe54fa064a14c5637aa86be1817c3e892c87ac42bab4390b9f2a40b8fb83024",
-  "candidateArtifactRevisionId": "f2e9ad56ae6642ff7c92a71b4f19c501fd58e00524b99c5c6fcc15e7771d5d5c",
+  "predecessorArtifactRevisionId": "f2e9ad56ae6642ff7c92a71b4f19c501fd58e00524b99c5c6fcc15e7771d5d5c",
+  "candidateArtifactRevisionId": "cd8c2ae389be6c7da5a8af4959e112d977676472f43c3304016a36873dcf7873",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [

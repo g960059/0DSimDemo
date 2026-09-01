@@ -18855,53 +18855,53 @@ function requireUnitIntervalInclusive(value, label) {
 }
 const MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID = "main-wire-ventricular-land-et-relaxation-profile-v1";
 const MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_COLD_MAXIMUM_ITERATIONS_V1 = 1600;
-const BASE_MATERIAL = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
-const BASE_LAND = BASE_MATERIAL.landEquationParameters;
-const VALUES = Object.freeze({
-  ...BASE_LAND.values,
+const BASE_MATERIAL$1 = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+const BASE_LAND$1 = BASE_MATERIAL$1.landEquationParameters;
+const VALUES$1 = Object.freeze({
+  ...BASE_LAND$1.values,
   kuw: 104,
   kws: 4.8,
   nTm: 4,
   Tref: 151951.88225014097
 });
-const PROVENANCE_SUFFIX_BY_PARAMETER = Object.freeze({
+const PROVENANCE_SUFFIX_BY_PARAMETER$1 = Object.freeze({
   kuw: "runtime kuw=4*26/s selects the lower boundary of the published nu=4..12 isometric-twitch non-identifiability interval after bounded load-envelope analysis; it is not the Appendix-B source-selected nu=7 value",
   kws: "runtime kws is 0.4 times the source value, selected as a bounded ET-relaxation balance after load-envelope evaluation without a numeric optimizer; it is not a Land et al. source value",
   nTm: "runtime nTm is 0.8 times the source value, selected as a bounded ET-relaxation balance after load-envelope evaluation without a numeric optimizer; it is not a Land et al. source value",
   Tref: "runtime Tref is scaled by 1.2662656854178413 to compensate the fixed primary-source calcium-trace isometric peak after the selected kinetic changes; it is neither an independently measured force value nor a Land et al. source value"
 });
-const SOURCE_PARAMETERS = Object.freeze(
-  BASE_LAND.sourceParameters.map((entry) => {
-    const suffix = PROVENANCE_SUFFIX_BY_PARAMETER[entry.parameter];
+const SOURCE_PARAMETERS$1 = Object.freeze(
+  BASE_LAND$1.sourceParameters.map((entry) => {
+    const suffix = PROVENANCE_SUFFIX_BY_PARAMETER$1[entry.parameter];
     return Object.freeze({
       ...entry,
       ...suffix === void 0 ? {} : { location: `${entry.location}; ${suffix}` },
       original: Object.freeze({ ...entry.original }),
       runtime: Object.freeze({
         ...entry.runtime,
-        value: VALUES[entry.parameter]
+        value: VALUES$1[entry.parameter]
       })
     });
   })
 );
-const PARAMETER_HASH_INPUT = {
+const PARAMETER_HASH_INPUT$1 = {
   parameterSetId: `${MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID}-land`,
-  sourceId: BASE_LAND.sourceId,
-  doi: BASE_LAND.doi,
-  values: VALUES,
-  derived: Object.freeze(deriveLand2017DerivedParameters(VALUES)),
-  sourceParameters: SOURCE_PARAMETERS,
+  sourceId: BASE_LAND$1.sourceId,
+  doi: BASE_LAND$1.doi,
+  values: VALUES$1,
+  derived: Object.freeze(deriveLand2017DerivedParameters(VALUES$1)),
+  sourceParameters: SOURCE_PARAMETERS$1,
   derivedParameters: Object.freeze(
-    BASE_LAND.derivedParameters.map((entry) => Object.freeze({ ...entry }))
+    BASE_LAND$1.derivedParameters.map((entry) => Object.freeze({ ...entry }))
   ),
   strongBridgeDeactivationExit: LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1
 };
 const MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PARAMETER_SET_V1 = Object.freeze({
-  ...PARAMETER_HASH_INPUT,
-  parameterSetStableHash: stableHash(PARAMETER_HASH_INPUT)
+  ...PARAMETER_HASH_INPUT$1,
+  parameterSetStableHash: stableHash(PARAMETER_HASH_INPUT$1)
 });
 const MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_WALL_MATERIAL_V1 = Object.freeze({
-  ...BASE_MATERIAL,
+  ...BASE_MATERIAL$1,
   parameterSetId: `${MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID}-wall`,
   landEquationParameters: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PARAMETER_SET_V1,
   landSlackStretch: 1.05
@@ -37456,7 +37456,7 @@ class MainWireSelectedAorticPortSessionExtensionV1 {
 }
 function ownCandidateStageInputV1(input) {
   const label = "selected aortic candidate stage input";
-  const record = plainExactRecordV1$2(
+  const record = plainExactRecordV1$3(
     input,
     [
       "expectedCandidateTimeSec",
@@ -37500,7 +37500,7 @@ function ownCandidateStageInputV1(input) {
 }
 function ownPromotionInputV1(input) {
   const label = "selected aortic candidate promotion input";
-  const record = plainExactRecordV1$2(
+  const record = plainExactRecordV1$3(
     input,
     ["committedAcceptedTimeSec", "committedRevision"],
     label
@@ -37517,7 +37517,7 @@ function ownPromotionInputV1(input) {
   });
 }
 function ownAcceptedClockV1(input, label) {
-  const record = plainExactRecordV1$2(
+  const record = plainExactRecordV1$3(
     input,
     ["acceptedTimeSec", "revision"],
     label
@@ -37530,7 +37530,7 @@ function ownAcceptedClockV1(input, label) {
     revision: nonnegativeSafeIntegerV1(record.revision, `${label} revision`)
   });
 }
-function plainExactRecordV1$2(input, keys, label) {
+function plainExactRecordV1$3(input, keys, label) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(`${label} must be a plain object`);
   }
@@ -37568,7 +37568,7 @@ function nonnegativeSafeIntegerV1(value, label) {
   return value;
 }
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard66-exact-checkpoint.v1";
-const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1 = deepFreezeV1$1({
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1 = deepFreezeV1$2({
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
   ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
   aorticOutflowCirculationProfileId: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1.profileId,
@@ -37579,7 +37579,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1 = deepFreezeV1$
   matchedAlphaCalciumPersistenceId: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID
 });
 function createMainWireIntegratedModelStandard66CheckpointContextV1(input) {
-  const record = plainExactRecordV1$1(
+  const record = plainExactRecordV1$2(
     input,
     ["fixedAssemblyId", "selectedAorticOutflowProfile"],
     "Standard66 checkpoint context"
@@ -37606,7 +37606,7 @@ function createMainWireIntegratedModelStandard66CheckpointContextV1(input) {
 }
 async function checkpointMainWireIntegratedModelStandard66V1(context, baseStandardCheckpointV2) {
   const ownedContext = createMainWireIntegratedModelStandard66CheckpointContextV1(context);
-  const detachedBaseStandardCheckpointV2 = detachedFrozenCheckpointSnapshotV1$1(baseStandardCheckpointV2);
+  const detachedBaseStandardCheckpointV2 = detachedFrozenCheckpointSnapshotV1$2(baseStandardCheckpointV2);
   const [ownedBaseStandardCheckpointV2, selectedProfileSha256] = await Promise.all([
     validateMainWireIntegratedModelStandardCheckpointV2(
       detachedBaseStandardCheckpointV2
@@ -37628,7 +37628,7 @@ async function checkpointMainWireIntegratedModelStandard66V1(context, baseStanda
   });
 }
 async function restoreMainWireIntegratedModelStandard66V1(context, input) {
-  const contextRecord = plainExactRecordV1$1(
+  const contextRecord = plainExactRecordV1$2(
     context,
     ["base", "selected"],
     "Standard66 restore context"
@@ -37657,7 +37657,7 @@ async function restoreMainWireIntegratedModelStandard66V1(context, input) {
   });
 }
 async function validateMainWireIntegratedModelStandard66CheckpointV1(input) {
-  const checkpoint = detachedFrozenCheckpointSnapshotV1$1(input);
+  const checkpoint = detachedFrozenCheckpointSnapshotV1$2(input);
   assertCheckpointEnvelopeV1$1(checkpoint);
   const { checkpointSha256, ...payload } = checkpoint;
   if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
@@ -37679,7 +37679,7 @@ async function validateMainWireIntegratedModelStandard66CheckpointV1(input) {
   return checkpoint;
 }
 function assertCheckpointEnvelopeV1$1(input) {
-  const record = plainExactRecordV1$1(
+  const record = plainExactRecordV1$2(
     input,
     [
       "checkpointId",
@@ -37713,7 +37713,7 @@ function assertCheckpointEnvelopeV1$1(input) {
 }
 function assertSelectedIdentityV1$1(input) {
   const expected = MAIN_WIRE_INTEGRATED_MODEL_STANDARD66_SELECTED_IDENTITY_V1;
-  const record = plainExactRecordV1$1(
+  const record = plainExactRecordV1$2(
     input,
     Object.keys(expected),
     "Standard66 selected model identity"
@@ -37724,7 +37724,7 @@ function assertSelectedIdentityV1$1(input) {
     }
   }
 }
-function plainExactRecordV1$1(input, keys, label) {
+function plainExactRecordV1$2(input, keys, label) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(`${label} must be a plain object`);
   }
@@ -37743,16 +37743,16 @@ function plainExactRecordV1$1(input, keys, label) {
   }
   return input;
 }
-function deepFreezeV1$1(value) {
+function deepFreezeV1$2(value) {
   if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
     for (const child of Object.values(value)) {
-      deepFreezeV1$1(child);
+      deepFreezeV1$2(child);
     }
     Object.freeze(value);
   }
   return value;
 }
-function detachedFrozenCheckpointSnapshotV1$1(input) {
+function detachedFrozenCheckpointSnapshotV1$2(input) {
   canonicalJsonStringify(input);
   const byteLength = measureCanonicalFlatDataV1(input);
   const encoded = new Uint8Array(byteLength);
@@ -37760,10 +37760,10 @@ function detachedFrozenCheckpointSnapshotV1$1(input) {
   if (written !== byteLength) {
     throw new Error("Standard66 checkpoint snapshot length changed");
   }
-  return deepFreezeV1$1(decodeCanonicalFlatDataV1(encoded));
+  return deepFreezeV1$2(decodeCanonicalFlatDataV1(encoded));
 }
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard67-exact-checkpoint.v1";
-const MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_SELECTED_IDENTITY_V1 = deepFreezeV1({
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_SELECTED_IDENTITY_V1 = deepFreezeV1$1({
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
   ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
   aorticOutflowCirculationProfileId: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1.profileId,
@@ -37775,7 +37775,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_SELECTED_IDENTITY_V1 = deepFreezeV1(
   matchedAlphaCalciumPersistenceId: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID
 });
 function createMainWireIntegratedModelStandard67CheckpointContextV1(input) {
-  const record = plainExactRecordV1(
+  const record = plainExactRecordV1$1(
     input,
     [
       "fixedAssemblyId",
@@ -37821,7 +37821,7 @@ function createMainWireIntegratedModelStandard67CheckpointContextV1(input) {
 }
 async function checkpointMainWireIntegratedModelStandard67V1(context, baseStandardCheckpointV2) {
   const ownedContext = createMainWireIntegratedModelStandard67CheckpointContextV1(context);
-  const detachedBaseStandardCheckpointV2 = detachedFrozenCheckpointSnapshotV1(baseStandardCheckpointV2);
+  const detachedBaseStandardCheckpointV2 = detachedFrozenCheckpointSnapshotV1$1(baseStandardCheckpointV2);
   const [
     ownedBaseStandardCheckpointV2,
     selectedProfileSha256,
@@ -37851,7 +37851,7 @@ async function checkpointMainWireIntegratedModelStandard67V1(context, baseStanda
   });
 }
 async function restoreMainWireIntegratedModelStandard67V1(context, input) {
-  const contextRecord = plainExactRecordV1(
+  const contextRecord = plainExactRecordV1$1(
     context,
     ["base", "selected"],
     "Standard67 restore context"
@@ -37880,7 +37880,7 @@ async function restoreMainWireIntegratedModelStandard67V1(context, input) {
   });
 }
 async function validateMainWireIntegratedModelStandard67CheckpointV1(input) {
-  const checkpoint = detachedFrozenCheckpointSnapshotV1(input);
+  const checkpoint = detachedFrozenCheckpointSnapshotV1$1(input);
   assertCheckpointEnvelopeV1(checkpoint);
   const { checkpointSha256, ...payload } = checkpoint;
   if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
@@ -37910,7 +37910,7 @@ async function validateMainWireIntegratedModelStandard67CheckpointV1(input) {
   return checkpoint;
 }
 function assertCheckpointEnvelopeV1(input) {
-  const record = plainExactRecordV1(
+  const record = plainExactRecordV1$1(
     input,
     [
       "checkpointId",
@@ -37949,7 +37949,7 @@ function assertCheckpointEnvelopeV1(input) {
 }
 function assertSelectedIdentityV1(input) {
   const expected = MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_SELECTED_IDENTITY_V1;
-  const record = plainExactRecordV1(
+  const record = plainExactRecordV1$1(
     input,
     Object.keys(expected),
     "Standard67 selected model identity"
@@ -37960,7 +37960,7 @@ function assertSelectedIdentityV1(input) {
     }
   }
 }
-function plainExactRecordV1(input, keys, label) {
+function plainExactRecordV1$1(input, keys, label) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error(`${label} must be a plain object`);
   }
@@ -37975,6 +37975,294 @@ function plainExactRecordV1(input, keys, label) {
   const actual = [...ownKeys].sort();
   const expected = [...keys].sort();
   if (actual.length !== expected.length || actual.some((key, index) => key !== expected[index])) {
+    throw new Error(`${label} has an unexpected field set`);
+  }
+  return input;
+}
+function deepFreezeV1$1(value) {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) {
+      deepFreezeV1$1(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
+}
+function detachedFrozenCheckpointSnapshotV1$1(input) {
+  canonicalJsonStringify(input);
+  const byteLength = measureCanonicalFlatDataV1(input);
+  const encoded = new Uint8Array(byteLength);
+  const written = encodeCanonicalFlatDataIntoV1(input, encoded);
+  if (written !== byteLength) {
+    throw new Error("Standard67 checkpoint snapshot length changed");
+  }
+  return deepFreezeV1$1(decodeCanonicalFlatDataV1(encoded));
+}
+const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID = "main-wire-ventricular-rounded-ejection-profile-v1";
+const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_COLD_MAXIMUM_ITERATIONS_V1 = 1600;
+const BASE_MATERIAL = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+const BASE_LAND = BASE_MATERIAL.landEquationParameters;
+const VALUES = Object.freeze({
+  ...BASE_LAND.values,
+  kuw: 104,
+  kws: 4.8
+});
+const PROVENANCE_SUFFIX_BY_PARAMETER = Object.freeze({
+  kuw: "runtime kuw=4*26/s retains the lower boundary of the published nu=4..12 isometric-twitch non-identifiability interval after bounded load-envelope analysis; it is not the Appendix-B source-selected nu=7 value",
+  kws: "runtime kws is 0.4 times the source value and retains the bounded ejection-relaxation kinetic selection; it is not a Land et al. source value"
+});
+const SOURCE_PARAMETERS = Object.freeze(
+  BASE_LAND.sourceParameters.map((entry) => {
+    const suffix = PROVENANCE_SUFFIX_BY_PARAMETER[entry.parameter];
+    return Object.freeze({
+      ...entry,
+      ...suffix === void 0 ? {} : { location: `${entry.location}; ${suffix}` },
+      original: Object.freeze({ ...entry.original }),
+      runtime: Object.freeze({
+        ...entry.runtime,
+        value: VALUES[entry.parameter]
+      })
+    });
+  })
+);
+const PARAMETER_HASH_INPUT = {
+  parameterSetId: `${MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID}-land`,
+  sourceId: BASE_LAND.sourceId,
+  doi: BASE_LAND.doi,
+  values: VALUES,
+  derived: Object.freeze(deriveLand2017DerivedParameters(VALUES)),
+  sourceParameters: SOURCE_PARAMETERS,
+  derivedParameters: Object.freeze(
+    BASE_LAND.derivedParameters.map((entry) => Object.freeze({ ...entry }))
+  ),
+  strongBridgeDeactivationExit: LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1
+};
+const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1 = Object.freeze({
+  ...PARAMETER_HASH_INPUT,
+  parameterSetStableHash: stableHash(PARAMETER_HASH_INPUT)
+});
+const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1 = Object.freeze({
+  ...BASE_MATERIAL,
+  parameterSetId: `${MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID}-wall`,
+  landEquationParameters: MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1,
+  landSlackStretch: 1.05
+});
+function createMainWireRoundedEjectionFiveWallProviderV1(requestedInputs) {
+  const inputs = validateAndOwnMainWireFiveWallMechanicsResearchInputsV1(requestedInputs);
+  const materialChanged = [
+    ...Object.values(inputs.activeTensionScaleByWall),
+    ...Object.values(inputs.passiveStiffnessScaleByWall)
+  ].some((scale) => scale !== 1);
+  if (!materialChanged) {
+    return createNormalAdultProviderFromMaterial(
+      "on",
+      NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular.compiled,
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1,
+      `-${MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID}`,
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_COLD_MAXIMUM_ITERATIONS_V1
+    );
+  }
+  const identity = stableHash$1(
+    sanitizeForStableHash(
+      Object.freeze({
+        activeTensionScaleByWall: inputs.activeTensionScaleByWall,
+        passiveStiffnessScaleByWall: inputs.passiveStiffnessScaleByWall
+      })
+    )
+  );
+  return createNormalAdultProviderFromKernels(
+    "on",
+    createMaterialKernelsWithMechanicsResearchInputsV1(
+      inputs,
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1,
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_COLD_MAXIMUM_ITERATIONS_V1
+    ),
+    `-${MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID}-wall-mechanics-${identity}`
+  );
+}
+const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID = "main-wire-integrated-model-rounded-ejection-fixture-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM = Object.freeze({
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+  ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID,
+  regularSinusProfileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  composedRhythmCalciumOwner: "accepted-exact-event-matched-alpha-state",
+  coronaryCalciumDriveParamsRole: "matched-alpha-descriptor-and-cycle-contract-not-calcium-state-owner",
+  calciumDecayTimeScaleResearchInput: "fixed-unit-only-to-preserve-selected-matched-alpha-law",
+  aorticOutflowCirculationProfileId: "main-wire-source-aortic-outflow-topology-v3",
+  aorticOutflowPressureStation: "source-lv-to-aortic-node",
+  proximalArterialRootMomentum: "source-inertance",
+  changedLandPrimitiveParameters: Object.freeze(["kuw", "kws"]),
+  sourceTroponinCooperativityRestored: true,
+  sourceTrefRestored: true,
+  geometryToLandStretchCouplingChanged: true,
+  newContinuousStateAdded: false,
+  valveOpeningStateAdded: false,
+  pressureRecoveryCorrectionApplied: false,
+  numericOptimizerApplied: false,
+  clinicalValidationClaimed: false
+});
+function createMainWireIntegratedModelRoundedEjectionFixtureV1(requestedHemodynamicResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, requestedMechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs
+  );
+  assertMatchedAlphaCompatibleCalciumScalesV1(prepared.chamberMechanics);
+  const fixture = assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () => createMainWireRoundedEjectionFiveWallProviderV1(
+        prepared.chamberMechanics
+      ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness: prepared.hemodynamicResearchInputs.arterialStiffness
+      }),
+      createCalciumDriveParams: () => resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+        prepared.hemodynamicResearchInputs.heartRateBpm
+      ),
+      createRhythm: (cycleLengthSec) => createMainWireIntegratedRegularSinusRhythmV3(
+        {
+          idPrefix: "rounded-ejection-v1",
+          parameterProvenanceSourceId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+          cycleLengthSec
+        },
+        {
+          profileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+          heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm
+        }
+      )
+    }
+  );
+  return Object.freeze({
+    ...fixture,
+    roundedEjectionAssemblyId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+    roundedEjectionAssemblyClaim: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM
+  });
+}
+function assertMatchedAlphaCompatibleCalciumScalesV1(chamberMechanics) {
+  const nonUnitWalls = Object.entries(
+    chamberMechanics.calciumDecayTimeScaleByWall
+  ).filter(([, scale]) => scale !== 1).map(([wallId]) => wallId);
+  if (nonUnitWalls.length > 0) {
+    throw new Error(
+      "rounded-ejection fixture requires unit calcium decay-time scales to preserve its fixed matched-alpha calcium law; non-unit walls: " + nonUnitWalls.join(", ")
+    );
+  }
+}
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1";
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1 = deepFreezeV1({
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+  ventricularMaterialProfileId: MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID,
+  ventricularMaterialParameterHash: MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1.parameterSetStableHash,
+  regularSinusProfileId: MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+  matchedAlphaCalciumPersistenceId: MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID,
+  aorticOutflowConstruction: "source-topology-without-pressure-recovery"
+});
+async function checkpointMainWireIntegratedModelStandard68V1(roundedEjectionAssemblyId, baseStandardCheckpointV2) {
+  assertAssemblyIdV1(roundedEjectionAssemblyId);
+  const detached = detachedFrozenCheckpointSnapshotV1(baseStandardCheckpointV2);
+  const base2 = await validateMainWireIntegratedModelStandardCheckpointV2(
+    detached
+  );
+  const payload = Object.freeze({
+    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID,
+    schemaVersion: 1,
+    revision: base2.revision,
+    acceptedTimeSec: base2.acceptedTimeSec,
+    modelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1,
+    baseStandardCheckpointV2: base2
+  });
+  return Object.freeze({
+    ...payload,
+    checkpointSha256: await sha256CanonicalJsonHex(payload)
+  });
+}
+async function restoreMainWireIntegratedModelStandard68V1(context, input) {
+  const contextRecord = plainExactRecordV1(
+    context,
+    ["base", "roundedEjectionAssemblyId"],
+    "Standard68 restore context"
+  );
+  assertAssemblyIdV1(contextRecord.roundedEjectionAssemblyId);
+  const checkpoint = await validateMainWireIntegratedModelStandard68CheckpointV1(
+    input
+  );
+  const restored = await restoreMainWireIntegratedModelStandardV2(
+    contextRecord.base,
+    checkpoint.baseStandardCheckpointV2
+  );
+  if (restored.acceptedState.revision !== checkpoint.revision || !Object.is(
+    restored.acceptedState.acceptedTimeSec,
+    checkpoint.acceptedTimeSec
+  )) {
+    throw new Error("restored Standard68 owner clocks differ");
+  }
+  return restored;
+}
+async function validateMainWireIntegratedModelStandard68CheckpointV1(input) {
+  const checkpoint = detachedFrozenCheckpointSnapshotV1(input);
+  const record = plainExactRecordV1(
+    checkpoint,
+    [
+      "checkpointId",
+      "schemaVersion",
+      "revision",
+      "acceptedTimeSec",
+      "modelIdentity",
+      "baseStandardCheckpointV2",
+      "checkpointSha256"
+    ],
+    "Standard68 checkpoint"
+  );
+  if (record.checkpointId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID || record.schemaVersion !== 1) {
+    throw new Error("unsupported Standard68 checkpoint schema");
+  }
+  if (typeof record.revision !== "number" || !Number.isSafeInteger(record.revision) || record.revision < 0 || typeof record.acceptedTimeSec !== "number" || !Number.isFinite(record.acceptedTimeSec) || record.acceptedTimeSec < 0 || typeof record.checkpointSha256 !== "string" || !/^[0-9a-f]{64}$/.test(record.checkpointSha256)) {
+    throw new Error("Standard68 checkpoint envelope is invalid");
+  }
+  assertModelIdentityV1(record.modelIdentity);
+  const { checkpointSha256, ...payload } = checkpoint;
+  if (await sha256CanonicalJsonHex(payload) !== checkpointSha256) {
+    throw new Error("Standard68 checkpoint outer SHA-256 mismatch");
+  }
+  const base2 = await validateMainWireIntegratedModelStandardCheckpointV2(
+    checkpoint.baseStandardCheckpointV2
+  );
+  if (checkpoint.revision !== base2.revision || !Object.is(checkpoint.acceptedTimeSec, base2.acceptedTimeSec)) {
+    throw new Error("Standard68 checkpoint owner clocks differ");
+  }
+  return checkpoint;
+}
+function assertAssemblyIdV1(value) {
+  if (value !== MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID) {
+    throw new Error("Standard68 checkpoint fixture identity mismatch");
+  }
+}
+function assertModelIdentityV1(input) {
+  const expected = MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1;
+  const record = plainExactRecordV1(
+    input,
+    Object.keys(expected),
+    "Standard68 model identity"
+  );
+  for (const key of Object.keys(expected)) {
+    if (record[key] !== expected[key]) {
+      throw new Error("Standard68 model identity mismatch");
+    }
+  }
+}
+function plainExactRecordV1(input, keys, label) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const prototype = Object.getPrototypeOf(input);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const actual = Reflect.ownKeys(input);
+  const expected = [...keys].sort();
+  if (actual.some((key) => typeof key !== "string") || actual.length !== expected.length || actual.sort().some((key, index) => key !== expected[index])) {
     throw new Error(`${label} has an unexpected field set`);
   }
   return input;
@@ -37994,7 +38282,7 @@ function detachedFrozenCheckpointSnapshotV1(input) {
   const encoded = new Uint8Array(byteLength);
   const written = encodeCanonicalFlatDataIntoV1(input, encoded);
   if (written !== byteLength) {
-    throw new Error("Standard67 checkpoint snapshot length changed");
+    throw new Error("Standard68 checkpoint snapshot length changed");
   }
   return deepFreezeV1(decodeCanonicalFlatDataV1(encoded));
 }
@@ -39801,6 +40089,73 @@ function assertProjectedKeysV1(values2, expectedOutputIds, owner) {
       );
     }
   }
+}
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_AOV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1 = "hemodynamics.duration.valve-forward-flow.AoV";
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1 = Object.freeze([
+  ...MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
+  Object.freeze({
+    outputId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_AOV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
+    kind: "metric",
+    quantityKind: "derived",
+    unit: "s",
+    modelingStatus: "modeled",
+    sourceKind: "completed-beat",
+    sourcePath: "completedBeatMetrics.valveForwardPressureGradients.AoV.forwardFlowDurationSec",
+    significantDigits: 4,
+    scope: "beat",
+    dependencies: Object.freeze(["hemodynamics.flow.valve.AoV"])
+  })
+]);
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_IDS_V1 = Object.freeze(
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1.map(
+    ({ outputId }) => outputId
+  )
+);
+const BASE_OUTPUT_IDS = new Set(
+  MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_IDS_V3
+);
+function partitionMainWireIntegratedModelStandard68OutputIdsV1(outputIds) {
+  const seen = /* @__PURE__ */ new Set();
+  const baseOutputIds = [];
+  let includeAorticForwardFlowDuration = false;
+  for (const outputId of outputIds) {
+    if (seen.has(outputId)) {
+      throw new Error(`Standard68 output ${outputId} is duplicated`);
+    }
+    seen.add(outputId);
+    if (BASE_OUTPUT_IDS.has(outputId)) {
+      baseOutputIds.push(outputId);
+    } else if (outputId === MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_AOV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1) {
+      includeAorticForwardFlowDuration = true;
+    } else {
+      throw new Error(`Standard68 output ${outputId} is unavailable`);
+    }
+  }
+  return Object.freeze({
+    baseOutputIds: Object.freeze(baseOutputIds),
+    includeAorticForwardFlowDuration
+  });
+}
+function mergeMainWireIntegratedModelStandard68SelectedValuesV1(input) {
+  const partition = partitionMainWireIntegratedModelStandard68OutputIdsV1(
+    input.outputIds
+  );
+  for (const outputId of partition.baseOutputIds) {
+    if (input.baseValues[outputId] === void 0) {
+      throw new Error(`Standard68 base output ${outputId} is missing`);
+    }
+  }
+  const duration = input.completedBeatMetrics?.valveForwardPressureGradients.AoV.forwardFlowDurationSec ?? null;
+  const forwardDurationValue = Object.freeze({
+    outputId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_AOV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
+    value: duration,
+    availability: duration === null ? "not-evaluated-at-accepted-state" : "available",
+    quality: duration === null ? "not-assessed" : "accepted-derived"
+  });
+  return Object.freeze(Object.fromEntries(input.outputIds.map((outputId) => [
+    outputId,
+    outputId === MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_AOV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1 ? forwardDurationValue : input.baseValues[outputId]
+  ])));
 }
 const MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1 = 2e-3;
 const MAIN_WIRE_NUMERICAL_PRESENTATION_PERIOD_TICKS_V1 = 1;
@@ -50590,6 +50945,162 @@ function standard67RestoreContextV1(runtime) {
     })
   });
 }
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_TYPED_AUTHORITY_SESSION_V1_ID = "main-wire-integrated-model-standard68-typed-authority-session-v1";
+class MainWireIntegratedModelStandard68TypedAuthoritySessionV1 extends MainWireIntegratedTypedAuthoritySessionV1 {
+  constructor(runtime, executionPlanInitialization, restored = null, analysisForkAcceptedState = null) {
+    super(
+      asSourceTopologyRuntimeV3(runtime),
+      analysisForkAcceptedState ?? restored?.acceptedState ?? runtime.cold.acceptedState,
+      analysisForkAcceptedState !== null ? "fixed-tbv-protocol-fork" : restored === null ? "cold" : "standard-exact-checkpoint-restore",
+      null,
+      analysisForkAcceptedState === null ? restored ?? void 0 : void 0,
+      executionPlanInitialization,
+      null,
+      analysisForkAcceptedState ?? void 0
+    );
+    this.standard68SessionId = MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_TYPED_AUTHORITY_SESSION_V1_ID;
+    this.#runtime = runtime;
+    this.#executionPlanInitialization = executionPlanInitialization;
+  }
+  #runtime;
+  #executionPlanInitialization;
+  static async create(inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+    return new MainWireIntegratedModelStandard68TypedAuthoritySessionV1(
+      createMainWireIntegratedModelRoundedEjectionFixtureV1(
+        inputs,
+        ventricularContractilityScale,
+        mechanismResearchInputs
+      ),
+      executionPlanInitialization
+    );
+  }
+  static async restoreStandardExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+    return this.restoreStandard68ExactCheckpoint(
+      checkpoint,
+      inputs,
+      ventricularContractilityScale,
+      executionPlanInitialization,
+      mechanismResearchInputs
+    );
+  }
+  static async restoreStandard68ExactCheckpoint(checkpoint, inputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+    const runtime = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+      inputs,
+      ventricularContractilityScale,
+      mechanismResearchInputs
+    );
+    const restored = await restoreMainWireIntegratedModelStandard68V1(
+      standard68RestoreContextV1(runtime),
+      checkpoint
+    );
+    return new MainWireIntegratedModelStandard68TypedAuthoritySessionV1(
+      runtime,
+      executionPlanInitialization,
+      restored
+    );
+  }
+  async warmStartWithHemodynamicResearchInputs(inputs, ventricularContractilityScale = 1, executionPlanInitialization, mechanismResearchInputs = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3) {
+    const targetRuntime = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+      inputs,
+      ventricularContractilityScale,
+      mechanismResearchInputs
+    );
+    const acceptedState2 = warmStartMainWireIntegratedModelV3({
+      source: this.currentAcceptedState(),
+      sourceRuntime: asSourceTopologyRuntimeV3(this.#runtime),
+      targetRuntime: asSourceTopologyRuntimeV3(targetRuntime)
+    });
+    return new MainWireIntegratedModelStandard68TypedAuthoritySessionV1(
+      targetRuntime,
+      executionPlanInitialization,
+      null,
+      acceptedState2
+    );
+  }
+  projectCurrentAcceptedStandard68ValuesV1(outputIds) {
+    const partition = partitionMainWireIntegratedModelStandard68OutputIdsV1(
+      outputIds
+    );
+    return mergeMainWireIntegratedModelStandard68SelectedValuesV1({
+      outputIds,
+      baseValues: super.projectCurrentAcceptedValuesV1(
+        partition.baseOutputIds
+      ),
+      completedBeatMetrics: this.observe().completedBeatMetrics
+    });
+  }
+  advanceToPresentationTimeWithStandard68SelectedOutputProjectionV1(targetTimeSec, outputIds) {
+    const partition = partitionMainWireIntegratedModelStandard68OutputIdsV1(
+      outputIds
+    );
+    const baseProjection = super.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+      targetTimeSec,
+      partition.baseOutputIds
+    );
+    if (baseProjection.projectedValues === null) {
+      return Object.freeze({
+        advance: baseProjection.advance,
+        projectedValues: null,
+        outputProjectionDurationMs: baseProjection.outputProjectionDurationMs
+      });
+    }
+    const startedAt = performance.now();
+    const projectedValues = mergeMainWireIntegratedModelStandard68SelectedValuesV1({
+      outputIds,
+      baseValues: baseProjection.projectedValues,
+      completedBeatMetrics: this.observe().completedBeatMetrics
+    });
+    return Object.freeze({
+      advance: baseProjection.advance,
+      projectedValues,
+      outputProjectionDurationMs: baseProjection.outputProjectionDurationMs + (performance.now() - startedAt)
+    });
+  }
+  async checkpointStandard68Exact() {
+    return checkpointMainWireIntegratedModelStandard68V1(
+      this.#runtime.roundedEjectionAssemblyId,
+      await super.checkpointStandardExact()
+    );
+  }
+  forkAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    return new MainWireIntegratedModelStandard68TypedAuthoritySessionV1(
+      this.#runtime,
+      this.#executionPlanInitialization,
+      null,
+      forkMainWireIntegratedModelAtFixedTbvV3({
+        source: this.currentAcceptedState(),
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      })
+    );
+  }
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(targetGlobalTotalBloodVolumeMl) {
+    return new MainWireIntegratedModelStandard68TypedAuthoritySessionV1(
+      this.#runtime,
+      this.#executionPlanInitialization,
+      null,
+      forkMainWireIntegratedModelResponsiveStarlingV3({
+        source: this.currentAcceptedState(),
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl
+      })
+    );
+  }
+}
+function asSourceTopologyRuntimeV3(runtime) {
+  return runtime;
+}
+function standard68RestoreContextV1(runtime) {
+  return Object.freeze({
+    base: Object.freeze({
+      ...createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+        runtime
+      ),
+      mechanismResearchInputs: runtime.mechanismResearchInputs
+    }),
+    roundedEjectionAssemblyId: runtime.roundedEjectionAssemblyId
+  });
+}
 const REGISTERED_MODEL_EXECUTION_PLAN_ADAPTER_V1_SCHEMA_ID = "circleheart-registered-model-execution-plan-adapter-v1";
 const MINIMUM_STEP_LATTICE_TOLERANCE_V2 = 1e-12;
 const MAXIMUM_STEP_LATTICE_TOLERANCE_V2 = 1e-7;
@@ -51634,34 +52145,46 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
     changeSemantics: "cold-restart"
   })
 ]);
-const SELECTED_SIGNAL_DEFINITIONS_V1 = Object.freeze(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1.filter((definition2) => definition2.kind === "signal").map((definition2) => Object.freeze({
-    outputId: definition2.outputId,
-    kind: "signal",
-    unit: definition2.unit,
-    significantDigits: definition2.significantDigits,
-    shape: "scalar",
-    sampling: "accepted-step"
-  }))
-);
-const SELECTED_METRIC_DEFINITIONS_V1 = Object.freeze(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1.filter((definition2) => definition2.kind === "metric").map((definition2) => Object.freeze({
-    outputId: definition2.outputId,
-    kind: "metric",
-    unit: definition2.unit,
-    significantDigits: definition2.significantDigits,
-    shape: "scalar",
-    scope: "scope" in definition2 ? definition2.scope : "beat",
-    dependencies: Object.freeze([
-      ..."dependencies" in definition2 ? definition2.dependencies : []
-    ])
-  }))
-);
-const SELECTED_EXACT_OUTPUT_IDS_V1 = new Set(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1
-);
+function selectedOutputCatalogV1(variant) {
+  return variant.generation === 68 ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1 : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1;
+}
+function selectedOutputIdsV1(variant) {
+  return variant.generation === 68 ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_IDS_V1 : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1;
+}
+function selectedSignalDefinitionsV1(variant) {
+  return Object.freeze(
+    selectedOutputCatalogV1(variant).filter((definition2) => definition2.kind === "signal").map((definition2) => Object.freeze({
+      outputId: definition2.outputId,
+      kind: "signal",
+      unit: definition2.unit,
+      significantDigits: definition2.significantDigits,
+      shape: "scalar",
+      sampling: "accepted-step"
+    }))
+  );
+}
+function selectedMetricDefinitionsV1(variant) {
+  return Object.freeze(
+    selectedOutputCatalogV1(variant).filter((definition2) => definition2.kind === "metric").map((definition2) => Object.freeze({
+      outputId: definition2.outputId,
+      kind: "metric",
+      unit: definition2.unit,
+      significantDigits: definition2.significantDigits,
+      shape: "scalar",
+      scope: "scope" in definition2 ? definition2.scope : "beat",
+      dependencies: Object.freeze([
+        ..."dependencies" in definition2 ? definition2.dependencies : []
+      ])
+    }))
+  );
+}
 async function createSelectedNumericalSessionV1(variant, inputs, ventricularContractilityScale, executionPlanInitialization, mechanismResearchInputs) {
-  return variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.create(
+  return variant.generation === 68 ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1.create(
+    inputs,
+    ventricularContractilityScale,
+    executionPlanInitialization,
+    mechanismResearchInputs
+  ) : variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.create(
     inputs,
     ventricularContractilityScale,
     executionPlanInitialization,
@@ -51674,7 +52197,13 @@ async function createSelectedNumericalSessionV1(variant, inputs, ventricularCont
   );
 }
 async function restoreSelectedNumericalSessionV1(variant, checkpoint, inputs, ventricularContractilityScale, executionPlanInitialization, mechanismResearchInputs) {
-  return variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.restoreStandard67ExactCheckpoint(
+  return variant.generation === 68 ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1.restoreStandard68ExactCheckpoint(
+    checkpoint,
+    inputs,
+    ventricularContractilityScale,
+    executionPlanInitialization,
+    mechanismResearchInputs
+  ) : variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.restoreStandard67ExactCheckpoint(
     checkpoint,
     inputs,
     ventricularContractilityScale,
@@ -51689,10 +52218,19 @@ async function restoreSelectedNumericalSessionV1(variant, checkpoint, inputs, ve
   );
 }
 function projectCurrentSelectedValuesV1(session, outputIds) {
-  return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.projectCurrentAcceptedStandard67ValuesV1(outputIds) : session.projectCurrentAcceptedStandard66ValuesV1(outputIds);
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1 ? session.projectCurrentAcceptedStandard68ValuesV1(
+    outputIds
+  ) : session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.projectCurrentAcceptedStandard67ValuesV1(
+    outputIds
+  ) : session.projectCurrentAcceptedStandard66ValuesV1(
+    outputIds
+  );
 }
 function advanceSelectedNumericalProjectionV1(session, targetTimeSec, outputIds) {
-  return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.advanceToPresentationTimeWithStandard67SelectedOutputProjectionV1(
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1 ? session.advanceToPresentationTimeWithStandard68SelectedOutputProjectionV1(
+    targetTimeSec,
+    outputIds
+  ) : session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.advanceToPresentationTimeWithStandard67SelectedOutputProjectionV1(
     targetTimeSec,
     outputIds
   ) : session.advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
@@ -51701,20 +52239,26 @@ function advanceSelectedNumericalProjectionV1(session, targetTimeSec, outputIds)
   );
 }
 function checkpointSelectedNumericalSessionV1(session) {
-  return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67Exact() : session.checkpointStandard66Exact();
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1 ? session.checkpointStandard68Exact() : session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67Exact() : session.checkpointStandard66Exact();
 }
 function checkpointSelectedAnalysisSessionV1(session) {
-  return session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67CanonicalBinaryV3() : session.checkpointStandard66CanonicalBinaryV3();
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1 ? session.checkpointStandard68Exact() : session instanceof MainWireIntegratedModelStandard67TypedAuthoritySessionV1 ? session.checkpointStandard67CanonicalBinaryV3() : session.checkpointStandard66CanonicalBinaryV3();
 }
-function restoreSelectedAnalysisSessionV1(variant, checkpointBytes, inputs, ventricularContractilityScale, mechanismResearchInputs, executionPlanInitialization) {
-  return variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.restoreStandard67CanonicalBinaryV3(
-    checkpointBytes,
+function restoreSelectedAnalysisSessionV1(variant, checkpoint, inputs, ventricularContractilityScale, mechanismResearchInputs, executionPlanInitialization) {
+  return variant.generation === 68 ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1.restoreStandard68ExactCheckpoint(
+    checkpoint,
+    inputs,
+    ventricularContractilityScale,
+    executionPlanInitialization,
+    mechanismResearchInputs
+  ) : variant.generation === 67 ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.restoreStandard67CanonicalBinaryV3(
+    checkpoint,
     inputs,
     ventricularContractilityScale,
     mechanismResearchInputs,
     executionPlanInitialization
   ) : MainWireIntegratedModelStandard66TypedAuthoritySessionV1.restoreStandard66CanonicalBinaryV3(
-    checkpointBytes,
+    checkpoint,
     inputs,
     ventricularContractilityScale,
     mechanismResearchInputs,
@@ -51722,7 +52266,11 @@ function restoreSelectedAnalysisSessionV1(variant, checkpointBytes, inputs, vent
   );
 }
 function createSelectedNumericalFixtureV1(variant, inputs, mechanismResearchInputs) {
-  return variant.generation === 67 ? createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
+  return variant.generation === 68 ? createMainWireIntegratedModelRoundedEjectionFixtureV1(
+    inputs,
+    1,
+    mechanismResearchInputs
+  ) : variant.generation === 67 ? createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
     inputs,
     1,
     mechanismResearchInputs
@@ -51765,7 +52313,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           `duplicate selected Standard66 runtime Scenario: ${input.scenarioId}`
         );
       }
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, this.#variant);
       const checkpoint = input.checkpoint === void 0 ? void 0 : validateSelectedScenarioCheckpointV1(input.checkpoint);
       const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId) ?? bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1();
       if (suppliedExecutionPlans !== void 0 && !suppliedExecutionPlans.has(input.scenarioId)) {
@@ -51836,7 +52384,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       acceptedTimeSec: accepted.acceptedTimeSec,
       values: projectCurrentSelectedValuesV1(
         scenario.modelSession,
-        MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1
+        selectedOutputIdsV1(this.#variant)
       )
     });
   }
@@ -51844,7 +52392,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
     const projection = this.#advanceScenarioProjection(
       scenario,
-      MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1
+      selectedOutputIdsV1(this.#variant)
     );
     return selectedFrameFromValuesV1({
       modelId: this.#variant.modelId,
@@ -51862,7 +52410,8 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         "Selected Standard66 presentation batch stepCount is invalid"
       );
     }
-    const outputIds = validateSelectedStandard66OutputIdsV1(
+    const outputIds = validateSelectedOutputIdsV1(
+      this.#variant,
       presentationOutputIds
     );
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
@@ -51875,7 +52424,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       const terminal = index === stepCount - 1;
       const projection = this.#advanceScenarioProjection(
         scenario,
-        terminal ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1 : outputIds
+        terminal ? selectedOutputIdsV1(this.#variant) : outputIds
       );
       acceptedRevisions[index] = projection.advance.acceptedRevision;
       acceptedTimesSec[index] = projection.advance.acceptedTimeSec;
@@ -51929,7 +52478,11 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         `Selected Standard66 control is not registered: ${controlId}`
       );
     }
-    const fixture = applySelectedHeartRateV1(scenario.fixture, value);
+    const fixture = applySelectedHeartRateV1(
+      scenario.fixture,
+      value,
+      this.#variant
+    );
     return this.#coldRestartFixtureAtomically(
       runtimeSessionId,
       scenarioId,
@@ -51942,7 +52495,7 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     await this.#coldRestartFixtureAtomically(
       runtimeSessionId,
       scenarioId,
-      validateAndOwnSelectedFixtureV1(fixtureValue),
+      validateAndOwnSelectedFixtureV1(fixtureValue, this.#variant),
       scenario.inputEpoch
     );
     return scenario.inputEpoch;
@@ -52062,7 +52615,10 @@ class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           `Selected Standard66 capture Scenario not found: ${desired.scenarioId}`
         );
       }
-      const desiredFixture = validateAndOwnSelectedFixtureV1(desired.fixture);
+      const desiredFixture = validateAndOwnSelectedFixtureV1(
+        desired.fixture,
+        this.#variant
+      );
       if (studioCanonicalJsonStringify(current.fixture) !== studioCanonicalJsonStringify(desiredFixture)) {
         throw new Error(
           `Selected Standard66 capture fixture is stale: ${desired.scenarioId}`
@@ -52271,6 +52827,8 @@ function createCircleHeartExactModelReleaseV1() {
   });
 }
 function createSelectedExactKernelV1(variant) {
+  const signalDefinitions = selectedSignalDefinitionsV1(variant);
+  const metricDefinitions = selectedMetricDefinitionsV1(variant);
   const manifest = Object.freeze({
     schemaId: STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
     modelId: variant.modelId,
@@ -52330,8 +52888,8 @@ function createSelectedExactKernelV1(variant) {
       })
     }),
     primitiveControlCatalog: SELECTED_CONTROL_CATALOG_V1,
-    primitiveSignalCatalog: SELECTED_SIGNAL_DEFINITIONS_V1,
-    modelMetricCatalog: SELECTED_METRIC_DEFINITIONS_V1,
+    primitiveSignalCatalog: signalDefinitions,
+    modelMetricCatalog: metricDefinitions,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -52339,12 +52897,16 @@ function createSelectedExactKernelV1(variant) {
       ...SELECTED_CONTROL_CATALOG_V1.map(
         ({ controlId }) => `control/${controlId}`
       ),
-      ...SELECTED_SIGNAL_DEFINITIONS_V1.map(
+      ...signalDefinitions.map(
         ({ outputId }) => `output/${outputId}`
       ),
-      ...SELECTED_METRIC_DEFINITIONS_V1.map(
+      ...metricDefinitions.map(
         ({ outputId }) => `output/${outputId}`
-      )
+      ),
+      ...variant.generation === 68 ? [
+        `analysis/${MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID}`,
+        `analysis/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID}`
+      ] : []
     ])
   });
   assertExactModelKernelManifestV3(manifest);
@@ -52357,12 +52919,15 @@ function selectedExecutableBundleV1(host, variant) {
     checkpointCodecId: variant.checkpointCodecId,
     validateFixture(input) {
       assertSelectedModelV1(input.model, variant);
-      validateAndOwnSelectedFixtureV1(input.fixture);
+      validateAndOwnSelectedFixtureV1(input.fixture, variant);
       return void 0;
     },
     async validateCapture(input) {
       assertSelectedModelV1(input.model, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.capture.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(
+        input.capture.fixture,
+        variant
+      );
       const checkpoint = validateSelectedScenarioCheckpointV1(
         input.capture.checkpoint
       );
@@ -52393,7 +52958,7 @@ function selectedExecutableBundleV1(host, variant) {
     fixtureSchemaId: MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
     validateCompleteFixture(input) {
       assertSelectedRuntimeContextV1(input.context, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, variant);
       createSelectedNumericalFixtureV1(
         variant,
         fixture.hemodynamicResearchInputs,
@@ -52403,13 +52968,17 @@ function selectedExecutableBundleV1(host, variant) {
     },
     reduceControlAction(input) {
       assertSelectedRuntimeContextV1(input.context, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, variant);
       if (input.action.controlId !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1.heartRateBpm) {
         throw new Error(
           `Selected Standard66 control is not registered: ${input.action.controlId}`
         );
       }
-      const next = applySelectedHeartRateV1(fixture, input.action.value);
+      const next = applySelectedHeartRateV1(
+        fixture,
+        input.action.value,
+        variant
+      );
       return Object.freeze({
         changes: Object.freeze([
           Object.freeze({
@@ -52497,7 +53066,8 @@ function selectedExecutableBundleV1(host, variant) {
               capture: scenario.capture
             });
             const fixture = validateAndOwnSelectedFixtureV1(
-              scenario.capture.fixture
+              scenario.capture.fixture,
+              variant
             );
             const checkpoint = validateSelectedScenarioCheckpointV1(
               scenario.capture.checkpoint
@@ -52562,7 +53132,7 @@ function selectedExecutableBundleV1(host, variant) {
     })
   });
 }
-function validateAndOwnSelectedFixtureV1(value) {
+function validateAndOwnSelectedFixtureV1(value, variant) {
   const owned = cloneAndFreezeStudioJson(value);
   const record = exactSelectedRecordV1(
     owned,
@@ -52605,7 +53175,7 @@ function validateAndOwnSelectedFixtureV1(value) {
   )) {
     if (!Object.is(scale, 1)) {
       throw new Error(
-        `Selected Standard66 fixture requires unit calcium decay-time scale for ${wallId}`
+        `Selected ${variant.label} fixture requires unit calcium decay-time scale for ${wallId}`
       );
     }
   }
@@ -52622,7 +53192,7 @@ function validateAndOwnSelectedFixtureV1(value) {
     mechanismResearchInputs
   });
 }
-function applySelectedHeartRateV1(fixture, heartRateBpm) {
+function applySelectedHeartRateV1(fixture, heartRateBpm, variant) {
   const definition2 = SELECTED_CONTROL_CATALOG_V1[0];
   const issue = studioNumericControlValueIssueV2(heartRateBpm, definition2);
   if (issue !== void 0) {
@@ -52636,7 +53206,7 @@ function applySelectedHeartRateV1(fixture, heartRateBpm) {
       ...fixture.hemodynamicResearchInputs,
       heartRateBpm
     }
-  });
+  }, variant);
 }
 function exactSelectedRecordV1(value, expectedKeys, label) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
@@ -52681,17 +53251,18 @@ function validateSelectedScenarioCheckpointV1(value) {
     payload
   });
 }
-function validateSelectedStandard66OutputIdsV1(outputIds) {
+function validateSelectedOutputIdsV1(variant, outputIds) {
+  const exactOutputIds = new Set(selectedOutputIdsV1(variant));
   const seen = /* @__PURE__ */ new Set();
   const validated = outputIds.map((outputId) => {
-    if (!SELECTED_EXACT_OUTPUT_IDS_V1.has(outputId)) {
+    if (!exactOutputIds.has(outputId)) {
       throw new Error(
-        `Selected Standard66 presentation output ${outputId} is unavailable`
+        `Selected ${variant.label} presentation output ${outputId} is unavailable`
       );
     }
     if (seen.has(outputId)) {
       throw new Error(
-        `Selected Standard66 presentation output ${outputId} is duplicated`
+        `Selected ${variant.label} presentation output ${outputId} is duplicated`
       );
     }
     seen.add(outputId);

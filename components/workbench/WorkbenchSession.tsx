@@ -96,6 +96,9 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
+  resolveRegisteredExactModelBaselineValidationV1,
+} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
+import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalStandardModelLabClientCompositionV1,
@@ -486,6 +489,116 @@ export const WorkbenchSession = ({
         surfaceReleaseId: modelDocumentation.surfaceReleaseId,
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
+  const baselineValidation =
+    resolveRegisteredExactModelBaselineValidationV1(contract?.modelId);
+  const baselineValidationPresentation = baselineValidation === null
+    ? undefined
+    : Object.freeze({
+        summary: t(
+          "workbench.editor.simulationInfo.baselineValidationSummary",
+          { cycles: baselineValidation.completedCycleCount },
+        ),
+        items: Object.freeze([
+          Object.freeze({
+            itemId: "lvp-morphology",
+            label: t("workbench.editor.simulationInfo.baselineLvp"),
+            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              {
+                peaks:
+                  baselineValidation.measurements.LVP.significantPeakCount,
+                roundness: baselineValidation.measurements.LVP
+                  .centralRangeFraction.toFixed(3),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "rvp-morphology",
+            label: t("workbench.editor.simulationInfo.baselineRvp"),
+            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              {
+                peaks:
+                  baselineValidation.measurements.RVP.significantPeakCount,
+                roundness: baselineValidation.measurements.RVP
+                  .centralRangeFraction.toFixed(3),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "av-et",
+            label: "AV ET",
+            value: `${Math.round(
+              baselineValidation.measurements.aorticValve.ejectionTimeSec
+                * 1_000,
+            )} ms`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "240–340 ms" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "av-gradient",
+            label: t("workbench.editor.simulationInfo.baselineAvGradient"),
+            value: `${baselineValidation.measurements.aorticValve
+              .meanGradientMmHg.toFixed(1)} / ${baselineValidation.measurements
+              .aorticValve.peakGradientMmHg.toFixed(1)} mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineAvGradientDetail",
+              { range: "mean 0–5 / peak 0–10 mmHg" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "lv-dpdt",
+            label: "LV ±dP/dt",
+            value: `+${Math.round(
+              baselineValidation.measurements.leftVentricle
+                .maximumDpDtMmHgPerSec,
+            )} / ${Math.round(
+              baselineValidation.measurements.leftVentricle
+                .minimumDpDtMmHgPerSec,
+            )}`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineLvDpDtDetail",
+              { range: "+1200–2500 / −1400–−700 mmHg/s" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "mitral-ea",
+            label: "Mitral E/A",
+            value: baselineValidation.measurements.mitralFlow.peakEToA
+              .toFixed(2),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "0.8–2.0" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "ict-irt",
+            label: "LV ICT / IRT",
+            value: `${Math.round(
+              baselineValidation.measurements.timing.ictSec * 1_000,
+            )} / ${Math.round(
+              baselineValidation.measurements.timing.irtSec * 1_000,
+            )} ms`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIctIrtDetail",
+              { range: "ICT 20–60 / IRT 59–134 ms" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "tei-index",
+            label: "LV Tei index",
+            value: baselineValidation.measurements.timing.teiIndex.toFixed(2),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "0.29–0.65" },
+            ),
+          }),
+        ]),
+      });
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -3086,6 +3199,12 @@ export const WorkbenchSession = ({
                   description: t(
                     "workbench.editor.simulationInfo.integratedModelDescription",
                   ),
+                  ...(baselineValidationPresentation === undefined
+                    ? {}
+                    : {
+                        baselineValidation:
+                          baselineValidationPresentation,
+                      }),
                   ...(modelDocumentationLink === undefined
                     ? {}
                     : { documentationHref: modelDocumentationLink }),

@@ -8,6 +8,9 @@ import { build } from "vite";
 
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import {
+  qualifyMainWireIntegratedModelRoundedEjectionBaselineV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineQualificationV1";
+import {
   STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
   type ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
@@ -26,6 +29,14 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
   createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1,
+  createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1";
+import {
+  buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -33,14 +44,74 @@ const repositoryRoot = path.resolve(
 );
 const integrationRelativeRoot =
   "studio/integrations/mainWireIntegratedV3/";
+const requestedArguments = process.argv.slice(2);
+const roundedEjectionRequested = requestedArguments.includes(
+  "--rounded-ejection",
+);
+const updateRequested = requestedArguments.includes("--write");
+if (requestedArguments.some((argument) =>
+  argument !== "--write" && argument !== "--rounded-ejection")) {
+  throw new Error("supported arguments are --write and --rounded-ejection");
+}
+const releaseConfigurationV1 = roundedEjectionRequested
+  ? Object.freeze({
+      label: "rounded-ejection Standard68",
+      idSlug: "rounded-ejection-standard68",
+      displayName: "Main Wire Standard 68",
+      entryFile: "MainWireIntegratedStudioRoundedEjectionExactModelV1.entry.ts",
+      artifactFile:
+        "MainWireIntegratedStudioRoundedEjectionExactModelV1.artifact.mjs",
+      descriptorFile:
+        "MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json",
+      lockFile: "rounded-ejection-standard68-registry-admission-lock.json",
+      artifactChunkName:
+        "main-wire-integrated-rounded-ejection-standard68-v1.mjs",
+      modelId:
+        "circleheart.main-wire-integrated-transaction-v3.rounded-ejection.standard-68",
+      fixtureId: "main-wire-integrated-model-rounded-ejection-fixture-v1",
+      proximalArterialRootsProfileId: null,
+      numericalSessionId:
+        "main-wire-integrated-model-standard68-typed-authority-session-v1",
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
+      createRelease:
+        createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1,
+    })
+  : Object.freeze({
+      label: "algebraic-proximal-roots Standard67",
+      idSlug: "algebraic-proximal-roots-standard67",
+      displayName: "Main Wire Standard 67",
+      entryFile:
+        "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.entry.ts",
+      artifactFile:
+        "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.artifact.mjs",
+      descriptorFile:
+        "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json",
+      lockFile:
+        "algebraic-proximal-roots-standard67-registry-admission-lock.json",
+      artifactChunkName:
+        "main-wire-integrated-algebraic-proximal-roots-standard67-v1.mjs",
+      modelId:
+        "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67",
+      fixtureId:
+        "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1",
+      proximalArterialRootsProfileId:
+        "main-wire-algebraic-proximal-arterial-roots-profile-v1",
+      numericalSessionId:
+        "main-wire-integrated-model-standard67-typed-authority-session-v1",
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard67-exact-checkpoint.v1",
+      createRelease:
+        createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
+    });
 const entryRelativePath = integrationRelativeRoot
-  + "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.entry.ts";
+  + releaseConfigurationV1.entryFile;
 const artifactRelativePath = integrationRelativeRoot
-  + "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.artifact.mjs";
+  + releaseConfigurationV1.artifactFile;
 const clientDescriptorRelativePath = integrationRelativeRoot
-  + "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
+  + releaseConfigurationV1.descriptorFile;
 const lockRelativePath = integrationRelativeRoot
-  + "algebraic-proximal-roots-standard67-registry-admission-lock.json";
+  + releaseConfigurationV1.lockFile;
 const entryPath = path.join(repositoryRoot, entryRelativePath);
 const artifactPath = path.join(repositoryRoot, artifactRelativePath);
 const clientDescriptorPath = path.join(
@@ -61,19 +132,15 @@ type ReleaseV1 = ReturnType<
 await main();
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const updateRequested = args.length === 1 && args[0] === "--write";
-  if (args.length > 0 && !updateRequested) {
-    fail("the only supported argument is --write");
+  if (roundedEjectionRequested) {
+    await assertRoundedEjectionBaselineQualificationV1();
   }
-
-  const sourceRelease =
-    createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1();
+  const sourceRelease = releaseConfigurationV1.createRelease();
   assertStandard67ManifestV1(sourceRelease.manifest);
   const firstBuild = await buildArtifactV1();
   const secondBuild = await buildArtifactV1();
   if (!sameBytesV1(firstBuild, secondBuild)) {
-    fail("two clean Standard67 artifact builds emitted different bytes");
+    fail(`two clean ${releaseConfigurationV1.label} artifact builds emitted different bytes`);
   }
 
   const canonicalManifest = studioCanonicalJsonStringify(
@@ -111,7 +178,7 @@ async function main(): Promise<void> {
     );
     writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
     process.stdout.write(
-      `Wrote algebraic-proximal-roots Standard67 exact release (${artifactRevisionId})\n`,
+      `Wrote ${releaseConfigurationV1.label} exact release (${artifactRevisionId})\n`,
     );
     return;
   }
@@ -139,29 +206,90 @@ async function main(): Promise<void> {
   }
   assertImmutableAgainstBaseV1(lock);
   process.stdout.write(
-    `Algebraic-proximal-roots Standard67 registry admission verified: ${lock.modelId} (${artifactRevisionId})\n`,
+    `${releaseConfigurationV1.label} registry admission verified: ${lock.modelId} (${artifactRevisionId})\n`,
   );
+}
+
+async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
+  const qualification =
+    await qualifyMainWireIntegratedModelRoundedEjectionBaselineV1();
+  const report =
+    buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
+      qualification,
+    );
+  if (
+    studioCanonicalJsonStringify(report)
+      !== studioCanonicalJsonStringify(
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
+      )
+    || studioCanonicalJsonStringify(qualification.checkpoint)
+      !== studioCanonicalJsonStringify(
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1,
+      )
+  ) {
+    fail(
+      "fresh baseline qualification differs from the committed report or settled checkpoint",
+    );
+  }
+  const requiredCheckIds = [
+    "settlement.period1",
+    "waveform.LVP.single-peak-no-ringing",
+    "waveform.LVP.rounded-not-plateau",
+    "waveform.RVP.single-peak-no-ringing",
+    "waveform.RVP.rounded-not-plateau",
+    "aortic-valve.mean-gradient",
+    "aortic-valve.peak-gradient",
+    "aortic-valve.ejection-time",
+    "left-ventricle.maximum-dpdt",
+    "left-ventricle.minimum-dpdt",
+    "mitral-flow.peak-e-to-a",
+    "timing.ict",
+    "timing.irt",
+    "timing.tei-index",
+  ];
+  const passedIds = new Set<string>(
+    report.checks
+      .filter(({ status }) => status === "passed")
+      .map(({ checkId }) => checkId),
+  );
+  if (requiredCheckIds.some((checkId) => !passedIds.has(checkId))) {
+    fail("baseline qualification omits a required physiological mint gate");
+  }
 }
 
 function assertStandard67ManifestV1(
   manifest: ExactModelKernelManifestV3,
 ): void {
   if (
-    manifest.modelId
-      !== "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67"
-    || manifest.equations.fixtureId
-      !== "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1"
-    || manifest.equations.proximalArterialRootsProfileId
-      !== "main-wire-algebraic-proximal-arterial-roots-profile-v1"
+    manifest.modelId !== releaseConfigurationV1.modelId
+    || manifest.equations.fixtureId !== releaseConfigurationV1.fixtureId
     || manifest.runtime.numericalSessionId
-      !== "main-wire-integrated-model-standard67-typed-authority-session-v1"
+      !== releaseConfigurationV1.numericalSessionId
     || manifest.checkpointCodec.definition.checkpointId
-      !== "circleheart.main-wire-integrated-model-standard67-exact-checkpoint.v1"
+      !== releaseConfigurationV1.checkpointId
   ) {
-    fail("source release does not bind the complete Standard67 identity");
+    fail(`source release does not bind the complete ${releaseConfigurationV1.label} identity`);
   }
-  if (manifest.capabilities.some((value) => value.startsWith("analysis/"))) {
-    fail("exact model must not reserve analysis output capabilities");
+  if (
+    releaseConfigurationV1.proximalArterialRootsProfileId === null
+      ? "proximalArterialRootsProfileId" in manifest.equations
+      : manifest.equations.proximalArterialRootsProfileId
+        !== releaseConfigurationV1.proximalArterialRootsProfileId
+  ) {
+    fail("source release binds the wrong proximal-root identity");
+  }
+  const structuralAnalysisCapabilities = [
+    "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+    "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1",
+  ];
+  if (
+    roundedEjectionRequested
+      ? structuralAnalysisCapabilities.some((capability) =>
+          !manifest.capabilities.includes(capability))
+      : structuralAnalysisCapabilities.some((capability) =>
+          manifest.capabilities.includes(capability))
+  ) {
+    fail("structural-analysis capability declaration differs from the release contract");
   }
 }
 
@@ -184,8 +312,7 @@ async function buildArtifactV1(): Promise<Uint8Array> {
       lib: {
         entry: entryPath,
         formats: ["es"],
-        fileName: () =>
-          "main-wire-integrated-algebraic-proximal-roots-standard67-v1.mjs",
+        fileName: () => releaseConfigurationV1.artifactChunkName,
       },
       rollupOptions: { output: { inlineDynamicImports: true } },
     },
@@ -224,9 +351,10 @@ async function assertArtifactAdmissionV1(
   }
   const model = exactContractV1(produced.manifest);
   validateExecutableBundleV2(produced.executables, model);
-  const scenarioId = "scenario/standard67-registry";
-  const sourceSessionId = "session/standard67-registry";
-  const restoredSessionId = "session/standard67-registry-restored";
+  const scenarioId = `scenario/${releaseConfigurationV1.idSlug}-registry`;
+  const sourceSessionId = `session/${releaseConfigurationV1.idSlug}-registry`;
+  const restoredSessionId =
+    `session/${releaseConfigurationV1.idSlug}-registry-restored`;
   await produced.executables.simulationAdapter.createSession({
     runtimeSessionId: sourceSessionId,
     scenarios: [{
@@ -236,6 +364,24 @@ async function assertArtifactAdmissionV1(
     }],
   });
   try {
+    const initial = produced.executables.simulationAdapter.currentFrame({
+      runtimeSessionId: sourceSessionId,
+      scenarioId,
+    });
+    const expectedInitialRevision = roundedEjectionRequested
+      ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1
+        .checkpoint.revision
+      : 0;
+    const expectedInitialTimeSec = roundedEjectionRequested
+      ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1
+        .checkpoint.acceptedTimeSec
+      : 0;
+    if (
+      initial.acceptedRevision !== expectedInitialRevision
+      || initial.acceptedTimeSec !== expectedInitialTimeSec
+    ) {
+      fail("artifact did not start from its registered baseline clock");
+    }
     const advanced =
       await produced.executables.simulationAdapter.advanceOnePresentationStep({
         runtimeSessionId: sourceSessionId,
@@ -243,18 +389,18 @@ async function assertArtifactAdmissionV1(
       });
     if (
       advanced.modelId !== model.modelId
-      || advanced.acceptedRevision !== 1
-      || advanced.acceptedTimeSec !== 0.002
+      || advanced.acceptedRevision !== expectedInitialRevision + 1
+      || advanced.acceptedTimeSec !== expectedInitialTimeSec + 0.002
     ) {
-      fail("artifact did not advance its accepted Standard67 owner");
+      fail(`artifact did not advance its accepted ${releaseConfigurationV1.label} owner`);
     }
     const captured = await produced.executables.experimentCapture
       .captureAcceptedCandidate({
-        experimentId: "experiment/standard67-registry",
+        experimentId: `experiment/${releaseConfigurationV1.idSlug}-registry`,
         model,
         desiredContent: {
           modelId: model.modelId,
-          surfaceSeriesId: "surface/standard67-registry",
+          surfaceSeriesId: `surface/${releaseConfigurationV1.idSlug}-registry`,
           scenarios: [{
             scenarioId,
             label: "Baseline",
@@ -278,7 +424,7 @@ async function assertArtifactAdmissionV1(
       capture === undefined
       || (capture.checkpoint.payload as { checkpointId?: unknown })
         .checkpointId
-        !== "circleheart.main-wire-integrated-model-standard67-exact-checkpoint.v1"
+        !== releaseConfigurationV1.checkpointId
     ) {
       fail("artifact captured the wrong exact checkpoint identity");
     }
@@ -322,7 +468,7 @@ function exactContractV1(
   const model = Object.freeze({
     modelId: manifest.modelId,
     modelFamilyId: manifest.modelFamilyId,
-    displayName: "Main Wire Standard 67",
+    displayName: releaseConfigurationV1.displayName,
     fixtureSchemaId: manifest.fixtureSchema.fixtureSchemaId,
     checkpointCodecId: manifest.checkpointCodec.checkpointCodecId,
     snapshotGateId: STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
@@ -361,7 +507,7 @@ function assertExistingIdentityCanBeWrittenV1(
       return;
     }
     fail(
-      "an existing Standard67 identity cannot be rewritten without explicit same-model equivalence evidence",
+      `an existing ${releaseConfigurationV1.label} identity cannot be rewritten without explicit same-model equivalence evidence`,
     );
   }
 }
@@ -389,7 +535,7 @@ function assertImmutableAgainstBaseV1(
     prior.modelId !== current.modelId
     || prior.artifactRevisionId !== current.artifactRevisionId
   ) {
-    fail("the committed Standard67 exact identity changed against the base ref");
+    fail(`the committed ${releaseConfigurationV1.label} exact identity changed against the base ref`);
   }
 }
 
@@ -420,6 +566,6 @@ function sameBytesV1(left: Uint8Array, right: Uint8Array): boolean {
 
 function fail(message: string): never {
   throw new Error(
-    `Algebraic-proximal-roots Standard67 registry verification failed: ${message}`,
+    `${releaseConfigurationV1.label} registry verification failed: ${message}`,
   );
 }

@@ -80,6 +80,23 @@ export type Land2017StrongBridgeDeactivationExitV1 = Readonly<{
   readonly sourceIdentityClaimed: false;
 }>;
 
+export type Land2017StrongBridgeDeactivationExitV2 = Readonly<{
+  readonly extensionId: "land2017-strong-bridge-deactivation-exit-v2";
+  readonly maximumRatePerSec: number;
+  readonly calciumTroponinGate:
+    "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power";
+  readonly cooperativeGatePower: number;
+  readonly deactivationDirectionGate: "none";
+  readonly strongPopulationGate:
+    "positive-excess-over-zero-distortion-equilibrium";
+  readonly exitDestination: "unbound";
+  readonly sourceIdentityClaimed: false;
+}>;
+
+export type Land2017StrongBridgeDeactivationExit =
+  | Land2017StrongBridgeDeactivationExitV1
+  | Land2017StrongBridgeDeactivationExitV2;
+
 export const LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1:
   Land2017StrongBridgeDeactivationExitV1 = Object.freeze({
     extensionId: "land2017-strong-bridge-deactivation-exit-v1",
@@ -94,6 +111,47 @@ export const LAND2017_STRONG_BRIDGE_DEACTIVATION_EXIT_V1:
     sourceIdentityClaimed: false,
   });
 
+/**
+ * Same state-free deactivation path as V1 with an explicit, identity-bound
+ * rate coefficient. This is a non-source reduced-order parameter, not an
+ * additional myofilament state or a hidden calcium time constant.
+ */
+export function createLand2017StrongBridgeDeactivationExitV2(
+  maximumRatePerSec: number,
+  cooperativeGatePower = 8,
+): Land2017StrongBridgeDeactivationExitV2 {
+  if (
+    !Number.isFinite(maximumRatePerSec)
+    || maximumRatePerSec <= 0
+    || maximumRatePerSec > 500
+  ) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation V2 rate must be in (0, 500] 1/s",
+    );
+  }
+  if (
+    !Number.isFinite(cooperativeGatePower)
+    || cooperativeGatePower < 0.5
+    || cooperativeGatePower > 16
+  ) {
+    throw new Error(
+      "Land 2017 strong-bridge deactivation V2 gate power must be in [0.5, 16]",
+    );
+  }
+  return Object.freeze({
+    extensionId: "land2017-strong-bridge-deactivation-exit-v2" as const,
+    maximumRatePerSec,
+    calciumTroponinGate:
+      "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power" as const,
+    cooperativeGatePower,
+    deactivationDirectionGate: "none" as const,
+    strongPopulationGate:
+      "positive-excess-over-zero-distortion-equilibrium" as const,
+    exitDestination: "unbound" as const,
+    sourceIdentityClaimed: false as const,
+  });
+}
+
 export type Land2017SourceParameterSet = {
   readonly parameterSetId: string;
   readonly parameterSetStableHash: string;
@@ -103,8 +161,7 @@ export type Land2017SourceParameterSet = {
   readonly derived: Land2017DerivedParameters;
   readonly sourceParameters: readonly Land2017SourceParameterProvenance[];
   readonly derivedParameters: readonly Land2017DerivedParameterProvenance[];
-  readonly strongBridgeDeactivationExit?:
-    Land2017StrongBridgeDeactivationExitV1;
+  readonly strongBridgeDeactivationExit?: Land2017StrongBridgeDeactivationExit;
 };
 
 const runtimeValues: Land2017RuntimeParameters = {

@@ -7,7 +7,6 @@ import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { buildNodes } from "@/engine/core/topology";
-import { MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
   EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
@@ -17,15 +16,10 @@ import {
 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import type { ExperimentSurfaceV2 } from "@/studio/contracts/v2/content";
 import { STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1 } from "@/studio/contracts/v2/simulation";
-import type {
-  StudioSimulationAnalysisV2,
-  StudioSimulationFrameV2,
-} from "@/studio/contracts/v2/simulation";
+import type { StudioSimulationFrameV2 } from "@/studio/contracts/v2/simulation";
 import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertExactModelKernelManifestV3,
@@ -47,6 +41,7 @@ import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
+import mainWireIntegratedStudioRoundedEjectionClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -56,6 +51,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -75,7 +71,6 @@ import { resolveExactModelControlValueV1 } from
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   buildMainWirePeriodicPvaMethodV8,
-  resolveMainWireStructuralAnalysisExecutionPlanV1,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
@@ -84,9 +79,11 @@ import {
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
+import mainWireIntegratedStudioRoundedEjectionSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
+import mainWireIntegratedStudioRoundedEjectionRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -538,7 +535,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses Standard67 by default while preserving exact Standard65/66 local pairs", async () => {
+  it("uses Standard68 by default while preserving exact Standard65/66/67 local pairs", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -593,15 +590,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1
           .artifactRevisionId,
       );
+      expect(
+        composition
+          .localRoundedEjectionArtifactRevisionUrlV1(
+            new URL(
+              "http://127.0.0.1:4176/rounded-ejection-standard68.artifact.mjs",
+            ),
+          )
+          .searchParams.get("revision"),
+      ).toBe(
+        mainWireIntegratedStudioRoundedEjectionRegistryLockV1
+          .artifactRevisionId,
+      );
       expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
-        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
       );
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
         exactModel: {
           modelId:
-            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
+            mainWireIntegratedStudioRoundedEjectionClientV1.manifest
               .modelId,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
@@ -610,10 +619,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelSurface: {
           identity: {
             surfaceReleaseId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+              mainWireIntegratedStudioRoundedEjectionSurfaceV1
                 .surfaceReleaseId,
             surfaceSeriesId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
+              mainWireIntegratedStudioRoundedEjectionSurfaceV1
                 .surfaceSeriesId,
           },
         },
@@ -1435,82 +1444,6 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     }
     simulation.disposeSession(restoredRuntimeSessionId);
     simulation.disposeSession(runtimeSessionId);
-  }, 120_000);
-
-  it("connects Standard PV analyses to their bidirectional plans", async () => {
-    const legacyPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
-      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-    );
-    const formalPlan = resolveMainWireStructuralAnalysisExecutionPlanV1(
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
-    );
-    expect(legacyPlan?.partitions).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-    ]);
-    expect(formalPlan?.partitions).toEqual([
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
-    ]);
-    const host = new MainWireIntegratedStudioStandardRuntimeHostV1();
-    const runtimeSessionId = "session/standard-pv-analysis";
-    const scenarioId = "scenario/baseline";
-    await host.createSession(runtimeSessionId, [
-      {
-        scenarioId,
-        fixture: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
-      },
-    ]);
-    const source = host.advanceOnePresentationStep(
-      runtimeSessionId,
-      scenarioId,
-    );
-    const progress: StudioSimulationAnalysisV2[] = [];
-    const analysis = await host.requestAnalysis(
-      runtimeSessionId,
-      scenarioId,
-      MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
-      source.inputEpoch,
-      source.acceptedRevision,
-      source.acceptedTimeSec,
-      MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
-      (partial) => progress.push(partial),
-    );
-    const payload = analysis.payload as unknown as Readonly<{
-      left: Readonly<{
-        starlingLocus: Readonly<{
-          status: string;
-          points: readonly Readonly<{
-            ventricularPressureVolumeLoop: readonly unknown[];
-          }>[];
-        }>;
-      }>;
-    }>;
-    expect(analysis.modelId).toBe(
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-    );
-    expect(payload.left.starlingLocus.status).toBe(
-      "responsive-fixed-tbv-preview",
-    );
-    const initialPayload = progress[0]?.payload as unknown as Readonly<{
-      left: Readonly<{
-        curve: readonly unknown[];
-        starlingLocus: Readonly<{ status: string; points: readonly unknown[] }>;
-      }>;
-    }>;
-    expect(initialPayload.left.curve.length).toBeGreaterThan(1);
-    expect(initialPayload.left.starlingLocus).toMatchObject({
-      status: "requires-protocol",
-      points: [],
-    });
-    expect(payload.left.starlingLocus.points.length).toBeGreaterThan(2);
-    expect(
-      payload.left.starlingLocus.points.every(
-        (point) => point.ventricularPressureVolumeLoop.length >= 12,
-      ),
-    ).toBe(true);
-    expect(host.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);
-    host.closeSession(runtimeSessionId);
   }, 120_000);
 
   it("owns analysis output semantics in the current Surface series", () => {

@@ -2,6 +2,7 @@ import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -34,6 +35,13 @@ export function resolveRegisteredExactModelFixtureProjectionV1(
     modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1
     && fixtureSchemaId ===
       standardClientDescriptorV1.manifest.fixtureSchema.fixtureSchemaId
+  ) {
+    return mainWireIntegratedStudioFixtureProjectionV3;
+  }
+  if (
+    modelId === MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1
+    && fixtureSchemaId
+      === MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1
   ) {
     return mainWireIntegratedStudioFixtureProjectionV3;
   }

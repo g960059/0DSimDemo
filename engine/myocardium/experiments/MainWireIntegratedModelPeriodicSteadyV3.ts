@@ -596,7 +596,7 @@ export function createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
   });
 }
 
-function prepareMainWireIntegratedModelFixtureInputsV3(
+export function prepareMainWireIntegratedModelFixtureInputsV3(
   requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   ventricularContractilityScale: number,
   requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
@@ -628,7 +628,7 @@ function prepareMainWireIntegratedModelFixtureInputsV3(
   });
 }
 
-function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
+export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
   TVascularRuntime extends Readonly<{
     venousTone: number;
     arterialStiffness: number;
@@ -1258,6 +1258,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   initial: AcceptedState,
   cycleIndex: number,
   nominalDtSec: number,
+  acceptedStepObserver?: (step: SuccessfulStep) => void,
 ): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
   assertPeriodicNominalDtSec(nominalDtSec);
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
@@ -1340,6 +1341,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       );
     }
     accepted = stepped.acceptedState;
+    acceptedStepObserver?.(stepped);
     acceptedStepCount += 1;
     if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
       nominalGridIndex += 1;

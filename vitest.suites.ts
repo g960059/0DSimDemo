@@ -132,7 +132,6 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
   "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
-  "__tests__/mainWireIntegratedStudioAlgebraicProximalRootsV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
   "__tests__/modelDocumentationV1.test.tsx",
@@ -160,6 +159,8 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
+  "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",
   "__tests__/mainWireIntegratedStudioAlgebraicProximalRootsV1.test.ts",
   "__tests__/mainWireIntegratedStudioSelectedAorticOutflowV1.test.ts",
   "__tests__/mainWireIntegratedModelStandard66ProductionRouteParityV1.test.ts",
@@ -227,6 +228,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireFullLandMembranePericardiumArtifactsV1.test.ts",
   "__tests__/mainWireHeartMateIiStanfieldMeanOperatingPointContextV1.test.ts",
   "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
+  "__tests__/mainWireIntegratedModelRoundedEjectionFixtureV1.test.ts",
   "__tests__/mainWireIntegratedModelStandard67WaveformMorphologyV1.test.ts",
   "__tests__/mainWireIntegratedModelExternalAfTransactionV1.test.ts",
   "__tests__/mainWireIntegratedModelPeriodicClassifierV3.test.ts",

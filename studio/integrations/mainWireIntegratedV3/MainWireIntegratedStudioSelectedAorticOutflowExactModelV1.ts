@@ -34,11 +34,21 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_CHECKPOINT_V1_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard67CheckpointV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID,
+  type MainWireIntegratedModelStandard68CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1,
   type MainWireIntegratedModelStandard66OutputIdV1,
   type MainWireIntegratedModelStandard66OutputValueV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard66OutputRegistryV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_IDS_V1,
+  type MainWireIntegratedModelStandard68OutputIdV1,
+  type MainWireIntegratedModelStandard68OutputValueV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard68OutputRegistryV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM,
@@ -48,6 +58,11 @@ import {
   createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1,
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+  createMainWireIntegratedModelRoundedEjectionFixtureV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
   MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
   MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
@@ -66,6 +81,10 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD67_TYPED_AUTHORITY_SESSION_V1_ID,
   MainWireIntegratedModelStandard67TypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedModelStandard67TypedAuthoritySessionV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_TYPED_AUTHORITY_SESSION_V1_ID,
+  MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
 import type {
   MainWireFlatModelOwnedProjectionAdvanceV1,
   MainWireTypedExecutionPlanInitializationV1,
@@ -134,9 +153,15 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "./MainWireIntegratedStudioModelIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1,
+  applyMainWireIntegratedStudioRoundedEjectionControlV1,
+  reduceMainWireIntegratedStudioRoundedEjectionControlV1,
+} from "./MainWireIntegratedStudioRoundedEjectionControlsV1";
 import generatedExecutionPlanV1 from "./MainWireIntegratedExecutionPlanV1.generated.json";
 
 export {
@@ -148,6 +173,9 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CHECKPOINT_CODE
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_CHECKPOINT_CODEC_ID_V1 =
   "circleheart.main-wire-integrated-v3-algebraic-proximal-roots-checkpoint-codec.standard-v1" as const;
+
+export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CHECKPOINT_CODEC_ID_V1 =
+  "circleheart.main-wire-integrated-v3-rounded-ejection-checkpoint-codec.standard-v1" as const;
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_HOT_PATH_INTEGRITY_TIER_V1 =
   "hot-path-lean" as const;
@@ -239,13 +267,41 @@ const SELECTED_STANDARD67_EXACT_VARIANT_V1 = Object.freeze({
       .proximalArterialRootsProfileId,
 });
 
+const ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1 = Object.freeze({
+  generation: 68 as const,
+  label: "Standard68" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+  fixtureClaim: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM,
+  numericalSessionId:
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_TYPED_AUTHORITY_SESSION_V1_ID,
+  checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID,
+  checkpointCodecId:
+    MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CHECKPOINT_CODEC_ID_V1,
+  runtimeScope:
+    "rounded-ejection-matched-alpha-source-aortic-topology-regular-sinus-all-off" as const,
+  checkpointFixturePairing:
+    "rounded-ejection-complete-fixture-and-profile-identity" as const,
+  proximalArterialRootsProfileId: null,
+});
+
 type SelectedExactModelVariantV1 =
   | typeof SELECTED_STANDARD66_EXACT_VARIANT_V1
-  | typeof SELECTED_STANDARD67_EXACT_VARIANT_V1;
+  | typeof SELECTED_STANDARD67_EXACT_VARIANT_V1
+  | typeof ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1;
 
 type SelectedNumericalSessionV1 =
   | MainWireIntegratedModelStandard66TypedAuthoritySessionV1
-  | MainWireIntegratedModelStandard67TypedAuthoritySessionV1;
+  | MainWireIntegratedModelStandard67TypedAuthoritySessionV1
+  | MainWireIntegratedModelStandard68TypedAuthoritySessionV1;
+
+type SelectedOutputIdV1 =
+  | MainWireIntegratedModelStandard66OutputIdV1
+  | MainWireIntegratedModelStandard68OutputIdV1;
+
+type SelectedOutputValueV1 =
+  | MainWireIntegratedModelStandard66OutputValueV1
+  | MainWireIntegratedModelStandard68OutputValueV1;
 
 const SELECTED_EXECUTION_PLAN_DESCRIPTOR_V1 =
   validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
@@ -313,8 +369,31 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
   }),
 ] satisfies readonly ControlDefinitionV2[]);
 
-const SELECTED_SIGNAL_DEFINITIONS_V1 = Object.freeze(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1
+function selectedControlCatalogV1(
+  variant: SelectedExactModelVariantV1,
+): readonly ControlDefinitionV2[] {
+  return variant.generation === 68
+    ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1
+    : SELECTED_CONTROL_CATALOG_V1;
+}
+
+function selectedOutputCatalogV1(variant: SelectedExactModelVariantV1) {
+  return variant.generation === 68
+    ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1
+    : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1;
+}
+
+function selectedOutputIdsV1(
+  variant: SelectedExactModelVariantV1,
+): readonly SelectedOutputIdV1[] {
+  return variant.generation === 68
+    ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_IDS_V1
+    : MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1;
+}
+
+function selectedSignalDefinitionsV1(variant: SelectedExactModelVariantV1) {
+  return Object.freeze(
+    selectedOutputCatalogV1(variant)
     .filter((definition) => definition.kind === "signal")
     .map((definition): SignalOutputDefinitionV2 => Object.freeze({
       outputId: definition.outputId,
@@ -324,10 +403,12 @@ const SELECTED_SIGNAL_DEFINITIONS_V1 = Object.freeze(
       shape: "scalar",
       sampling: "accepted-step",
     })),
-);
+  );
+}
 
-const SELECTED_METRIC_DEFINITIONS_V1 = Object.freeze(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_CATALOG_V1
+function selectedMetricDefinitionsV1(variant: SelectedExactModelVariantV1) {
+  return Object.freeze(
+    selectedOutputCatalogV1(variant)
     .filter((definition) => definition.kind === "metric")
     .map((definition): MetricOutputDefinitionV2 => Object.freeze({
       outputId: definition.outputId,
@@ -340,11 +421,8 @@ const SELECTED_METRIC_DEFINITIONS_V1 = Object.freeze(
         ...("dependencies" in definition ? definition.dependencies : []),
       ]),
     })),
-);
-
-const SELECTED_EXACT_OUTPUT_IDS_V1 = new Set<string>(
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1,
-);
+  );
+}
 
 type SelectedRuntimeScenarioV1 = {
   fixture: MainWireIntegratedStudioSelectedAorticOutflowFixtureV1;
@@ -370,14 +448,21 @@ async function createSelectedNumericalSessionV1(
   executionPlanInitialization: MainWireTypedExecutionPlanInitializationV1,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ): Promise<SelectedNumericalSessionV1> {
-  return variant.generation === 67
-    ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.create(
+  return variant.generation === 68
+    ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1.create(
         inputs,
         ventricularContractilityScale,
         executionPlanInitialization,
         mechanismResearchInputs,
       )
-    : MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
+    : variant.generation === 67
+      ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1.create(
+        inputs,
+        ventricularContractilityScale,
+        executionPlanInitialization,
+        mechanismResearchInputs,
+      )
+      : MainWireIntegratedModelStandard66TypedAuthoritySessionV1.create(
         inputs,
         ventricularContractilityScale,
         executionPlanInitialization,
@@ -394,8 +479,17 @@ async function restoreSelectedNumericalSessionV1(
     MainWireTypedExecutionPlanInitializationV1 | undefined,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ): Promise<SelectedNumericalSessionV1> {
-  return variant.generation === 67
-    ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1
+  return variant.generation === 68
+    ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+        .restoreStandard68ExactCheckpoint(
+          checkpoint,
+          inputs,
+          ventricularContractilityScale,
+          executionPlanInitialization,
+          mechanismResearchInputs,
+        )
+    : variant.generation === 67
+      ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1
         .restoreStandard67ExactCheckpoint(
           checkpoint,
           inputs,
@@ -403,7 +497,7 @@ async function restoreSelectedNumericalSessionV1(
           executionPlanInitialization,
           mechanismResearchInputs,
         )
-    : MainWireIntegratedModelStandard66TypedAuthoritySessionV1
+      : MainWireIntegratedModelStandard66TypedAuthoritySessionV1
         .restoreStandard66ExactCheckpoint(
           checkpoint,
           inputs,
@@ -415,37 +509,52 @@ async function restoreSelectedNumericalSessionV1(
 
 function projectCurrentSelectedValuesV1(
   session: SelectedNumericalSessionV1,
-  outputIds: readonly MainWireIntegratedModelStandard66OutputIdV1[],
-) {
-  return session instanceof
+  outputIds: readonly SelectedOutputIdV1[],
+): Readonly<Record<string, SelectedOutputValueV1>> {
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+    ? session.projectCurrentAcceptedStandard68ValuesV1(
+        outputIds as readonly MainWireIntegratedModelStandard68OutputIdV1[],
+      )
+    : session instanceof
       MainWireIntegratedModelStandard67TypedAuthoritySessionV1
-    ? session.projectCurrentAcceptedStandard67ValuesV1(outputIds)
-    : session.projectCurrentAcceptedStandard66ValuesV1(outputIds);
+      ? session.projectCurrentAcceptedStandard67ValuesV1(
+          outputIds as readonly MainWireIntegratedModelStandard66OutputIdV1[],
+        )
+      : session.projectCurrentAcceptedStandard66ValuesV1(
+          outputIds as readonly MainWireIntegratedModelStandard66OutputIdV1[],
+        );
 }
 
 function advanceSelectedNumericalProjectionV1(
   session: SelectedNumericalSessionV1,
   targetTimeSec: number,
-  outputIds: readonly MainWireIntegratedModelStandard66OutputIdV1[],
+  outputIds: readonly SelectedOutputIdV1[],
 ) {
-  return session instanceof
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+    ? session.advanceToPresentationTimeWithStandard68SelectedOutputProjectionV1(
+        targetTimeSec,
+        outputIds as readonly MainWireIntegratedModelStandard68OutputIdV1[],
+      )
+    : session instanceof
       MainWireIntegratedModelStandard67TypedAuthoritySessionV1
     ? session
         .advanceToPresentationTimeWithStandard67SelectedOutputProjectionV1(
           targetTimeSec,
-          outputIds,
+          outputIds as readonly MainWireIntegratedModelStandard66OutputIdV1[],
         )
     : session
         .advanceToPresentationTimeWithStandard66SelectedOutputProjectionV1(
           targetTimeSec,
-          outputIds,
+          outputIds as readonly MainWireIntegratedModelStandard66OutputIdV1[],
         );
 }
 
 function checkpointSelectedNumericalSessionV1(
   session: SelectedNumericalSessionV1,
 ) {
-  return session instanceof
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+    ? session.checkpointStandard68Exact()
+    : session instanceof
       MainWireIntegratedModelStandard67TypedAuthoritySessionV1
     ? session.checkpointStandard67Exact()
     : session.checkpointStandard66Exact();
@@ -453,8 +562,10 @@ function checkpointSelectedNumericalSessionV1(
 
 function checkpointSelectedAnalysisSessionV1(
   session: SelectedNumericalSessionV1,
-): Promise<Uint8Array> {
-  return session instanceof
+): Promise<Uint8Array | MainWireIntegratedModelStandard68CheckpointV1> {
+  return session instanceof MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+    ? session.checkpointStandard68Exact()
+    : session instanceof
       MainWireIntegratedModelStandard67TypedAuthoritySessionV1
     ? session.checkpointStandard67CanonicalBinaryV3()
     : session.checkpointStandard66CanonicalBinaryV3();
@@ -462,24 +573,33 @@ function checkpointSelectedAnalysisSessionV1(
 
 function restoreSelectedAnalysisSessionV1(
   variant: SelectedExactModelVariantV1,
-  checkpointBytes: Uint8Array,
+  checkpoint: Uint8Array | MainWireIntegratedModelStandard68CheckpointV1,
   inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   ventricularContractilityScale: number,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
   executionPlanInitialization: MainWireTypedExecutionPlanInitializationV1,
 ): Promise<SelectedNumericalSessionV1> {
-  return variant.generation === 67
-    ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1
+  return variant.generation === 68
+    ? MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+        .restoreStandard68ExactCheckpoint(
+          checkpoint,
+          inputs,
+          ventricularContractilityScale,
+          executionPlanInitialization,
+          mechanismResearchInputs,
+        )
+    : variant.generation === 67
+      ? MainWireIntegratedModelStandard67TypedAuthoritySessionV1
         .restoreStandard67CanonicalBinaryV3(
-          checkpointBytes,
+          checkpoint as Uint8Array,
           inputs,
           ventricularContractilityScale,
           mechanismResearchInputs,
           executionPlanInitialization,
         )
-    : MainWireIntegratedModelStandard66TypedAuthoritySessionV1
+      : MainWireIntegratedModelStandard66TypedAuthoritySessionV1
         .restoreStandard66CanonicalBinaryV3(
-          checkpointBytes,
+          checkpoint as Uint8Array,
           inputs,
           ventricularContractilityScale,
           mechanismResearchInputs,
@@ -492,13 +612,19 @@ function createSelectedNumericalFixtureV1(
   inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ) {
-  return variant.generation === 67
-    ? createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
+  return variant.generation === 68
+    ? createMainWireIntegratedModelRoundedEjectionFixtureV1(
         inputs,
         1,
         mechanismResearchInputs,
       )
-    : createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
+    : variant.generation === 67
+      ? createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
+        inputs,
+        1,
+        mechanismResearchInputs,
+      )
+      : createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
         inputs,
         1,
         mechanismResearchInputs,
@@ -508,6 +634,8 @@ function createSelectedNumericalFixtureV1(
 /** Worker-local owner shared by the fixed Standard66/67 exact assemblies. */
 export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   readonly #variant: SelectedExactModelVariantV1;
+  readonly #defaultBaselineCheckpoint:
+    MainWireIntegratedModelStandard68CheckpointV1 | undefined;
   readonly #sessions = new Map<string, SelectedRuntimeSessionV1>();
   readonly #retiredSessionIds = new Set<string>();
   readonly #executionPlanScenarioOwners = new WeakMap<
@@ -518,8 +646,15 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
   constructor(
     variant: SelectedExactModelVariantV1 =
       SELECTED_STANDARD66_EXACT_VARIANT_V1,
+    defaultBaselineCheckpoint?: MainWireIntegratedModelStandard68CheckpointV1,
   ) {
     this.#variant = variant;
+    if (defaultBaselineCheckpoint !== undefined && variant.generation !== 68) {
+      throw new Error(
+        "A settled Standard68 baseline cannot be installed in an older exact variant",
+      );
+    }
+    this.#defaultBaselineCheckpoint = defaultBaselineCheckpoint;
   }
 
   async createSession(
@@ -562,10 +697,20 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           `duplicate selected Standard66 runtime Scenario: ${input.scenarioId}`,
         );
       }
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, this.#variant);
       const checkpoint = input.checkpoint === undefined
         ? undefined
         : validateSelectedScenarioCheckpointV1(input.checkpoint);
+      const defaultBaselineCheckpoint =
+        checkpoint === undefined
+        && this.#variant.generation === 68
+        && this.#defaultBaselineCheckpoint !== undefined
+        && studioCanonicalJsonStringify(fixture)
+          === studioCanonicalJsonStringify(
+            MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+          )
+          ? this.#defaultBaselineCheckpoint
+          : undefined;
       const boundExecutionPlan = suppliedExecutionPlans?.get(input.scenarioId)
         ?? bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1();
       if (
@@ -582,6 +727,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         boundExecutionPlan,
       );
       const modelSession = checkpoint === undefined
+        && defaultBaselineCheckpoint === undefined
         ? await createSelectedNumericalSessionV1(
             this.#variant,
             fixture.hemodynamicResearchInputs,
@@ -591,18 +737,26 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           )
         : await restoreSelectedNumericalSessionV1(
               this.#variant,
-              checkpoint.payload,
+              checkpoint?.payload ?? defaultBaselineCheckpoint,
               fixture.hemodynamicResearchInputs,
               1,
               preparedExecutionPlan.initialization,
               fixture.mechanismResearchInputs,
             );
       const accepted = modelSession.currentAcceptedState();
+      const expectedCheckpointClock = checkpoint === undefined
+        ? defaultBaselineCheckpoint === undefined
+          ? undefined
+          : Object.freeze({
+              acceptedRevision: defaultBaselineCheckpoint.revision,
+              acceptedTimeSec: defaultBaselineCheckpoint.acceptedTimeSec,
+            })
+        : checkpoint;
       if (
-        checkpoint !== undefined
+        expectedCheckpointClock !== undefined
         && (
-          accepted.revision !== checkpoint.acceptedRevision
-          || accepted.acceptedTimeSec !== checkpoint.acceptedTimeSec
+          accepted.revision !== expectedCheckpointClock.acceptedRevision
+          || accepted.acceptedTimeSec !== expectedCheckpointClock.acceptedTimeSec
         )
       ) {
         throw new Error(
@@ -653,7 +807,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       acceptedTimeSec: accepted.acceptedTimeSec,
       values: projectCurrentSelectedValuesV1(
         scenario.modelSession,
-        MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1,
+        selectedOutputIdsV1(this.#variant),
       ),
     });
   }
@@ -665,7 +819,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
     const projection = this.#advanceScenarioProjection(
       scenario,
-      MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1,
+      selectedOutputIdsV1(this.#variant),
     );
     return selectedFrameFromValuesV1({
       modelId: this.#variant.modelId,
@@ -689,7 +843,8 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         "Selected Standard66 presentation batch stepCount is invalid",
       );
     }
-    const outputIds = validateSelectedStandard66OutputIdsV1(
+    const outputIds = validateSelectedOutputIdsV1(
+      this.#variant,
       presentationOutputIds,
     );
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
@@ -704,7 +859,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       const projection = this.#advanceScenarioProjection(
         scenario,
         terminal
-          ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD_66_OUTPUT_IDS_V1
+          ? selectedOutputIdsV1(this.#variant)
           : outputIds,
       );
       acceptedRevisions[index] = projection.advance.acceptedRevision;
@@ -762,6 +917,22 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         `Selected Standard66 control input epoch is stale: expected ${expectedInputEpoch}, current ${scenario.inputEpoch}`,
       );
     }
+    if (this.#variant.generation === 68) {
+      const fixture = validateAndOwnSelectedFixtureV1(
+        applyMainWireIntegratedStudioRoundedEjectionControlV1(
+          scenario.fixture,
+          controlId,
+          value,
+        ),
+        this.#variant,
+      );
+      return this.#warmStartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture,
+        expectedInputEpoch,
+      );
+    }
     if (
       controlId
       !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1
@@ -771,7 +942,11 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         `Selected Standard66 control is not registered: ${controlId}`,
       );
     }
-    const fixture = applySelectedHeartRateV1(scenario.fixture, value);
+    const fixture = applySelectedHeartRateV1(
+      scenario.fixture,
+      value,
+      this.#variant,
+    );
     return this.#coldRestartFixtureAtomically(
       runtimeSessionId,
       scenarioId,
@@ -786,12 +961,25 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     fixtureValue: StudioJsonValueV2,
   ): Promise<number> {
     const scenario = this.#requiredScenario(runtimeSessionId, scenarioId);
-    await this.#coldRestartFixtureAtomically(
-      runtimeSessionId,
-      scenarioId,
-      validateAndOwnSelectedFixtureV1(fixtureValue),
-      scenario.inputEpoch,
+    const fixture = validateAndOwnSelectedFixtureV1(
+      fixtureValue,
+      this.#variant,
     );
+    if (this.#variant.generation === 68) {
+      await this.#warmStartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture,
+        scenario.inputEpoch,
+      );
+    } else {
+      await this.#coldRestartFixtureAtomically(
+        runtimeSessionId,
+        scenarioId,
+        fixture,
+        scenario.inputEpoch,
+      );
+    }
     return scenario.inputEpoch;
   }
 
@@ -975,7 +1163,10 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           `Selected Standard66 capture Scenario not found: ${desired.scenarioId}`,
         );
       }
-      const desiredFixture = validateAndOwnSelectedFixtureV1(desired.fixture);
+      const desiredFixture = validateAndOwnSelectedFixtureV1(
+        desired.fixture,
+        this.#variant,
+      );
       if (
         studioCanonicalJsonStringify(current.fixture)
         !== studioCanonicalJsonStringify(desiredFixture)
@@ -1109,14 +1300,14 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
 
   #advanceScenarioProjection(
     scenario: SelectedRuntimeScenarioV1,
-    outputIds: readonly MainWireIntegratedModelStandard66OutputIdV1[],
+    outputIds: readonly SelectedOutputIdV1[],
   ): Readonly<{
     advance: Extract<
       MainWireFlatModelOwnedProjectionAdvanceV1,
       { status: "advanced" }
     >;
     projectedValues: Readonly<
-      Record<string, MainWireIntegratedModelStandard66OutputValueV1>
+      Record<string, SelectedOutputValueV1>
     >;
   }> {
     const binding = scenario.executionPlanBinding;
@@ -1165,6 +1356,113 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
       advance: projection.advance,
       projectedValues: projection.projectedValues,
     });
+  }
+
+  async #warmStartFixtureAtomically(
+    runtimeSessionId: string,
+    scenarioId: string,
+    fixture: MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
+    expectedInputEpoch: number,
+  ): Promise<StudioSimulationFrameV2> {
+    if (this.#variant.generation !== 68) {
+      throw new Error("Accepted-state warm start is owned only by Standard68");
+    }
+    const original = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (original.inputEpoch !== expectedInputEpoch) {
+      throw new Error("Standard68 fixture warm start input epoch is stale");
+    }
+    const preparedExecutionPlan = this.#prepareExecutionPlan(
+      runtimeSessionId,
+      scenarioId,
+      bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
+    );
+    const candidate =
+      await original.modelSession.warmStartWithHemodynamicResearchInputs(
+        fixture.hemodynamicResearchInputs,
+        1,
+        preparedExecutionPlan.initialization,
+        fixture.mechanismResearchInputs,
+      );
+    if (
+      !(candidate instanceof
+        MainWireIntegratedModelStandard68TypedAuthoritySessionV1)
+    ) {
+      throw new Error("Standard68 warm start returned the wrong exact owner");
+    }
+    const accepted = candidate.currentAcceptedState();
+    const sourceAccepted = original.modelSession.currentAcceptedState();
+    if (
+      accepted.revision !== sourceAccepted.revision
+      || accepted.acceptedTimeSec !== sourceAccepted.acceptedTimeSec
+    ) {
+      throw new Error("Standard68 fixture warm start changed the accepted clock");
+    }
+
+    // Changing TBV is the one warm-start operation that redistributes stored
+    // volume. Preflight a full target cycle on a detached exact restore before
+    // committing the live owner, preserving the Standard65 safety contract.
+    if (
+      fixture.hemodynamicResearchInputs.totalBloodVolumeMl
+      !== original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl
+    ) {
+      const preflightExecutionPlan = this.#prepareExecutionPlan(
+        runtimeSessionId,
+        scenarioId,
+        bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
+      );
+      const preflight = await restoreSelectedNumericalSessionV1(
+        this.#variant,
+        await candidate.checkpointStandard68Exact(),
+        fixture.hemodynamicResearchInputs,
+        1,
+        preflightExecutionPlan.initialization,
+        fixture.mechanismResearchInputs,
+      );
+      const originBaseTick = executionPlanBaseTickAtTimeV1(
+        preflightExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      );
+      const endTimeSec = accepted.acceptedTimeSec
+        + 60 / fixture.hemodynamicResearchInputs.heartRateBpm;
+      for (let ordinal = 1; ; ordinal += 1) {
+        const targetBaseTick = executionPlanPresentationBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          originBaseTick,
+          ordinal,
+        );
+        const targetTimeSec = executionPlanTimeAtBaseTickV1(
+          preflightExecutionPlan.updateSchedule,
+          targetBaseTick,
+        );
+        if (targetTimeSec > endTimeSec + 1e-12) break;
+        const advance = preflight.advanceToPresentationTime(targetTimeSec);
+        if (advance.status !== "advanced") {
+          throw new Error(
+            `Standard68 TBV warm start rejected before commit: ${selectedAdvanceFailureMessageV1(advance)}`,
+          );
+        }
+      }
+    }
+
+    const current = this.#requiredScenario(runtimeSessionId, scenarioId);
+    if (current !== original || current.inputEpoch !== expectedInputEpoch) {
+      throw new Error("Standard68 fixture warm start became stale before swap");
+    }
+    current.fixture = fixture;
+    current.modelSession = candidate;
+    current.executionPlanBinding = Object.freeze({
+      boundExecutionPlan:
+        preparedExecutionPlan.initialization.boundExecutionPlan,
+      modelSession: candidate,
+      updateSchedule: preparedExecutionPlan.updateSchedule,
+      presentationOriginBaseTick: executionPlanBaseTickAtTimeV1(
+        preparedExecutionPlan.updateSchedule,
+        accepted.acceptedTimeSec,
+      ),
+    });
+    current.presentationOrdinal = 0;
+    current.inputEpoch += 1;
+    return this.currentFrame(runtimeSessionId, scenarioId);
   }
 
   async #coldRestartFixtureAtomically(
@@ -1257,6 +1555,26 @@ export function createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1():
   });
 }
 
+export function createMainWireIntegratedStudioRoundedEjectionReleaseV1(
+  defaultBaselineCheckpoint?: MainWireIntegratedModelStandard68CheckpointV1,
+):
+  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
+  const host =
+    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
+      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
+      defaultBaselineCheckpoint,
+    );
+  return Object.freeze({
+    manifest: createSelectedExactKernelV1(
+      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
+    ),
+    executables: selectedExecutableBundleV1(
+      host,
+      ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
+    ),
+  });
+}
+
 export function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1():
   ExactModelKernelManifestV3 {
   return createSelectedExactKernelV1(
@@ -1271,9 +1589,19 @@ export function createMainWireIntegratedStudioAlgebraicProximalRootsKernelV1():
   );
 }
 
+export function createMainWireIntegratedStudioRoundedEjectionKernelV1():
+  ExactModelKernelManifestV3 {
+  return createSelectedExactKernelV1(
+    ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
+  );
+}
+
 function createSelectedExactKernelV1(
   variant: SelectedExactModelVariantV1,
 ): ExactModelKernelManifestV3 {
+  const signalDefinitions = selectedSignalDefinitionsV1(variant);
+  const metricDefinitions = selectedMetricDefinitionsV1(variant);
+  const controlCatalog = selectedControlCatalogV1(variant);
   const manifest: ExactModelKernelManifestV3 = Object.freeze({
     schemaId: STUDIO_EXACT_MODEL_KERNEL_V3_SCHEMA_ID,
     modelId: variant.modelId,
@@ -1307,7 +1635,9 @@ function createSelectedExactKernelV1(
         MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_HOT_PATH_INTEGRITY_TIER_V1,
       acceptedBoundaryCapture: true,
       fixtureChangeSemantics:
-        "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
+        variant.generation === 68
+          ? "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch"
+          : "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
       scope: variant.runtimeScope,
     }),
     solver: Object.freeze({
@@ -1348,22 +1678,28 @@ function createSelectedExactKernelV1(
           "exact-object-selected-identity-no-migration-no-clock-rebase",
       }),
     }),
-    primitiveControlCatalog: SELECTED_CONTROL_CATALOG_V1,
-    primitiveSignalCatalog: SELECTED_SIGNAL_DEFINITIONS_V1,
-    modelMetricCatalog: SELECTED_METRIC_DEFINITIONS_V1,
+    primitiveControlCatalog: controlCatalog,
+    primitiveSignalCatalog: signalDefinitions,
+    modelMetricCatalog: metricDefinitions,
     capabilities: Object.freeze([
       STUDIO_EXACT_PRESENTATION_BATCH_CAPABILITY_V1,
       EXECUTION_PLAN_TYPED_AUTHORITY_BINDING_V1_CAPABILITY,
       EXECUTION_PLAN_NEWTON_WORKSPACE_V1_CAPABILITY,
-      ...SELECTED_CONTROL_CATALOG_V1.map(
+      ...controlCatalog.map(
         ({ controlId }) => `control/${controlId}`,
       ),
-      ...SELECTED_SIGNAL_DEFINITIONS_V1.map(
+      ...signalDefinitions.map(
         ({ outputId }) => `output/${outputId}`,
       ),
-      ...SELECTED_METRIC_DEFINITIONS_V1.map(
+      ...metricDefinitions.map(
         ({ outputId }) => `output/${outputId}`,
       ),
+      ...(variant.generation === 68
+        ? [
+            `analysis/${MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID}`,
+            `analysis/${MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID}`,
+          ]
+        : []),
     ]),
   });
   assertExactModelKernelManifestV3(manifest);
@@ -1383,7 +1719,7 @@ function selectedExecutableBundleV1(
       input: Readonly<{ model: ModelContractV2; fixture: StudioJsonValueV2 }>,
     ) {
       assertSelectedModelV1(input.model, variant);
-      validateAndOwnSelectedFixtureV1(input.fixture);
+      validateAndOwnSelectedFixtureV1(input.fixture, variant);
       return undefined;
     },
     async validateCapture(
@@ -1393,7 +1729,10 @@ function selectedExecutableBundleV1(
       }>,
     ): Promise<void> {
       assertSelectedModelV1(input.model, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.capture.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(
+        input.capture.fixture,
+        variant,
+      );
       const checkpoint = validateSelectedScenarioCheckpointV1(
         input.capture.checkpoint,
       );
@@ -1437,7 +1776,7 @@ function selectedExecutableBundleV1(
       }>,
     ) {
       assertSelectedRuntimeContextV1(input.context, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, variant);
       createSelectedNumericalFixtureV1(
         variant,
         fixture.hemodynamicResearchInputs,
@@ -1453,7 +1792,14 @@ function selectedExecutableBundleV1(
       }>,
     ): StudioFixturePatchV2 {
       assertSelectedRuntimeContextV1(input.context, variant);
-      const fixture = validateAndOwnSelectedFixtureV1(input.fixture);
+      const fixture = validateAndOwnSelectedFixtureV1(input.fixture, variant);
+      if (variant.generation === 68) {
+        return reduceMainWireIntegratedStudioRoundedEjectionControlV1(
+          fixture,
+          input.action.controlId,
+          input.action.value,
+        );
+      }
       if (
         input.action.controlId
         !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_CONTROL_IDS_V1
@@ -1463,7 +1809,11 @@ function selectedExecutableBundleV1(
           `Selected Standard66 control is not registered: ${input.action.controlId}`,
         );
       }
-      const next = applySelectedHeartRateV1(fixture, input.action.value);
+      const next = applySelectedHeartRateV1(
+        fixture,
+        input.action.value,
+        variant,
+      );
       return Object.freeze({
         changes: Object.freeze([
           Object.freeze({
@@ -1604,6 +1954,7 @@ function selectedExecutableBundleV1(
             });
             const fixture = validateAndOwnSelectedFixtureV1(
               scenario.capture.fixture,
+              variant,
             );
             const checkpoint = validateSelectedScenarioCheckpointV1(
               scenario.capture.checkpoint,
@@ -1680,6 +2031,7 @@ function selectedExecutableBundleV1(
 
 function validateAndOwnSelectedFixtureV1(
   value: unknown,
+  variant: SelectedExactModelVariantV1,
 ): MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 {
   const owned = cloneAndFreezeStudioJson(value as StudioJsonValueV2);
   const record = exactSelectedRecordV1(
@@ -1727,7 +2079,7 @@ function validateAndOwnSelectedFixtureV1(
   )) {
     if (!Object.is(scale, 1)) {
       throw new Error(
-        "Selected Standard66 fixture requires unit calcium decay-time "
+        `Selected ${variant.label} fixture requires unit calcium decay-time `
           + `scale for ${wallId}`,
       );
     }
@@ -1751,6 +2103,7 @@ function validateAndOwnSelectedFixtureV1(
 function applySelectedHeartRateV1(
   fixture: MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
   heartRateBpm: number,
+  variant: SelectedExactModelVariantV1,
 ): MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 {
   const definition = SELECTED_CONTROL_CATALOG_V1[0]!;
   const issue = studioNumericControlValueIssueV2(heartRateBpm, definition);
@@ -1765,7 +2118,7 @@ function applySelectedHeartRateV1(
       ...fixture.hemodynamicResearchInputs,
       heartRateBpm,
     },
-  });
+  }, variant);
 }
 
 function exactSelectedRecordV1(
@@ -1836,23 +2189,25 @@ function validateSelectedScenarioCheckpointV1(
   });
 }
 
-function validateSelectedStandard66OutputIdsV1(
+function validateSelectedOutputIdsV1(
+  variant: SelectedExactModelVariantV1,
   outputIds: readonly string[],
-): readonly MainWireIntegratedModelStandard66OutputIdV1[] {
+): readonly SelectedOutputIdV1[] {
+  const exactOutputIds = new Set<string>(selectedOutputIdsV1(variant));
   const seen = new Set<string>();
   const validated = outputIds.map((outputId) => {
-    if (!SELECTED_EXACT_OUTPUT_IDS_V1.has(outputId)) {
+    if (!exactOutputIds.has(outputId)) {
       throw new Error(
-        `Selected Standard66 presentation output ${outputId} is unavailable`,
+        `Selected ${variant.label} presentation output ${outputId} is unavailable`,
       );
     }
     if (seen.has(outputId)) {
       throw new Error(
-        `Selected Standard66 presentation output ${outputId} is duplicated`,
+        `Selected ${variant.label} presentation output ${outputId} is duplicated`,
       );
     }
     seen.add(outputId);
-    return outputId as MainWireIntegratedModelStandard66OutputIdV1;
+    return outputId as SelectedOutputIdV1;
   });
   return Object.freeze(validated);
 }
@@ -1865,7 +2220,7 @@ function selectedFrameFromValuesV1(input: Readonly<{
   acceptedRevision: number;
   acceptedTimeSec: number;
   values: Readonly<
-    Record<string, MainWireIntegratedModelStandard66OutputValueV1>
+    Record<string, SelectedOutputValueV1>
   >;
 }>): StudioSimulationFrameV2 {
   const outputs = Object.fromEntries(
@@ -1895,7 +2250,7 @@ function portableSelectedOutputScalarV1(value: number | null): number | null {
 }
 
 function selectedOutputStateCodeV1(
-  output: MainWireIntegratedModelStandard66OutputValueV1,
+  output: SelectedOutputValueV1,
 ): number {
   const availability = output.availability === "available" ? 0 : 3;
   const quality = output.quality === "authoritative-state"

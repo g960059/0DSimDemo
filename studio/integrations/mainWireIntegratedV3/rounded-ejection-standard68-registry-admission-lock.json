@@ -1,0 +1,8 @@
+{
+  "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.rounded-ejection.standard-68",
+  "artifactRevisionId": "05656f5f16e520040fffe8f550f8444a19f7ab670fa7ff561e94b13078bfb251",
+  "artifactSha256": "d4a9681d042f4d1caa523b5dacf9d9d3c37d21561b2a0a980ce4c9cf4827bdea",
+  "predecessorArtifactRevisionId": null,
+  "equivalenceReportSha256": null
+}

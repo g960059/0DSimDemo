@@ -139,10 +139,11 @@ const OUTPUT_PRESENTATION_V1: Readonly<
 > = Object.freeze({
   "presentation.pressure-summary.Ao": {
     category: "hemodynamics",
+    inlineDisclosure: true,
     label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
     description: textV1(
-      "Systolic and diastolic aortic-root pressure with the time mean in parentheses",
-      "大動脈基部圧の最大値／最小値と括弧内の時間平均",
+      "Maximum, minimum, and time-mean pressure of the lumped aortic-root node; local pressure recovery, wave travel, and reflection are not represented",
+      "集中定数系の大動脈基部node圧の最大値／最小値と時間平均。局所的な圧回復、波伝播、反射は含まない",
     ),
     aliases: [
       "AoP",
@@ -190,6 +191,23 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "リズムモデルが出力する現在の心拍数",
     ),
     aliases: ["HR", "heart rate", "心拍", "脈拍"],
+  },
+  "hemodynamics.pressure.absolute.Ao": {
+    category: "hemodynamics",
+    inlineDisclosure: true,
+    label: textV1("Aortic pressure (AoP)", "大動脈圧 (AoP)"),
+    description: textV1(
+      "Pressure of the lumped aortic-root compliance node immediately downstream of the aortic valve; local pressure recovery, wave travel, and reflection are not modeled",
+      "大動脈弁直後に置いた集中定数大動脈基部compliance nodeの圧。局所的圧回復、圧波の伝播・反射はモデル化していない",
+    ),
+    aliases: [
+      "AoP",
+      "aortic pressure",
+      "aortic root pressure",
+      "Ao node",
+      "大動脈圧",
+      "大動脈基部圧",
+    ],
   },
   "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port": {
     category: "hemodynamics",
@@ -454,6 +472,69 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "解析対象となる1心拍中に大動脈弁を通過した正味容積",
     ),
     aliases: ["effective SV", "AoV net", "forward stroke volume", "実効拍出量"],
+  },
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "AV mean pressure gradient (mean PG)",
+      "大動脈弁平均圧較差 (mean PG)",
+    ),
+    description: textV1(
+      "Time-weighted mean modeled LV − aortic-root hydraulic pressure difference over forward-flow accepted steps; catheter and Doppler equivalence is not claimed",
+      "大動脈弁順行性血流中のaccepted stepについて時間加重平均したモデルLV − 大動脈基部水力学的圧較差。カテーテル・Dopplerとの等価性は主張しない",
+    ),
+    aliases: [
+      "mean PG",
+      "mPG",
+      "AV mean gradient",
+      "aortic valve mean gradient",
+      "大動脈弁平均圧較差",
+    ],
+  },
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV": {
+    category: "valves",
+    label: textV1(
+      "AV peak pressure gradient (peak PG)",
+      "大動脈弁最大圧較差 (peak PG)",
+    ),
+    description: textV1(
+      "Maximum modeled LV − aortic-root hydraulic pressure difference over forward-flow accepted steps; catheter and Doppler equivalence is not claimed",
+      "大動脈弁順行性血流中のaccepted stepで最大となるモデルLV − 大動脈基部水力学的圧較差。カテーテル・Dopplerとの等価性は主張しない",
+    ),
+    aliases: [
+      "peak PG",
+      "max PG",
+      "AV peak gradient",
+      "aortic valve peak gradient",
+      "大動脈弁最大圧較差",
+    ],
+  },
+  "hemodynamics.duration.valve-forward-flow.AoV": {
+    category: "valves",
+    label: textV1("Aortic ejection time (ET)", "大動脈駆出時間 (ET)"),
+    description: textV1(
+      "Total accepted-step duration of forward aortic-valve flow during the completed beat",
+      "解析対象となる1心拍で大動脈弁の順行性血流が認められたaccepted-step時間の総和",
+    ),
+    aliases: ["ET", "ejection time", "LVET", "駆出時間"],
+  },
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV": {
+    category: "myocardium",
+    label: textV1("LV +dP/dt (accepted-step)", "左室 +dP/dt (accepted-step)"),
+    description: textV1(
+      "Maximum finite-difference rate of absolute LV pressure over accepted solver steps in the completed beat; it is not a filtered catheter measurement",
+      "解析対象心拍のaccepted solver step間で求めた左室絶対圧の最大有限差分変化率。フィルタ処理したカテーテル実測値ではない",
+    ),
+    aliases: ["LV dP/dt max", "+dP/dt", "contractility", "左室収縮能"],
+  },
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV": {
+    category: "myocardium",
+    label: textV1("LV −dP/dt (accepted-step)", "左室 −dP/dt (accepted-step)"),
+    description: textV1(
+      "Minimum finite-difference rate of absolute LV pressure over accepted solver steps in the completed beat; it is not a filtered catheter measurement",
+      "解析対象心拍のaccepted solver step間で求めた左室絶対圧の最小有限差分変化率。フィルタ処理したカテーテル実測値ではない",
+    ),
+    aliases: ["LV dP/dt min", "-dP/dt", "relaxation", "左室弛緩"],
   },
   "hemodynamics.output.effective-native-left": {
     category: "hemodynamics",

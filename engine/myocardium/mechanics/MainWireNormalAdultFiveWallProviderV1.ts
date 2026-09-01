@@ -457,7 +457,7 @@ function createMaterialKernelsFromMaterial(
   });
 }
 
-function createMaterialKernelsWithMechanicsResearchInputsV1(
+export function createMaterialKernelsWithMechanicsResearchInputsV1(
   inputs: MainWireFiveWallMechanicsResearchInputsV1,
   selectedVentricularWallMaterial?: LandSlsWallMaterialParamsV1,
   selectedVentricularColdMaximumIterations?: number,
@@ -537,7 +537,7 @@ function createNormalAdultProvider(
   );
 }
 
-function createNormalAdultProviderFromMaterial(
+export function createNormalAdultProviderFromMaterial(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   ventricularEquilibriumPassive: CompiledEquilibriumOneFiberPassiveV1,
   ventricularWallMaterial: LandSlsWallMaterialParamsV1,
@@ -556,7 +556,7 @@ function createNormalAdultProviderFromMaterial(
   );
 }
 
-function createNormalAdultProviderFromKernels(
+export function createNormalAdultProviderFromKernels(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
   materialByWall: MainWireFiveWallRecordV1<
     MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
