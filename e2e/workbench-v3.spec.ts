@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-const selectedAorticRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
+const algebraicProximalRootsRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
+  "../studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
@@ -10,7 +10,8 @@ const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
-const DEFAULT_EXACT_MODEL_ID = selectedAorticRegistryAdmissionLock.modelId;
+const DEFAULT_EXACT_MODEL_ID =
+  algebraicProximalRootsRegistryAdmissionLock.modelId;
 const MODEL_LAB_EXACT_MODEL_ID = standardModelLabRegistryAdmissionLock.modelId;
 const UUID_RESOURCE_ID =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -86,7 +87,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop production Standard66 exposes the selected aortic Surface", async ({
+test("@desktop production Standard67 exposes the algebraic-root Surface", async ({
   page,
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
@@ -784,7 +785,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
-  // round-trip. Standard66's sole control cold-restarts only that branch;
+  // round-trip. Standard67's sole control cold-restarts only that branch;
   // the baseline fixture and accepted trajectory remain untouched.
   const restoredCopyEpoch = await inputEpoch(page);
   await heartRate.press("ArrowLeft");
@@ -815,7 +816,7 @@ test("@desktop simulation information stays human-facing", async ({
   await expect(documentationLink).toBeVisible();
   await expect(documentationLink).toHaveAttribute(
     "href",
-    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.selected-aortic-outflow\.standard-66\?surface=/,
+    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.algebraic-proximal-roots\.standard-67\?surface=/,
   );
   const limitations = dialog.locator("details").filter({
     hasText: "制限事項",
@@ -840,10 +841,10 @@ test("@desktop simulation information stays human-facing", async ({
   await documentationLink.click();
   const documentationPage = await documentationPageOpened;
   await expect(
-    documentationPage.getByTestId("standard66-model-documentation-v1"),
+    documentationPage.getByTestId("standard67-model-documentation-v1"),
   ).toBeVisible();
   await expect(documentationPage.getByRole("heading", {
-    name: "Main Wire Standard 66",
+    name: "Main Wire Standard 67",
     exact: true,
   })).toBeVisible();
   await documentationPage.close();
