@@ -12,6 +12,11 @@ import {
   buildMainWireBaselineConditioningTasksV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
+  buildMainWireBaselineSearchDesignV1,
+  compareMainWireBaselineCandidateObjectivesV1,
+  scoreMainWireBaselineCandidateObjectiveV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
+import {
   applyMainWireBaselineCalibrationParametersV1,
   readMainWireBaselineCalibrationParameterV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -417,6 +422,54 @@ describe("Standard68 baseline mint gates", () => {
       [[3, 0], [0, 2]],
       2,
     )).toEqual([3, 2]);
+  });
+
+  it("builds a deterministic bounded search and ranks floor-buffered interiors first", () => {
+    const first = buildMainWireBaselineSearchDesignV1({ stage: "initial" });
+    const second = buildMainWireBaselineSearchDesignV1({ stage: "initial" });
+    expect(first).toHaveLength(24);
+    expect(second).toEqual(first);
+    expect(buildMainWireBaselineSearchDesignV1({
+      stage: "refinement",
+      center: first[3].candidateInputs,
+    })).toHaveLength(16);
+
+    const check = (actual: number) => Object.freeze({
+      checkId: "left-ventricle.maximum-dpdt" as const,
+      status: actual >= 1_200 && actual <= 2_500
+        ? "passed" as const
+        : "failed" as const,
+      actual,
+      minimum: 1_200,
+      maximum: 2_500,
+      unit: "mmHg/s",
+    });
+    const floor = Object.freeze({
+      checkId: "left-ventricle.maximum-dpdt" as const,
+      unit: "mmHg/s",
+      constructionMinimum: 1_200,
+      constructionMaximum: 2_500,
+      constructionCorridorWidth: 1_300,
+      coldRepeatAbsoluteDifference: 0,
+      coldCheckpointAbsoluteDifference: 1,
+      dtHalvingAbsoluteDifference: 20,
+      numericalFloorAbsolute: 20,
+      numericalFloorFractionOfCorridor: 20 / 1_300,
+    });
+    const edge = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: [check(2_490)],
+      candidate: first[0].candidateInputs,
+      numericalFloors: [floor],
+    });
+    const interior = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: [check(2_400)],
+      candidate: first[0].candidateInputs,
+      numericalFloors: [floor],
+    });
+    expect(edge.status).toBe("corridor-rejected");
+    expect(interior.status).toBe("feasible");
+    expect(compareMainWireBaselineCandidateObjectivesV1(interior, edge))
+      .toBeLessThan(0);
   });
 });
 
