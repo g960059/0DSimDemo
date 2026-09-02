@@ -11,6 +11,9 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import type {
+  MainWireIntegratedModelBaselineValidationCheckIdV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -25,7 +28,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_V1_ID =
 export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_COMPILER_V1_ID =
   "main-wire-baseline-conditioning-study-compiler-v1" as const;
 
-type ConditionV1 = Readonly<{
+export type MainWireBaselineConditioningConditionV1 = Readonly<{
   conditionId: string;
   heartRateBpm: 60 | 70;
   totalBloodVolumeMultiplier: number;
@@ -35,6 +38,14 @@ type ConditionV1 = Readonly<{
     | "preload-identification"
     | "afterload-identification"
     | "rate-safety";
+}>;
+
+export type MainWireBaselineConditioningPositiveControlV1 = Readonly<{
+  controlId: string;
+  coordinateId: MainWireBaselineCalibrationParameterIdV1;
+  checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
+  expectedCentralSensitivitySign: -1 | 1;
+  rationale: string;
 }>;
 
 export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
@@ -52,8 +63,9 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
   diagnosticCoordinateIds:
     readonly MainWireBaselineCalibrationParameterIdV1[];
   sourceLockedFamilies: readonly string[];
-  conditions: readonly ConditionV1[];
+  conditions: readonly MainWireBaselineConditioningConditionV1[];
   observationGroupIds: readonly string[];
+  positiveControls: readonly MainWireBaselineConditioningPositiveControlV1[];
   numericalPolicy: Readonly<{
     explorationNominalDtSec: number;
     finalistRefinedDtSec: number;
@@ -80,7 +92,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 1;
+    revision: 2;
     changeReason: string;
   }>;
 }>;
@@ -141,6 +153,17 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
     observationGroupIds: Object.freeze(
       normalReferenceEvidenceV1.checkGroups.map(({ groupId }) => groupId),
     ),
+    positiveControls: Object.freeze([
+      Object.freeze({
+        controlId: "common-active-tension-increases-lv-maximum-dpdt",
+        coordinateId:
+          "myocardium.common-ventricular-active-tension-scale" as const,
+        checkId: "left-ventricle.maximum-dpdt" as const,
+        expectedCentralSensitivitySign: 1 as const,
+        rationale:
+          "A common ventricular active-tension increase must retain a positive local LV pressure-rise-rate response at the resting anchor.",
+      }),
+    ]),
     numericalPolicy: Object.freeze({
       explorationNominalDtSec: 0.002,
       finalistRefinedDtSec: 0.001,
@@ -171,9 +194,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 1 as const,
+      revision: 2 as const,
       changeReason:
-        "Initial local-conditioning protocol after provenance and numerical-floor audit.",
+        "Declare the positive control before executing the local-conditioning pilot.",
     }),
   });
 
@@ -188,6 +211,7 @@ export type MainWireBaselineConditioningStudyLintIssueV1 = Readonly<{
     | "condition-invalid"
     | "condition-duplicate"
     | "observation-group-unresolved"
+    | "positive-control-invalid"
     | "policy-revision-stale"
     | "numerical-policy-invalid"
     | "claim-scope-invalid"
@@ -316,6 +340,31 @@ export function lintMainWireBaselineConditioningStudyV1(
       ));
     }
   }
+  const observedCheckIds = new Set(normalReferenceEvidenceV1.checkGroups
+    .filter(({ groupId }) => source.observationGroupIds.includes(groupId))
+    .flatMap(({ checkIds }) => checkIds));
+  if (source.positiveControls.length < 1) {
+    issues.push(issueV1(
+      "positive-control-invalid",
+      "positiveControls",
+      "at least one preregistered positive control is required",
+    ));
+  }
+  for (const [index, control] of source.positiveControls.entries()) {
+    if (
+      !source.primaryCoordinateIds.includes(control.coordinateId)
+      || !observedCheckIds.has(control.checkId)
+      || (control.expectedCentralSensitivitySign !== -1
+        && control.expectedCentralSensitivitySign !== 1)
+      || control.rationale.trim().length === 0
+    ) {
+      issues.push(issueV1(
+        "positive-control-invalid",
+        `positiveControls[${index}]`,
+        `${control.controlId} is not bound to an admitted coordinate and observation`,
+      ));
+    }
+  }
   if (source.constructionPolicyRevisionId !== currentPolicyRevision.revisionId) {
     issues.push(issueV1(
       "policy-revision-stale",
@@ -395,8 +444,8 @@ function conditionV1(
   heartRateBpm: 60 | 70,
   totalBloodVolumeMultiplier: number,
   systemicResistanceMultiplier: number,
-  role: ConditionV1["role"],
-): ConditionV1 {
+  role: MainWireBaselineConditioningConditionV1["role"],
+): MainWireBaselineConditioningConditionV1 {
   return Object.freeze({
     conditionId,
     heartRateBpm,
