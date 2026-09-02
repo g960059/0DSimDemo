@@ -38,6 +38,10 @@ export type MainWireBaselineConditioningConditionV1 = Readonly<{
     | "preload-identification"
     | "afterload-identification"
     | "rate-safety";
+  constraintRole:
+    | "resting-construction-corridors"
+    | "fixed-control-directional-response"
+    | "perturbation-safety-only";
 }>;
 
 export type MainWireBaselineConditioningPositiveControlV1 = Readonly<{
@@ -71,6 +75,8 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     finalistRefinedDtSec: number;
     derivativeInitialization: "common-verified-anchor-continuation";
     searchInitialization: "nearest-accepted-continuation";
+    rateConditionInitialization:
+      "cold-center-then-common-center-continuation";
     finalistInitializationChecks:
       readonly ["cold", "alternate-compatible", "refined-dt"];
     maximumParallelEvaluations: number;
@@ -83,6 +89,17 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     reportAlternativeSubsets: true;
     maximumAdmittedCoordinateCount: 4;
   }>;
+  objectivePolicy: Readonly<{
+    baselineConditionId: "rest-hr60";
+    preloadResponseConditionIds:
+      readonly ["fixed-control-low-preload", "fixed-control-high-preload"];
+    safetyConditionIds:
+      readonly ["afterload-plus-10-percent", "rest-hr70"];
+    safetyCheckIds:
+      readonly MainWireIntegratedModelBaselineValidationCheckIdV1[];
+    intervalObjective: "maximize-worst-normalized-interior-margin";
+    numericalFloorRole: "separate-scale-and-finalist-dt-check";
+  }>;
   claimPolicy: Readonly<{
     evidenceRole: "construction";
     primaryScope: "systemic-and-left-heart-baseline";
@@ -92,7 +109,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 2;
+    revision: 3;
     changeReason: string;
   }>;
 }>;
@@ -130,7 +147,14 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       "rounded-ejection-land-kinetic-family",
     ]),
     conditions: Object.freeze([
-      conditionV1("rest-hr60", 60, 1, 1, "rest-anchor"),
+      conditionV1(
+        "rest-hr60",
+        60,
+        1,
+        1,
+        "rest-anchor",
+        "resting-construction-corridors",
+      ),
       conditionV1(
         "fixed-control-low-preload",
         60,
@@ -138,6 +162,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
           .hypovolemicGlobalTbvScale,
         1,
         "preload-identification",
+        "fixed-control-directional-response",
       ),
       conditionV1(
         "fixed-control-high-preload",
@@ -146,9 +171,24 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
           .hypervolemicGlobalTbvScale,
         1,
         "preload-identification",
+        "fixed-control-directional-response",
       ),
-      conditionV1("afterload-plus-10-percent", 60, 1, 1.1, "afterload-identification"),
-      conditionV1("rest-hr70", 70, 1, 1, "rate-safety"),
+      conditionV1(
+        "afterload-plus-10-percent",
+        60,
+        1,
+        1.1,
+        "afterload-identification",
+        "perturbation-safety-only",
+      ),
+      conditionV1(
+        "rest-hr70",
+        70,
+        1,
+        1,
+        "rate-safety",
+        "perturbation-safety-only",
+      ),
     ]),
     observationGroupIds: Object.freeze(
       normalReferenceEvidenceV1.checkGroups.map(({ groupId }) => groupId),
@@ -170,6 +210,8 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       derivativeInitialization:
         "common-verified-anchor-continuation" as const,
       searchInitialization: "nearest-accepted-continuation" as const,
+      rateConditionInitialization:
+        "cold-center-then-common-center-continuation" as const,
       finalistInitializationChecks: Object.freeze([
         "cold",
         "alternate-compatible",
@@ -185,6 +227,27 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       reportAlternativeSubsets: true as const,
       maximumAdmittedCoordinateCount: 4 as const,
     }),
+    objectivePolicy: Object.freeze({
+      baselineConditionId: "rest-hr60" as const,
+      preloadResponseConditionIds: Object.freeze([
+        "fixed-control-low-preload",
+        "fixed-control-high-preload",
+      ] as const),
+      safetyConditionIds: Object.freeze([
+        "afterload-plus-10-percent",
+        "rest-hr70",
+      ] as const),
+      safetyCheckIds: Object.freeze([
+        "settlement.period1",
+        "waveform.LVP.single-peak-no-ringing",
+        "waveform.LVP.rounded-not-plateau",
+        "waveform.RVP.single-peak-no-ringing",
+        "waveform.RVP.rounded-not-plateau",
+      ] as const),
+      intervalObjective:
+        "maximize-worst-normalized-interior-margin" as const,
+      numericalFloorRole: "separate-scale-and-finalist-dt-check" as const,
+    }),
     claimPolicy: Object.freeze({
       evidenceRole: "construction" as const,
       primaryScope: "systemic-and-left-heart-baseline" as const,
@@ -194,9 +257,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 2 as const,
+      revision: 3 as const,
       changeReason:
-        "Declare the positive control before executing the local-conditioning pilot.",
+        "Separate resting corridors, fixed-control preload responses, and perturbation safety after the revision-2 conditioning audit.",
     }),
   });
 
@@ -212,6 +275,7 @@ export type MainWireBaselineConditioningStudyLintIssueV1 = Readonly<{
     | "condition-duplicate"
     | "observation-group-unresolved"
     | "positive-control-invalid"
+    | "objective-policy-invalid"
     | "policy-revision-stale"
     | "numerical-policy-invalid"
     | "claim-scope-invalid"
@@ -343,6 +407,31 @@ export function lintMainWireBaselineConditioningStudyV1(
   const observedCheckIds = new Set(normalReferenceEvidenceV1.checkGroups
     .filter(({ groupId }) => source.observationGroupIds.includes(groupId))
     .flatMap(({ checkIds }) => checkIds));
+  const conditionById = new Map(source.conditions.map((condition) =>
+    [condition.conditionId, condition] as const));
+  const objectiveConditionBindings = [
+    [
+      source.objectivePolicy.baselineConditionId,
+      "resting-construction-corridors",
+    ],
+    ...source.objectivePolicy.preloadResponseConditionIds.map((conditionId) =>
+      [conditionId, "fixed-control-directional-response"] as const),
+    ...source.objectivePolicy.safetyConditionIds.map((conditionId) =>
+      [conditionId, "perturbation-safety-only"] as const),
+  ] as const;
+  if (
+    objectiveConditionBindings.some(([conditionId, expectedRole]) =>
+      conditionById.get(conditionId)?.constraintRole !== expectedRole)
+    || source.objectivePolicy.safetyCheckIds.length < 1
+    || source.objectivePolicy.safetyCheckIds.some((checkId) =>
+      !observedCheckIds.has(checkId))
+  ) {
+    issues.push(issueV1(
+      "objective-policy-invalid",
+      "objectivePolicy",
+      "rest, preload-response, and perturbation-safety bindings must resolve without sharing one corridor policy",
+    ));
+  }
   if (source.positiveControls.length < 1) {
     issues.push(issueV1(
       "positive-control-invalid",
@@ -386,6 +475,8 @@ export function lintMainWireBaselineConditioningStudyV1(
     )
     || source.conditioningPolicy.nearestNeighbourContinuationForDerivatives
       !== false
+    || source.numericalPolicy.rateConditionInitialization
+      !== "cold-center-then-common-center-continuation"
   ) {
     issues.push(issueV1(
       "numerical-policy-invalid",
@@ -445,6 +536,7 @@ function conditionV1(
   totalBloodVolumeMultiplier: number,
   systemicResistanceMultiplier: number,
   role: MainWireBaselineConditioningConditionV1["role"],
+  constraintRole: MainWireBaselineConditioningConditionV1["constraintRole"],
 ): MainWireBaselineConditioningConditionV1 {
   return Object.freeze({
     conditionId,
@@ -452,6 +544,7 @@ function conditionV1(
     totalBloodVolumeMultiplier,
     systemicResistanceMultiplier,
     role,
+    constraintRole,
   });
 }
 
