@@ -43,6 +43,12 @@ import {
 } from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
 
 type Sample = MainWireIntegratedModelPeriodicTerminalTraceSampleV3;
+type HydraulicDetail = Readonly<{
+  pulmonaryRootOutflowMlPerSec: number;
+  pulmonaryValveOpeningFraction01: number;
+  pArtPressureMmHg: number;
+  paVolumeMl: number;
+}>;
 type Fixture = ReturnType<typeof candidateFixtureV1>;
 type Accepted = ReturnType<
   typeof MainWireIntegratedModelStandard68TypedAuthoritySessionV1.prototype.currentAcceptedState
@@ -94,7 +100,7 @@ for (const proximalFraction01 of fractions) {
       sourcePvResistanceMmHgSecPerMl
       + totalPlacedLinearLoadMmHgSecPerMl,
     convergence: run.convergence,
-    metrics: summarizeV1(run.trace),
+    metrics: summarizeV1(run.trace, run.hydraulicDetail),
   }));
   priorAccepted = run.accepted;
   priorFixture = fixture;
@@ -164,20 +170,36 @@ function convergeV1(input: Readonly<{
       input.targetFixture as unknown as MainWireIntegratedModelRuntimeV3,
   });
   let trace: readonly Sample[] = [];
+  let hydraulicDetail: readonly HydraulicDetail[] = [];
   let maximumNormalizedDelta = Number.POSITIVE_INFINITY;
   let consecutivePasses = 0;
   let completedCycles = 0;
   for (let cycle = 1; cycle <= 80; cycle += 1) {
     const prior = accepted;
+    const candidateHydraulicDetail: HydraulicDetail[] = [];
     const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       input.targetFixture as unknown as
         MainWireIntegratedModelRegularSinusAllOffFixtureV3,
       accepted,
       cycle,
       0.002,
+      (step) => {
+        const circulation = step.coronaryStep.baseStep.circulationTrial;
+        candidateHydraulicDetail.push(Object.freeze({
+          pulmonaryRootOutflowMlPerSec:
+            circulation.edgeFlowsMlPerSec.PA_PArt,
+          pulmonaryValveOpeningFraction01:
+            circulation.valveEvaluations.PV.state
+              .leafletOpeningFraction01,
+          pArtPressureMmHg:
+            circulation.nodeAbsolutePressuresMmHg.PArt,
+          paVolumeMl: circulation.candidateNodeVolumesMl.PA,
+        }));
+      },
     );
     accepted = run.terminalAcceptedState;
     trace = run.traceSamples;
+    hydraulicDetail = candidateHydraulicDetail;
     completedCycles = cycle;
     maximumNormalizedDelta = compareMainWireIntegratedModelAcceptedStatesV3(
       accepted,
@@ -193,6 +215,7 @@ function convergeV1(input: Readonly<{
   return Object.freeze({
     accepted,
     trace,
+    hydraulicDetail,
     convergence: Object.freeze({
       completedCycles,
       consecutivePasses,
@@ -202,13 +225,21 @@ function convergeV1(input: Readonly<{
   });
 }
 
-function summarizeV1(samples: readonly Sample[]) {
+function summarizeV1(
+  samples: readonly Sample[],
+  hydraulicDetail: readonly HydraulicDetail[],
+) {
+  if (hydraulicDetail.length !== samples.length) {
+    throw new Error("accepted hydraulic detail must align with trace samples");
+  }
   const validation = measureMainWireIntegratedModelBaselineValidationV1(samples);
   const pv = samples.map((sample) => sample.valveFlowMlPerSec.PV);
   const tv = samples.map((sample) => sample.valveFlowMlPerSec.TV);
   const rvp = samples.map((sample) => sample.absolutePressureMmHg.RV);
   const pap = samples.map((sample) => sample.absolutePressureMmHg.PA);
   const pvGradient = rvp.map((pressure, index) => pressure - pap[index]!);
+  const pulmonaryRootOutflow = hydraulicDetail.map((sample) =>
+    sample.pulmonaryRootOutflowMlPerSec);
   const pvOpen = thresholdOpenV1(pv);
   const pvOpening = transitionV1(pvOpen, false, true);
   const pvClosure = nextTransitionV1(pvOpen, pvOpening, true, false);
@@ -220,6 +251,7 @@ function summarizeV1(samples: readonly Sample[]) {
   const peakRvp = maximumIndexV1(rvp, ejection);
   const peakPap = maximumIndexV1(pap, ejection);
   const peakGradient = maximumIndexV1(pvGradient, ejection);
+  const peakRootOutflow = maximumIndexV1(pulmonaryRootOutflow, ejection);
   const rvRate = samples.slice(1).map((sample, index) =>
     (sample.absolutePressureMmHg.RV
       - samples[index]!.absolutePressureMmHg.RV)
@@ -252,6 +284,7 @@ function summarizeV1(samples: readonly Sample[]) {
     tricuspidPeakEToA: inletPeakRatioV1(samples, tvOpen, pvOpen),
     ejectionPeakPhase01: Object.freeze({
       pulmonaryValveFlow: phase(peakPv),
+      pulmonaryRootOutflow: phase(peakRootOutflow),
       rightVentricularPressure: phase(peakRvp),
       pulmonaryArteryPressure: phase(peakPap),
       rvMinusPaGradient: phase(peakGradient),
@@ -266,6 +299,28 @@ function summarizeV1(samples: readonly Sample[]) {
       meanGradientMmHg: ejection.reduce((sum, index) =>
         sum + pvGradient[index]! * samples[index]!.acceptedDtSec, 0) / etSec,
       peakGradientMmHg: pvGradient[peakGradient],
+      openingFractionAtPeakFlow01:
+        hydraulicDetail[peakPv]!.pulmonaryValveOpeningFraction01,
+      firstAtLeast95PercentOpenPhase01: firstThresholdPhaseV1(
+        hydraulicDetail.map((sample) =>
+          sample.pulmonaryValveOpeningFraction01),
+        ejection,
+        0.95,
+        phase,
+      ),
+    }),
+    pulmonaryRootOutflow: Object.freeze({
+      peakFlowMlPerSec: pulmonaryRootOutflow[peakRootOutflow],
+      peakPhaseWithinEjection01: phase(peakRootOutflow),
+      paStorageVolumeSwingMl:
+        Math.max(...hydraulicDetail.map((sample) => sample.paVolumeMl))
+        - Math.min(...hydraulicDetail.map((sample) => sample.paVolumeMl)),
+      paMinusPArtPressureMmHg: Object.freeze({
+        minimum: Math.min(...hydraulicDetail.map((sample, index) =>
+          pap[index]! - sample.pArtPressureMmHg)),
+        maximum: Math.max(...hydraulicDetail.map((sample, index) =>
+          pap[index]! - sample.pArtPressureMmHg)),
+      }),
     }),
     pulmonaryArtery: Object.freeze({
       minimumMmHg: Math.min(...pap),
@@ -279,6 +334,16 @@ function summarizeV1(samples: readonly Sample[]) {
       ),
     }),
   });
+}
+
+function firstThresholdPhaseV1(
+  values: readonly number[],
+  indices: readonly number[],
+  threshold: number,
+  phase: (index: number) => number,
+) {
+  const index = indices.find((candidate) => values[candidate]! >= threshold);
+  return index === undefined ? null : phase(index);
 }
 
 function maximumIndexV1(values: readonly number[], indices: readonly number[]) {
