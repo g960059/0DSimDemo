@@ -97,6 +97,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
       readonly ["afterload-plus-10-percent", "rest-hr70"];
     safetyCheckIds:
       readonly MainWireIntegratedModelBaselineValidationCheckIdV1[];
+    primaryInteriorGroupIds: readonly string[];
     intervalObjective: "maximize-worst-normalized-interior-margin";
     numericalFloorRole: "separate-scale-and-finalist-dt-check";
   }>;
@@ -109,6 +110,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     refinementCandidateCountIncludingCenter: 16;
     refinementContraction: 0.5;
     finalistCount: 4;
+    equivalentPrimaryMarginEpsilon: 0.02;
     equivalentWorstMarginEpsilon: 0.02;
     numericalFloorBufferMultiples: 1;
   }>;
@@ -121,7 +123,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 4;
+    revision: 5;
     changeReason: string;
   }>;
 }>;
@@ -256,6 +258,14 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         "waveform.RVP.single-peak-no-ringing",
         "waveform.RVP.rounded-not-plateau",
       ] as const),
+      primaryInteriorGroupIds: Object.freeze([
+        "ventricular-pressure-morphology",
+        "aortic-valve-gradient",
+        "aortic-ejection-time",
+        "left-ventricular-pressure-rate",
+        "mitral-e-to-a",
+        "left-ventricular-timing",
+      ] as const),
       intervalObjective:
         "maximize-worst-normalized-interior-margin" as const,
       numericalFloorRole: "separate-scale-and-finalist-dt-check" as const,
@@ -275,6 +285,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       refinementCandidateCountIncludingCenter: 16 as const,
       refinementContraction: 0.5 as const,
       finalistCount: 4 as const,
+      equivalentPrimaryMarginEpsilon: 0.02 as const,
       equivalentWorstMarginEpsilon: 0.02 as const,
       numericalFloorBufferMultiples: 1 as const,
     }),
@@ -287,9 +298,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 4 as const,
+      revision: 5 as const,
       changeReason:
-        "Freeze a bounded deterministic two-stage search budget after separating rest and perturbation constraints.",
+        "Prioritize ventricular/valve/timing interior before adjustable macro-hemodynamic interior after the first search audit.",
     }),
   });
 
@@ -456,6 +467,9 @@ export function lintMainWireBaselineConditioningStudyV1(
     || source.objectivePolicy.safetyCheckIds.length < 1
     || source.objectivePolicy.safetyCheckIds.some((checkId) =>
       !observedCheckIds.has(checkId))
+    || source.objectivePolicy.primaryInteriorGroupIds.length < 1
+    || source.objectivePolicy.primaryInteriorGroupIds.some((groupId) =>
+      !evidenceGroupIds.has(groupId))
   ) {
     issues.push(issueV1(
       "objective-policy-invalid",
@@ -480,6 +494,7 @@ export function lintMainWireBaselineConditioningStudyV1(
     || source.searchPolicy.finalistCount < 1
     || source.searchPolicy.finalistCount
       > source.searchPolicy.refinementCandidateCountIncludingCenter
+    || !(source.searchPolicy.equivalentPrimaryMarginEpsilon >= 0)
     || !(source.searchPolicy.equivalentWorstMarginEpsilon >= 0)
     || !(source.searchPolicy.numericalFloorBufferMultiples >= 0)
   ) {
