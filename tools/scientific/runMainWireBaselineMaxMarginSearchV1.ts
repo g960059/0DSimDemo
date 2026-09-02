@@ -5,6 +5,8 @@ import { availableParallelism } from "node:os";
 import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import normalReferenceEvidenceV1 from
+  "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import settledBaselineCheckpointJson from
   "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
@@ -83,6 +85,8 @@ type SearchSeedSelectionV1 = Readonly<{
   compatibilityGuard: "exact-and-evaluator-sources-unchanged";
   priorResultRole: "exploratory-seed-selection-only";
   selectedCandidateId: string;
+  selectedObjectiveStatus: MainWireBaselineCandidateObjectiveV1["status"];
+  selectedFailedCheckIds: readonly MainWireIntegratedModelBaselineValidationCheckIdV1[];
   selectedPrimaryWorstBufferedInteriorMargin: number;
   selectedWorstBufferedInteriorMargin: number;
   candidateInputs: MainWireBaselineCalibrationCandidateInputsV1;
@@ -99,6 +103,12 @@ async function runCoordinatorV1(): Promise<void> {
   const floorPath = resolve(requiredArgumentV1("--numerical-floor"));
   const outputPath = resolve(requiredArgumentV1("--output"));
   const seedReportArgument = argumentV1("--seed-report");
+  const reserveRecoverySeedCandidateId = argumentV1(
+    "--reserve-recovery-seed-candidate-id",
+  );
+  if (reserveRecoverySeedCandidateId !== null && seedReportArgument === null) {
+    throw new Error("reserve-recovery seed requires --seed-report");
+  }
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "8",
     "parallelism",
@@ -126,6 +136,7 @@ async function runCoordinatorV1(): Promise<void> {
         numericalFloors: numericalFloor.metricFloors,
         sourceCheckpointSha256: sourceCheckpoint.checkpointSha256,
         sourceCandidateInputs,
+        requestedCandidateId: reserveRecoverySeedCandidateId,
       });
   const largestStageCount = seedSelection === null
     ? Math.max(
@@ -196,9 +207,21 @@ async function runCoordinatorV1(): Promise<void> {
   } else {
     initial = Object.freeze([]);
     bestInitialCandidateId = null;
+    const recovery = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+      .searchPolicy.preloadReserveRecovery;
     const refinementCandidates = buildMainWireBaselineSearchDesignV1({
       stage: "refinement",
       center: seedSelection.candidateInputs,
+      contractionOverride: reserveRecoverySeedCandidateId === null
+        ? undefined
+        : recovery.refinementContraction,
+      coordinateBounds: reserveRecoverySeedCandidateId === null
+        ? undefined
+        : Object.freeze({
+            "hemodynamics.total-blood-volume-ml": Object.freeze({
+              maximum: recovery.maximumOperatingTotalBloodVolumeMl,
+            }),
+          }),
     });
     process.stderr.write(
       `[baseline-search] verified prior report selected `
@@ -279,7 +302,9 @@ async function runCoordinatorV1(): Promise<void> {
     sum + execution.evaluation.wallTimeMs, 0);
   const report = Object.freeze({
     schemaVersion: 1 as const,
-    searchId: "main-wire-baseline-max-margin-search-result-v2" as const,
+    searchId: reserveRecoverySeedCandidateId === null
+      ? "main-wire-baseline-max-margin-search-result-v2" as const
+      : "main-wire-baseline-preload-reserve-recovery-search-result-v1" as const,
     studyIdentitySha256: study.studyIdentitySha256,
     protocolCommit,
     executionCommit,
@@ -287,7 +312,12 @@ async function runCoordinatorV1(): Promise<void> {
     numericalFloorArtifactSha256,
     executionMode: seedSelection === null
       ? "full-initial-and-refinement" as const
-      : "verified-report-seeded-refinement" as const,
+      : reserveRecoverySeedCandidateId === null
+        ? "verified-report-seeded-refinement" as const
+        : "verified-report-seeded-preload-reserve-recovery" as const,
+    preloadReserveRecoveryPolicy: reserveRecoverySeedCandidateId === null
+      ? null
+      : policy.preloadReserveRecovery,
     seedSelection: seedSelection === null
       ? null
       : searchSeedSelectionReportV1(seedSelection),
@@ -326,6 +356,8 @@ async function runCoordinatorV1(): Promise<void> {
       evidenceRole: "construction" as const,
       restCorridorsOnly: true as const,
       primaryInteriorBeforeMacroHemodynamics: true as const,
+      preloadReserveRecoveryScreenRequired:
+        (reserveRecoverySeedCandidateId !== null) as boolean,
       preloadReserveQualified: false as const,
       perturbationSafetyQualified: false as const,
       finalistRefinedDtQualified: false as const,
@@ -639,6 +671,7 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
   numericalFloors: readonly MainWireBaselineNumericalFloorMetricV1[];
   sourceCheckpointSha256: string;
   sourceCandidateInputs: MainWireBaselineCalibrationCandidateInputsV1;
+  requestedCandidateId: string | null;
 }>): Promise<SearchSeedSelectionV1> {
   const artifactJson = JSON.parse(
     await readFile(input.artifactPath, "utf8"),
@@ -790,14 +823,41 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
   if (!baselineCheckpointWasUsed) {
     throw new Error("seed search report does not bind the current baseline checkpoint");
   }
-  const selected = rankByObjectiveV1(imported, ({ objective }) => objective)[0];
+  const selected = input.requestedCandidateId === null
+    ? rankByObjectiveV1(imported, ({ objective }) => objective)[0]
+    : imported.find(({ candidateId }) =>
+        candidateId === input.requestedCandidateId);
+  const recovery = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+    .searchPolicy.preloadReserveRecovery;
+  const allowedSeedFailureCheckIds = new Set(normalReferenceEvidenceV1
+    .checkGroups.filter(({ groupId }) =>
+      recovery.allowedSeedFailureGroupIds.includes(
+        groupId as typeof recovery.allowedSeedFailureGroupIds[number],
+      ))
+    .flatMap(({ checkIds }) => checkIds));
   if (
     selected === undefined
-    || selected.objective.status !== "feasible"
     || selected.objective.primaryWorstBufferedInteriorMargin === null
     || selected.objective.worstBufferedInteriorMargin === null
   ) {
+    throw new Error("seed search report has no scored structural-first seed");
+  }
+  if (input.requestedCandidateId === null && selected.objective.status !== "feasible") {
     throw new Error("seed search report has no feasible structural-first seed");
+  }
+  if (
+    input.requestedCandidateId !== null
+    && (
+      selected.objective.primaryWorstBufferedInteriorMargin
+        < recovery.minimumSeedPrimaryBufferedInteriorMargin
+      || selected.objective.failedCheckIds.some((checkId) =>
+        !allowedSeedFailureCheckIds.has(checkId))
+    )
+  ) {
+    throw new Error(
+      `requested reserve-recovery seed is not structurally admissible: `
+        + selected.objective.failedCheckIds.join(", "),
+    );
   }
   return Object.freeze({
     artifactPath: input.artifactPath,
@@ -809,6 +869,8 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
     compatibilityGuard: "exact-and-evaluator-sources-unchanged" as const,
     priorResultRole: "exploratory-seed-selection-only" as const,
     selectedCandidateId: selected.candidateId,
+    selectedObjectiveStatus: selected.objective.status,
+    selectedFailedCheckIds: selected.objective.failedCheckIds,
     selectedPrimaryWorstBufferedInteriorMargin:
       selected.objective.primaryWorstBufferedInteriorMargin,
     selectedWorstBufferedInteriorMargin:
@@ -830,6 +892,8 @@ function searchSeedSelectionReportV1(
     compatibilityGuard: selection.compatibilityGuard,
     priorResultRole: selection.priorResultRole,
     selectedCandidateId: selection.selectedCandidateId,
+    selectedObjectiveStatus: selection.selectedObjectiveStatus,
+    selectedFailedCheckIds: selection.selectedFailedCheckIds,
     selectedPrimaryWorstBufferedInteriorMargin:
       selection.selectedPrimaryWorstBufferedInteriorMargin,
     selectedWorstBufferedInteriorMargin:

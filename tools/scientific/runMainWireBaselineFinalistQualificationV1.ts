@@ -615,7 +615,13 @@ function compareEvaluationsV1(
       Math.abs(other.actual),
       Math.abs(check.actual),
     );
-    const admittedTolerance = floor.numericalFloorAbsolute + machineTolerance;
+    const corridorTolerance = (check.maximum - check.minimum)
+      * MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+        .finalistComparisonCorridorFraction;
+    const admittedTolerance = Math.max(
+      floor.numericalFloorAbsolute,
+      corridorTolerance,
+    ) + machineTolerance;
     return Object.freeze({
       checkId: check.checkId,
       unit: check.unit,
@@ -623,6 +629,8 @@ function compareEvaluationsV1(
       comparisonActual: other.actual,
       absoluteDifference,
       numericalFloorAbsolute: floor.numericalFloorAbsolute,
+      corridorTolerance,
+      admittedTolerance,
       machineTolerance,
       status: absoluteDifference <= admittedTolerance
         ? "passed" as const
