@@ -345,17 +345,23 @@ export function advanceCoronaryAcceptedAutoregulationV3(
     });
   }
 
+  // The window policy owns the completed interval. Summing hundreds of
+  // accepted substeps is suitable for quadrature but can differ by a few ulps
+  // from a non-binary sinus period (for example 60/65 s). Do not propagate
+  // that accumulation error into the completed clock identity or its means.
+  const completedDurationSec = binding.windowPolicy.durationSec;
   const aggregate = Object.freeze({
     meanTissueFlowMlPerSecByTerritoryLayer: mapLayerRecord(
       (territoryId, layerId) =>
-        qmIntegral[territoryId][layerId] / duration,
+        qmIntegral[territoryId][layerId] / completedDurationSec,
     ),
     meanPerfusionPressureMmHgByTerritory: mapTerritoryRecord(
-      (territoryId) => pressureIntegral[territoryId] / duration,
+      (territoryId) =>
+        pressureIntegral[territoryId] / completedDurationSec,
     ),
     demandScaleByTerritoryLayer: control.demandScaleByTerritoryLayer,
     hyperemia01ByTerritoryLayer: control.hyperemia01ByTerritoryLayer,
-    acceptedWindowDurationSec: duration,
+    acceptedWindowDurationSec: completedDurationSec,
   }) satisfies CoronaryAutoregulationAcceptedAggregateV2;
   const toneStep = stepCoronaryAutoregulationByTerritoryLayerV2(
     previousTone,

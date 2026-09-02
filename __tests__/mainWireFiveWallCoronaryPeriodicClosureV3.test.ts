@@ -150,6 +150,29 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
     ).toThrow(/step count differs from accepted revision/);
   });
 
+  it("uses window provenance for large non-binary-period clock advances", () => {
+    const windowDurationSec = 60 / 65;
+    const referenceWindowIndex = 190;
+    const referenceTimeSec = referenceWindowIndex * windowDurationSec;
+    const currentTimeSec = (referenceWindowIndex + 1) * windowDurationSec;
+
+    const report = compareMainWireFiveWallCoronaryAcceptedStatesV3(
+      acceptedState({
+        revision: 30_100,
+        timeSec: currentTimeSec,
+        windowDurationSec,
+      }),
+      acceptedState({
+        revision: 30_000,
+        timeSec: referenceTimeSec,
+        windowDurationSec,
+      }),
+      MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+    );
+
+    expect(report.provenance.autoregulationWindowIndexAdvance).toBe(1);
+  });
+
   it("returns not-applicable for irregular rhythm before entering the P1 classifier", () => {
     const irregular = classifyMainWireFiveWallCoronaryPeriodicityV3({
       rhythmInterpretation: "irregular-rhythm-stationary",

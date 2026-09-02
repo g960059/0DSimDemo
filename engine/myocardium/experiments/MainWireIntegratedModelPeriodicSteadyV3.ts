@@ -1268,7 +1268,11 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   const windowPolicy =
     initial.coronary.coronaryAutoregulationBinding.windowPolicy;
   const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  // The autoregulation owner defines the exact accepted boundary. Rebuilding
+  // it by repeatedly adding a non-binary regular-sinus period can differ by a
+  // few ulps and request a step across that boundary at non-integer rates.
+  const endTimeSec = windowPolicy.originAcceptedTimeSec
+    + (window.windowIndex + 1) * windowPolicy.durationSec;
   if (
     startTimeSec !== window.windowStartAcceptedTimeSec ||
     window.acceptedDurationSec !== 0 ||
@@ -1424,7 +1428,15 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     completions[0]!.endTimeSec !== endTimeSec ||
     !nearlyEqual(completions[0]!.acceptedDurationSec, fixture.cycleLengthSec)
   ) {
-    throw new Error("V3 periodic cycle/coronary window boundary differs");
+    throw new Error(
+      "V3 periodic cycle/coronary window boundary differs: "
+        + JSON.stringify({
+          acceptedTimeSec: accepted.acceptedTimeSec,
+          endTimeSec,
+          expectedWindowIndex,
+          completions,
+        }),
+    );
   }
   if (!oneComposedCalciumOwnerOnly) {
     throw new Error("V3 periodic cycle detected split calcium ownership");
@@ -1532,7 +1544,10 @@ function buildCycleSummary(
     deliveredCalciumDepositIds: run.deliveredCalciumDepositIds,
     conservation,
     finiteAndEventIdentityChecks,
-    rawHealthyMetrics: rawHealthyMetrics(run.traceSamples),
+    rawHealthyMetrics: rawHealthyMetrics(
+      run.traceSamples,
+      run.endTimeSec - run.startTimeSec,
+    ),
   });
 }
 
@@ -1621,6 +1636,7 @@ function traceSample(
 
 function rawHealthyMetrics(
   samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
+  expectedCycleDurationSec: number,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3["metric"] {
   if (samples.length === 0)
     throw new Error("healthy metrics require raw samples");
@@ -1634,7 +1650,7 @@ function rawHealthyMetrics(
     (sum, sample) => sum + sample.acceptedDtSec,
     0,
   );
-  if (!nearlyEqual(durationSec, 1)) {
+  if (!nearlyEqual(durationSec, expectedCycleDurationSec)) {
     throw new Error("healthy metrics raw trace does not span one cycle");
   }
   const nativeAorticForwardVolumeMl = samples.reduce(
@@ -1672,7 +1688,10 @@ function healthyReferenceProjection(
   executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3,
   numericalPeriod1Established: boolean,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3 {
-  const metric = rawHealthyMetrics(trace.samples);
+  const metric = rawHealthyMetrics(
+    trace.samples,
+    trace.endTimeSec - trace.startTimeSec,
+  );
   const eligible =
     executionPurpose === "canonical-evidence" && numericalPeriod1Established;
   const valueByMetricId: Readonly<Record<string, number>> = Object.freeze({

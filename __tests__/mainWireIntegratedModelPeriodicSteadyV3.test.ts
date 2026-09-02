@@ -450,6 +450,44 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     );
   }, 60_000);
 
+  it("keeps a non-binary regular-sinus period on the coronary-owned boundary across consecutive cycles", async () => {
+    const heartRateBpm = 65;
+    const cycleLengthSec = 60 / heartRateBpm;
+    const result = await runMainWireIntegratedModelPeriodicSteadyV3({
+      nominalDtSec: 0.002,
+      maximumCycleCount: 2,
+      executionPurpose: "bounded-smoke",
+      hemodynamicResearchInputs: Object.freeze({
+        ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+        heartRateBpm,
+      }),
+    });
+
+    expect(result.completedCycleCount).toBe(2);
+    expect(result.cycles.map((cycle) => ({
+      startTimeSec: cycle.startTimeSec,
+      endTimeSec: cycle.endTimeSec,
+      windowStartTimeSec: cycle.coronaryAutoregulationWindow.startTimeSec,
+      windowEndTimeSec: cycle.coronaryAutoregulationWindow.endTimeSec,
+      periodLag: cycle.period1.provenance.periodLag,
+    }))).toEqual([
+      {
+        startTimeSec: 0,
+        endTimeSec: cycleLengthSec,
+        windowStartTimeSec: 0,
+        windowEndTimeSec: cycleLengthSec,
+        periodLag: 1,
+      },
+      {
+        startTimeSec: cycleLengthSec,
+        endTimeSec: 2 * cycleLengthSec,
+        windowStartTimeSec: cycleLengthSec,
+        windowEndTimeSec: 2 * cycleLengthSec,
+        periodLag: 1,
+      },
+    ]);
+  }, 60_000);
+
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {
     await expect(
       runMainWireIntegratedModelPeriodicSteadyV3({
