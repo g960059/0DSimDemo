@@ -6,7 +6,6 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_INPUT_KEYS_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
@@ -27,6 +26,9 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioPublishedHemodynamicDomainsV1";
 import {
   createCircleHeartExactModelReleaseV1 as createSelectedArtifactReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.entry";
@@ -520,7 +522,9 @@ function endpointPatternCaseV1(
       const endpoint = endpointAt(key, index);
       return [
         key,
-        MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[key][endpoint],
+        MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1[key][
+          endpoint
+        ],
       ] as const;
     });
   return Object.freeze({
