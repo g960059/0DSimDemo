@@ -96,6 +96,9 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+} from "@/domain/model/MainWireStandardIdentityV1";
+import {
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 import {
@@ -687,7 +690,10 @@ export const WorkbenchSession = ({
               "workbench.editor.simulationInfo.baselineBidirectionalPassed",
             ),
             detail: t(
-              "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
+              baselineValidation.modelId
+                  === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1
+                ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard69"
+                : "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
               {
                 low: Math.round(
                   (1 - baselineValidation.preloadReserve

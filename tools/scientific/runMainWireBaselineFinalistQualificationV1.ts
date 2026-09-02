@@ -42,6 +42,7 @@ import {
   composeMainWireBaselineFinalistComparisonToleranceV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
   type MainWireIntegratedModelFormalPreloadReserveQualificationV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -55,6 +56,8 @@ import {
   compileMainWireBaselineConditioningStudyV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
 import {
+  MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1,
+  MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1_ID,
   assertMainWireStandard69PreloadReservePassedV1,
 } from "@/analysis/policies/mainWire/MainWireStandard69PreloadReservePolicyV1";
 
@@ -173,6 +176,10 @@ async function runCoordinatorV1(): Promise<void> {
     requireFinalist: scope === "full",
   });
   const study = await compileMainWireBaselineConditioningStudyV1();
+  const preloadReservePolicySha256 = await sha256CanonicalJsonHex({
+    basePolicy: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+    standard69Policy: MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1,
+  });
   if (
     scope === "full"
     && searchCandidate.studyIdentitySha256 !== study.studyIdentitySha256
@@ -256,6 +263,9 @@ async function runCoordinatorV1(): Promise<void> {
       coordinateValues: searchCandidate.coordinateValues,
       numericalFloorArtifactPath: portableRepositoryPathV1(floorArtifactPath),
       numericalFloorArtifactSha256,
+      preloadReservePolicyId:
+        MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1_ID,
+      preloadReservePolicySha256,
       batchWallTimeMs: performance.now() - startedAt,
       continuation: compactExecutionForReportV1(continuation),
       formalPreloadReserve: preload,
@@ -444,6 +454,8 @@ async function runCoordinatorV1(): Promise<void> {
     coordinateValues: searchCandidate.coordinateValues,
     numericalFloorArtifactPath: portableRepositoryPathV1(floorArtifactPath),
     numericalFloorArtifactSha256,
+    preloadReservePolicyId: MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1_ID,
+    preloadReservePolicySha256,
     requestedParallelism,
     effectiveParallelism,
     batchWallTimeMs: performance.now() - startedAt,

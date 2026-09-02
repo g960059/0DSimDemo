@@ -275,6 +275,20 @@ and checkpoint digest
 These pointers preserve selection provenance without merging the exploratory
 report corpus into main.
 
+That archival study-identity digest predates the later wording-only correction
+to `numericalPolicy.searchInitialization` on this branch. Reproduction of the
+recorded historical selection therefore uses the pinned archival commit. It is
+not a current-study replay artifact: the current finalist tool intentionally
+rejects those older reports against a changed source-policy hash rather than
+silently treating them as current output. Standard69's admitted exact artifact
+and checkpoint remain independently registry-verifiable; a new fitting run on
+main must regenerate its search report under the current study identity.
+
+New preload-screen and finalist reports also bind the Standard69-specific
+preload-reserve policy ID and the canonical digest of its composition with the
+base preload policy. The archived report predates that report-schema addition;
+its provenance remains historical and must not be upgraded by inference.
+
 ## Minimal implementation sequence
 
 ### Step 0 — provenance and honest status
