@@ -45,10 +45,10 @@ const COPY = Object.freeze({
     ]),
     analysisTitle: "Surfaceとanalysis",
     analysisBody:
-      "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。これらの分岐計算はexact stateやcheckpointを変更しません。",
+      "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。ESPVRはpreload低下側からbaselineまでを用い、EDPVRとStarlingは高容量側を含む双方向familyを保持します。これらの分岐計算はexact stateやcheckpointを変更しません。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
-      `${cycles}周期でperiod-1 settlementを確認し、${checks}項目のAV/LV/RVP・timing・形態gateを通過しています。`,
+      `${cycles}周期でperiod-1 settlementを確認し、${checks}項目の圧・AV/LV/RVP・timing・形態・indexed size/function gateと、双方向preload reserve gateを通過しています。`,
     controlTitle: "control semantics",
     controlBody:
       "Heart rateを含むcontrol変更はaccepted stateとmodel clockを保持し、新しいfixture epochへ移るatomic warm startです。自律神経反射や実測の変時性応答ではありません。",
@@ -92,10 +92,10 @@ const COPY = Object.freeze({
     ]),
     analysisTitle: "Surface and analysis",
     analysisBody:
-      "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. Their branch computations do not mutate exact state or checkpoints.",
+      "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. ESPVR uses the preload-reduction limb through baseline, while EDPVR and Starling retain the bidirectional family. Their branch computations do not mutate exact state or checkpoints.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
-      `Period-1 settlement was established over ${cycles} cycles and all ${checks} AV/LV/RVP timing and morphology gates passed.`,
+      `Period-1 settlement was established over ${cycles} cycles; all ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function gates plus the bidirectional preload-reserve gate passed.`,
     controlTitle: "Control semantics",
     controlBody:
       "Control changes, including heart rate, atomically warm-start a new fixture epoch while retaining accepted state and model clock. This is not an autonomic reflex or measured chronotropic response.",

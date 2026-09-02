@@ -10,7 +10,9 @@ import {
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   buildMainWirePeriodicPvaMethodV8,
+  buildMainWirePeriodicPvaMethodV9,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -124,13 +126,30 @@ const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1 = Object.freeze({
   MainWireAnalysisDerivationRuntimeV1
 >;
 
+const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9 = Object.freeze({
+  ...MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
+  derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+  runtime: Object.freeze({
+    kind: "periodic-pva" as const,
+    derivation: Object.freeze({
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+      build: buildMainWirePeriodicPvaMethodV9,
+    }),
+  }),
+}) satisfies AnalysisDerivationRegistrationV1<
+  MainWireAnalysisDerivationRuntimeV1
+>;
+
 export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
   defineAnalysisMethodRegistryV1<MainWireAnalysisDerivationRuntimeV1>({
     analysisRequestIds: Object.freeze([
       MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
     ]),
-    derivations: Object.freeze([MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1]),
+    derivations: Object.freeze([
+      MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
+      MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9,
+    ]),
     resolveExecutionPlan:
       resolveMainWireStructuralAnalysisExecutionPlanV1,
   });
@@ -143,10 +162,15 @@ export function resolveMainWireAnalysisMethodsForSurfaceV1(
     registry: MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1,
     surfaceValue,
   });
-  const periodicPvaRuntime = resolved.derivations.find(
-    ({ derivationId }) =>
-      derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
-  )?.runtime;
+  const periodicPvaRuntimes = resolved.derivations.filter(
+    ({ runtime }) => runtime.kind === "periodic-pva",
+  ).map(({ runtime }) => runtime);
+  if (periodicPvaRuntimes.length > 1) {
+    throw new Error(
+      "Surface must pin exactly one periodic PVA derivation generation",
+    );
+  }
+  const periodicPvaRuntime = periodicPvaRuntimes[0];
   return Object.freeze({
     capabilities: resolved.capabilities,
     periodicPvaDerivation:

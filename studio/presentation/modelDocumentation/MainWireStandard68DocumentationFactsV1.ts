@@ -23,6 +23,9 @@ import roundedEjectionSurfaceV1 from
 import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   RegisteredModelDocumentationIdentityV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
@@ -56,6 +59,8 @@ export type MainWireStandard68DocumentationFactsV1 = Readonly<{
     rawPressureVolumeLoop: true;
     formalPressureVolumeAnalysisExposed: true;
     structuralReturnAnalysisExposed: true;
+    periodicPvaMethodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID;
+    espvrLoadDomain: "preload-reduction-through-operating-anchor";
   }>;
   baseline: Readonly<{
     completedCycleCount: number;
@@ -162,7 +167,8 @@ export function resolveMainWireStandard68DocumentationFactsV1(
       (graph) => graph.renderer === "structural-return",
     );
     const formalPressureVolumeAnalysisExposed =
-      methods.periodicPvaDerivation !== null
+      methods.periodicPvaDerivation?.methodId ===
+        MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
       && surface.derivedOutputCatalog.length > 0;
     if (
       !rawPressureVolumeLoop
@@ -205,6 +211,9 @@ export function resolveMainWireStandard68DocumentationFactsV1(
         rawPressureVolumeLoop: true as const,
         formalPressureVolumeAnalysisExposed: true as const,
         structuralReturnAnalysisExposed: true as const,
+        periodicPvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+        espvrLoadDomain:
+          "preload-reduction-through-operating-anchor" as const,
       }),
       baseline: Object.freeze({
         completedCycleCount: baseline.completedCycleCount,

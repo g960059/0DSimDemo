@@ -9,7 +9,9 @@ import type {
 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   buildMainWirePeriodicPvaMethodV8,
+  buildMainWirePeriodicPvaMethodV9,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
@@ -34,6 +36,33 @@ import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1 } from
   "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 describe("settled hot-start PVA V1", () => {
+  it("keeps hypervolemic loads in EDPVR but ends the V9 ESPVR at the operating anchor", () => {
+    const points = settledPointsV1();
+    const result = buildMainWirePeriodicPvaMethodV9(
+      formalLocusV1(points),
+      "LV",
+    );
+
+    if (result.status !== "available") throw new Error(result.reason);
+    expect(result.status).toBe("available");
+    expect(result.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID);
+    expect(result.espvr.phaseSelectionPolicy).toBe(
+      "preload-reduction-through-anchor-over-lower-anchor-esv-neighborhood-within-anchor-late-systolic-window",
+    );
+    expect(result.espvr.phaseSelectionPointCount).toBe(7);
+    expect(result.espvr.fitPoints).toHaveLength(7);
+    expect(result.edpvr.fitPoints).toHaveLength(points.length);
+    expect(result.espvr.fitPoints.at(-1)?.volumeMl).toBeCloseTo(
+      result.anchor.endSystolicVolumeMl,
+      12,
+    );
+    expect(result.espvr.fitPoints.every((point, index, fitPoints) =>
+      index === 0 || (
+        point.volumeMl > fitPoints[index - 1]!.volumeMl
+        && point.pressureMmHg > fitPoints[index - 1]!.pressureMmHg
+      ))).toBe(true);
+  });
+
   it("calculates accepted-step SW, an area-max common-isochrone ESPVR, exponential EDPVR, PE, PVA, and LV MVO2", () => {
     const result = buildMainWirePeriodicPvaMethodV8(
       formalLocusV1(settledPointsV1()),
