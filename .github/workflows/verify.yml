@@ -70,6 +70,26 @@ jobs:
         env:
           CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
 
+  standard68:
+    name: Standard68 registry admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Verify rounded ejection Standard68 registry admission
         run: npm run verify:registry:main-wire-rounded-ejection-v1
         env:
@@ -230,6 +250,7 @@ jobs:
       - build
       - browser
       - supabase
+      - standard68
       - test
       - whitespace
     if: always()
@@ -243,6 +264,7 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
+          STANDARD68_RESULT: ${{ needs.standard68.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -252,6 +274,7 @@ jobs:
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
+            "Standard68 registry admission:$STANDARD68_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do
