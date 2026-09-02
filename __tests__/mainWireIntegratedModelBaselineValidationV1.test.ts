@@ -433,6 +433,34 @@ describe("Standard68 baseline mint gates", () => {
       stage: "refinement",
       center: first[3].candidateInputs,
     })).toHaveLength(16);
+    const recoveryCenter = applyMainWireBaselineCalibrationParametersV1(
+      first[0].candidateInputs,
+      [Object.freeze({
+        parameterId: "hemodynamics.total-blood-volume-ml" as const,
+        value: 4_850,
+      })],
+    );
+    const recoveryPolicy =
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+        .preloadReserveRecovery;
+    const recovery = buildMainWireBaselineSearchDesignV1({
+      stage: "refinement",
+      center: recoveryCenter,
+      contractionOverride: recoveryPolicy.refinementContraction,
+      coordinateBounds: Object.freeze({
+        "hemodynamics.total-blood-volume-ml": Object.freeze({
+          maximum: recoveryPolicy.maximumOperatingTotalBloodVolumeMl,
+        }),
+      }),
+    });
+    const recoveryVolumes = recovery.map(({ candidateInputs }) =>
+      candidateInputs.hemodynamicResearchInputs.totalBloodVolumeMl);
+    expect(recoveryVolumes[0]).toBe(4_850);
+    expect(Math.max(...recoveryVolumes)).toBeLessThanOrEqual(
+      recoveryPolicy.maximumOperatingTotalBloodVolumeMl,
+    );
+    expect(Math.min(...recoveryVolumes)).toBeLessThan(4_850);
+    expect(Math.max(...recoveryVolumes)).toBeGreaterThan(4_850);
 
     const check = (actual: number) => Object.freeze({
       checkId: "left-ventricle.maximum-dpdt" as const,

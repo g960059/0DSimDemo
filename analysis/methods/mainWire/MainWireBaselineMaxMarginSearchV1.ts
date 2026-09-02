@@ -65,6 +65,11 @@ export type MainWireBaselineCandidateObjectiveV1 = Readonly<{
 export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
   stage: MainWireBaselineSearchStageV1;
   center?: MainWireBaselineCalibrationCandidateInputsV1;
+  contractionOverride?: number;
+  coordinateBounds?: Readonly<Partial<Record<
+    MainWireBaselineCalibrationParameterIdV1,
+    Readonly<{ minimum?: number; maximum?: number }>
+  >>>;
 }>): readonly MainWireBaselineSearchCandidateV1[] {
   const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
   const reference = baselineCandidateV1();
@@ -72,9 +77,12 @@ export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
   const count = input.stage === "initial"
     ? policy.initialCandidateCountIncludingReference
     : policy.refinementCandidateCountIncludingCenter;
-  const contraction = input.stage === "initial"
+  const contraction = input.contractionOverride ?? (input.stage === "initial"
     ? 1
-    : policy.refinementContraction;
+    : policy.refinementContraction);
+  if (!(contraction > 0) || !(contraction <= 1)) {
+    throw new Error("baseline search contraction must lie in (0, 1]");
+  }
   const coordinateIds = policy.coordinateIds;
   const bounds = coordinateIds.map((coordinateId) => {
     const descriptor = mainWireBaselineCalibrationParameterV1(coordinateId);
@@ -87,23 +95,43 @@ export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
         coordinateId,
         centerValue,
       );
-    const domainMinimum =
+    const policyBound = input.coordinateBounds?.[coordinateId];
+    const physicalMinimum = policyBound?.minimum ?? descriptor.minimum;
+    const physicalMaximum = policyBound?.maximum ?? descriptor.maximum;
+    if (
+      physicalMinimum < descriptor.minimum
+      || physicalMaximum > descriptor.maximum
+      || physicalMinimum > physicalMaximum
+      || centerValue < physicalMinimum
+      || centerValue > physicalMaximum
+    ) {
+      throw new Error(`baseline search bound is invalid for ${coordinateId}`);
+    }
+    const allowedMinimum =
       transformMainWireBaselineCalibrationParameterV1(
         coordinateId,
-        descriptor.minimum,
+        physicalMinimum,
       );
-    const domainMaximum =
+    const allowedMaximum =
       transformMainWireBaselineCalibrationParameterV1(
         coordinateId,
-        descriptor.maximum,
+        physicalMaximum,
       );
+    const domainMinimum = transformMainWireBaselineCalibrationParameterV1(
+      coordinateId,
+      descriptor.minimum,
+    );
+    const domainMaximum = transformMainWireBaselineCalibrationParameterV1(
+      coordinateId,
+      descriptor.maximum,
+    );
     const halfSpan = policy.transformedDomainHalfSpanFraction
       * (domainMaximum - domainMinimum)
       * contraction;
     return Object.freeze({
       coordinateId,
-      minimum: Math.max(domainMinimum, centerTransformed - halfSpan),
-      maximum: Math.min(domainMaximum, centerTransformed + halfSpan),
+      minimum: Math.max(allowedMinimum, centerTransformed - halfSpan),
+      maximum: Math.min(allowedMaximum, centerTransformed + halfSpan),
     });
   });
   const candidates: MainWireBaselineSearchCandidateV1[] = [];

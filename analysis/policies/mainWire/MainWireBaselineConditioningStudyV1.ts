@@ -11,6 +11,9 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
 import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
@@ -79,6 +82,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
       "cold-center-then-common-center-continuation";
     finalistInitializationChecks:
       readonly ["cold", "alternate-compatible", "refined-dt"];
+    finalistComparisonCorridorFraction: 0.02;
     maximumParallelEvaluations: number;
     recordWallTimeAndCycleCount: true;
   }>;
@@ -113,6 +117,15 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     equivalentPrimaryMarginEpsilon: 0.02;
     equivalentWorstMarginEpsilon: 0.02;
     numericalFloorBufferMultiples: 1;
+    preloadReserveRecovery: Readonly<{
+      maximumOperatingTotalBloodVolumeMl: number;
+      refinementContraction: 0.25;
+      minimumSeedPrimaryBufferedInteriorMargin: 0;
+      allowedSeedFailureGroupIds: readonly [
+        "systemic-pressure",
+        "indexed-systemic-forward-flow",
+      ];
+    }>;
   }>;
   claimPolicy: Readonly<{
     evidenceRole: "construction";
@@ -123,7 +136,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 5;
+    revision: 6;
     changeReason: string;
   }>;
 }>;
@@ -231,6 +244,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         "alternate-compatible",
         "refined-dt",
       ] as const),
+      finalistComparisonCorridorFraction: 0.02 as const,
       maximumParallelEvaluations: 8,
       recordWallTimeAndCycleCount: true as const,
     }),
@@ -288,6 +302,17 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       equivalentPrimaryMarginEpsilon: 0.02 as const,
       equivalentWorstMarginEpsilon: 0.02 as const,
       numericalFloorBufferMultiples: 1 as const,
+      preloadReserveRecovery: Object.freeze({
+        maximumOperatingTotalBloodVolumeMl:
+          MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
+            .totalBloodVolumeMl,
+        refinementContraction: 0.25 as const,
+        minimumSeedPrimaryBufferedInteriorMargin: 0 as const,
+        allowedSeedFailureGroupIds: Object.freeze([
+          "systemic-pressure",
+          "indexed-systemic-forward-flow",
+        ] as const),
+      }),
     }),
     claimPolicy: Object.freeze({
       evidenceRole: "construction" as const,
@@ -298,9 +323,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 5 as const,
+      revision: 6 as const,
       changeReason:
-        "Prioritize ventricular/valve/timing interior before adjustable macro-hemodynamic interior after the first search audit.",
+        "Retain formal preload reserve after the first structural-first finalist crossed the high-preload Starling knee; use a bounded recovery refinement and corridor-scaled finalist numerical comparison.",
     }),
   });
 
@@ -338,6 +363,9 @@ export function lintMainWireBaselineConditioningStudyV1(
   const issues: MainWireBaselineConditioningStudyLintIssueV1[] = [];
   const parameterById = new Map(MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1
     .map((parameter) => [parameter.parameterId, parameter] as const));
+  const totalBloodVolumeParameter = parameterById.get(
+    "hemodynamics.total-blood-volume-ml",
+  );
   const coordinateGroups = [
     ["primaryCoordinateIds", source.primaryCoordinateIds],
     ["negativeControlCoordinateIds", source.negativeControlCoordinateIds],
@@ -497,6 +525,20 @@ export function lintMainWireBaselineConditioningStudyV1(
     || !(source.searchPolicy.equivalentPrimaryMarginEpsilon >= 0)
     || !(source.searchPolicy.equivalentWorstMarginEpsilon >= 0)
     || !(source.searchPolicy.numericalFloorBufferMultiples >= 0)
+    || !(source.searchPolicy.preloadReserveRecovery.refinementContraction > 0)
+    || !(source.searchPolicy.preloadReserveRecovery.refinementContraction
+      < source.searchPolicy.refinementContraction)
+    || totalBloodVolumeParameter === undefined
+    || !(source.searchPolicy.preloadReserveRecovery
+      .maximumOperatingTotalBloodVolumeMl
+        >= (totalBloodVolumeParameter?.minimum ?? Number.POSITIVE_INFINITY))
+    || !(source.searchPolicy.preloadReserveRecovery
+      .maximumOperatingTotalBloodVolumeMl
+        <= (totalBloodVolumeParameter?.maximum ?? Number.NEGATIVE_INFINITY))
+    || source.searchPolicy.preloadReserveRecovery.allowedSeedFailureGroupIds
+      .some((groupId) => !evidenceGroupIds.has(groupId))
+    || !(source.searchPolicy.preloadReserveRecovery
+      .minimumSeedPrimaryBufferedInteriorMargin >= 0)
   ) {
     issues.push(issueV1(
       "search-policy-invalid",
@@ -549,6 +591,9 @@ export function lintMainWireBaselineConditioningStudyV1(
       !== false
     || source.numericalPolicy.rateConditionInitialization
       !== "cold-center-then-common-center-continuation"
+    || !(source.numericalPolicy.finalistComparisonCorridorFraction > 0)
+    || source.numericalPolicy.finalistComparisonCorridorFraction
+      > source.searchPolicy.equivalentPrimaryMarginEpsilon
   ) {
     issues.push(issueV1(
       "numerical-policy-invalid",
