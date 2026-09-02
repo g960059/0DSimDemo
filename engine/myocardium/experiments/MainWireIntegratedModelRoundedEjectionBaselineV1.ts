@@ -8,6 +8,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import {
   withCommonVentricularActiveTensionScaleV1,
+  withCommonVentricularPassiveStiffnessScaleV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_V1_ID =
@@ -24,12 +25,13 @@ export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1 =
     baselineId:
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_V1_ID,
     selection:
-      "factorized-fixed-control-preload-reserve-and-baseline-gate-screen" as const,
+      "staged-release-lattice-and-envelope-qualification" as const,
     totalBloodVolumeMl: 4_900 as const,
-    systemicResistanceScale: 0.99 as const,
-    arterialStiffnessScale: 1.27 as const,
+    systemicResistanceScale: 0.98 as const,
+    arterialStiffnessScale: 1.3 as const,
     heartRateBpm: 60 as const,
-    commonVentricularActiveTensionScale: 1.29 as const,
+    commonVentricularActiveTensionScale: 1.24 as const,
+    commonVentricularPassiveStiffnessScale: 0.88 as const,
     equationTopologyChanged: false as const,
     materialPrimitiveChanged: false as const,
     mechanismResearchInputChanged: true as const,
@@ -56,10 +58,14 @@ export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_IN
 export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1 =
   validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3({
     ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
-    chamberMechanics: withCommonVentricularActiveTensionScaleV1(
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
-        .chamberMechanics,
+    chamberMechanics: withCommonVentricularPassiveStiffnessScaleV1(
+      withCommonVentricularActiveTensionScaleV1(
+        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+          .chamberMechanics,
+        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1
+          .commonVentricularActiveTensionScale,
+      ),
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1
-        .commonVentricularActiveTensionScale,
+        .commonVentricularPassiveStiffnessScale,
     ),
   });

@@ -116,9 +116,11 @@ Internal constitutive changes are model candidates rather than product knobs.
 
 For the first study, calcium-source and Land kinetic-family parameters remain
 locked. HR is an enumerated input of 60 or 70 bpm, never a fitted continuous
-coordinate. Passive stiffness remains diagnostic until multi-preload data
-support it. PVR enters a selected subset only with matched right-heart pressure
-and flow evidence.
+coordinate. Passive stiffness begins as a diagnostic coordinate and may enter
+construction fitting only when fixed-control multi-preload responses show
+stable leverage; this does not identify a biological stiffness value. PVR
+enters a selected subset only with matched right-heart pressure and flow
+evidence.
 
 Known compensation is encoded before simulation: TBV with unstressed venous
 volume/tone/compliance; resistance with pressure difference and flow;
@@ -182,6 +184,65 @@ afterload perturbation, and HR 60/70. Preload and afterload provide the main
 identification leverage; rate remains a safety condition. A dedicated Morris,
 Sobol, profile-likelihood, or Bayesian stage is deferred until data and a
 measured need justify it.
+
+### Implemented baseline result and measured throughput
+
+The construction search first found a continuous candidate that passed the
+complete envelope, then rejected it for release because its controls were not
+representable on the exposed Surface lattice. Deterministic projection and
+small axial lattice continuations produced the adopted point: TBV 4900 mL,
+systemic-resistance scale 0.98, arterial-stiffness scale 1.30, common
+ventricular active-tension scale 1.24, and common ventricular passive-stiffness
+scale 0.88. Calcium-source and Land kinetic-family coordinates remained locked.
+These values identify a tested fixture; they are neither parameter precision
+nor an identifiability claim.
+
+The generated 2 ms cold baseline has AV mean/peak gradient 4.239/7.637 mmHg,
+ET 254 ms, LV maximum/minimum dP/dt 2362/-1162 mmHg/s, mitral peak E/A 0.845,
+ICT/IRT 64/92 ms, Tei 0.619, AoP 90.9/67.0 mmHg, CI 2.526 L/min/m2, and
+single-peaked rounded LVP/RVP morphology. Under fixed controls, TBV -12% lowers
+LV output by 19.1%; TBV +12% raises LV output by 3.09% and RV output by 6.04%.
+The high-preload LV output/filling-pressure slope is 0.0222 L/min/mmHg and EDV
+rises 3.65%, with directionally correct filling and transmural pressures. This
+places the fixture just on the admitted ascending side of the high-preload
+gate; it does not establish a large physiological reserve or validate the full
+Frank-Starling curve.
+
+The selected lattice finalist passed continuation, independent 2 ms and 1 ms
+cold solutions, fixed-control low/high preload, and the preregistered HR 70 and
+systemic-afterload morphology/periodicity safety checks. HR 70 is not claimed
+to satisfy every rest corridor. The baseline-local numerical floor and the
+candidate-local 2% corridor allowance are separate cross-resolution error
+budgets. Each time resolution still passes every buffered rest gate
+independently; comparison tolerance cannot rescue an out-of-corridor result.
+The 1 ms worst buffered margin is 0.0176; a previously qualified alternative
+was rejected because its corresponding dP/dt margin was only 0.00245.
+
+Measured performance on the current 18-logical-CPU workstation supports the
+staged lane without a generic scheduler:
+
+- verified same-construction continuation was 13.1 times faster than cold
+  initialization in the recorded benchmark;
+- each 11-point release-lattice search with eight workers completed in 37.5 to
+  44.8 seconds versus 151.4 to 160.3 seconds summed evaluation time, an
+  observed 3.58 to 4.04 times throughput gain;
+- four preload-only candidates executed concurrently in 83.6 seconds maximum
+  wall time versus 313.5 seconds summed candidate time, a 3.75 times gain; and
+- the selected five-worker finalist cascade completed in 318 seconds versus
+  735 seconds summed worker time, a 2.31 times gain.
+
+Exploration therefore uses up to eight workers, exact-identity checkpoint
+continuation, periodicity-triggered early stop, and release-lattice preflight.
+Preload-only screening precedes full qualification; independent cold and 1 ms
+checks remain finalist-only. The mint path intentionally retains a cold source
+reconstruction and deterministic double artifact build. Performance work stops
+at this boundary unless new measurements show a research-lane bottleneck.
+
+The authoritative construction trail is the versioned search, preload-screen,
+and finalist reports under `data/myocardium/reports/`, together with the
+generated Standard68 validation, checkpoint, exact artifact, descriptor, and
+admission lock. Rejected reports are retained to expose the rest/reserve,
+release-lattice, and refined-time-step boundaries.
 
 ## Minimal implementation sequence
 
