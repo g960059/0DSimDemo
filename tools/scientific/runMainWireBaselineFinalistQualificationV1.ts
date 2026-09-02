@@ -146,8 +146,14 @@ async function runCoordinatorV1(): Promise<void> {
   const floorArtifactPath = resolve(requiredArgumentV1("--numerical-floor"));
   const outputPath = resolve(requiredArgumentV1("--output"));
   const checkpointOutputArgument = argumentV1("--checkpoint-output");
+  const checkpointOutputPath = checkpointOutputArgument === null
+    ? null
+    : resolve(checkpointOutputArgument);
   if (scope === "preload-only" && checkpointOutputArgument !== null) {
     throw new Error("preload-only screening does not persist a checkpoint");
+  }
+  if (checkpointOutputPath !== null) {
+    portableRepositoryPathV1(checkpointOutputPath);
   }
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "5",
@@ -391,9 +397,6 @@ async function runCoordinatorV1(): Promise<void> {
       && preload.status === "passed"
     ? "passed" as const
     : "failed" as const;
-  const checkpointOutputPath = checkpointOutputArgument === null
-    ? null
-    : resolve(checkpointOutputArgument);
   const coldCheckpoint = cold2.checkpoint === null
     ? null
     : await validateMainWireIntegratedModelStandard68CheckpointV1(
