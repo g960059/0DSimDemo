@@ -11,9 +11,16 @@ import {
   qualifyMainWireIntegratedModelRoundedEjectionBaselineV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineQualificationV1";
 import {
+  qualifyMainWireIntegratedModelStandard69BaselineV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineQualificationV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
 import {
   MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
@@ -46,8 +53,17 @@ import {
   createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_SETTLED_CHECKPOINT_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1,
+  createMainWireIntegratedStudioQualifiedBaselineSettledReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1";
+import {
   buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
+import {
+  buildMainWireIntegratedStudioStandard69BaselineValidationV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard69BaselineValidationV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -59,12 +75,52 @@ const requestedArguments = process.argv.slice(2);
 const roundedEjectionRequested = requestedArguments.includes(
   "--rounded-ejection",
 );
+const qualifiedBaselineRequested = requestedArguments.includes(
+  "--qualified-baseline",
+);
+if (roundedEjectionRequested && qualifiedBaselineRequested) {
+  throw new Error(
+    "--rounded-ejection and --qualified-baseline are mutually exclusive",
+  );
+}
+const roundedConstructionRequested =
+  roundedEjectionRequested || qualifiedBaselineRequested;
 const updateRequested = requestedArguments.includes("--write");
 if (requestedArguments.some((argument) =>
-  argument !== "--write" && argument !== "--rounded-ejection")) {
-  throw new Error("supported arguments are --write and --rounded-ejection");
+  argument !== "--write"
+  && argument !== "--rounded-ejection"
+  && argument !== "--qualified-baseline")) {
+  throw new Error(
+    "supported arguments are --write, --rounded-ejection, and --qualified-baseline",
+  );
 }
-const releaseConfigurationV1 = roundedEjectionRequested
+const releaseConfigurationV1 = qualifiedBaselineRequested
+  ? Object.freeze({
+      label: "qualified-baseline Standard69",
+      idSlug: "qualified-baseline-standard69",
+      displayName: "Main Wire Standard 69",
+      entryFile: "MainWireIntegratedStudioQualifiedBaselineExactModelV1.entry.ts",
+      artifactFile:
+        "MainWireIntegratedStudioQualifiedBaselineExactModelV1.artifact.mjs",
+      descriptorFile:
+        "MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json",
+      lockFile: "qualified-baseline-standard69-registry-admission-lock.json",
+      artifactChunkName:
+        "main-wire-integrated-qualified-baseline-standard69-v1.mjs",
+      modelId:
+        "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69",
+      fixtureId: "main-wire-integrated-model-rounded-ejection-fixture-v1",
+      proximalArterialRootsProfileId: null,
+      numericalSessionId:
+        "main-wire-integrated-model-standard68-typed-authority-session-v1",
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
+      createRelease:
+        createMainWireIntegratedStudioQualifiedBaselineSettledReleaseV1,
+      defaultFixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_DEFAULT_FIXTURE_V1,
+    })
+  : roundedEjectionRequested
   ? Object.freeze({
       label: "rounded-ejection Standard68",
       idSlug: "rounded-ejection-standard68",
@@ -148,7 +204,7 @@ type ReleaseV1 = ReturnType<
 await main();
 
 async function main(): Promise<void> {
-  if (roundedEjectionRequested) {
+  if (roundedConstructionRequested) {
     await assertRoundedEjectionBaselineQualificationV1();
   }
   const sourceRelease = releaseConfigurationV1.createRelease();
@@ -227,35 +283,52 @@ async function main(): Promise<void> {
 }
 
 async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
-  const qualification =
-    await qualifyMainWireIntegratedModelRoundedEjectionBaselineV1();
+  const qualification = qualifiedBaselineRequested
+    ? await qualifyMainWireIntegratedModelStandard69BaselineV1()
+    : await qualifyMainWireIntegratedModelRoundedEjectionBaselineV1();
+  const hemodynamicInputs = qualifiedBaselineRequested
+    ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1
+    : MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1;
+  const mechanismInputs = qualifiedBaselineRequested
+    ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1
+    : MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1;
   const settledSession =
     await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
       .restoreStandard68ExactCheckpoint(
         qualification.checkpoint,
-        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+        hemodynamicInputs,
         1,
         undefined,
-        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+        mechanismInputs,
       );
   const preloadReserve =
     await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
       settledSession,
-      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      hemodynamicInputs,
     );
-  const report =
-    buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
-      qualification,
-      preloadReserve,
-    );
+  const report = qualifiedBaselineRequested
+    ? buildMainWireIntegratedStudioStandard69BaselineValidationV1(
+        qualification,
+        preloadReserve,
+      )
+    : buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
+        qualification,
+        preloadReserve,
+      );
+  const committedReport = qualifiedBaselineRequested
+    ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
+    : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+  const committedCheckpoint = qualifiedBaselineRequested
+    ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_SETTLED_CHECKPOINT_V1
+    : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1;
   if (
     !sameBaselineAcrossSupportedRuntimeV1(
       report,
-      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
+      committedReport,
     )
     || !sameBaselineAcrossSupportedRuntimeV1(
       qualification.checkpoint,
-      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SETTLED_BASELINE_CHECKPOINT_V1,
+      committedCheckpoint,
     )
   ) {
     fail(
@@ -277,6 +350,12 @@ async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
     "timing.ict",
     "timing.irt",
     "timing.tei-index",
+    "aortic-pressure.maximum",
+    "aortic-pressure.minimum",
+    "pulmonary-artery-pressure.maximum",
+    "pulmonary-artery-pressure.minimum",
+    "central-venous-pressure.mean",
+    "pcwp-surrogate.mean",
     "left-ventricle.edv-index",
     "left-ventricle.esv-index",
     "left-ventricle.ejection-fraction",
@@ -387,7 +466,7 @@ function assertStandard67ManifestV1(
     "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1",
   ];
   if (
-    roundedEjectionRequested
+    roundedConstructionRequested
       ? structuralAnalysisCapabilities.some((capability) =>
           !manifest.capabilities.includes(capability))
       : structuralAnalysisCapabilities.some((capability) =>
@@ -472,13 +551,14 @@ async function assertArtifactAdmissionV1(
       runtimeSessionId: sourceSessionId,
       scenarioId,
     });
-    const expectedInitialRevision = roundedEjectionRequested
-      ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1
-        .checkpoint.revision
+    const baselineReport = qualifiedBaselineRequested
+      ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
+      : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+    const expectedInitialRevision = roundedConstructionRequested
+      ? baselineReport.checkpoint.revision
       : 0;
-    const expectedInitialTimeSec = roundedEjectionRequested
-      ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1
-        .checkpoint.acceptedTimeSec
+    const expectedInitialTimeSec = roundedConstructionRequested
+      ? baselineReport.checkpoint.acceptedTimeSec
       : 0;
     if (
       initial.acceptedRevision !== expectedInitialRevision

@@ -42,6 +42,7 @@ import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/main
 import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
 import mainWireIntegratedStudioRoundedEjectionClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
+import mainWireIntegratedStudioQualifiedBaselineClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -51,6 +52,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -81,10 +83,12 @@ import mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1 from "@/st
 import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import mainWireIntegratedStudioRoundedEjectionSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import mainWireIntegratedStudioQualifiedBaselineSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
 import mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
 import mainWireIntegratedStudioRoundedEjectionRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json";
+import mainWireIntegratedStudioQualifiedBaselineRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
 
@@ -536,7 +540,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses Standard68 by default while preserving exact Standard65/66/67 local pairs", async () => {
+  it("uses Standard69 by default while preserving exact Standard65-68 local pairs", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
@@ -603,15 +607,27 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         mainWireIntegratedStudioRoundedEjectionRegistryLockV1
           .artifactRevisionId,
       );
+      expect(
+        composition
+          .localQualifiedBaselineArtifactRevisionUrlV1(
+            new URL(
+              "http://127.0.0.1:4176/qualified-baseline-standard69.artifact.mjs",
+            ),
+          )
+          .searchParams.get("revision"),
+      ).toBe(
+        mainWireIntegratedStudioQualifiedBaselineRegistryLockV1
+          .artifactRevisionId,
+      );
       expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
-        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
       );
       await expect(
         composition.loadStudioDefaultClientCompositionV2(),
       ).resolves.toMatchObject({
         exactModel: {
           modelId:
-            mainWireIntegratedStudioRoundedEjectionClientV1.manifest
+            mainWireIntegratedStudioQualifiedBaselineClientV1.manifest
               .modelId,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
@@ -620,10 +636,10 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         modelSurface: {
           identity: {
             surfaceReleaseId:
-              mainWireIntegratedStudioRoundedEjectionSurfaceV1
+              mainWireIntegratedStudioQualifiedBaselineSurfaceV1
                 .surfaceReleaseId,
             surfaceSeriesId:
-              mainWireIntegratedStudioRoundedEjectionSurfaceV1
+              mainWireIntegratedStudioQualifiedBaselineSurfaceV1
                 .surfaceSeriesId,
           },
         },
@@ -682,6 +698,25 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
             surfaceSeriesId:
               mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
                 .surfaceSeriesId,
+          },
+        },
+      });
+      await expect(
+        composition.loadStudioExperimentClientCompositionV2(
+          mainWireIntegratedStudioRoundedEjectionClientV1.manifest.modelId,
+          mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceSeriesId,
+        ),
+      ).resolves.toMatchObject({
+        exactModel: {
+          modelId:
+            mainWireIntegratedStudioRoundedEjectionClientV1.manifest.modelId,
+        },
+        modelSurface: {
+          identity: {
+            surfaceReleaseId:
+              mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceReleaseId,
+            surfaceSeriesId:
+              mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceSeriesId,
           },
         },
       });

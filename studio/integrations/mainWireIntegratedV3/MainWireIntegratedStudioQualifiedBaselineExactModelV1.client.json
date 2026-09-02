@@ -1,0 +1,2680 @@
+{
+  "schemaId": "circleheart-standard-exact-model-client-descriptor-v1",
+  "manifest": {
+    "schemaId": "circleheart-studio-exact-model-kernel-v3",
+    "modelId": "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69",
+    "modelFamilyId": "circleheart.main-wire-integrated-transaction",
+    "equations": {
+      "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
+      "fixtureId": "main-wire-integrated-model-rounded-ejection-fixture-v1",
+      "coronaryOwner": "main-wire-five-wall-coronary-transaction-v3",
+      "rhythmOwner": "main-wire-integrated-matched-alpha-fixed-regular-sinus-profile-v1",
+      "calciumOwner": "accepted-exact-event-matched-alpha-state",
+      "ventricularMaterialProfileId": "main-wire-ventricular-rounded-ejection-profile-v1",
+      "aorticOutflowCirculationProfileId": "main-wire-source-aortic-outflow-topology-v3",
+      "acceptedStepBeatMetricOwners": [
+        "main-wire-integrated-model-accepted-step-beat-metrics-v4"
+      ]
+    },
+    "runtime": {
+      "numericalSessionId": "main-wire-integrated-model-standard68-typed-authority-session-v1",
+      "presentationDtSec": 0.002,
+      "hotPathIntegrityTier": "hot-path-lean",
+      "acceptedBoundaryCapture": true,
+      "fixtureChangeSemantics": "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch",
+      "scope": "rounded-ejection-qualified-baseline-matched-alpha-source-aortic-topology-regular-sinus-all-off"
+    },
+    "solver": {
+      "candidateSemantics": "event-limited-atomic-composed-rhythm-coronary-dynamic-mcs",
+      "acceptedStateMutation": false,
+      "failureRollback": "previous-accepted-tuple"
+    },
+    "fixtureSchema": {
+      "fixtureSchemaId": "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1",
+      "definition": {
+        "schemaId": "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1",
+        "exactKeys": [
+          "schemaId",
+          "rhythm",
+          "coronary",
+          "dynamicMechanicalSupport",
+          "hemodynamicResearchInputs",
+          "mechanismResearchInputs"
+        ],
+        "hemodynamicResearchInputs": "main-wire-integrated-model-hemodynamic-research-inputs-v3",
+        "mechanismResearchInputs": "main-wire-integrated-model-mechanism-research-inputs-v3",
+        "calciumDecayTimeScaleResearchInput": "fixed-unit-only-to-preserve-selected-matched-alpha-law"
+      }
+    },
+    "checkpointCodec": {
+      "checkpointCodecId": "circleheart.main-wire-integrated-v3-rounded-ejection-checkpoint-codec.standard-v1",
+      "definition": {
+        "checkpointId": "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
+        "schemaVersion": 1,
+        "fixturePairing": "rounded-ejection-complete-fixture-and-profile-identity",
+        "restoreSemantics": "exact-object-selected-identity-no-migration-no-clock-rebase"
+      }
+    },
+    "primitiveControlCatalog": [
+      {
+        "controlId": "rhythm.heart-rate-bpm",
+        "valueType": "number",
+        "unit": "bpm",
+        "minimum": 40,
+        "maximum": 100,
+        "step": 1,
+        "defaultValue": 60,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.total-blood-volume-ml",
+        "valueType": "number",
+        "unit": "mL",
+        "minimum": 4200,
+        "maximum": 7000,
+        "step": 50,
+        "defaultValue": 4900,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.systemic-resistance",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.25,
+        "step": 0.01,
+        "defaultValue": 0.98,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.contractility",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1.24,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.venous-tone",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.01,
+        "defaultValue": 0.15,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "ventilation.peep-cm-h2o",
+        "valueType": "number",
+        "unit": "cmH2O",
+        "minimum": 0,
+        "maximum": 20,
+        "step": 1,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.pulmonary-resistance",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.45,
+        "maximum": 0.8,
+        "step": 0.005,
+        "defaultValue": 0.625,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "hemodynamics.arterial-stiffness",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 1.5,
+        "step": 0.01,
+        "defaultValue": 1.3,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.active-tension-scale.LA",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.active-tension-scale.LVFW",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1.24,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.active-tension-scale.SEP",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1.24,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.active-tension-scale.RVFW",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1.24,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.active-tension-scale.RA",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.passive-stiffness-scale.LA",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.passive-stiffness-scale.LVFW",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 0.88,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.passive-stiffness-scale.SEP",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 0.88,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.passive-stiffness-scale.RVFW",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 0.88,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "myocardium.passive-stiffness-scale.RA",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.33,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.maximum-forward-eoa-cm2.MV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0.6,
+        "maximum": 6,
+        "step": 0.05,
+        "defaultValue": 5.5,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.closed-reverse-eroa-cm2.MV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0,
+        "maximum": 0.6,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.maximum-forward-eoa-cm2.AoV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0.5,
+        "maximum": 4,
+        "step": 0.05,
+        "defaultValue": 3.5,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.closed-reverse-eroa-cm2.AoV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0,
+        "maximum": 0.5,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.maximum-forward-eoa-cm2.TV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0.7,
+        "maximum": 9,
+        "step": 0.05,
+        "defaultValue": 8,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.closed-reverse-eroa-cm2.TV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0,
+        "maximum": 0.7,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.maximum-forward-eoa-cm2.PV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0.35,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 4,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "valve.closed-reverse-eroa-cm2.PV",
+        "valueType": "number",
+        "unit": "cm2",
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.hemoglobin-g-per-dl",
+        "valueType": "number",
+        "unit": "g/dL",
+        "minimum": 5,
+        "maximum": 20,
+        "step": 0.1,
+        "defaultValue": 15,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.inspired-oxygen-fraction",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.21,
+        "maximum": 1,
+        "step": 0.01,
+        "defaultValue": 0.21,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.arterial-carbon-dioxide-pressure-mm-hg",
+        "valueType": "number",
+        "unit": "mmHg",
+        "minimum": 20,
+        "maximum": 80,
+        "step": 1,
+        "defaultValue": 40,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.respiratory-exchange-ratio",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.7,
+        "maximum": 1,
+        "step": 0.01,
+        "defaultValue": 0.8,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.barometric-pressure-mm-hg",
+        "valueType": "number",
+        "unit": "mmHg",
+        "minimum": 500,
+        "maximum": 800,
+        "step": 1,
+        "defaultValue": 760,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.true-shunt-fraction",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0,
+        "maximum": 0.5,
+        "step": 0.01,
+        "defaultValue": 0.02,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "oxygen.target-consumption-ml-per-min",
+        "valueType": "number",
+        "unit": "mL O2/min",
+        "minimum": 100,
+        "maximum": 600,
+        "step": 5,
+        "defaultValue": 250,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "pericardium.reference-capacity-scale",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.75,
+        "maximum": 1.25,
+        "step": 0.01,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "pericardium.pressure-scale",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.25,
+        "maximum": 4,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "pericardium.exponential-stiffness-scale",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 2,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "pericardium.prescribed-fluid-volume-ml",
+        "valueType": "number",
+        "unit": "mL",
+        "minimum": 0,
+        "maximum": 500,
+        "step": 10,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.focal-diameter-loss-fraction.LAD",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0,
+        "maximum": 0.85,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.focal-diameter-loss-fraction.LCx",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0,
+        "maximum": 0.85,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.focal-diameter-loss-fraction.RCA",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0,
+        "maximum": 0.85,
+        "step": 0.01,
+        "defaultValue": 0,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.LAD.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.LAD.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.LCx.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.LCx.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.RCA.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-r1-resistance-scale.RCA.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.LAD.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.LAD.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.LCx.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.LCx.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.RCA.subepicardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      },
+      {
+        "controlId": "coronary.structural-rm-resistance-scale.RCA.subendocardial",
+        "valueType": "number",
+        "unit": "1",
+        "minimum": 0.5,
+        "maximum": 5,
+        "step": 0.05,
+        "defaultValue": 1,
+        "changeSemantics": "accepted-state-warm-start"
+      }
+    ],
+    "primitiveSignalCatalog": [
+      {
+        "outputId": "hemodynamics.volume.LA",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.LV",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.RA",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.volume.RV",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.LA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.LV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.RA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.RV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.LA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.LV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.RA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.RV",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.Ao",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.SA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.PA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.PVein",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.VC",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.MV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.AoV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.TV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.valve.PV",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.systemic.SA_Art",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.pulmonary.PA_PArt",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.venous.VC_RA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "hemodynamics.flow.venous.PVein_LA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.pressure.excess",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.volume.heart",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.volume.fluid",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.volume.total-occupied",
+        "kind": "signal",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "pericardium.energy.stored",
+        "kind": "signal",
+        "unit": "mJ",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "respiration.pressure.pleural",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "respiration.pressure.alveolar",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "rhythm.heart-rate.instantaneous",
+        "kind": "signal",
+        "unit": "bpm",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.total",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.LAD",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.LCx",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.inlet.RCA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.venous-outlet",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-outflow.LAD",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-storage-rate.LAD",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-outflow.LCx",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-storage-rate.LCx",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-outflow.RCA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.large-arterial-storage-rate.RCA",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.LAD.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.LAD.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.LAD.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.LAD.subepicardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.LAD.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.LAD.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.LAD.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.LAD.subendocardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.LCx.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.LCx.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.LCx.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.LCx.subepicardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.LCx.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.LCx.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.LCx.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.LCx.subendocardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.RCA.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.RCA.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.RCA.subepicardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.RCA.subepicardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r1.RCA.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-qm-internal.RCA.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.flow.layer-r2.RCA.subendocardial",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.tone-resistance-scale.RCA.subendocardial",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure.post-focal.LAD",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure-loss.focal.LAD",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure.post-focal.LCx",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure-loss.focal.LCx",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure.post-focal.RCA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.pressure-loss.focal.RCA",
+        "kind": "signal",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "coronary.power.dissipated.total",
+        "kind": "signal",
+        "unit": "mmHg*mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "device.LVAD.flow",
+        "kind": "signal",
+        "unit": "mL/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      },
+      {
+        "outputId": "rhythm.phase.regular-sinus",
+        "kind": "signal",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "sampling": "accepted-step"
+      }
+    ],
+    "modelMetricCatalog": [
+      {
+        "outputId": "hemodynamics.pressure.mean.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.diastolic.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.pulse.Ao",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.systolic.Ao",
+          "hemodynamics.pressure.diastolic.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.SA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.SA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.SA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.SA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.diastolic.SA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.SA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.pulse.SA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.systolic.SA",
+          "hemodynamics.pressure.diastolic.SA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.PA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.PA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.diastolic.PA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.pulse.PA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.systolic.PA",
+          "hemodynamics.pressure.diastolic.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.PVein",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.PVein"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.VC",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.VC"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.LA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.mean.RA",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.LV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.systolic.RV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.mean.systemic-circuit",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.mean.SA",
+          "hemodynamics.pressure.mean.RA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.mean.pulmonary-circuit",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.mean.PA",
+          "hemodynamics.pressure.mean.PVein"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.maximum.LV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.minimum.LV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.stroke-volume.LV-extrema",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.maximum.LV",
+          "hemodynamics.volume.minimum.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.ejection-fraction.LV-extrema",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.maximum.LV",
+          "hemodynamics.volume.minimum.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.flow.valve.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LV",
+          "hemodynamics.flow.valve.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.end-diastolic.LV-at-MV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.transmural.LV",
+          "hemodynamics.flow.valve.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LV",
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.end-systolic.LV-at-AoV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.transmural.LV",
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.stroke-volume.LV-event-defined",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+          "hemodynamics.volume.end-systolic.LV-at-AoV-closure"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.ejection-fraction.LV-event-defined",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.stroke-volume.LV-event-defined",
+          "hemodynamics.volume.end-diastolic.LV-at-MV-closure"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.end-diastolic.RV-at-TV-closure",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.RV",
+          "hemodynamics.flow.valve.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.end-diastolic.RV-at-TV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RV",
+          "hemodynamics.flow.valve.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.end-diastolic.RV-at-TV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.transmural.RV",
+          "hemodynamics.flow.valve.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.volume.end-systolic.RV-at-PV-closure",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.RV",
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.absolute.end-systolic.RV-at-PV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RV",
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure.transmural.end-systolic.RV-at-PV-closure",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.transmural.RV",
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.stroke-volume.RV-event-defined",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.end-diastolic.RV-at-TV-closure",
+          "hemodynamics.volume.end-systolic.RV-at-PV-closure"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.ejection-fraction.RV-event-defined",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.stroke-volume.RV-event-defined",
+          "hemodynamics.volume.end-diastolic.RV-at-TV-closure"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.forward.MV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.reverse.MV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.net.MV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.MV",
+          "hemodynamics.valve-volume.reverse.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-regurgitant-fraction.same-valve.MV",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.MV",
+          "hemodynamics.valve-volume.reverse.MV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.forward.AoV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.reverse.AoV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.net.AoV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.AoV",
+          "hemodynamics.valve-volume.reverse.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-regurgitant-fraction.same-valve.AoV",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.AoV",
+          "hemodynamics.valve-volume.reverse.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.forward.TV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.reverse.TV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.net.TV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.TV",
+          "hemodynamics.valve-volume.reverse.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-regurgitant-fraction.same-valve.TV",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.TV",
+          "hemodynamics.valve-volume.reverse.TV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.forward.PV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.reverse.PV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-volume.net.PV",
+        "kind": "metric",
+        "unit": "mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.PV",
+          "hemodynamics.valve-volume.reverse.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.valve-regurgitant-fraction.same-valve.PV",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.forward.PV",
+          "hemodynamics.valve-volume.reverse.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.MV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.MV",
+          "hemodynamics.pressure.absolute.LA",
+          "hemodynamics.pressure.absolute.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.MV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.MV",
+          "hemodynamics.pressure.absolute.LA",
+          "hemodynamics.pressure.absolute.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV",
+          "hemodynamics.pressure.absolute.LV",
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV",
+          "hemodynamics.pressure.absolute.LV",
+          "hemodynamics.pressure.absolute.Ao"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.TV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.TV",
+          "hemodynamics.pressure.absolute.RA",
+          "hemodynamics.pressure.absolute.RV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.TV",
+          "hemodynamics.pressure.absolute.RA",
+          "hemodynamics.pressure.absolute.RV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.PV",
+          "hemodynamics.pressure.absolute.RV",
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.PV",
+          "hemodynamics.pressure.absolute.RV",
+          "hemodynamics.pressure.absolute.PA"
+        ]
+      },
+      {
+        "outputId": "myocardium.work.external.RV-transmural-pressure-volume-path",
+        "kind": "metric",
+        "unit": "mmHg*mL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.RV",
+          "hemodynamics.pressure.transmural.RV"
+        ]
+      },
+      {
+        "outputId": "myocardium.work.stroke.LV",
+        "kind": "metric",
+        "unit": "mJ",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.volume.LV",
+          "hemodynamics.pressure.transmural.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
+        "kind": "metric",
+        "unit": "mmHg/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
+        "kind": "metric",
+        "unit": "mmHg/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.LV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
+        "kind": "metric",
+        "unit": "mmHg/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV",
+        "kind": "metric",
+        "unit": "mmHg/s",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.absolute.RV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.native-left",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.native-right",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.effective-native-left",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.net.AoV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.effective-native-right",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.net.PV"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.return.systemic-venous",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.venous.VC_RA",
+          "coronary.flow.venous-outlet"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.return.pulmonary-venous",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.venous.PVein_LA"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.systemic-tissue",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.systemic.SA_Art"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.output.pulmonary",
+        "kind": "metric",
+        "unit": "L/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.pulmonary.PA_PArt"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.resistance.systemic-effective",
+        "kind": "metric",
+        "unit": "mmHg*min/L",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure-gradient.mean.systemic-circuit",
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.resistance.pulmonary-effective",
+        "kind": "metric",
+        "unit": "mmHg*min/L",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure-gradient.mean.pulmonary-circuit",
+          "hemodynamics.output.pulmonary"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.compliance.pulmonary-arterial-effective",
+        "kind": "metric",
+        "unit": "mL/mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.valve-volume.net.PV",
+          "hemodynamics.pressure.pulse.PA"
+        ]
+      },
+      {
+        "outputId": "coronary.pressure-perfusion.surrogate.Ao-diastolic-minus-LVEDP",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.pressure.diastolic.Ao",
+          "hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure"
+        ]
+      },
+      {
+        "outputId": "oxygen.pressure.alveolar",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "oxygen.pressure.arterial",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.pressure.alveolar",
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "oxygen.pressure.gradient.alveolar-arterial",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.pressure.alveolar",
+          "oxygen.pressure.arterial"
+        ]
+      },
+      {
+        "outputId": "oxygen.saturation.end-capillary",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.pressure.alveolar"
+        ]
+      },
+      {
+        "outputId": "oxygen.saturation.arterial",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.pressure.arterial"
+        ]
+      },
+      {
+        "outputId": "oxygen.content.end-capillary",
+        "kind": "metric",
+        "unit": "mL O2/dL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.saturation.end-capillary"
+        ]
+      },
+      {
+        "outputId": "oxygen.content.arterial",
+        "kind": "metric",
+        "unit": "mL O2/dL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.saturation.arterial"
+        ]
+      },
+      {
+        "outputId": "oxygen.content.required-mixed-venous",
+        "kind": "metric",
+        "unit": "mL O2/dL",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.content.arterial",
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "oxygen.saturation.required-mixed-venous",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.content.required-mixed-venous"
+        ]
+      },
+      {
+        "outputId": "oxygen.pressure.required-mixed-venous",
+        "kind": "metric",
+        "unit": "mmHg",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.content.required-mixed-venous"
+        ]
+      },
+      {
+        "outputId": "oxygen.delivery.systemic",
+        "kind": "metric",
+        "unit": "mL O2/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.content.arterial",
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "oxygen.consumption.target",
+        "kind": "metric",
+        "unit": "mL O2/min",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.output.systemic-tissue"
+        ]
+      },
+      {
+        "outputId": "oxygen.extraction-ratio.required",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.delivery.systemic",
+          "oxygen.consumption.target"
+        ]
+      },
+      {
+        "outputId": "oxygen.delivery-to-consumption-ratio",
+        "kind": "metric",
+        "unit": "1",
+        "significantDigits": 3,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "oxygen.delivery.systemic",
+          "oxygen.consumption.target"
+        ]
+      },
+      {
+        "outputId": "hemodynamics.duration.valve-forward-flow.AoV",
+        "kind": "metric",
+        "unit": "s",
+        "significantDigits": 4,
+        "shape": "scalar",
+        "scope": "beat",
+        "dependencies": [
+          "hemodynamics.flow.valve.AoV"
+        ]
+      }
+    ],
+    "capabilities": [
+      "runtime/exact-presentation-batch-v1",
+      "runtime/execution-plan-typed-authority-binding-v1",
+      "runtime/execution-plan-newton-workspace-v1",
+      "control/rhythm.heart-rate-bpm",
+      "control/hemodynamics.total-blood-volume-ml",
+      "control/hemodynamics.systemic-resistance",
+      "control/myocardium.contractility",
+      "control/hemodynamics.venous-tone",
+      "control/ventilation.peep-cm-h2o",
+      "control/hemodynamics.pulmonary-resistance",
+      "control/hemodynamics.arterial-stiffness",
+      "control/myocardium.active-tension-scale.LA",
+      "control/myocardium.active-tension-scale.LVFW",
+      "control/myocardium.active-tension-scale.SEP",
+      "control/myocardium.active-tension-scale.RVFW",
+      "control/myocardium.active-tension-scale.RA",
+      "control/myocardium.passive-stiffness-scale.LA",
+      "control/myocardium.passive-stiffness-scale.LVFW",
+      "control/myocardium.passive-stiffness-scale.SEP",
+      "control/myocardium.passive-stiffness-scale.RVFW",
+      "control/myocardium.passive-stiffness-scale.RA",
+      "control/valve.maximum-forward-eoa-cm2.MV",
+      "control/valve.closed-reverse-eroa-cm2.MV",
+      "control/valve.maximum-forward-eoa-cm2.AoV",
+      "control/valve.closed-reverse-eroa-cm2.AoV",
+      "control/valve.maximum-forward-eoa-cm2.TV",
+      "control/valve.closed-reverse-eroa-cm2.TV",
+      "control/valve.maximum-forward-eoa-cm2.PV",
+      "control/valve.closed-reverse-eroa-cm2.PV",
+      "control/oxygen.hemoglobin-g-per-dl",
+      "control/oxygen.inspired-oxygen-fraction",
+      "control/oxygen.arterial-carbon-dioxide-pressure-mm-hg",
+      "control/oxygen.respiratory-exchange-ratio",
+      "control/oxygen.barometric-pressure-mm-hg",
+      "control/oxygen.true-shunt-fraction",
+      "control/oxygen.target-consumption-ml-per-min",
+      "control/pericardium.reference-capacity-scale",
+      "control/pericardium.pressure-scale",
+      "control/pericardium.exponential-stiffness-scale",
+      "control/pericardium.prescribed-fluid-volume-ml",
+      "control/coronary.focal-diameter-loss-fraction.LAD",
+      "control/coronary.focal-diameter-loss-fraction.LCx",
+      "control/coronary.focal-diameter-loss-fraction.RCA",
+      "control/coronary.structural-r1-resistance-scale.LAD.subepicardial",
+      "control/coronary.structural-r1-resistance-scale.LAD.subendocardial",
+      "control/coronary.structural-r1-resistance-scale.LCx.subepicardial",
+      "control/coronary.structural-r1-resistance-scale.LCx.subendocardial",
+      "control/coronary.structural-r1-resistance-scale.RCA.subepicardial",
+      "control/coronary.structural-r1-resistance-scale.RCA.subendocardial",
+      "control/coronary.structural-rm-resistance-scale.LAD.subepicardial",
+      "control/coronary.structural-rm-resistance-scale.LAD.subendocardial",
+      "control/coronary.structural-rm-resistance-scale.LCx.subepicardial",
+      "control/coronary.structural-rm-resistance-scale.LCx.subendocardial",
+      "control/coronary.structural-rm-resistance-scale.RCA.subepicardial",
+      "control/coronary.structural-rm-resistance-scale.RCA.subendocardial",
+      "output/hemodynamics.volume.LA",
+      "output/hemodynamics.volume.LV",
+      "output/hemodynamics.volume.RA",
+      "output/hemodynamics.volume.RV",
+      "output/hemodynamics.pressure.absolute.LA",
+      "output/hemodynamics.pressure.absolute.LV",
+      "output/hemodynamics.pressure.absolute.RA",
+      "output/hemodynamics.pressure.absolute.RV",
+      "output/hemodynamics.pressure.transmural.LA",
+      "output/hemodynamics.pressure.transmural.LV",
+      "output/hemodynamics.pressure.transmural.RA",
+      "output/hemodynamics.pressure.transmural.RV",
+      "output/hemodynamics.pressure.absolute.Ao",
+      "output/hemodynamics.pressure.absolute.SA",
+      "output/hemodynamics.pressure.absolute.PA",
+      "output/hemodynamics.pressure.absolute.PVein",
+      "output/hemodynamics.pressure.absolute.VC",
+      "output/hemodynamics.flow.valve.MV",
+      "output/hemodynamics.flow.valve.AoV",
+      "output/hemodynamics.flow.valve.TV",
+      "output/hemodynamics.flow.valve.PV",
+      "output/hemodynamics.flow.systemic.SA_Art",
+      "output/hemodynamics.flow.pulmonary.PA_PArt",
+      "output/hemodynamics.flow.venous.VC_RA",
+      "output/hemodynamics.flow.venous.PVein_LA",
+      "output/pericardium.pressure.excess",
+      "output/pericardium.volume.heart",
+      "output/pericardium.volume.fluid",
+      "output/pericardium.volume.total-occupied",
+      "output/pericardium.energy.stored",
+      "output/respiration.pressure.pleural",
+      "output/respiration.pressure.alveolar",
+      "output/rhythm.heart-rate.instantaneous",
+      "output/coronary.flow.total",
+      "output/coronary.flow.inlet.LAD",
+      "output/coronary.flow.inlet.LCx",
+      "output/coronary.flow.inlet.RCA",
+      "output/coronary.flow.venous-outlet",
+      "output/coronary.flow.large-arterial-outflow.LAD",
+      "output/coronary.flow.large-arterial-storage-rate.LAD",
+      "output/coronary.flow.large-arterial-outflow.LCx",
+      "output/coronary.flow.large-arterial-storage-rate.LCx",
+      "output/coronary.flow.large-arterial-outflow.RCA",
+      "output/coronary.flow.large-arterial-storage-rate.RCA",
+      "output/coronary.flow.layer-r1.LAD.subepicardial",
+      "output/coronary.flow.layer-qm-internal.LAD.subepicardial",
+      "output/coronary.flow.layer-r2.LAD.subepicardial",
+      "output/coronary.tone-resistance-scale.LAD.subepicardial",
+      "output/coronary.flow.layer-r1.LAD.subendocardial",
+      "output/coronary.flow.layer-qm-internal.LAD.subendocardial",
+      "output/coronary.flow.layer-r2.LAD.subendocardial",
+      "output/coronary.tone-resistance-scale.LAD.subendocardial",
+      "output/coronary.flow.layer-r1.LCx.subepicardial",
+      "output/coronary.flow.layer-qm-internal.LCx.subepicardial",
+      "output/coronary.flow.layer-r2.LCx.subepicardial",
+      "output/coronary.tone-resistance-scale.LCx.subepicardial",
+      "output/coronary.flow.layer-r1.LCx.subendocardial",
+      "output/coronary.flow.layer-qm-internal.LCx.subendocardial",
+      "output/coronary.flow.layer-r2.LCx.subendocardial",
+      "output/coronary.tone-resistance-scale.LCx.subendocardial",
+      "output/coronary.flow.layer-r1.RCA.subepicardial",
+      "output/coronary.flow.layer-qm-internal.RCA.subepicardial",
+      "output/coronary.flow.layer-r2.RCA.subepicardial",
+      "output/coronary.tone-resistance-scale.RCA.subepicardial",
+      "output/coronary.flow.layer-r1.RCA.subendocardial",
+      "output/coronary.flow.layer-qm-internal.RCA.subendocardial",
+      "output/coronary.flow.layer-r2.RCA.subendocardial",
+      "output/coronary.tone-resistance-scale.RCA.subendocardial",
+      "output/coronary.pressure.post-focal.LAD",
+      "output/coronary.pressure-loss.focal.LAD",
+      "output/coronary.pressure.post-focal.LCx",
+      "output/coronary.pressure-loss.focal.LCx",
+      "output/coronary.pressure.post-focal.RCA",
+      "output/coronary.pressure-loss.focal.RCA",
+      "output/coronary.power.dissipated.total",
+      "output/device.LVAD.flow",
+      "output/rhythm.phase.regular-sinus",
+      "output/hemodynamics.pressure.mean.Ao",
+      "output/hemodynamics.pressure.systolic.Ao",
+      "output/hemodynamics.pressure.diastolic.Ao",
+      "output/hemodynamics.pressure.pulse.Ao",
+      "output/hemodynamics.pressure.mean.SA",
+      "output/hemodynamics.pressure.systolic.SA",
+      "output/hemodynamics.pressure.diastolic.SA",
+      "output/hemodynamics.pressure.pulse.SA",
+      "output/hemodynamics.pressure.mean.PA",
+      "output/hemodynamics.pressure.systolic.PA",
+      "output/hemodynamics.pressure.diastolic.PA",
+      "output/hemodynamics.pressure.pulse.PA",
+      "output/hemodynamics.pressure.mean.PVein",
+      "output/hemodynamics.pressure.mean.VC",
+      "output/hemodynamics.pressure.mean.LA",
+      "output/hemodynamics.pressure.mean.RA",
+      "output/hemodynamics.pressure.systolic.LV",
+      "output/hemodynamics.pressure.systolic.RV",
+      "output/hemodynamics.pressure-gradient.mean.systemic-circuit",
+      "output/hemodynamics.pressure-gradient.mean.pulmonary-circuit",
+      "output/hemodynamics.volume.maximum.LV",
+      "output/hemodynamics.volume.minimum.LV",
+      "output/hemodynamics.stroke-volume.LV-extrema",
+      "output/hemodynamics.ejection-fraction.LV-extrema",
+      "output/hemodynamics.volume.end-diastolic.LV-at-MV-closure",
+      "output/hemodynamics.pressure.absolute.end-diastolic.LV-at-MV-closure",
+      "output/hemodynamics.pressure.transmural.end-diastolic.LV-at-MV-closure",
+      "output/hemodynamics.volume.end-systolic.LV-at-AoV-closure",
+      "output/hemodynamics.pressure.absolute.end-systolic.LV-at-AoV-closure",
+      "output/hemodynamics.pressure.transmural.end-systolic.LV-at-AoV-closure",
+      "output/hemodynamics.stroke-volume.LV-event-defined",
+      "output/hemodynamics.ejection-fraction.LV-event-defined",
+      "output/hemodynamics.volume.end-diastolic.RV-at-TV-closure",
+      "output/hemodynamics.pressure.absolute.end-diastolic.RV-at-TV-closure",
+      "output/hemodynamics.pressure.transmural.end-diastolic.RV-at-TV-closure",
+      "output/hemodynamics.volume.end-systolic.RV-at-PV-closure",
+      "output/hemodynamics.pressure.absolute.end-systolic.RV-at-PV-closure",
+      "output/hemodynamics.pressure.transmural.end-systolic.RV-at-PV-closure",
+      "output/hemodynamics.stroke-volume.RV-event-defined",
+      "output/hemodynamics.ejection-fraction.RV-event-defined",
+      "output/hemodynamics.valve-volume.forward.MV",
+      "output/hemodynamics.valve-volume.reverse.MV",
+      "output/hemodynamics.valve-volume.net.MV",
+      "output/hemodynamics.valve-regurgitant-fraction.same-valve.MV",
+      "output/hemodynamics.valve-volume.forward.AoV",
+      "output/hemodynamics.valve-volume.reverse.AoV",
+      "output/hemodynamics.valve-volume.net.AoV",
+      "output/hemodynamics.valve-regurgitant-fraction.same-valve.AoV",
+      "output/hemodynamics.valve-volume.forward.TV",
+      "output/hemodynamics.valve-volume.reverse.TV",
+      "output/hemodynamics.valve-volume.net.TV",
+      "output/hemodynamics.valve-regurgitant-fraction.same-valve.TV",
+      "output/hemodynamics.valve-volume.forward.PV",
+      "output/hemodynamics.valve-volume.reverse.PV",
+      "output/hemodynamics.valve-volume.net.PV",
+      "output/hemodynamics.valve-regurgitant-fraction.same-valve.PV",
+      "output/hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.MV",
+      "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.MV",
+      "output/hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.AoV",
+      "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.AoV",
+      "output/hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.TV",
+      "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.TV",
+      "output/hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV",
+      "output/hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV",
+      "output/myocardium.work.external.RV-transmural-pressure-volume-path",
+      "output/myocardium.work.stroke.LV",
+      "output/hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV",
+      "output/hemodynamics.pressure-rate.minimum-accepted-step.absolute.LV",
+      "output/hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV",
+      "output/hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV",
+      "output/hemodynamics.output.native-left",
+      "output/hemodynamics.output.native-right",
+      "output/hemodynamics.output.effective-native-left",
+      "output/hemodynamics.output.effective-native-right",
+      "output/hemodynamics.return.systemic-venous",
+      "output/hemodynamics.return.pulmonary-venous",
+      "output/hemodynamics.output.systemic-tissue",
+      "output/hemodynamics.output.pulmonary",
+      "output/hemodynamics.resistance.systemic-effective",
+      "output/hemodynamics.resistance.pulmonary-effective",
+      "output/hemodynamics.compliance.pulmonary-arterial-effective",
+      "output/coronary.pressure-perfusion.surrogate.Ao-diastolic-minus-LVEDP",
+      "output/oxygen.pressure.alveolar",
+      "output/oxygen.pressure.arterial",
+      "output/oxygen.pressure.gradient.alveolar-arterial",
+      "output/oxygen.saturation.end-capillary",
+      "output/oxygen.saturation.arterial",
+      "output/oxygen.content.end-capillary",
+      "output/oxygen.content.arterial",
+      "output/oxygen.content.required-mixed-venous",
+      "output/oxygen.saturation.required-mixed-venous",
+      "output/oxygen.pressure.required-mixed-venous",
+      "output/oxygen.delivery.systemic",
+      "output/oxygen.consumption.target",
+      "output/oxygen.extraction-ratio.required",
+      "output/oxygen.delivery-to-consumption-ratio",
+      "output/hemodynamics.duration.valve-forward-flow.AoV",
+      "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
+      "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1"
+    ]
+  },
+  "defaultFixture": {
+    "schemaId": "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1",
+    "rhythm": {
+      "mode": "regular-sinus-v3"
+    },
+    "coronary": {
+      "topologyProfile": "coronary-network-v2"
+    },
+    "dynamicMechanicalSupport": {
+      "mode": "all-off-zero-inertance-v3"
+    },
+    "hemodynamicResearchInputs": {
+      "systemicResistance": 0.98,
+      "pulmonaryResistance": 0.625,
+      "venousTone": 0.15,
+      "arterialStiffness": 1.3,
+      "heartRateBpm": 60,
+      "totalBloodVolumeMl": 4900,
+      "peepCmH2O": 0
+    },
+    "mechanismResearchInputs": {
+      "inputId": "main-wire-integrated-model-mechanism-research-inputs-v3",
+      "valveAreas": {
+        "MV": {
+          "maximumForwardEoaCm2": 5.5,
+          "closedReverseEroaCm2": 0
+        },
+        "AoV": {
+          "maximumForwardEoaCm2": 3.5,
+          "closedReverseEroaCm2": 0
+        },
+        "TV": {
+          "maximumForwardEoaCm2": 8,
+          "closedReverseEroaCm2": 0
+        },
+        "PV": {
+          "maximumForwardEoaCm2": 4,
+          "closedReverseEroaCm2": 0
+        }
+      },
+      "chamberMechanics": {
+        "inputId": "main-wire-five-wall-mechanics-research-input-v1",
+        "activeTensionScaleByWall": {
+          "LA": 1,
+          "LVFW": 1.24,
+          "SEP": 1.24,
+          "RVFW": 1.24,
+          "RA": 1
+        },
+        "passiveStiffnessScaleByWall": {
+          "LA": 1,
+          "LVFW": 0.88,
+          "SEP": 0.88,
+          "RVFW": 0.88,
+          "RA": 1
+        },
+        "calciumDecayTimeScaleByWall": {
+          "LA": 1,
+          "LVFW": 1,
+          "SEP": 1,
+          "RVFW": 1,
+          "RA": 1
+        }
+      },
+      "pericardium": {
+        "inputId": "main-wire-common-pericardium-research-inputs-v1",
+        "referenceCapacityScale": 1,
+        "pressureScale": 1,
+        "exponentialStiffnessScale": 1,
+        "prescribedFluidVolumeMl": 0
+      },
+      "coronaryDisease": {
+        "inputId": "main-wire-coronary-disease-research-inputs-v2",
+        "focalDiameterLossFraction01ByTerritory": {
+          "LAD": 0,
+          "LCx": 0,
+          "RCA": 0
+        },
+        "structuralR1ResistanceScaleByTerritoryLayer": {
+          "LAD": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          },
+          "LCx": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          },
+          "RCA": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          }
+        },
+        "structuralRmResistanceScaleByTerritoryLayer": {
+          "LAD": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          },
+          "LCx": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          },
+          "RCA": {
+            "subepicardial": 1,
+            "subendocardial": 1
+          }
+        }
+      },
+      "oxygenTransport": {
+        "inputId": "whole-body-beat-mean-oxygen-transport-input-v1",
+        "hemoglobinGPerDl": 15,
+        "inspiredOxygenFraction01": 0.21,
+        "arterialCarbonDioxidePressureMmHg": 40,
+        "respiratoryExchangeRatio": 0.8,
+        "barometricPressureMmHg": 760,
+        "trueShuntFraction01": 0.02,
+        "targetOxygenConsumptionMlPerMin": 250
+      }
+    }
+  }
+}

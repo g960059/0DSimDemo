@@ -1,6 +1,7 @@
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
@@ -13,12 +14,15 @@ import algebraicProximalRootsStandard67SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import roundedEjectionStandard68SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import qualifiedBaselineStandard69SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   kind:
     | "main-wire-selected-aortic-outflow-standard66"
     | "main-wire-algebraic-proximal-roots-standard67"
-    | "main-wire-rounded-ejection-standard68";
+    | "main-wire-rounded-ejection-standard68"
+    | "main-wire-qualified-baseline-standard69";
   modelId: string;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -62,6 +66,13 @@ const STANDARD68_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
   surfaceSeriesId: roundedEjectionStandard68SurfaceV1.surfaceSeriesId,
 });
 
+const STANDARD69_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
+  kind: "main-wire-qualified-baseline-standard69" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+  surfaceReleaseId: qualifiedBaselineStandard69SurfaceV1.surfaceReleaseId,
+  surfaceSeriesId: qualifiedBaselineStandard69SurfaceV1.surfaceSeriesId,
+});
+
 /**
  * Client-local availability registry for model documentation.
  *
@@ -92,10 +103,18 @@ export function resolveRegisteredModelDocumentationV1(
       === STANDARD68_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
   ) {
     identity = STANDARD68_DOCUMENTATION_IDENTITY_V1;
+  } else if (
+    modelId === STANDARD69_DOCUMENTATION_IDENTITY_V1.modelId
+    && surfaceReleaseId
+      === STANDARD69_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
+  ) {
+    identity = STANDARD69_DOCUMENTATION_IDENTITY_V1;
   }
   if (identity === null) return null;
-  const surface = identity.kind === "main-wire-rounded-ejection-standard68"
-    ? roundedEjectionStandard68SurfaceV1
+  const surface = identity.kind === "main-wire-qualified-baseline-standard69"
+    ? qualifiedBaselineStandard69SurfaceV1
+    : identity.kind === "main-wire-rounded-ejection-standard68"
+      ? roundedEjectionStandard68SurfaceV1
     : identity.kind === "main-wire-algebraic-proximal-roots-standard67"
       ? algebraicProximalRootsStandard67SurfaceV1
       : selectedAorticOutflowStandard66SurfaceV1;
@@ -133,6 +152,15 @@ export function resolveRegisteredModelDisclosureV1(
       documentation,
       badgeLabel: "MW 68",
       shortLabel: "Main Wire Standard 68",
+      limitationsTranslationKey:
+        "modelLimitations.standard68Items" as const,
+    });
+  }
+  if (documentation.kind === "main-wire-qualified-baseline-standard69") {
+    return Object.freeze({
+      documentation,
+      badgeLabel: "MW 69",
+      shortLabel: "Main Wire Standard 69",
       limitationsTranslationKey:
         "modelLimitations.standard68Items" as const,
     });

@@ -22,9 +22,13 @@ const COPY = Object.freeze({
     eyebrow: "MODEL DOCUMENTATION",
     title: "Main Wire Standard 68",
     subtitle: "rounded-ejection baselineを備えた統合0D循環動態モデル",
+    qualifiedTitle: "Main Wire Standard 69",
+    qualifiedSubtitle: "検証済みbaselineを備えた統合0D循環動態モデル",
     status: "研究・教育用モデル · 臨床的妥当性は未確立",
     lead:
       "このページはStandard 68のexact model、現在のModel Surface、versioned analysisを分けて説明します。baseline gateは数理・生理的な品質管理であり、患者個別の診断や治療判断を保証するものではありません。",
+    qualifiedLead:
+      "このページはStandard 69のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 69はStandard 68の数式構成を保ち、独立したbaseline fittingとmint gateを通過した既定作動点を持ちます。これは患者個別の診断や治療判断を保証するものではありません。",
     scopeTitle: "モデルの範囲",
     scopeBody:
       "心室相互作用、四弁、体循環・肺循環、冠循環、regular sinus rhythm、呼吸・心膜圧を結合した集中定数モデルです。心室materialとmatched-alpha calcium/relaxation構成をrounded-ejection assemblyへ更新しています。",
@@ -36,7 +40,7 @@ const COPY = Object.freeze({
     abpBody:
       "体動脈（SA）compartment圧です。特定のカフ・動脈ライン位置、圧波伝播後の末梢圧とは同一ではありません。",
     stationWarning:
-      "AoP、ABPとも、分布定数系の伝播遅延・進行波・反射波を含みません。Standard 66のrecovered proximal constitutive-port圧をStandard 68へ代用していません。",
+      "AoP、ABPとも、分布定数系の伝播遅延・進行波・反射波を含みません。recovered proximal constitutive-port圧をこのexact releaseへ代用していません。",
     dynamicsTitle: "exact dynamics",
     dynamicsItems: Object.freeze([
       "心室active/passive materialはversioned rounded-ejection profileです。",
@@ -49,6 +53,8 @@ const COPY = Object.freeze({
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、${checks}項目の圧・AV/LV/RVP・timing・形態・indexed size/function gateと、双方向preload reserve gateを通過しています。`,
+    qualifiedBaselinePolicy:
+      "Standard69の追加floorは、各方向・両心室でCO変化率3%以上、CO/充満圧勾配0.02 L/min/mmHg以上、EDV変化率3%以上です。探索結果の確認後に固定したconstruction用退行防止基準であり、独立した生理学的検証ではありません。",
     controlTitle: "control semantics",
     controlBody:
       "Heart rateを含むcontrol変更はaccepted stateとmodel clockを保持し、新しいfixture epochへ移るatomic warm startです。自律神経反射や実測の変時性応答ではありません。",
@@ -69,9 +75,13 @@ const COPY = Object.freeze({
     eyebrow: "MODEL DOCUMENTATION",
     title: "Main Wire Standard 68",
     subtitle: "Integrated 0D haemodynamic model with a rounded-ejection baseline",
+    qualifiedTitle: "Main Wire Standard 69",
+    qualifiedSubtitle: "Integrated 0D haemodynamic model with a qualified baseline",
     status: "Research and education model · not clinically validated",
     lead:
       "This page separates the Standard 68 exact model, its current Model Surface, and versioned analyses. Baseline gates are mathematical and physiological quality controls, not patient-specific diagnostic or treatment validation.",
+    qualifiedLead:
+      "This page separates the Standard 69 exact model, its current Model Surface, and versioned analyses. Standard 69 retains the Standard 68 equations and adds a separately fitted, mint-qualified default operating point. This does not establish patient-specific diagnostic or treatment validity.",
     scopeTitle: "Model scope",
     scopeBody:
       "A lumped model coupling ventricular interaction, four valves, systemic and pulmonary circulation, coronary circulation, regular sinus rhythm, respiration, and pericardial pressure. Ventricular material and matched-alpha calcium/relaxation use the rounded-ejection assembly.",
@@ -83,7 +93,7 @@ const COPY = Object.freeze({
     abpBody:
       "Pressure of the systemic-arterial (SA) compartment. It is not a literal cuff or arterial-line station after peripheral wave travel.",
     stationWarning:
-      "Neither AoP nor ABP includes distributed propagation delay, travelling waves, or reflections. The recovered proximal constitutive-port pressure from Standard 66 is not substituted into Standard 68.",
+      "Neither AoP nor ABP includes distributed propagation delay, travelling waves, or reflections. Recovered proximal constitutive-port pressure is not substituted into this exact release.",
     dynamicsTitle: "Exact dynamics",
     dynamicsItems: Object.freeze([
       "Ventricular active/passive material uses a versioned rounded-ejection profile.",
@@ -96,6 +106,8 @@ const COPY = Object.freeze({
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles; all ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function gates plus the bidirectional preload-reserve gate passed.`,
+    qualifiedBaselinePolicy:
+      "Standard69 adds floors of 3% CO change, 0.02 L/min/mmHg CO/filling-pressure slope, and 3% EDV change in each direction for both ventricles. They were frozen after exploratory result inspection as construction non-regression floors, not independent physiological validation.",
     controlTitle: "Control semantics",
     controlBody:
       "Control changes, including heart rate, atomically warm-start a new fixture epoch while retaining accepted state and model clock. This is not an autonomic reflex or measured chronotropic response.",
@@ -121,10 +133,13 @@ export function MainWireStandard68DocumentationV1({
   locale: Locale;
 }>) {
   const text = COPY[locale];
+  const qualified = facts.generation === 69;
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
-      data-testid="standard68-model-documentation-v1"
+      data-testid={qualified
+        ? "standard69-model-documentation-v1"
+        : "standard68-model-documentation-v1"}
     >
       <main className="mx-auto w-full max-w-5xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
         <Link
@@ -137,10 +152,10 @@ export function MainWireStandard68DocumentationV1({
 
         <header className="mt-10 max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-wb-accent">{text.eyebrow}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">{text.title}</h1>
-          <p className="mt-3 text-base font-medium text-wb-muted sm:text-lg">{text.subtitle}</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">{qualified ? text.qualifiedTitle : text.title}</h1>
+          <p className="mt-3 text-base font-medium text-wb-muted sm:text-lg">{qualified ? text.qualifiedSubtitle : text.subtitle}</p>
           <p className="mt-5 inline-flex rounded-full border border-wb-line-strong bg-wb-soft px-3 py-1.5 text-xs font-semibold text-wb-warning">{text.status}</p>
-          <p className="mt-6 max-w-3xl text-[15px] leading-8 text-wb-muted">{text.lead}</p>
+          <p className="mt-6 max-w-3xl text-[15px] leading-8 text-wb-muted">{qualified ? text.qualifiedLead : text.lead}</p>
         </header>
 
         <Section icon={HeartPulse} title={text.scopeTitle}>
@@ -174,7 +189,7 @@ export function MainWireStandard68DocumentationV1({
               body={text.baselineBody(
                 facts.baseline.completedCycleCount,
                 facts.baseline.passedCheckCount,
-              )}
+              ) + (qualified ? ` ${text.qualifiedBaselinePolicy}` : "")}
             />
             <FactCard title={text.controlTitle} body={text.controlBody} identity={facts.runtime.heartRateControlId} />
           </div>

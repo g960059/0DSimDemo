@@ -160,6 +160,7 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
@@ -301,10 +302,33 @@ const ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1 = Object.freeze({
   proximalArterialRootsProfileId: null,
 });
 
+// Standard69 intentionally reuses Standard68's numerical generation, fixture
+// schema, checkpoint codec, and equation/material construction. Its exact
+// release identity changes because the admitted default fixture and settled
+// checkpoint change; no new dynamical state or equation is implied here.
+const QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1 = Object.freeze({
+  generation: 68 as const,
+  label: "Standard69" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+  fixtureId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_ID,
+  fixtureClaim: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM,
+  numericalSessionId:
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_TYPED_AUTHORITY_SESSION_V1_ID,
+  checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_CHECKPOINT_V1_ID,
+  checkpointCodecId:
+    MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CHECKPOINT_CODEC_ID_V1,
+  runtimeScope:
+    "rounded-ejection-qualified-baseline-matched-alpha-source-aortic-topology-regular-sinus-all-off" as const,
+  checkpointFixturePairing:
+    "rounded-ejection-complete-fixture-and-profile-identity" as const,
+  proximalArterialRootsProfileId: null,
+});
+
 type SelectedExactModelVariantV1 =
   | typeof SELECTED_STANDARD66_EXACT_VARIANT_V1
   | typeof SELECTED_STANDARD67_EXACT_VARIANT_V1
-  | typeof ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1;
+  | typeof ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1
+  | typeof QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1;
 
 type SelectedNumericalSessionV1 =
   | MainWireIntegratedModelStandard66TypedAuthoritySessionV1
@@ -1728,6 +1752,27 @@ export function createMainWireIntegratedStudioRoundedEjectionReleaseV1(
   });
 }
 
+/**
+ * Unsettled Standard69 core release. Its thin exact entry installs the
+ * qualified default checkpoint without changing this shared numerical host.
+ */
+export function createMainWireIntegratedStudioQualifiedBaselineCoreReleaseV1():
+  MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
+  const host =
+    new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(
+      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
+    );
+  return Object.freeze({
+    manifest: createSelectedExactKernelV1(
+      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
+    ),
+    executables: selectedExecutableBundleV1(
+      host,
+      QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
+    ),
+  });
+}
+
 export function createMainWireIntegratedStudioSelectedAorticOutflowKernelV1():
   ExactModelKernelManifestV3 {
   return createSelectedExactKernelV1(
@@ -1746,6 +1791,13 @@ export function createMainWireIntegratedStudioRoundedEjectionKernelV1():
   ExactModelKernelManifestV3 {
   return createSelectedExactKernelV1(
     ROUNDED_EJECTION_STANDARD68_EXACT_VARIANT_V1,
+  );
+}
+
+export function createMainWireIntegratedStudioQualifiedBaselineKernelV1():
+  ExactModelKernelManifestV3 {
+  return createSelectedExactKernelV1(
+    QUALIFIED_BASELINE_STANDARD69_EXACT_VARIANT_V1,
   );
 }
 

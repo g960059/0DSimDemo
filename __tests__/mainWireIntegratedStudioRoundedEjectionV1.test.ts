@@ -4,6 +4,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
+  mainWireStandard69PreloadReserveDirectionalResponsePassedV1,
+} from "@/analysis/policies/mainWire/MainWireStandard69PreloadReservePolicyV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
@@ -45,9 +48,17 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import roundedSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import qualifiedBaselineSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1,
+  createMainWireIntegratedStudioQualifiedBaselineSettledReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1";
 import sourceTopologyWorkbenchSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 
@@ -141,6 +152,76 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     expect(kernel.primitiveControlCatalog.some(({ controlId }) =>
       controlId.startsWith("myocardium.calcium-decay-time-scale."),
     )).toBe(false);
+  });
+
+  it("mints Standard69 as the same construction with a distinct settled baseline and inherited Surface", async () => {
+    const standard68 = createMainWireIntegratedStudioRoundedEjectionKernelV1();
+    const release =
+      createMainWireIntegratedStudioQualifiedBaselineSettledReleaseV1();
+    expect(release.manifest.modelId).toBe(
+      MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+    );
+    expect(release.manifest.modelId).not.toBe(standard68.modelId);
+    expect(release.manifest.equations).toEqual(standard68.equations);
+    expect(release.manifest.checkpointCodec).toEqual(
+      standard68.checkpointCodec,
+    );
+    expect(qualifiedBaselineSurfaceV1).toMatchObject({
+      predecessorSurfaceReleaseId: roundedSurfaceV1.surfaceReleaseId,
+      derivedOutputCatalog: roundedSurfaceV1.derivedOutputCatalog,
+      graphCatalog: roundedSurfaceV1.graphCatalog,
+      knobCatalog: roundedSurfaceV1.knobCatalog,
+      protocolCatalog: roundedSurfaceV1.protocolCatalog,
+    });
+    for (const definition of release.manifest.primitiveControlCatalog) {
+      expect(
+        mainWireIntegratedStudioFixtureProjectionV3.controlValue(
+          MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_DEFAULT_FIXTURE_V1,
+          definition.controlId,
+        ),
+        definition.controlId,
+      ).toEqual({ status: "value", value: definition.defaultValue });
+    }
+
+    const runtimeSessionId = "standard69/settled-default";
+    const scenarioId = "baseline";
+    await release.executables.simulationAdapter.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture:
+          MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    try {
+      const frame = release.executables.simulationAdapter.currentFrame({
+        runtimeSessionId,
+        scenarioId,
+      });
+      const validation =
+        MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1;
+      expect(frame).toMatchObject({
+        modelId: MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+        acceptedRevision: validation.checkpoint.revision,
+        acceptedTimeSec: validation.checkpoint.acceptedTimeSec,
+      });
+      expect(frame.outputs[ET]?.value).toBeCloseTo(
+        validation.measurements.aorticValve.ejectionTimeSec,
+        8,
+      );
+      for (const side of [
+        validation.preloadReserve.left,
+        validation.preloadReserve.right,
+      ]) {
+        expect([
+          side.hypovolemic,
+          side.hypervolemic,
+        ].every(mainWireStandard69PreloadReserveDirectionalResponsePassedV1))
+          .toBe(true);
+      }
+    } finally {
+      release.executables.simulationAdapter.disposeSession(runtimeSessionId);
+    }
   });
 
   it("applies and projects every admitted non-calcium controller", () => {
