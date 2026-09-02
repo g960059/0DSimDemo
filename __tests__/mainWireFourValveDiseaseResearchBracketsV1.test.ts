@@ -9,6 +9,7 @@ import {
   MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1,
   composeMainWireFourValveDiseaseResearchInputV1,
   createMainWireFourValveContinuousAreaResearchInputV1,
+  createMainWirePulmonaryValveOpeningKineticsResearchInputV1,
   validateAndOwnMainWireFourValveAreaInputsV1,
   validateMainWireFourValveDiseaseResearchInputV1,
   type MainWireFourValveDiseaseResearchInputV1,
@@ -267,6 +268,53 @@ describe("main-wire four-valve disease research input V1", () => {
         },
       }),
     ).toThrow(/reverse EROA must not exceed forward EOA/);
+  });
+
+  it("owns a bounded PV-only opening-kinetics causal input", () => {
+    const candidate =
+      createMainWirePulmonaryValveOpeningKineticsResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.04,
+      );
+
+    expect(candidate.bracketIds).toEqual([]);
+    expect(candidate.valves.PV.openingTimeConstantSec).toBe(0.04);
+    expect(candidate.valves.PV.parameterSetId).toContain("continuous");
+    expect(candidate.parameterSetId).toContain("pv-opening-kinetics");
+    expect(candidate.claim.researchInputRole).toBe(
+      "pulmonary-valve-opening-kinetics-causal-research",
+    );
+    expect(validateMainWireFourValveDiseaseResearchInputV1(candidate)).toEqual(
+      [],
+    );
+    for (const valveId of ["MV", "AoV", "TV"] as const) {
+      expect(physicalParameters(candidate.valves[valveId])).toEqual(
+        physicalParameters(
+          MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1.valves[valveId],
+        ),
+      );
+    }
+    const normalPv =
+      MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1.valves.PV;
+    expect({
+      ...physicalParameters(candidate.valves.PV),
+      openingTimeConstantSec: normalPv.openingTimeConstantSec,
+    }).toEqual(physicalParameters(normalPv));
+  });
+
+  it("rejects out-of-range PV opening-kinetics inputs", () => {
+    expect(() =>
+      createMainWirePulmonaryValveOpeningKineticsResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.001,
+      ),
+    ).toThrow(/opening time constant/);
+    expect(() =>
+      createMainWirePulmonaryValveOpeningKineticsResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.2,
+      ),
+    ).toThrow(/opening time constant/);
   });
 
   it("makes composition identities and parameter sets independent of order", () => {

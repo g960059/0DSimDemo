@@ -90,7 +90,11 @@ import { withCommonVentricularActiveTensionScaleV1 } from "@/engine/myocardium/m
 import {
   MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
 } from "@/engine/myocardium/mechanics/MainWireVentricularLandEtRelaxationProfileV1";
-import { createMainWireFourValveContinuousAreaResearchInputV1 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
+import {
+  createMainWireFourValveContinuousAreaResearchInputV1,
+  type MainWireFourValveAreaInputsV1,
+  type MainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -646,6 +650,9 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       cycleLengthSec: number,
     ) => TCalciumDriveParams;
     createRhythm: (cycleLengthSec: number) => TRhythm;
+    createValveResearchInput?: (
+      areas: MainWireFourValveAreaInputsV1,
+    ) => MainWireFourValveDiseaseResearchInputV1;
   }>,
 ) {
   const {
@@ -669,7 +676,9 @@ export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
       ...canonicalRuntime.respiratory,
       PEEP: peepMmHg,
     }),
-    valveResearchInput: createMainWireFourValveContinuousAreaResearchInputV1(
+    valveResearchInput: fixedAssembly.createValveResearchInput?.(
+      mechanismResearchInputs.valveAreas,
+    ) ?? createMainWireFourValveContinuousAreaResearchInputV1(
       mechanismResearchInputs.valveAreas,
     ),
   });

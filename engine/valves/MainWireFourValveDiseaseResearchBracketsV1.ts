@@ -88,6 +88,28 @@ export const MAIN_WIRE_FOUR_VALVE_CONTINUOUS_AREA_RESEARCH_INPUT_CLAIM_V1 =
     canonicalSeverityBracketClaimed: false as const,
   });
 
+export const MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1 =
+  Object.freeze({
+    minimumSec: 0.005,
+    maximumSec: 0.1,
+  });
+
+export const MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1 =
+  Object.freeze({
+    ...MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_CLAIM_V1,
+    researchInputRole:
+      "pulmonary-valve-opening-kinetics-causal-research" as const,
+    openingKinetics:
+      "bounded-pulmonary-opening-time-constant-causal-research" as const,
+    continuousAreaInputOnly: true as const,
+    canonicalSeverityBracketClaimed: false as const,
+    pulmonaryValveOpeningTimeRangeSec:
+      MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1,
+    newContinuousStateAdded: false as const,
+    parameterSearchOrPatientFitting: true as const,
+    patientFittingClaimed: false as const,
+  });
+
 export type MainWireFourValveAreaInputsV1 = Readonly<
   Record<
     ValveName,
@@ -143,7 +165,8 @@ export type MainWireFourValveDiseaseResearchInputV1 = Readonly<{
   valves: Readonly<Record<ValveName, MainWireQuasiSteadyOrificeValveParamsV2>>;
   claim:
     | typeof MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_CLAIM_V1
-    | typeof MAIN_WIRE_FOUR_VALVE_CONTINUOUS_AREA_RESEARCH_INPUT_CLAIM_V1;
+    | typeof MAIN_WIRE_FOUR_VALVE_CONTINUOUS_AREA_RESEARCH_INPUT_CLAIM_V1
+    | typeof MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1;
 }>;
 
 type ValveParameterBody = Omit<
@@ -446,6 +469,74 @@ export function createMainWireFourValveContinuousAreaResearchInputV1(
   return result;
 }
 
+/**
+ * Causal research input for the already-existing PV opening-fraction state.
+ * It adds no state and changes no other valve parameter. This is deliberately
+ * separate from disease-area inputs and is not a patient-fitting control.
+ */
+export function createMainWirePulmonaryValveOpeningKineticsResearchInputV1(
+  requestedAreas: MainWireFourValveAreaInputsV1,
+  openingTimeConstantSec: number,
+): MainWireFourValveDiseaseResearchInputV1 {
+  const areas = validateAndOwnMainWireFourValveAreaInputsV1(requestedAreas);
+  if (
+    !Number.isFinite(openingTimeConstantSec)
+    || openingTimeConstantSec
+      < MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.minimumSec
+    || openingTimeConstantSec
+      > MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.maximumSec
+  ) {
+    throw new Error(
+      "pulmonary valve opening time constant must be finite within "
+        + `[${MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.minimumSec}, `
+        + `${MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.maximumSec}] s`,
+    );
+  }
+  const bracketIds = Object.freeze(
+    [],
+  ) as readonly MainWireFourValveDiseaseBracketIdV1[];
+  const brackets = Object.freeze(
+    [],
+  ) as readonly MainWireFourValveDiseaseBracketV1[];
+  const valves = valveRecord((valveId) => {
+    const body = Object.freeze({
+      ...NORMAL_VALVE_PARAMETER_BODIES[valveId],
+      ...areas[valveId],
+      ...(valveId === "PV" ? { openingTimeConstantSec } : {}),
+    });
+    return Object.freeze({
+      parameterSetId: continuousValveParameterSetIdV1(valveId, body),
+      ...body,
+    });
+  });
+  const identityBody = Object.freeze({
+    researchInputId: MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID,
+    bracketIds,
+    valves,
+    claim:
+      MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1,
+  });
+  const parameterIdentityHash = stableHash(sanitizeForStableHash(identityBody));
+  const result = Object.freeze({
+    researchInputId: MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID,
+    parameterSetId:
+      `main-wire-four-valve-pv-opening-kinetics-${parameterIdentityHash}-v1`,
+    parameterIdentityHash,
+    bracketIds,
+    brackets,
+    valves,
+    claim:
+      MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1,
+  } satisfies MainWireFourValveDiseaseResearchInputV1);
+  const issues = validateMainWireFourValveDiseaseResearchInputV1(result);
+  if (issues.length > 0) {
+    throw new Error(
+      `invalid pulmonary valve kinetics research input: ${issues.join("; ")}`,
+    );
+  }
+  return result;
+}
+
 export function validateAndOwnMainWireFourValveAreaInputsV1(
   input: unknown,
 ): MainWireFourValveAreaInputsV1 {
@@ -561,12 +652,26 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       MAIN_WIRE_FOUR_VALVE_CONTINUOUS_AREA_RESEARCH_INPUT_CLAIM_V1,
     ),
   );
+  const pulmonaryKineticsClaimHash = stableHash(
+    sanitizeForStableHash(
+      MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1,
+    ),
+  );
   const isContinuousAreaInput = claimHash === continuousClaimHash;
-  if (claimHash !== canonicalClaimHash && !isContinuousAreaInput) {
+  const isPulmonaryKineticsInput = claimHash === pulmonaryKineticsClaimHash;
+  const allowsContinuousAreas =
+    isContinuousAreaInput || isPulmonaryKineticsInput;
+  if (
+    claimHash !== canonicalClaimHash
+    && !isContinuousAreaInput
+    && !isPulmonaryKineticsInput
+  ) {
     issues.push("claim must exactly match the canonical V1 claim");
   }
-  if (isContinuousAreaInput && rawBracketIds.length !== 0) {
-    issues.push("continuous area inputs must not claim canonical brackets");
+  if (allowsContinuousAreas && rawBracketIds.length !== 0) {
+    issues.push(
+      "continuous area or pulmonary kinetics inputs must not claim canonical brackets",
+    );
   }
   const keys = Object.keys(researchInput.valves).sort();
   const expectedKeys = [...MAIN_WIRE_FOUR_VALVE_IDS_V1].sort();
@@ -582,12 +687,12 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
     const affectingBracketIds = knownBrackets
       .filter((bracket) => bracket.targetValveId === valveId)
       .map((bracket) => bracket.bracketId);
-    const expectedValveParameterSetId = isContinuousAreaInput
+    const expectedValveParameterSetId = allowsContinuousAreas
       ? continuousValveParameterSetIdV1(valveId, valve)
       : valveParameterSetId(valveId, affectingBracketIds);
     if (valve.parameterSetId !== expectedValveParameterSetId) {
       issues.push(
-        isContinuousAreaInput
+        allowsContinuousAreas
           ? `valves.${valveId}.parameterSetId does not match input provenance`
           : `valves.${valveId}.parameterSetId does not match bracket provenance`,
       );
@@ -597,14 +702,19 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       expectedFixedBody,
     ) as (keyof ValveParameterBody)[]) {
       if (
-        key !== "maximumForwardEoaCm2" &&
-        key !== "closedReverseEroaCm2" &&
-        valve[key] !== expectedFixedBody[key]
+        key !== "maximumForwardEoaCm2"
+        && key !== "closedReverseEroaCm2"
+        && !(
+          isPulmonaryKineticsInput
+          && valveId === "PV"
+          && key === "openingTimeConstantSec"
+        )
+        && valve[key] !== expectedFixedBody[key]
       ) {
         issues.push(`valves.${valveId}.${key} must remain at its fixed prior`);
       }
     }
-    if (!isContinuousAreaInput) {
+    if (!allowsContinuousAreas) {
       const expectedAreas = canonicalValveAreasForBracketsV1(
         valveId,
         knownBrackets,
@@ -631,7 +741,7 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       `valves.${valveId}.closedReverseEroaCm2`,
       issues,
     );
-    if (isContinuousAreaInput) {
+    if (allowsContinuousAreas) {
       const ranges = MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1[valveId];
       if (
         valve.maximumForwardEoaCm2 < ranges.maximumForwardEoaCm2.minimum ||
@@ -674,6 +784,18 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       `valves.${valveId}.openingTimeConstantSec`,
       issues,
     );
+    if (
+      isPulmonaryKineticsInput
+      && valveId === "PV"
+      && (
+        valve.openingTimeConstantSec
+          < MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.minimumSec
+        || valve.openingTimeConstantSec
+          > MAIN_WIRE_PULMONARY_VALVE_OPENING_TIME_RESEARCH_RANGE_V1.maximumSec
+      )
+    ) {
+      issues.push("valves.PV.openingTimeConstantSec exceeds research bounds");
+    }
     positive(
       valve.closingTimeConstantSec,
       `valves.${valveId}.closingTimeConstantSec`,
@@ -693,9 +815,11 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
   if (researchInput.parameterIdentityHash !== expectedIdentityHash) {
     issues.push("parameterIdentityHash does not match research input contents");
   }
-  const expectedParameterSetId = isContinuousAreaInput
-    ? `main-wire-four-valve-continuous-areas-${expectedIdentityHash}-v1`
-    : researchInputParameterSetId(
+  const expectedParameterSetId = isPulmonaryKineticsInput
+    ? `main-wire-four-valve-pv-opening-kinetics-${expectedIdentityHash}-v1`
+    : isContinuousAreaInput
+      ? `main-wire-four-valve-continuous-areas-${expectedIdentityHash}-v1`
+      : researchInputParameterSetId(
         researchInput.bracketIds,
         expectedIdentityHash,
       );
