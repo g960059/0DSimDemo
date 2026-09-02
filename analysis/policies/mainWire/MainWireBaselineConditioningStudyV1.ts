@@ -119,7 +119,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     numericalFloorBufferMultiples: 1;
     preloadReserveRecovery: Readonly<{
       maximumOperatingTotalBloodVolumeMl: number;
-      refinementContraction: 0.25;
+      refinementContraction: 0.125;
       minimumSeedPrimaryBufferedInteriorMargin: 0;
       allowedSeedFailureGroupIds: readonly [
         "systemic-pressure",
@@ -136,7 +136,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 6;
+    revision: 7;
     changeReason: string;
   }>;
 }>;
@@ -306,7 +306,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         maximumOperatingTotalBloodVolumeMl:
           MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
             .totalBloodVolumeMl,
-        refinementContraction: 0.25 as const,
+        refinementContraction: 0.125 as const,
         minimumSeedPrimaryBufferedInteriorMargin: 0 as const,
         allowedSeedFailureGroupIds: Object.freeze([
           "systemic-pressure",
@@ -323,9 +323,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 6 as const,
+      revision: 7 as const,
       changeReason:
-        "Retain formal preload reserve after the first structural-first finalist crossed the high-preload Starling knee; use a bounded recovery refinement and corridor-scaled finalist numerical comparison.",
+        "Contract the reserve-recovery trust region after the first bounded sweep retained formal reserve but missed only the cardiac-index lower gate by less than 0.2 percent.",
     }),
   });
 
