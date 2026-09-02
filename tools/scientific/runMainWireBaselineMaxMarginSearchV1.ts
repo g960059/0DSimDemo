@@ -235,13 +235,22 @@ async function runCoordinatorV1(): Promise<void> {
   }
   const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
   const finalists = ranked.slice(0, policy.finalistCount);
-  const bestPrimaryMargin = best.evaluation.objective
-    ?.primaryWorstBufferedInteriorMargin ?? Number.NEGATIVE_INFINITY;
+  const feasiblePrimaryMargins = ranked.flatMap(({ evaluation }) => {
+    const objective = evaluation.objective;
+    return objective?.status === "feasible"
+        && objective.primaryWorstBufferedInteriorMargin !== null
+      ? [objective.primaryWorstBufferedInteriorMargin]
+      : [];
+  });
+  const maximumFeasiblePrimaryMargin = feasiblePrimaryMargins.length === 0
+    ? Number.NEGATIVE_INFINITY
+    : Math.max(...feasiblePrimaryMargins);
   const primaryEquivalent = ranked.filter(({ evaluation }) => {
     const objective = evaluation.objective;
     return objective?.status === "feasible"
       && objective.primaryWorstBufferedInteriorMargin !== null
-      && bestPrimaryMargin - objective.primaryWorstBufferedInteriorMargin
+      && maximumFeasiblePrimaryMargin
+        - objective.primaryWorstBufferedInteriorMargin
         <= policy.equivalentPrimaryMarginEpsilon;
   });
   const bestEquivalentOverallMargin = primaryEquivalent.length === 0
@@ -295,8 +304,18 @@ async function runCoordinatorV1(): Promise<void> {
       evaluation.evaluationStatus === "accepted").length,
     feasibleCandidateCount: all.filter(({ evaluation }) =>
       evaluation.objective?.status === "feasible").length,
+    rankingPolicy: Object.freeze({
+      first: "all-construction-gates-and-floor-buffers-feasible" as const,
+      second: "within-epsilon-of-maximum-primary-interior" as const,
+      third: "maximum-overall-interior" as const,
+      fourth: "minimum-reference-departure" as const,
+      primaryMarginEpsilon: policy.equivalentPrimaryMarginEpsilon,
+      overallMarginEpsilon: policy.equivalentWorstMarginEpsilon,
+    }),
     bestInitialCandidateId,
     bestCandidateId: best.evaluation.candidateId,
+    maximumFeasiblePrimaryMargin,
+    bestPrimaryEquivalentOverallMargin: bestEquivalentOverallMargin,
     finalistCandidateIds: Object.freeze(finalists.map(({ evaluation }) =>
       evaluation.candidateId)),
     equivalentCandidateIds: Object.freeze(equivalentCandidateIds),
@@ -542,6 +561,8 @@ function rankByObjectiveV1<T>(
 ): readonly T[] {
   const primaryEpsilon = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
     .searchPolicy.equivalentPrimaryMarginEpsilon;
+  const overallEpsilon = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+    .searchPolicy.equivalentWorstMarginEpsilon;
   const feasiblePrimaryMargins = values.flatMap((value) => {
     const objective = objectiveOf(value);
     return objective?.status === "feasible"
@@ -552,11 +573,28 @@ function rankByObjectiveV1<T>(
   const bestPrimaryMargin = feasiblePrimaryMargins.length === 0
     ? Number.NEGATIVE_INFINITY
     : Math.max(...feasiblePrimaryMargins);
+  const primaryEquivalentObjectives = values.flatMap((value) => {
+    const objective = objectiveOf(value);
+    return objective?.status === "feasible"
+        && objective.primaryWorstBufferedInteriorMargin !== null
+        && bestPrimaryMargin - objective.primaryWorstBufferedInteriorMargin
+          <= primaryEpsilon
+      ? [objective]
+      : [];
+  });
+  const bestOverallMargin = primaryEquivalentObjectives.length === 0
+    ? Number.NEGATIVE_INFINITY
+    : Math.max(...primaryEquivalentObjectives.map((objective) =>
+        objective.worstBufferedInteriorMargin ?? Number.NEGATIVE_INFINITY));
   const categoryV1 = (objective: MainWireBaselineCandidateObjectiveV1 | null) => {
-    if (objective === null) return 3;
-    if (objective.status !== "feasible") return 2;
+    if (objective === null) return 4;
+    if (objective.status !== "feasible") return 3;
     const primary = objective.primaryWorstBufferedInteriorMargin;
-    return primary !== null && bestPrimaryMargin - primary <= primaryEpsilon
+    if (primary === null || bestPrimaryMargin - primary > primaryEpsilon) {
+      return 2;
+    }
+    const overall = objective.worstBufferedInteriorMargin;
+    return overall !== null && bestOverallMargin - overall <= overallEpsilon
       ? 0
       : 1;
   };
@@ -568,6 +606,13 @@ function rankByObjectiveV1<T>(
     if (leftCategory !== rightCategory) return leftCategory - rightCategory;
     if (leftObjective === null || rightObjective === null) return 0;
     if (leftCategory === 0) {
+      if (leftObjective.referenceDepartureRms
+        !== rightObjective.referenceDepartureRms) {
+        return leftObjective.referenceDepartureRms
+          - rightObjective.referenceDepartureRms;
+      }
+    }
+    if (leftCategory === 1) {
       const leftOverall = leftObjective.worstBufferedInteriorMargin
         ?? Number.NEGATIVE_INFINITY;
       const rightOverall = rightObjective.worstBufferedInteriorMargin
