@@ -10,13 +10,14 @@ import settledBaselineCheckpointJson from
 import {
   buildMainWireBaselineConditioningAuditV1,
   buildMainWireBaselineConditioningTasksV1,
-  evaluateMainWireBaselineConditioningTaskV1,
+  executeMainWireBaselineConditioningTaskV1,
   type MainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningTaskResultV1,
   type MainWireBaselineConditioningTaskV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
   validateMainWireIntegratedModelStandard68CheckpointV1,
+  type MainWireIntegratedModelStandard68CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
 import {
   MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
@@ -57,18 +58,62 @@ async function runCoordinatorV1(): Promise<void> {
       + `${effectiveParallelism} workers\n`,
   );
   const startedAt = performance.now();
-  const evaluations = await runPoolV1(
-    tasks,
+  let completed = 0;
+  const progress = (result: MainWireBaselineConditioningTaskResultV1) => {
+    completed += 1;
+    process.stderr.write(
+      `[conditioning] ${completed}/${tasks.length} ${result.task.taskId}: `
+        + `${result.evaluationStatus}, `
+        + `${Math.round(result.wallTimeMs)} ms, `
+        + `${result.completedCycleCount ?? "-"} cycles\n`,
+    );
+  };
+  const centerTasks = tasks.filter(({ coordinateId }) => coordinateId === null);
+  const perturbationTasks = tasks.filter(({ coordinateId }) =>
+    coordinateId !== null);
+  const centerExecutions = await runPoolV1(
+    centerTasks.map((task) => Object.freeze({
+      task,
+      sourceAnchorKind: "standard-baseline" as const,
+      sourceCheckpoint: settledBaselineCheckpointJson,
+      returnCheckpoint: true,
+    })),
     effectiveParallelism,
-    (completed, total, result) => {
-      process.stderr.write(
-        `[conditioning] ${completed}/${total} ${result.task.taskId}: `
-          + `${result.evaluationStatus}, `
-          + `${Math.round(result.wallTimeMs)} ms, `
-          + `${result.completedCycleCount ?? "-"} cycles\n`,
-      );
-    },
+    ({ result }) => progress(result),
   );
+  const checkpointByCondition = new Map<string,
+    MainWireIntegratedModelStandard68CheckpointV1>();
+  for (const execution of centerExecutions) {
+    if (execution.acceptedCheckpoint === null) {
+      throw new Error(
+        `conditioning center failed: ${execution.result.task.conditionId}`,
+      );
+    }
+    checkpointByCondition.set(
+      execution.result.task.conditionId,
+      execution.acceptedCheckpoint,
+    );
+  }
+  const perturbationExecutions = await runPoolV1(
+    perturbationTasks.map((task) => {
+      const sourceCheckpoint = checkpointByCondition.get(task.conditionId);
+      if (sourceCheckpoint === undefined) {
+        throw new Error(`conditioning center checkpoint is missing: ${task.conditionId}`);
+      }
+      return Object.freeze({
+        task,
+        sourceAnchorKind: "condition-center" as const,
+        sourceCheckpoint,
+        returnCheckpoint: false,
+      });
+    }),
+    effectiveParallelism,
+    ({ result }) => progress(result),
+  );
+  const evaluations = [
+    ...centerExecutions.map(({ result }) => result),
+    ...perturbationExecutions.map(({ result }) => result),
+  ];
   const batchWallTimeMs = performance.now() - startedAt;
   const audit = await buildMainWireBaselineConditioningAuditV1({
     mode,
@@ -92,31 +137,34 @@ async function runCoordinatorV1(): Promise<void> {
 
 async function runWorkerV1(encodedTask: string): Promise<void> {
   const decoded = Buffer.from(encodedTask, "base64url").toString("utf8");
-  const task = parseTaskV1(JSON.parse(decoded) as unknown);
+  const job = parseWorkerJobV1(JSON.parse(decoded) as unknown);
   const sourceCheckpoint =
     await validateMainWireIntegratedModelStandard68CheckpointV1(
-      settledBaselineCheckpointJson,
+      job.sourceCheckpoint,
     );
-  const result = await evaluateMainWireBaselineConditioningTaskV1(
-    task,
+  const execution = await executeMainWireBaselineConditioningTaskV1(
+    job.task,
     sourceCheckpoint,
+    job.sourceAnchorKind,
   );
-  process.stdout.write(JSON.stringify(result));
+  process.stdout.write(JSON.stringify(Object.freeze({
+    result: execution.result,
+    acceptedCheckpoint: job.returnCheckpoint
+      ? execution.acceptedCheckpoint
+      : null,
+  })));
 }
 
 async function runPoolV1(
-  tasks: readonly MainWireBaselineConditioningTaskV1[],
+  jobs: readonly WorkerJobV1[],
   parallelism: number,
   onCompleted: (
-    completed: number,
-    total: number,
-    result: MainWireBaselineConditioningTaskResultV1,
+    execution: WorkerExecutionV1,
   ) => void,
-): Promise<readonly MainWireBaselineConditioningTaskResultV1[]> {
+): Promise<readonly WorkerExecutionV1[]> {
   let nextIndex = 0;
-  let completed = 0;
-  const results = new Array<MainWireBaselineConditioningTaskResultV1>(
-    tasks.length,
+  const results = new Array<WorkerExecutionV1>(
+    jobs.length,
   );
   const active = new Set<ChildProcessWithoutNullStreams>();
   const stop = () => {
@@ -129,18 +177,17 @@ async function runPoolV1(
       while (true) {
         const index = nextIndex;
         nextIndex += 1;
-        if (index >= tasks.length) return;
-        const child = spawnTaskV1(tasks[index]);
+        if (index >= jobs.length) return;
+        const child = spawnTaskV1(jobs[index]);
         active.add(child.process);
-        let result: MainWireBaselineConditioningTaskResultV1;
+        let result: WorkerExecutionV1;
         try {
           result = await child.result;
         } finally {
           active.delete(child.process);
         }
         results[index] = result;
-        completed += 1;
-        onCompleted(completed, tasks.length, result);
+        onCompleted(result);
       }
     }));
   } finally {
@@ -150,13 +197,13 @@ async function runPoolV1(
   return Object.freeze(results);
 }
 
-function spawnTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
+function spawnTaskV1(job: WorkerJobV1): Readonly<{
   process: ChildProcessWithoutNullStreams;
-  result: Promise<MainWireBaselineConditioningTaskResultV1>;
+  result: Promise<WorkerExecutionV1>;
 }> {
   const executable = resolve(process.cwd(), "node_modules/.bin/vite-node");
   const script = fileURLToPath(import.meta.url);
-  const encoded = Buffer.from(JSON.stringify(task), "utf8").toString(
+  const encoded = Buffer.from(JSON.stringify(job), "utf8").toString(
     "base64url",
   );
   const child = spawn(executable, [
@@ -169,7 +216,7 @@ function spawnTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
     env: process.env,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  const result = new Promise<MainWireBaselineConditioningTaskResultV1>(
+  const result = new Promise<WorkerExecutionV1>(
     (resolveResult, reject) => {
       let stdout = "";
       let stderr = "";
@@ -179,7 +226,9 @@ function spawnTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
         stdout += chunk;
         if (stdout.length > 2_000_000) {
           child.kill("SIGTERM");
-          reject(new Error(`conditioning worker output overflow: ${task.taskId}`));
+          reject(new Error(
+            `conditioning worker output overflow: ${job.task.taskId}`,
+          ));
         }
       });
       child.stderr.on("data", (chunk: string) => {
@@ -190,16 +239,16 @@ function spawnTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
       child.once("close", (code, signal) => {
         if (code !== 0) {
           reject(new Error(
-            `conditioning worker ${task.taskId} exited ${code ?? signal}: `
+            `conditioning worker ${job.task.taskId} exited ${code ?? signal}: `
               + stderr.trim(),
           ));
           return;
         }
         try {
-          resolveResult(parseTaskResultV1(JSON.parse(stdout) as unknown));
+          resolveResult(parseWorkerExecutionV1(JSON.parse(stdout) as unknown));
         } catch (error) {
           reject(new Error(
-            `conditioning worker ${task.taskId} returned invalid JSON: `
+            `conditioning worker ${job.task.taskId} returned invalid JSON: `
               + (error instanceof Error ? error.message : String(error)),
           ));
         }
@@ -209,9 +258,32 @@ function spawnTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
   return Object.freeze({ process: child, result });
 }
 
-function parseTaskResultV1(
-  input: unknown,
-): MainWireBaselineConditioningTaskResultV1 {
+type WorkerJobV1 = Readonly<{
+  task: MainWireBaselineConditioningTaskV1;
+  sourceAnchorKind:
+    MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"];
+  sourceCheckpoint: unknown;
+  returnCheckpoint: boolean;
+}>;
+
+type WorkerExecutionV1 = Readonly<{
+  result: MainWireBaselineConditioningTaskResultV1;
+  acceptedCheckpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
+}>;
+
+function parseWorkerExecutionV1(input: unknown): WorkerExecutionV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("worker execution must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const result = parseTaskResultV1(record.result);
+  const acceptedCheckpoint = record.acceptedCheckpoint === null
+    ? null
+    : record.acceptedCheckpoint as MainWireIntegratedModelStandard68CheckpointV1;
+  return Object.freeze({ result, acceptedCheckpoint });
+}
+
+function parseTaskResultV1(input: unknown): MainWireBaselineConditioningTaskResultV1 {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("worker result must be an object");
   }
@@ -226,6 +298,24 @@ function parseTaskResultV1(
     throw new Error(`worker result is incomplete for ${task.taskId}`);
   }
   return input as MainWireBaselineConditioningTaskResultV1;
+}
+
+function parseWorkerJobV1(input: unknown): WorkerJobV1 {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("conditioning worker job must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const task = parseTaskV1(record.task);
+  if (
+    (record.sourceAnchorKind !== "standard-baseline"
+      && record.sourceAnchorKind !== "condition-center")
+    || typeof record.returnCheckpoint !== "boolean"
+    || record.sourceCheckpoint === null
+    || typeof record.sourceCheckpoint !== "object"
+  ) {
+    throw new Error(`conditioning worker job is invalid: ${task.taskId}`);
+  }
+  return input as WorkerJobV1;
 }
 
 function parseTaskV1(input: unknown): MainWireBaselineConditioningTaskV1 {

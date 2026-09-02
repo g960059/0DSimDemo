@@ -56,6 +56,8 @@ export type MainWireBaselineConditioningCompactCheckV1 = Readonly<{
 
 export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   task: MainWireBaselineConditioningTaskV1;
+  sourceAnchorKind: "standard-baseline" | "condition-center";
+  sourceCheckpointSha256: string;
   targetCoordinateValue: number | null;
   transformedCoordinateValue: number | null;
   evaluationStatus: MainWireBaselineCalibrationEvaluationV1["status"];
@@ -69,6 +71,11 @@ export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   failedConstructionCheckIds: readonly string[];
   checks: readonly MainWireBaselineConditioningCompactCheckV1[];
   message: string | null;
+}>;
+
+export type MainWireBaselineConditioningTaskExecutionV1 = Readonly<{
+  result: MainWireBaselineConditioningTaskResultV1;
+  acceptedCheckpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
 }>;
 
 export type MainWireBaselineConditioningSensitivityV1 = Readonly<{
@@ -171,9 +178,29 @@ export function buildMainWireBaselineConditioningTasksV1(input: Readonly<{
 export async function evaluateMainWireBaselineConditioningTaskV1(
   task: MainWireBaselineConditioningTaskV1,
   sourceCheckpoint: MainWireIntegratedModelStandard68CheckpointV1,
+  sourceAnchorKind:
+    MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"] =
+      "standard-baseline",
 ): Promise<MainWireBaselineConditioningTaskResultV1> {
+  return (await executeMainWireBaselineConditioningTaskV1(
+    task,
+    sourceCheckpoint,
+    sourceAnchorKind,
+  )).result;
+}
+
+export async function executeMainWireBaselineConditioningTaskV1(
+  task: MainWireBaselineConditioningTaskV1,
+  sourceCheckpoint: MainWireIntegratedModelStandard68CheckpointV1,
+  sourceAnchorKind:
+    MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
+): Promise<MainWireBaselineConditioningTaskExecutionV1> {
   const resolved = resolveTaskV1(task);
-  const isExactBaseline = task.conditionId === "rest-hr60"
+  const sourceCandidate = sourceAnchorKind === "condition-center"
+    ? applyConditionV1(baselineCandidateV1(), conditionByIdV1(task.conditionId))
+    : baselineCandidateV1();
+  const isExactBaseline = sourceAnchorKind === "standard-baseline"
+    && task.conditionId === "rest-hr60"
     && task.coordinateId === null;
   const evaluation = await evaluateMainWireBaselineCalibrationCandidateV1({
     hemodynamicResearchInputs:
@@ -193,13 +220,24 @@ export async function evaluateMainWireBaselineConditioningTaskV1(
           kind: "standard68-parameter-continuation" as const,
           sourceCheckpoint,
           sourceHemodynamicResearchInputs:
-            MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
-          sourceVentricularContractilityScale: 1,
-          sourceMechanismResearchInputs:
-            MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+            sourceCandidate.hemodynamicResearchInputs,
+          sourceVentricularContractilityScale:
+            sourceCandidate.ventricularContractilityScale,
+          sourceMechanismResearchInputs: sourceCandidate.mechanismResearchInputs,
         }),
   });
-  return compactEvaluationV1(task, resolved, evaluation);
+  return Object.freeze({
+    result: compactEvaluationV1(
+      task,
+      sourceAnchorKind,
+      sourceCheckpoint.checkpointSha256,
+      resolved,
+      evaluation,
+    ),
+    acceptedCheckpoint: evaluation.status === "accepted"
+      ? evaluation.exactResult.checkpoint
+      : null,
+  });
 }
 
 export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
@@ -398,12 +436,16 @@ function applyConditionV1(
 
 function compactEvaluationV1(
   task: MainWireBaselineConditioningTaskV1,
+  sourceAnchorKind: MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
+  sourceCheckpointSha256: string,
   resolved: ReturnType<typeof resolveTaskV1>,
   evaluation: MainWireBaselineCalibrationEvaluationV1,
 ): MainWireBaselineConditioningTaskResultV1 {
   if (evaluation.status !== "accepted") {
     return Object.freeze({
       task,
+      sourceAnchorKind,
+      sourceCheckpointSha256,
       targetCoordinateValue: resolved.targetCoordinateValue,
       transformedCoordinateValue: resolved.transformedCoordinateValue,
       evaluationStatus: evaluation.status,
@@ -421,6 +463,8 @@ function compactEvaluationV1(
   }
   return Object.freeze({
     task,
+    sourceAnchorKind,
+    sourceCheckpointSha256,
     targetCoordinateValue: resolved.targetCoordinateValue,
     transformedCoordinateValue: resolved.transformedCoordinateValue,
     evaluationStatus: evaluation.status,
