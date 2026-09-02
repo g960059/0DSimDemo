@@ -40,7 +40,7 @@ const COPY = Object.freeze({
     abpBody:
       "体動脈（SA）compartment圧です。特定のカフ・動脈ライン位置、圧波伝播後の末梢圧とは同一ではありません。",
     stationWarning:
-      "AoP、ABPとも、分布定数系の伝播遅延・進行波・反射波を含みません。Standard 66のrecovered proximal constitutive-port圧をStandard 68へ代用していません。",
+      "AoP、ABPとも、分布定数系の伝播遅延・進行波・反射波を含みません。recovered proximal constitutive-port圧をこのexact releaseへ代用していません。",
     dynamicsTitle: "exact dynamics",
     dynamicsItems: Object.freeze([
       "心室active/passive materialはversioned rounded-ejection profileです。",
@@ -53,6 +53,8 @@ const COPY = Object.freeze({
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、${checks}項目の圧・AV/LV/RVP・timing・形態・indexed size/function gateと、双方向preload reserve gateを通過しています。`,
+    qualifiedBaselinePolicy:
+      "Standard69の追加floorは、各方向・両心室でCO変化率3%以上、CO/充満圧勾配0.02 L/min/mmHg以上、EDV変化率3%以上です。探索結果の確認後に固定したconstruction用退行防止基準であり、独立した生理学的検証ではありません。",
     controlTitle: "control semantics",
     controlBody:
       "Heart rateを含むcontrol変更はaccepted stateとmodel clockを保持し、新しいfixture epochへ移るatomic warm startです。自律神経反射や実測の変時性応答ではありません。",
@@ -91,7 +93,7 @@ const COPY = Object.freeze({
     abpBody:
       "Pressure of the systemic-arterial (SA) compartment. It is not a literal cuff or arterial-line station after peripheral wave travel.",
     stationWarning:
-      "Neither AoP nor ABP includes distributed propagation delay, travelling waves, or reflections. The recovered proximal constitutive-port pressure from Standard 66 is not substituted into Standard 68.",
+      "Neither AoP nor ABP includes distributed propagation delay, travelling waves, or reflections. Recovered proximal constitutive-port pressure is not substituted into this exact release.",
     dynamicsTitle: "Exact dynamics",
     dynamicsItems: Object.freeze([
       "Ventricular active/passive material uses a versioned rounded-ejection profile.",
@@ -104,6 +106,8 @@ const COPY = Object.freeze({
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles; all ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function gates plus the bidirectional preload-reserve gate passed.`,
+    qualifiedBaselinePolicy:
+      "Standard69 adds floors of 3% CO change, 0.02 L/min/mmHg CO/filling-pressure slope, and 3% EDV change in each direction for both ventricles. They were frozen after exploratory result inspection as construction non-regression floors, not independent physiological validation.",
     controlTitle: "Control semantics",
     controlBody:
       "Control changes, including heart rate, atomically warm-start a new fixture epoch while retaining accepted state and model clock. This is not an autonomic reflex or measured chronotropic response.",
@@ -185,7 +189,7 @@ export function MainWireStandard68DocumentationV1({
               body={text.baselineBody(
                 facts.baseline.completedCycleCount,
                 facts.baseline.passedCheckCount,
-              )}
+              ) + (qualified ? ` ${text.qualifiedBaselinePolicy}` : "")}
             />
             <FactCard title={text.controlTitle} body={text.controlBody} identity={facts.runtime.heartRateControlId} />
           </div>

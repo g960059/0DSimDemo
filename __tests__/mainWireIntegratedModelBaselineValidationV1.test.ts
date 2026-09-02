@@ -149,6 +149,26 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
         MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3,
     });
     expect(revisions.at(-1)?.policySha256).toBe(currentPolicySha256);
+
+    const preloadReserveRevisions =
+      normalReferenceEvidenceV1.preloadReservePolicyRevisions;
+    expect(
+      new Set(preloadReserveRevisions.map(({ revisionId }) => revisionId)).size,
+    )
+      .toBe(preloadReserveRevisions.length);
+    for (const revision of preloadReserveRevisions) {
+      expect(revision.evidenceRole).toBe("construction");
+      expect(revision.decisionTiming)
+        .toBe("post-hoc-after-exploratory-candidate-inspection");
+      expect(revision.changeReason.trim()).not.toBe("");
+      expect(revision.policySha256).toMatch(/^[0-9a-f]{64}$/);
+    }
+    const currentPreloadReservePolicySha256 = await sha256CanonicalJsonHex({
+      basePolicy: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+      standard69Policy: MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1,
+    });
+    expect(preloadReserveRevisions.at(-1)?.policySha256)
+      .toBe(currentPreloadReservePolicySha256);
   });
 
   it("admits a coherent normal indexed size/function reference", () => {

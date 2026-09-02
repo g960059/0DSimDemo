@@ -213,6 +213,15 @@ places the fixture just on the admitted ascending side of the high-preload
 gate; it does not establish a large physiological reserve or validate the full
 Frank-Starling curve.
 
+The Standard69 additions require, in each direction and for both ventricles,
+at least 3% directional CO change, 0.02 L/min/mmHg CO/filling-pressure slope,
+and 3% directional EDV change. These floors were fixed after exploratory
+candidate inspection. They are construction-only non-regression boundaries,
+not preregistered physiological cutoffs or independent validation. The baseline
+AoP maximum (90.9 mmHg) and CI (2.526 L/min/m2) are also close to their lower
+construction bounds (90 mmHg and 2.5 L/min/m2), so `28/28 passed` must not be
+read as a claim of a well-centred multivariate healthy population sample.
+
 The selected lattice finalist passed continuation, independent 2 ms and 1 ms
 cold solutions, fixed-control low/high preload, and the preregistered HR 70 and
 systemic-afterload morphology/periodicity safety checks. HR 70 is not claimed
@@ -251,6 +260,20 @@ admission lock for the selected fixture. Together they preserve the
 rest/reserve, release-lattice, and refined-time-step decision boundaries
 without making exploratory output part of the production tree or rewriting an
 already admitted exact identity.
+
+The adopted finalist is
+`mainwire-baseline-release-lattice-robustness-recovery-00-final-qualification-v1.json`
+in archival commit `fb816da4a2bb142b3d82b372970c849e42d0fd14` (PR #586).
+It binds search digest
+`3674bf2cd759a46fd3da069c72f518e4b19d2def6e41c78561e1eee149d165f6`,
+numerical-floor digest
+`6c68b16724d3a83d9604b4e268feb1a5ff3774049e8668c1166298c765f1d5bd`,
+study-identity digest
+`a3e061253f593e2a988b47090f707685b3ba5047dcc08c2b04f1ce056d8f3468`,
+and checkpoint digest
+`6f94efd89653069aa613a377723728141d940e6131afe797b3c1dfa38d8918c3`.
+These pointers preserve selection provenance without merging the exploratory
+report corpus into main.
 
 ## Minimal implementation sequence
 

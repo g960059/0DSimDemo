@@ -4,7 +4,7 @@
   "claimScope": {
     "currentBaselineEvidenceRole": "construction",
     "finalConfirmationStatus": "unavailable",
-    "reason": "Standard68 gates and candidate outputs were inspected during model construction; no lineage-disjoint final evidence set has been frozen."
+    "reason": "Standard68/69 gates, Standard69 preload-reserve floors, and candidate outputs were inspected during model construction; no lineage-disjoint final evidence set has been frozen."
   },
   "sources": [
     {
@@ -342,6 +342,15 @@
       "policySha256": "74f5b1ca712b56f304fee1ccf20da3e9dee8c7102213a2cb60dc2e7701cf3356",
       "evidenceRole": "construction",
       "changeReason": "Capture the current Standard68 mint policy and healthy-reference context after retrospective provenance repair."
+    }
+  ],
+  "preloadReservePolicyRevisions": [
+    {
+      "revisionId": "main-wire-standard69-preload-reserve-policy-r1",
+      "policySha256": "dec7d6cdf587522c67892f0f94c910a2a8871a1aada6620c1a8778869109f4d5",
+      "evidenceRole": "construction",
+      "decisionTiming": "post-hoc-after-exploratory-candidate-inspection",
+      "changeReason": "Freeze the Standard69-specific relative CO, pressure-flow slope, and relative EDV floors after exploratory candidate inspection. These are construction-only non-regression thresholds, not independently validated physiological cutoffs."
     }
   ]
 }

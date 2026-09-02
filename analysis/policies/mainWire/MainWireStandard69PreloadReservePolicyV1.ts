@@ -9,7 +9,10 @@ export const MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1_ID =
 
 /**
  * Standard69 non-regression floors around its fixed-control operating point.
- * These are construction margins, not clinical fluid-challenge thresholds.
+ * They were frozen after exploratory candidate inspection, so they are
+ * construction margins rather than independent physiological or clinical
+ * fluid-challenge thresholds. Revision provenance lives in the evidence
+ * registry rather than in this numerical policy object.
  */
 export const MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1 = Object.freeze({
   policyId: MAIN_WIRE_STANDARD69_PRELOAD_RESERVE_POLICY_V1_ID,
