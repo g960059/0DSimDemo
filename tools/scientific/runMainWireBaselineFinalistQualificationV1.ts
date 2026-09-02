@@ -137,11 +137,15 @@ if (encodedWorkerJob !== null) {
 }
 
 async function runCoordinatorV1(): Promise<void> {
+  const scope = parseScopeV1(argumentV1("--scope") ?? "full");
   const searchArtifactPath = resolve(requiredArgumentV1("--search-report"));
   const candidateId = requiredArgumentV1("--candidate-id");
   const floorArtifactPath = resolve(requiredArgumentV1("--numerical-floor"));
   const outputPath = resolve(requiredArgumentV1("--output"));
   const checkpointOutputArgument = argumentV1("--checkpoint-output");
+  if (scope === "preload-only" && checkpointOutputArgument !== null) {
+    throw new Error("preload-only screening does not persist a checkpoint");
+  }
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "5",
     "parallelism",
@@ -153,9 +157,13 @@ async function runCoordinatorV1(): Promise<void> {
     artifactPath: searchArtifactPath,
     candidateId,
     numericalFloorArtifactSha256,
+    requireFinalist: scope === "full",
   });
   const study = await compileMainWireBaselineConditioningStudyV1();
-  if (searchCandidate.studyIdentitySha256 !== study.studyIdentitySha256) {
+  if (
+    scope === "full"
+    && searchCandidate.studyIdentitySha256 !== study.studyIdentitySha256
+  ) {
     throw new Error("search report and current finalist study identities differ");
   }
   const baselineCheckpoint =
@@ -202,6 +210,45 @@ async function runCoordinatorV1(): Promise<void> {
     await validateMainWireIntegratedModelStandard68CheckpointV1(
       continuation.checkpoint,
     );
+  if (scope === "preload-only") {
+    const preload = await spawnWorkerV1(Object.freeze({
+      kind: "formal-preload-reserve" as const,
+      label: "formal-preload-reserve" as const,
+      candidate: searchCandidate.candidateInputs,
+      checkpoint: candidateCheckpoint,
+    })).result;
+    if (preload.kind !== "formal-preload-reserve") {
+      throw new Error("preload-only worker returned an evaluation");
+    }
+    progressV1(preload);
+    const report = Object.freeze({
+      schemaVersion: 1 as const,
+      screenId: "main-wire-baseline-preload-reserve-screen-v1" as const,
+      status: preload.status,
+      currentStudyIdentitySha256: study.studyIdentitySha256,
+      sourceStudyIdentitySha256: searchCandidate.studyIdentitySha256,
+      executionCommit: gitV1(["rev-parse", "HEAD"]),
+      searchArtifactPath: portableRepositoryPathV1(searchArtifactPath),
+      searchArtifactSha256: searchCandidate.searchArtifactSha256,
+      searchId: searchCandidate.searchId,
+      searchExecutionCommit: searchCandidate.searchExecutionCommit,
+      candidateId,
+      coordinateValues: searchCandidate.coordinateValues,
+      numericalFloorArtifactPath: portableRepositoryPathV1(floorArtifactPath),
+      numericalFloorArtifactSha256,
+      batchWallTimeMs: performance.now() - startedAt,
+      continuation: compactExecutionForReportV1(continuation),
+      formalPreloadReserve: preload,
+      claim: Object.freeze({
+        evidenceRole: "construction" as const,
+        exploratoryScreenOnly: true as const,
+        selectedBaselineClaimed: false as const,
+      }),
+    });
+    await writeFile(outputPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
+    process.stdout.write(`${outputPath}\n`);
+    return;
+  }
   const afterloadCandidate = applyMainWireBaselineCalibrationParametersV1(
     searchCandidate.candidateInputs,
     [Object.freeze({
@@ -621,6 +668,7 @@ async function loadSearchCandidateV1(input: Readonly<{
   artifactPath: string;
   candidateId: string;
   numericalFloorArtifactSha256: string;
+  requireFinalist: boolean;
 }>): Promise<SearchCandidateV1> {
   const json = JSON.parse(await readFile(input.artifactPath, "utf8")) as unknown;
   const report = recordV1(json, "search report");
@@ -668,9 +716,11 @@ async function loadSearchCandidateV1(input: Readonly<{
         + changedExactSources.replaceAll("\n", ", "),
     );
   }
-  const finalists = stringArrayV1(report.finalistCandidateIds, "finalist IDs");
-  if (!finalists.includes(input.candidateId)) {
-    throw new Error(`${input.candidateId} is not a search finalist`);
+  if (input.requireFinalist) {
+    const finalists = stringArrayV1(report.finalistCandidateIds, "finalist IDs");
+    if (!finalists.includes(input.candidateId)) {
+      throw new Error(`${input.candidateId} is not a search finalist`);
+    }
   }
   if (!Array.isArray(report.evaluations)) {
     throw new Error("search report has no evaluations");
@@ -938,6 +988,13 @@ function positiveIntegerV1(value: string, label: string): number {
     throw new Error(`${label} must be a positive integer`);
   }
   return parsed;
+}
+
+function parseScopeV1(value: string): "full" | "preload-only" {
+  if (value !== "full" && value !== "preload-only") {
+    throw new Error(`unsupported finalist qualification scope: ${value}`);
+  }
+  return value;
 }
 
 function portableRepositoryPathV1(absolutePath: string): string {
