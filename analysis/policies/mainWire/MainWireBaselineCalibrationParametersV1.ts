@@ -101,7 +101,7 @@ export const MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1:
     descriptorV1(
       "myocardium.common-ventricular-passive-stiffness-scale",
       "1",
-      "diagnostic-only",
+      "candidate-shared-phenotype",
       "common-ventricular-material-scale",
       "log",
       mechanics.passiveStiffnessScaleByWall,

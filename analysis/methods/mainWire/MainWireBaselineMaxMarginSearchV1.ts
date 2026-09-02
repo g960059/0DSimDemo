@@ -369,10 +369,10 @@ function haltonV1(index: number, base: number): number {
 }
 
 function primeV1(dimension: number): number {
-  const primes = [2, 3, 5, 7] as const;
+  const primes = [2, 3, 5, 7, 11] as const;
   const prime = primes[dimension];
   if (prime === undefined) {
-    throw new Error("baseline search supports at most four coordinates");
+    throw new Error("baseline search supports at most five coordinates");
   }
   return prime;
 }

@@ -435,7 +435,7 @@ describe("Standard68 baseline mint gates", () => {
     })).toHaveLength(25);
     expect(buildMainWireBaselineConditioningTasksV1({
       mode: "primary-envelope",
-    })).toHaveLength(85);
+    })).toHaveLength(105);
     expect(buildMainWireBaselineConditioningTasksV1({
       mode: "full-envelope",
     })).toHaveLength(125);

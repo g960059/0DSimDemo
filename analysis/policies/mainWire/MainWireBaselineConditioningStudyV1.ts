@@ -93,7 +93,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     nearestNeighbourContinuationForDerivatives: false;
     reportSingularSpectrum: true;
     reportAlternativeSubsets: true;
-    maximumAdmittedCoordinateCount: 4;
+    maximumAdmittedCoordinateCount: 5;
   }>;
   objectivePolicy: Readonly<{
     baselineConditionId: "rest-hr60";
@@ -138,7 +138,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 9;
+    revision: 10;
     changeReason: string;
   }>;
 }>;
@@ -163,14 +163,13 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       "hemodynamics.systemic-resistance",
       "hemodynamics.arterial-stiffness",
       "myocardium.common-ventricular-active-tension-scale",
+      "myocardium.common-ventricular-passive-stiffness-scale",
     ] as const),
     negativeControlCoordinateIds: Object.freeze([
       "hemodynamics.total-blood-volume-ml",
       "hemodynamics.venous-tone",
     ] as const),
-    diagnosticCoordinateIds: Object.freeze([
-      "myocardium.common-ventricular-passive-stiffness-scale",
-    ] as const),
+    diagnosticCoordinateIds: Object.freeze([]),
     sourceLockedFamilies: Object.freeze([
       "matched-alpha-calcium-source",
       "rounded-ejection-land-kinetic-family",
@@ -257,7 +256,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       nearestNeighbourContinuationForDerivatives: false as const,
       reportSingularSpectrum: true as const,
       reportAlternativeSubsets: true as const,
-      maximumAdmittedCoordinateCount: 4 as const,
+      maximumAdmittedCoordinateCount: 5 as const,
     }),
     objectivePolicy: Object.freeze({
       baselineConditionId: "rest-hr60" as const,
@@ -294,6 +293,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         "hemodynamics.systemic-resistance",
         "hemodynamics.arterial-stiffness",
         "myocardium.common-ventricular-active-tension-scale",
+        "myocardium.common-ventricular-passive-stiffness-scale",
       ] as const),
       initialDesign:
         "deterministic-halton-in-transformed-trust-region" as const,
@@ -327,9 +327,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 9 as const,
+      revision: 10 as const,
       changeReason:
-        "Require high-preload flow slope and fractional flow/EDV reserve to be non-inferior to the incumbent Standard68 construction before replacing its operating point.",
+        "Admit one bounded common passive-stiffness coordinate after the full-envelope audit showed stable step-halved sensitivities that raise CI/AoP while remaining weakly correlated with the existing primary directions.",
     }),
   });
 
