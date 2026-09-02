@@ -219,6 +219,11 @@ describe("Standard68 baseline mint gates", () => {
 
   it("requires flow, filling pressure, EDV, and ED transmural reserve in both directions", () => {
     const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+    expect(policy).toMatchObject({
+      minimumDirectionalCardiacOutputChangeFraction01: 0.03,
+      minimumCardiacOutputSlopeLPerMinPerMmHg: 0.02,
+      minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.03,
+    });
     const admitted = directionalResponseV1("hypervolemic");
     expect(
       mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(

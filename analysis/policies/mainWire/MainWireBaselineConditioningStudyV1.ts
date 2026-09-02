@@ -138,7 +138,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 8;
+    revision: 9;
     changeReason: string;
   }>;
 }>;
@@ -327,9 +327,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 8 as const,
+      revision: 9 as const,
       changeReason:
-        "Compose the baseline-local numerical floor and the preregistered candidate-local corridor allowance additively for finalist agreement; every resolution must still pass the buffered physiological gates independently.",
+        "Require high-preload flow slope and fractional flow/EDV reserve to be non-inferior to the incumbent Standard68 construction before replacing its operating point.",
     }),
   });
 

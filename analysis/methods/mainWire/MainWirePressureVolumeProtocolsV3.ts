@@ -66,7 +66,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_
  * A release gate, not a clinical fluid-challenge claim. Symmetric fixed-tone
  * endpoints establish reserve on both sides of the operating point. Flow,
  * filling pressure, maximum-volume EDV, and ED transmural pressure must all
- * move in the physiologically expected direction for both ventricles.
+ * move in the physiologically expected direction for both ventricles. The
+ * fractional high-preload floors are construction non-regression guards
+ * against replacing the incumbent Standard68 baseline with a visibly flatter
+ * Frank-Starling operating point; they are not clinical fluid-challenge cutoffs.
  */
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 =
   Object.freeze({
@@ -74,10 +77,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 =
     hypervolemicGlobalTbvScale: 1.12 as const,
     minimumDirectionalFillingPressureChangeMmHg: 1 as const,
     minimumDirectionalCardiacOutputChangeLPerMin: 0.05 as const,
-    minimumDirectionalCardiacOutputChangeFraction01: 0.02 as const,
-    minimumCardiacOutputSlopeLPerMinPerMmHg: 0.015 as const,
+    minimumDirectionalCardiacOutputChangeFraction01: 0.03 as const,
+    minimumCardiacOutputSlopeLPerMinPerMmHg: 0.02 as const,
     minimumDirectionalEndDiastolicVolumeChangeMl: 1 as const,
-    minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.02 as const,
+    minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.03 as const,
     minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg: 0.25 as const,
   });
 
