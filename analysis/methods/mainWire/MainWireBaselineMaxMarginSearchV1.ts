@@ -1,3 +1,5 @@
+import normalReferenceEvidenceV1 from
+  "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
   MainWireIntegratedModelBaselineValidationCheckV1,
@@ -51,9 +53,11 @@ export type MainWireBaselineBufferedMarginV1 = Readonly<{
 export type MainWireBaselineCandidateObjectiveV1 = Readonly<{
   objectiveId: typeof MAIN_WIRE_BASELINE_MAX_MARGIN_SEARCH_V1_ID;
   status: "feasible" | "corridor-rejected";
+  primaryWorstBufferedInteriorMargin: number | null;
   worstBufferedInteriorMargin: number | null;
   referenceDepartureRms: number;
   failedCheckIds: readonly MainWireIntegratedModelBaselineValidationCheckIdV1[];
+  primaryActiveMargins: readonly MainWireBaselineBufferedMarginV1[];
   activeMargins: readonly MainWireBaselineBufferedMarginV1[];
   margins: readonly MainWireBaselineBufferedMarginV1[];
 }>;
@@ -192,6 +196,22 @@ export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{
     .map(({ checkId }) => checkId);
   const continuous = margins.filter((margin) =>
     margin.bufferedInteriorMargin !== null);
+  const primaryGroupIds = new Set(
+    MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.objectivePolicy
+      .primaryInteriorGroupIds,
+  );
+  const primaryCheckIds = new Set(normalReferenceEvidenceV1.checkGroups
+    .filter(({ groupId }) => primaryGroupIds.has(groupId))
+    .flatMap(({ checkIds }) => checkIds));
+  const primaryContinuous = continuous.filter(({ checkId }) =>
+    primaryCheckIds.has(checkId));
+  if (primaryContinuous.length === 0) {
+    throw new Error("baseline objective has no continuous primary margin");
+  }
+  const primaryActiveMargins = [...primaryContinuous]
+    .sort((left, right) =>
+      left.bufferedInteriorMargin! - right.bufferedInteriorMargin!)
+    .slice(0, 5);
   const activeMargins = [...continuous].sort((left, right) =>
     left.bufferedInteriorMargin! - right.bufferedInteriorMargin!)
     .slice(0, 5);
@@ -200,10 +220,13 @@ export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{
     status: failedCheckIds.length === 0
       ? "feasible" as const
       : "corridor-rejected" as const,
+    primaryWorstBufferedInteriorMargin: primaryActiveMargins[0]
+      ?.bufferedInteriorMargin ?? null,
     worstBufferedInteriorMargin: activeMargins[0]
       ?.bufferedInteriorMargin ?? null,
     referenceDepartureRms: referenceDepartureRmsV1(input.candidate),
     failedCheckIds: Object.freeze(failedCheckIds),
+    primaryActiveMargins: Object.freeze(primaryActiveMargins),
     activeMargins: Object.freeze(activeMargins),
     margins: Object.freeze(margins),
   });
@@ -215,6 +238,13 @@ export function compareMainWireBaselineCandidateObjectivesV1(
   right: MainWireBaselineCandidateObjectiveV1,
 ): number {
   if (left.status !== right.status) return left.status === "feasible" ? -1 : 1;
+  const leftPrimaryMargin = left.primaryWorstBufferedInteriorMargin
+    ?? Number.NEGATIVE_INFINITY;
+  const rightPrimaryMargin = right.primaryWorstBufferedInteriorMargin
+    ?? Number.NEGATIVE_INFINITY;
+  if (leftPrimaryMargin !== rightPrimaryMargin) {
+    return rightPrimaryMargin - leftPrimaryMargin;
+  }
   const leftMargin = left.worstBufferedInteriorMargin
     ?? Number.NEGATIVE_INFINITY;
   const rightMargin = right.worstBufferedInteriorMargin

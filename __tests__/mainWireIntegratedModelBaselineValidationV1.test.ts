@@ -470,6 +470,45 @@ describe("Standard68 baseline mint gates", () => {
     expect(interior.status).toBe("feasible");
     expect(compareMainWireBaselineCandidateObjectivesV1(interior, edge))
       .toBeLessThan(0);
+
+    const structuralFirst = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: [
+        check(1_850),
+        Object.freeze({
+          checkId: "aortic-pressure.maximum" as const,
+          status: "passed" as const,
+          actual: 91,
+          minimum: 90,
+          maximum: 140,
+          unit: "mmHg",
+        }),
+      ],
+      candidate: first[0].candidateInputs,
+      numericalFloors: [],
+    });
+    const macroFirst = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: [
+        check(1_240),
+        Object.freeze({
+          checkId: "aortic-pressure.maximum" as const,
+          status: "passed" as const,
+          actual: 115,
+          minimum: 90,
+          maximum: 140,
+          unit: "mmHg",
+        }),
+      ],
+      candidate: first[0].candidateInputs,
+      numericalFloors: [],
+    });
+    expect(structuralFirst.worstBufferedInteriorMargin)
+      .toBeLessThan(macroFirst.worstBufferedInteriorMargin!);
+    expect(structuralFirst.primaryWorstBufferedInteriorMargin)
+      .toBeGreaterThan(macroFirst.primaryWorstBufferedInteriorMargin!);
+    expect(compareMainWireBaselineCandidateObjectivesV1(
+      structuralFirst,
+      macroFirst,
+    )).toBeLessThan(0);
   });
 });
 
