@@ -184,6 +184,22 @@ export function workbenchScenarioRuntimeStatusV3(
   return isPlaying ? "Live" : "Paused";
 }
 
+/**
+ * The live runtime can be retained only when every dispatched Scenario edit
+ * was rejected before commit and every Worker classified that rejection as
+ * recoverable. One accepted lane would otherwise leave a partially mutated
+ * multi-Scenario transaction that the UI has no authority to roll back.
+ */
+export function workbenchRejectedControlCanResumeRuntimeV3(input: Readonly<{
+  dispatchedCount: number;
+  acceptedCount: number;
+  everyRejectionRecoverable: boolean;
+}>): boolean {
+  return input.dispatchedCount > 0
+    && input.acceptedCount === 0
+    && input.everyRejectionRecoverable;
+}
+
 /** A duplicated Scenario must not share its mutable editor object identity. */
 export function cloneWorkbenchControlValuesV3(
   source: ExactModelControlValuesV1,

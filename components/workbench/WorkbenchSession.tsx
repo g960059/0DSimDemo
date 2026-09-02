@@ -203,11 +203,15 @@ import {
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
   workbenchInputMutationReplacedAcceptedClockV3,
+  workbenchRejectedControlCanResumeRuntimeV3,
   workbenchDurableContentAvailableV3,
   workbenchPaneIdentityForIdV3,
   workbenchPublicationAvailableV3,
   type WorkbenchPaneSettingsV3,
 } from "@/components/workbench/WorkbenchSessionPolicy";
+import {
+  isRecoverableStudioSimulationWorkerRequestErrorV2,
+} from "@/studio/workers/StudioSimulationWorkerClientV2";
 import {
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
@@ -585,7 +589,7 @@ export const WorkbenchSession = ({
             )} ms`,
             detail: t(
               "workbench.editor.simulationInfo.baselineIctIrtDetail",
-              { range: "ICT 20–60 / IRT 59–134 ms" },
+              { range: "ICT 20–70 / IRT 59–134 ms" },
             ),
           }),
           Object.freeze({
@@ -595,6 +599,111 @@ export const WorkbenchSession = ({
             detail: t(
               "workbench.editor.simulationInfo.baselineRangeDetail",
               { range: "0.29–0.65" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "indexed-volumes",
+            label: "EDVI / ESVI",
+            value: `LV ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.endDiastolicVolumeIndexMlPerM2,
+            )}/${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.endSystolicVolumeIndexMlPerM2,
+            )} · RV ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.endDiastolicVolumeIndexMlPerM2,
+            )}/${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.endSystolicVolumeIndexMlPerM2,
+            )} mL/m²`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIndexedVolumesDetail",
+              { range: "LV 34–76/10–31 · RV 32–87/8–44 mL/m²" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "ventricular-ef",
+            label: "LVEF / RVEF",
+            value: `${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.ejectionFraction01 * 100,
+            )} / ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.ejectionFraction01 * 100,
+            )} %`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "LVEF 52–74% · RVEF 42–82%" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "indexed-flow",
+            label: "CI / SVI",
+            value: `${baselineValidation.measurements.cardiacSizeAndFunction
+              .systemicForwardFlow.cardiacIndexLPerMinPerM2.toFixed(2)} / ${
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .systemicForwardFlow.strokeVolumeIndexMlPerM2.toFixed(1)
+            }`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIndexedFlowDetail",
+              { range: "CI 2.5–4.0 L/min/m² · SVI 35–65 mL/m²" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "preload-reserve",
+            label: t(
+              "workbench.editor.simulationInfo.baselinePreloadReserve",
+            ),
+            value: t(
+              "workbench.editor.simulationInfo.baselineBidirectionalPassed",
+            ),
+            detail: t(
+              "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
+              {
+                low: Math.round(
+                  (1 - baselineValidation.preloadReserve
+                    .hypovolemicGlobalTbvScale) * 100,
+                ),
+                high: Math.round(
+                  (baselineValidation.preloadReserve
+                    .hypervolemicGlobalTbvScale - 1) * 100,
+                ),
+                lowLv: baselineValidation.preloadReserve.left.hypovolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                lowRv: baselineValidation.preloadReserve.right.hypovolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                highLv: baselineValidation.preloadReserve.left.hypervolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                highRv: baselineValidation.preloadReserve.right.hypervolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "transmural-preload-response",
+            label: t(
+              "workbench.editor.simulationInfo.baselineTransmuralResponse",
+            ),
+            value: t(
+              "workbench.editor.simulationInfo.baselineBidirectionalPassed",
+            ),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineTransmuralResponseDetail",
+              {
+                lowLv: baselineValidation.preloadReserve.left.hypovolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                lowRv: baselineValidation.preloadReserve.right.hypovolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                highLv: baselineValidation.preloadReserve.left.hypervolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                highRv: baselineValidation.preloadReserve.right.hypervolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+              },
             ),
           }),
         ]),
@@ -1440,6 +1549,7 @@ export const WorkbenchSession = ({
       setControlError(null);
       let ownsControlOperation = false;
       let mutationDispatched = false;
+      let rejectedControlCanResumeRuntime = false;
       try {
         if (operation === "analysis") {
           // A user edit outranks an automatically requested structural
@@ -1491,7 +1601,7 @@ export const WorkbenchSession = ({
           }),
         );
         mutationDispatched = true;
-        const nextFrames = await Promise.all(
+        const controlResults = await Promise.allSettled(
           acceptedFrames.map((acceptedFrame) =>
             runtime.applyControl({
               scenarioId: acceptedFrame.scenarioId,
@@ -1501,6 +1611,23 @@ export const WorkbenchSession = ({
             }),
           ),
         );
+        const nextFrames = controlResults.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : []
+        );
+        const rejectedControls = controlResults.flatMap((result) =>
+          result.status === "rejected" ? [result.reason] : []
+        );
+        if (rejectedControls.length > 0) {
+          rejectedControlCanResumeRuntime =
+            workbenchRejectedControlCanResumeRuntimeV3({
+              dispatchedCount: controlResults.length,
+              acceptedCount: nextFrames.length,
+              everyRejectionRecoverable: rejectedControls.every(
+                isRecoverableStudioSimulationWorkerRequestErrorV2,
+              ),
+            });
+          throw rejectedControls[0];
+        }
         const activeId = activeScenarioIdRef.current;
         const nextRootFrame =
           activeId === null ? nextFrames[0]! : runtime.latestFrame(activeId);
@@ -1594,10 +1721,14 @@ export const WorkbenchSession = ({
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setControlError(message);
-        if (mutationDispatched && runtimeRef.current === runtime) {
-          // Once a Worker receives a control command, a rejected apply or a
-          // later fixture capture can leave accepted exact state changed. The
-          // UI has no rollback authority, so discard the entire runtime.
+        if (
+          mutationDispatched
+          && !rejectedControlCanResumeRuntime
+          && runtimeRef.current === runtime
+        ) {
+          // A fatal rejection, one partially accepted multi-Scenario edit, or
+          // a later capture failure can leave exact/UI authorities divergent.
+          // The UI has no rollback authority, so discard the entire runtime.
           playingIntentRef.current = false;
           setIsPlaying(false);
           runtimeRef.current = null;

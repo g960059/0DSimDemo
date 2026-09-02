@@ -117,6 +117,30 @@ export type StudioSimulationWorkerClientOptionsV2 = Readonly<{
   snapshotAdmissionTimeoutMs?: number;
 }>;
 
+/**
+ * Correlated Worker rejection with the runtime's failure classification intact.
+ *
+ * A non-fatal response means the Worker proved that the rejected request left
+ * its accepted exact authority unchanged. Callers may therefore keep using the
+ * same client. A fatal response has already revoked that authority.
+ */
+export class StudioSimulationWorkerRequestErrorV2 extends Error {
+  readonly fatal: boolean;
+
+  constructor(message: string, fatal: boolean) {
+    super(message);
+    this.name = "StudioSimulationWorkerRequestErrorV2";
+    this.fatal = fatal;
+  }
+}
+
+export function isRecoverableStudioSimulationWorkerRequestErrorV2(
+  error: unknown,
+): error is StudioSimulationWorkerRequestErrorV2 {
+  return error instanceof StudioSimulationWorkerRequestErrorV2
+    && !error.fatal;
+}
+
 export type StudioSimulationWorkerPresentationTimingV2 = Readonly<{
   workerAdvanceMs: number;
   workerPrepareMs: number;
@@ -1032,7 +1056,10 @@ export class StudioSimulationWorkerClientV2 {
       return;
     }
     if (response.status === "error") {
-      const error = new Error(response.message);
+      const error = new StudioSimulationWorkerRequestErrorV2(
+        response.message,
+        response.fatal,
+      );
       this.#settlePending(response.requestId);
       pending.reject(error);
       if (response.fatal) this.#terminateWith(error);

@@ -219,7 +219,7 @@ describe("model documentation V1", () => {
       runtime: {
         heartRateChangeSemantics: "accepted-state-warm-start",
         fixtureChangeSemantics:
-          "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch",
+          "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch",
       },
       surface: {
         rawPressureVolumeLoop: true,

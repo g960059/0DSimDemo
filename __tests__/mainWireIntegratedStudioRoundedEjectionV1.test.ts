@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
@@ -20,11 +23,12 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
   createMainWireIntegratedStudioRoundedEjectionKernelV1,
   createMainWireIntegratedStudioRoundedEjectionReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
   createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1";
 import {
@@ -133,7 +137,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
         ? definition.defaultValue + definition.step
         : definition.defaultValue - definition.step;
       const fixture = applyMainWireIntegratedStudioRoundedEjectionControlV1(
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
         definition.controlId,
         candidate,
       );
@@ -145,7 +149,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       });
       expect(
         reduceMainWireIntegratedStudioRoundedEjectionControlV1(
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
           definition.controlId,
           definition.defaultValue,
         ).changes.length,
@@ -164,7 +168,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       scenarios: [{
         scenarioId,
         fixture:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
       }],
     });
     try {
@@ -172,9 +176,44 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
         runtimeSessionId,
         scenarioId,
       });
-      expect(frame.acceptedTimeSec).toBe(134);
-      expect(frame.acceptedRevision).toBe(67_036);
-      expect(frame.outputs[ET]?.value).toBeCloseTo(0.252, 8);
+      const validation =
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+      expect(frame.acceptedTimeSec).toBe(
+        validation.checkpoint.acceptedTimeSec,
+      );
+      expect(frame.acceptedRevision).toBe(validation.checkpoint.revision);
+      expect(frame.outputs[ET]?.value).toBeCloseTo(
+        validation.measurements.aorticValve.ejectionTimeSec,
+        8,
+      );
+      for (const side of [
+        validation.preloadReserve.left,
+        validation.preloadReserve.right,
+      ]) {
+        for (const response of [side.hypovolemic, side.hypervolemic]) {
+          expect(response.directionalCardiacOutputChangeLPerMin)
+            .toBeGreaterThanOrEqual(
+              MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1
+                .minimumDirectionalCardiacOutputChangeLPerMin,
+            );
+          expect(response.cardiacOutputSlopeLPerMinPerMmHg)
+            .toBeGreaterThanOrEqual(
+              MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1
+                .minimumCardiacOutputSlopeLPerMinPerMmHg,
+            );
+          expect(response.directionalEndDiastolicVolumeChangeMl)
+            .toBeGreaterThanOrEqual(
+              MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1
+                .minimumDirectionalEndDiastolicVolumeChangeMl,
+            );
+          expect(
+            response.directionalEndDiastolicTransmuralPressureChangeMmHg,
+          ).toBeGreaterThanOrEqual(
+            MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1
+              .minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg,
+          );
+        }
+      }
       const changed = await release.executables.simulationAdapter.applyControl({
         runtimeSessionId,
         scenarioId,
@@ -211,6 +250,106 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     }
   });
 
+  it.each([0, 83, 251])(
+    "continues atomically to the admitted 4.2-L TBV endpoint from phase offset %i",
+    async (phaseStepCount) => {
+      const release =
+        createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1();
+      const runtimeSessionId = `standard68/tbv-min/${phaseStepCount}`;
+      const scenarioId = "baseline";
+      await release.executables.simulationAdapter.createSession({
+        runtimeSessionId,
+        scenarios: [{
+          scenarioId,
+          fixture:
+            MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
+        }],
+      });
+      try {
+        if (phaseStepCount > 0) {
+          await release.executables.simulationAdapter.advancePresentationBatch!({
+            runtimeSessionId,
+            scenarioId,
+            stepCount: phaseStepCount,
+            presentationOutputIds: ["rhythm.phase.regular-sinus"],
+          });
+        }
+        const source = release.executables.simulationAdapter.currentFrame({
+          runtimeSessionId,
+          scenarioId,
+        });
+        const changed = await release.executables.simulationAdapter.applyControl({
+          runtimeSessionId,
+          scenarioId,
+          controlId: "hemodynamics.total-blood-volume-ml",
+          value: 4_200,
+          expectedInputEpoch: source.inputEpoch,
+        });
+        expect(changed.inputEpoch).toBe(source.inputEpoch + 1);
+        expect(changed.acceptedTimeSec).toBeGreaterThan(source.acceptedTimeSec);
+        expect(changed.acceptedRevision).toBeGreaterThan(source.acceptedRevision);
+        const terminal = await advanceToV1(
+          release,
+          runtimeSessionId,
+          scenarioId,
+          changed.acceptedTimeSec + 3,
+        );
+        expect(terminal.acceptedTimeSec)
+          .toBeGreaterThanOrEqual(changed.acceptedTimeSec + 3 - 1e-12);
+      } finally {
+        release.executables.simulationAdapter.disposeSession(runtimeSessionId);
+      }
+    },
+    120_000,
+  );
+
+  it("continues a previously latent 6.0-L to 4.2-L downward TBV edit", async () => {
+    const release =
+      createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1();
+    const runtimeSessionId = "standard68/tbv-latent-downward";
+    const scenarioId = "baseline";
+    await release.executables.simulationAdapter.createSession({
+      runtimeSessionId,
+      scenarios: [{
+        scenarioId,
+        fixture:
+          MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
+      }],
+    });
+    try {
+      const source = release.executables.simulationAdapter.currentFrame({
+        runtimeSessionId,
+        scenarioId,
+      });
+      const loaded = await release.executables.simulationAdapter.applyControl({
+        runtimeSessionId,
+        scenarioId,
+        controlId: "hemodynamics.total-blood-volume-ml",
+        value: 6_000,
+        expectedInputEpoch: source.inputEpoch,
+      });
+      const depleted = await release.executables.simulationAdapter.applyControl({
+        runtimeSessionId,
+        scenarioId,
+        controlId: "hemodynamics.total-blood-volume-ml",
+        value: 4_200,
+        expectedInputEpoch: loaded.inputEpoch,
+      });
+      expect(depleted.inputEpoch).toBe(loaded.inputEpoch + 1);
+      expect(depleted.acceptedTimeSec).toBeGreaterThan(loaded.acceptedTimeSec);
+      const terminal = await advanceToV1(
+        release,
+        runtimeSessionId,
+        scenarioId,
+        depleted.acceptedTimeSec + 3,
+      );
+      expect(terminal.acceptedTimeSec)
+        .toBeGreaterThanOrEqual(depleted.acceptedTimeSec + 3 - 1e-12);
+    } finally {
+      release.executables.simulationAdapter.disposeSession(runtimeSessionId);
+    }
+  }, 120_000);
+
   it("reports normal-range ET, hydraulic AV gradients, and LV dP/dt after settlement", async () => {
     const release = createMainWireIntegratedStudioRoundedEjectionReleaseV1();
     const runtimeSessionId = "standard68/metrics";
@@ -220,7 +359,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       scenarios: [{
         scenarioId,
         fixture:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
       }],
     });
     try {
@@ -266,7 +405,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       scenarios: [{
         scenarioId,
         fixture:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
       }],
     });
     try {
@@ -287,7 +426,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
               scenarioId,
               label: "Baseline",
               fixture:
-                MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+                MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
             }],
             surface: emptySurfaceV1(),
           },

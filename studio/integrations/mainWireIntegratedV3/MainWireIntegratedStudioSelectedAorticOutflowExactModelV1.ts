@@ -64,6 +64,10 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+import {
   MAIN_WIRE_COUPLED_HEMODYNAMICS_SOLVE_GROUP_ID_V1,
   MAIN_WIRE_COUPLED_HEMODYNAMICS_UPDATE_GROUP_ID_V1,
   MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
@@ -223,6 +227,15 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE
       MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   });
 
+export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 =
+  Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+    hemodynamicResearchInputs:
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+    mechanismResearchInputs:
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+  });
+
 const SELECTED_STANDARD66_EXACT_VARIANT_V1 = Object.freeze({
   generation: 66 as const,
   label: "Standard66" as const,
@@ -307,6 +320,12 @@ const SELECTED_EXECUTION_PLAN_DESCRIPTOR_V1 =
   validateAndOwnExecutionPlanDescriptorV1(generatedExecutionPlanV1);
 const SELECTED_PRESENTATION_DT_SEC_V1 =
   SELECTED_EXECUTION_PLAN_DESCRIPTOR_V1.updateSchedule.presentationStepSec;
+// A failed direct TBV rebase falls back to a deterministic adaptive volume
+// homotopy. Broad well-conditioned intervals stay fast; only a rejected
+// interval is bisected down to the public 50-mL control resolution.
+const STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1 = 1_000;
+const STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1 = 50;
+const STANDARD68_TBV_CONTINUATION_MAX_ATTEMPTS_V1 = 64;
 const SELECTED_SOLVE_SYSTEM_BINDINGS_V1 = Object.freeze([
   Object.freeze({
     systemKernelId: MAIN_WIRE_FIVE_WALL_COUPLED_SYSTEM_KERNEL_V1_ID,
@@ -707,7 +726,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         && this.#defaultBaselineCheckpoint !== undefined
         && studioCanonicalJsonStringify(fixture)
           === studioCanonicalJsonStringify(
-            MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+            MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
           )
           ? this.#defaultBaselineCheckpoint
           : undefined;
@@ -1371,12 +1390,12 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     if (original.inputEpoch !== expectedInputEpoch) {
       throw new Error("Standard68 fixture warm start input epoch is stale");
     }
-    const preparedExecutionPlan = this.#prepareExecutionPlan(
+    let preparedExecutionPlan = this.#prepareExecutionPlan(
       runtimeSessionId,
       scenarioId,
       bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
     );
-    const candidate =
+    const warmedCandidate =
       await original.modelSession.warmStartWithHemodynamicResearchInputs(
         fixture.hemodynamicResearchInputs,
         1,
@@ -1384,12 +1403,13 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         fixture.mechanismResearchInputs,
       );
     if (
-      !(candidate instanceof
+      !(warmedCandidate instanceof
         MainWireIntegratedModelStandard68TypedAuthoritySessionV1)
     ) {
       throw new Error("Standard68 warm start returned the wrong exact owner");
     }
-    const accepted = candidate.currentAcceptedState();
+    let candidate = warmedCandidate;
+    let accepted = candidate.currentAcceptedState();
     const sourceAccepted = original.modelSession.currentAcceptedState();
     if (
       accepted.revision !== sourceAccepted.revision
@@ -1400,11 +1420,25 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
 
     // Changing TBV is the one warm-start operation that redistributes stored
     // volume. Preflight a full target cycle on a detached exact restore before
-    // committing the live owner, preserving the Standard65 safety contract.
+    // committing the live owner. If a large instantaneous rebase fails, run a
+    // deterministic adaptive homotopy on detached exact owners: each accepted
+    // volume stage relaxes for one target cycle, while a failed interval is
+    // bisected down to the public 50-mL resolution. The live owner is swapped
+    // only after the final target stage succeeds.
     if (
       fixture.hemodynamicResearchInputs.totalBloodVolumeMl
       !== original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl
     ) {
+      const sourceTbvMl =
+        original.fixture.hemodynamicResearchInputs.totalBloodVolumeMl;
+      const targetTbvMl =
+        fixture.hemodynamicResearchInputs.totalBloodVolumeMl;
+      // A large downward jump can survive one deterministic cycle and still
+      // enter the low-volume numerical boundary on the next beat.  Do not
+      // mistake that transient survival for a safe direct rebase.
+      const requiresBoundedContinuation =
+        sourceTbvMl - targetTbvMl >
+          STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1;
       const preflightExecutionPlan = this.#prepareExecutionPlan(
         runtimeSessionId,
         scenarioId,
@@ -1418,29 +1452,114 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
         preflightExecutionPlan.initialization,
         fixture.mechanismResearchInputs,
       );
-      const originBaseTick = executionPlanBaseTickAtTimeV1(
-        preflightExecutionPlan.updateSchedule,
-        accepted.acceptedTimeSec,
-      );
-      const endTimeSec = accepted.acceptedTimeSec
-        + 60 / fixture.hemodynamicResearchInputs.heartRateBpm;
-      for (let ordinal = 1; ; ordinal += 1) {
-        const targetBaseTick = executionPlanPresentationBaseTickV1(
-          preflightExecutionPlan.updateSchedule,
-          originBaseTick,
-          ordinal,
+      if (!(preflight instanceof
+        MainWireIntegratedModelStandard68TypedAuthoritySessionV1)) {
+        throw new Error("Standard68 TBV preflight restored the wrong exact owner");
+      }
+      const directFailure = requiresBoundedContinuation
+        ? "large downward TBV rebase requires bounded continuation"
+        : this.#advanceDetachedStandard68Cycles(
+            preflight,
+            preflightExecutionPlan.updateSchedule,
+            fixture.hemodynamicResearchInputs.heartRateBpm,
+            1,
+          );
+      if (directFailure !== null) {
+        if (!(original.modelSession instanceof
+          MainWireIntegratedModelStandard68TypedAuthoritySessionV1)) {
+          throw new Error("Standard68 TBV continuation source is unavailable");
+        }
+        let stageSource:
+          MainWireIntegratedModelStandard68TypedAuthoritySessionV1 =
+            original.modelSession;
+        const direction = Math.sign(targetTbvMl - sourceTbvMl);
+        let acceptedStageTbvMl = sourceTbvMl;
+        let stepMagnitudeMl = Math.min(
+          Math.abs(targetTbvMl - sourceTbvMl),
+          STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1,
         );
-        const targetTimeSec = executionPlanTimeAtBaseTickV1(
-          preflightExecutionPlan.updateSchedule,
-          targetBaseTick,
-        );
-        if (targetTimeSec > endTimeSec + 1e-12) break;
-        const advance = preflight.advanceToPresentationTime(targetTimeSec);
-        if (advance.status !== "advanced") {
-          throw new Error(
-            `Standard68 TBV warm start rejected before commit: ${selectedAdvanceFailureMessageV1(advance)}`,
+        let attempt = 0;
+        while (Math.abs(targetTbvMl - acceptedStageTbvMl) > 1e-9) {
+          attempt += 1;
+          if (attempt > STANDARD68_TBV_CONTINUATION_MAX_ATTEMPTS_V1) {
+            throw new Error(
+              "Standard68 TBV continuation exhausted its bounded attempts",
+            );
+          }
+          const remainingMagnitudeMl =
+            Math.abs(targetTbvMl - acceptedStageTbvMl);
+          const attemptedMagnitudeMl = Math.min(
+            stepMagnitudeMl,
+            remainingMagnitudeMl,
+          );
+          const stageTbvMl = attemptedMagnitudeMl >= remainingMagnitudeMl - 1e-9
+            ? targetTbvMl
+            : acceptedStageTbvMl + direction * attemptedMagnitudeMl;
+          const stageInputs = Object.freeze({
+            ...fixture.hemodynamicResearchInputs,
+            totalBloodVolumeMl: stageTbvMl,
+          });
+          const stageExecutionPlan = this.#prepareExecutionPlan(
+            runtimeSessionId,
+            scenarioId,
+            bindMainWireIntegratedStudioSelectedAorticOutflowExecutionPlanV1(),
+          );
+          const stageCandidate =
+            await stageSource.warmStartWithHemodynamicResearchInputs(
+              stageInputs,
+              1,
+              stageExecutionPlan.initialization,
+              fixture.mechanismResearchInputs,
+            );
+          const stageSourceAccepted = stageSource.currentAcceptedState();
+          const stageAccepted = stageCandidate.currentAcceptedState();
+          if (
+            stageAccepted.revision !== stageSourceAccepted.revision
+            || stageAccepted.acceptedTimeSec
+              !== stageSourceAccepted.acceptedTimeSec
+          ) {
+            throw new Error(
+              "Standard68 TBV continuation changed a stage boundary clock",
+            );
+          }
+          const stageFailure = this.#advanceDetachedStandard68Cycles(
+            stageCandidate,
+            stageExecutionPlan.updateSchedule,
+            fixture.hemodynamicResearchInputs.heartRateBpm,
+            1,
+          );
+          if (stageFailure !== null) {
+            if (
+              attemptedMagnitudeMl
+              <= STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1 + 1e-9
+            ) {
+              throw new Error(
+                "Standard68 TBV warm start rejected before commit: direct "
+                  + `${directFailure}; adaptive continuation from `
+                  + `${acceptedStageTbvMl} to ${stageTbvMl} mL failed at the `
+                  + `${STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1}-mL `
+                  + `resolution: ${stageFailure}`,
+              );
+            }
+            stepMagnitudeMl = Math.max(
+              STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1,
+              attemptedMagnitudeMl / 2,
+            );
+            continue;
+          }
+          stageSource = stageCandidate;
+          candidate = stageCandidate;
+          preparedExecutionPlan = stageExecutionPlan;
+          acceptedStageTbvMl = stageTbvMl;
+          stepMagnitudeMl = Math.min(
+            STANDARD68_TBV_CONTINUATION_INITIAL_STEP_ML_V1,
+            Math.max(
+              STANDARD68_TBV_CONTINUATION_MIN_STEP_ML_V1,
+              attemptedMagnitudeMl * 1.5,
+            ),
           );
         }
+        accepted = candidate.currentAcceptedState();
       }
     }
 
@@ -1463,6 +1582,37 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
     current.presentationOrdinal = 0;
     current.inputEpoch += 1;
     return this.currentFrame(runtimeSessionId, scenarioId);
+  }
+
+  #advanceDetachedStandard68Cycles(
+    session: MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
+    updateSchedule: BoundExecutionPlanUpdateScheduleV1,
+    heartRateBpm: number,
+    cycleCount: number,
+  ): string | null {
+    const accepted = session.currentAcceptedState();
+    const originBaseTick = executionPlanBaseTickAtTimeV1(
+      updateSchedule,
+      accepted.acceptedTimeSec,
+    );
+    const endTimeSec = accepted.acceptedTimeSec
+      + cycleCount * 60 / heartRateBpm;
+    for (let ordinal = 1; ; ordinal += 1) {
+      const targetBaseTick = executionPlanPresentationBaseTickV1(
+        updateSchedule,
+        originBaseTick,
+        ordinal,
+      );
+      const targetTimeSec = executionPlanTimeAtBaseTickV1(
+        updateSchedule,
+        targetBaseTick,
+      );
+      if (targetTimeSec > endTimeSec + 1e-12) return null;
+      const advance = session.advanceToPresentationTime(targetTimeSec);
+      if (advance.status !== "advanced") {
+        return selectedAdvanceFailureMessageV1(advance);
+      }
+    }
   }
 
   async #coldRestartFixtureAtomically(
@@ -1636,7 +1786,7 @@ function createSelectedExactKernelV1(
       acceptedBoundaryCapture: true,
       fixtureChangeSemantics:
         variant.generation === 68
-          ? "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch"
+          ? "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch"
           : "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
       scope: variant.runtimeScope,
     }),

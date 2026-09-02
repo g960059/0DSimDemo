@@ -11,6 +11,16 @@ import {
   qualifyMainWireIntegratedModelRoundedEjectionBaselineV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineQualificationV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+import {
+  MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
+import {
+  qualifyMainWireIntegratedModelFormalPreloadReserveV1,
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import {
   STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
   type ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
@@ -26,6 +36,7 @@ import {
 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_HOT_PATH_INTEGRITY_TIER_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
   createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
@@ -76,6 +87,8 @@ const releaseConfigurationV1 = roundedEjectionRequested
         "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
       createRelease:
         createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1,
+      defaultFixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
     })
   : Object.freeze({
       label: "algebraic-proximal-roots Standard67",
@@ -103,6 +116,8 @@ const releaseConfigurationV1 = roundedEjectionRequested
         "circleheart.main-wire-integrated-model-standard67-exact-checkpoint.v1",
       createRelease:
         createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
+      defaultFixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
     });
 const entryRelativePath = integrationRelativeRoot
   + releaseConfigurationV1.entryFile;
@@ -158,7 +173,7 @@ async function main(): Promise<void> {
     schemaId: CLIENT_DESCRIPTOR_SCHEMA_ID_V1,
     manifest: sourceRelease.manifest,
     defaultFixture:
-      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+      releaseConfigurationV1.defaultFixture,
   });
   const lock = Object.freeze({
     schemaId: REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2,
@@ -214,9 +229,24 @@ async function main(): Promise<void> {
 async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
   const qualification =
     await qualifyMainWireIntegratedModelRoundedEjectionBaselineV1();
+  const settledSession =
+    await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+      .restoreStandard68ExactCheckpoint(
+        qualification.checkpoint,
+        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+        1,
+        undefined,
+        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+      );
+  const preloadReserve =
+    await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+      settledSession,
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+    );
   const report =
     buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
       qualification,
+      preloadReserve,
     );
   if (
     !sameBaselineAcrossSupportedRuntimeV1(
@@ -247,6 +277,14 @@ async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
     "timing.ict",
     "timing.irt",
     "timing.tei-index",
+    "left-ventricle.edv-index",
+    "left-ventricle.esv-index",
+    "left-ventricle.ejection-fraction",
+    "right-ventricle.edv-index",
+    "right-ventricle.esv-index",
+    "right-ventricle.ejection-fraction",
+    "systemic-forward-flow.cardiac-index",
+    "systemic-forward-flow.stroke-volume-index",
   ];
   const passedIds = new Set<string>(
     report.checks
@@ -426,7 +464,7 @@ async function assertArtifactAdmissionV1(
     scenarios: [{
       scenarioId,
       fixture:
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+        releaseConfigurationV1.defaultFixture,
     }],
   });
   try {
@@ -471,7 +509,7 @@ async function assertArtifactAdmissionV1(
             scenarioId,
             label: "Baseline",
             fixture:
-              MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+              releaseConfigurationV1.defaultFixture,
           }],
           surface: {
             graphPanes: [],

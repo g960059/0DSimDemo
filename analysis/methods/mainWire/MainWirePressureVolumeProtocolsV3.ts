@@ -59,6 +59,28 @@ export const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PE
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1" as const;
 
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID =
+  "main-wire-integrated-model-formal-fixed-tone-preload-reserve-qualification-v1" as const;
+
+/**
+ * A release gate, not a clinical fluid-challenge claim. Symmetric fixed-tone
+ * endpoints establish reserve on both sides of the operating point. Flow,
+ * filling pressure, maximum-volume EDV, and ED transmural pressure must all
+ * move in the physiologically expected direction for both ventricles.
+ */
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 =
+  Object.freeze({
+    hypovolemicGlobalTbvScale: 0.88 as const,
+    hypervolemicGlobalTbvScale: 1.12 as const,
+    minimumDirectionalFillingPressureChangeMmHg: 1 as const,
+    minimumDirectionalCardiacOutputChangeLPerMin: 0.05 as const,
+    minimumDirectionalCardiacOutputChangeFraction01: 0.05 as const,
+    minimumCardiacOutputSlopeLPerMinPerMmHg: 0.05 as const,
+    minimumDirectionalEndDiastolicVolumeChangeMl: 1 as const,
+    minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.02 as const,
+    minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg: 0.25 as const,
+  });
+
 /**
  * Minimal numerical seam required by structural preload-family analyses.
  * Exact model generations may implement it without exposing analysis results
@@ -468,6 +490,50 @@ export type MainWireIntegratedModelFormalPressureVolumeResultV3 = Readonly<{
   left: MainWireIntegratedModelStarlingLocusV3;
 }>;
 
+export type MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1 =
+  Readonly<{
+    endpointDirection: "hypovolemic" | "hypervolemic";
+    baselineFillingPressureMmHg: number;
+    endpointFillingPressureMmHg: number;
+    directionalFillingPressureChangeMmHg: number;
+    baselineCardiacOutputLPerMin: number;
+    endpointCardiacOutputLPerMin: number;
+    directionalCardiacOutputChangeLPerMin: number;
+    directionalCardiacOutputChangeFraction01: number;
+    cardiacOutputSlopeLPerMinPerMmHg: number;
+    baselineEndDiastolicVolumeMl: number;
+    endpointEndDiastolicVolumeMl: number;
+    directionalEndDiastolicVolumeChangeMl: number;
+    directionalEndDiastolicVolumeChangeFraction01: number;
+    baselineEndDiastolicTransmuralPressureMmHg: number;
+    endpointEndDiastolicTransmuralPressureMmHg: number;
+    directionalEndDiastolicTransmuralPressureChangeMmHg: number;
+    endDiastolicVolumeResponseMlPerMmHg: number;
+  }>;
+
+export type MainWireIntegratedModelFormalPreloadReserveSideV1 = Readonly<{
+  hypovolemic: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1;
+  hypervolemic: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1;
+}>;
+
+export type MainWireIntegratedModelFormalPreloadReserveQualificationV1 =
+  Readonly<{
+    qualificationId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID;
+    protocolId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID;
+    status: "passed";
+    sourceGlobalTbvMl: number;
+    hypovolemicGlobalTbvMl: number;
+    hypovolemicGlobalTbvScale:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale;
+    hypervolemicGlobalTbvMl: number;
+    hypervolemicGlobalTbvScale:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale;
+    left: MainWireIntegratedModelFormalPreloadReserveSideV1;
+    right: MainWireIntegratedModelFormalPreloadReserveSideV1;
+  }>;
+
 /**
  * Fast, ephemeral fixed-tone preload-response preview.
  *
@@ -659,6 +725,230 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
     );
   }
   return result(true);
+}
+
+/**
+ * Focused release-time qualification of the operating point and symmetric
+ * low-/high-preload endpoints. It reuses the formal fixed-tone protocol's
+ * source settlement, complete-beat P1 closure, and hot-start continuation.
+ */
+export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+): Promise<MainWireIntegratedModelFormalPreloadReserveQualificationV1> {
+  const sourceGlobalTbvMl =
+    sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
+  if (
+    Math.abs(sourceGlobalTbvMl - hemodynamicResearchInputs.totalBloodVolumeMl) >
+    FIXED_TBV_TOLERANCE_ML_V3
+  ) {
+    throw new Error("formal preload-reserve source and Scenario TBV differ");
+  }
+  const settledSource = settleFormalPressureVolumeSourceV3(
+    sourceSession,
+    sourceGlobalTbvMl,
+  );
+  if (settledSource.status === "rejected") {
+    throw new Error(
+      `formal preload-reserve source rejected: ${settledSource.reason}`,
+    );
+  }
+  const center = await measureFormalPressureVolumeBranchV3(
+    settledSource.branch,
+    sourceGlobalTbvMl,
+    "operating-anchor",
+  );
+  if (center.status === "rejected" || !formalPairQualifiedV3(center.pair)) {
+    throw new Error(
+      center.status === "rejected"
+        ? `formal preload-reserve center rejected: ${center.reason}`
+        : "formal preload-reserve center did not establish periodic closure",
+    );
+  }
+
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  const initialBoundary = Object.freeze({
+    branch: center.branch,
+    scale: 1,
+    pair: center.pair,
+  });
+  const hypovolemic = await formalPreloadReserveEndpointV1(
+    initialBoundary,
+    policy.hypovolemicGlobalTbvScale,
+    sourceGlobalTbvMl,
+    "hypovolemic",
+  );
+  const hypervolemic = await formalPreloadReserveEndpointV1(
+    initialBoundary,
+    policy.hypervolemicGlobalTbvScale,
+    sourceGlobalTbvMl,
+    "hypervolemic",
+  );
+  const left = Object.freeze({
+    hypovolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.left,
+      hypovolemic.pair.left,
+      "hypovolemic",
+    ),
+    hypervolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.left,
+      hypervolemic.pair.left,
+      "hypervolemic",
+    ),
+  });
+  const right = Object.freeze({
+    hypovolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.right,
+      hypovolemic.pair.right,
+      "hypovolemic",
+    ),
+    hypervolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.right,
+      hypervolemic.pair.right,
+      "hypervolemic",
+    ),
+  });
+  const failed = (["left", "right"] as const).flatMap((side) =>
+    (["hypovolemic", "hypervolemic"] as const).flatMap((direction) => {
+      const measured = (side === "left" ? left : right)[direction];
+      return mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
+        measured,
+      )
+        ? []
+        : [{ side, direction, measured }];
+    })
+  );
+  if (failed.length > 0) {
+    throw new Error(
+      "formal preload-reserve gate rejected: " + failed.map((failure) => {
+        const measured = failure.measured;
+        return `${failure.side}/${failure.direction} `
+          + `dCO=${measured.directionalCardiacOutputChangeLPerMin} L/min, `
+          + `dCO/CO=${measured.directionalCardiacOutputChangeFraction01}, `
+          + `dPfill=${measured.directionalFillingPressureChangeMmHg} mmHg, `
+          + `dEDV=${measured.directionalEndDiastolicVolumeChangeMl} mL, `
+          + `dEDV/EDV=${measured.directionalEndDiastolicVolumeChangeFraction01}, `
+          + `dPtmED=${measured.directionalEndDiastolicTransmuralPressureChangeMmHg} mmHg, `
+          + `CO/Pfill=${measured.cardiacOutputSlopeLPerMinPerMmHg} L/min/mmHg`;
+      }).join("; "),
+    );
+  }
+
+  return Object.freeze({
+    qualificationId:
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID,
+    protocolId:
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    status: "passed" as const,
+    sourceGlobalTbvMl,
+    hypovolemicGlobalTbvMl:
+      sourceGlobalTbvMl * policy.hypovolemicGlobalTbvScale,
+    hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
+    hypervolemicGlobalTbvMl:
+      sourceGlobalTbvMl * policy.hypervolemicGlobalTbvScale,
+    hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
+    left,
+    right,
+  });
+}
+
+async function formalPreloadReserveEndpointV1(
+  initialBoundary: FormalCoverageBoundaryV3,
+  requestedScale: number,
+  sourceGlobalTbvMl: number,
+  endpointDirection: "hypovolemic" | "hypervolemic",
+): Promise<FormalCoverageBoundaryV3> {
+  let retained: FormalCoverageBoundaryV3 | null = null;
+  const advanced = await advanceFormalCoverageTowardScaleV3(
+    initialBoundary,
+    requestedScale,
+    sourceGlobalTbvMl,
+    (boundary) => {
+      retained = boundary;
+    },
+  );
+  const endpoint = retained as FormalCoverageBoundaryV3 | null;
+  if (
+    advanced.status !== "reached"
+    || endpoint === null
+    || Math.abs(endpoint.scale - requestedScale) > 1e-12
+    || !formalPairQualifiedV3(endpoint.pair)
+  ) {
+    throw new Error(
+      `formal preload-reserve ${endpointDirection} endpoint did not establish periodic closure`
+        + (advanced.reason === null ? "" : `: ${advanced.reason}`),
+    );
+  }
+  return endpoint;
+}
+
+function formalPreloadReserveDirectionalResponseV1(
+  baseline: MainWireIntegratedModelStarlingPointV3,
+  endpoint: MainWireIntegratedModelStarlingPointV3,
+  endpointDirection: "hypovolemic" | "hypervolemic",
+): MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1 {
+  const sign = endpointDirection === "hypervolemic" ? 1 : -1;
+  const directionalFillingPressureChangeMmHg = sign *
+    (endpoint.fillingPressureMmHg - baseline.fillingPressureMmHg);
+  const directionalCardiacOutputChangeLPerMin = sign *
+    (endpoint.cardiacOutputLPerMin - baseline.cardiacOutputLPerMin);
+  const baselineEndDiastolic =
+    baseline.ventricularPressureVolumeLandmarks.endDiastolic;
+  const endpointEndDiastolic =
+    endpoint.ventricularPressureVolumeLandmarks.endDiastolic;
+  const directionalEndDiastolicVolumeChangeMl = sign *
+    (endpointEndDiastolic.volumeMl - baselineEndDiastolic.volumeMl);
+  const directionalEndDiastolicTransmuralPressureChangeMmHg = sign *
+    (endpointEndDiastolic.pressureMmHg - baselineEndDiastolic.pressureMmHg);
+  return Object.freeze({
+    endpointDirection,
+    baselineFillingPressureMmHg: baseline.fillingPressureMmHg,
+    endpointFillingPressureMmHg: endpoint.fillingPressureMmHg,
+    directionalFillingPressureChangeMmHg,
+    baselineCardiacOutputLPerMin: baseline.cardiacOutputLPerMin,
+    endpointCardiacOutputLPerMin: endpoint.cardiacOutputLPerMin,
+    directionalCardiacOutputChangeLPerMin,
+    directionalCardiacOutputChangeFraction01:
+      directionalCardiacOutputChangeLPerMin
+      / baseline.cardiacOutputLPerMin,
+    cardiacOutputSlopeLPerMinPerMmHg:
+      directionalCardiacOutputChangeLPerMin
+      / directionalFillingPressureChangeMmHg,
+    baselineEndDiastolicVolumeMl: baselineEndDiastolic.volumeMl,
+    endpointEndDiastolicVolumeMl: endpointEndDiastolic.volumeMl,
+    directionalEndDiastolicVolumeChangeMl,
+    directionalEndDiastolicVolumeChangeFraction01:
+      directionalEndDiastolicVolumeChangeMl / baselineEndDiastolic.volumeMl,
+    baselineEndDiastolicTransmuralPressureMmHg:
+      baselineEndDiastolic.pressureMmHg,
+    endpointEndDiastolicTransmuralPressureMmHg:
+      endpointEndDiastolic.pressureMmHg,
+    directionalEndDiastolicTransmuralPressureChangeMmHg,
+    endDiastolicVolumeResponseMlPerMmHg:
+      directionalEndDiastolicVolumeChangeMl
+      / directionalEndDiastolicTransmuralPressureChangeMmHg,
+  });
+}
+
+export function mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
+  measured: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1,
+): boolean {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  return measured.directionalFillingPressureChangeMmHg >=
+      policy.minimumDirectionalFillingPressureChangeMmHg
+    && measured.directionalCardiacOutputChangeLPerMin >=
+      policy.minimumDirectionalCardiacOutputChangeLPerMin
+    && measured.directionalCardiacOutputChangeFraction01 >=
+      policy.minimumDirectionalCardiacOutputChangeFraction01
+    && measured.cardiacOutputSlopeLPerMinPerMmHg >=
+      policy.minimumCardiacOutputSlopeLPerMinPerMmHg
+    && measured.directionalEndDiastolicVolumeChangeMl >=
+      policy.minimumDirectionalEndDiastolicVolumeChangeMl
+    && measured.directionalEndDiastolicVolumeChangeFraction01 >=
+      policy.minimumDirectionalEndDiastolicVolumeChangeFraction01
+    && measured.directionalEndDiastolicTransmuralPressureChangeMmHg >=
+      policy.minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg
+    && measured.endDiastolicVolumeResponseMlPerMmHg > 0;
 }
 
 function formalExpectedPointCountV3(

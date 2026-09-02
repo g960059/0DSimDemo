@@ -6,6 +6,16 @@ import {
   qualifyMainWireIntegratedModelRoundedEjectionBaselineV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineQualificationV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+import {
+  MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
+import {
+  qualifyMainWireIntegratedModelFormalPreloadReserveV1,
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import {
   buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
 
@@ -20,9 +30,23 @@ const integrationRoot = path.join(
 
 const qualification =
   await qualifyMainWireIntegratedModelRoundedEjectionBaselineV1();
+const settledSession = await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
+  .restoreStandard68ExactCheckpoint(
+    qualification.checkpoint,
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+    1,
+    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+  );
+const preloadReserve =
+  await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+    settledSession,
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  );
 const report =
   buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
     qualification,
+    preloadReserve,
   );
 writeFileSync(
   path.join(

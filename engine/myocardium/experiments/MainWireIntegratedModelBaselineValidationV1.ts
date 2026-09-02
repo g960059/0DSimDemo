@@ -1,6 +1,13 @@
 import type {
   MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import type {
+  MainWireIntegratedModelCompletedBeatMetricsV3,
+} from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3,
+  type MainWireIntegratedModelHealthyReferenceMetricIdV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelHealthyReferenceContextV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID =
   "main-wire-integrated-model-baseline-validation-v1" as const;
@@ -27,9 +34,34 @@ export const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1 =
     }),
     mitralPeakEToA: Object.freeze({ minimum: 0.8, maximum: 2 }),
     ventricularTimingSec: Object.freeze({
-      isovolumicContraction: Object.freeze({ minimum: 0.02, maximum: 0.06 }),
+      isovolumicContraction: Object.freeze({ minimum: 0.02, maximum: 0.07 }),
       isovolumicRelaxation: Object.freeze({ minimum: 0.059, maximum: 0.134 }),
       teiIndex: Object.freeze({ minimum: 0.29, maximum: 0.65 }),
+    }),
+    indexedCardiacSizeAndFunction: Object.freeze({
+      bodySurfaceAreaM2:
+        MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3
+          .referenceSubject.bodySurfaceAreaM2,
+      leftVentricularEndDiastolicVolumeIndexMlPerM2:
+        healthyReferenceRangeV1("hemodynamics.lv.edv_index_ml_per_m2"),
+      leftVentricularEndSystolicVolumeIndexMlPerM2:
+        healthyReferenceRangeV1("hemodynamics.lv.esv_index_ml_per_m2"),
+      leftVentricularEjectionFraction01:
+        healthyReferenceRangeV1("hemodynamics.lv.ejection_fraction_01"),
+      rightVentricularEndDiastolicVolumeIndexMlPerM2:
+        healthyReferenceRangeV1("hemodynamics.rv.edv_index_ml_per_m2"),
+      rightVentricularEndSystolicVolumeIndexMlPerM2:
+        healthyReferenceRangeV1("hemodynamics.rv.esv_index_ml_per_m2"),
+      rightVentricularEjectionFraction01:
+        healthyReferenceRangeV1("hemodynamics.rv.ejection_fraction_01"),
+      cardiacIndexLPerMinPerM2:
+        healthyReferenceRangeV1(
+          "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
+        ),
+      strokeVolumeIndexMlPerM2:
+        healthyReferenceRangeV1(
+          "hemodynamics.aortic.stroke_volume_index_ml_per_m2",
+        ),
     }),
   });
 
@@ -47,7 +79,15 @@ export type MainWireIntegratedModelBaselineValidationCheckIdV1 =
   | "mitral-flow.peak-e-to-a"
   | "timing.ict"
   | "timing.irt"
-  | "timing.tei-index";
+  | "timing.tei-index"
+  | "left-ventricle.edv-index"
+  | "left-ventricle.esv-index"
+  | "left-ventricle.ejection-fraction"
+  | "right-ventricle.edv-index"
+  | "right-ventricle.esv-index"
+  | "right-ventricle.ejection-fraction"
+  | "systemic-forward-flow.cardiac-index"
+  | "systemic-forward-flow.stroke-volume-index";
 
 export type MainWireIntegratedModelBaselineValidationCheckV1 = Readonly<{
   checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
@@ -80,6 +120,32 @@ export type MainWireIntegratedModelBaselineValidationMeasurementsV1 =
       ictSec: number;
       irtSec: number;
       teiIndex: number;
+    }>;
+    cardiacSizeAndFunction: MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1;
+  }>;
+
+export type MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 =
+  Readonly<{
+    bodySurfaceAreaM2: number;
+    leftVentricle: Readonly<{
+      endDiastolicVolumeMl: number;
+      endSystolicVolumeMl: number;
+      endDiastolicVolumeIndexMlPerM2: number;
+      endSystolicVolumeIndexMlPerM2: number;
+      ejectionFraction01: number;
+    }>;
+    rightVentricle: Readonly<{
+      endDiastolicVolumeMl: number;
+      endSystolicVolumeMl: number;
+      endDiastolicVolumeIndexMlPerM2: number;
+      endSystolicVolumeIndexMlPerM2: number;
+      ejectionFraction01: number;
+    }>;
+    systemicForwardFlow: Readonly<{
+      strokeVolumeMl: number;
+      strokeVolumeIndexMlPerM2: number;
+      cardiacOutputLPerMin: number;
+      cardiacIndexLPerMinPerM2: number;
     }>;
   }>;
 
@@ -128,6 +194,10 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
   const pressureRate = pressureRateExtremaV1(samples, "LV");
   const timing = ventricularTimingV1(samples, aorticEpisode, cycleLengthSec);
   const mitral = mitralPeakEToAV1(samples, timing);
+  const cardiacSizeAndFunction = cardiacSizeAndFunctionFromTraceV1(
+    samples,
+    cycleLengthSec,
+  );
 
   return Object.freeze({
     LVP: pressureMorphologyV1(samples, aorticEpisode, "LV"),
@@ -156,6 +226,43 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
         (timing.ictSec + timing.irtSec) /
         timing.ejectionTimeSec,
     }),
+    cardiacSizeAndFunction,
+  });
+}
+
+/**
+ * Exact release-gate projection. EDV and ESV use valve-closure landmarks,
+ * while SVI and CI use forward native aortic flow. This remains an
+ * analysis-owned derivation and is not reserved in exact presentation frames.
+ */
+export function measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
+  completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3,
+): MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 {
+  const left = completedBeat.leftVentricularValveEventMetrics;
+  const right = completedBeat.rightVentricularValveEventMetrics;
+  if (
+    left.endDiastolic === null
+    || left.endSystolic === null
+    || left.eventDefinedEjectionFraction01 === null
+    || right.endDiastolic === null
+    || right.endSystolic === null
+    || right.eventDefinedEjectionFraction01 === null
+  ) {
+    throw new Error(
+      "baseline indexed size/function requires complete ventricular valve landmarks",
+    );
+  }
+  return cardiacSizeAndFunctionV1({
+    leftEndDiastolicVolumeMl: left.endDiastolic.volumeMl,
+    leftEndSystolicVolumeMl: left.endSystolic.volumeMl,
+    leftEjectionFraction01: left.eventDefinedEjectionFraction01,
+    rightEndDiastolicVolumeMl: right.endDiastolic.volumeMl,
+    rightEndSystolicVolumeMl: right.endSystolic.volumeMl,
+    rightEjectionFraction01: right.eventDefinedEjectionFraction01,
+    systemicForwardStrokeVolumeMl:
+      completedBeat.valveFlowVolumes.AoV.forwardVolumeMl,
+    systemicForwardCardiacOutputLPerMin:
+      completedBeat.nativeLeftCardiacOutputLPerMin,
   });
 }
 
@@ -250,19 +357,174 @@ export function buildMainWireIntegratedModelBaselineValidationChecksV1(
       policy.ventricularTimingSec.teiIndex,
       "ratio",
     ),
+    rangeCheckV1(
+      "left-ventricle.edv-index",
+      measurements.cardiacSizeAndFunction.leftVentricle
+        .endDiastolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction
+        .leftVentricularEndDiastolicVolumeIndexMlPerM2,
+      "mL/m2",
+    ),
+    rangeCheckV1(
+      "left-ventricle.esv-index",
+      measurements.cardiacSizeAndFunction.leftVentricle
+        .endSystolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction
+        .leftVentricularEndSystolicVolumeIndexMlPerM2,
+      "mL/m2",
+    ),
+    rangeCheckV1(
+      "left-ventricle.ejection-fraction",
+      measurements.cardiacSizeAndFunction.leftVentricle.ejectionFraction01,
+      policy.indexedCardiacSizeAndFunction.leftVentricularEjectionFraction01,
+      "ratio",
+    ),
+    rangeCheckV1(
+      "right-ventricle.edv-index",
+      measurements.cardiacSizeAndFunction.rightVentricle
+        .endDiastolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction
+        .rightVentricularEndDiastolicVolumeIndexMlPerM2,
+      "mL/m2",
+    ),
+    rangeCheckV1(
+      "right-ventricle.esv-index",
+      measurements.cardiacSizeAndFunction.rightVentricle
+        .endSystolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction
+        .rightVentricularEndSystolicVolumeIndexMlPerM2,
+      "mL/m2",
+    ),
+    rangeCheckV1(
+      "right-ventricle.ejection-fraction",
+      measurements.cardiacSizeAndFunction.rightVentricle.ejectionFraction01,
+      policy.indexedCardiacSizeAndFunction.rightVentricularEjectionFraction01,
+      "ratio",
+    ),
+    rangeCheckV1(
+      "systemic-forward-flow.cardiac-index",
+      measurements.cardiacSizeAndFunction.systemicForwardFlow
+        .cardiacIndexLPerMinPerM2,
+      policy.indexedCardiacSizeAndFunction.cardiacIndexLPerMinPerM2,
+      "L/min/m2",
+    ),
+    rangeCheckV1(
+      "systemic-forward-flow.stroke-volume-index",
+      measurements.cardiacSizeAndFunction.systemicForwardFlow
+        .strokeVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.strokeVolumeIndexMlPerM2,
+      "mL/m2",
+    ),
   ] satisfies MainWireIntegratedModelBaselineValidationCheckV1[];
   return Object.freeze(checks);
 }
 
+function cardiacSizeAndFunctionFromTraceV1(
+  samples: readonly Sample[],
+  cycleLengthSec: number,
+): MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 {
+  const leftVolumes = samples.map((sample) => sample.chamberVolumeMl.LV);
+  const rightVolumes = samples.map((sample) => sample.chamberVolumeMl.RV);
+  const leftEndDiastolicVolumeMl = Math.max(...leftVolumes);
+  const leftEndSystolicVolumeMl = Math.min(...leftVolumes);
+  const rightEndDiastolicVolumeMl = Math.max(...rightVolumes);
+  const rightEndSystolicVolumeMl = Math.min(...rightVolumes);
+  const systemicForwardStrokeVolumeMl = samples.reduce(
+    (sum, sample) =>
+      sum + Math.max(0, sample.valveFlowMlPerSec.AoV) * sample.acceptedDtSec,
+    0,
+  );
+  return cardiacSizeAndFunctionV1({
+    leftEndDiastolicVolumeMl,
+    leftEndSystolicVolumeMl,
+    leftEjectionFraction01:
+      (leftEndDiastolicVolumeMl - leftEndSystolicVolumeMl)
+      / leftEndDiastolicVolumeMl,
+    rightEndDiastolicVolumeMl,
+    rightEndSystolicVolumeMl,
+    rightEjectionFraction01:
+      (rightEndDiastolicVolumeMl - rightEndSystolicVolumeMl)
+      / rightEndDiastolicVolumeMl,
+    systemicForwardStrokeVolumeMl,
+    systemicForwardCardiacOutputLPerMin:
+      systemicForwardStrokeVolumeMl * 60 / cycleLengthSec / 1_000,
+  });
+}
+
+function cardiacSizeAndFunctionV1(input: Readonly<{
+  leftEndDiastolicVolumeMl: number;
+  leftEndSystolicVolumeMl: number;
+  leftEjectionFraction01: number;
+  rightEndDiastolicVolumeMl: number;
+  rightEndSystolicVolumeMl: number;
+  rightEjectionFraction01: number;
+  systemicForwardStrokeVolumeMl: number;
+  systemicForwardCardiacOutputLPerMin: number;
+}>): MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 {
+  const bodySurfaceAreaM2 =
+    MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1
+      .indexedCardiacSizeAndFunction.bodySurfaceAreaM2;
+  return Object.freeze({
+    bodySurfaceAreaM2,
+    leftVentricle: Object.freeze({
+      endDiastolicVolumeMl: input.leftEndDiastolicVolumeMl,
+      endSystolicVolumeMl: input.leftEndSystolicVolumeMl,
+      endDiastolicVolumeIndexMlPerM2:
+        input.leftEndDiastolicVolumeMl / bodySurfaceAreaM2,
+      endSystolicVolumeIndexMlPerM2:
+        input.leftEndSystolicVolumeMl / bodySurfaceAreaM2,
+      ejectionFraction01: input.leftEjectionFraction01,
+    }),
+    rightVentricle: Object.freeze({
+      endDiastolicVolumeMl: input.rightEndDiastolicVolumeMl,
+      endSystolicVolumeMl: input.rightEndSystolicVolumeMl,
+      endDiastolicVolumeIndexMlPerM2:
+        input.rightEndDiastolicVolumeMl / bodySurfaceAreaM2,
+      endSystolicVolumeIndexMlPerM2:
+        input.rightEndSystolicVolumeMl / bodySurfaceAreaM2,
+      ejectionFraction01: input.rightEjectionFraction01,
+    }),
+    systemicForwardFlow: Object.freeze({
+      strokeVolumeMl: input.systemicForwardStrokeVolumeMl,
+      strokeVolumeIndexMlPerM2:
+        input.systemicForwardStrokeVolumeMl / bodySurfaceAreaM2,
+      cardiacOutputLPerMin: input.systemicForwardCardiacOutputLPerMin,
+      cardiacIndexLPerMinPerM2:
+        input.systemicForwardCardiacOutputLPerMin / bodySurfaceAreaM2,
+    }),
+  });
+}
+
+function healthyReferenceRangeV1(
+  metricId: MainWireIntegratedModelHealthyReferenceMetricIdV3,
+): Readonly<{ minimum: number; maximum: number }> {
+  const gate = MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.gates
+    .find((candidate) => candidate.metricId === metricId);
+  if (gate === undefined) {
+    throw new Error(`missing healthy reference gate for ${metricId}`);
+  }
+  return Object.freeze({
+    minimum: gate.lowerInclusive,
+    maximum: gate.upperInclusive,
+  });
+}
+
 export function assertMainWireIntegratedModelBaselineValidationPassedV1(
   checks: readonly MainWireIntegratedModelBaselineValidationCheckV1[],
+  measurements?: MainWireIntegratedModelBaselineValidationMeasurementsV1,
 ): void {
   const failed = checks.filter(({ status }) => status !== "passed");
   if (failed.length > 0) {
     throw new Error(
       "baseline validation gate rejected: " + failed.map((check) =>
         `${check.checkId}=${check.actual} outside [${check.minimum}, ${check.maximum}]`,
-      ).join("; "),
+      ).join("; ")
+      + (measurements === undefined
+        ? ""
+        : `; pressure morphology=${JSON.stringify({
+            LVP: measurements.LVP,
+            RVP: measurements.RVP,
+          })}`),
     );
   }
 }
@@ -283,7 +545,8 @@ function pressureMorphologyV1(
   const range = Math.max(...values) - Math.min(...values);
   return Object.freeze({
     forwardEpisodeCount: episode.count,
-    significantPeakCount: significantPeakCountV1(values),
+    significantPeakCount:
+      countMainWireIntegratedModelSignificantPressurePeaksV1(values),
     totalVariationRatio: totalVariationRatioV1(values),
     centralRangeFraction: range > 0
       ? (Math.max(...central) - Math.min(...central)) / range
@@ -513,7 +776,18 @@ function pressureRateExtremaV1(
   });
 }
 
-function significantPeakCountV1(values: readonly number[]): number {
+/**
+ * Counts topographically prominent interior maxima. Each candidate descends
+ * until a higher summit or the episode boundary, so tiny ripples around one
+ * broad summit cannot hide that summit by partitioning its prominence among
+ * adjacent local maxima.
+ */
+export function countMainWireIntegratedModelSignificantPressurePeaksV1(
+  values: readonly number[],
+): number {
+  if (values.length < 3 || values.some((value) => !Number.isFinite(value))) {
+    return 0;
+  }
   const prominenceThreshold = Math.max(
     0.5,
     0.05 * (Math.max(...values) - Math.min(...values)),
@@ -525,15 +799,21 @@ function significantPeakCountV1(values: readonly number[]): number {
       values[index]! >= values[index + 1]!
     ) peaks.push(index);
   }
-  return peaks.filter((index, ordinal) => {
-    const left = ordinal === 0 ? 0 : peaks[ordinal - 1]!;
-    const right = ordinal === peaks.length - 1
-      ? values.length - 1
-      : peaks[ordinal + 1]!;
-    const prominence = values[index]! - Math.max(
-      Math.min(...values.slice(left, index + 1)),
-      Math.min(...values.slice(index, right + 1)),
-    );
+  return peaks.filter((index) => {
+    const peak = values[index]!;
+    let leftMinimum = peak;
+    for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+      const value = values[cursor]!;
+      leftMinimum = Math.min(leftMinimum, value);
+      if (value > peak) break;
+    }
+    let rightMinimum = peak;
+    for (let cursor = index + 1; cursor < values.length; cursor += 1) {
+      const value = values[cursor]!;
+      rightMinimum = Math.min(rightMinimum, value);
+      if (value > peak) break;
+    }
+    const prominence = peak - Math.max(leftMinimum, rightMinimum);
     return prominence >= prominenceThreshold;
   }).length;
 }

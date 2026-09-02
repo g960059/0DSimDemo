@@ -50,7 +50,7 @@ export type MainWireStandard68DocumentationFactsV1 = Readonly<{
     heartRateControlId: string;
     heartRateChangeSemantics: "accepted-state-warm-start";
     fixtureChangeSemantics:
-      "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch";
+      "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch";
   }>;
   surface: Readonly<{
     rawPressureVolumeLoop: true;
@@ -130,7 +130,7 @@ export function resolveMainWireStandard68DocumentationFactsV1(
       || heartRate === undefined
       || heartRate.changeSemantics !== "accepted-state-warm-start"
       || manifest.runtime.fixtureChangeSemantics
-        !== "atomic-accepted-state-warm-start-same-clock-new-fixture-epoch"
+        !== "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch"
     ) {
       return null;
     }

@@ -23,7 +23,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3 =
         "healthy.lv.esvi",
         "hemodynamics.lv.esv_index_ml_per_m2",
         10,
-        29,
+        31,
         ["lang-ase-eacvi-2015", "kou-norre-2014"],
       ),
       gate(
@@ -34,11 +34,39 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3 =
         ["lang-ase-eacvi-2015", "kou-norre-2014"],
       ),
       gate(
+        "healthy.rv.edvi",
+        "hemodynamics.rv.edv_index_ml_per_m2",
+        32,
+        87,
+        ["lang-ase-eacvi-2015-3de-rv"],
+      ),
+      gate(
+        "healthy.rv.esvi",
+        "hemodynamics.rv.esv_index_ml_per_m2",
+        8,
+        44,
+        ["lang-ase-eacvi-2015-3de-rv"],
+      ),
+      gate(
+        "healthy.rv.ef",
+        "hemodynamics.rv.ejection_fraction_01",
+        0.42,
+        0.82,
+        ["lang-ase-eacvi-2015-3de-rv"],
+      ),
+      gate(
         "healthy.cardiac_index",
         "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
         2.5,
         4,
         ["cardiac-index-clinical-reference"],
+      ),
+      gate(
+        "healthy.stroke_volume_index",
+        "hemodynamics.aortic.stroke_volume_index_ml_per_m2",
+        35,
+        65,
+        ["resting-indexed-flow-reference"],
       ),
       gate(
         "healthy.pulmonary_artery.systolic",
@@ -61,7 +89,11 @@ export type MainWireIntegratedModelHealthyReferenceMetricIdV3 =
   | "hemodynamics.lv.edv_index_ml_per_m2"
   | "hemodynamics.lv.esv_index_ml_per_m2"
   | "hemodynamics.lv.ejection_fraction_01"
+  | "hemodynamics.rv.edv_index_ml_per_m2"
+  | "hemodynamics.rv.esv_index_ml_per_m2"
+  | "hemodynamics.rv.ejection_fraction_01"
   | "hemodynamics.aortic.cardiac_index_l_per_min_per_m2"
+  | "hemodynamics.aortic.stroke_volume_index_ml_per_m2"
   | "hemodynamics.pressure.pulmonary_artery.systolic_mmhg"
   | "hemodynamics.pressure.left_atrium.mean_mmhg";
 

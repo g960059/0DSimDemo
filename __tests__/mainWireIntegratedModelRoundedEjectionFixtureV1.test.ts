@@ -9,10 +9,13 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  countMainWireIntegratedModelSignificantPressurePeaksV1,
   measureMainWireIntegratedModelBaselineValidationV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
+  MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_LAND_SLACK_STRETCH_V1,
   MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1,
+  MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1,
 } from "@/engine/myocardium/mechanics/MainWireVentricularRoundedEjectionProfileV1";
 
 const DT_SEC = 0.002;
@@ -36,6 +39,8 @@ describe("fixed rounded-ejection construction V1", () => {
       .toBe(104);
     expect(MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1.values.kws)
       .toBe(4.8);
+    expect(MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1.landSlackStretch)
+      .toBe(MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_LAND_SLACK_STRETCH_V1);
     expect(fixture.provider.parameterSetId).toContain(
       "main-wire-ventricular-rounded-ejection-profile-v1",
     );
@@ -116,9 +121,10 @@ describe("fixed rounded-ejection construction V1", () => {
     expect(flowPeakPhase).toBeLessThanOrEqual(0.4);
     expect(centralRangeFraction).toBeGreaterThanOrEqual(0.08);
     expect(centralRangeFraction).toBeLessThanOrEqual(0.3);
-    expect(significantPeakCountV1(lvp)).toBe(1);
-    expect(significantPeakCountV1(aop)).toBe(1);
-    expect(significantPeakCountV1(aovFlow)).toBe(1);
+    expect(countMainWireIntegratedModelSignificantPressurePeaksV1(lvp)).toBe(1);
+    expect(countMainWireIntegratedModelSignificantPressurePeaksV1(aop)).toBe(1);
+    expect(countMainWireIntegratedModelSignificantPressurePeaksV1(aovFlow))
+      .toBe(1);
     expect(totalVariationRatioV1(lvp)).toBeLessThanOrEqual(2.2);
     expect(totalVariationRatioV1(aop)).toBeLessThanOrEqual(2.2);
     expect(totalVariationRatioV1(aovFlow)).toBeLessThanOrEqual(2.2);
@@ -263,29 +269,6 @@ function pressureRateExtremaV1(
     maximum: Math.max(...rates),
     minimum: Math.min(...rates),
   });
-}
-
-function significantPeakCountV1(values: readonly number[]): number {
-  const prominenceThreshold = Math.max(
-    0.5,
-    0.05 * (Math.max(...values) - Math.min(...values)),
-  );
-  const peaks: number[] = [];
-  for (let index = 1; index < values.length - 1; index += 1) {
-    if (values[index]! > values[index - 1]! &&
-        values[index]! >= values[index + 1]!) peaks.push(index);
-  }
-  return peaks.filter((index, ordinal) => {
-    const left = ordinal === 0 ? 0 : peaks[ordinal - 1]!;
-    const right = ordinal === peaks.length - 1
-      ? values.length - 1
-      : peaks[ordinal + 1]!;
-    const prominence = values[index]! - Math.max(
-      Math.min(...values.slice(left, index + 1)),
-      Math.min(...values.slice(index, right + 1)),
-    );
-    return prominence >= prominenceThreshold;
-  }).length;
 }
 
 function totalVariationRatioV1(values: readonly number[]): number {

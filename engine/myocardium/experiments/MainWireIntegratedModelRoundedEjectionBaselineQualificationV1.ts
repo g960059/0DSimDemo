@@ -12,6 +12,7 @@ import {
 import {
   assertMainWireIntegratedModelBaselineValidationPassedV1,
   buildMainWireIntegratedModelBaselineValidationChecksV1,
+  measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1,
   measureMainWireIntegratedModelBaselineValidationV1,
   type MainWireIntegratedModelBaselineValidationCheckV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
@@ -40,6 +41,11 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM,
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID =
@@ -71,7 +77,11 @@ export type MainWireIntegratedModelRoundedEjectionBaselineQualificationV1 =
  */
 export async function qualifyMainWireIntegratedModelRoundedEjectionBaselineV1():
   Promise<MainWireIntegratedModelRoundedEjectionBaselineQualificationV1> {
-  const fixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
+  const fixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+    1,
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+  );
   const periodicFixture = fixture as unknown as
     MainWireIntegratedModelRegularSinusAllOffFixtureV3;
   const protocolIdentityHash = await sha256CanonicalJsonHex(Object.freeze({
@@ -83,6 +93,8 @@ export async function qualifyMainWireIntegratedModelRoundedEjectionBaselineV1():
     referenceScales: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
     construction:
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_FIXTURE_V1_CLAIM,
+    baseline:
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1,
   }));
   const classifierOptions = Object.freeze({
     period1NormalizedTolerance:
@@ -194,12 +206,19 @@ export async function qualifyMainWireIntegratedModelRoundedEjectionBaselineV1():
       minimumDpDtMmHgPerSec:
         exactLeftVentricularPressureRate.minimumMmHgPerSec,
     }),
+    cardiacSizeAndFunction:
+      measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
+        completedBeatMetrics,
+      ),
   }) satisfies MainWireIntegratedModelBaselineValidationMeasurementsV1;
   const checks = buildMainWireIntegratedModelBaselineValidationChecksV1(
     measurements,
     period1Established,
   );
-  assertMainWireIntegratedModelBaselineValidationPassedV1(checks);
+  assertMainWireIntegratedModelBaselineValidationPassedV1(
+    checks,
+    measurements,
+  );
 
   const baseCheckpoint = await checkpointMainWireIntegratedModelStandardV2(
     Object.freeze({

@@ -19,9 +19,16 @@ export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID =
 export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_COLD_MAXIMUM_ITERATIONS_V1 =
   1600 as const;
 
+export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_LAND_SLACK_STRETCH_V1 =
+  1.09 as const;
+
+export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_AEFF_SCALE_V1 =
+  1.06 as const;
+
 const CHANGED_PRIMITIVE_PARAMETERS = Object.freeze([
   "kuw",
   "kws",
+  "Aeff",
 ] as const satisfies readonly Land2017SourceParameterName[]);
 
 /**
@@ -41,12 +48,18 @@ export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_CLAIM =
       "source-intact-human-nTm-5-restored" as const,
     trefSelection:
       "source-intact-human-Tref-120-kPa-restored" as const,
+    velocityDistortionSelection:
+      "bounded-whole-organ-loaded-shortening-Aeff-1.06-scale" as const,
     calciumAndMaterialJointlyIdentifiableClaimed: false as const,
     strongBridgeDeactivationExit:
-      "fixed-reduced-order-non-source-v2-rate-60-per-sec-gate-power-12" as const,
+      "fixed-reduced-order-non-source-v2-rate-60-per-sec-gate-power-16" as const,
     strongBridgeDeactivationSelection:
       "factorized-ET-IVRT-Tei-and-pressure-morphology-screen" as const,
     geometryToLandStretchCouplingChanged: true as const,
+    landSlackStretch:
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_LAND_SLACK_STRETCH_V1,
+    landSlackStretchSelection:
+      "bounded-preload-reserve-and-baseline-timing-screen" as const,
     atrialMaterialChanged: false as const,
     ventricularPassiveOrSlsChanged: false as const,
     continuousStateCountChanged: false as const,
@@ -64,6 +77,9 @@ const VALUES: Land2017RuntimeParameters = Object.freeze({
   ...BASE_LAND.values,
   kuw: 104,
   kws: 4.8,
+  Aeff:
+    BASE_LAND.values.Aeff
+    * MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_AEFF_SCALE_V1,
 });
 
 const PROVENANCE_SUFFIX_BY_PARAMETER: Readonly<
@@ -76,6 +92,9 @@ const PROVENANCE_SUFFIX_BY_PARAMETER: Readonly<
   kws:
     "runtime kws is 0.4 times the source value and retains the bounded " +
     "ejection-relaxation kinetic selection; it is not a Land et al. source value",
+  Aeff:
+    "runtime Aeff is 1.06 times the source value after bounded whole-organ " +
+    "loaded-shortening screening; fixed-length isometric behavior is unchanged",
 });
 
 const SOURCE_PARAMETERS = Object.freeze(
@@ -110,7 +129,7 @@ const PARAMETER_HASH_INPUT: Omit<
     BASE_LAND.derivedParameters.map((entry) => Object.freeze({ ...entry })),
   ),
   strongBridgeDeactivationExit:
-    createLand2017StrongBridgeDeactivationExitV2(60, 12),
+    createLand2017StrongBridgeDeactivationExitV2(60, 16),
 };
 
 export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1:
@@ -126,5 +145,6 @@ export const MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_WALL_MATERIAL_V1:
       `${MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID}-wall`,
     landEquationParameters:
       MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PARAMETER_SET_V1,
-    landSlackStretch: 1.05,
+    landSlackStretch:
+      MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_LAND_SLACK_STRETCH_V1,
   });

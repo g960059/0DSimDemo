@@ -33,6 +33,7 @@ import type {
   StudioSimulationFrameV2,
 } from "@/studio/contracts/v2/simulation";
 import {
+  StudioSimulationWorkerRequestErrorV2,
   StudioSimulationWorkerClientV2,
   createStudioSimulationWorkerClientForTestV2,
   type StudioSimulationWorkerTransportV2,
@@ -4109,6 +4110,52 @@ describe("Studio simulation worker V2 client/runtime terminal integration", () =
       { acceptedRevision: 1, acceptedTimeSec: 0.1 },
     ]);
     expect(transport.terminate).not.toHaveBeenCalled();
+  });
+
+  it("retains a recoverable apply-control classification and exact authority", async () => {
+    const adapter = runtimeHarnessV2({
+      applyControl: vi.fn(() => Promise.reject(
+        new Error("candidate preflight rejected"),
+      )),
+    }).adapter;
+    const transport = new RuntimeBackedWorkerTransportV2(adapter);
+    const client = createStudioSimulationWorkerClientForTestV2({ transport });
+    const initialized = client.initialize({
+      expectedModelId: adapter.modelId,
+      releaseTicket: STANDARD_TEST_RELEASE_TICKET_V1,
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      scenarioLabel: "Baseline",
+      fixture: { value: 1 },
+    });
+    await transport.whenIdle();
+    await initialized;
+
+    const rejected = client.applyControl({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      controlId: "control/heart-rate",
+      value: 72,
+      expectedInputEpoch: 0,
+    });
+    await transport.whenIdle();
+    const error = await rejected.catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(StudioSimulationWorkerRequestErrorV2);
+    expect(error).toMatchObject({
+      fatal: false,
+      message: expect.stringMatching(/candidate preflight rejected/),
+    });
+    expect(transport.terminate).not.toHaveBeenCalled();
+
+    const advanced = client.advance({
+      runtimeSessionId: "runtime/session-1",
+      scenarioId: "scenario/baseline",
+      stepCount: 1,
+    });
+    await transport.whenIdle();
+    await expect(advanced).resolves.toMatchObject([
+      { acceptedRevision: 1, acceptedTimeSec: 0.1, inputEpoch: 0 },
+    ]);
   });
 });
 

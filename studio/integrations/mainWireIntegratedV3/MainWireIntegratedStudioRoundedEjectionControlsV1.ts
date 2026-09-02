@@ -2,15 +2,17 @@ import {
   MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2,
 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
   type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
 import {
   MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1,
   type MainWireCommonPericardiumResearchInputKeyV1,
@@ -96,7 +98,8 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
       "1",
       MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1
         .activeTensionScaleByWall,
-      1,
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
+        .chamberMechanics.activeTensionScaleByWall.LVFW,
     ),
     ...(["venousTone", "peepCmH2O", "pulmonaryResistance", "arterialStiffness"] as const)
       .map(hemodynamicDefinitionV1),
@@ -110,7 +113,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
           `${prefix}.${wallId}`,
           "1",
           MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind],
-          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+          MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
             .chamberMechanics[kind][wallId],
         );
       }),
@@ -121,7 +124,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
         "cm2",
         MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1[valveId]
           .maximumForwardEoaCm2,
-        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
           .valveAreas[valveId].maximumForwardEoaCm2,
       ),
       definitionV1(
@@ -129,7 +132,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
         "cm2",
         MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1[valveId]
           .closedReverseEroaCm2,
-        MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
           .valveAreas[valveId].closedReverseEroaCm2,
       ),
     ]),
@@ -140,7 +143,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
           controlId,
           oxygenUnitV1(key),
           OXYGEN_TRANSPORT_INPUT_RANGES_V1[key],
-          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+          MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
             .oxygenTransport[key],
         );
       },
@@ -152,7 +155,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
           controlId,
           key === "prescribedFluidVolumeMl" ? "mL" : "1",
           MAIN_WIRE_COMMON_PERICARDIUM_RESEARCH_INPUT_RANGES_V1[key],
-          MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+          MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
             .pericardium[key],
         );
       },
@@ -162,7 +165,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
       "1",
       MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2
         .focalDiameterLossFraction01,
-      MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
         .coronaryDisease.focalDiameterLossFraction01ByTerritory[territoryId],
     )),
     ...(["r1", "rm"] as const).flatMap((resistanceKind) =>
@@ -180,7 +183,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
             `coronary.structural-${resistanceKind}-resistance-scale.${territoryId}.${layerId}`,
             "1",
             range,
-            MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3
+            MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
               .coronaryDisease[field][territoryId][layerId],
           );
         }),
@@ -488,7 +491,7 @@ function hemodynamicDefinitionV1(
     HEMODYNAMIC_CONTROL_BY_INPUT_V1[key],
     hemodynamicUnitV1(key),
     MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[key],
-    MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3[key],
+    MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1[key],
   );
 }
 

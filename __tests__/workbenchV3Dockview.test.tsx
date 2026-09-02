@@ -46,6 +46,7 @@ import {
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
   workbenchInputMutationReplacedAcceptedClockV3,
+  workbenchRejectedControlCanResumeRuntimeV3,
   workbenchDurableContentAvailableV3,
   workbenchPublicationAvailableV3,
   workbenchScenarioRuntimeStatusV3,
@@ -2430,6 +2431,24 @@ describe("V3 Dockview Workbench", () => {
   it("labels every concurrently simulated Scenario from global playback", () => {
     expect(workbenchScenarioRuntimeStatusV3(true)).toBe("Live");
     expect(workbenchScenarioRuntimeStatusV3(false)).toBe("Paused");
+  });
+
+  it("keeps only wholly rejected recoverable control transactions live", () => {
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 1,
+      acceptedCount: 0,
+      everyRejectionRecoverable: true,
+    })).toBe(true);
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 2,
+      acceptedCount: 1,
+      everyRejectionRecoverable: true,
+    })).toBe(false);
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 1,
+      acceptedCount: 0,
+      everyRejectionRecoverable: false,
+    })).toBe(false);
   });
 
   it("restores the accepted control value after a rejected commit", async () => {
