@@ -122,7 +122,13 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
     ...fixture,
     roundedEjectionPulmonaryRootAblationAssemblyId:
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_PULMONARY_ROOT_ABLATION_FIXTURE_V1_ID,
-    roundedEjectionPulmonaryRootAblationAssemblyClaim:
-      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_PULMONARY_ROOT_ABLATION_FIXTURE_V1_CLAIM,
+    roundedEjectionPulmonaryRootAblationAssemblyClaim: Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_PULMONARY_ROOT_ABLATION_FIXTURE_V1_CLAIM,
+      sourcePulmonaryResistanceQuadraticLossAndCompliancePreserved:
+        pulmonaryRootProfile.sourceResistanceAndQuadraticLossPreserved
+        && pulmonaryRootProfile
+          .sourcePulmonaryArterialComplianceDistributionPreserved,
+      parameterSearchOrFitting: pulmonaryRootProfile.parameterSearchOrFitting,
+    }),
   });
 }

@@ -12,7 +12,12 @@ export type MainWireAlgebraicPulmonaryArterialRootProfileV1 = Readonly<{
     | "backward-euler-dynamic-linear-quadratic";
   inertanceMmHgSec2PerMl: number;
   rootResistanceMmHgSecPerMl: number;
+  proximalPaStiffnessMultiplier: number;
+  distalPArtStiffnessMultiplier: number;
   sourceResistanceAndQuadraticLossPreserved: boolean;
+  sourcePulmonaryArterialComplianceDistributionPreserved: boolean;
+  pulmonaryArterialPressureAnchor:
+    "preserve-absent-profile-pressure-at-topology-x0";
   systemicRootMomentumUnchanged: true;
   acceptedRootFlowRecordRole:
     | "exact-accepted-algebraic-flow-readback-not-continuation-memory"
@@ -52,7 +57,12 @@ export const MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1 =
     inertanceMmHgSec2PerMl: 0 as const,
     rootResistanceMmHgSecPerMl:
       SOURCE_PULMONARY_ROOT_RESISTANCE_MMHG_SEC_PER_ML,
+    proximalPaStiffnessMultiplier: 1 as const,
+    distalPArtStiffnessMultiplier: 1 as const,
     sourceResistanceAndQuadraticLossPreserved: true as const,
+    sourcePulmonaryArterialComplianceDistributionPreserved: true as const,
+    pulmonaryArterialPressureAnchor:
+      "preserve-absent-profile-pressure-at-topology-x0" as const,
     systemicRootMomentumUnchanged: true as const,
     acceptedRootFlowRecordRole:
       "exact-accepted-algebraic-flow-readback-not-continuation-memory" as const,
@@ -63,6 +73,13 @@ export const MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1 =
 export function createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
   rootResistanceMmHgSecPerMl: number,
   inertanceMmHgSec2PerMl = 0,
+  complianceDistribution: Readonly<{
+    proximalPaStiffnessMultiplier: number;
+    distalPArtStiffnessMultiplier: number;
+  }> = Object.freeze({
+    proximalPaStiffnessMultiplier: 1,
+    distalPArtStiffnessMultiplier: 1,
+  }),
 ): MainWireAlgebraicPulmonaryArterialRootProfileV1 {
   if (
     !Number.isFinite(rootResistanceMmHgSecPerMl)
@@ -87,6 +104,16 @@ export function createMainWireAlgebraicPulmonaryArterialRootResistanceResearchPr
   const sourceResistancePreserved =
     rootResistanceMmHgSecPerMl ===
       SOURCE_PULMONARY_ROOT_RESISTANCE_MMHG_SEC_PER_ML;
+  for (const [label, value] of Object.entries(complianceDistribution)) {
+    if (!Number.isFinite(value) || value < 0.25 || value > 4) {
+      throw new Error(
+        `pulmonary arterial ${label} must be finite within [0.25, 4]`,
+      );
+    }
+  }
+  const sourceComplianceDistributionPreserved =
+    complianceDistribution.proximalPaStiffnessMultiplier === 1
+    && complianceDistribution.distalPArtStiffnessMultiplier === 1;
   return Object.freeze({
     ...MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1,
     flowLaw: inertanceMmHgSec2PerMl === 0
@@ -94,9 +121,17 @@ export function createMainWireAlgebraicPulmonaryArterialRootResistanceResearchPr
       : "backward-euler-dynamic-linear-quadratic" as const,
     inertanceMmHgSec2PerMl,
     rootResistanceMmHgSecPerMl,
+    proximalPaStiffnessMultiplier:
+      complianceDistribution.proximalPaStiffnessMultiplier,
+    distalPArtStiffnessMultiplier:
+      complianceDistribution.distalPArtStiffnessMultiplier,
     sourceResistanceAndQuadraticLossPreserved: sourceResistancePreserved,
+    sourcePulmonaryArterialComplianceDistributionPreserved:
+      sourceComplianceDistributionPreserved,
     parameterSearchOrFitting:
-      !sourceResistancePreserved || inertanceMmHgSec2PerMl !== 0,
+      !sourceResistancePreserved
+      || inertanceMmHgSec2PerMl !== 0
+      || !sourceComplianceDistributionPreserved,
     acceptedRootFlowRecordRole: inertanceMmHgSec2PerMl === 0
       ? "exact-accepted-algebraic-flow-readback-not-continuation-memory" as const
       : "exact-accepted-dynamic-flow-continuation-memory" as const,
@@ -125,7 +160,10 @@ export function validateMainWireAlgebraicPulmonaryArterialRootProfileV1(
     "flowLaw",
     "inertanceMmHgSec2PerMl",
     "rootResistanceMmHgSecPerMl",
+    "proximalPaStiffnessMultiplier",
+    "distalPArtStiffnessMultiplier",
     "sourceResistanceAndQuadraticLossPreserved",
+    "sourcePulmonaryArterialComplianceDistributionPreserved",
     "parameterSearchOrFitting",
     "acceptedRootFlowRecordRole",
   ].includes(candidate))) {
@@ -149,9 +187,41 @@ export function validateMainWireAlgebraicPulmonaryArterialRootProfileV1(
       "algebraic pulmonary arterial-root profile source-resistance claim differs",
     );
   }
+  const proximalStiffness = input.proximalPaStiffnessMultiplier;
+  const distalStiffness = input.distalPArtStiffnessMultiplier;
+  if (
+    !Number.isFinite(proximalStiffness)
+    || proximalStiffness < 0.25
+    || proximalStiffness > 4
+  ) {
+    issues.push(
+      "algebraic pulmonary arterial-root profile proximal PA stiffness is invalid",
+    );
+  }
+  if (
+    !Number.isFinite(distalStiffness)
+    || distalStiffness < 0.25
+    || distalStiffness > 4
+  ) {
+    issues.push(
+      "algebraic pulmonary arterial-root profile distal PArt stiffness is invalid",
+    );
+  }
+  const sourceComplianceDistributionPreserved =
+    proximalStiffness === 1 && distalStiffness === 1;
+  if (
+    input.sourcePulmonaryArterialComplianceDistributionPreserved
+      !== sourceComplianceDistributionPreserved
+  ) {
+    issues.push(
+      "algebraic pulmonary arterial-root profile compliance-distribution claim differs",
+    );
+  }
   if (
     input.parameterSearchOrFitting !== (
-      !sourceResistancePreserved || input.inertanceMmHgSec2PerMl !== 0
+      !sourceResistancePreserved
+      || input.inertanceMmHgSec2PerMl !== 0
+      || !sourceComplianceDistributionPreserved
     )
   ) {
     issues.push(

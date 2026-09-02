@@ -26,6 +26,9 @@ import type {
 import type {
   MainWireAlgebraicPulmonaryArterialRootProfileV1,
 } from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
+import {
+  validateMainWireAlgebraicPulmonaryArterialRootProfileV1,
+} from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
 
 /**
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
@@ -76,13 +79,15 @@ export function effectiveUnstressedVolumeFromNodeV1(
   node: NodeSpec,
   params: Pick<
     VascularPvRuntimeParameterViewV1,
-    "venousTone" | "selectedAorticOutflowProfile"
+    | "venousTone"
+    | "selectedAorticOutflowProfile"
+    | "algebraicPulmonaryArterialRootProfile"
   >,
 ): number {
   const topologyEffectiveVu = (node.Vu ?? 0)
     - (node.venousToneGain ?? 0) * params.venousTone;
   const stiffnessMultiplier =
-    selectedSystemicArterialStiffnessMultiplierV1(node, params);
+    selectedArterialStiffnessMultiplierV1(node, params);
   if (stiffnessMultiplier === undefined) return topologyEffectiveVu;
   return node.x0
     - (node.x0 - topologyEffectiveVu) / stiffnessMultiplier;
@@ -95,7 +100,7 @@ export function vascularPvLawFromNodeV1(
   const Vu = effectiveUnstressedVolumeFromNodeV1(node, params);
   if (node.kind === "arterial") {
     const stiffnessMultiplier =
-      selectedSystemicArterialStiffnessMultiplierV1(node, params);
+      selectedArterialStiffnessMultiplierV1(node, params);
     if (stiffnessMultiplier !== undefined) {
       const baseVsEff = Math.max(
         (node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25),
@@ -138,40 +143,63 @@ export function vascularPvLawFromNodeV1(
   throw new Error(`Node ${node.name} has no vascular PV law`);
 }
 
-function selectedSystemicArterialStiffnessMultiplierV1(
+function selectedArterialStiffnessMultiplierV1(
   node: NodeSpec,
   params: Pick<
     VascularPvRuntimeParameterViewV1,
-    "selectedAorticOutflowProfile"
+    | "selectedAorticOutflowProfile"
+    | "algebraicPulmonaryArterialRootProfile"
   >,
-): 2 | undefined {
+): number | undefined {
   const selectedProfile = params.selectedAorticOutflowProfile;
-  if (selectedProfile === undefined || node.kind !== "arterial") {
+  if (node.kind !== "arterial") {
     return undefined;
   }
-  if (
-    selectedProfile
-      !== MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
-    && !VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.has(
-      selectedProfile,
-    )
-  ) {
-    const issues = validateMainWireSelectedAorticOutflowCirculationProfileV1(
-      selectedProfile,
-    );
-    if (issues.length > 0) throw new Error(issues.join("; "));
-    if (validationStampIssuanceEligibleV1(selectedProfile)) {
-      VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.add(
+  if (selectedProfile !== undefined) {
+    if (
+      selectedProfile
+        !== MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
+      && !VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.has(
+        selectedProfile,
+      )
+    ) {
+      const issues = validateMainWireSelectedAorticOutflowCirculationProfileV1(
         selectedProfile,
       );
+      if (issues.length > 0) throw new Error(issues.join("; "));
+      if (validationStampIssuanceEligibleV1(selectedProfile)) {
+        VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1.add(
+          selectedProfile,
+        );
+      }
+    }
+    if (
+      selectedProfile.systemicArterialNodeIds.some(
+        (nodeId) => nodeId === node.name,
+      )
+    ) return selectedProfile.systemicArterialTangentStiffnessMultiplier;
+  }
+  const pulmonaryProfile =
+    params.algebraicPulmonaryArterialRootProfile;
+  if (pulmonaryProfile === undefined) return undefined;
+  if (
+    !VALIDATED_FROZEN_PULMONARY_ROOT_PROFILES_V1.has(pulmonaryProfile)
+  ) {
+    const issues = validateMainWireAlgebraicPulmonaryArterialRootProfileV1(
+      pulmonaryProfile,
+    );
+    if (issues.length > 0) throw new Error(issues.join("; "));
+    if (validationStampIssuanceEligibleV1(pulmonaryProfile)) {
+      VALIDATED_FROZEN_PULMONARY_ROOT_PROFILES_V1.add(pulmonaryProfile);
     }
   }
-  if (
-    !selectedProfile.systemicArterialNodeIds.some(
-      (nodeId) => nodeId === node.name,
-    )
-  ) return undefined;
-  return selectedProfile.systemicArterialTangentStiffnessMultiplier;
+  if (node.name === "PA") {
+    return pulmonaryProfile.proximalPaStiffnessMultiplier;
+  }
+  if (node.name === "PArt") {
+    return pulmonaryProfile.distalPArtStiffnessMultiplier;
+  }
+  return undefined;
 }
 
 // Structurally equal profile clones are admitted only after validation. A
@@ -179,6 +207,7 @@ function selectedSystemicArterialStiffnessMultiplierV1(
 // is revalidated on every constitutive entry and cannot mutate behind a stamp.
 const VALIDATED_FROZEN_SELECTED_AORTIC_OUTFLOW_PROFILES_V1 =
   new WeakSet<object>();
+const VALIDATED_FROZEN_PULMONARY_ROOT_PROFILES_V1 = new WeakSet<object>();
 
 /**
  * Authoritative main-wire cold-seed volume rule. `x0` is a physical volume
