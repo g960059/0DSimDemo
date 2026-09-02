@@ -39,6 +39,9 @@ import type {
   MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
+  composeMainWireBaselineFinalistComparisonToleranceV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
+import {
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
   type MainWireIntegratedModelFormalPreloadReserveQualificationV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -618,10 +621,14 @@ function compareEvaluationsV1(
     const corridorTolerance = (check.maximum - check.minimum)
       * MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
         .finalistComparisonCorridorFraction;
-    const admittedTolerance = Math.max(
-      floor.numericalFloorAbsolute,
-      corridorTolerance,
-    ) + machineTolerance;
+    const admittedTolerance =
+      composeMainWireBaselineFinalistComparisonToleranceV1(
+        floor.numericalFloorAbsolute,
+        check.maximum - check.minimum,
+        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+          .finalistComparisonCorridorFraction,
+        machineTolerance,
+      );
     return Object.freeze({
       checkId: check.checkId,
       unit: check.unit,

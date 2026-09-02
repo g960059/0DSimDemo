@@ -6,6 +6,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
 import {
   buildMainWireBaselineNumericalFloorMetricV1,
+  composeMainWireBaselineFinalistComparisonToleranceV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   buildMainWireBaselineConditioningSingularValuesV1,
@@ -370,6 +371,21 @@ describe("Standard68 baseline mint gates", () => {
         "confounded-primary-coordinates",
         "preload-owner-count",
       ]));
+  });
+
+  it("adds baseline-local numerical floor and candidate-local finalist allowance", () => {
+    expect(composeMainWireBaselineFinalistComparisonToleranceV1(
+      0.268,
+      11,
+      0.02,
+      1e-12,
+    )).toBeCloseTo(0.488000000001, 12);
+    expect(() => composeMainWireBaselineFinalistComparisonToleranceV1(
+      -0.1,
+      11,
+      0.02,
+      0,
+    )).toThrow(/numericalFloorAbsolute/);
   });
 
   it("applies calibration coordinates independent of update ordering", () => {

@@ -33,6 +33,27 @@ export type MainWireBaselineNumericalFloorMetricV1 = Readonly<{
   numericalFloorFractionOfCorridor: number | null;
 }>;
 
+export function composeMainWireBaselineFinalistComparisonToleranceV1(
+  numericalFloorAbsolute: number,
+  constructionCorridorWidth: number,
+  candidateLocalCorridorFraction: number,
+  machineTolerance: number,
+): number {
+  for (const [name, value] of Object.entries({
+    numericalFloorAbsolute,
+    constructionCorridorWidth,
+    candidateLocalCorridorFraction,
+    machineTolerance,
+  })) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`${name} must be finite and non-negative`);
+    }
+  }
+  return numericalFloorAbsolute
+    + constructionCorridorWidth * candidateLocalCorridorFraction
+    + machineTolerance;
+}
+
 type CompactEvaluationV1 = Readonly<{
   status: MainWireBaselineCalibrationEvaluationV1["status"];
   phase?: string;

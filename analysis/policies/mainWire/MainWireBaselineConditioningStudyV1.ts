@@ -83,6 +83,8 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     finalistInitializationChecks:
       readonly ["cold", "alternate-compatible", "refined-dt"];
     finalistComparisonCorridorFraction: 0.02;
+    finalistComparisonToleranceComposition:
+      "additive-numerical-floor-and-corridor";
     maximumParallelEvaluations: number;
     recordWallTimeAndCycleCount: true;
   }>;
@@ -136,7 +138,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 7;
+    revision: 8;
     changeReason: string;
   }>;
 }>;
@@ -245,6 +247,8 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         "refined-dt",
       ] as const),
       finalistComparisonCorridorFraction: 0.02 as const,
+      finalistComparisonToleranceComposition:
+        "additive-numerical-floor-and-corridor" as const,
       maximumParallelEvaluations: 8,
       recordWallTimeAndCycleCount: true as const,
     }),
@@ -323,9 +327,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 7 as const,
+      revision: 8 as const,
       changeReason:
-        "Contract the reserve-recovery trust region after the first bounded sweep retained formal reserve but missed only the cardiac-index lower gate by less than 0.2 percent.",
+        "Compose the baseline-local numerical floor and the preregistered candidate-local corridor allowance additively for finalist agreement; every resolution must still pass the buffered physiological gates independently.",
     }),
   });
 
@@ -594,6 +598,8 @@ export function lintMainWireBaselineConditioningStudyV1(
     || !(source.numericalPolicy.finalistComparisonCorridorFraction > 0)
     || source.numericalPolicy.finalistComparisonCorridorFraction
       > source.searchPolicy.equivalentPrimaryMarginEpsilon
+    || source.numericalPolicy.finalistComparisonToleranceComposition
+      !== "additive-numerical-floor-and-corridor"
   ) {
     issues.push(issueV1(
       "numerical-policy-invalid",
