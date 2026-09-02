@@ -304,6 +304,26 @@
         "integratedModelDescription": "心室相互作用、体循環・肺循環、冠循環、心拍リズムを統合した0D研究・教育モデルです。",
         "validationTitle": "検証と妥当性",
         "validationDescription": "現在の自動チェックは、数値の有限性、血液量の保存、イベント整合性などを確認します。これは生理学的・臨床的な妥当性を保証するものではありません。",
+        "baselineValidationTitle": "数理モデルのbaseline検証",
+        "baselineValidationSummary": "Model ID発行時にperiod-1収束を確認（{{cycles}}周期）",
+        "baselineLvp": "LVP波形",
+        "baselineRvp": "RVP波形",
+        "baselineSingleRounded": "単峰・丸みあり",
+        "baselineAvGradient": "AV mean / peak PG",
+        "baselineMorphologyDetail": "有意ピーク {{peaks}}、丸み指標 {{roundness}}（必須範囲 0.08–0.35）",
+        "baselineRangeDetail": "必須範囲：{{range}}",
+        "baselineIndexedVolumesDetail": "BSA 1.9 m²でindex化した弁閉鎖時のEDVI/ESVI。必須範囲：{{range}}。画像モダリティとの完全な同等性は主張しません。",
+        "baselineIndexedFlowDetail": "native aortic forward flowをBSA 1.9 m²でindex化。必須範囲：{{range}}。",
+        "baselineAvGradientDetail": "exact hydraulic gradientの必須範囲：{{range}}",
+        "baselineAorticPressureDetail": "completed beatのAo node max/min。必須範囲：{{range}}。末梢上腕血圧や波反射を含む測定値との完全な同等性は主張しません。",
+        "baselinePulmonaryPressureDetail": "completed beatのPAP max/min、mean RAP（CVP）、mean LAP（PCWP* surrogate）。必須範囲：{{range}}。*wedge catheter自体はモデル化していません。",
+        "baselineLvDpDtDetail": "accepted-step absolute LVPの必須範囲：{{range}}",
+        "baselineIctIrtDetail": "波形解析による必須範囲：{{range}}",
+        "baselinePreloadReserve": "前負荷予備能",
+        "baselineBidirectionalPassed": "低・高容量側とも合格",
+        "baselinePreloadReserveDetail": "固定制御・formal period-1 settlementでTBV −{{low}}% / +{{high}}%。低容量側CO低下 LV {{lowLv}} / RV {{lowRv}}、高容量側CO増加 LV {{highLv}} / RV {{highRv}} L/min（各baseline比5%以上、圧—流量傾き0.05 L/min/mmHg以上、EDV変化2%以上）。臨床的fluid challengeの検証ではありません。",
+        "baselineTransmuralResponse": "ED transmural応答",
+        "baselineTransmuralResponseDetail": "最大容量ED landmarkのtransmural pressureが低容量側で低下（LV {{lowLv}} / RV {{lowRv}} mmHg）、高容量側で上昇（LV {{highLv}} / RV {{highRv}} mmHg）。EDVも同方向に変化することを必須化しています。",
         "limitationsTitle": "制限事項",
         "modelDocumentation": "数理モデルの詳細を見る",
         "chooseModel": "数理モデルを変更"
@@ -393,7 +413,7 @@
       "scenarioManager": {
         "addFromPreset": "Presetから追加",
         "baseColor": "新しいtraceのbase色",
-        "baselinePresetTitle": "起動時baseline",
+        "baselinePresetTitle": "baseline",
         "baselinePresetDescription": "このシミュレーションを開いた時点で取得したexact fixtureとcheckpointです。",
         "busy": "Scenarioを変更しています",
         "close": "Scenario inspectorを閉じる",
@@ -686,6 +706,22 @@
       "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
       "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
       "数値検証とbaseline characterizationは、生理学的・臨床的validationを保証しません。"
+    ],
+    "standard67Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは圧回復後の近位大動脈constitutive port圧、ABPは体動脈compartment圧であり、実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "Ao–SAとPA–PArtの根部は抵抗・二次損失を保った代数的flow lawです。局所inertance、空間的な波動伝播・反射を表現しないため、部位別の動脈波形とは解釈できません。",
+      "PV paneはaccepted exact orbitをraw表示します。このSurfaceではformal PVAおよびGuyton / Starling解析を提供しません。",
+      "心拍数の変更は時刻0から新しいexact trajectoryを開始します。実行中の変時性応答は再現しません。",
+      "根部振動の除去、数値検証、baseline characterizationは、生理学的・臨床的validationを保証しません。"
+    ],
+    "standard68Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは大動脈弁直後の大動脈基部compliance node圧、ABPは体動脈compartment圧です。局所圧回復はAoPに適用せず、いずれも実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "近位体・肺動脈はsourceの0D momentum/compliance topologyです。空間的な波動伝播・反射を表現せず、部位別の動脈波形とは解釈できません。",
+      "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
+      "control変更はaccepted stateとmodel clockを保持するwarm startです。自律神経反射や実測の変時性応答を再現したものではありません。",
+      "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
     ]
   }
 }

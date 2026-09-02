@@ -10,7 +10,9 @@ export {
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 export {
   buildMainWirePeriodicPvaMethodV8,
+  buildMainWirePeriodicPvaMethodV9,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   type MainWirePeriodicPvaV1,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {

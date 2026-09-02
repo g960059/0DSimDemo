@@ -1,6 +1,6 @@
 import type {
   Land2017SourceParameterSet,
-  Land2017StrongBridgeDeactivationExitV1,
+  Land2017StrongBridgeDeactivationExit,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
   LAND2017_STATE_INDEX,
@@ -147,19 +147,31 @@ export function land2017ZeroDistortionStrongToWeakRatioV1(
 
 function requireSelectedExtension(
   parameterSet: Land2017SourceParameterSet,
-): Land2017StrongBridgeDeactivationExitV1 {
+): Land2017StrongBridgeDeactivationExit {
   const extension = parameterSet.strongBridgeDeactivationExit;
   if (extension === undefined) {
     throw new Error(
       "Land 2017 strong-bridge deactivation-exit sidecar requires the active extension",
     );
   }
+  const identityValid =
+    extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1"
+      ? extension.maximumRatePerSec === 30
+      : extension.extensionId === "land2017-strong-bridge-deactivation-exit-v2"
+        && Number.isFinite(extension.maximumRatePerSec)
+        && extension.maximumRatePerSec > 0
+        && extension.maximumRatePerSec <= 500
+        && Number.isFinite(extension.cooperativeGatePower)
+        && extension.cooperativeGatePower >= 0.5
+        && extension.cooperativeGatePower <= 16;
   if (
-    extension.extensionId !== "land2017-strong-bridge-deactivation-exit-v1"
-    || extension.maximumRatePerSec !== 30
+    !identityValid
     || extension.calciumTroponinGate
       !== "TRPN50-power-over-TRPN50-power-plus-CaTRPN-power"
-    || extension.cooperativeGatePower !== 8
+    || (
+      extension.extensionId === "land2017-strong-bridge-deactivation-exit-v1"
+      && extension.cooperativeGatePower !== 8
+    )
     || extension.deactivationDirectionGate !== "none"
     || extension.strongPopulationGate
       !== "positive-excess-over-zero-distortion-equilibrium"

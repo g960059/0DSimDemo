@@ -216,6 +216,7 @@ export type AcceptedVentricularIntervalStrengthStateV1 = Readonly<{
   acceptedVentricularCaptureCount: number;
   normalizedSrLoadState: number;
   lastAcceptedVentricularActivation: CapturedElectricalActivationV2;
+  /** Null only at initialization or an accepted reference-rebind boundary. */
   lastDepositMetadata: VentricularIntervalStrengthDepositMetadataV1 | null;
 }>;
 
@@ -494,6 +495,39 @@ export function initializeAcceptedVentricularIntervalStrengthSteadyReferenceStat
   });
 }
 
+/**
+ * Starts a new reference-normalization epoch at one accepted boundary.
+ * The accepted clock, cumulative counters, current SR load, and last captured
+ * activation are retained exactly. The completed transition audit is closed
+ * rather than rewritten under the target reference; any already-emitted
+ * calcium deposit remains owned unchanged by the composed transaction queue.
+ */
+export function rebindAcceptedVentricularIntervalStrengthReferenceV1(
+  state: AcceptedVentricularIntervalStrengthStateV1,
+  targetConfiguration: AcceptedVentricularIntervalStrengthConfigurationV1,
+): AcceptedVentricularIntervalStrengthStateV1 {
+  validateAcceptedVentricularIntervalStrengthStateV1(state);
+  validateAcceptedVentricularIntervalStrengthConfigurationV1(
+    targetConfiguration,
+  );
+  assertReferenceOnlyRebindV1(state.configuration, targetConfiguration);
+  if (
+    canonicalJsonStringify(state.configuration)
+      === canonicalJsonStringify(targetConfiguration)
+  ) {
+    return state;
+  }
+
+  const ownedTarget = copyConfiguration(targetConfiguration);
+  const rebound = Object.freeze({
+    ...state,
+    configuration: ownedTarget,
+    lastDepositMetadata: null,
+  });
+  validateAcceptedVentricularIntervalStrengthStateV1(rebound);
+  return rebound;
+}
+
 export function evaluateAcceptedVentricularIntervalStrengthCandidateV1(
   acceptedState: AcceptedVentricularIntervalStrengthStateV1,
   input: AcceptedVentricularIntervalStrengthCandidateInputV1,
@@ -737,17 +771,21 @@ export function validateAcceptedVentricularIntervalStrengthStateV1(
     throw new Error("last accepted ventricular activation exceeds owner clock");
   }
 
-  if (count === 0) {
-    if (acceptedTimeSec !== initialAcceptedTimeSec
-      || load !== initialLoad
-      || canonicalJsonStringify(last) !== canonicalJsonStringify(initialPrior)
-      || state.lastDepositMetadata !== null) {
-      throw new Error("unadvanced interval-strength state is inconsistent");
+  if (state.lastDepositMetadata === null) {
+    if (count === 0) {
+      if (acceptedTimeSec !== initialAcceptedTimeSec
+        || load !== initialLoad
+        || canonicalJsonStringify(last)
+          !== canonicalJsonStringify(initialPrior)
+      ) {
+        throw new Error("unadvanced interval-strength state is inconsistent");
+      }
+    } else if (last.activationTimeSec !== acceptedTimeSec) {
+      throw new Error(
+        "interval-strength reference epoch must start at its last capture",
+      );
     }
     return;
-  }
-  if (state.lastDepositMetadata === null) {
-    throw new Error("advanced interval-strength state requires deposit metadata");
   }
   if (last.activationTimeSec !== acceptedTimeSec) {
     throw new Error(
@@ -773,8 +811,28 @@ function buildDepositMetadata(
   captured: CapturedElectricalActivationV2,
   normalizedSrLoadBefore: number,
 ): VentricularIntervalStrengthDepositMetadataV1 {
+  return buildDepositMetadataFromPriorLineage(
+    configuration,
+    ownerRevision,
+    ordinal,
+    previous.capturedActivationId,
+    previous.activationTimeSec,
+    captured,
+    normalizedSrLoadBefore,
+  );
+}
+
+function buildDepositMetadataFromPriorLineage(
+  configuration: AcceptedVentricularIntervalStrengthConfigurationV1,
+  ownerRevision: number,
+  ordinal: number,
+  previousCapturedActivationId: string,
+  previousCapturedActivationTimeSec: number,
+  captured: CapturedElectricalActivationV2,
+  normalizedSrLoadBefore: number,
+): VentricularIntervalStrengthDepositMetadataV1 {
   const intervalSec = requirePositiveComputedFinite(
-    captured.activationTimeSec - previous.activationTimeSec,
+    captured.activationTimeSec - previousCapturedActivationTimeSec,
     "interval-strength captured interval",
   );
   const isExactReferenceFixedPoint =
@@ -826,8 +884,8 @@ function buildDepositMetadata(
     ownerInstanceId: configuration.ownerInstanceId,
     ownerRevision,
     acceptedVentricularCaptureOrdinal: ordinal,
-    previousCapturedActivationId: previous.capturedActivationId,
-    previousCapturedActivationTimeSec: previous.activationTimeSec,
+    previousCapturedActivationId,
+    previousCapturedActivationTimeSec,
     capturedVentricularActivation: captured,
     intervalSec,
     recoveryFractionA,
@@ -839,6 +897,31 @@ function buildDepositMetadata(
     futureExactCalciumDepositRelativeStrength: releasedRelativeStrengthR,
     calciumStateMutation: "none-metadata-only" as const,
   });
+}
+
+function assertReferenceOnlyRebindV1(
+  source: AcceptedVentricularIntervalStrengthConfigurationV1,
+  target: AcceptedVentricularIntervalStrengthConfigurationV1,
+): void {
+  const allowedTarget = createAcceptedVentricularIntervalStrengthConfigurationV1({
+    configurationId: source.configurationId,
+    ownerInstanceId: source.ownerInstanceId,
+    parameterProvenance: {
+      kind: source.parameterProvenance.kind,
+      sourceId: source.parameterProvenance.sourceId,
+    },
+    recoveryTimeConstantSec: source.recoveryTimeConstantSec,
+    releaseFractionBeta: source.releaseFractionBeta,
+    releasedLoadReturnFractionR: source.releasedLoadReturnFractionR,
+    intervalInfluxInhibitionFractionH:
+      source.intervalInfluxInhibitionFractionH,
+    referenceCycleLengthSec: target.referenceCycleLengthSec,
+  });
+  if (canonicalJsonStringify(allowedTarget) !== canonicalJsonStringify(target)) {
+    throw new Error(
+      "interval-strength warm start changed more than reference-cycle normalization",
+    );
+  }
 }
 
 function validateDepositMetadata(

@@ -30,6 +30,9 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
+import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
   createMainWireFiveWallCoupledResidualWorkspaceV1,
@@ -67,8 +70,11 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
+  MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM,
+  MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM,
   MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+  type MainWireIntegratedModelAlgebraicProximalRootsFixtureV1,
   type MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
@@ -175,6 +181,9 @@ import {
   MainWireSelectedAorticPortSessionExtensionV1,
   type MainWireSelectedAorticPortSessionTicketV1,
 } from "@/engine/vnext/MainWireSelectedAorticPortSessionExtensionV1";
+import {
+  MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1,
+} from "@/engine/executionPlan/MainWireNumericalClockV1";
 
 export const MAIN_WIRE_INTEGRATED_TYPED_AUTHORITY_SESSION_V1_ID =
   "main-wire-integrated-typed-authority-session-v1" as const;
@@ -201,9 +210,12 @@ export type MainWireFlatCoupledSolverProfileV1 = Readonly<{
 type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
 type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<WallState>;
+type SelectedAorticOutflowRuntimeV1 =
+  | MainWireIntegratedModelSelectedAorticOutflowFixtureV1
+  | MainWireIntegratedModelAlgebraicProximalRootsFixtureV1;
 type SessionRuntime =
   | MainWireIntegratedModelRuntimeV3
-  | MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
+  | SelectedAorticOutflowRuntimeV1;
 type AdvanceFailureReason =
   | MainWireIntegratedModelStepFailureReasonV3
   | "substep-budget-exhausted"
@@ -349,6 +361,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
     selectedAorticPortExtension:
       MainWireSelectedAorticPortSessionExtensionV1 | null = null,
+    typedManifestTemplateAcceptedState?: AcceptedState,
   ) {
     const validateAcceptedState: AcceptedStateValidatorV1<AcceptedState> = (
       candidate,
@@ -431,7 +444,9 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     });
     this.#dynamicMechanicalSupportConfig = runtime.config;
     this.#authority = (
-      authorityFactory ?? typedAuthorityFactory(runtime.cold.acceptedState)
+      authorityFactory ?? typedAuthorityFactory(
+        typedManifestTemplateAcceptedState ?? runtime.cold.acceptedState,
+      )
     )(
       acceptedState,
       validateAcceptedState,
@@ -882,6 +897,78 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     this.assertSessionUsableV1();
     this.#executionPlanWorkspaceInstallationClosed = true;
     return this.advanceToPresentationTimeInternal(targetTimeSec, true);
+  }
+
+  /**
+   * Analysis-only readback path. Selected exact models need the same
+   * one-base-tick typed promotion used by their live presentation adapter;
+   * requesting a multi-tick public-object interval would bypass that admitted
+   * path. The analysis branch is ephemeral and still returns an ordinary
+   * observation without placing derived results in exact state.
+   */
+  advanceStructuralAnalysisToPresentationTimeV1(
+    targetTimeSec: number,
+  ): MainWireIntegratedModelPresentationAdvanceV3 {
+    const initial = this.currentAcceptedState();
+    if (targetTimeSec === initial.acceptedTimeSec) {
+      return Object.freeze({
+        status: "already-at-target" as const,
+        presentationTimeSec: targetTimeSec,
+        acceptedTimeSec: initial.acceptedTimeSec,
+        acceptedRevision: initial.revision,
+        internalAcceptedSubstepCount: 0 as const,
+        observation: this.observe(),
+      });
+    }
+    if (!Number.isFinite(targetTimeSec) || targetTimeSec < initial.acceptedTimeSec) {
+      return this.advanceToPresentationTime(targetTimeSec);
+    }
+
+    let ordinal = 1;
+    let internalAcceptedSubstepCount = 0;
+    let boundaryClippedSubstepCount = 0;
+    const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
+    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedState();
+      const ordinalTargetTimeSec = initial.acceptedTimeSec
+        + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
+      const nextTargetTimeSec = Math.min(
+        targetTimeSec,
+        ordinalTargetTimeSec,
+      );
+      if (!(nextTargetTimeSec > current.acceptedTimeSec)) {
+        return this.advanceToPresentationTime(targetTimeSec);
+      }
+      const projected = this.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        nextTargetTimeSec,
+        Object.freeze([]),
+      );
+      const advance = projected.advance;
+      if (advance.status !== "advanced") {
+        return advance.status === "already-at-target"
+          ? Object.freeze({
+              ...advance,
+              observation: this.observe(),
+            })
+          : advance;
+      }
+      internalAcceptedSubstepCount += advance.internalAcceptedSubstepCount;
+      boundaryClippedSubstepCount += advance.boundaryClippedSubstepCount;
+      substeps.push(...advance.substeps);
+      ordinal += 1;
+    }
+    const accepted = this.currentAcceptedState();
+    return Object.freeze({
+      status: "advanced" as const,
+      presentationTimeSec: targetTimeSec,
+      acceptedTimeSec: accepted.acceptedTimeSec,
+      acceptedRevision: accepted.revision,
+      acceptedRevisionSpanFromPrevious: accepted.revision - initial.revision,
+      internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount,
+      substeps: Object.freeze(substeps),
+      observation: this.observe(),
+    });
   }
 
   /**
@@ -2080,7 +2167,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
 
 function isSelectedAorticOutflowRuntimeV1(
   runtime: SessionRuntime,
-): runtime is MainWireIntegratedModelSelectedAorticOutflowFixtureV1 {
+): runtime is SelectedAorticOutflowRuntimeV1 {
   const vascular = runtime.runtime.vascular as Readonly<Record<string, unknown>>;
   const selectedProfile = vascular.selectedAorticOutflowProfile;
   if (
@@ -2089,7 +2176,50 @@ function isSelectedAorticOutflowRuntimeV1(
   ) {
     return false;
   }
-  const selected = runtime as MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
+  if (
+    runtime.fixedAssemblyId
+      === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+  ) {
+    const selected = runtime as
+      MainWireIntegratedModelAlgebraicProximalRootsFixtureV1;
+    const claim = selected.fixedAssemblyClaim;
+    const configuration = selected.rhythm.configuration;
+    return (
+      claim
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM
+      && claim.fixtureId
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+      && claim.ventricularMaterialProfileId
+        === MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID
+      && claim.aorticOutflowCirculationProfileId
+        === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID
+      && selected.runtime === selected.coronaryStepInput.runtime
+      && selectedProfile
+        === MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1
+      && vascular.algebraicProximalArterialRootsProfile
+        === MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1
+      && selected.provider.parameterSetId.includes(
+        MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+      )
+      && selected.coronaryStepInput.calciumDriveParams.parameterSetId
+        === MAIN_WIRE_VENTRICULAR_CALCIUM_MATCHED_ALPHA_EXACT_PERSISTENCE_V1_ID
+      && configuration.ventricularIntervalStrength.parameterProvenance.sourceId
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+      && configuration.avGateParameters.parameterProvenance.sourceId
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+      && configuration.distalGate.parameterProvenance.sourceId
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+      && configuration.ventricularBackup.parameterProvenance.sourceId
+        === MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID
+      && configuration.ventricularIntervalStrength.referenceCycleLengthSec
+        === selected.cycleLengthSec
+      && selected.rhythm.state.configuration === configuration
+      && selected.cold.acceptedState.composedRhythm.configuration
+        === configuration
+    );
+  }
+  const selected = runtime as
+    MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
   const claim = selected.fixedAssemblyClaim;
   const configuration = selected.rhythm.configuration;
   return (

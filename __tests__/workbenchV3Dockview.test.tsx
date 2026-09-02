@@ -46,6 +46,7 @@ import {
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
   workbenchInputMutationReplacedAcceptedClockV3,
+  workbenchRejectedControlCanResumeRuntimeV3,
   workbenchDurableContentAvailableV3,
   workbenchPublicationAvailableV3,
   workbenchScenarioRuntimeStatusV3,
@@ -535,7 +536,7 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("%</span>");
   });
 
-  it("renders the existing SA pressure triplet as one clinical pane item", async () => {
+  it("renders the source-topology Ao pressure triplet as one clinical pane item", async () => {
     const { contract } = (await loadStudioDefaultClientCompositionV2())
       .modelSurface;
     const pane = createDefaultExperimentSurfaceV3(contract, "scenario/a")
@@ -554,16 +555,16 @@ describe("V3 Dockview Workbench", () => {
       acceptedRevision: 1,
       acceptedTimeSec: 1,
       outputs: {
-        "hemodynamics.pressure.systolic.SA": available(
-          "hemodynamics.pressure.systolic.SA",
+        "hemodynamics.pressure.systolic.Ao": available(
+          "hemodynamics.pressure.systolic.Ao",
           94.6,
         ),
-        "hemodynamics.pressure.diastolic.SA": available(
-          "hemodynamics.pressure.diastolic.SA",
+        "hemodynamics.pressure.diastolic.Ao": available(
+          "hemodynamics.pressure.diastolic.Ao",
           63.8,
         ),
-        "hemodynamics.pressure.mean.SA": available(
-          "hemodynamics.pressure.mean.SA",
+        "hemodynamics.pressure.mean.Ao": available(
+          "hemodynamics.pressure.mean.Ao",
           73.1,
         ),
       },
@@ -578,11 +579,11 @@ describe("V3 Dockview Workbench", () => {
     });
     const arterialPressure = items.find(
       ({ itemId }) =>
-        itemId === "presentation.pressure-summary.SA",
+        itemId === "presentation.pressure-summary.Ao",
     );
 
     expect(arterialPressure).toMatchObject({
-      label: "体動脈圧 (ABP)",
+      label: "大動脈圧 (AoP)",
       displayValue: "94.6/63.8(73.1)",
       unit: "mmHg",
       availability: "available",
@@ -599,7 +600,7 @@ describe("V3 Dockview Workbench", () => {
     expect(
       items.some(
         ({ itemId }) =>
-          itemId === "hemodynamics.pressure.systolic.SA",
+          itemId === "hemodynamics.pressure.systolic.Ao",
       ),
     ).toBe(false);
   });
@@ -761,6 +762,43 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toMatch(
       /(?:View model documentation|数理モデルの詳細を見る)/,
     );
+  });
+
+  it("shows a compact model-ID baseline gate summary only when supplied", async () => {
+    const composition = await loadStudioDefaultClientCompositionV2();
+    const contract = composition.modelSurface.contract;
+    const markup = renderToStaticMarkup(
+      <WorkbenchSimulationInfoPanelV3
+        activeTab="model"
+        currentModelId={contract.modelId}
+        limitations={[]}
+        models={[{
+          contract,
+          publicName: "Integrated haemodynamic model",
+          shortLabel: "Main Wire Standard 68",
+          description: "Human-readable model description",
+          baselineValidation: {
+            summary: "Period-1 convergence confirmed",
+            items: [{
+              itemId: "tei-index",
+              label: "Tei index",
+              value: "0.60",
+              detail: "Required range: 0.29–0.65",
+            }],
+          },
+        }]}
+        onClose={() => undefined}
+        onTabChange={() => undefined}
+        scenarios={[]}
+      />,
+    );
+
+    expect(markup).toContain(
+      'data-testid="workbench-baseline-validation-v3"',
+    );
+    expect(markup).toContain("Tei index");
+    expect(markup).toContain("0.60");
+    expect(markup).toContain("Required range: 0.29–0.65");
   });
 
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {
@@ -1316,7 +1354,7 @@ describe("V3 Dockview Workbench", () => {
     ).not.toBe(modelLimitationsAcknowledgementKey("model/dev-3:disclosure-v1"));
   });
 
-  it("starts the production Workbench with raw LV PV and a six-second pressure sweep", async () => {
+  it("starts the production Workbench with raw LV PV, Starling, and a six-second pressure sweep", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const surface = createDefaultExperimentSurfaceV3(
       composition.modelSurface.contract,
@@ -1338,15 +1376,19 @@ describe("V3 Dockview Workbench", () => {
         seriesIds: ["LV"],
       },
       {
+        graphId: "hemodynamics.guyton-starling",
+        seriesIds: [],
+      },
+      {
         graphId: "hemodynamics.pressure.waveform.comprehensive-v1",
         seriesIds: ["AoP", "LVP", "LAP"],
       },
     ]);
     expect(outputPane.items.map(({ outputId }) => outputId)).toEqual([
       "rhythm.heart-rate.instantaneous",
-      "hemodynamics.pressure.systolic.SA",
-      "hemodynamics.pressure.diastolic.SA",
-      "hemodynamics.pressure.mean.SA",
+      "hemodynamics.pressure.systolic.Ao",
+      "hemodynamics.pressure.diastolic.Ao",
+      "hemodynamics.pressure.mean.Ao",
       "hemodynamics.pressure.systolic.PA",
       "hemodynamics.pressure.diastolic.PA",
       "hemodynamics.pressure.mean.PA",
@@ -1366,9 +1408,15 @@ describe("V3 Dockview Workbench", () => {
     expect(outputPane.binding).toEqual({ mode: "active-slot" });
     expect(controlPane.items.map(({ controlId }) => controlId)).toEqual([
       "rhythm.heart-rate-bpm",
+      "hemodynamics.total-blood-volume-ml",
+      "hemodynamics.systemic-resistance",
+      "hemodynamics.pulmonary-resistance",
+      "hemodynamics.venous-tone",
+      "myocardium.active-tension-scale.LVFW",
+      "myocardium.passive-stiffness-scale.LVFW",
     ]);
     expect(controlPane.items.length).toBeGreaterThan(0);
-    expect(graphPanes).toHaveLength(2);
+    expect(graphPanes).toHaveLength(3);
     expect(graphPanes[0]?.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
     expect("showPressureEnvelope" in graphPanes[0]!).toBe(false);
     expect(Object.isFrozen(graphPanes)).toBe(true);
@@ -1443,7 +1491,7 @@ describe("V3 Dockview Workbench", () => {
     ).toBe(true);
   });
 
-  it("keeps raw PV defaults free of formal-periodic and Envelope semantics", async () => {
+  it("keeps the raw PV pane free of formal semantics while Starling retains its analysis", async () => {
     const composition = await loadStudioDefaultClientCompositionV2();
     const contract = composition.modelSurface.contract;
     const rawSurface = createDefaultExperimentSurfaceV3(
@@ -1459,7 +1507,9 @@ describe("V3 Dockview Workbench", () => {
     expect("showPressureEnvelope" in rawPv).toBe(false);
     expect(
       workbenchStructuralHistoryAnalysisIdsV3(rawSurface, contract),
-    ).toEqual([]);
+    ).toEqual([
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+    ]);
 
     const legacyFormalSurface = {
       ...rawSurface,
@@ -2381,6 +2431,24 @@ describe("V3 Dockview Workbench", () => {
   it("labels every concurrently simulated Scenario from global playback", () => {
     expect(workbenchScenarioRuntimeStatusV3(true)).toBe("Live");
     expect(workbenchScenarioRuntimeStatusV3(false)).toBe("Paused");
+  });
+
+  it("keeps only wholly rejected recoverable control transactions live", () => {
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 1,
+      acceptedCount: 0,
+      everyRejectionRecoverable: true,
+    })).toBe(true);
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 2,
+      acceptedCount: 1,
+      everyRejectionRecoverable: true,
+    })).toBe(false);
+    expect(workbenchRejectedControlCanResumeRuntimeV3({
+      dispatchedCount: 1,
+      acceptedCount: 0,
+      everyRejectionRecoverable: false,
+    })).toBe(false);
   });
 
   it("restores the accepted control value after a rejected commit", async () => {

@@ -571,8 +571,11 @@ function validateCompatiblePeriodicStates(
   }
   const expectedElapsedTimeSec = windowIndexAdvance
     * currentBinding.windowPolicy.durationSec;
-  const elapsedTimeSec = current.acceptedTimeSec - reference.acceptedTimeSec;
-  if (!nearlyEqual(elapsedTimeSec, expectedElapsedTimeSec)) {
+  if (!acceptedClockAdvanceMatchesV3(
+    current.acceptedTimeSec,
+    reference.acceptedTimeSec,
+    expectedElapsedTimeSec,
+  )) {
     throw new Error(
       "coronary V3 periodic closure window-index advance differs from physical time",
     );
@@ -906,6 +909,20 @@ function assertExactKeys(
 function nearlyEqual(left: number, right: number): boolean {
   return Math.abs(left - right) <= 64 * Number.EPSILON
     * Math.max(1, Math.abs(left), Math.abs(right));
+}
+
+function acceptedClockAdvanceMatchesV3(
+  currentAcceptedTimeSec: number,
+  referenceAcceptedTimeSec: number,
+  expectedAdvanceSec: number,
+): boolean {
+  return Math.abs(
+    (currentAcceptedTimeSec - referenceAcceptedTimeSec) - expectedAdvanceSec,
+  ) <= 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(currentAcceptedTimeSec),
+    Math.abs(referenceAcceptedTimeSec),
+  );
 }
 
 function requirePositiveFinite(value: number, label: string): void {

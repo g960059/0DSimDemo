@@ -40,6 +40,7 @@ const requiredBoundaryPaths = [
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.artifact.mjs",
   "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json",
   "studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json",
+  "studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json",
   "studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
 ];
 const portableTextExtensions = new Set([

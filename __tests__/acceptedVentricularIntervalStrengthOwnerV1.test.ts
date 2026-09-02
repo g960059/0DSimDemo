@@ -9,6 +9,7 @@ import {
   evaluateAcceptedVentricularIntervalStrengthCandidateV1,
   initializeAcceptedVentricularIntervalStrengthStateV1,
   initializeAcceptedVentricularIntervalStrengthSteadyReferenceStateV1,
+  rebindAcceptedVentricularIntervalStrengthReferenceV1,
   rollbackAcceptedVentricularIntervalStrengthCandidateV1,
   validateAcceptedVentricularIntervalStrengthStateV1,
   type AcceptedVentricularIntervalStrengthConfigurationV1,
@@ -157,6 +158,67 @@ describe("accepted ventricular interval-strength owner V1", () => {
     );
     expect(evaluate(longState, capture("long-beat", 0, 2))
       .depositMetadata.releasedRelativeStrengthR).toBeGreaterThan(1);
+  });
+
+  it("starts a target-reference epoch without rewriting accepted memory", () => {
+    const sourceConfiguration = configuration();
+    const initial = initialState(sourceConfiguration);
+    const source = commitAcceptedVentricularIntervalStrengthCandidateV1(
+      initial,
+      evaluate(
+        initial,
+        capture("source-reference", 0, 2),
+      ),
+    );
+    const targetConfiguration = configuration({
+      referenceCycleLengthSec: 0.8,
+    });
+    const rebound = rebindAcceptedVentricularIntervalStrengthReferenceV1(
+      source,
+      targetConfiguration,
+    );
+
+    expect(rebound.acceptedTimeSec).toBe(source.acceptedTimeSec);
+    expect(rebound.revision).toBe(source.revision);
+    expect(rebound.acceptedVentricularCaptureCount)
+      .toBe(source.acceptedVentricularCaptureCount);
+    expect(rebound.normalizedSrLoadState).toBe(source.normalizedSrLoadState);
+    expect(rebound.lastAcceptedVentricularActivation)
+      .toEqual(source.lastAcceptedVentricularActivation);
+    expect(rebound.initialAcceptedTimeSec).toBe(source.initialAcceptedTimeSec);
+    expect(rebound.initialNormalizedSrLoadState)
+      .toBe(source.initialNormalizedSrLoadState);
+    expect(rebound.initialPriorAcceptedVentricularActivation)
+      .toEqual(source.initialPriorAcceptedVentricularActivation);
+    expect(rebound.lastDepositMetadata).toBeNull();
+    expect(rebound.configuration.referenceCycleLengthSec).toBe(0.8);
+    expect(() => validateAcceptedVentricularIntervalStrengthStateV1(rebound))
+      .not.toThrow();
+    const targetCandidate = evaluate(
+      rebound,
+      capture("target-cycle", 0.8, 3),
+    );
+    expect(targetCandidate.depositMetadata
+      .futureExactCalciumDepositRelativeStrength).toBeGreaterThan(0);
+    const targetCommitted =
+      commitAcceptedVentricularIntervalStrengthCandidateV1(
+        rebound,
+        targetCandidate,
+      );
+    expect(targetCommitted.revision).toBe(source.revision + 1);
+    expect(targetCommitted.acceptedVentricularCaptureCount)
+      .toBe(source.acceptedVentricularCaptureCount + 1);
+    expect(targetCommitted.lastDepositMetadata
+      ?.acceptedVentricularCaptureOrdinal)
+      .toBe(source.acceptedVentricularCaptureCount + 1);
+
+    expect(() => rebindAcceptedVentricularIntervalStrengthReferenceV1(
+      source,
+      configuration({
+        referenceCycleLengthSec: 0.8,
+        releaseFractionBeta: 0.6,
+      }),
+    )).toThrow(/more than reference-cycle normalization/);
   });
 
   it("produces the preregistered weak-extrasystole then potentiated-postbeat shape", () => {

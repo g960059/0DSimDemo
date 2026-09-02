@@ -34,6 +34,10 @@ import {
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
   type MainWireIntegratedModelSelectedAorticOutflowFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  forkMainWireIntegratedModelAtFixedTbvV3,
+  forkMainWireIntegratedModelResponsiveStarlingV3,
+} from "@/engine/myocardium/MainWireIntegratedModelFixedTbvForkV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
@@ -76,6 +80,9 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
 
   readonly #selectedAorticPortExtension:
     MainWireSelectedAorticPortSessionExtensionV1;
+  readonly #runtime: MainWireIntegratedModelSelectedAorticOutflowFixtureV1;
+  readonly #executionPlanInitialization:
+    MainWireTypedExecutionPlanInitializationV1 | undefined;
   readonly #checkpointContext:
     MainWireIntegratedModelStandard66CheckpointContextV1;
 
@@ -85,16 +92,28 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
       MainWireSelectedAorticPortSessionExtensionV1,
     executionPlanInitialization?: MainWireTypedExecutionPlanInitializationV1,
     restored: RestoredStandard66V1 | null = null,
+    analysisForkAcceptedState: ReturnType<
+      typeof forkMainWireIntegratedModelAtFixedTbvV3
+    > | null = null,
   ) {
     super(
       runtime,
-      restored?.acceptedState ?? runtime.cold.acceptedState,
-      restored === null ? "cold" : "standard-exact-checkpoint-restore",
+      analysisForkAcceptedState
+        ?? restored?.acceptedState
+        ?? runtime.cold.acceptedState,
+      analysisForkAcceptedState !== null
+        ? "fixed-tbv-protocol-fork"
+        : restored === null
+          ? "cold"
+          : "standard-exact-checkpoint-restore",
       null,
-      restored ?? undefined,
+      analysisForkAcceptedState === null ? restored ?? undefined : undefined,
       executionPlanInitialization,
       selectedAorticPortExtension,
+      analysisForkAcceptedState ?? undefined,
     );
+    this.#runtime = runtime;
+    this.#executionPlanInitialization = executionPlanInitialization;
     this.#selectedAorticPortExtension = selectedAorticPortExtension;
     this.#checkpointContext =
       createMainWireIntegratedModelStandard66CheckpointContextV1({
@@ -313,6 +332,57 @@ export class MainWireIntegratedModelStandard66TypedAuthoritySessionV1 extends
       await standard66CheckpointPromise,
       coupledPredictor,
     );
+  }
+
+  forkAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStandard66TypedAuthoritySessionV1 {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelAtFixedTbvV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl,
+      }),
+      targetGlobalTotalBloodVolumeMl
+        === source.coronary.fixedGlobalTotalBloodVolumeMl,
+    );
+  }
+
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStandard66TypedAuthoritySessionV1 {
+    const source = this.currentAcceptedState();
+    return this.#analysisForkV1(
+      forkMainWireIntegratedModelResponsiveStarlingV3({
+        source,
+        runtime: this.#runtime,
+        targetGlobalTotalBloodVolumeMl,
+      }),
+      targetGlobalTotalBloodVolumeMl
+        === source.coronary.fixedGlobalTotalBloodVolumeMl,
+    );
+  }
+
+  #analysisForkV1(
+    acceptedState: ReturnType<
+      typeof forkMainWireIntegratedModelAtFixedTbvV3
+    >,
+    retainCoupledPredictor: boolean,
+  ): MainWireIntegratedModelStandard66TypedAuthoritySessionV1 {
+    const fork = new MainWireIntegratedModelStandard66TypedAuthoritySessionV1(
+      this.#runtime,
+      MainWireSelectedAorticPortSessionExtensionV1.createColdV1(),
+      this.#executionPlanInitialization,
+      null,
+      acceptedState,
+    );
+    if (retainCoupledPredictor) {
+      fork.restoreSelectedAorticCoupledPredictorV1(
+        this.checkpointSelectedAorticCoupledPredictorV1(),
+      );
+    }
+    return fork;
   }
 
   #projectCurrentSelectedAorticPortValuesV1(

@@ -304,6 +304,26 @@
         "integratedModelDescription": "A 0D research and education model integrating ventricular interaction, systemic and pulmonary circulation, coronary circulation, and cardiac rhythm.",
         "validationTitle": "Verification and validity",
         "validationDescription": "Current automated checks cover finite numerical values, blood-volume conservation, and event consistency. They do not establish physiological or clinical validity.",
+        "baselineValidationTitle": "Mathematical model baseline verification",
+        "baselineValidationSummary": "Period-1 convergence confirmed when minting the model ID ({{cycles}} cycles)",
+        "baselineLvp": "LVP waveform",
+        "baselineRvp": "RVP waveform",
+        "baselineSingleRounded": "Single, rounded peak",
+        "baselineAvGradient": "AV mean / peak PG",
+        "baselineMorphologyDetail": "{{peaks}} significant peak; roundness index {{roundness}} (required 0.08–0.35)",
+        "baselineRangeDetail": "Required range: {{range}}",
+        "baselineIndexedVolumesDetail": "Valve-closure EDVI/ESVI indexed to BSA 1.9 m². Required range: {{range}}. Exact equivalence to an imaging modality is not claimed.",
+        "baselineIndexedFlowDetail": "Native aortic forward flow indexed to BSA 1.9 m². Required range: {{range}}.",
+        "baselineAvGradientDetail": "Required exact hydraulic-gradient range: {{range}}",
+        "baselineAorticPressureDetail": "Completed-beat Ao-node maximum/minimum. Required range: {{range}}. Exact equivalence to peripheral brachial pressure or a waveform with reflections is not claimed.",
+        "baselinePulmonaryPressureDetail": "Completed-beat PAP maximum/minimum, mean RAP (CVP), and mean LAP (PCWP* surrogate). Required range: {{range}}. *A wedged catheter is not modeled.",
+        "baselineLvDpDtDetail": "Required accepted-step absolute-LVP range: {{range}}",
+        "baselineIctIrtDetail": "Required waveform-analysis range: {{range}}",
+        "baselinePreloadReserve": "Preload reserve",
+        "baselineBidirectionalPassed": "Passed at low and high volume",
+        "baselinePreloadReserveDetail": "Fixed-control formal period-1 settlement at −{{low}}% / +{{high}}% TBV. Output falls on the low-volume side (LV {{lowLv}} / RV {{lowRv}}) and rises on the high-volume side (LV {{highLv}} / RV {{highRv}} L/min); each change is at least 5% of baseline, pressure–flow slope is at least 0.05 L/min/mmHg, and EDV changes by at least 2%. This is not validation of a clinical fluid challenge.",
+        "baselineTransmuralResponse": "ED transmural response",
+        "baselineTransmuralResponseDetail": "Maximum-volume ED transmural pressure falls at low volume (LV {{lowLv}} / RV {{lowRv}} mmHg) and rises at high volume (LV {{highLv}} / RV {{highRv}} mmHg). EDV is required to move in the same direction.",
         "limitationsTitle": "Limitations",
         "modelDocumentation": "View model documentation",
         "chooseModel": "Change mathematical model"
@@ -393,7 +413,7 @@
       "scenarioManager": {
         "addFromPreset": "Add from Preset",
         "baseColor": "Base color for new traces",
-        "baselinePresetTitle": "Startup baseline",
+        "baselinePresetTitle": "Baseline",
         "baselinePresetDescription": "Exact fixture and checkpoint captured when this simulation opened.",
         "busy": "A Scenario operation is running",
         "close": "Close Scenario inspector",
@@ -686,6 +706,22 @@
       "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
       "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
       "Numerical verification and baseline characterization do not establish physiological or clinical validation."
+    ],
+    "standard67Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the recovered proximal aortic constitutive-port pressure and ABP is systemic arterial compartment pressure; neither is a literal catheter or cuff measurement station.",
+      "The Ao–SA and PA–PArt roots use algebraic flow laws retaining resistance and quadratic loss. They contain no local inertance, spatial wave travel, or reflection and must not be interpreted as site-resolved arterial traces.",
+      "PV panes show the raw accepted exact orbit. This Surface does not provide formal PVA or Guyton / Starling analysis.",
+      "Changing heart rate starts a new exact trajectory at time zero; it does not simulate a within-run chronotropic transition.",
+      "Removal of root ringing, numerical verification, and baseline characterization do not establish physiological or clinical validation."
+    ],
+    "standard68Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
+      "The proximal systemic and pulmonary arteries use the source 0D momentum/compliance topology. It does not represent spatial wave travel or reflection and must not be interpreted as site-resolved arterial traces.",
+      "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
+      "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
+      "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
     ]
   }
 }

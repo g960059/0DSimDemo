@@ -10,6 +10,10 @@ import {
   MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import {
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -168,6 +172,39 @@ export const MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_CLAIM
       "canonical-provider-and-absent-selected-aortic-outflow-profile" as const,
     parameterSearchOrFitting: false as const,
     clinicalValidationClaimed: false as const,
+  });
+
+export const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID =
+  "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1" as const;
+
+/** Fixed successor assembly; the only numerical change from Standard66 is L=0
+ * on Ao_SA and PA_PArt. Existing R, B, compliance, valve, calcium, rhythm,
+ * myocardial, coronary, and device semantics are retained exactly. */
+export const MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM =
+  Object.freeze({
+    fixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+    predecessorFixtureId:
+      MAIN_WIRE_INTEGRATED_MODEL_SELECTED_AORTIC_OUTFLOW_FIXTURE_V1_ID,
+    ventricularMaterialProfileId:
+      MAIN_WIRE_VENTRICULAR_LAND_ET_RELAXATION_PROFILE_V1_ID,
+    aorticOutflowCirculationProfileId:
+      MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1_ID,
+    proximalArterialRootsProfileId:
+      MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1_ID,
+    regularSinusProfileId:
+      MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+    composedRhythmCalciumOwner:
+      "accepted-exact-event-matched-alpha-state" as const,
+    calciumDecayTimeScaleResearchInput:
+      "fixed-unit-only-to-preserve-selected-matched-alpha-law" as const,
+    changedMomentumEdges: Object.freeze(["Ao_SA", "PA_PArt"] as const),
+    sourceResistanceAndQuadraticLossPreserved: true as const,
+    newContinuousStateAdded: false as const,
+    acceptedRootFlowRecords:
+      "same-step-exact-readback-not-next-step-memory" as const,
+    parameterSearchOrFitting: false as const,
+    physiologicalValidationClaimed: false as const,
   });
 
 export type MainWireIntegratedModelPeriodicExecutionPurposeV3 =
@@ -432,6 +469,10 @@ export type MainWireIntegratedModelSelectedAorticOutflowFixtureV1 = ReturnType<
   typeof createMainWireIntegratedModelSelectedAorticOutflowFixtureV1
 >;
 
+export type MainWireIntegratedModelAlgebraicProximalRootsFixtureV1 = ReturnType<
+  typeof createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1
+>;
+
 /**
  * Opts into the fixed Land / recovered-root circulation / matched-alpha
  * regular-sinus assembly while retaining its admitted cold-fixture coordinates.
@@ -493,7 +534,69 @@ export function createMainWireIntegratedModelSelectedAorticOutflowFixtureV1(
   });
 }
 
-function prepareMainWireIntegratedModelFixtureInputsV3(
+/**
+ * Production candidate distilled from the causal root-inertance ablation.
+ * This remains a fixed construction rather than a user-selectable model axis.
+ */
+export function createMainWireIntegratedModelAlgebraicProximalRootsFixtureV1(
+  requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+  ventricularContractilityScale = 1,
+  requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
+) {
+  const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
+    requestedHemodynamicResearchInputs,
+    ventricularContractilityScale,
+    requestedMechanismResearchInputs,
+  );
+  assertSelectedMatchedAlphaCompatibleCalciumScalesV1(
+    prepared.chamberMechanics,
+  );
+  const fixture = assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3(
+    prepared,
+    {
+      createProvider: () =>
+        createMainWireNormalAdultFiveWallProviderWithVentricularLandEtRelaxationProfileAndMechanicsResearchInputsV1(
+          prepared.chamberMechanics,
+        ),
+      createVascularRuntime: () => Object.freeze({
+        venousTone: prepared.hemodynamicResearchInputs.venousTone,
+        arterialStiffness:
+          prepared.hemodynamicResearchInputs.arterialStiffness,
+        selectedAorticOutflowProfile:
+          MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1,
+        algebraicProximalArterialRootsProfile:
+          MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+      }),
+      createCalciumDriveParams: () =>
+        resolveMainWireVentricularCalciumMatchedAlphaExactPersistenceV1(
+          prepared.hemodynamicResearchInputs.heartRateBpm,
+        ),
+      createRhythm: (cycleLengthSec) =>
+        createMainWireIntegratedRegularSinusRhythmV3(
+          {
+            idPrefix: "algebraic-proximal-roots-v1",
+            parameterProvenanceSourceId:
+              MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+            cycleLengthSec,
+          },
+          {
+            profileId:
+              MAIN_WIRE_INTEGRATED_MATCHED_ALPHA_FIXED_REGULAR_SINUS_PROFILE_V1_ID,
+            heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm,
+          },
+        ),
+    },
+  );
+  return Object.freeze({
+    ...fixture,
+    fixedAssemblyId:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_ID,
+    fixedAssemblyClaim:
+      MAIN_WIRE_INTEGRATED_MODEL_ALGEBRAIC_PROXIMAL_ROOTS_FIXTURE_V1_CLAIM,
+  });
+}
+
+export function prepareMainWireIntegratedModelFixtureInputsV3(
   requestedHemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   ventricularContractilityScale: number,
   requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
@@ -525,7 +628,7 @@ function prepareMainWireIntegratedModelFixtureInputsV3(
   });
 }
 
-function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
+export function assembleMainWireIntegratedModelRegularSinusAllOffFixtureV3<
   TVascularRuntime extends Readonly<{
     venousTone: number;
     arterialStiffness: number;
@@ -1155,6 +1258,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   initial: AcceptedState,
   cycleIndex: number,
   nominalDtSec: number,
+  acceptedStepObserver?: (step: SuccessfulStep) => void,
 ): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
   assertPeriodicNominalDtSec(nominalDtSec);
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
@@ -1164,7 +1268,11 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   const windowPolicy =
     initial.coronary.coronaryAutoregulationBinding.windowPolicy;
   const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  // The autoregulation owner defines the exact accepted boundary. Rebuilding
+  // it by repeatedly adding a non-binary regular-sinus period can differ by a
+  // few ulps and request a step across that boundary at non-integer rates.
+  const endTimeSec = windowPolicy.originAcceptedTimeSec
+    + (window.windowIndex + 1) * windowPolicy.durationSec;
   if (
     startTimeSec !== window.windowStartAcceptedTimeSec ||
     window.acceptedDurationSec !== 0 ||
@@ -1237,6 +1345,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       );
     }
     accepted = stepped.acceptedState;
+    acceptedStepObserver?.(stepped);
     acceptedStepCount += 1;
     if (Math.abs(accepted.acceptedTimeSec - nominalTargetTimeSec) <= 1e-14) {
       nominalGridIndex += 1;
@@ -1319,7 +1428,15 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     completions[0]!.endTimeSec !== endTimeSec ||
     !nearlyEqual(completions[0]!.acceptedDurationSec, fixture.cycleLengthSec)
   ) {
-    throw new Error("V3 periodic cycle/coronary window boundary differs");
+    throw new Error(
+      "V3 periodic cycle/coronary window boundary differs: "
+        + JSON.stringify({
+          acceptedTimeSec: accepted.acceptedTimeSec,
+          endTimeSec,
+          expectedWindowIndex,
+          completions,
+        }),
+    );
   }
   if (!oneComposedCalciumOwnerOnly) {
     throw new Error("V3 periodic cycle detected split calcium ownership");
@@ -1427,7 +1544,10 @@ function buildCycleSummary(
     deliveredCalciumDepositIds: run.deliveredCalciumDepositIds,
     conservation,
     finiteAndEventIdentityChecks,
-    rawHealthyMetrics: rawHealthyMetrics(run.traceSamples),
+    rawHealthyMetrics: rawHealthyMetrics(
+      run.traceSamples,
+      run.endTimeSec - run.startTimeSec,
+    ),
   });
 }
 
@@ -1516,6 +1636,7 @@ function traceSample(
 
 function rawHealthyMetrics(
   samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
+  expectedCycleDurationSec: number,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3["metric"] {
   if (samples.length === 0)
     throw new Error("healthy metrics require raw samples");
@@ -1529,7 +1650,7 @@ function rawHealthyMetrics(
     (sum, sample) => sum + sample.acceptedDtSec,
     0,
   );
-  if (!nearlyEqual(durationSec, 1)) {
+  if (!nearlyEqual(durationSec, expectedCycleDurationSec)) {
     throw new Error("healthy metrics raw trace does not span one cycle");
   }
   const nativeAorticForwardVolumeMl = samples.reduce(
@@ -1567,7 +1688,10 @@ function healthyReferenceProjection(
   executionPurpose: MainWireIntegratedModelPeriodicExecutionPurposeV3,
   numericalPeriod1Established: boolean,
 ): MainWireIntegratedModelHealthyReferenceProjectionV3 {
-  const metric = rawHealthyMetrics(trace.samples);
+  const metric = rawHealthyMetrics(
+    trace.samples,
+    trace.endTimeSec - trace.startTimeSec,
+  );
   const eligible =
     executionPurpose === "canonical-evidence" && numericalPeriod1Established;
   const valueByMetricId: Readonly<Record<string, number>> = Object.freeze({

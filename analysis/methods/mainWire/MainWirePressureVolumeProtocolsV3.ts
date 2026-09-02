@@ -10,9 +10,13 @@ import type {
   MainWireIntegratedModelPressureVolumeLandmarkV3,
   MainWireIntegratedModelVentricularPressureVolumeLandmarksV3,
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
+import type {
+  MainWireIntegratedModelOutputIdV3,
+  MainWireIntegratedModelOutputValueV3,
+} from "@/engine/myocardium/MainWireIntegratedModelOutputRegistryV3";
 import {
   type MainWireIntegratedModelObservationV3,
-  MainWireIntegratedModelSessionV3,
+  type MainWireIntegratedModelSessionV3,
 } from "@/engine/myocardium/MainWireIntegratedModelSessionV3";
 import type { MainWireIntegratedModelHemodynamicResearchInputsV3 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
@@ -54,6 +58,95 @@ export const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PE
 
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID =
+  "main-wire-integrated-model-formal-fixed-tone-preload-reserve-qualification-v1" as const;
+
+/**
+ * A release gate, not a clinical fluid-challenge claim. Symmetric fixed-tone
+ * endpoints establish reserve on both sides of the operating point. Flow,
+ * filling pressure, maximum-volume EDV, and ED transmural pressure must all
+ * move in the physiologically expected direction for both ventricles.
+ */
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 =
+  Object.freeze({
+    hypovolemicGlobalTbvScale: 0.88 as const,
+    hypervolemicGlobalTbvScale: 1.12 as const,
+    minimumDirectionalFillingPressureChangeMmHg: 1 as const,
+    minimumDirectionalCardiacOutputChangeLPerMin: 0.05 as const,
+    minimumDirectionalCardiacOutputChangeFraction01: 0.02 as const,
+    minimumCardiacOutputSlopeLPerMinPerMmHg: 0.015 as const,
+    minimumDirectionalEndDiastolicVolumeChangeMl: 1 as const,
+    minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.02 as const,
+    minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg: 0.25 as const,
+  });
+
+/**
+ * Minimal numerical seam required by structural preload-family analyses.
+ * Exact model generations may implement it without exposing analysis results
+ * in their accepted state or checkpoint ABI.
+ */
+export interface MainWireIntegratedModelStructuralAnalysisSessionV3 {
+  currentAcceptedState(): ReturnType<
+    MainWireIntegratedModelSessionV3["currentAcceptedState"]
+  >;
+  observe(): MainWireIntegratedModelObservationV3;
+  advanceToPresentationTime(
+    targetTimeSec: number,
+  ): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>;
+  advanceStructuralAnalysisToPresentationTimeV1?(
+    targetTimeSec: number,
+  ): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>;
+  /**
+   * Optional exact-model projection seam for lean accepted steps, where the
+   * large internal step object is deliberately not retained. Analysis owns
+   * the derived loop; the model only supplies clock-matched primitive values.
+   */
+  projectCurrentAcceptedValuesV1?(
+    outputIds: readonly MainWireIntegratedModelOutputIdV3[],
+  ): Readonly<Record<string, MainWireIntegratedModelOutputValueV3>>;
+  forkAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStructuralAnalysisSessionV3;
+  forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
+    targetGlobalTotalBloodVolumeMl: number,
+  ): MainWireIntegratedModelStructuralAnalysisSessionV3;
+}
+
+function advanceStructuralAnalysisSessionV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  targetTimeSec: number,
+): ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]> {
+  return session.advanceStructuralAnalysisToPresentationTimeV1?.(
+    targetTimeSec,
+  ) ?? session.advanceToPresentationTime(targetTimeSec);
+}
+
+type AdvancedStructuralAnalysisStepV3 = Extract<
+  ReturnType<MainWireIntegratedModelSessionV3["advanceToPresentationTime"]>,
+  Readonly<{ status: "advanced" }>
+>;
+
+function attemptStructuralAnalysisAdvanceV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  targetTimeSec: number,
+):
+  | Readonly<{ status: "advanced"; advance: AdvancedStructuralAnalysisStepV3 }>
+  | RejectedBranchV3 {
+  try {
+    const advance = advanceStructuralAnalysisSessionV3(session, targetTimeSec);
+    if (advance.status !== "advanced") {
+      return rejectedV3(
+        advance.status === "failed"
+          ? advance.message
+          : `unexpected structural analysis advance status ${advance.status}`,
+      );
+    }
+    return Object.freeze({ status: "advanced" as const, advance });
+  } catch (error) {
+    return rejectedV3(error);
+  }
+}
 
 /**
  * PVA becomes available after one settled anchor, three lower-preload points,
@@ -158,6 +251,12 @@ const DESCENDING_LIMB_ABSOLUTE_DROP_L_PER_MIN_V3 = 0.15;
 const DESCENDING_LIMB_RELATIVE_DROP_V3 = 0.03;
 const DESCENDING_LIMB_STEP_TOLERANCE_L_PER_MIN_V3 = 0.01;
 const MINIMUM_PRESSURE_VOLUME_LOOP_SAMPLE_COUNT_V3 = 12;
+const STRUCTURAL_PRESSURE_VOLUME_OUTPUT_IDS_V3 = Object.freeze([
+  "hemodynamics.volume.LV",
+  "hemodynamics.pressure.transmural.LV",
+  "hemodynamics.volume.RV",
+  "hemodynamics.pressure.transmural.RV",
+] as const satisfies readonly MainWireIntegratedModelOutputIdV3[]);
 
 type StarlingPairV3 = Readonly<{
   right: MainWireIntegratedModelStarlingPointV3;
@@ -181,8 +280,9 @@ class FixedTbvPressureVolumeLoopCollectorV3 {
 
   accept(
     observation: MainWireIntegratedModelObservationV3,
+    session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
   ): PressureVolumeLoopPairV3 | null {
-    const sample = pressureVolumeSamplePairV3(observation);
+    const sample = pressureVolumeSamplePairV3(observation, session);
     const nextCompletedBeatId =
       observation.completedBeatMetrics?.endAtrialCaptureId ?? null;
     if (sample === null || nextCompletedBeatId === null) return null;
@@ -220,8 +320,9 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
 
   accept(
     observation: MainWireIntegratedModelObservationV3,
+    session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
   ): CompletedPressureVolumeBeatPairV3 | null {
-    const sample = formalPressureVolumeSamplePairV3(observation);
+    const sample = formalPressureVolumeSamplePairV3(observation, session);
     if (sample === null) return null;
     if (this.previousPhase01 === null) {
       this.previousPhase01 = sample.left.phase01!;
@@ -257,10 +358,13 @@ class FormalFixedTbvPressureVolumeLoopCollectorV3 {
 
 function pressureVolumeSamplePairV3(
   observation: MainWireIntegratedModelObservationV3,
+  session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
 ): Readonly<{
   left: MainWireIntegratedModelPressureVolumeLoopPointV3;
   right: MainWireIntegratedModelPressureVolumeLoopPointV3;
 }> | null {
+  const projected = projectedPressureVolumeSamplePairV3(session);
+  if (projected !== null) return projected;
   const step = observation.lastAcceptedStep;
   if (step === null) return null;
   const volumes = observation.acceptedState.coronary.circulation.nodeVolumesMl;
@@ -288,15 +392,54 @@ function pressureVolumeSamplePairV3(
   return pair;
 }
 
+function projectedPressureVolumeSamplePairV3(
+  session: MainWireIntegratedModelStructuralAnalysisSessionV3 | undefined,
+): Readonly<{
+  left: MainWireIntegratedModelPressureVolumeLoopPointV3;
+  right: MainWireIntegratedModelPressureVolumeLoopPointV3;
+}> | null {
+  if (session?.projectCurrentAcceptedValuesV1 === undefined) return null;
+  const values = session.projectCurrentAcceptedValuesV1(
+    STRUCTURAL_PRESSURE_VOLUME_OUTPUT_IDS_V3,
+  );
+  const scalar = (outputId: MainWireIntegratedModelOutputIdV3) => {
+    const value = values[outputId];
+    return value?.availability === "available" &&
+        typeof value.value === "number" && Number.isFinite(value.value)
+      ? value.value
+      : null;
+  };
+  const leftVolumeMl = scalar("hemodynamics.volume.LV");
+  const leftPressureMmHg = scalar("hemodynamics.pressure.transmural.LV");
+  const rightVolumeMl = scalar("hemodynamics.volume.RV");
+  const rightPressureMmHg = scalar("hemodynamics.pressure.transmural.RV");
+  if (
+    leftVolumeMl === null || leftPressureMmHg === null ||
+    rightVolumeMl === null || rightPressureMmHg === null
+  )
+    return null;
+  return Object.freeze({
+    left: Object.freeze({
+      volumeMl: leftVolumeMl,
+      pressureMmHg: leftPressureMmHg,
+    }),
+    right: Object.freeze({
+      volumeMl: rightVolumeMl,
+      pressureMmHg: rightPressureMmHg,
+    }),
+  });
+}
+
 function formalPressureVolumeSamplePairV3(
   observation: MainWireIntegratedModelObservationV3,
+  session?: MainWireIntegratedModelStructuralAnalysisSessionV3,
 ): Readonly<{
   left: MainWireIntegratedModelPressureVolumeLoopPointV3 &
     Readonly<{ phase01: number }>;
   right: MainWireIntegratedModelPressureVolumeLoopPointV3 &
     Readonly<{ phase01: number }>;
 }> | null {
-  const pair = pressureVolumeSamplePairV3(observation);
+  const pair = pressureVolumeSamplePairV3(observation, session);
   const completedBeat = observation.completedBeatMetrics;
   if (pair === null || completedBeat === null) return null;
   const elapsedSinceLastCaptureSec =
@@ -320,7 +463,7 @@ function formalPressureVolumeSamplePairV3(
 
 type AcceptedBranchV3 = Readonly<{
   status: "accepted";
-  branch: MainWireIntegratedModelSessionV3;
+  branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   observation: MainWireIntegratedModelObservationV3;
   pair: StarlingPairV3;
 }>;
@@ -347,6 +490,50 @@ export type MainWireIntegratedModelFormalPressureVolumeResultV3 = Readonly<{
   left: MainWireIntegratedModelStarlingLocusV3;
 }>;
 
+export type MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1 =
+  Readonly<{
+    endpointDirection: "hypovolemic" | "hypervolemic";
+    baselineFillingPressureMmHg: number;
+    endpointFillingPressureMmHg: number;
+    directionalFillingPressureChangeMmHg: number;
+    baselineCardiacOutputLPerMin: number;
+    endpointCardiacOutputLPerMin: number;
+    directionalCardiacOutputChangeLPerMin: number;
+    directionalCardiacOutputChangeFraction01: number;
+    cardiacOutputSlopeLPerMinPerMmHg: number;
+    baselineEndDiastolicVolumeMl: number;
+    endpointEndDiastolicVolumeMl: number;
+    directionalEndDiastolicVolumeChangeMl: number;
+    directionalEndDiastolicVolumeChangeFraction01: number;
+    baselineEndDiastolicTransmuralPressureMmHg: number;
+    endpointEndDiastolicTransmuralPressureMmHg: number;
+    directionalEndDiastolicTransmuralPressureChangeMmHg: number;
+    endDiastolicVolumeResponseMlPerMmHg: number;
+  }>;
+
+export type MainWireIntegratedModelFormalPreloadReserveSideV1 = Readonly<{
+  hypovolemic: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1;
+  hypervolemic: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1;
+}>;
+
+export type MainWireIntegratedModelFormalPreloadReserveQualificationV1 =
+  Readonly<{
+    qualificationId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID;
+    protocolId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID;
+    status: "passed";
+    sourceGlobalTbvMl: number;
+    hypovolemicGlobalTbvMl: number;
+    hypovolemicGlobalTbvScale:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale;
+    hypervolemicGlobalTbvMl: number;
+    hypervolemicGlobalTbvScale:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale;
+    left: MainWireIntegratedModelFormalPreloadReserveSideV1;
+    right: MainWireIntegratedModelFormalPreloadReserveSideV1;
+  }>;
+
 /**
  * Fast, ephemeral fixed-tone preload-response preview.
  *
@@ -360,7 +547,7 @@ export type MainWireIntegratedModelFormalPressureVolumeResultV3 = Readonly<{
  * retained load to pass the same complete-beat closure gate.
  */
 export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   onProgress?: (
     result: MainWireIntegratedModelResponsiveStarlingResultV3,
   ) => void,
@@ -449,7 +636,7 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  * uniformly.
  */
 export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   onProgress?: (
     result: MainWireIntegratedModelFormalPressureVolumeResultV3,
@@ -540,6 +727,230 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
   return result(true);
 }
 
+/**
+ * Focused release-time qualification of the operating point and symmetric
+ * low-/high-preload endpoints. It reuses the formal fixed-tone protocol's
+ * source settlement, complete-beat P1 closure, and hot-start continuation.
+ */
+export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+): Promise<MainWireIntegratedModelFormalPreloadReserveQualificationV1> {
+  const sourceGlobalTbvMl =
+    sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
+  if (
+    Math.abs(sourceGlobalTbvMl - hemodynamicResearchInputs.totalBloodVolumeMl) >
+    FIXED_TBV_TOLERANCE_ML_V3
+  ) {
+    throw new Error("formal preload-reserve source and Scenario TBV differ");
+  }
+  const settledSource = settleFormalPressureVolumeSourceV3(
+    sourceSession,
+    sourceGlobalTbvMl,
+  );
+  if (settledSource.status === "rejected") {
+    throw new Error(
+      `formal preload-reserve source rejected: ${settledSource.reason}`,
+    );
+  }
+  const center = await measureFormalPressureVolumeBranchV3(
+    settledSource.branch,
+    sourceGlobalTbvMl,
+    "operating-anchor",
+  );
+  if (center.status === "rejected" || !formalPairQualifiedV3(center.pair)) {
+    throw new Error(
+      center.status === "rejected"
+        ? `formal preload-reserve center rejected: ${center.reason}`
+        : "formal preload-reserve center did not establish periodic closure",
+    );
+  }
+
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  const initialBoundary = Object.freeze({
+    branch: center.branch,
+    scale: 1,
+    pair: center.pair,
+  });
+  const hypovolemic = await formalPreloadReserveEndpointV1(
+    initialBoundary,
+    policy.hypovolemicGlobalTbvScale,
+    sourceGlobalTbvMl,
+    "hypovolemic",
+  );
+  const hypervolemic = await formalPreloadReserveEndpointV1(
+    initialBoundary,
+    policy.hypervolemicGlobalTbvScale,
+    sourceGlobalTbvMl,
+    "hypervolemic",
+  );
+  const left = Object.freeze({
+    hypovolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.left,
+      hypovolemic.pair.left,
+      "hypovolemic",
+    ),
+    hypervolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.left,
+      hypervolemic.pair.left,
+      "hypervolemic",
+    ),
+  });
+  const right = Object.freeze({
+    hypovolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.right,
+      hypovolemic.pair.right,
+      "hypovolemic",
+    ),
+    hypervolemic: formalPreloadReserveDirectionalResponseV1(
+      center.pair.right,
+      hypervolemic.pair.right,
+      "hypervolemic",
+    ),
+  });
+  const failed = (["left", "right"] as const).flatMap((side) =>
+    (["hypovolemic", "hypervolemic"] as const).flatMap((direction) => {
+      const measured = (side === "left" ? left : right)[direction];
+      return mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
+        measured,
+      )
+        ? []
+        : [{ side, direction, measured }];
+    })
+  );
+  if (failed.length > 0) {
+    throw new Error(
+      "formal preload-reserve gate rejected: " + failed.map((failure) => {
+        const measured = failure.measured;
+        return `${failure.side}/${failure.direction} `
+          + `dCO=${measured.directionalCardiacOutputChangeLPerMin} L/min, `
+          + `dCO/CO=${measured.directionalCardiacOutputChangeFraction01}, `
+          + `dPfill=${measured.directionalFillingPressureChangeMmHg} mmHg, `
+          + `dEDV=${measured.directionalEndDiastolicVolumeChangeMl} mL, `
+          + `dEDV/EDV=${measured.directionalEndDiastolicVolumeChangeFraction01}, `
+          + `dPtmED=${measured.directionalEndDiastolicTransmuralPressureChangeMmHg} mmHg, `
+          + `CO/Pfill=${measured.cardiacOutputSlopeLPerMinPerMmHg} L/min/mmHg`;
+      }).join("; "),
+    );
+  }
+
+  return Object.freeze({
+    qualificationId:
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID,
+    protocolId:
+      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    status: "passed" as const,
+    sourceGlobalTbvMl,
+    hypovolemicGlobalTbvMl:
+      sourceGlobalTbvMl * policy.hypovolemicGlobalTbvScale,
+    hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
+    hypervolemicGlobalTbvMl:
+      sourceGlobalTbvMl * policy.hypervolemicGlobalTbvScale,
+    hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
+    left,
+    right,
+  });
+}
+
+async function formalPreloadReserveEndpointV1(
+  initialBoundary: FormalCoverageBoundaryV3,
+  requestedScale: number,
+  sourceGlobalTbvMl: number,
+  endpointDirection: "hypovolemic" | "hypervolemic",
+): Promise<FormalCoverageBoundaryV3> {
+  let retained: FormalCoverageBoundaryV3 | null = null;
+  const advanced = await advanceFormalCoverageTowardScaleV3(
+    initialBoundary,
+    requestedScale,
+    sourceGlobalTbvMl,
+    (boundary) => {
+      retained = boundary;
+    },
+  );
+  const endpoint = retained as FormalCoverageBoundaryV3 | null;
+  if (
+    advanced.status !== "reached"
+    || endpoint === null
+    || Math.abs(endpoint.scale - requestedScale) > 1e-12
+    || !formalPairQualifiedV3(endpoint.pair)
+  ) {
+    throw new Error(
+      `formal preload-reserve ${endpointDirection} endpoint did not establish periodic closure`
+        + (advanced.reason === null ? "" : `: ${advanced.reason}`),
+    );
+  }
+  return endpoint;
+}
+
+function formalPreloadReserveDirectionalResponseV1(
+  baseline: MainWireIntegratedModelStarlingPointV3,
+  endpoint: MainWireIntegratedModelStarlingPointV3,
+  endpointDirection: "hypovolemic" | "hypervolemic",
+): MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1 {
+  const sign = endpointDirection === "hypervolemic" ? 1 : -1;
+  const directionalFillingPressureChangeMmHg = sign *
+    (endpoint.fillingPressureMmHg - baseline.fillingPressureMmHg);
+  const directionalCardiacOutputChangeLPerMin = sign *
+    (endpoint.cardiacOutputLPerMin - baseline.cardiacOutputLPerMin);
+  const baselineEndDiastolic =
+    baseline.ventricularPressureVolumeLandmarks.endDiastolic;
+  const endpointEndDiastolic =
+    endpoint.ventricularPressureVolumeLandmarks.endDiastolic;
+  const directionalEndDiastolicVolumeChangeMl = sign *
+    (endpointEndDiastolic.volumeMl - baselineEndDiastolic.volumeMl);
+  const directionalEndDiastolicTransmuralPressureChangeMmHg = sign *
+    (endpointEndDiastolic.pressureMmHg - baselineEndDiastolic.pressureMmHg);
+  return Object.freeze({
+    endpointDirection,
+    baselineFillingPressureMmHg: baseline.fillingPressureMmHg,
+    endpointFillingPressureMmHg: endpoint.fillingPressureMmHg,
+    directionalFillingPressureChangeMmHg,
+    baselineCardiacOutputLPerMin: baseline.cardiacOutputLPerMin,
+    endpointCardiacOutputLPerMin: endpoint.cardiacOutputLPerMin,
+    directionalCardiacOutputChangeLPerMin,
+    directionalCardiacOutputChangeFraction01:
+      directionalCardiacOutputChangeLPerMin
+      / baseline.cardiacOutputLPerMin,
+    cardiacOutputSlopeLPerMinPerMmHg:
+      directionalCardiacOutputChangeLPerMin
+      / directionalFillingPressureChangeMmHg,
+    baselineEndDiastolicVolumeMl: baselineEndDiastolic.volumeMl,
+    endpointEndDiastolicVolumeMl: endpointEndDiastolic.volumeMl,
+    directionalEndDiastolicVolumeChangeMl,
+    directionalEndDiastolicVolumeChangeFraction01:
+      directionalEndDiastolicVolumeChangeMl / baselineEndDiastolic.volumeMl,
+    baselineEndDiastolicTransmuralPressureMmHg:
+      baselineEndDiastolic.pressureMmHg,
+    endpointEndDiastolicTransmuralPressureMmHg:
+      endpointEndDiastolic.pressureMmHg,
+    directionalEndDiastolicTransmuralPressureChangeMmHg,
+    endDiastolicVolumeResponseMlPerMmHg:
+      directionalEndDiastolicVolumeChangeMl
+      / directionalEndDiastolicTransmuralPressureChangeMmHg,
+  });
+}
+
+export function mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
+  measured: MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1,
+): boolean {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  return measured.directionalFillingPressureChangeMmHg >=
+      policy.minimumDirectionalFillingPressureChangeMmHg
+    && measured.directionalCardiacOutputChangeLPerMin >=
+      policy.minimumDirectionalCardiacOutputChangeLPerMin
+    && measured.directionalCardiacOutputChangeFraction01 >=
+      policy.minimumDirectionalCardiacOutputChangeFraction01
+    && measured.cardiacOutputSlopeLPerMinPerMmHg >=
+      policy.minimumCardiacOutputSlopeLPerMinPerMmHg
+    && measured.directionalEndDiastolicVolumeChangeMl >=
+      policy.minimumDirectionalEndDiastolicVolumeChangeMl
+    && measured.directionalEndDiastolicVolumeChangeFraction01 >=
+      policy.minimumDirectionalEndDiastolicVolumeChangeFraction01
+    && measured.directionalEndDiastolicTransmuralPressureChangeMmHg >=
+      policy.minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg
+    && measured.endDiastolicVolumeResponseMlPerMmHg > 0;
+}
+
 function formalExpectedPointCountV3(
   partition: MainWireIntegratedModelResponsiveStarlingPartitionV3 | undefined,
 ): number {
@@ -567,15 +978,15 @@ function formalExpectedPointCountV3(
  * the subsequent fixed-tone family always starts from its period-1 endpoint.
  */
 function settleFormalPressureVolumeSourceV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   sourceGlobalTbvMl: number,
 ):
   | Readonly<{
       status: "settled";
-      branch: MainWireIntegratedModelSessionV3;
+      branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
     }>
   | RejectedBranchV3 {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch = sourceSession.forkAtFixedGlobalTotalBloodVolume(sourceGlobalTbvMl);
   } catch (error) {
@@ -593,16 +1004,12 @@ function settleFormalPressureVolumeSourceV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
+      branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected formal source-settlement status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (
@@ -648,7 +1055,7 @@ type FormalCoverageSampleV3 = Readonly<{
 }>;
 
 type FormalCoverageBoundaryV3 = Readonly<{
-  branch: MainWireIntegratedModelSessionV3;
+  branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   scale: number;
   pair: StarlingPairV3;
 }>;
@@ -660,7 +1067,7 @@ type FormalCoverageAdvanceV3 = Readonly<{
 }>;
 
 async function runFormalHypovolemicCoverageChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -801,7 +1208,7 @@ function adaptiveFormalCoverageScaleStepV3(
 }
 
 async function runFormalHypervolemicStarlingChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -960,16 +1367,16 @@ async function advanceFormalCoverageTowardScaleV3(
 }
 
 async function advanceFormalHotStartBridgeV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
 ): Promise<
   | Readonly<{
       status: "accepted";
-      branch: MainWireIntegratedModelSessionV3;
+      branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
     }>
   | RejectedBranchV3
 > {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch =
       sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
@@ -989,16 +1396,12 @@ async function advanceFormalHotStartBridgeV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
+      branch,
       acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected formal bridge status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (
@@ -1114,7 +1517,7 @@ function responsiveSettledAnchorPairV3(pair: StarlingPairV3): boolean {
 }
 
 function runHypovolemicChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
 ): void {
@@ -1185,7 +1588,7 @@ function starlingPairReachedLowFlowTargetV3(pair: StarlingPairV3): boolean {
 }
 
 function runHypervolemicChainV3(
-  centerBranch: MainWireIntegratedModelSessionV3,
+  centerBranch: MainWireIntegratedModelStructuralAnalysisSessionV3,
   centerPair: StarlingPairV3,
   sourceGlobalTbvMl: number,
   append: (pair: StarlingPairV3) => void,
@@ -1291,11 +1694,11 @@ export function mainWireIntegratedModelStarlingDescendingLimbV3(
 }
 
 async function measureFormalPressureVolumeBranchV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
   role: MainWireIntegratedModelStarlingPointV3["role"],
 ): Promise<MeasuredBranchV3> {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     // A preload-reduction PVA family is a short mechanical perturbation, not a
     // sequence of 25-second coronary-controller re-equilibrations. Preserve
@@ -1324,16 +1727,12 @@ async function measureFormalPressureVolumeBranchV3(
         MAXIMUM_MEASUREMENT_DURATION_SEC_V3
       )
         break;
-      const advance = branch.advanceToPresentationTime(
+      const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
+        branch,
         acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3,
       );
-      if (advance.status !== "advanced") {
-        return rejectedV3(
-          advance.status === "failed"
-            ? advance.message
-            : `unexpected formal measurement advance status ${advance.status}`,
-        );
-      }
+      if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+      const advance = attemptedAdvance.advance;
       const acceptedTbvMl =
         advance.observation.acceptedState.coronary
           .fixedGlobalTotalBloodVolumeMl;
@@ -1344,6 +1743,7 @@ async function measureFormalPressureVolumeBranchV3(
       }
       const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
         advance.observation,
+        branch,
       );
       if (completedPressureVolumeLoop !== null) {
         pressureVolumeBeats.push(completedPressureVolumeLoop);
@@ -1357,12 +1757,19 @@ async function measureFormalPressureVolumeBranchV3(
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
+      if (locallyConverged) {
+        // An exact checkpoint intentionally omits the analysis-only completed
+        // beat readback.  In that case the formal phase collector must first
+        // discard a partial cycle and can lag the closure gate by one beat.
+        // Preserve strict period-1 evidence, but continue for the one bounded
+        // cycle needed to retain an actual pressure-volume loop.
+        if (pressureVolumeBeats.length > 0) break;
+      } else if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
         if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
           locallyConverged = true;
-          break;
+          if (pressureVolumeBeats.length > 0) break;
         }
-        if (
+        else if (
           beats.length >= 5 &&
           period2DetectedV3(beats, formalBeatPairClosureScoreV3)
         ) {
@@ -1375,7 +1782,11 @@ async function measureFormalPressureVolumeBranchV3(
         role === "operating-anchor"
           ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
           : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
-      if (beats.length >= maximumBeatCount) break;
+      if (
+        beats.length >= maximumBeatCount &&
+        (!locallyConverged || pressureVolumeBeats.length > 0)
+      )
+        break;
     }
     if (!locallyConverged) {
       const previousScore =
@@ -1453,7 +1864,7 @@ async function measureFormalPressureVolumeBranchV3(
 }
 
 function measureBranchV3(
-  sourceSession: MainWireIntegratedModelSessionV3,
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
   options: Readonly<{
     role: MainWireIntegratedModelStarlingPointV3["role"];
@@ -1461,7 +1872,7 @@ function measureBranchV3(
     requireLocalConvergence: boolean;
   }>,
 ): MeasuredBranchV3 {
-  let branch: MainWireIntegratedModelSessionV3;
+  let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
     branch =
       sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
@@ -1487,16 +1898,12 @@ function measureBranchV3(
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
       break;
-    const advance = branch.advanceToPresentationTime(
+    const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
+      branch,
       acceptedTimeSec + RESPONSIVE_PROTOCOL_SAMPLE_DT_SEC_V3,
     );
-    if (advance.status !== "advanced") {
-      return rejectedV3(
-        advance.status === "failed"
-          ? advance.message
-          : `unexpected advance status ${advance.status}`,
-      );
-    }
+    if (attemptedAdvance.status === "rejected") return attemptedAdvance;
+    const advance = attemptedAdvance.advance;
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3)
@@ -1504,6 +1911,7 @@ function measureBranchV3(
 
     const completedPressureVolumeLoop = pressureVolumeLoopCollector.accept(
       advance.observation,
+      branch,
     );
     if (completedPressureVolumeLoop !== null) {
       pressureVolumeLoops.push(completedPressureVolumeLoop);

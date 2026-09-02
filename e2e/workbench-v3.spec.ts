@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-const selectedAorticRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json",
+const roundedEjectionRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
+  "../studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
@@ -10,12 +10,27 @@ const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 
-const DEFAULT_EXACT_MODEL_ID = selectedAorticRegistryAdmissionLock.modelId;
+const DEFAULT_EXACT_MODEL_ID =
+  roundedEjectionRegistryAdmissionLock.modelId;
 const MODEL_LAB_EXACT_MODEL_ID = standardModelLabRegistryAdmissionLock.modelId;
 const UUID_RESOURCE_ID =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const EXPERIMENT_RESOURCE_ID =
   `(?:${UUID_RESOURCE_ID}|experiment-[A-Za-z0-9_-]+)`;
+
+async function expectFormalPvaProgressOrResult(
+  pvCanvas: Locator,
+): Promise<void> {
+  await expect.poll(async () => pvCanvas.evaluate((element) => {
+    if (Number(element.getAttribute("data-pva-result-count")) > 0) {
+      return true;
+    }
+    const status = element.querySelector('[role="status"]')?.textContent ?? "";
+    return /(?:PVA analysis|PVA preview ·|ESPVR \/ EDPVR preview ·|PVA ready · Starling extension) [1-9]\d* settled points/.test(
+      status,
+    );
+  }), { timeout: 90_000 }).toBe(true);
+}
 
 test.beforeEach(async ({ page }, testInfo) => {
   if (testInfo.title.includes("selector stays")) {
@@ -86,25 +101,30 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop production Standard66 exposes the selected aortic Surface", async ({
+test("@desktop production Standard68 inherits the complete analysis Surface", async ({
   page,
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   const graphGroups = graphArea.locator(".dv-groupview");
   const pvTab = graphArea.locator(".dv-tab").filter({ hasText: "PV loop" });
+  const guytonTab = graphArea
+    .locator(".dv-tab")
+    .filter({ hasText: "Systemic Guyton / Starling" });
   const pressureTab = graphArea
     .locator(".dv-tab")
     .filter({ hasText: "Pressure waveforms" });
 
-  await expect(graphGroups).toHaveCount(2);
-  await expect(graphArea.locator(".dv-tab")).toHaveCount(2);
+  await expect(graphGroups).toHaveCount(3);
+  await expect(graphArea.locator(".dv-tab")).toHaveCount(3);
   await expect(
     graphArea.getByRole("button", { name: "Paneを追加" }),
-  ).toHaveCount(2);
+  ).toHaveCount(3);
   await expect(pvTab).toHaveClass(/dv-active-tab/);
+  await expect(guytonTab).toHaveClass(/dv-active-tab/);
   await expect(pressureTab).toHaveClass(/dv-active-tab/);
   await expectDockTabAccent(pvTab.locator(".workbench-dock-tab"));
+  await expectDockTabAccent(guytonTab.locator(".workbench-dock-tab"));
   await expectDockTabAccent(pressureTab.locator(".workbench-dock-tab"));
 
   await graphGroups.first().getByRole("button", { name: "Paneを追加" }).click();
@@ -113,6 +133,8 @@ test("@desktop production Standard66 exposes the selected aortic Surface", async
     "PV loop",
     "圧波形",
     "流量波形",
+    "体循環 Guyton / Starling（CVP）",
+    "肺循環 Guyton / Starling（PCWP）",
   ]);
   await page.getByRole("button", { name: "Close add pane menu" }).click();
   await expect(addGraphMenu).toBeHidden();
@@ -123,10 +145,17 @@ test("@desktop production Standard66 exposes the selected aortic Surface", async
   await expectNonZeroCanvas(pvCanvas);
   await expect(pvCanvas).toHaveAttribute(
     "data-pv-analysis-mode",
-    "raw-exact-orbit",
+    "formal-periodic",
   );
-  await expect(pvCanvas).toHaveAttribute("data-pva-result-count", "0");
-  expect(await pvCanvas.getAttribute("data-pv-relation-semantics")).toBeNull();
+  await expect(pvCanvas).toHaveAttribute(
+    "data-pv-relation-semantics",
+    "area-max-common-isochrone-espvr-exponential-edpvr",
+    { timeout: 90_000 },
+  );
+  // Browser smoke owns worker wiring and at least one settled formal branch,
+  // not a wall-clock completion SLA for the full family. Exact integration
+  // tests own the complete relation and pressure-volume loops.
+  await expectFormalPvaProgressOrResult(pvCanvas);
 
   await pressureTab.locator(".workbench-dock-tab").click();
   await expect(pressureTab).toHaveClass(/dv-active-tab/);
@@ -142,10 +171,10 @@ test("@desktop production Standard66 exposes the selected aortic Surface", async
   await aorticDescription.click();
   const aorticTooltip = page.getByRole("tooltip");
   await expect(aorticTooltip).toContainText(
-    "固定上行大動脈断面までの局所的な静圧回復",
+    "大動脈弁直後に置いた集中定数大動脈基部compliance node",
   );
   await expect(aorticTooltip).toContainText(
-    "特定のカテーテル測定部位には対応せず",
+    "局所的圧回復、圧波の伝播・反射はモデル化していない",
   );
   await aorticDescription.click();
   await expect(aorticTooltip).toBeHidden();
@@ -156,19 +185,10 @@ test("@desktop production Standard66 exposes the selected aortic Surface", async
   const controlArea = page.getByRole("region", { name: "コントロールエリア" });
   const heartRate = controlArea.getByRole("slider", { name: "心拍数 (HR)" });
   await expect(heartRate).toBeVisible();
-  await expect(controlArea.getByRole("slider")).toHaveCount(1);
+  await expect(controlArea.getByRole("slider")).toHaveCount(7);
   await expect(
     controlArea.getByRole("slider", { name: "体血管抵抗 (SVR)" }),
-  ).toHaveCount(0);
-  const restartDisclosure = controlArea.getByRole("button", {
-    name: "心拍数 (HR)の説明",
-  });
-  await restartDisclosure.click();
-  await expect(page.getByRole("tooltip")).toContainText("モデル時刻0");
-  await expect(page.getByRole("tooltip")).toContainText(
-    "確定済みモデル時刻・軌道を置き換える",
-  );
-  await page.keyboard.press("Escape");
+  ).toBeVisible();
 
   await expect.poll(() => modelTime(root)).toBeGreaterThan(0.5);
   const playback = page.getByTestId("v3-playback-toggle");
@@ -176,11 +196,14 @@ test("@desktop production Standard66 exposes the selected aortic Surface", async
   await expect(root).toHaveAttribute("data-playback", "paused");
   const priorEpoch = await inputEpoch(page);
   const priorTime = await modelTime(root);
+  const priorRevision = await acceptedRevision(page);
   expect(priorTime).toBeGreaterThan(0.5);
   await heartRate.press("ArrowRight");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(priorEpoch);
-  await expect.poll(() => modelTime(root)).toBeLessThan(0.05);
-  await expect.poll(() => acceptedRevision(page)).toBe(0);
+  await expect.poll(() => modelTime(root)).toBeGreaterThan(priorTime - 0.01);
+  await expect.poll(() => acceptedRevision(page)).toBeGreaterThanOrEqual(
+    priorRevision,
+  );
 });
 
 test("@desktop @model-lab formal analysis, warm controls, and settings stay live", async ({
@@ -338,9 +361,9 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
       '[data-pv-relation-semantics="area-max-common-isochrone-espvr-exponential-edpvr"]',
     ),
   ).toBeVisible();
-  await expect(
+  await expectFormalPvaProgressOrResult(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
-  ).toHaveAttribute("data-pva-result-count", "1", { timeout: 60_000 });
+  );
 
   const graphArea = page.getByRole("region", { name: "グラフエリア" });
   const graphGroups = graphArea.locator(".dv-groupview");
@@ -478,7 +501,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await systemicResistance.press("ArrowRight");
   await expect(
     page.getByTestId("workbench-scenario-manager-v3").getByRole("status", {
-      name: "Guyton / Starlingを再計算中: 起動時baseline",
+      name: "Guyton / Starlingを再計算中: baseline",
       exact: true,
     }),
   ).toBeVisible({ timeout: 20_000 });
@@ -603,17 +626,17 @@ test("@desktop baseline duplication stays independent and requires explicit save
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
   ).toHaveCount(1);
   const baselineMenuButton = scenarioRegion.getByRole("button", {
-    name: "Scenarioメニュー: 起動時baseline",
+    name: "Scenarioメニュー: baseline",
   });
-  await openScenarioMenu(page, scenarioRegion, "起動時baseline");
+  await openScenarioMenu(page, scenarioRegion, "baseline");
   const baselineMenu = page.getByRole("menu", {
-    name: "Scenarioメニュー: 起動時baseline",
+    name: "Scenarioメニュー: baseline",
   });
   await expect(baselineMenu.getByRole("menuitem").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(baselineMenu).toBeHidden();
   await expect(baselineMenuButton).toBeFocused();
-  await openScenarioMenu(page, scenarioRegion, "起動時baseline");
+  await openScenarioMenu(page, scenarioRegion, "baseline");
   await page.getByRole("menuitem", { name: "複製" }).click();
   await expect(
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
@@ -634,13 +657,13 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toHaveCount(1);
   await expect(
     page.getByRole("button", {
-      name: "起動時baseline, LVP",
+      name: "baseline, LVP",
       exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
-      name: "起動時baseline のコピー, LVP",
+      name: "baseline のコピー, LVP",
       exact: true,
     }),
   ).toBeVisible();
@@ -663,7 +686,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
   const copyBaseColor = page.getByLabel(
-    "新しいtraceのbase色: 起動時baseline のコピー",
+    "新しいtraceのbase色: baseline のコピー",
   );
   await copyBaseColor.fill("#8b76d1");
   await expect(copyBaseColor).toHaveValue("#8b76d1");
@@ -689,22 +712,22 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(colorSettings).toBeHidden();
 
   const copyScenario = scenarioRegion.getByRole("button", {
-    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    name: "baseline のコピー scenario/workbench-live-default-copy",
     exact: true,
   });
   await expect(copyScenario).toBeVisible();
 
   const pvTab = graphArea.locator(".dv-tab").filter({ hasText: "PV loop" });
   await pvTab.locator(".workbench-dock-tab").click();
-  // This production regression owns raw exact-orbit comparison, Scenario
-  // duplication, live independence, and persistence. Formal PVA and
-  // Guyton/Starling analysis remain the explicit Standard65 Model Lab's job.
+  // The inherited production Surface keeps its formal periodic PV method
+  // while Scenario duplication, live independence, and persistence remain
+  // owned by this browser regression.
   await expect(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
   ).toHaveAttribute("data-pv-loop-trace-count", "2");
   await expect(
     page.locator('[data-chart-kind="pressure-volume-loop-v3"]'),
-  ).toHaveAttribute("data-pv-analysis-mode", "raw-exact-orbit");
+  ).toHaveAttribute("data-pv-analysis-mode", "formal-periodic");
 
   await expect.poll(() => modelTime(root)).toBeGreaterThan(0.2);
   const playback = page.getByTestId("v3-playback-toggle");
@@ -712,7 +735,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(root).toHaveAttribute("data-playback", "paused");
 
   const baselineScenario = scenarioRegion.getByRole("button", {
-    name: "起動時baseline workbench-live-default",
+    name: "baseline workbench-live-default",
     exact: true,
   });
   await baselineScenario.click();
@@ -742,11 +765,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toHaveCount(2);
 
   const restoredBaseline = scenarioRegion.getByRole("button", {
-    name: "起動時baseline workbench-live-default",
+    name: "baseline workbench-live-default",
     exact: true,
   });
   const restoredCopy = scenarioRegion.getByRole("button", {
-    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    name: "baseline のコピー scenario/workbench-live-default-copy",
     exact: true,
   });
   await restoredBaseline.click();
@@ -784,14 +807,20 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
-  // round-trip. Standard66's sole control cold-restarts only that branch;
-  // the baseline fixture and accepted trajectory remain untouched.
+  // round-trip. Standard68 warm-starts only that branch from its accepted
+  // state and clock; the baseline fixture and trajectory remain untouched.
   const restoredCopyEpoch = await inputEpoch(page);
+  const restoredCopyTimeBeforeMutation = await modelTime(root);
+  const restoredCopyRevisionBeforeMutation = await acceptedRevision(page);
   await heartRate.press("ArrowLeft");
   await expect(heartRate).toHaveValue("58");
   await expect.poll(() => inputEpoch(page), { timeout: 30_000 })
     .toBeGreaterThan(restoredCopyEpoch);
-  await expect.poll(() => modelTime(root)).toBeLessThan(0.05);
+  await expect.poll(() => modelTime(root))
+    .toBeGreaterThan(restoredCopyTimeBeforeMutation - 0.01);
+  await expect.poll(() => acceptedRevision(page)).toBeGreaterThanOrEqual(
+    restoredCopyRevisionBeforeMutation,
+  );
   await restoredBaseline.click();
   await expect(heartRate).toHaveValue("60");
 });
@@ -815,18 +844,20 @@ test("@desktop simulation information stays human-facing", async ({
   await expect(documentationLink).toBeVisible();
   await expect(documentationLink).toHaveAttribute(
     "href",
-    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.selected-aortic-outflow\.standard-66\?surface=/,
+    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.rounded-ejection\.standard-68\?surface=/,
   );
   const limitations = dialog.locator("details").filter({
     hasText: "制限事項",
   }).first();
   await limitations.locator("summary").click();
   await expect(limitations).toContainText(
-    "AoPは圧回復後の近位大動脈constitutive port圧",
+    "AoPは大動脈弁直後の大動脈基部compliance node圧",
   );
   await expect(limitations).toContainText(
-    "formal PVAおよびGuyton / Starling解析を提供しません",
+    "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysis",
   );
+  await expect(dialog.getByText("数理モデルのbaseline検証", { exact: true }))
+    .toBeVisible();
   await expect(dialog.getByText("Exact model ID", { exact: true }))
     .toHaveCount(0);
   await expect(dialog.getByText("Fixture schema", { exact: true }))
@@ -840,10 +871,10 @@ test("@desktop simulation information stays human-facing", async ({
   await documentationLink.click();
   const documentationPage = await documentationPageOpened;
   await expect(
-    documentationPage.getByTestId("standard66-model-documentation-v1"),
+    documentationPage.getByTestId("standard68-model-documentation-v1"),
   ).toBeVisible();
   await expect(documentationPage.getByRole("heading", {
-    name: "Main Wire Standard 66",
+    name: "Main Wire Standard 68",
     exact: true,
   })).toBeVisible();
   await documentationPage.close();
@@ -857,10 +888,10 @@ test("@desktop deleting nested Scenario copies never renders a disposed lane", a
   const root = page.getByTestId("v3-dockview-workbench");
   const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
   const labels = [
-    "起動時baseline",
-    "起動時baseline のコピー",
-    "起動時baseline のコピー のコピー",
-    "起動時baseline のコピー のコピー のコピー",
+    "baseline",
+    "baseline のコピー",
+    "baseline のコピー のコピー",
+    "baseline のコピー のコピー のコピー",
   ] as const;
 
   for (let index = 0; index < labels.length - 1; index += 1) {
@@ -982,8 +1013,12 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   expect(graphBox?.width ?? 0).toBeGreaterThan(360);
   const graphRail = page.getByTestId("workbench-mobile-graph-view-rail");
   const graphTabs = graphRail.getByRole("tab");
-  await expect(graphTabs).toHaveCount(2);
-  await expect(graphRail.getByRole("tab", { name: "PV loop" }))
+  await expect(graphTabs).toHaveCount(3);
+  const pvTab = graphRail.getByRole("tab", { name: "PV loop" });
+  const guytonTab = graphRail.getByRole("tab", {
+    name: "Systemic Guyton / Starling",
+  });
+  await expect(pvTab)
     .toHaveAttribute("aria-selected", "true");
   const pressureTab = graphRail.getByRole("tab", {
     name: "Pressure waveforms",
@@ -994,7 +1029,9 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     page.locator('[data-chart-kind="sweeping-waveform-v3"]'),
   );
   await pressureTab.press("ArrowLeft");
-  await expect(graphTabs.nth(0)).toHaveAttribute("aria-selected", "true");
+  await expect(guytonTab).toHaveAttribute("aria-selected", "true");
+  await guytonTab.press("ArrowLeft");
+  await expect(pvTab).toHaveAttribute("aria-selected", "true");
   await pressureTab.click();
   const addGraphView = graphRail.getByRole("button", {
     name: "グラフビューを追加",
@@ -1004,7 +1041,7 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   await expect(graphAddSheet).toBeVisible();
   await expect(
     graphAddSheet.locator(".workbench-mobile-pane-choice"),
-  ).toHaveCount(3);
+  ).toHaveCount(5);
   await graphAddSheet.getByRole("button", { name: "追加メニューを閉じる" })
     .click();
   await expect(graphAddSheet).toBeHidden();
@@ -1040,10 +1077,10 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     ".workbench-mobile-pane-group-toggle",
   );
   await expect(outputGroupToggle).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByText("体動脈圧 (ABP)", { exact: true }))
+  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
     .toBeVisible();
   await outputGroupToggle.click();
-  await expect(page.getByText("体動脈圧 (ABP)", { exact: true }))
+  await expect(page.getByText("大動脈圧 (AoP)", { exact: true }))
     .toBeHidden();
   await outputGroupToggle.click();
   await taskDeck.getByRole("tab", { name: "Scenario" }).click();
@@ -1060,7 +1097,7 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
   ).toBeVisible();
   await expect(
     settings.getByRole("button", { name: /項目を並べ替え:/ }),
-  ).toHaveCount(1);
+  ).toHaveCount(7);
   await expect(
     settings.getByRole("button", { name: /Paneから外す:/ }),
   ).toHaveCount(0);
@@ -1089,10 +1126,7 @@ test("@mobile 390px Workbench uses a live Stage and one-scroll task deck", async
     return drawerBox.x -
       (contentBoxWithDrawer.x + contentBoxWithDrawer.width);
   }, { timeout: 5_000 }).toBeGreaterThanOrEqual(-1);
-  await expect(catalogDrawer.getByText(
-    "一致する登録項目はありません。",
-    { exact: true },
-  )).toBeVisible();
+  await expect(catalogDrawer.locator("details")).toHaveCount(7);
   await catalogDrawer.getByRole("button", { name: "パネルを閉じる" }).click();
   await expect(catalogDrawerHost).toHaveAttribute("data-open", "false");
   await expect.poll(async () =>

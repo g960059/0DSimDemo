@@ -20,6 +20,9 @@ import {
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
 import { validationStampIssuanceEligibleV1 } from
   "@/engine/validationStampModeV1";
+import type {
+  MainWireAlgebraicProximalArterialRootsProfileV1,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
 
 /**
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
@@ -60,6 +63,8 @@ export type VascularPvRuntimeParameterViewV1 = {
   readonly arterialStiffness: number;
   readonly selectedAorticOutflowProfile?:
     MainWireSelectedAorticOutflowCirculationProfileV1;
+  readonly algebraicProximalArterialRootsProfile?:
+    MainWireAlgebraicProximalArterialRootsProfileV1;
 };
 
 export function effectiveUnstressedVolumeFromNodeV1(

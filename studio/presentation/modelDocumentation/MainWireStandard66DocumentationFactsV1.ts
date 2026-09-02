@@ -4,8 +4,11 @@ import {
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PROFILE_V1,
   validateMainWireAorticRecoveredRootProfileV1,
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PORT_VALVE_CLAIM_V1,
+  MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1,
+  validateMainWireAlgebraicProximalArterialRootsProfileV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowDocumentationAuthorityV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
@@ -19,13 +22,21 @@ import {
 import selectedAorticOutflowStandard66DescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
 import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
+import algebraicProximalRootsStandard67DescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
+import algebraicProximalRootsStandard67SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import type {
   RegisteredModelDocumentationIdentityV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
+import {
+  resolveMainWireAnalysisMethodsForSurfaceV1,
+} from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 export type MainWireStandard66DocumentationFactsV1 = Readonly<{
   identity: RegisteredModelDocumentationIdentityV1;
+  generation: 66 | 67;
   stations: Readonly<{
     aopOutputId: string;
     abpOutputId: string;
@@ -41,6 +52,14 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
     residualDownstreamResistanceMmHgSecPerMl: number;
     sourceTopologyResistanceMmHgSecPerMl: number;
   }>;
+  proximalArterialRoots: Readonly<{
+    aorticRootEdgeId: "Ao_SA";
+    pulmonaryRootEdgeId: "PA_PArt";
+    flowLaw: "same-candidate-algebraic-linear-quadratic";
+    inertanceMmHgSec2PerMl: 0;
+    acceptedRootFlowRecordRole:
+      "exact-accepted-algebraic-flow-readback-not-continuation-memory";
+  }> | null;
   runtime: Readonly<{
     heartRateControlId: string;
     heartRateChangeSemantics: "cold-restart";
@@ -49,8 +68,8 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
   }>;
   surface: Readonly<{
     rawPressureVolumeLoop: true;
-    formalPressureVolumeAnalysisExposed: false;
-    structuralReturnAnalysisExposed: false;
+    formalPressureVolumeAnalysisExposed: true;
+    structuralReturnAnalysisExposed: true;
   }>;
 }>;
 
@@ -62,20 +81,30 @@ export type MainWireStandard66DocumentationFactsV1 = Readonly<{
 export function resolveMainWireStandard66DocumentationFactsV1(
   identity: RegisteredModelDocumentationIdentityV1,
 ): MainWireStandard66DocumentationFactsV1 | null {
-  if (
-    identity.kind !== "main-wire-selected-aortic-outflow-standard66"
-    || identity.modelId
-      !== MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1
-  ) {
+  const generation =
+    identity.kind === "main-wire-selected-aortic-outflow-standard66"
+      && identity.modelId
+        === MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1
+      ? 66 as const
+      : identity.kind === "main-wire-algebraic-proximal-roots-standard67"
+          && identity.modelId
+            === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1
+        ? 67 as const
+        : null;
+  if (generation === null) {
     return null;
   }
 
   try {
     const manifest = (
-      selectedAorticOutflowStandard66DescriptorV1.manifest
+      generation === 67
+        ? algebraicProximalRootsStandard67DescriptorV1.manifest
+        : selectedAorticOutflowStandard66DescriptorV1.manifest
     ) as unknown as ExactModelKernelManifestV3;
     const surface = (
-      selectedAorticOutflowStandard66SurfaceV1
+      generation === 67
+        ? algebraicProximalRootsStandard67SurfaceV1
+        : selectedAorticOutflowStandard66SurfaceV1
     ) as unknown as ModelSurfaceReleaseManifestV1;
     assertExactModelKernelManifestV3(manifest);
     assertModelSurfaceReleaseManifestV1(surface);
@@ -89,7 +118,30 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     ) {
       return null;
     }
-    composeStandardModelContractV1(manifest, surface);
+    const analysisMethods = resolveMainWireAnalysisMethodsForSurfaceV1(
+      surface,
+    );
+    const composed = composeStandardModelContractV1(
+      manifest,
+      surface,
+      analysisMethods.capabilities,
+    );
+
+    const proximalArterialRoots = generation === 67
+      ? MAIN_WIRE_ALGEBRAIC_PROXIMAL_ARTERIAL_ROOTS_PROFILE_V1
+      : null;
+    if (
+      proximalArterialRoots !== null
+      && (
+        validateMainWireAlgebraicProximalArterialRootsProfileV1(
+          proximalArterialRoots,
+        ).length !== 0
+        || manifest.equations.proximalArterialRootsProfileId
+          !== proximalArterialRoots.profileId
+      )
+    ) {
+      return null;
+    }
 
     if (
       validateMainWireAorticRecoveredRootProfileV1(
@@ -212,9 +264,9 @@ export function resolveMainWireStandard66DocumentationFactsV1(
 
     const rawPressureVolumeLoop = surface.graphCatalog.some((graph) =>
       graph.renderer === "pressure-volume"
-      && graph.requiredCapabilities.every(
-        (capability) => !capability.startsWith("analysis/"),
-      ));
+      && "seriesCatalog" in graph
+      && graph.seriesCatalog.some((series) =>
+        series.kind === "pressure-volume"));
     const formalPressureVolumeAnalysisExposed =
       surface.derivedOutputCatalog.length > 0
       || surface.graphCatalog.some((graph) =>
@@ -225,8 +277,12 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     );
     if (
       !rawPressureVolumeLoop
-      || formalPressureVolumeAnalysisExposed
-      || structuralReturnAnalysisExposed
+      || !formalPressureVolumeAnalysisExposed
+      || !structuralReturnAnalysisExposed
+      || analysisMethods.periodicPvaDerivation === null
+      || composed.surface.derivedOutputCatalog.length
+        !== surface.derivedOutputCatalog.length
+      || composed.surface.graphCatalog.length !== surface.graphCatalog.length
     ) {
       return null;
     }
@@ -234,6 +290,7 @@ export function resolveMainWireStandard66DocumentationFactsV1(
     const profile = MAIN_WIRE_AORTIC_RECOVERED_ROOT_PROFILE_V1;
     return Object.freeze({
       identity,
+      generation,
       stations: Object.freeze({
         aopOutputId,
         abpOutputId,
@@ -253,6 +310,17 @@ export function resolveMainWireStandard66DocumentationFactsV1(
         sourceTopologyResistanceMmHgSecPerMl:
           profile.sourceTopologyResistanceMmHgSecPerMl,
       }),
+      proximalArterialRoots: proximalArterialRoots === null
+        ? null
+        : Object.freeze({
+            aorticRootEdgeId: proximalArterialRoots.aorticRootEdgeId,
+            pulmonaryRootEdgeId: proximalArterialRoots.pulmonaryRootEdgeId,
+            flowLaw: proximalArterialRoots.flowLaw,
+            inertanceMmHgSec2PerMl:
+              proximalArterialRoots.inertanceMmHgSec2PerMl,
+            acceptedRootFlowRecordRole:
+              proximalArterialRoots.acceptedRootFlowRecordRole,
+          }),
       runtime: Object.freeze({
         heartRateControlId,
         heartRateChangeSemantics: exactHeartRate.changeSemantics,
@@ -261,8 +329,8 @@ export function resolveMainWireStandard66DocumentationFactsV1(
       }),
       surface: Object.freeze({
         rawPressureVolumeLoop: true as const,
-        formalPressureVolumeAnalysisExposed: false as const,
-        structuralReturnAnalysisExposed: false as const,
+        formalPressureVolumeAnalysisExposed: true as const,
+        structuralReturnAnalysisExposed: true as const,
       }),
     });
   } catch {

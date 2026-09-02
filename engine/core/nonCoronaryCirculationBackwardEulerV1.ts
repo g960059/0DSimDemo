@@ -21,6 +21,9 @@ import {
 import {
   validateMainWireSelectedAorticOutflowCirculationProfileV1,
 } from "@/engine/core/MainWireSelectedAorticOutflowCirculationProfileV1";
+import {
+  validateMainWireAlgebraicProximalArterialRootsProfileV1,
+} from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   fullHotPathInvariantsEnabledV1,
@@ -2737,7 +2740,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     );
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
-      const inertance = requirePositive(
+      const inertance = requireNonnegative(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           dynamicName,
@@ -2746,14 +2749,20 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
         ),
         `${name} inertanceMmHgSec2PerMl`,
       );
-      const flow = solveSignedLinearQuadraticFlowV1(
-        gradientMmHg + inertance
-          * previous.dynamicEdgeFlowsMlPerSec[
-            NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
-          ]! / input.dtSec,
-        losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
-        losses.quadraticLossMmHgSec2PerMl2,
-      );
+      const flow = inertance === 0
+        ? solveSignedLinearQuadraticFlowV1(
+            gradientMmHg,
+            losses.resistanceMmHgSecPerMl,
+            losses.quadraticLossMmHgSec2PerMl2,
+          )
+        : solveSignedLinearQuadraticFlowV1(
+            gradientMmHg + inertance
+              * previous.dynamicEdgeFlowsMlPerSec[
+                NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
+              ]! / input.dtSec,
+            losses.resistanceMmHgSecPerMl + inertance / input.dtSec,
+            losses.quadraticLossMmHgSec2PerMl2,
+          );
       dynamicFlows[
         NON_CORONARY_DYNAMIC_EDGE_INDEX_BY_NAME_V1[dynamicName]
       ] = flow;
@@ -3089,7 +3098,7 @@ function analyticEdgeFlowPressureDerivativesV1<
     let dInertanceDDownstreamPressureSec2PerMl = 0;
     let previousFlowMlPerSec = flowMlPerSec;
     if (edge.kind === "dynamic") {
-      inertanceMmHgSec2PerMl = requirePositive(
+      inertanceMmHgSec2PerMl = requireNonnegative(
         nonCoronaryDynamicEdgeInertanceV1(
           edge,
           edgeName as NonCoronaryDynamicEdgeNameV1,
@@ -4523,6 +4532,23 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  const algebraicProximalArterialRootsProfile = runtime.vascular
+    .algebraicProximalArterialRootsProfile;
+  if (algebraicProximalArterialRootsProfile !== undefined) {
+    const issues = validateMainWireAlgebraicProximalArterialRootsProfileV1(
+      algebraicProximalArterialRootsProfile,
+    );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid algebraicProximalArterialRootsProfile: ${issues.join("; ")}`,
+      );
+    }
+    if (selectedAorticOutflowProfile === undefined) {
+      throw new Error(
+        "algebraic proximal arterial roots require selected aortic outflow",
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
@@ -5030,6 +5056,15 @@ function nonCoronaryDynamicEdgeInertanceV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   areaRatio: number,
 ): number {
+  const algebraicRoots = runtime.vascular
+    .algebraicProximalArterialRootsProfile;
+  if (
+    algebraicRoots !== undefined
+    && (
+      edgeName === algebraicRoots.aorticRootEdgeId
+      || edgeName === algebraicRoots.pulmonaryRootEdgeId
+    )
+  ) return algebraicRoots.inertanceMmHgSec2PerMl;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (
     selectedProfile !== undefined

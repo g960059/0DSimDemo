@@ -12,6 +12,12 @@ export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
 /** Published method identity. Semantic changes require a new ID and builder. */
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID =
   "suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID =
+  "suga-pva-preload-reduction-through-anchor-area-max-common-isochrone-nonlinear-espvr-bidirectional-exponential-edpvr-v9" as const;
+
+export type MainWirePeriodicPvaMethodIdV1 =
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -44,7 +50,9 @@ export type MainWireIntegratedModelPeriodicPvaEspvrV1 = Readonly<{
   primaryCurveLaw: "measured-domain-shape-preserving-locus";
   selectedTimeSinceAtrialCaptureSec: number;
   selectedPhase01AtAnchor: number;
-  phaseSelectionPolicy: "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window";
+  phaseSelectionPolicy:
+    | "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window"
+    | "preload-reduction-through-anchor-over-lower-anchor-esv-neighborhood-within-anchor-late-systolic-window";
   phaseSelectionStatus: "progressive" | "complete";
   phaseSelectionPointCount: number;
   phaseSelectionObjective: "positive-active-pressure-area-over-fixed-anchor-esv-neighborhood";
@@ -137,7 +145,7 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
 export type MainWirePeriodicPvaV1 =
   | Readonly<{
       analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID;
+      methodId: MainWirePeriodicPvaMethodIdV1;
       status: "collecting" | "unavailable";
       ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1;
       pressureBasis: "transmural";
@@ -147,7 +155,7 @@ export type MainWirePeriodicPvaV1 =
     }>
   | Readonly<{
       analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
-      methodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID;
+      methodId: MainWirePeriodicPvaMethodIdV1;
       outputId: string;
       status: "available";
       /** Displayable throughout refinement; this field only reports completion. */
@@ -220,10 +228,41 @@ type ExponentialFitV1 = Readonly<{
   parameterBoundaryHit: boolean;
 }>;
 
-/** Append-only V8 implementation; publish changed semantics as a new builder. */
+/** Published V8 semantics retained for Surfaces that already pin this method. */
 export function buildMainWirePeriodicPvaMethodV8(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  return buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+    systolicLoadDomain: "all-settled-loads",
+  });
+}
+
+/**
+ * Uses the conventional preload-reduction limb through the operating anchor
+ * for ESPVR. Hypervolemic points remain owners of EDPVR and preload-reserve
+ * information, but cannot fold the systolic display locus after ESV saturates.
+ */
+export function buildMainWirePeriodicPvaMethodV9(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  return buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+    systolicLoadDomain: "preload-reduction-through-anchor",
+  });
+}
+
+function buildMainWirePeriodicPvaByPolicyV1(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+  method: Readonly<{
+    methodId: MainWirePeriodicPvaMethodIdV1;
+    systolicLoadDomain:
+      | "all-settled-loads"
+      | "preload-reduction-through-anchor";
+  }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
     completedPointCount:
@@ -238,7 +277,7 @@ export function buildMainWirePeriodicPvaMethodV8(
   ): MainWirePeriodicPvaV1 =>
     Object.freeze({
       analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
-      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+      methodId: method.methodId,
       status,
       ventricleId,
       pressureBasis: "transmural" as const,
@@ -269,6 +308,13 @@ export function buildMainWirePeriodicPvaMethodV8(
       (left, right) => right.totalBloodVolumeMl - left.totalBloodVolumeMl,
     ),
   );
+  const systolicRelationPoints = method.systolicLoadDomain ===
+      "preload-reduction-through-anchor"
+    ? Object.freeze(relationPoints.filter(
+      ({ totalBloodVolumeMl }) =>
+        totalBloodVolumeMl <= anchor.totalBloodVolumeMl + tbvToleranceMl,
+    ))
+    : relationPoints;
   const lowerPointCount = relationPoints.filter(
     ({ totalBloodVolumeMl }) =>
       totalBloodVolumeMl < anchor.totalBloodVolumeMl - tbvToleranceMl,
@@ -348,9 +394,12 @@ export function buildMainWirePeriodicPvaMethodV8(
     );
   }
   const areaMaxIsochrone = areaMaxCommonIsochroneV1(
-    relationPoints,
+    systolicRelationPoints,
     edpvr,
     anchor,
+    method.systolicLoadDomain === "preload-reduction-through-anchor"
+      ? "lower-through-anchor"
+      : "bilateral",
   );
   if (areaMaxIsochrone === null) {
     return incomplete(
@@ -385,14 +434,18 @@ export function buildMainWirePeriodicPvaMethodV8(
   if (
     !systolicLawStrictlyIncreasingThroughVolumeV1(
       systolicLaw,
-      anchorEndSystolic.volumeMl,
+      method.systolicLoadDomain === "preload-reduction-through-anchor"
+        ? systolicLaw.measuredVolumeRangeMl[1]
+        : anchorEndSystolic.volumeMl,
     )
   ) {
     return incomplete(
       locus.completedPointCount === locus.totalPointCount
         ? "unavailable"
         : "collecting",
-      "The fixed-phase ESPVR is not strictly increasing over the low-volume-to-anchor PVA domain",
+      method.systolicLoadDomain === "preload-reduction-through-anchor"
+        ? "The preload-reduction ESPVR is not strictly increasing through the operating anchor"
+        : "The fixed-phase ESPVR is not strictly increasing over the low-volume-to-anchor PVA domain",
       anchorPreview,
     );
   }
@@ -408,12 +461,14 @@ export function buildMainWirePeriodicPvaMethodV8(
         areaMaxIsochrone.selected.timeSinceAtrialCaptureSec,
       selectedPhase01AtAnchor: areaMaxIsochrone.selected.phase01AtAnchor,
       phaseSelectionPolicy:
-        "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window" as const,
+        method.systolicLoadDomain === "preload-reduction-through-anchor"
+          ? "preload-reduction-through-anchor-over-lower-anchor-esv-neighborhood-within-anchor-late-systolic-window" as const
+          : "all-settled-loads-over-fixed-anchor-esv-neighborhood-within-anchor-late-systolic-window" as const,
       phaseSelectionStatus:
         locus.completedPointCount >= locus.totalPointCount
           ? ("complete" as const)
           : ("progressive" as const),
-      phaseSelectionPointCount: relationPoints.length,
+      phaseSelectionPointCount: systolicRelationPoints.length,
       phaseSelectionObjective:
         "positive-active-pressure-area-over-fixed-anchor-esv-neighborhood" as const,
       phaseSelectionIntegrationVolumeRangeMl:
@@ -542,7 +597,7 @@ export function buildMainWirePeriodicPvaMethodV8(
     ventricleId === "LV"
       ? evaluateMainWireIntegratedModelLvMvo2EstimateV1({
           pvaOutputId: outputId,
-          pvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+          pvaMethodId: method.methodId,
           pvaEstimateJ: pvaJ,
           heartRateBpm: 60 / acceptedBeatDurationSec,
         })
@@ -568,7 +623,7 @@ export function buildMainWirePeriodicPvaMethodV8(
   });
   return Object.freeze({
     analysisId: MAIN_WIRE_PERIODIC_PVA_V1_ID,
-    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+    methodId: method.methodId,
     outputId,
     status: "available" as const,
     completionStatus: espvrProjection.phaseSelectionStatus,
@@ -610,6 +665,7 @@ function areaMaxCommonIsochroneV1(
   allPoints: readonly MainWireIntegratedModelStarlingPointV3[],
   fullEdpvr: ExponentialFitV1,
   anchor: MainWireIntegratedModelStarlingPointV3,
+  volumeDomain: "bilateral" | "lower-through-anchor" = "bilateral",
 ): AreaMaxCommonIsochroneV1 | null {
   if (
     allPoints.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 ||
@@ -624,7 +680,9 @@ function areaMaxCommonIsochroneV1(
   const integrationVolumeRangeMl = Object.freeze([
     (1 - PHASE_SELECTION_ANCHOR_ESV_HALF_WIDTH_FRACTION_V1) *
       anchorEndSystolicVolumeMl,
-    (1 + PHASE_SELECTION_ANCHOR_ESV_HALF_WIDTH_FRACTION_V1) *
+    (volumeDomain === "lower-through-anchor"
+      ? 1
+      : 1 + PHASE_SELECTION_ANCHOR_ESV_HALF_WIDTH_FRACTION_V1) *
       anchorEndSystolicVolumeMl,
   ] as const);
   const candidateWindow = anchorLateSystolicWindowV1(anchor);
@@ -636,10 +694,9 @@ function areaMaxCommonIsochroneV1(
     return null;
   }
 
-  // Every candidate is scored over the same physical volume interval around
-  // the operating anchor ESV. All currently settled loads contribute to the
-  // isochrone, so extending the bidirectional family may refine both the
-  // winning common time and the measured nonlinear ESPVR.
+  // Every candidate is scored over the same physical interval at the anchor.
+  // V8 uses a bilateral neighborhood. V9 uses the lower half through the
+  // anchor so a preload-reduction ESPVR does not require hypervolemic samples.
   const coarseCandidates = isochronalPressureCandidatesV1(
     allPoints,
     fullEdpvr,

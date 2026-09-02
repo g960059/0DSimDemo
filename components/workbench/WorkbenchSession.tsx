@@ -96,6 +96,9 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
+  resolveRegisteredExactModelBaselineValidationV1,
+} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
+import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
   loadStudioLocalStandardModelLabClientCompositionV1,
@@ -200,11 +203,15 @@ import {
   shouldConfirmWorkbenchDiscardV3,
   shouldPublishWorkbenchRootFrameV3,
   workbenchInputMutationReplacedAcceptedClockV3,
+  workbenchRejectedControlCanResumeRuntimeV3,
   workbenchDurableContentAvailableV3,
   workbenchPaneIdentityForIdV3,
   workbenchPublicationAvailableV3,
   type WorkbenchPaneSettingsV3,
 } from "@/components/workbench/WorkbenchSessionPolicy";
+import {
+  isRecoverableStudioSimulationWorkerRequestErrorV2,
+} from "@/studio/workers/StudioSimulationWorkerClientV2";
 import {
   scalarAvailableOutputV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
@@ -486,6 +493,249 @@ export const WorkbenchSession = ({
         surfaceReleaseId: modelDocumentation.surfaceReleaseId,
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
+  const baselineValidation =
+    resolveRegisteredExactModelBaselineValidationV1(contract?.modelId);
+  const baselineValidationPresentation = baselineValidation === null
+    ? undefined
+    : Object.freeze({
+        summary: t(
+          "workbench.editor.simulationInfo.baselineValidationSummary",
+          { cycles: baselineValidation.completedCycleCount },
+        ),
+        items: Object.freeze([
+          Object.freeze({
+            itemId: "lvp-morphology",
+            label: t("workbench.editor.simulationInfo.baselineLvp"),
+            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              {
+                peaks:
+                  baselineValidation.measurements.LVP.significantPeakCount,
+                roundness: baselineValidation.measurements.LVP
+                  .centralRangeFraction.toFixed(3),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "rvp-morphology",
+            label: t("workbench.editor.simulationInfo.baselineRvp"),
+            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              {
+                peaks:
+                  baselineValidation.measurements.RVP.significantPeakCount,
+                roundness: baselineValidation.measurements.RVP
+                  .centralRangeFraction.toFixed(3),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "av-et",
+            label: "AV ET",
+            value: `${Math.round(
+              baselineValidation.measurements.aorticValve.ejectionTimeSec
+                * 1_000,
+            )} ms`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "240–340 ms" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "av-gradient",
+            label: t("workbench.editor.simulationInfo.baselineAvGradient"),
+            value: `${baselineValidation.measurements.aorticValve
+              .meanGradientMmHg.toFixed(1)} / ${baselineValidation.measurements
+              .aorticValve.peakGradientMmHg.toFixed(1)} mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineAvGradientDetail",
+              { range: "mean 0–5 / peak 0–10 mmHg" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "lv-dpdt",
+            label: "LV ±dP/dt",
+            value: `+${Math.round(
+              baselineValidation.measurements.leftVentricle
+                .maximumDpDtMmHgPerSec,
+            )} / ${Math.round(
+              baselineValidation.measurements.leftVentricle
+                .minimumDpDtMmHgPerSec,
+            )}`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineLvDpDtDetail",
+              { range: "+1200–2500 / −1400–−700 mmHg/s" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "mitral-ea",
+            label: "Mitral E/A",
+            value: baselineValidation.measurements.mitralFlow.peakEToA
+              .toFixed(2),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "0.8–2.0" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "ict-irt",
+            label: "LV ICT / IRT",
+            value: `${Math.round(
+              baselineValidation.measurements.timing.ictSec * 1_000,
+            )} / ${Math.round(
+              baselineValidation.measurements.timing.irtSec * 1_000,
+            )} ms`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIctIrtDetail",
+              { range: "ICT 20–70 / IRT 59–134 ms" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "tei-index",
+            label: "LV Tei index",
+            value: baselineValidation.measurements.timing.teiIndex.toFixed(2),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "0.29–0.65" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "aortic-pressure",
+            label: "AoP max / min",
+            value: `${baselineValidation.measurements.hemodynamicPressure
+              .aortic.maximumMmHg.toFixed(0)} / ${baselineValidation
+              .measurements.hemodynamicPressure.aortic.minimumMmHg
+              .toFixed(0)} mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineAorticPressureDetail",
+              { range: "90–140 / 60–90 mmHg" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "pulmonary-filling-pressure",
+            label: "PAP max / min · CVP / PCWP*",
+            value: `${baselineValidation.measurements.hemodynamicPressure
+              .pulmonaryArtery.maximumMmHg.toFixed(0)} / ${baselineValidation
+              .measurements.hemodynamicPressure.pulmonaryArtery.minimumMmHg
+              .toFixed(0)} · ${baselineValidation.measurements
+              .hemodynamicPressure.centralVenousMeanMmHg.toFixed(1)} / ${
+              baselineValidation.measurements.hemodynamicPressure
+                .pcwpSurrogateMeanMmHg.toFixed(1)
+            } mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselinePulmonaryPressureDetail",
+              { range: "PAP 15–35 / 4–15 · CVP 1–8 · PCWP* 4–13 mmHg" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "indexed-volumes",
+            label: "EDVI / ESVI",
+            value: `LV ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.endDiastolicVolumeIndexMlPerM2,
+            )}/${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.endSystolicVolumeIndexMlPerM2,
+            )} · RV ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.endDiastolicVolumeIndexMlPerM2,
+            )}/${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.endSystolicVolumeIndexMlPerM2,
+            )} mL/m²`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIndexedVolumesDetail",
+              { range: "LV 34–99/10–40 · RV 32–87/8–44 mL/m²" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "ventricular-ef",
+            label: "LVEF / RVEF",
+            value: `${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .leftVentricle.ejectionFraction01 * 100,
+            )} / ${Math.round(
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .rightVentricle.ejectionFraction01 * 100,
+            )} %`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineRangeDetail",
+              { range: "LVEF 52–74% · RVEF 42–82%" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "indexed-flow",
+            label: "CI / SVI",
+            value: `${baselineValidation.measurements.cardiacSizeAndFunction
+              .systemicForwardFlow.cardiacIndexLPerMinPerM2.toFixed(2)} / ${
+              baselineValidation.measurements.cardiacSizeAndFunction
+                .systemicForwardFlow.strokeVolumeIndexMlPerM2.toFixed(1)
+            }`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineIndexedFlowDetail",
+              { range: "CI 2.5–4.0 L/min/m² · SVI 35–65 mL/m²" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "preload-reserve",
+            label: t(
+              "workbench.editor.simulationInfo.baselinePreloadReserve",
+            ),
+            value: t(
+              "workbench.editor.simulationInfo.baselineBidirectionalPassed",
+            ),
+            detail: t(
+              "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
+              {
+                low: Math.round(
+                  (1 - baselineValidation.preloadReserve
+                    .hypovolemicGlobalTbvScale) * 100,
+                ),
+                high: Math.round(
+                  (baselineValidation.preloadReserve
+                    .hypervolemicGlobalTbvScale - 1) * 100,
+                ),
+                lowLv: baselineValidation.preloadReserve.left.hypovolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                lowRv: baselineValidation.preloadReserve.right.hypovolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                highLv: baselineValidation.preloadReserve.left.hypervolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+                highRv: baselineValidation.preloadReserve.right.hypervolemic
+                  .directionalCardiacOutputChangeLPerMin.toFixed(2),
+              },
+            ),
+          }),
+          Object.freeze({
+            itemId: "transmural-preload-response",
+            label: t(
+              "workbench.editor.simulationInfo.baselineTransmuralResponse",
+            ),
+            value: t(
+              "workbench.editor.simulationInfo.baselineBidirectionalPassed",
+            ),
+            detail: t(
+              "workbench.editor.simulationInfo.baselineTransmuralResponseDetail",
+              {
+                lowLv: baselineValidation.preloadReserve.left.hypovolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                lowRv: baselineValidation.preloadReserve.right.hypovolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                highLv: baselineValidation.preloadReserve.left.hypervolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+                highRv: baselineValidation.preloadReserve.right.hypervolemic
+                  .directionalEndDiastolicTransmuralPressureChangeMmHg
+                  .toFixed(1),
+              },
+            ),
+          }),
+        ]),
+      });
 
   React.useEffect(() => {
     translationRef.current = t;
@@ -1327,6 +1577,7 @@ export const WorkbenchSession = ({
       setControlError(null);
       let ownsControlOperation = false;
       let mutationDispatched = false;
+      let rejectedControlCanResumeRuntime = false;
       try {
         if (operation === "analysis") {
           // A user edit outranks an automatically requested structural
@@ -1378,7 +1629,7 @@ export const WorkbenchSession = ({
           }),
         );
         mutationDispatched = true;
-        const nextFrames = await Promise.all(
+        const controlResults = await Promise.allSettled(
           acceptedFrames.map((acceptedFrame) =>
             runtime.applyControl({
               scenarioId: acceptedFrame.scenarioId,
@@ -1388,6 +1639,23 @@ export const WorkbenchSession = ({
             }),
           ),
         );
+        const nextFrames = controlResults.flatMap((result) =>
+          result.status === "fulfilled" ? [result.value] : []
+        );
+        const rejectedControls = controlResults.flatMap((result) =>
+          result.status === "rejected" ? [result.reason] : []
+        );
+        if (rejectedControls.length > 0) {
+          rejectedControlCanResumeRuntime =
+            workbenchRejectedControlCanResumeRuntimeV3({
+              dispatchedCount: controlResults.length,
+              acceptedCount: nextFrames.length,
+              everyRejectionRecoverable: rejectedControls.every(
+                isRecoverableStudioSimulationWorkerRequestErrorV2,
+              ),
+            });
+          throw rejectedControls[0];
+        }
         const activeId = activeScenarioIdRef.current;
         const nextRootFrame =
           activeId === null ? nextFrames[0]! : runtime.latestFrame(activeId);
@@ -1481,10 +1749,14 @@ export const WorkbenchSession = ({
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         setControlError(message);
-        if (mutationDispatched && runtimeRef.current === runtime) {
-          // Once a Worker receives a control command, a rejected apply or a
-          // later fixture capture can leave accepted exact state changed. The
-          // UI has no rollback authority, so discard the entire runtime.
+        if (
+          mutationDispatched
+          && !rejectedControlCanResumeRuntime
+          && runtimeRef.current === runtime
+        ) {
+          // A fatal rejection, one partially accepted multi-Scenario edit, or
+          // a later capture failure can leave exact/UI authorities divergent.
+          // The UI has no rollback authority, so discard the entire runtime.
           playingIntentRef.current = false;
           setIsPlaying(false);
           runtimeRef.current = null;
@@ -1805,9 +2077,24 @@ export const WorkbenchSession = ({
     ): Promise<boolean> => {
       const runtime = runtimeRef.current;
       const frame = latestFrameRef.current;
+      const exclusiveOperation = exclusiveOperationRef.current;
       if (
         runtime === null ||
         frame === null ||
+        (exclusiveOperation !== null && exclusiveOperation !== "analysis")
+      )
+        return false;
+      if (exclusiveOperation === "analysis") {
+        // Scenario edits are explicit foreground actions. Revoke detached
+        // structural work and wait only for its exact-source capture to
+        // release the live lane before changing the Scenario set.
+        runtime.cancelAnalysisJobs();
+        await analysisCaptureReleaseRef.current?.promise;
+        runtime.cancelAnalysisJobs();
+      }
+      if (
+        runtimeRef.current !== runtime ||
+        latestFrameRef.current === null ||
         exclusiveOperationRef.current !== null
       )
         return false;
@@ -3086,6 +3373,12 @@ export const WorkbenchSession = ({
                   description: t(
                     "workbench.editor.simulationInfo.integratedModelDescription",
                   ),
+                  ...(baselineValidationPresentation === undefined
+                    ? {}
+                    : {
+                        baselineValidation:
+                          baselineValidationPresentation,
+                      }),
                   ...(modelDocumentationLink === undefined
                     ? {}
                     : { documentationHref: modelDocumentationLink }),

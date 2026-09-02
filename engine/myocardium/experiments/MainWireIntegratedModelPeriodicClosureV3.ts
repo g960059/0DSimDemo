@@ -518,12 +518,18 @@ function validateProvenance(
   const currentRegular = currentRhythm.regularAtrialSourceState!;
   const referenceRegular = referenceRhythm.regularAtrialSourceState!;
   const period = currentRegular.configuration.cycleLengthSec;
+  const candidateLag =
+    current.coronary.coronaryAutoregulation.windowIndex
+    - reference.coronary.coronaryAutoregulation.windowIndex;
   const acceptedTimeAdvanceSec =
     current.acceptedTimeSec - reference.acceptedTimeSec;
-  const candidateLag = Math.round(acceptedTimeAdvanceSec / period);
   if (
     (candidateLag !== 1 && candidateLag !== 2) ||
-    !nearlyEqual(acceptedTimeAdvanceSec, candidateLag * period)
+    !acceptedClockAdvanceMatchesV3(
+      current.acceptedTimeSec,
+      reference.acceptedTimeSec,
+      candidateLag * period,
+    )
   ) {
     throw new Error("V3 periodic clock must advance by exactly P1 or P2");
   }
@@ -1612,6 +1618,20 @@ function nearlyEqual(left: number, right: number): boolean {
   return (
     Math.abs(left - right) <=
     64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right))
+  );
+}
+
+function acceptedClockAdvanceMatchesV3(
+  currentAcceptedTimeSec: number,
+  referenceAcceptedTimeSec: number,
+  expectedAdvanceSec: number,
+): boolean {
+  return Math.abs(
+    (currentAcceptedTimeSec - referenceAcceptedTimeSec) - expectedAdvanceSec,
+  ) <= 64 * Number.EPSILON * Math.max(
+    1,
+    Math.abs(currentAcceptedTimeSec),
+    Math.abs(referenceAcceptedTimeSec),
   );
 }
 

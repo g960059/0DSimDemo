@@ -366,9 +366,15 @@ async function updateArtifactAndLock(
   artifact: Uint8Array,
   clientDescriptor: StandardClientDescriptorV1,
 ): Promise<void> {
-  const prior = existsSync(lockPath)
+  const currentPrior = existsSync(lockPath)
     ? parseLock(readFileSync(lockPath, "utf8"), "current lock")
     : null;
+  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
+  const basePrior = baseRef === undefined || baseRef === ""
+      || /^0+$/.test(baseRef)
+    ? null
+    : readPriorLock(baseRef);
+  const prior = basePrior ?? currentPrior;
   let predecessorArtifactRevisionId: string | null = null;
   let equivalenceReportSha256: string | null = null;
   if (
@@ -376,12 +382,23 @@ async function updateArtifactAndLock(
     && prior.modelId === modelId
     && prior.artifactRevisionId !== artifactRevisionId
   ) {
-    if (!existsSync(artifactPath) || !existsSync(clientDescriptorPath)) {
+    if (
+      basePrior === null
+      && (!existsSync(artifactPath) || !existsSync(clientDescriptorPath))
+    ) {
       fail("the predecessor artifact or client descriptor is missing");
     }
-    const predecessorArtifact = new Uint8Array(readFileSync(artifactPath));
+    const predecessorArtifact = basePrior === null
+      ? new Uint8Array(readFileSync(artifactPath))
+      : readPriorBytesV1(baseRef!, artifactRelativePath);
+    const predecessorClientBytes = basePrior === null
+      ? new Uint8Array(readFileSync(clientDescriptorPath))
+      : readPriorBytesV1(baseRef!, clientDescriptorRelativePath);
+    if (predecessorArtifact === null || predecessorClientBytes === null) {
+      fail("the base predecessor artifact or client descriptor is missing");
+    }
     const predecessorClient = parseClientDescriptor(
-      readFileSync(clientDescriptorPath, "utf8"),
+      new TextDecoder().decode(predecessorClientBytes),
       "predecessor Standard client descriptor",
     );
     const predecessorManifest = studioCanonicalJsonStringify(
@@ -389,7 +406,10 @@ async function updateArtifactAndLock(
     );
     if (
       predecessorClient.manifest.modelId !== prior.modelId
-      || sha256V1(predecessorArtifact) !== prior.artifactSha256
+      || (
+        prior.artifactSha256 !== null
+        && sha256V1(predecessorArtifact) !== prior.artifactSha256
+      )
       || exactPackageSha256(predecessorManifest, predecessorArtifact)
         !== prior.artifactRevisionId
     ) {
@@ -563,6 +583,7 @@ type PriorRegistryAdmissionLockV1 = Readonly<{
     | "circleheart-standard-exact-model-registry-admission-lock-v2";
   modelId: string;
   artifactRevisionId: string;
+  artifactSha256: string | null;
   predecessorArtifactRevisionId: string | null;
   equivalenceReportSha256: string | null;
 }>;
@@ -607,6 +628,7 @@ function readPriorLock(baseRef: string): PriorRegistryAdmissionLockV1 | null {
     schemaId: "circleheart-standard-exact-model-registry-admission-lock-v1",
     modelId: parsed.modelId,
     artifactRevisionId: revision,
+    artifactSha256: null,
     predecessorArtifactRevisionId: null,
     equivalenceReportSha256: null,
   });

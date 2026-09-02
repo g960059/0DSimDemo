@@ -31,6 +31,8 @@ import type { ExactModelFixtureProjectionV1 } from
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
@@ -43,14 +45,28 @@ import standardRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import selectedAorticOutflowClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
-import selectedAorticOutflowSurfaceReleaseV1 from
+import selectedAorticOutflowRetainedSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
+import selectedAorticOutflowSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
 import selectedAorticOutflowRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
+import algebraicProximalRootsClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
+import algebraicProximalRootsSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
+import algebraicProximalRootsRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
+import roundedEjectionClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
+import roundedEjectionSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import roundedEjectionRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -78,7 +94,13 @@ const browserSnapshotCompositionPromisesV2 = new Map<
 >();
 let browserLocalStandardModelLabCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
-let browserLocalSelectedAorticOutflowCompositionPromiseV1:
+const browserLocalSelectedAorticOutflowCompositionPromisesV1 = new Map<
+  string,
+  Promise<StudioClientCompositionV2>
+>();
+let browserLocalAlgebraicProximalRootsCompositionPromiseV1:
+  Promise<StudioClientCompositionV2> | undefined;
+let browserLocalRoundedEjectionCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
 
 /**
@@ -103,7 +125,7 @@ async function createRegistryClientCompositionV2(
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
-      return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
+      return loadStudioLocalRoundedEjectionClientCompositionV1();
     }
     if (
       modelId === standardClientDescriptorV1.manifest.modelId
@@ -124,6 +146,38 @@ async function createRegistryClientCompositionV2(
       )
     ) {
       return loadStudioLocalSelectedAorticOutflowClientCompositionV1();
+    }
+    if (
+      modelId === selectedAorticOutflowClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        selectedAorticOutflowRetainedSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+        selectedAorticOutflowRetainedSurfaceReleaseV1,
+      );
+    }
+    if (
+      modelId === algebraicProximalRootsClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        algebraicProximalRootsSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalAlgebraicProximalRootsClientCompositionV1();
+    }
+    if (
+      modelId === roundedEjectionClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        roundedEjectionSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalRoundedEjectionClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -188,9 +242,20 @@ export const loadStudioLocalStandardModelLabClientCompositionV1 =
 /** Local default Workbench composition for the selected Standard66 release. */
 export function loadStudioLocalSelectedAorticOutflowClientCompositionV1():
 Promise<StudioClientCompositionV2> {
-  if (browserLocalSelectedAorticOutflowCompositionPromiseV1 !== undefined) {
-    return browserLocalSelectedAorticOutflowCompositionPromiseV1;
-  }
+  return loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+    selectedAorticOutflowSurfaceReleaseV1,
+  );
+}
+
+function loadStudioLocalSelectedAorticOutflowClientCompositionForSurfaceV1(
+  surfaceRelease: unknown,
+): Promise<StudioClientCompositionV2> {
+  assertModelSurfaceReleaseManifestV1(surfaceRelease);
+  const key = surfaceRelease.surfaceReleaseId;
+  const cached = browserLocalSelectedAorticOutflowCompositionPromisesV1.get(
+    key,
+  );
+  if (cached !== undefined) return cached;
   const pending = Promise.resolve().then(() => {
     if (
       selectedAorticOutflowClientDescriptorV1.schemaId
@@ -203,16 +268,13 @@ Promise<StudioClientCompositionV2> {
     assertExactModelKernelManifestV3(
       selectedAorticOutflowClientDescriptorV1.manifest,
     );
-    assertModelSurfaceReleaseManifestV1(
-      selectedAorticOutflowSurfaceReleaseV1,
-    );
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
       modelId: selectedAorticOutflowClientDescriptorV1.manifest.modelId,
       artifactRevisionId:
         selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
       manifest: selectedAorticOutflowClientDescriptorV1.manifest,
-      surfaceRelease: selectedAorticOutflowSurfaceReleaseV1,
+      surfaceRelease,
       moduleAbi: "circleheart-exact-model-esm-v1",
       artifactUrl: localSelectedAorticOutflowArtifactUrlV1(),
     });
@@ -223,10 +285,101 @@ Promise<StudioClientCompositionV2> {
       surfaceStage: "dev" as const,
     }));
   });
-  browserLocalSelectedAorticOutflowCompositionPromiseV1 = pending;
+  browserLocalSelectedAorticOutflowCompositionPromisesV1.set(key, pending);
   void pending.catch(() => {
-    if (browserLocalSelectedAorticOutflowCompositionPromiseV1 === pending) {
-      browserLocalSelectedAorticOutflowCompositionPromiseV1 = undefined;
+    if (
+      browserLocalSelectedAorticOutflowCompositionPromisesV1.get(key)
+        === pending
+    ) {
+      browserLocalSelectedAorticOutflowCompositionPromisesV1.delete(key);
+    }
+  });
+  return pending;
+}
+
+/** Local default Workbench composition for the Standard67 successor. */
+export function loadStudioLocalAlgebraicProximalRootsClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalAlgebraicProximalRootsCompositionPromiseV1 !== undefined) {
+    return browserLocalAlgebraicProximalRootsCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      algebraicProximalRootsClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error("Standard67 client descriptor identity mismatch");
+    }
+    assertExactModelKernelManifestV3(
+      algebraicProximalRootsClientDescriptorV1.manifest,
+    );
+    assertModelSurfaceReleaseManifestV1(
+      algebraicProximalRootsSurfaceReleaseV1,
+    );
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: algebraicProximalRootsClientDescriptorV1.manifest.modelId,
+      artifactRevisionId:
+        algebraicProximalRootsRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: algebraicProximalRootsClientDescriptorV1.manifest,
+      surfaceRelease: algebraicProximalRootsSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: localAlgebraicProximalRootsArtifactUrlV1(),
+    });
+    return composeStudioClientCompositionV2(Object.freeze({
+      defaultFixture: algebraicProximalRootsClientDescriptorV1.defaultFixture,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
+      surfaceStage: "dev" as const,
+    }));
+  });
+  browserLocalAlgebraicProximalRootsCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalAlgebraicProximalRootsCompositionPromiseV1 === pending) {
+      browserLocalAlgebraicProximalRootsCompositionPromiseV1 = undefined;
+    }
+  });
+  return pending;
+}
+
+/** Local default Workbench composition for the rounded-ejection Standard68. */
+export function loadStudioLocalRoundedEjectionClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalRoundedEjectionCompositionPromiseV1 !== undefined) {
+    return browserLocalRoundedEjectionCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      roundedEjectionClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error("Standard68 client descriptor identity mismatch");
+    }
+    assertExactModelKernelManifestV3(
+      roundedEjectionClientDescriptorV1.manifest,
+    );
+    assertModelSurfaceReleaseManifestV1(roundedEjectionSurfaceReleaseV1);
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: roundedEjectionClientDescriptorV1.manifest.modelId,
+      artifactRevisionId:
+        roundedEjectionRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: roundedEjectionClientDescriptorV1.manifest,
+      surfaceRelease: roundedEjectionSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: localRoundedEjectionArtifactUrlV1(),
+    });
+    return composeStudioClientCompositionV2(Object.freeze({
+      defaultFixture: roundedEjectionClientDescriptorV1.defaultFixture,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
+      surfaceStage: "dev" as const,
+    }));
+  });
+  browserLocalRoundedEjectionCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalRoundedEjectionCompositionPromiseV1 === pending) {
+      browserLocalRoundedEjectionCompositionPromiseV1 = undefined;
     }
   });
   return pending;
@@ -279,6 +432,58 @@ export function localSelectedAorticOutflowArtifactRevisionUrlV1(
   revisioned.searchParams.set(
     "revision",
     selectedAorticOutflowRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
+}
+
+function localAlgebraicProximalRootsArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  return resolved.protocol === "file:"
+    ? new URL(
+        "__circleheart_local_algebraic_proximal_roots_standard67_artifact__.mjs",
+        loopbackBase,
+      ).href
+    : localAlgebraicProximalRootsArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localAlgebraicProximalRootsArtifactRevisionUrlV1(
+  resolved: URL,
+): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    algebraicProximalRootsRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
+}
+
+function localRoundedEjectionArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioRoundedEjectionExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  return resolved.protocol === "file:"
+    ? new URL(
+        "__circleheart_local_rounded_ejection_standard68_artifact__.mjs",
+        loopbackBase,
+      ).href
+    : localRoundedEjectionArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localRoundedEjectionArtifactRevisionUrlV1(
+  resolved: URL,
+): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    roundedEjectionRegistryAdmissionLockV1.artifactRevisionId,
   );
   return revisioned;
 }
