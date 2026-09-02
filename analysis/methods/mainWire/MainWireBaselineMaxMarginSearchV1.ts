@@ -26,7 +26,10 @@ import {
 export const MAIN_WIRE_BASELINE_MAX_MARGIN_SEARCH_V1_ID =
   "main-wire-baseline-max-margin-search-v1" as const;
 
-export type MainWireBaselineSearchStageV1 = "initial" | "refinement";
+export type MainWireBaselineSearchStageV1 =
+  | "initial"
+  | "refinement"
+  | "segment";
 
 export type MainWireBaselineSearchCandidateV1 = Readonly<{
   candidateId: string;
@@ -63,7 +66,7 @@ export type MainWireBaselineCandidateObjectiveV1 = Readonly<{
 }>;
 
 export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
-  stage: MainWireBaselineSearchStageV1;
+  stage: Exclude<MainWireBaselineSearchStageV1, "segment">;
   center?: MainWireBaselineCalibrationCandidateInputsV1;
   contractionOverride?: number;
   coordinateBounds?: Readonly<Partial<Record<
@@ -161,6 +164,47 @@ export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
     candidates.push(candidateV1(input.stage, ordinal, target));
   }
   return Object.freeze(candidates);
+}
+
+/**
+ * Resolves an observed trade-off boundary with a fixed, very small budget.
+ * Interpolation follows each coordinate's declared transform so log-scaled
+ * positive parameters are combined geometrically rather than arithmetically.
+ */
+export function buildMainWireBaselineSegmentDesignV1(input: Readonly<{
+  start: MainWireBaselineCalibrationCandidateInputsV1;
+  end: MainWireBaselineCalibrationCandidateInputsV1;
+}>): readonly MainWireBaselineSearchCandidateV1[] {
+  const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
+  const coordinateIds = policy.coordinateIds;
+  const differs = coordinateIds.some((coordinateId) =>
+    readMainWireBaselineCalibrationParameterV1(input.start, coordinateId)
+      !== readMainWireBaselineCalibrationParameterV1(input.end, coordinateId));
+  if (!differs) throw new Error("baseline segment endpoints must differ");
+  return Object.freeze(policy.paretoSegmentFractions.map((fraction, ordinal) => {
+    const candidateInputs = applyMainWireBaselineCalibrationParametersV1(
+      input.start,
+      coordinateIds.map((parameterId) => {
+        const start = transformMainWireBaselineCalibrationParameterV1(
+          parameterId,
+          readMainWireBaselineCalibrationParameterV1(input.start, parameterId),
+        );
+        const end = transformMainWireBaselineCalibrationParameterV1(
+          parameterId,
+          readMainWireBaselineCalibrationParameterV1(input.end, parameterId),
+        );
+        const transformed = start + fraction * (end - start);
+        const descriptor = mainWireBaselineCalibrationParameterV1(parameterId);
+        return Object.freeze({
+          parameterId,
+          value: descriptor.transform === "log"
+            ? Math.exp(transformed)
+            : transformed,
+        });
+      }),
+    );
+    return candidateV1("segment", ordinal, candidateInputs);
+  }));
 }
 
 export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{

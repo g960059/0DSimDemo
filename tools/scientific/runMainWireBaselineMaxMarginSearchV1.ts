@@ -24,6 +24,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
 import {
   buildMainWireBaselineSearchDesignV1,
+  buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
   scoreMainWireBaselineCandidateObjectiveV1,
   type MainWireBaselineCandidateObjectiveV1,
@@ -111,8 +112,24 @@ async function runCoordinatorV1(): Promise<void> {
   const reserveRecoverySeedCandidateId = argumentV1(
     "--reserve-recovery-seed-candidate-id",
   );
+  const segmentStartCandidateId = argumentV1("--segment-start-candidate-id");
+  const segmentEndCandidateId = argumentV1("--segment-end-candidate-id");
+  const segmentRequested = segmentStartCandidateId !== null
+    || segmentEndCandidateId !== null;
+  if ((segmentStartCandidateId === null) !== (segmentEndCandidateId === null)) {
+    throw new Error("segment search requires both endpoint candidate IDs");
+  }
+  if (segmentStartCandidateId === segmentEndCandidateId && segmentRequested) {
+    throw new Error("segment search endpoint candidate IDs must differ");
+  }
+  if (segmentRequested && reserveRecoverySeedCandidateId !== null) {
+    throw new Error("segment and reserve-recovery search modes are exclusive");
+  }
   if (reserveRecoverySeedCandidateId !== null && seedReportArgument === null) {
     throw new Error("reserve-recovery seed requires --seed-report");
+  }
+  if (segmentRequested && seedReportArgument === null) {
+    throw new Error("segment search requires --seed-report");
   }
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "8",
@@ -141,9 +158,23 @@ async function runCoordinatorV1(): Promise<void> {
         numericalFloors: numericalFloor.metricFloors,
         sourceCheckpointSha256: sourceCheckpoint.checkpointSha256,
         sourceCandidateInputs,
-        requestedCandidateId: reserveRecoverySeedCandidateId,
+        requestedCandidateId:
+          segmentStartCandidateId ?? reserveRecoverySeedCandidateId,
       });
-  const largestStageCount = seedSelection === null
+  const segmentEndSelection = segmentEndCandidateId === null
+    ? null
+    : await loadSearchSeedSelectionV1({
+        artifactPath: resolve(seedReportArgument!),
+        numericalFloorArtifactSha256,
+        numericalFloors: numericalFloor.metricFloors,
+        sourceCheckpointSha256: sourceCheckpoint.checkpointSha256,
+        sourceCandidateInputs,
+        requestedCandidateId: segmentEndCandidateId,
+      });
+  const largestStageCount = segmentEndSelection !== null
+    ? MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+      .paretoSegmentFractions.length
+    : seedSelection === null
     ? Math.max(
         baselineDesign.length,
         MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
@@ -209,6 +240,38 @@ async function runCoordinatorV1(): Promise<void> {
         sourceCandidateInputs: bestInitial.candidateInputs,
         numericalFloors: numericalFloor.metricFloors,
       })), effectiveParallelism, progress);
+  } else if (segmentEndSelection !== null) {
+    initial = Object.freeze([]);
+    bestInitialCandidateId = null;
+    const segmentCandidates = buildMainWireBaselineSegmentDesignV1({
+      start: seedSelection.candidateInputs,
+      end: segmentEndSelection.candidateInputs,
+    });
+    process.stderr.write(
+      `[baseline-search] verified segment ${seedSelection.selectedCandidateId}`
+        + ` -> ${segmentEndSelection.selectedCandidateId}; `
+        + `${segmentCandidates.length} points, ${effectiveParallelism} workers\n`,
+    );
+    const start = (await runPoolV1([Object.freeze({
+      candidate: segmentCandidates[0],
+      sourceCheckpoint,
+      sourceCandidateInputs,
+      numericalFloors: numericalFloor.metricFloors,
+    })], 1, progress))[0];
+    if (start.acceptedCheckpoint === null) {
+      throw new Error("segment start did not produce an accepted checkpoint");
+    }
+    const remaining = await runPoolV1(
+      segmentCandidates.slice(1).map((candidate) => Object.freeze({
+        candidate,
+        sourceCheckpoint: start.acceptedCheckpoint!,
+        sourceCandidateInputs: start.candidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })),
+      effectiveParallelism,
+      progress,
+    );
+    refinement = Object.freeze([start, ...remaining]);
   } else {
     initial = Object.freeze([]);
     bestInitialCandidateId = null;
@@ -307,15 +370,19 @@ async function runCoordinatorV1(): Promise<void> {
     sum + execution.evaluation.wallTimeMs, 0);
   const report = Object.freeze({
     schemaVersion: 1 as const,
-    searchId: reserveRecoverySeedCandidateId === null
-      ? "main-wire-baseline-max-margin-search-result-v2" as const
-      : "main-wire-baseline-preload-reserve-recovery-search-result-v1" as const,
+    searchId: segmentEndSelection !== null
+      ? "main-wire-baseline-pareto-segment-search-result-v1" as const
+      : reserveRecoverySeedCandidateId === null
+        ? "main-wire-baseline-max-margin-search-result-v2" as const
+        : "main-wire-baseline-preload-reserve-recovery-search-result-v1" as const,
     studyIdentitySha256: study.studyIdentitySha256,
     protocolCommit,
     executionCommit,
     numericalFloorArtifactPath: portableRepositoryPathV1(floorPath),
     numericalFloorArtifactSha256,
-    executionMode: seedSelection === null
+    executionMode: segmentEndSelection !== null
+      ? "verified-report-seeded-transformed-coordinate-segment" as const
+      : seedSelection === null
       ? "full-initial-and-refinement" as const
       : reserveRecoverySeedCandidateId === null
         ? "verified-report-seeded-refinement" as const
@@ -326,6 +393,16 @@ async function runCoordinatorV1(): Promise<void> {
     seedSelection: seedSelection === null
       ? null
       : searchSeedSelectionReportV1(seedSelection),
+    segmentSelection: segmentEndSelection === null || seedSelection === null
+      ? null
+      : Object.freeze({
+          start: searchSeedSelectionReportV1(seedSelection),
+          end: searchSeedSelectionReportV1(segmentEndSelection),
+          interpolationSpace:
+            "parameter-declared-transformed-coordinate" as const,
+          fractions: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+            .searchPolicy.paretoSegmentFractions,
+        }),
     requestedParallelism,
     effectiveParallelism,
     batchWallTimeMs,
@@ -362,7 +439,8 @@ async function runCoordinatorV1(): Promise<void> {
       restCorridorsOnly: true as const,
       primaryInteriorBeforeMacroHemodynamics: true as const,
       preloadReserveRecoveryScreenRequired:
-        (reserveRecoverySeedCandidateId !== null) as boolean,
+        (reserveRecoverySeedCandidateId !== null
+          || segmentEndSelection !== null) as boolean,
       preloadReserveQualified: false as const,
       perturbationSafetyQualified: false as const,
       finalistRefinedDtQualified: false as const,

@@ -14,6 +14,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
   buildMainWireBaselineSearchDesignV1,
+  buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
   scoreMainWireBaselineCandidateObjectiveV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
@@ -482,6 +483,27 @@ describe("Standard68 baseline mint gates", () => {
     );
     expect(Math.min(...recoveryVolumes)).toBeLessThan(4_850);
     expect(Math.max(...recoveryVolumes)).toBeGreaterThan(4_850);
+
+    const segment = buildMainWireBaselineSegmentDesignV1({
+      start: first[1].candidateInputs,
+      end: first[2].candidateInputs,
+    });
+    expect(segment).toHaveLength(5);
+    expect(segment[0].candidateInputs).toEqual(first[1].candidateInputs);
+    expect(segment.at(-1)?.candidateInputs).toEqual(first[2].candidateInputs);
+    const parameterId = "hemodynamics.total-blood-volume-ml" as const;
+    const startValue = readMainWireBaselineCalibrationParameterV1(
+      first[1].candidateInputs,
+      parameterId,
+    );
+    const endValue = readMainWireBaselineCalibrationParameterV1(
+      first[2].candidateInputs,
+      parameterId,
+    );
+    expect(segment[2].coordinateValues[parameterId]).toBeCloseTo(
+      Math.sqrt(startValue * endValue),
+      10,
+    );
 
     const check = (actual: number) => Object.freeze({
       checkId: "left-ventricle.maximum-dpdt" as const,

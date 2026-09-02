@@ -119,6 +119,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     equivalentPrimaryMarginEpsilon: 0.02;
     equivalentWorstMarginEpsilon: 0.02;
     numericalFloorBufferMultiples: 1;
+    paretoSegmentFractions: readonly [0, 0.25, 0.5, 0.75, 1];
     preloadReserveRecovery: Readonly<{
       maximumOperatingTotalBloodVolumeMl: number;
       refinementContraction: 0.125;
@@ -138,7 +139,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 10;
+    revision: 11;
     changeReason: string;
   }>;
 }>;
@@ -306,6 +307,13 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       equivalentPrimaryMarginEpsilon: 0.02 as const,
       equivalentWorstMarginEpsilon: 0.02 as const,
       numericalFloorBufferMultiples: 1 as const,
+      paretoSegmentFractions: Object.freeze([
+        0,
+        0.25,
+        0.5,
+        0.75,
+        1,
+      ] as const),
       preloadReserveRecovery: Object.freeze({
         maximumOperatingTotalBloodVolumeMl:
           MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
@@ -327,9 +335,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 10 as const,
+      revision: 11 as const,
       changeReason:
-        "Admit one bounded common passive-stiffness coordinate after the full-envelope audit showed stable step-halved sensitivities that raise CI/AoP while remaining weakly correlated with the existing primary directions.",
+        "Add a five-point transformed-coordinate segment design so an observed reserve-versus-refined-dt boundary can be resolved without repeating a full multidimensional search.",
     }),
   });
 
@@ -529,6 +537,15 @@ export function lintMainWireBaselineConditioningStudyV1(
     || !(source.searchPolicy.equivalentPrimaryMarginEpsilon >= 0)
     || !(source.searchPolicy.equivalentWorstMarginEpsilon >= 0)
     || !(source.searchPolicy.numericalFloorBufferMultiples >= 0)
+    || source.searchPolicy.paretoSegmentFractions.length !== 5
+    || source.searchPolicy.paretoSegmentFractions.some((fraction, index) =>
+      !Number.isFinite(fraction)
+      || fraction < 0
+      || fraction > 1
+      || (index > 0
+        && fraction <= source.searchPolicy.paretoSegmentFractions[index - 1]!))
+    || source.searchPolicy.paretoSegmentFractions[0] !== 0
+    || source.searchPolicy.paretoSegmentFractions.at(-1) !== 1
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction > 0)
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction
       < source.searchPolicy.refinementContraction)
