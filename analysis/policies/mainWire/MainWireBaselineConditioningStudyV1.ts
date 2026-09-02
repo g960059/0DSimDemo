@@ -120,6 +120,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     equivalentWorstMarginEpsilon: 0.02;
     numericalFloorBufferMultiples: 1;
     paretoSegmentFractions: readonly [0, 0.25, 0.5, 0.75, 1];
+    coordinateProfileStepMultipliers: readonly [0, 1, 2, 3, 4];
     preloadReserveRecovery: Readonly<{
       maximumOperatingTotalBloodVolumeMl: number;
       refinementContraction: 0.125;
@@ -139,7 +140,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 11;
+    revision: 12;
     changeReason: string;
   }>;
 }>;
@@ -314,6 +315,13 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         0.75,
         1,
       ] as const),
+      coordinateProfileStepMultipliers: Object.freeze([
+        0,
+        1,
+        2,
+        3,
+        4,
+      ] as const),
       preloadReserveRecovery: Object.freeze({
         maximumOperatingTotalBloodVolumeMl:
           MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
@@ -335,9 +343,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 11 as const,
+      revision: 12 as const,
       changeReason:
-        "Add a five-point transformed-coordinate segment design so an observed reserve-versus-refined-dt boundary can be resolved without repeating a full multidimensional search.",
+        "Add a five-point single-coordinate profile so a stable conditioning direction can correct one residual without repeating a multidimensional search.",
     }),
   });
 
@@ -546,6 +554,16 @@ export function lintMainWireBaselineConditioningStudyV1(
         && fraction <= source.searchPolicy.paretoSegmentFractions[index - 1]!))
     || source.searchPolicy.paretoSegmentFractions[0] !== 0
     || source.searchPolicy.paretoSegmentFractions.at(-1) !== 1
+    || source.searchPolicy.coordinateProfileStepMultipliers.length !== 5
+    || source.searchPolicy.coordinateProfileStepMultipliers.some(
+      (multiplier, index) =>
+        !Number.isFinite(multiplier)
+        || multiplier < 0
+        || (index > 0
+          && multiplier
+            <= source.searchPolicy.coordinateProfileStepMultipliers[index - 1]!),
+    )
+    || source.searchPolicy.coordinateProfileStepMultipliers[0] !== 0
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction > 0)
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction
       < source.searchPolicy.refinementContraction)

@@ -23,6 +23,7 @@ import {
   type MainWireBaselineCalibrationEvaluationV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
 import {
+  buildMainWireBaselineCoordinateProfileDesignV1,
   buildMainWireBaselineSearchDesignV1,
   buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
@@ -114,16 +115,36 @@ async function runCoordinatorV1(): Promise<void> {
   );
   const segmentStartCandidateId = argumentV1("--segment-start-candidate-id");
   const segmentEndCandidateId = argumentV1("--segment-end-candidate-id");
+  const profileSeedCandidateId = argumentV1("--profile-seed-candidate-id");
+  const profileCoordinateArgument = argumentV1("--profile-coordinate-id");
+  const profileDirectionArgument = argumentV1("--profile-direction");
   const segmentRequested = segmentStartCandidateId !== null
     || segmentEndCandidateId !== null;
+  const profileRequested = profileSeedCandidateId !== null
+    || profileCoordinateArgument !== null
+    || profileDirectionArgument !== null;
   if ((segmentStartCandidateId === null) !== (segmentEndCandidateId === null)) {
     throw new Error("segment search requires both endpoint candidate IDs");
   }
   if (segmentStartCandidateId === segmentEndCandidateId && segmentRequested) {
     throw new Error("segment search endpoint candidate IDs must differ");
   }
-  if (segmentRequested && reserveRecoverySeedCandidateId !== null) {
-    throw new Error("segment and reserve-recovery search modes are exclusive");
+  if (
+    Number(segmentRequested)
+      + Number(profileRequested)
+      + Number(reserveRecoverySeedCandidateId !== null) > 1
+  ) {
+    throw new Error("segment, profile, and reserve-recovery modes are exclusive");
+  }
+  if (
+    profileRequested
+    && (
+      profileSeedCandidateId === null
+      || profileCoordinateArgument === null
+      || profileDirectionArgument === null
+    )
+  ) {
+    throw new Error("profile search requires seed, coordinate, and direction");
   }
   if (reserveRecoverySeedCandidateId !== null && seedReportArgument === null) {
     throw new Error("reserve-recovery seed requires --seed-report");
@@ -131,6 +152,15 @@ async function runCoordinatorV1(): Promise<void> {
   if (segmentRequested && seedReportArgument === null) {
     throw new Error("segment search requires --seed-report");
   }
+  if (profileRequested && seedReportArgument === null) {
+    throw new Error("profile search requires --seed-report");
+  }
+  const profileCoordinateId = profileCoordinateArgument === null
+    ? null
+    : parseProfileCoordinateIdV1(profileCoordinateArgument);
+  const profileDirection = profileDirectionArgument === null
+    ? null
+    : parseProfileDirectionV1(profileDirectionArgument);
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "8",
     "parallelism",
@@ -159,7 +189,9 @@ async function runCoordinatorV1(): Promise<void> {
         sourceCheckpointSha256: sourceCheckpoint.checkpointSha256,
         sourceCandidateInputs,
         requestedCandidateId:
-          segmentStartCandidateId ?? reserveRecoverySeedCandidateId,
+          segmentStartCandidateId
+            ?? profileSeedCandidateId
+            ?? reserveRecoverySeedCandidateId,
       });
   const segmentEndSelection = segmentEndCandidateId === null
     ? null
@@ -174,7 +206,10 @@ async function runCoordinatorV1(): Promise<void> {
   const largestStageCount = segmentEndSelection !== null
     ? MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
       .paretoSegmentFractions.length
-    : seedSelection === null
+    : profileRequested
+      ? MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+        .coordinateProfileStepMultipliers.length
+      : seedSelection === null
     ? Math.max(
         baselineDesign.length,
         MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
@@ -272,6 +307,39 @@ async function runCoordinatorV1(): Promise<void> {
       progress,
     );
     refinement = Object.freeze([start, ...remaining]);
+  } else if (profileCoordinateId !== null && profileDirection !== null) {
+    initial = Object.freeze([]);
+    bestInitialCandidateId = null;
+    const profileCandidates = buildMainWireBaselineCoordinateProfileDesignV1({
+      center: seedSelection.candidateInputs,
+      coordinateId: profileCoordinateId,
+      direction: profileDirection,
+    });
+    process.stderr.write(
+      `[baseline-search] verified profile ${seedSelection.selectedCandidateId}; `
+        + `${profileCoordinateId} direction ${profileDirection}, `
+        + `${profileCandidates.length} points, ${effectiveParallelism} workers\n`,
+    );
+    const center = (await runPoolV1([Object.freeze({
+      candidate: profileCandidates[0],
+      sourceCheckpoint,
+      sourceCandidateInputs,
+      numericalFloors: numericalFloor.metricFloors,
+    })], 1, progress))[0];
+    if (center.acceptedCheckpoint === null) {
+      throw new Error("profile center did not produce an accepted checkpoint");
+    }
+    const remaining = await runPoolV1(
+      profileCandidates.slice(1).map((candidate) => Object.freeze({
+        candidate,
+        sourceCheckpoint: center.acceptedCheckpoint!,
+        sourceCandidateInputs: center.candidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })),
+      effectiveParallelism,
+      progress,
+    );
+    refinement = Object.freeze([center, ...remaining]);
   } else {
     initial = Object.freeze([]);
     bestInitialCandidateId = null;
@@ -370,7 +438,9 @@ async function runCoordinatorV1(): Promise<void> {
     sum + execution.evaluation.wallTimeMs, 0);
   const report = Object.freeze({
     schemaVersion: 1 as const,
-    searchId: segmentEndSelection !== null
+    searchId: profileRequested
+      ? "main-wire-baseline-coordinate-profile-search-result-v1" as const
+      : segmentEndSelection !== null
       ? "main-wire-baseline-pareto-segment-search-result-v1" as const
       : reserveRecoverySeedCandidateId === null
         ? "main-wire-baseline-max-margin-search-result-v2" as const
@@ -380,7 +450,9 @@ async function runCoordinatorV1(): Promise<void> {
     executionCommit,
     numericalFloorArtifactPath: portableRepositoryPathV1(floorPath),
     numericalFloorArtifactSha256,
-    executionMode: segmentEndSelection !== null
+    executionMode: profileRequested
+      ? "verified-report-seeded-single-coordinate-profile" as const
+      : segmentEndSelection !== null
       ? "verified-report-seeded-transformed-coordinate-segment" as const
       : seedSelection === null
       ? "full-initial-and-refinement" as const
@@ -402,6 +474,18 @@ async function runCoordinatorV1(): Promise<void> {
             "parameter-declared-transformed-coordinate" as const,
           fractions: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
             .searchPolicy.paretoSegmentFractions,
+        }),
+    profileSelection: !profileRequested
+        || seedSelection === null
+        || profileCoordinateId === null
+        || profileDirection === null
+      ? null
+      : Object.freeze({
+          seed: searchSeedSelectionReportV1(seedSelection),
+          coordinateId: profileCoordinateId,
+          direction: profileDirection,
+          stepMultipliers: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+            .searchPolicy.coordinateProfileStepMultipliers,
         }),
     requestedParallelism,
     effectiveParallelism,
@@ -440,7 +524,8 @@ async function runCoordinatorV1(): Promise<void> {
       primaryInteriorBeforeMacroHemodynamics: true as const,
       preloadReserveRecoveryScreenRequired:
         (reserveRecoverySeedCandidateId !== null
-          || segmentEndSelection !== null) as boolean,
+          || segmentEndSelection !== null
+          || profileRequested) as boolean,
       preloadReserveQualified: false as const,
       perturbationSafetyQualified: false as const,
       finalistRefinedDtQualified: false as const,
@@ -1161,6 +1246,25 @@ function requiredArgumentV1(name: string): string {
   const value = argumentV1(name);
   if (value === null) throw new Error(`${name} is required`);
   return value;
+}
+
+function parseProfileCoordinateIdV1(
+  value: string,
+): MainWireBaselineCalibrationParameterIdV1 {
+  const coordinateIds = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+    .searchPolicy.coordinateIds;
+  if (!coordinateIds.includes(
+    value as MainWireBaselineCalibrationParameterIdV1,
+  )) {
+    throw new Error(`profile coordinate is outside the search policy: ${value}`);
+  }
+  return value as MainWireBaselineCalibrationParameterIdV1;
+}
+
+function parseProfileDirectionV1(value: string): -1 | 1 {
+  if (value === "-1") return -1;
+  if (value === "1") return 1;
+  throw new Error("profile direction must be -1 or 1");
 }
 
 function positiveIntegerV1(value: string, label: string): number {

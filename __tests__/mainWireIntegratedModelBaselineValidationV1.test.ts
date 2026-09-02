@@ -13,6 +13,7 @@ import {
   buildMainWireBaselineConditioningTasksV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
+  buildMainWireBaselineCoordinateProfileDesignV1,
   buildMainWireBaselineSearchDesignV1,
   buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
@@ -504,6 +505,22 @@ describe("Standard68 baseline mint gates", () => {
       Math.sqrt(startValue * endValue),
       10,
     );
+
+    const profile = buildMainWireBaselineCoordinateProfileDesignV1({
+      center: first[0].candidateInputs,
+      coordinateId:
+        "myocardium.common-ventricular-passive-stiffness-scale",
+      direction: -1,
+    });
+    expect(profile).toHaveLength(5);
+    expect(profile[0].candidateInputs).toEqual(first[0].candidateInputs);
+    expect(profile.map(({ coordinateValues }) =>
+      coordinateValues[
+        "myocardium.common-ventricular-passive-stiffness-scale"
+      ])).toEqual([...profile].map(({ coordinateValues }) =>
+        coordinateValues[
+          "myocardium.common-ventricular-passive-stiffness-scale"
+        ]).sort((left, right) => right - left));
 
     const check = (actual: number) => Object.freeze({
       checkId: "left-ventricle.maximum-dpdt" as const,

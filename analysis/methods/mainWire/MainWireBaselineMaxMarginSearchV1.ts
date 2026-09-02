@@ -29,7 +29,8 @@ export const MAIN_WIRE_BASELINE_MAX_MARGIN_SEARCH_V1_ID =
 export type MainWireBaselineSearchStageV1 =
   | "initial"
   | "refinement"
-  | "segment";
+  | "segment"
+  | "profile";
 
 export type MainWireBaselineSearchCandidateV1 = Readonly<{
   candidateId: string;
@@ -66,7 +67,7 @@ export type MainWireBaselineCandidateObjectiveV1 = Readonly<{
 }>;
 
 export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
-  stage: Exclude<MainWireBaselineSearchStageV1, "segment">;
+  stage: Exclude<MainWireBaselineSearchStageV1, "segment" | "profile">;
   center?: MainWireBaselineCalibrationCandidateInputsV1;
   contractionOverride?: number;
   coordinateBounds?: Readonly<Partial<Record<
@@ -205,6 +206,56 @@ export function buildMainWireBaselineSegmentDesignV1(input: Readonly<{
     );
     return candidateV1("segment", ordinal, candidateInputs);
   }));
+}
+
+/** Profiles one conditioning-supported residual direction at a fixed budget. */
+export function buildMainWireBaselineCoordinateProfileDesignV1(input: Readonly<{
+  center: MainWireBaselineCalibrationCandidateInputsV1;
+  coordinateId: MainWireBaselineCalibrationParameterIdV1;
+  direction: -1 | 1;
+}>): readonly MainWireBaselineSearchCandidateV1[] {
+  const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
+  if (!policy.coordinateIds.includes(input.coordinateId)) {
+    throw new Error("baseline profile coordinate is outside the search policy");
+  }
+  const descriptor = mainWireBaselineCalibrationParameterV1(input.coordinateId);
+  const centerValue = readMainWireBaselineCalibrationParameterV1(
+    input.center,
+    input.coordinateId,
+  );
+  const lowerProbe = centerValue - descriptor.finiteDifferenceStep;
+  const upperProbe = centerValue + descriptor.finiteDifferenceStep;
+  if (lowerProbe < descriptor.minimum || upperProbe > descriptor.maximum) {
+    throw new Error("baseline profile center lacks a symmetric local step");
+  }
+  const centerTransformed = transformMainWireBaselineCalibrationParameterV1(
+    input.coordinateId,
+    centerValue,
+  );
+  const transformedStep = Math.min(
+    centerTransformed - transformMainWireBaselineCalibrationParameterV1(
+      input.coordinateId,
+      lowerProbe,
+    ),
+    transformMainWireBaselineCalibrationParameterV1(
+      input.coordinateId,
+      upperProbe,
+    ) - centerTransformed,
+  );
+  return Object.freeze(policy.coordinateProfileStepMultipliers.map(
+    (multiplier, ordinal) => {
+      const transformed = centerTransformed
+        + input.direction * multiplier * transformedStep;
+      const value = descriptor.transform === "log"
+        ? Math.exp(transformed)
+        : transformed;
+      const candidateInputs = applyMainWireBaselineCalibrationParametersV1(
+        input.center,
+        [Object.freeze({ parameterId: input.coordinateId, value })],
+      );
+      return candidateV1("profile", ordinal, candidateInputs);
+    },
+  ));
 }
 
 export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{
