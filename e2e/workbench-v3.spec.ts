@@ -501,7 +501,7 @@ test("@desktop @model-lab formal analysis, warm controls, and settings stay live
   await systemicResistance.press("ArrowRight");
   await expect(
     page.getByTestId("workbench-scenario-manager-v3").getByRole("status", {
-      name: "Guyton / Starlingを再計算中: 起動時baseline",
+      name: "Guyton / Starlingを再計算中: baseline",
       exact: true,
     }),
   ).toBeVisible({ timeout: 20_000 });
@@ -626,17 +626,17 @@ test("@desktop baseline duplication stays independent and requires explicit save
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
   ).toHaveCount(1);
   const baselineMenuButton = scenarioRegion.getByRole("button", {
-    name: "Scenarioメニュー: 起動時baseline",
+    name: "Scenarioメニュー: baseline",
   });
-  await openScenarioMenu(page, scenarioRegion, "起動時baseline");
+  await openScenarioMenu(page, scenarioRegion, "baseline");
   const baselineMenu = page.getByRole("menu", {
-    name: "Scenarioメニュー: 起動時baseline",
+    name: "Scenarioメニュー: baseline",
   });
   await expect(baselineMenu.getByRole("menuitem").first()).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(baselineMenu).toBeHidden();
   await expect(baselineMenuButton).toBeFocused();
-  await openScenarioMenu(page, scenarioRegion, "起動時baseline");
+  await openScenarioMenu(page, scenarioRegion, "baseline");
   await page.getByRole("menuitem", { name: "複製" }).click();
   await expect(
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
@@ -657,13 +657,13 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toHaveCount(1);
   await expect(
     page.getByRole("button", {
-      name: "起動時baseline, LVP",
+      name: "baseline, LVP",
       exact: true,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", {
-      name: "起動時baseline のコピー, LVP",
+      name: "baseline のコピー, LVP",
       exact: true,
     }),
   ).toBeVisible();
@@ -686,7 +686,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await page.getByRole("button", { name: "閉じる" }).click();
   await expect(colorSettings).toBeHidden();
   const copyBaseColor = page.getByLabel(
-    "新しいtraceのbase色: 起動時baseline のコピー",
+    "新しいtraceのbase色: baseline のコピー",
   );
   await copyBaseColor.fill("#8b76d1");
   await expect(copyBaseColor).toHaveValue("#8b76d1");
@@ -712,7 +712,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(colorSettings).toBeHidden();
 
   const copyScenario = scenarioRegion.getByRole("button", {
-    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    name: "baseline のコピー scenario/workbench-live-default-copy",
     exact: true,
   });
   await expect(copyScenario).toBeVisible();
@@ -735,7 +735,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   await expect(root).toHaveAttribute("data-playback", "paused");
 
   const baselineScenario = scenarioRegion.getByRole("button", {
-    name: "起動時baseline workbench-live-default",
+    name: "baseline workbench-live-default",
     exact: true,
   });
   await baselineScenario.click();
@@ -765,11 +765,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toHaveCount(2);
 
   const restoredBaseline = scenarioRegion.getByRole("button", {
-    name: "起動時baseline workbench-live-default",
+    name: "baseline workbench-live-default",
     exact: true,
   });
   const restoredCopy = scenarioRegion.getByRole("button", {
-    name: "起動時baseline のコピー scenario/workbench-live-default-copy",
+    name: "baseline のコピー scenario/workbench-live-default-copy",
     exact: true,
   });
   await restoredBaseline.click();
@@ -888,10 +888,10 @@ test("@desktop deleting nested Scenario copies never renders a disposed lane", a
   const root = page.getByTestId("v3-dockview-workbench");
   const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
   const labels = [
-    "起動時baseline",
-    "起動時baseline のコピー",
-    "起動時baseline のコピー のコピー",
-    "起動時baseline のコピー のコピー のコピー",
+    "baseline",
+    "baseline のコピー",
+    "baseline のコピー のコピー",
+    "baseline のコピー のコピー のコピー",
   ] as const;
 
   for (let index = 0; index < labels.length - 1; index += 1) {

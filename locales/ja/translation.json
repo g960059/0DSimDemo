@@ -404,7 +404,7 @@
       "scenarioManager": {
         "addFromPreset": "Presetから追加",
         "baseColor": "新しいtraceのbase色",
-        "baselinePresetTitle": "起動時baseline",
+        "baselinePresetTitle": "baseline",
         "baselinePresetDescription": "このシミュレーションを開いた時点で取得したexact fixtureとcheckpointです。",
         "busy": "Scenarioを変更しています",
         "close": "Scenario inspectorを閉じる",

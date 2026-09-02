@@ -286,13 +286,13 @@ async function ensureScenarioCountV3(
   while (await menuButtons.count() < targetCount) {
     const before = await menuButtons.count();
     const baseline = scenarioHost.getByRole("button", {
-      name: "Scenarioメニュー: 起動時baseline",
+      name: "Scenarioメニュー: baseline",
       exact: true,
     });
     await baseline.click();
     await page
       .getByRole("menu", {
-        name: "Scenarioメニュー: 起動時baseline",
+        name: "Scenarioメニュー: baseline",
         exact: true,
       })
       .getByRole("menuitem", { name: "複製" })

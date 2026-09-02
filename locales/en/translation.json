@@ -404,7 +404,7 @@
       "scenarioManager": {
         "addFromPreset": "Add from Preset",
         "baseColor": "Base color for new traces",
-        "baselinePresetTitle": "Startup baseline",
+        "baselinePresetTitle": "Baseline",
         "baselinePresetDescription": "Exact fixture and checkpoint captured when this simulation opened.",
         "busy": "A Scenario operation is running",
         "close": "Close Scenario inspector",
