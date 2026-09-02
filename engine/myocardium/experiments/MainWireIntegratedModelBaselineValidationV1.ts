@@ -38,6 +38,20 @@ export const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1 =
       isovolumicRelaxation: Object.freeze({ minimum: 0.059, maximum: 0.134 }),
       teiIndex: Object.freeze({ minimum: 0.29, maximum: 0.65 }),
     }),
+    hemodynamicPressureMmHg: Object.freeze({
+      // Broad resting-adult construction ranges. These are model-mint gates,
+      // not diagnostic blood-pressure categories or patient-fit targets.
+      aortic: Object.freeze({
+        maximum: Object.freeze({ minimum: 90, maximum: 140 }),
+        minimum: Object.freeze({ minimum: 60, maximum: 90 }),
+      }),
+      pulmonaryArtery: Object.freeze({
+        maximum: Object.freeze({ minimum: 15, maximum: 35 }),
+        minimum: Object.freeze({ minimum: 4, maximum: 15 }),
+      }),
+      centralVenousMean: Object.freeze({ minimum: 1, maximum: 8 }),
+      pcwpSurrogateMean: Object.freeze({ minimum: 4, maximum: 13 }),
+    }),
     indexedCardiacSizeAndFunction: Object.freeze({
       bodySurfaceAreaM2:
         MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3
@@ -80,6 +94,12 @@ export type MainWireIntegratedModelBaselineValidationCheckIdV1 =
   | "timing.ict"
   | "timing.irt"
   | "timing.tei-index"
+  | "aortic-pressure.maximum"
+  | "aortic-pressure.minimum"
+  | "pulmonary-artery-pressure.maximum"
+  | "pulmonary-artery-pressure.minimum"
+  | "central-venous-pressure.mean"
+  | "pcwp-surrogate.mean"
   | "left-ventricle.edv-index"
   | "left-ventricle.esv-index"
   | "left-ventricle.ejection-fraction"
@@ -121,8 +141,17 @@ export type MainWireIntegratedModelBaselineValidationMeasurementsV1 =
       irtSec: number;
       teiIndex: number;
     }>;
+    hemodynamicPressure: MainWireIntegratedModelBaselineHemodynamicPressureV1;
     cardiacSizeAndFunction: MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1;
   }>;
+
+export type MainWireIntegratedModelBaselineHemodynamicPressureV1 = Readonly<{
+  aortic: Readonly<{ maximumMmHg: number; minimumMmHg: number }>;
+  pulmonaryArtery: Readonly<{ maximumMmHg: number; minimumMmHg: number }>;
+  centralVenousMeanMmHg: number;
+  /** Mean LA pressure; the 0D model does not simulate a wedged catheter. */
+  pcwpSurrogateMeanMmHg: number;
+}>;
 
 export type MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 =
   Readonly<{
@@ -198,6 +227,7 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
     samples,
     cycleLengthSec,
   );
+  const hemodynamicPressure = hemodynamicPressureFromTraceV1(samples);
 
   return Object.freeze({
     LVP: pressureMorphologyV1(samples, aorticEpisode, "LV"),
@@ -226,7 +256,31 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
         (timing.ictSec + timing.irtSec) /
         timing.ejectionTimeSec,
     }),
+    hemodynamicPressure,
     cardiacSizeAndFunction,
+  });
+}
+
+/**
+ * Exact completed-beat pressure projection used by release qualification.
+ * CVP is the mean RA node pressure. PCWP is represented only by mean LA
+ * pressure and therefore remains explicitly labelled as a surrogate.
+ */
+export function measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(
+  completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3,
+): MainWireIntegratedModelBaselineHemodynamicPressureV1 {
+  const pressure = completedBeat.pressureSummaries;
+  return Object.freeze({
+    aortic: Object.freeze({
+      maximumMmHg: pressure.Ao.maximumMmHg,
+      minimumMmHg: pressure.Ao.minimumMmHg,
+    }),
+    pulmonaryArtery: Object.freeze({
+      maximumMmHg: pressure.PA.maximumMmHg,
+      minimumMmHg: pressure.PA.minimumMmHg,
+    }),
+    centralVenousMeanMmHg: pressure.RA.timeWeightedMeanMmHg,
+    pcwpSurrogateMeanMmHg: pressure.LA.timeWeightedMeanMmHg,
   });
 }
 
@@ -358,6 +412,42 @@ export function buildMainWireIntegratedModelBaselineValidationChecksV1(
       "ratio",
     ),
     rangeCheckV1(
+      "aortic-pressure.maximum",
+      measurements.hemodynamicPressure.aortic.maximumMmHg,
+      policy.hemodynamicPressureMmHg.aortic.maximum,
+      "mmHg",
+    ),
+    rangeCheckV1(
+      "aortic-pressure.minimum",
+      measurements.hemodynamicPressure.aortic.minimumMmHg,
+      policy.hemodynamicPressureMmHg.aortic.minimum,
+      "mmHg",
+    ),
+    rangeCheckV1(
+      "pulmonary-artery-pressure.maximum",
+      measurements.hemodynamicPressure.pulmonaryArtery.maximumMmHg,
+      policy.hemodynamicPressureMmHg.pulmonaryArtery.maximum,
+      "mmHg",
+    ),
+    rangeCheckV1(
+      "pulmonary-artery-pressure.minimum",
+      measurements.hemodynamicPressure.pulmonaryArtery.minimumMmHg,
+      policy.hemodynamicPressureMmHg.pulmonaryArtery.minimum,
+      "mmHg",
+    ),
+    rangeCheckV1(
+      "central-venous-pressure.mean",
+      measurements.hemodynamicPressure.centralVenousMeanMmHg,
+      policy.hemodynamicPressureMmHg.centralVenousMean,
+      "mmHg",
+    ),
+    rangeCheckV1(
+      "pcwp-surrogate.mean",
+      measurements.hemodynamicPressure.pcwpSurrogateMeanMmHg,
+      policy.hemodynamicPressureMmHg.pcwpSurrogateMean,
+      "mmHg",
+    ),
+    rangeCheckV1(
       "left-ventricle.edv-index",
       measurements.cardiacSizeAndFunction.leftVentricle
         .endDiastolicVolumeIndexMlPerM2,
@@ -417,6 +507,33 @@ export function buildMainWireIntegratedModelBaselineValidationChecksV1(
     ),
   ] satisfies MainWireIntegratedModelBaselineValidationCheckV1[];
   return Object.freeze(checks);
+}
+
+function hemodynamicPressureFromTraceV1(
+  samples: readonly Sample[],
+): MainWireIntegratedModelBaselineHemodynamicPressureV1 {
+  const aortic = samples.map((sample) => sample.absolutePressureMmHg.Ao);
+  const pulmonaryArtery = samples.map(
+    (sample) => sample.absolutePressureMmHg.PA,
+  );
+  return Object.freeze({
+    aortic: Object.freeze({
+      maximumMmHg: Math.max(...aortic),
+      minimumMmHg: Math.min(...aortic),
+    }),
+    pulmonaryArtery: Object.freeze({
+      maximumMmHg: Math.max(...pulmonaryArtery),
+      minimumMmHg: Math.min(...pulmonaryArtery),
+    }),
+    centralVenousMeanMmHg: timeWeightedMeanV1(
+      samples,
+      samples.map((sample) => sample.absolutePressureMmHg.RA),
+    ),
+    pcwpSurrogateMeanMmHg: timeWeightedMeanV1(
+      samples,
+      samples.map((sample) => sample.absolutePressureMmHg.LA),
+    ),
+  });
 }
 
 function cardiacSizeAndFunctionFromTraceV1(

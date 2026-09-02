@@ -16,15 +16,23 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3 =
         "healthy.lv.edvi",
         "hemodynamics.lv.edv_index_ml_per_m2",
         34,
-        76,
-        ["lang-ase-eacvi-2015", "kou-norre-2014"],
+        99,
+        [
+          "lang-ase-eacvi-2015",
+          "kou-norre-2014",
+          "cmr-consolidated-normal-reference-2016",
+        ],
       ),
       gate(
         "healthy.lv.esvi",
         "hemodynamics.lv.esv_index_ml_per_m2",
         10,
-        31,
-        ["lang-ase-eacvi-2015", "kou-norre-2014"],
+        40,
+        [
+          "lang-ase-eacvi-2015",
+          "kou-norre-2014",
+          "cmr-consolidated-normal-reference-2016",
+        ],
       ),
       gate(
         "healthy.lv.ef",

@@ -51,7 +51,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
     }),
     arterialStiffness: Object.freeze({
       minimum: 0.5,
-      maximum: 1,
+      maximum: 1.5,
       step: 0.01,
     }),
     heartRateBpm: Object.freeze({

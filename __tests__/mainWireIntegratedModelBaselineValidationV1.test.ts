@@ -22,6 +22,15 @@ const indexedCheckIds = Object.freeze([
   "systemic-forward-flow.stroke-volume-index",
 ] as const);
 
+const pressureCheckIds = Object.freeze([
+  "aortic-pressure.maximum",
+  "aortic-pressure.minimum",
+  "pulmonary-artery-pressure.maximum",
+  "pulmonary-artery-pressure.minimum",
+  "central-venous-pressure.mean",
+  "pcwp-surrogate.mean",
+] as const);
+
 describe("Standard68 baseline mint gates", () => {
   it("admits a coherent normal indexed size/function reference", () => {
     const checks = buildMainWireIntegratedModelBaselineValidationChecksV1(
@@ -29,13 +38,40 @@ describe("Standard68 baseline mint gates", () => {
       true,
     );
 
-    expect(checks).toHaveLength(22);
+    expect(checks).toHaveLength(28);
     expect(checks.every(({ status }) => status === "passed")).toBe(true);
     expect(
       checks.filter(({ checkId }) =>
         indexedCheckIds.includes(checkId as typeof indexedCheckIds[number]))
         .map(({ checkId }) => checkId),
     ).toEqual(indexedCheckIds);
+    expect(
+      checks.filter(({ checkId }) =>
+        pressureCheckIds.includes(checkId as typeof pressureCheckIds[number]))
+        .map(({ checkId }) => checkId),
+    ).toEqual(pressureCheckIds);
+  });
+
+  it("fails closed on every out-of-range systemic and pulmonary pressure metric", () => {
+    const normal = normalMeasurementsV1();
+    const measurements = Object.freeze({
+      ...normal,
+      hemodynamicPressure: Object.freeze({
+        aortic: Object.freeze({ maximumMmHg: 89.9, minimumMmHg: 59.9 }),
+        pulmonaryArtery: Object.freeze({
+          maximumMmHg: 35.1,
+          minimumMmHg: 15.1,
+        }),
+        centralVenousMeanMmHg: 8.1,
+        pcwpSurrogateMeanMmHg: 13.1,
+      }),
+    });
+    const failed = buildMainWireIntegratedModelBaselineValidationChecksV1(
+      measurements,
+      true,
+    ).filter(({ status }) => status === "failed");
+
+    expect(failed.map(({ checkId }) => checkId)).toEqual(pressureCheckIds);
   });
 
   it("fails closed on every out-of-range indexed size/function metric", () => {
@@ -46,8 +82,8 @@ describe("Standard68 baseline mint gates", () => {
         ...normal.cardiacSizeAndFunction,
         leftVentricle: Object.freeze({
           ...normal.cardiacSizeAndFunction.leftVentricle,
-          endDiastolicVolumeIndexMlPerM2: 77,
-          endSystolicVolumeIndexMlPerM2: 32,
+          endDiastolicVolumeIndexMlPerM2: 100,
+          endSystolicVolumeIndexMlPerM2: 41,
           ejectionFraction01: 0.51,
         }),
         rightVentricle: Object.freeze({
@@ -183,6 +219,12 @@ function normalMeasurementsV1():
       ictSec: 0.04,
       irtSec: 0.08,
       teiIndex: 0.42857142857142855,
+    }),
+    hemodynamicPressure: Object.freeze({
+      aortic: Object.freeze({ maximumMmHg: 120, minimumMmHg: 75 }),
+      pulmonaryArtery: Object.freeze({ maximumMmHg: 25, minimumMmHg: 9 }),
+      centralVenousMeanMmHg: 4,
+      pcwpSurrogateMeanMmHg: 9,
     }),
     cardiacSizeAndFunction: Object.freeze({
       bodySurfaceAreaM2: 1.9,

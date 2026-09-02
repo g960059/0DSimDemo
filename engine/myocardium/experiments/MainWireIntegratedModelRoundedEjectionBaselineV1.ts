@@ -25,9 +25,11 @@ export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1 =
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_V1_ID,
     selection:
       "factorized-fixed-control-preload-reserve-and-baseline-gate-screen" as const,
-    totalBloodVolumeMl: 5_250 as const,
-    systemicResistanceScale: 0.75 as const,
-    commonVentricularActiveTensionScale: 1.33 as const,
+    totalBloodVolumeMl: 4_900 as const,
+    systemicResistanceScale: 0.99 as const,
+    arterialStiffnessScale: 1.27 as const,
+    heartRateBpm: 60 as const,
+    commonVentricularActiveTensionScale: 1.29 as const,
     equationTopologyChanged: false as const,
     materialPrimitiveChanged: false as const,
     mechanismResearchInputChanged: true as const,
@@ -43,6 +45,12 @@ export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_IN
     systemicResistance:
       MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1
         .systemicResistanceScale,
+    arterialStiffness:
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1
+        .arterialStiffnessScale,
+    heartRateBpm:
+      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1
+        .heartRateBpm,
   });
 
 export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1 =

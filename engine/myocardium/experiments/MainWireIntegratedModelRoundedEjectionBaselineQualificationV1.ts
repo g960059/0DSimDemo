@@ -13,6 +13,7 @@ import {
   assertMainWireIntegratedModelBaselineValidationPassedV1,
   buildMainWireIntegratedModelBaselineValidationChecksV1,
   measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1,
+  measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1,
   measureMainWireIntegratedModelBaselineValidationV1,
   type MainWireIntegratedModelBaselineValidationCheckV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
@@ -206,6 +207,10 @@ export async function qualifyMainWireIntegratedModelRoundedEjectionBaselineV1():
       minimumDpDtMmHgPerSec:
         exactLeftVentricularPressureRate.minimumMmHgPerSec,
     }),
+    hemodynamicPressure:
+      measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(
+        completedBeatMetrics,
+      ),
     cardiacSizeAndFunction:
       measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
         completedBeatMetrics,
