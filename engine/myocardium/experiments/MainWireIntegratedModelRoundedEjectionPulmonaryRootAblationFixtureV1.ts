@@ -31,6 +31,9 @@ import {
 import {
   MAIN_WIRE_VENTRICULAR_ROUNDED_EJECTION_PROFILE_V1_ID,
 } from "@/engine/myocardium/mechanics/MainWireVentricularRoundedEjectionProfileV1";
+import type {
+  MainWireFourValveDiseaseResearchInputV1,
+} from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_PULMONARY_ROOT_ABLATION_FIXTURE_V1_ID =
   "main-wire-integrated-model-rounded-ejection-pulmonary-root-ablation-fixture-v1" as const;
@@ -68,6 +71,7 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
   ventricularContractilityScale = 1,
   requestedMechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3 = MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   pulmonaryRootProfile: MainWireAlgebraicPulmonaryArterialRootProfileV1 = MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1,
+  valveResearchInput?: MainWireFourValveDiseaseResearchInputV1,
 ) {
   const prepared = prepareMainWireIntegratedModelFixtureInputsV3(
     requestedHemodynamicResearchInputs,
@@ -116,6 +120,9 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
             heartRateBpm: prepared.hemodynamicResearchInputs.heartRateBpm,
           },
         ),
+      ...(valveResearchInput === undefined
+        ? {}
+        : { createValveResearchInput: () => valveResearchInput }),
     },
   );
   return Object.freeze({
@@ -128,7 +135,10 @@ export function createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblatio
         pulmonaryRootProfile.sourceResistanceAndQuadraticLossPreserved
         && pulmonaryRootProfile
           .sourcePulmonaryArterialComplianceDistributionPreserved,
-      parameterSearchOrFitting: pulmonaryRootProfile.parameterSearchOrFitting,
+      valveLawsChanged: valveResearchInput !== undefined,
+      parameterSearchOrFitting:
+        pulmonaryRootProfile.parameterSearchOrFitting
+        || valveResearchInput !== undefined,
     }),
   });
 }

@@ -10,6 +10,7 @@ import {
   composeMainWireFourValveDiseaseResearchInputV1,
   createMainWireFourValveContinuousAreaResearchInputV1,
   createMainWirePulmonaryValveOpeningKineticsResearchInputV1,
+  createMainWirePulmonaryValveSeriesResistanceResearchInputV1,
   validateAndOwnMainWireFourValveAreaInputsV1,
   validateMainWireFourValveDiseaseResearchInputV1,
   type MainWireFourValveDiseaseResearchInputV1,
@@ -315,6 +316,47 @@ describe("main-wire four-valve disease research input V1", () => {
         0.2,
       ),
     ).toThrow(/opening time constant/);
+  });
+
+  it("owns a bounded PV-only series-resistance placement proxy", () => {
+    const candidate =
+      createMainWirePulmonaryValveSeriesResistanceResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.01625,
+      );
+
+    expect(candidate.bracketIds).toEqual([]);
+    expect(candidate.valves.PV.backgroundLinearResistanceMmHgSecPerMl)
+      .toBe(0.01625);
+    expect(candidate.parameterSetId).toContain("pv-series-resistance");
+    expect(candidate.claim.researchInputRole).toBe(
+      "pulmonary-valve-series-resistance-placement-causal-research",
+    );
+    expect(validateMainWireFourValveDiseaseResearchInputV1(candidate)).toEqual(
+      [],
+    );
+    for (const valveId of ["MV", "AoV", "TV"] as const) {
+      expect(physicalParameters(candidate.valves[valveId])).toEqual(
+        physicalParameters(
+          MAIN_WIRE_FOUR_VALVE_NORMAL_RESEARCH_INPUT_V1.valves[valveId],
+        ),
+      );
+    }
+  });
+
+  it("rejects out-of-range PV series-resistance proxies", () => {
+    expect(() =>
+      createMainWirePulmonaryValveSeriesResistanceResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.004,
+      ),
+    ).toThrow(/series resistance/);
+    expect(() =>
+      createMainWirePulmonaryValveSeriesResistanceResearchInputV1(
+        MAIN_WIRE_FOUR_VALVE_DEFAULT_AREA_INPUTS_V1,
+        0.031,
+      ),
+    ).toThrow(/series resistance/);
   });
 
   it("makes composition identities and parameter sets independent of order", () => {

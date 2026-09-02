@@ -110,6 +110,28 @@ export const MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1 
     patientFittingClaimed: false as const,
   });
 
+export const MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_RANGE_V1 =
+  Object.freeze({
+    minimumMmHgSecPerMl: 0.005,
+    maximumMmHgSecPerMl: 0.03,
+  });
+
+export const MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_INPUT_CLAIM_V1 =
+  Object.freeze({
+    ...MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_CLAIM_V1,
+    researchInputRole:
+      "pulmonary-valve-series-resistance-placement-causal-research" as const,
+    backgroundLinearResistance:
+      "bounded-PV-only-series-resistance-placement-proxy" as const,
+    continuousAreaInputOnly: true as const,
+    canonicalSeverityBracketClaimed: false as const,
+    pulmonaryValveSeriesResistanceRangeMmHgSecPerMl:
+      MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_RANGE_V1,
+    newContinuousStateAdded: false as const,
+    parameterSearchOrPatientFitting: true as const,
+    patientFittingClaimed: false as const,
+  });
+
 export type MainWireFourValveAreaInputsV1 = Readonly<
   Record<
     ValveName,
@@ -166,7 +188,8 @@ export type MainWireFourValveDiseaseResearchInputV1 = Readonly<{
   claim:
     | typeof MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_CLAIM_V1
     | typeof MAIN_WIRE_FOUR_VALVE_CONTINUOUS_AREA_RESEARCH_INPUT_CLAIM_V1
-    | typeof MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1;
+    | typeof MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1
+    | typeof MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_INPUT_CLAIM_V1;
 }>;
 
 type ValveParameterBody = Omit<
@@ -537,6 +560,78 @@ export function createMainWirePulmonaryValveOpeningKineticsResearchInputV1(
   return result;
 }
 
+/**
+ * Causal proxy for moving an existing linear pulmonary root load to the
+ * proximal side of PA compliance. It changes only the already-present PV
+ * series resistance and adds no state. It is not a final loss attribution.
+ */
+export function createMainWirePulmonaryValveSeriesResistanceResearchInputV1(
+  requestedAreas: MainWireFourValveAreaInputsV1,
+  backgroundLinearResistanceMmHgSecPerMl: number,
+): MainWireFourValveDiseaseResearchInputV1 {
+  const areas = validateAndOwnMainWireFourValveAreaInputsV1(requestedAreas);
+  const range =
+    MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_RANGE_V1;
+  if (
+    !Number.isFinite(backgroundLinearResistanceMmHgSecPerMl)
+    || backgroundLinearResistanceMmHgSecPerMl
+      < range.minimumMmHgSecPerMl
+    || backgroundLinearResistanceMmHgSecPerMl
+      > range.maximumMmHgSecPerMl
+  ) {
+    throw new Error(
+      "pulmonary valve series resistance must be finite within "
+        + `[${range.minimumMmHgSecPerMl}, `
+        + `${range.maximumMmHgSecPerMl}] mmHg*s/mL`,
+    );
+  }
+  const bracketIds = Object.freeze(
+    [],
+  ) as readonly MainWireFourValveDiseaseBracketIdV1[];
+  const brackets = Object.freeze(
+    [],
+  ) as readonly MainWireFourValveDiseaseBracketV1[];
+  const valves = valveRecord((valveId) => {
+    const body = Object.freeze({
+      ...NORMAL_VALVE_PARAMETER_BODIES[valveId],
+      ...areas[valveId],
+      ...(valveId === "PV"
+        ? { backgroundLinearResistanceMmHgSecPerMl }
+        : {}),
+    });
+    return Object.freeze({
+      parameterSetId: continuousValveParameterSetIdV1(valveId, body),
+      ...body,
+    });
+  });
+  const identityBody = Object.freeze({
+    researchInputId: MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID,
+    bracketIds,
+    valves,
+    claim:
+      MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_INPUT_CLAIM_V1,
+  });
+  const parameterIdentityHash = stableHash(sanitizeForStableHash(identityBody));
+  const result = Object.freeze({
+    researchInputId: MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID,
+    parameterSetId:
+      `main-wire-four-valve-pv-series-resistance-${parameterIdentityHash}-v1`,
+    parameterIdentityHash,
+    bracketIds,
+    brackets,
+    valves,
+    claim:
+      MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_INPUT_CLAIM_V1,
+  } satisfies MainWireFourValveDiseaseResearchInputV1);
+  const issues = validateMainWireFourValveDiseaseResearchInputV1(result);
+  if (issues.length > 0) {
+    throw new Error(
+      `invalid pulmonary valve series-resistance research input: ${issues.join("; ")}`,
+    );
+  }
+  return result;
+}
+
 export function validateAndOwnMainWireFourValveAreaInputsV1(
   input: unknown,
 ): MainWireFourValveAreaInputsV1 {
@@ -657,20 +752,30 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       MAIN_WIRE_PULMONARY_VALVE_OPENING_KINETICS_RESEARCH_INPUT_CLAIM_V1,
     ),
   );
+  const pulmonarySeriesResistanceClaimHash = stableHash(
+    sanitizeForStableHash(
+      MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_INPUT_CLAIM_V1,
+    ),
+  );
   const isContinuousAreaInput = claimHash === continuousClaimHash;
   const isPulmonaryKineticsInput = claimHash === pulmonaryKineticsClaimHash;
+  const isPulmonarySeriesResistanceInput =
+    claimHash === pulmonarySeriesResistanceClaimHash;
   const allowsContinuousAreas =
-    isContinuousAreaInput || isPulmonaryKineticsInput;
+    isContinuousAreaInput
+    || isPulmonaryKineticsInput
+    || isPulmonarySeriesResistanceInput;
   if (
     claimHash !== canonicalClaimHash
     && !isContinuousAreaInput
     && !isPulmonaryKineticsInput
+    && !isPulmonarySeriesResistanceInput
   ) {
     issues.push("claim must exactly match the canonical V1 claim");
   }
   if (allowsContinuousAreas && rawBracketIds.length !== 0) {
     issues.push(
-      "continuous area or pulmonary kinetics inputs must not claim canonical brackets",
+      "continuous-area and pulmonary causal inputs must not claim canonical brackets",
     );
   }
   const keys = Object.keys(researchInput.valves).sort();
@@ -709,6 +814,11 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
           && valveId === "PV"
           && key === "openingTimeConstantSec"
         )
+        && !(
+          isPulmonarySeriesResistanceInput
+          && valveId === "PV"
+          && key === "backgroundLinearResistanceMmHgSecPerMl"
+        )
         && valve[key] !== expectedFixedBody[key]
       ) {
         issues.push(`valves.${valveId}.${key} must remain at its fixed prior`);
@@ -731,6 +841,22 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
       `valves.${valveId}.backgroundLinearResistanceMmHgSecPerMl`,
       issues,
     );
+    if (
+      isPulmonarySeriesResistanceInput
+      && valveId === "PV"
+      && (
+        valve.backgroundLinearResistanceMmHgSecPerMl
+          < MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_RANGE_V1
+            .minimumMmHgSecPerMl
+        || valve.backgroundLinearResistanceMmHgSecPerMl
+          > MAIN_WIRE_PULMONARY_VALVE_SERIES_RESISTANCE_RESEARCH_RANGE_V1
+            .maximumMmHgSecPerMl
+      )
+    ) {
+      issues.push(
+        "valves.PV.backgroundLinearResistanceMmHgSecPerMl exceeds research bounds",
+      );
+    }
     positive(
       valve.maximumForwardEoaCm2,
       `valves.${valveId}.maximumForwardEoaCm2`,
@@ -817,12 +943,14 @@ export function validateMainWireFourValveDiseaseResearchInputV1(
   }
   const expectedParameterSetId = isPulmonaryKineticsInput
     ? `main-wire-four-valve-pv-opening-kinetics-${expectedIdentityHash}-v1`
-    : isContinuousAreaInput
-      ? `main-wire-four-valve-continuous-areas-${expectedIdentityHash}-v1`
-      : researchInputParameterSetId(
-        researchInput.bracketIds,
-        expectedIdentityHash,
-      );
+    : isPulmonarySeriesResistanceInput
+      ? `main-wire-four-valve-pv-series-resistance-${expectedIdentityHash}-v1`
+      : isContinuousAreaInput
+        ? `main-wire-four-valve-continuous-areas-${expectedIdentityHash}-v1`
+        : researchInputParameterSetId(
+          researchInput.bracketIds,
+          expectedIdentityHash,
+        );
   if (researchInput.parameterSetId !== expectedParameterSetId) {
     issues.push(
       "parameterSetId does not match bracketIds and parameter identity",
