@@ -100,6 +100,18 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     intervalObjective: "maximize-worst-normalized-interior-margin";
     numericalFloorRole: "separate-scale-and-finalist-dt-check";
   }>;
+  searchPolicy: Readonly<{
+    coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[];
+    initialDesign: "deterministic-halton-in-transformed-trust-region";
+    initialCandidateCountIncludingReference: 24;
+    haltonSkip: 13;
+    transformedDomainHalfSpanFraction: 0.1;
+    refinementCandidateCountIncludingCenter: 16;
+    refinementContraction: 0.5;
+    finalistCount: 4;
+    equivalentWorstMarginEpsilon: 0.02;
+    numericalFloorBufferMultiples: 1;
+  }>;
   claimPolicy: Readonly<{
     evidenceRole: "construction";
     primaryScope: "systemic-and-left-heart-baseline";
@@ -109,7 +121,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 3;
+    revision: 4;
     changeReason: string;
   }>;
 }>;
@@ -248,6 +260,24 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         "maximize-worst-normalized-interior-margin" as const,
       numericalFloorRole: "separate-scale-and-finalist-dt-check" as const,
     }),
+    searchPolicy: Object.freeze({
+      coordinateIds: Object.freeze([
+        "hemodynamics.total-blood-volume-ml",
+        "hemodynamics.systemic-resistance",
+        "hemodynamics.arterial-stiffness",
+        "myocardium.common-ventricular-active-tension-scale",
+      ] as const),
+      initialDesign:
+        "deterministic-halton-in-transformed-trust-region" as const,
+      initialCandidateCountIncludingReference: 24 as const,
+      haltonSkip: 13 as const,
+      transformedDomainHalfSpanFraction: 0.1 as const,
+      refinementCandidateCountIncludingCenter: 16 as const,
+      refinementContraction: 0.5 as const,
+      finalistCount: 4 as const,
+      equivalentWorstMarginEpsilon: 0.02 as const,
+      numericalFloorBufferMultiples: 1 as const,
+    }),
     claimPolicy: Object.freeze({
       evidenceRole: "construction" as const,
       primaryScope: "systemic-and-left-heart-baseline" as const,
@@ -257,9 +287,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 3 as const,
+      revision: 4 as const,
       changeReason:
-        "Separate resting corridors, fixed-control preload responses, and perturbation safety after the revision-2 conditioning audit.",
+        "Freeze a bounded deterministic two-stage search budget after separating rest and perturbation constraints.",
     }),
   });
 
@@ -276,6 +306,7 @@ export type MainWireBaselineConditioningStudyLintIssueV1 = Readonly<{
     | "observation-group-unresolved"
     | "positive-control-invalid"
     | "objective-policy-invalid"
+    | "search-policy-invalid"
     | "policy-revision-stale"
     | "numerical-policy-invalid"
     | "claim-scope-invalid"
@@ -430,6 +461,32 @@ export function lintMainWireBaselineConditioningStudyV1(
       "objective-policy-invalid",
       "objectivePolicy",
       "rest, preload-response, and perturbation-safety bindings must resolve without sharing one corridor policy",
+    ));
+  }
+  if (
+    source.searchPolicy.coordinateIds.length < 1
+    || source.searchPolicy.coordinateIds.length
+      > source.conditioningPolicy.maximumAdmittedCoordinateCount
+    || source.searchPolicy.coordinateIds.some((coordinateId) =>
+      !source.primaryCoordinateIds.includes(coordinateId))
+    || new Set(source.searchPolicy.coordinateIds).size
+      !== source.searchPolicy.coordinateIds.length
+    || source.searchPolicy.initialCandidateCountIncludingReference < 2
+    || source.searchPolicy.refinementCandidateCountIncludingCenter < 2
+    || !(source.searchPolicy.transformedDomainHalfSpanFraction > 0)
+    || !(source.searchPolicy.transformedDomainHalfSpanFraction <= 0.5)
+    || !(source.searchPolicy.refinementContraction > 0)
+    || !(source.searchPolicy.refinementContraction < 1)
+    || source.searchPolicy.finalistCount < 1
+    || source.searchPolicy.finalistCount
+      > source.searchPolicy.refinementCandidateCountIncludingCenter
+    || !(source.searchPolicy.equivalentWorstMarginEpsilon >= 0)
+    || !(source.searchPolicy.numericalFloorBufferMultiples >= 0)
+  ) {
+    issues.push(issueV1(
+      "search-policy-invalid",
+      "searchPolicy",
+      "search coordinates and deterministic bounded budget are invalid",
     ));
   }
   if (source.positiveControls.length < 1) {
