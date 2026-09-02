@@ -120,6 +120,21 @@ export function withCommonVentricularActiveTensionScaleV1(
   });
 }
 
+export function withCommonVentricularPassiveStiffnessScaleV1(
+  input: MainWireFiveWallMechanicsResearchInputsV1,
+  scale: number,
+): MainWireFiveWallMechanicsResearchInputsV1 {
+  return validateAndOwnMainWireFiveWallMechanicsResearchInputsV1({
+    ...input,
+    passiveStiffnessScaleByWall: {
+      ...input.passiveStiffnessScaleByWall,
+      LVFW: scale,
+      SEP: scale,
+      RVFW: scale,
+    },
+  });
+}
+
 function wallRecordV1<T>(
   build: (wallId: MainWireFiveWallIdV1) => T,
 ): MainWireFiveWallRecordV1<T> {

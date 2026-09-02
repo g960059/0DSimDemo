@@ -13,7 +13,9 @@ import type {
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
+  assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1,
   mainWireBaselineCalibrationParameterV1,
+  projectMainWireBaselineCalibrationParameterToReleaseLatticeV1,
   readMainWireBaselineCalibrationParameterV1,
   transformMainWireBaselineCalibrationParameterV1,
   type MainWireBaselineCalibrationCandidateInputsV1,
@@ -30,7 +32,8 @@ export type MainWireBaselineSearchStageV1 =
   | "initial"
   | "refinement"
   | "segment"
-  | "profile";
+  | "profile"
+  | "release-lattice";
 
 export type MainWireBaselineSearchCandidateV1 = Readonly<{
   candidateId: string;
@@ -67,7 +70,10 @@ export type MainWireBaselineCandidateObjectiveV1 = Readonly<{
 }>;
 
 export function buildMainWireBaselineSearchDesignV1(input: Readonly<{
-  stage: Exclude<MainWireBaselineSearchStageV1, "segment" | "profile">;
+  stage: Exclude<
+    MainWireBaselineSearchStageV1,
+    "segment" | "profile" | "release-lattice"
+  >;
   center?: MainWireBaselineCalibrationCandidateInputsV1;
   contractionOverride?: number;
   coordinateBounds?: Readonly<Partial<Record<
@@ -256,6 +262,56 @@ export function buildMainWireBaselineCoordinateProfileDesignV1(input: Readonly<{
       return candidateV1("profile", ordinal, candidateInputs);
     },
   ));
+}
+
+/**
+ * Projects a continuous exploratory result onto the control catalog lattice,
+ * then evaluates each one-step coordinate neighbour with a fixed small budget.
+ */
+export function buildMainWireBaselineReleaseLatticeDesignV1(input: Readonly<{
+  center: MainWireBaselineCalibrationCandidateInputsV1;
+}>): readonly MainWireBaselineSearchCandidateV1[] {
+  const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
+  const coordinateIds = policy.coordinateIds;
+  const projected = applyMainWireBaselineCalibrationParametersV1(
+    input.center,
+    coordinateIds.map((parameterId) => Object.freeze({
+      parameterId,
+      value: projectMainWireBaselineCalibrationParameterToReleaseLatticeV1(
+        parameterId,
+        readMainWireBaselineCalibrationParameterV1(input.center, parameterId),
+      ),
+    })),
+  );
+  const candidates: MainWireBaselineSearchCandidateV1[] = [
+    candidateV1("release-lattice", 0, projected),
+  ];
+  for (const parameterId of coordinateIds) {
+    const descriptor = mainWireBaselineCalibrationParameterV1(parameterId);
+    const centerValue = readMainWireBaselineCalibrationParameterV1(
+      projected,
+      parameterId,
+    );
+    for (const direction of policy.releaseLatticeNeighbourDirections) {
+      const value = Number((centerValue
+        + direction * descriptor.finiteDifferenceStep).toPrecision(15));
+      if (value < descriptor.minimum || value > descriptor.maximum) continue;
+      candidates.push(candidateV1(
+        "release-lattice",
+        candidates.length,
+        applyMainWireBaselineCalibrationParametersV1(projected, [
+          Object.freeze({ parameterId, value }),
+        ]),
+      ));
+    }
+  }
+  for (const candidate of candidates) {
+    assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
+      candidate.candidateInputs,
+      coordinateIds,
+    );
+  }
+  return Object.freeze(candidates);
 }
 
 export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{

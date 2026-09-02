@@ -24,6 +24,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
 import {
   buildMainWireBaselineCoordinateProfileDesignV1,
+  buildMainWireBaselineReleaseLatticeDesignV1,
   buildMainWireBaselineSearchDesignV1,
   buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
@@ -118,6 +119,9 @@ async function runCoordinatorV1(): Promise<void> {
   const profileSeedCandidateId = argumentV1("--profile-seed-candidate-id");
   const profileCoordinateArgument = argumentV1("--profile-coordinate-id");
   const profileDirectionArgument = argumentV1("--profile-direction");
+  const releaseLatticeSeedCandidateId = argumentV1(
+    "--release-lattice-seed-candidate-id",
+  );
   const segmentRequested = segmentStartCandidateId !== null
     || segmentEndCandidateId !== null;
   const profileRequested = profileSeedCandidateId !== null
@@ -132,9 +136,12 @@ async function runCoordinatorV1(): Promise<void> {
   if (
     Number(segmentRequested)
       + Number(profileRequested)
-      + Number(reserveRecoverySeedCandidateId !== null) > 1
+      + Number(reserveRecoverySeedCandidateId !== null)
+      + Number(releaseLatticeSeedCandidateId !== null) > 1
   ) {
-    throw new Error("segment, profile, and reserve-recovery modes are exclusive");
+    throw new Error(
+      "segment, profile, release-lattice, and reserve-recovery modes are exclusive",
+    );
   }
   if (
     profileRequested
@@ -154,6 +161,9 @@ async function runCoordinatorV1(): Promise<void> {
   }
   if (profileRequested && seedReportArgument === null) {
     throw new Error("profile search requires --seed-report");
+  }
+  if (releaseLatticeSeedCandidateId !== null && seedReportArgument === null) {
+    throw new Error("release-lattice search requires --seed-report");
   }
   const profileCoordinateId = profileCoordinateArgument === null
     ? null
@@ -191,6 +201,7 @@ async function runCoordinatorV1(): Promise<void> {
         requestedCandidateId:
           segmentStartCandidateId
             ?? profileSeedCandidateId
+            ?? releaseLatticeSeedCandidateId
             ?? reserveRecoverySeedCandidateId,
       });
   const segmentEndSelection = segmentEndCandidateId === null
@@ -206,7 +217,10 @@ async function runCoordinatorV1(): Promise<void> {
   const largestStageCount = segmentEndSelection !== null
     ? MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
       .paretoSegmentFractions.length
-    : profileRequested
+    : releaseLatticeSeedCandidateId !== null
+      ? 1 + 2 * MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+        .searchPolicy.coordinateIds.length
+      : profileRequested
       ? MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
         .coordinateProfileStepMultipliers.length
       : seedSelection === null
@@ -340,6 +354,37 @@ async function runCoordinatorV1(): Promise<void> {
       progress,
     );
     refinement = Object.freeze([center, ...remaining]);
+  } else if (releaseLatticeSeedCandidateId !== null) {
+    initial = Object.freeze([]);
+    bestInitialCandidateId = null;
+    const latticeCandidates = buildMainWireBaselineReleaseLatticeDesignV1({
+      center: seedSelection.candidateInputs,
+    });
+    process.stderr.write(
+      `[baseline-search] verified release-lattice seed `
+        + `${seedSelection.selectedCandidateId}; ${latticeCandidates.length} `
+        + `projected/neighbour points, ${effectiveParallelism} workers\n`,
+    );
+    const center = (await runPoolV1([Object.freeze({
+      candidate: latticeCandidates[0],
+      sourceCheckpoint,
+      sourceCandidateInputs,
+      numericalFloors: numericalFloor.metricFloors,
+    })], 1, progress))[0];
+    if (center.acceptedCheckpoint === null) {
+      throw new Error("release-lattice center did not produce a checkpoint");
+    }
+    const remaining = await runPoolV1(
+      latticeCandidates.slice(1).map((candidate) => Object.freeze({
+        candidate,
+        sourceCheckpoint: center.acceptedCheckpoint!,
+        sourceCandidateInputs: center.candidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })),
+      effectiveParallelism,
+      progress,
+    );
+    refinement = Object.freeze([center, ...remaining]);
   } else {
     initial = Object.freeze([]);
     bestInitialCandidateId = null;
@@ -438,7 +483,9 @@ async function runCoordinatorV1(): Promise<void> {
     sum + execution.evaluation.wallTimeMs, 0);
   const report = Object.freeze({
     schemaVersion: 1 as const,
-    searchId: profileRequested
+    searchId: releaseLatticeSeedCandidateId !== null
+      ? "main-wire-baseline-release-lattice-search-result-v1" as const
+      : profileRequested
       ? "main-wire-baseline-coordinate-profile-search-result-v1" as const
       : segmentEndSelection !== null
       ? "main-wire-baseline-pareto-segment-search-result-v1" as const
@@ -450,7 +497,9 @@ async function runCoordinatorV1(): Promise<void> {
     executionCommit,
     numericalFloorArtifactPath: portableRepositoryPathV1(floorPath),
     numericalFloorArtifactSha256,
-    executionMode: profileRequested
+    executionMode: releaseLatticeSeedCandidateId !== null
+      ? "verified-report-seeded-release-lattice-neighbourhood" as const
+      : profileRequested
       ? "verified-report-seeded-single-coordinate-profile" as const
       : segmentEndSelection !== null
       ? "verified-report-seeded-transformed-coordinate-segment" as const
@@ -486,6 +535,16 @@ async function runCoordinatorV1(): Promise<void> {
           direction: profileDirection,
           stepMultipliers: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
             .searchPolicy.coordinateProfileStepMultipliers,
+        }),
+    releaseLatticeSelection: releaseLatticeSeedCandidateId === null
+        || seedSelection === null
+      ? null
+      : Object.freeze({
+          seed: searchSeedSelectionReportV1(seedSelection),
+          projection:
+            "nearest-exposed-control-lattice-then-one-step-neighbours" as const,
+          coordinateIds: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+            .searchPolicy.coordinateIds,
         }),
     requestedParallelism,
     effectiveParallelism,
@@ -525,7 +584,8 @@ async function runCoordinatorV1(): Promise<void> {
       preloadReserveRecoveryScreenRequired:
         (reserveRecoverySeedCandidateId !== null
           || segmentEndSelection !== null
-          || profileRequested) as boolean,
+          || profileRequested
+          || releaseLatticeSeedCandidateId !== null) as boolean,
       preloadReserveQualified: false as const,
       perturbationSafetyQualified: false as const,
       finalistRefinedDtQualified: false as const,

@@ -211,6 +211,59 @@ export function transformMainWireBaselineCalibrationParameterV1(
   return value;
 }
 
+export function projectMainWireBaselineCalibrationParameterToReleaseLatticeV1(
+  parameterId: MainWireBaselineCalibrationParameterIdV1,
+  value: number,
+): number {
+  const parameter = mainWireBaselineCalibrationParameterV1(parameterId);
+  if (!Number.isFinite(value)) {
+    throw new Error(`${parameterId} release projection requires a finite value`);
+  }
+  const latticeIndex = Math.round(
+    (value - parameter.minimum) / parameter.finiteDifferenceStep,
+  );
+  const projected = parameter.minimum
+    + latticeIndex * parameter.finiteDifferenceStep;
+  if (projected < parameter.minimum || projected > parameter.maximum) {
+    throw new Error(`${parameterId} release projection is outside its domain`);
+  }
+  return Number(projected.toPrecision(15));
+}
+
+export function mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
+  parameterId: MainWireBaselineCalibrationParameterIdV1,
+  value: number,
+): boolean {
+  const parameter = mainWireBaselineCalibrationParameterV1(parameterId);
+  if (
+    !Number.isFinite(value)
+    || value < parameter.minimum
+    || value > parameter.maximum
+  ) return false;
+  const latticeIndex = (value - parameter.minimum)
+    / parameter.finiteDifferenceStep;
+  const tolerance = 64 * Number.EPSILON
+    * Math.max(1, Math.abs(latticeIndex));
+  return Math.abs(latticeIndex - Math.round(latticeIndex)) <= tolerance;
+}
+
+export function assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
+  candidate: MainWireBaselineCalibrationCandidateInputsV1,
+  parameterIds: readonly MainWireBaselineCalibrationParameterIdV1[],
+): void {
+  const offLattice = parameterIds.filter((parameterId) =>
+    !mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
+      parameterId,
+      readMainWireBaselineCalibrationParameterV1(candidate, parameterId),
+    ));
+  if (offLattice.length > 0) {
+    throw new Error(
+      `baseline release candidate is off the exposed control lattice: `
+        + offLattice.join(", "),
+    );
+  }
+}
+
 function applyOneV1(
   candidate: MainWireBaselineCalibrationCandidateInputsV1,
   parameterId: MainWireBaselineCalibrationParameterIdV1,

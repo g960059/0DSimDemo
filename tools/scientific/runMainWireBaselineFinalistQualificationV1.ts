@@ -47,6 +47,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
   applyMainWireBaselineCalibrationParametersV1,
+  assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1,
   type MainWireBaselineCalibrationCandidateInputsV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import {
@@ -174,6 +175,13 @@ async function runCoordinatorV1(): Promise<void> {
     && searchCandidate.studyIdentitySha256 !== study.studyIdentitySha256
   ) {
     throw new Error("search report and current finalist study identities differ");
+  }
+  if (scope === "full") {
+    assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
+      searchCandidate.candidateInputs,
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+        .coordinateIds,
+    );
   }
   const baselineCheckpoint =
     await validateMainWireIntegratedModelStandard68CheckpointV1(

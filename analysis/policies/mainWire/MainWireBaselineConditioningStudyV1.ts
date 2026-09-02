@@ -121,6 +121,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     numericalFloorBufferMultiples: 1;
     paretoSegmentFractions: readonly [0, 0.25, 0.5, 0.75, 1];
     coordinateProfileStepMultipliers: readonly [0, 1, 2, 3, 4];
+    releaseLatticeNeighbourDirections: readonly [-1, 1];
     preloadReserveRecovery: Readonly<{
       maximumOperatingTotalBloodVolumeMl: number;
       refinementContraction: 0.125;
@@ -140,7 +141,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 12;
+    revision: 13;
     changeReason: string;
   }>;
 }>;
@@ -322,6 +323,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         3,
         4,
       ] as const),
+      releaseLatticeNeighbourDirections: Object.freeze([-1, 1] as const),
       preloadReserveRecovery: Object.freeze({
         maximumOperatingTotalBloodVolumeMl:
           MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
@@ -343,9 +345,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 12 as const,
+      revision: 13 as const,
       changeReason:
-        "Add a five-point single-coordinate profile so a stable conditioning direction can correct one residual without repeating a multidimensional search.",
+        "Require an explicit exposed-control-lattice projection and one-step neighbourhood before release qualification, while keeping continuous coordinates for conditioning and exploration.",
     }),
   });
 
@@ -564,6 +566,9 @@ export function lintMainWireBaselineConditioningStudyV1(
             <= source.searchPolicy.coordinateProfileStepMultipliers[index - 1]!),
     )
     || source.searchPolicy.coordinateProfileStepMultipliers[0] !== 0
+    || source.searchPolicy.releaseLatticeNeighbourDirections.length !== 2
+    || source.searchPolicy.releaseLatticeNeighbourDirections[0] !== -1
+    || source.searchPolicy.releaseLatticeNeighbourDirections[1] !== 1
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction > 0)
     || !(source.searchPolicy.preloadReserveRecovery.refinementContraction
       < source.searchPolicy.refinementContraction)

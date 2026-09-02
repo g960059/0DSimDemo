@@ -10,6 +10,7 @@ import {
   MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
   validateAndOwnMainWireFiveWallMechanicsResearchInputsV1,
   withCommonVentricularActiveTensionScaleV1,
+  withCommonVentricularPassiveStiffnessScaleV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
@@ -22,9 +23,12 @@ import {
 
 describe("Main Wire five-wall mechanics research inputs V1", () => {
   it("owns five explicit walls and applies the common ventricular helper", () => {
-    const common = withCommonVentricularActiveTensionScaleV1(
-      MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
-      1.2,
+    const common = withCommonVentricularPassiveStiffnessScaleV1(
+      withCommonVentricularActiveTensionScaleV1(
+        MAIN_WIRE_FIVE_WALL_DEFAULT_MECHANICS_RESEARCH_INPUTS_V1,
+        1.2,
+      ),
+      0.9,
     );
 
     expect(common.activeTensionScaleByWall).toEqual({
@@ -36,9 +40,9 @@ describe("Main Wire five-wall mechanics research inputs V1", () => {
     });
     expect(common.passiveStiffnessScaleByWall).toEqual({
       LA: 1,
-      LVFW: 1,
-      SEP: 1,
-      RVFW: 1,
+      LVFW: 0.9,
+      SEP: 0.9,
+      RVFW: 0.9,
       RA: 1,
     });
     expect(Object.isFrozen(common.activeTensionScaleByWall)).toBe(true);

@@ -14,6 +14,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
   buildMainWireBaselineCoordinateProfileDesignV1,
+  buildMainWireBaselineReleaseLatticeDesignV1,
   buildMainWireBaselineSearchDesignV1,
   buildMainWireBaselineSegmentDesignV1,
   compareMainWireBaselineCandidateObjectivesV1,
@@ -21,6 +22,9 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
+  assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1,
+  mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1,
+  projectMainWireBaselineCalibrationParameterToReleaseLatticeV1,
   readMainWireBaselineCalibrationParameterV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import {
@@ -521,6 +525,32 @@ describe("Standard68 baseline mint gates", () => {
         coordinateValues[
           "myocardium.common-ventricular-passive-stiffness-scale"
         ]).sort((left, right) => right - left));
+
+    const lattice = buildMainWireBaselineReleaseLatticeDesignV1({
+      center: first[1].candidateInputs,
+    });
+    expect(lattice).toHaveLength(11);
+    const latticeCoordinateIds =
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy.coordinateIds;
+    expect(lattice.every(({ candidateInputs }) =>
+      latticeCoordinateIds.every((coordinateId) =>
+        mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
+          coordinateId,
+          readMainWireBaselineCalibrationParameterV1(
+            candidateInputs,
+            coordinateId,
+          ),
+        )))).toBe(true);
+    expect(lattice[0].coordinateValues[parameterId]).toBe(
+      projectMainWireBaselineCalibrationParameterToReleaseLatticeV1(
+        parameterId,
+        startValue,
+      ),
+    );
+    expect(() => assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
+      first[1].candidateInputs,
+      latticeCoordinateIds,
+    )).toThrow(/off the exposed control lattice/);
 
     const check = (actual: number) => Object.freeze({
       checkId: "left-ventricle.maximum-dpdt" as const,
