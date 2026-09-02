@@ -8,6 +8,10 @@ import {
   buildMainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
+  buildMainWireBaselineConditioningSingularValuesV1,
+  buildMainWireBaselineConditioningTasksV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
+import {
   applyMainWireBaselineCalibrationParametersV1,
   readMainWireBaselineCalibrationParameterV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -397,6 +401,22 @@ describe("Standard68 baseline mint gates", () => {
       forward,
       "myocardium.common-ventricular-active-tension-scale",
     )).toBe(1.01);
+  });
+
+  it("builds bounded conditioning task sets and resolves the small-matrix spectrum", () => {
+    expect(buildMainWireBaselineConditioningTasksV1({
+      mode: "rest-pilot",
+    })).toHaveLength(25);
+    expect(buildMainWireBaselineConditioningTasksV1({
+      mode: "primary-envelope",
+    })).toHaveLength(85);
+    expect(buildMainWireBaselineConditioningTasksV1({
+      mode: "full-envelope",
+    })).toHaveLength(125);
+    expect(buildMainWireBaselineConditioningSingularValuesV1(
+      [[3, 0], [0, 2]],
+      2,
+    )).toEqual([3, 2]);
   });
 });
 
