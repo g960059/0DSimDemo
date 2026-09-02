@@ -25179,6 +25179,22 @@ function validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value)
   }
   return Object.freeze(owned);
 }
+const MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1 = Object.freeze({
+  ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  arterialStiffness: Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.arterialStiffness,
+    maximum: 1
+  })
+});
+function validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(value) {
+  const owned = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value);
+  if (owned.arterialStiffness > MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1.arterialStiffness.maximum) {
+    throw new Error(
+      "pre-Standard68 arterialStiffness exceeds its published maximum"
+    );
+  }
+  return owned;
+}
 const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID = "main-wire-normal-adult-common-pericardium-v1";
 const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1 = Object.freeze([
   "healthy-slack",
@@ -53978,7 +53994,9 @@ function validateAndOwnSelectedFixtureV1(value, variant) {
     dynamicMechanicalSupport: Object.freeze({
       mode: "all-off-zero-inertance-v3"
     }),
-    hemodynamicResearchInputs: validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    hemodynamicResearchInputs: variant.generation === 68 ? validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      record.hemodynamicResearchInputs
+    ) : validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(
       record.hemodynamicResearchInputs
     ),
     mechanismResearchInputs

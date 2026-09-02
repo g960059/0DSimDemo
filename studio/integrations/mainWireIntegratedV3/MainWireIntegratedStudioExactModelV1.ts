@@ -33,11 +33,13 @@ import {
 import { buildMainWireIntegratedModelGuytonStarlingOrientationV3 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
-  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
-  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1,
+  validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioPublishedHemodynamicDomainsV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
   validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3,
@@ -1369,7 +1371,7 @@ export function createMainWireIntegratedStudioExactKernelV1(): ExactModelKernelM
           "mechanismResearchInputs",
         ]),
         hemodynamicResearchInputRanges:
-          MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+          MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1,
         mechanismResearchInputRanges: Object.freeze({
           chamberMechanics:
             MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1,
@@ -1974,7 +1976,9 @@ function standardControlCatalogV1(): readonly ControlDefinitionV2[] {
   return Object.freeze([
     ...STANDARD_CONTROL_INPUT_KEYS_V1.map(({ inputKey, controlId }) => {
       const range =
-        MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[inputKey];
+        MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1[
+          inputKey
+        ];
       return Object.freeze({
         controlId,
         valueType: "number" as const,
@@ -2220,7 +2224,7 @@ function validateAndOwnStandardFixtureV1(
     "dynamicMechanicalSupport",
   );
   const hemodynamicResearchInputs =
-    validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(
       record.hemodynamicResearchInputs,
     );
   const mechanismResearchInputs =

@@ -24946,7 +24946,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 = Object.freeze(
   }),
   arterialStiffness: Object.freeze({
     minimum: 0.5,
-    maximum: 1,
+    maximum: 1.5,
     step: 0.01
   }),
   heartRateBpm: Object.freeze({
@@ -25005,6 +25005,22 @@ function validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value)
     owned[key] = valueAtKey;
   }
   return Object.freeze(owned);
+}
+const MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1 = Object.freeze({
+  ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  arterialStiffness: Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.arterialStiffness,
+    maximum: 1
+  })
+});
+function validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(value) {
+  const owned = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value);
+  if (owned.arterialStiffness > MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1.arterialStiffness.maximum) {
+    throw new Error(
+      "pre-Standard68 arterialStiffness exceeds its published maximum"
+    );
+  }
+  return owned;
 }
 const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_V1_ID = "main-wire-normal-adult-common-pericardium-v1";
 const MAIN_WIRE_NORMAL_ADULT_COMMON_PERICARDIUM_CASE_IDS_V1 = Object.freeze([
@@ -25856,16 +25872,17 @@ function advanceCoronaryAcceptedAutoregulationV3(binding, previous, previousTone
       completedWindow: null
     });
   }
+  const completedDurationSec = binding.windowPolicy.durationSec;
   const aggregate = Object.freeze({
     meanTissueFlowMlPerSecByTerritoryLayer: mapLayerRecord$1(
-      (territoryId, layerId) => qmIntegral[territoryId][layerId] / duration
+      (territoryId, layerId) => qmIntegral[territoryId][layerId] / completedDurationSec
     ),
     meanPerfusionPressureMmHgByTerritory: mapTerritoryRecord(
-      (territoryId) => pressureIntegral[territoryId] / duration
+      (territoryId) => pressureIntegral[territoryId] / completedDurationSec
     ),
     demandScaleByTerritoryLayer: control.demandScaleByTerritoryLayer,
     hyperemia01ByTerritoryLayer: control.hyperemia01ByTerritoryLayer,
-    acceptedWindowDurationSec: duration
+    acceptedWindowDurationSec: completedDurationSec
   });
   const toneStep = stepCoronaryAutoregulationByTerritoryLayerV2(
     previousTone,
@@ -36392,15 +36409,23 @@ Object.freeze({
       "healthy.lv.edvi",
       "hemodynamics.lv.edv_index_ml_per_m2",
       34,
-      76,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+      99,
+      [
+        "lang-ase-eacvi-2015",
+        "kou-norre-2014",
+        "cmr-consolidated-normal-reference-2016"
+      ]
     ),
     gate(
       "healthy.lv.esvi",
       "hemodynamics.lv.esv_index_ml_per_m2",
       10,
-      31,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+      40,
+      [
+        "lang-ase-eacvi-2015",
+        "kou-norre-2014",
+        "cmr-consolidated-normal-reference-2016"
+      ]
     ),
     gate(
       "healthy.lv.ef",
@@ -40275,9 +40300,11 @@ const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_V1_ID = "main-wire-in
 const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1 = Object.freeze({
   baselineId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_V1_ID,
   selection: "factorized-fixed-control-preload-reserve-and-baseline-gate-screen",
-  totalBloodVolumeMl: 5250,
-  systemicResistanceScale: 0.75,
-  commonVentricularActiveTensionScale: 1.33,
+  totalBloodVolumeMl: 4900,
+  systemicResistanceScale: 0.99,
+  arterialStiffnessScale: 1.27,
+  heartRateBpm: 60,
+  commonVentricularActiveTensionScale: 1.29,
   equationTopologyChanged: false,
   materialPrimitiveChanged: false,
   mechanismResearchInputChanged: true,
@@ -40286,7 +40313,9 @@ const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1 = Object.fre
 const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1 = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3({
   ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   totalBloodVolumeMl: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1.totalBloodVolumeMl,
-  systemicResistance: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1.systemicResistanceScale
+  systemicResistance: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1.systemicResistanceScale,
+  arterialStiffness: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1.arterialStiffnessScale,
+  heartRateBpm: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_CLAIM_V1.heartRateBpm
 });
 const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1 = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3({
   ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
@@ -53933,7 +53962,9 @@ function validateAndOwnSelectedFixtureV1(value, variant) {
     dynamicMechanicalSupport: Object.freeze({
       mode: "all-off-zero-inertance-v3"
     }),
-    hemodynamicResearchInputs: validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+    hemodynamicResearchInputs: variant.generation === 68 ? validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      record.hemodynamicResearchInputs
+    ) : validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(
       record.hemodynamicResearchInputs
     ),
     mechanismResearchInputs

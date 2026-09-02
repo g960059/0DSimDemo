@@ -5653,16 +5653,17 @@ function advanceCoronaryAcceptedAutoregulationV3(binding, previous, previousTone
       completedWindow: null
     });
   }
+  const completedDurationSec = binding.windowPolicy.durationSec;
   const aggregate = Object.freeze({
     meanTissueFlowMlPerSecByTerritoryLayer: mapLayerRecord$1(
-      (territoryId, layerId) => qmIntegral[territoryId][layerId] / duration
+      (territoryId, layerId) => qmIntegral[territoryId][layerId] / completedDurationSec
     ),
     meanPerfusionPressureMmHgByTerritory: mapTerritoryRecord(
-      (territoryId) => pressureIntegral[territoryId] / duration
+      (territoryId) => pressureIntegral[territoryId] / completedDurationSec
     ),
     demandScaleByTerritoryLayer: control.demandScaleByTerritoryLayer,
     hyperemia01ByTerritoryLayer: control.hyperemia01ByTerritoryLayer,
-    acceptedWindowDurationSec: duration
+    acceptedWindowDurationSec: completedDurationSec
   });
   const toneStep = stepCoronaryAutoregulationByTerritoryLayerV2(
     previousTone,
@@ -31143,7 +31144,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 = Object.freeze(
   }),
   arterialStiffness: Object.freeze({
     minimum: 0.5,
-    maximum: 1,
+    maximum: 1.5,
     step: 0.01
   }),
   heartRateBpm: Object.freeze({
@@ -41511,6 +41512,22 @@ function assertObservationPairV3(observation2) {
     );
   }
 }
+const MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1 = Object.freeze({
+  ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+  arterialStiffness: Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.arterialStiffness,
+    maximum: 1
+  })
+});
+function validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(value) {
+  const owned = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value);
+  if (owned.arterialStiffness > MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1.arterialStiffness.maximum) {
+    throw new Error(
+      "pre-Standard68 arterialStiffness exceeds its published maximum"
+    );
+  }
+  return owned;
+}
 const IMPELLA_CP_SPEED_RPM_BY_LEVEL_V1 = Object.freeze({
   0: 0,
   1: 23e3,
@@ -42265,15 +42282,23 @@ Object.freeze({
       "healthy.lv.edvi",
       "hemodynamics.lv.edv_index_ml_per_m2",
       34,
-      76,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+      99,
+      [
+        "lang-ase-eacvi-2015",
+        "kou-norre-2014",
+        "cmr-consolidated-normal-reference-2016"
+      ]
     ),
     gate(
       "healthy.lv.esvi",
       "hemodynamics.lv.esv_index_ml_per_m2",
       10,
-      31,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"]
+      40,
+      [
+        "lang-ase-eacvi-2015",
+        "kou-norre-2014",
+        "cmr-consolidated-normal-reference-2016"
+      ]
     ),
     gate(
       "healthy.lv.ef",
@@ -42762,7 +42787,7 @@ function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, c
   const window = initial.coronary.coronaryAutoregulation;
   const windowPolicy = initial.coronary.coronaryAutoregulationBinding.windowPolicy;
   const startTimeSec = initial.acceptedTimeSec;
-  const endTimeSec = startTimeSec + fixture.cycleLengthSec;
+  const endTimeSec = windowPolicy.originAcceptedTimeSec + (window.windowIndex + 1) * windowPolicy.durationSec;
   if (startTimeSec !== window.windowStartAcceptedTimeSec || window.acceptedDurationSec !== 0 || window.acceptedStepCount !== 0 || !nearlyEqual(windowPolicy.durationSec, fixture.cycleLengthSec)) {
     throw new Error(
       "V3 periodic continuation does not start on cycle boundary"
@@ -42886,7 +42911,14 @@ function runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, c
     );
   }
   if (accepted.acceptedTimeSec !== endTimeSec || completions.length !== 1 || completions[0].windowIndex !== expectedWindowIndex || completions[0].startTimeSec !== startTimeSec || completions[0].endTimeSec !== endTimeSec || !nearlyEqual(completions[0].acceptedDurationSec, fixture.cycleLengthSec)) {
-    throw new Error("V3 periodic cycle/coronary window boundary differs");
+    throw new Error(
+      "V3 periodic cycle/coronary window boundary differs: " + JSON.stringify({
+        acceptedTimeSec: accepted.acceptedTimeSec,
+        endTimeSec,
+        expectedWindowIndex,
+        completions
+      })
+    );
   }
   if (!oneComposedCalciumOwnerOnly) {
     throw new Error("V3 periodic cycle detected split calcium ownership");
@@ -51458,7 +51490,7 @@ function createMainWireIntegratedStudioExactKernelV1() {
           "hemodynamicResearchInputs",
           "mechanismResearchInputs"
         ]),
-        hemodynamicResearchInputRanges: MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+        hemodynamicResearchInputRanges: MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1,
         mechanismResearchInputRanges: Object.freeze({
           chamberMechanics: MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1,
           valveAreas: MAIN_WIRE_FOUR_VALVE_AREA_INPUT_RANGES_V1,
@@ -51926,7 +51958,7 @@ function standardExecutableBundleV1(host) {
 function standardControlCatalogV1() {
   return Object.freeze([
     ...STANDARD_CONTROL_INPUT_KEYS_V1.map(({ inputKey, controlId }) => {
-      const range = MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[inputKey];
+      const range = MAIN_WIRE_INTEGRATED_STUDIO_PRE_STANDARD68_HEMODYNAMIC_RANGES_V1[inputKey];
       return Object.freeze({
         controlId,
         valueType: "number",
@@ -52112,7 +52144,7 @@ function validateAndOwnStandardFixtureV1(value) {
     "all-off-zero-inertance-v3",
     "dynamicMechanicalSupport"
   );
-  const hemodynamicResearchInputs = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+  const hemodynamicResearchInputs = validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(
     record.hemodynamicResearchInputs
   );
   const mechanismResearchInputs = validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
