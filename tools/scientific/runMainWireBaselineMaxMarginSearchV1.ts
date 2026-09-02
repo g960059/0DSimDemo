@@ -39,7 +39,9 @@ import {
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
+  readMainWireBaselineCalibrationParameterV1,
   type MainWireBaselineCalibrationCandidateInputsV1,
+  type MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 type SearchWorkerJobV1 = Readonly<{
@@ -82,7 +84,10 @@ type SearchSeedSelectionV1 = Readonly<{
   studyIdentitySha256: string;
   executionCommit: string;
   importedCandidateCount: number;
-  compatibilityGuard: "exact-and-evaluator-sources-unchanged";
+  defaultedCoordinateIds:
+    readonly MainWireBaselineCalibrationParameterIdV1[];
+  compatibilityGuard:
+    "exact-sources-unchanged-current-parameter-policy-reapplication";
   priorResultRole: "exploratory-seed-selection-only";
   selectedCandidateId: string;
   selectedObjectiveStatus: MainWireBaselineCandidateObjectiveV1["status"];
@@ -703,7 +708,6 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
   const guardedPaths = Object.freeze([
     "engine",
     "analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1.ts",
-    "analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1.ts",
     "data/physiology/main-wire-normal-reference-evidence-v1.json",
     "studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json",
   ]);
@@ -720,12 +724,26 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
         + changedGuardedPaths.replaceAll("\n", ", "),
     );
   }
+  const parameterPolicyChanged = gitV1([
+    "diff",
+    "--name-only",
+    `${executionCommit}..HEAD`,
+    "--",
+    "analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1.ts",
+  ]);
+  if (parameterPolicyChanged !== "" && input.requestedCandidateId === null) {
+    throw new Error(
+      "automatic seed selection is unavailable after a parameter-policy change",
+    );
+  }
   const rawEvaluations = report.evaluations;
   if (!Array.isArray(rawEvaluations) || rawEvaluations.length < 1) {
     throw new Error("seed search report has no evaluations");
   }
   const coordinateIds = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
     .searchPolicy.coordinateIds;
+  let defaultedCoordinateIds:
+    readonly MainWireBaselineCalibrationParameterIdV1[] | null = null;
   const expectedCheckIds = new Set(input.numericalFloors.map(({ checkId }) =>
     checkId));
   const imported = rawEvaluations.flatMap((rawEvaluation, index) => {
@@ -744,16 +762,39 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
       `seed search evaluation ${candidateId} coordinates`,
     );
     const coordinateKeys = Object.keys(coordinateValues).sort();
-    if (JSON.stringify(coordinateKeys) !== JSON.stringify([...coordinateIds].sort())) {
+    const unknownCoordinateIds = coordinateKeys.filter((coordinateId) =>
+      !coordinateIds.includes(
+        coordinateId as MainWireBaselineCalibrationParameterIdV1,
+      ));
+    const missingCoordinateIds = coordinateIds.filter((coordinateId) =>
+      !coordinateKeys.includes(coordinateId));
+    if (
+      unknownCoordinateIds.length > 0
+      || (missingCoordinateIds.length > 0
+        && input.requestedCandidateId === null)
+    ) {
       throw new Error(`seed search evaluation ${candidateId} coordinate set differs`);
+    }
+    if (defaultedCoordinateIds === null) {
+      defaultedCoordinateIds = Object.freeze([...missingCoordinateIds]);
+    } else if (
+      JSON.stringify(defaultedCoordinateIds)
+        !== JSON.stringify(missingCoordinateIds)
+    ) {
+      throw new Error("seed search evaluations have inconsistent coordinate sets");
     }
     const updates = coordinateIds.map((parameterId) => Object.freeze({
       parameterId,
-      value: finiteNumberFieldV1(
-        coordinateValues,
-        parameterId,
-        `seed search evaluation ${candidateId} coordinates`,
-      ),
+      value: coordinateKeys.includes(parameterId)
+        ? finiteNumberFieldV1(
+            coordinateValues,
+            parameterId,
+            `seed search evaluation ${candidateId} coordinates`,
+          )
+        : readMainWireBaselineCalibrationParameterV1(
+            input.sourceCandidateInputs,
+            parameterId,
+          ),
     }));
     const candidateInputs = applyMainWireBaselineCalibrationParametersV1(
       input.sourceCandidateInputs,
@@ -866,7 +907,9 @@ async function loadSearchSeedSelectionV1(input: Readonly<{
     studyIdentitySha256,
     executionCommit,
     importedCandidateCount: imported.length,
-    compatibilityGuard: "exact-and-evaluator-sources-unchanged" as const,
+    defaultedCoordinateIds: defaultedCoordinateIds ?? Object.freeze([]),
+    compatibilityGuard:
+      "exact-sources-unchanged-current-parameter-policy-reapplication" as const,
     priorResultRole: "exploratory-seed-selection-only" as const,
     selectedCandidateId: selected.candidateId,
     selectedObjectiveStatus: selected.objective.status,
@@ -889,6 +932,7 @@ function searchSeedSelectionReportV1(
     studyIdentitySha256: selection.studyIdentitySha256,
     executionCommit: selection.executionCommit,
     importedCandidateCount: selection.importedCandidateCount,
+    defaultedCoordinateIds: selection.defaultedCoordinateIds,
     compatibilityGuard: selection.compatibilityGuard,
     priorResultRole: selection.priorResultRole,
     selectedCandidateId: selection.selectedCandidateId,
