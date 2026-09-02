@@ -32,6 +32,7 @@ import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
@@ -63,10 +64,16 @@ import roundedEjectionSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
 import roundedEjectionRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json";
+import qualifiedBaselineClientDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json";
+import qualifiedBaselineSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import qualifiedBaselineRegistryAdmissionLockV1 from
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -102,6 +109,8 @@ let browserLocalAlgebraicProximalRootsCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
 let browserLocalRoundedEjectionCompositionPromiseV1:
   Promise<StudioClientCompositionV2> | undefined;
+let browserLocalQualifiedBaselineCompositionPromiseV1:
+  Promise<StudioClientCompositionV2> | undefined;
 
 /**
  * Development inventory refreshes must observe active-bundle and lifecycle
@@ -125,7 +134,7 @@ async function createRegistryClientCompositionV2(
   const resolver = studioSupabaseModelReleaseResolverV1();
   if (resolver === null) {
     if (modelId === undefined) {
-      return loadStudioLocalRoundedEjectionClientCompositionV1();
+      return loadStudioLocalQualifiedBaselineClientCompositionV1();
     }
     if (
       modelId === standardClientDescriptorV1.manifest.modelId
@@ -178,6 +187,16 @@ async function createRegistryClientCompositionV2(
       )
     ) {
       return loadStudioLocalRoundedEjectionClientCompositionV1();
+    }
+    if (
+      modelId === qualifiedBaselineClientDescriptorV1.manifest.modelId
+      && surfacePin !== undefined
+      && localSurfacePinMatchesV1(
+        qualifiedBaselineSurfaceReleaseV1,
+        surfacePin,
+      )
+    ) {
+      return loadStudioLocalQualifiedBaselineClientCompositionV1();
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -385,6 +404,49 @@ Promise<StudioClientCompositionV2> {
   return pending;
 }
 
+/** Local default Workbench composition for the qualified Standard69 baseline. */
+export function loadStudioLocalQualifiedBaselineClientCompositionV1():
+Promise<StudioClientCompositionV2> {
+  if (browserLocalQualifiedBaselineCompositionPromiseV1 !== undefined) {
+    return browserLocalQualifiedBaselineCompositionPromiseV1;
+  }
+  const pending = Promise.resolve().then(() => {
+    if (
+      qualifiedBaselineClientDescriptorV1.schemaId
+      !== "circleheart-standard-exact-model-client-descriptor-v1"
+    ) {
+      throw new Error("Standard69 client descriptor identity mismatch");
+    }
+    assertExactModelKernelManifestV3(
+      qualifiedBaselineClientDescriptorV1.manifest,
+    );
+    assertModelSurfaceReleaseManifestV1(qualifiedBaselineSurfaceReleaseV1);
+    const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
+      schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+      modelId: qualifiedBaselineClientDescriptorV1.manifest.modelId,
+      artifactRevisionId:
+        qualifiedBaselineRegistryAdmissionLockV1.artifactRevisionId,
+      manifest: qualifiedBaselineClientDescriptorV1.manifest,
+      surfaceRelease: qualifiedBaselineSurfaceReleaseV1,
+      moduleAbi: "circleheart-exact-model-esm-v1",
+      artifactUrl: localQualifiedBaselineArtifactUrlV1(),
+    });
+    return composeStudioClientCompositionV2(Object.freeze({
+      defaultFixture: qualifiedBaselineClientDescriptorV1.defaultFixture,
+      stage: "dev" as const,
+      ticket: workerReleaseTicket,
+      surfaceStage: "dev" as const,
+    }));
+  });
+  browserLocalQualifiedBaselineCompositionPromiseV1 = pending;
+  void pending.catch(() => {
+    if (browserLocalQualifiedBaselineCompositionPromiseV1 === pending) {
+      browserLocalQualifiedBaselineCompositionPromiseV1 = undefined;
+    }
+  });
+  return pending;
+}
+
 function localStandardArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
@@ -484,6 +546,32 @@ export function localRoundedEjectionArtifactRevisionUrlV1(
   revisioned.searchParams.set(
     "revision",
     roundedEjectionRegistryAdmissionLockV1.artifactRevisionId,
+  );
+  return revisioned;
+}
+
+function localQualifiedBaselineArtifactUrlV1(): string {
+  const loopbackBase = "http://127.0.0.1/";
+  const resolved = new URL(
+    "../integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioQualifiedBaselineExactModelV1.artifact.mjs",
+    import.meta.url,
+  );
+  return resolved.protocol === "file:"
+    ? new URL(
+        "__circleheart_local_qualified_baseline_standard69_artifact__.mjs",
+        loopbackBase,
+      ).href
+    : localQualifiedBaselineArtifactRevisionUrlV1(resolved).href;
+}
+
+export function localQualifiedBaselineArtifactRevisionUrlV1(
+  resolved: URL,
+): URL {
+  const revisioned = new URL(resolved);
+  revisioned.searchParams.set(
+    "revision",
+    qualifiedBaselineRegistryAdmissionLockV1.artifactRevisionId,
   );
   return revisioned;
 }

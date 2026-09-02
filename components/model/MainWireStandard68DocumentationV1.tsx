@@ -22,9 +22,13 @@ const COPY = Object.freeze({
     eyebrow: "MODEL DOCUMENTATION",
     title: "Main Wire Standard 68",
     subtitle: "rounded-ejection baselineを備えた統合0D循環動態モデル",
+    qualifiedTitle: "Main Wire Standard 69",
+    qualifiedSubtitle: "検証済みbaselineを備えた統合0D循環動態モデル",
     status: "研究・教育用モデル · 臨床的妥当性は未確立",
     lead:
       "このページはStandard 68のexact model、現在のModel Surface、versioned analysisを分けて説明します。baseline gateは数理・生理的な品質管理であり、患者個別の診断や治療判断を保証するものではありません。",
+    qualifiedLead:
+      "このページはStandard 69のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 69はStandard 68の数式構成を保ち、独立したbaseline fittingとmint gateを通過した既定作動点を持ちます。これは患者個別の診断や治療判断を保証するものではありません。",
     scopeTitle: "モデルの範囲",
     scopeBody:
       "心室相互作用、四弁、体循環・肺循環、冠循環、regular sinus rhythm、呼吸・心膜圧を結合した集中定数モデルです。心室materialとmatched-alpha calcium/relaxation構成をrounded-ejection assemblyへ更新しています。",
@@ -69,9 +73,13 @@ const COPY = Object.freeze({
     eyebrow: "MODEL DOCUMENTATION",
     title: "Main Wire Standard 68",
     subtitle: "Integrated 0D haemodynamic model with a rounded-ejection baseline",
+    qualifiedTitle: "Main Wire Standard 69",
+    qualifiedSubtitle: "Integrated 0D haemodynamic model with a qualified baseline",
     status: "Research and education model · not clinically validated",
     lead:
       "This page separates the Standard 68 exact model, its current Model Surface, and versioned analyses. Baseline gates are mathematical and physiological quality controls, not patient-specific diagnostic or treatment validation.",
+    qualifiedLead:
+      "This page separates the Standard 69 exact model, its current Model Surface, and versioned analyses. Standard 69 retains the Standard 68 equations and adds a separately fitted, mint-qualified default operating point. This does not establish patient-specific diagnostic or treatment validity.",
     scopeTitle: "Model scope",
     scopeBody:
       "A lumped model coupling ventricular interaction, four valves, systemic and pulmonary circulation, coronary circulation, regular sinus rhythm, respiration, and pericardial pressure. Ventricular material and matched-alpha calcium/relaxation use the rounded-ejection assembly.",
@@ -121,10 +129,13 @@ export function MainWireStandard68DocumentationV1({
   locale: Locale;
 }>) {
   const text = COPY[locale];
+  const qualified = facts.generation === 69;
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
-      data-testid="standard68-model-documentation-v1"
+      data-testid={qualified
+        ? "standard69-model-documentation-v1"
+        : "standard68-model-documentation-v1"}
     >
       <main className="mx-auto w-full max-w-5xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
         <Link
@@ -137,10 +148,10 @@ export function MainWireStandard68DocumentationV1({
 
         <header className="mt-10 max-w-4xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-wb-accent">{text.eyebrow}</p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">{text.title}</h1>
-          <p className="mt-3 text-base font-medium text-wb-muted sm:text-lg">{text.subtitle}</p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">{qualified ? text.qualifiedTitle : text.title}</h1>
+          <p className="mt-3 text-base font-medium text-wb-muted sm:text-lg">{qualified ? text.qualifiedSubtitle : text.subtitle}</p>
           <p className="mt-5 inline-flex rounded-full border border-wb-line-strong bg-wb-soft px-3 py-1.5 text-xs font-semibold text-wb-warning">{text.status}</p>
-          <p className="mt-6 max-w-3xl text-[15px] leading-8 text-wb-muted">{text.lead}</p>
+          <p className="mt-6 max-w-3xl text-[15px] leading-8 text-wb-muted">{qualified ? text.qualifiedLead : text.lead}</p>
         </header>
 
         <Section icon={HeartPulse} title={text.scopeTitle}>

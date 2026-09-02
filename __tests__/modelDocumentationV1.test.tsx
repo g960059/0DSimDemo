@@ -12,6 +12,7 @@ import {
 } from "@/engine/valves/MainWireAorticRecoveredRootProfileV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
@@ -22,6 +23,8 @@ import algebraicProximalRootsStandard67SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
 import roundedEjectionStandard68SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import qualifiedBaselineStandard69SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import {
   resolveMainWireStandard66DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
@@ -45,6 +48,10 @@ const STANDARD68_MODEL_ID =
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
 const STANDARD68_SURFACE_RELEASE_ID =
   roundedEjectionStandard68SurfaceV1.surfaceReleaseId;
+const STANDARD69_MODEL_ID =
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
+const STANDARD69_SURFACE_RELEASE_ID =
+  qualifiedBaselineStandard69SurfaceV1.surfaceReleaseId;
 
 describe("model documentation V1", () => {
   it("builds a locale-scoped URL from the exact model and Surface release", () => {
@@ -229,6 +236,29 @@ describe("model documentation V1", () => {
     });
   });
 
+  it("binds Standard69 documentation to the fully inherited qualified-baseline Surface", () => {
+    const identity = resolveRegisteredModelDocumentationV1(
+      STANDARD69_MODEL_ID,
+      STANDARD69_SURFACE_RELEASE_ID,
+    );
+    expect(identity).toEqual({
+      kind: "main-wire-qualified-baseline-standard69",
+      modelId: STANDARD69_MODEL_ID,
+      surfaceReleaseId: STANDARD69_SURFACE_RELEASE_ID,
+      surfaceSeriesId: qualifiedBaselineStandard69SurfaceV1.surfaceSeriesId,
+    });
+    expect(resolveRegisteredModelDisclosureV1(
+      STANDARD69_MODEL_ID,
+      STANDARD69_SURFACE_RELEASE_ID,
+    )).toMatchObject({
+      badgeLabel: "MW 69",
+      shortLabel: "Main Wire Standard 69",
+      limitationsTranslationKey: "modelLimitations.standard68Items",
+    });
+    expect(resolveMainWireStandard68DocumentationFactsV1(identity!))
+      .toMatchObject({ generation: 69 });
+  });
+
   it("renders the station, measurement, wave, raw-PV, restart, and validation boundaries in both locales", () => {
     const identity = resolveRegisteredModelDocumentationV1(
       MODEL_ID,
@@ -316,6 +346,18 @@ describe("model documentation V1", () => {
     expect(valid).toContain("atomic warm start");
     expect(valid).toContain(STANDARD68_MODEL_ID);
     expect(valid).not.toContain("新しいexact trajectoryを開始します");
+  });
+
+  it("renders Standard69 as the separately qualified baseline successor", () => {
+    const valid = renderDocumentationRoute(modelDocumentationHref({
+      locale: "ja",
+      modelId: STANDARD69_MODEL_ID,
+      surfaceReleaseId: STANDARD69_SURFACE_RELEASE_ID,
+    }));
+    expect(valid).toContain('data-testid="standard69-model-documentation-v1"');
+    expect(valid).toContain("Main Wire Standard 69");
+    expect(valid).toContain("Standard 68の数式構成を保ち");
+    expect(valid).toContain(STANDARD69_MODEL_ID);
   });
 });
 

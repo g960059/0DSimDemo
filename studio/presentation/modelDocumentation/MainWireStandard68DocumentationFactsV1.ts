@@ -4,6 +4,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionDocumentationAuthorityV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import {
@@ -15,11 +16,18 @@ import {
 } from "@/studio/contracts/v2/modelSurface";
 import roundedEjectionDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
+import qualifiedBaselineDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1";
 import roundedEjectionSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
+import qualifiedBaselineSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
@@ -32,9 +40,11 @@ import type {
 
 export type MainWireStandard68DocumentationFactsV1 = Readonly<{
   identity: RegisteredModelDocumentationIdentityV1 & Readonly<{
-    kind: "main-wire-rounded-ejection-standard68";
+    kind:
+      | "main-wire-rounded-ejection-standard68"
+      | "main-wire-qualified-baseline-standard69";
   }>;
-  generation: 68;
+  generation: 68 | 69;
   stations: Readonly<{
     aopOutputId: string;
     abpOutputId: string;
@@ -68,22 +78,31 @@ export type MainWireStandard68DocumentationFactsV1 = Readonly<{
   }>;
 }>;
 
-/** Fail closed rather than documenting Standard66/67 station semantics as 68. */
+/** Fail closed rather than substituting another release's station semantics. */
 export function resolveMainWireStandard68DocumentationFactsV1(
   identity: RegisteredModelDocumentationIdentityV1,
 ): MainWireStandard68DocumentationFactsV1 | null {
-  if (
-    identity.kind !== "main-wire-rounded-ejection-standard68"
-    || identity.modelId
-      !== MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1
-  ) {
+  const standard69 =
+    identity.kind === "main-wire-qualified-baseline-standard69"
+    && identity.modelId
+      === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
+  const standard68 = identity.kind === "main-wire-rounded-ejection-standard68"
+    && identity.modelId
+      === MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
+  if (!standard68 && !standard69) {
     return null;
   }
 
   try {
-    const manifest = roundedEjectionDescriptorV1.manifest as unknown as
+    const descriptor = standard69
+      ? qualifiedBaselineDescriptorV1
+      : roundedEjectionDescriptorV1;
+    const releaseSurface = standard69
+      ? qualifiedBaselineSurfaceV1
+      : roundedEjectionSurfaceV1;
+    const manifest = descriptor.manifest as unknown as
       ExactModelKernelManifestV3;
-    const surface = roundedEjectionSurfaceV1 as unknown as
+    const surface = releaseSurface as unknown as
       ModelSurfaceReleaseManifestV1;
     assertExactModelKernelManifestV3(manifest);
     assertModelSurfaceReleaseManifestV1(surface);
@@ -181,13 +200,14 @@ export function resolveMainWireStandard68DocumentationFactsV1(
       return null;
     }
 
-    const baseline =
-      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+    const baseline = standard69
+      ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
+      : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
     if (baseline.checks.some(({ status }) => status !== "passed")) return null;
 
     return Object.freeze({
       identity: identity as MainWireStandard68DocumentationFactsV1["identity"],
-      generation: 68 as const,
+      generation: standard69 ? 69 as const : 68 as const,
       stations: Object.freeze({
         aopOutputId,
         abpOutputId,
@@ -230,7 +250,7 @@ function outputIdBySourceSuffixV1(suffix: string): string {
     ({ sourcePath }) => sourcePath.endsWith(suffix),
   );
   if (matches.length !== 1) {
-    throw new Error(`Standard68 documentation output is ambiguous: ${suffix}`);
+    throw new Error(`rounded-ejection documentation output is ambiguous: ${suffix}`);
   }
   return matches[0]!.outputId;
 }

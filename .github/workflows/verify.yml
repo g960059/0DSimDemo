@@ -95,6 +95,31 @@ jobs:
         env:
           CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
 
+  standard69:
+    name: Standard69 registry admission
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify qualified baseline Standard69 registry admission
+        run: npm run verify:registry:main-wire-qualified-baseline-v1
+        env:
+          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+
   test:
     name: Fast tests
     runs-on: ubuntu-latest
@@ -251,6 +276,7 @@ jobs:
       - browser
       - supabase
       - standard68
+      - standard69
       - test
       - whitespace
     if: always()
@@ -265,6 +291,7 @@ jobs:
           BROWSER_RESULT: ${{ needs.browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
           STANDARD68_RESULT: ${{ needs.standard68.result }}
+          STANDARD69_RESULT: ${{ needs.standard69.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -275,6 +302,7 @@ jobs:
             "Workbench browser smoke:$BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
             "Standard68 registry admission:$STANDARD68_RESULT" \
+            "Standard69 registry admission:$STANDARD69_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

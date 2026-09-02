@@ -1,0 +1,410 @@
+{
+  "schemaId": "circleheart.main-wire.rounded-ejection-baseline-validation.v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69",
+  "qualificationId": "main-wire-integrated-model-rounded-ejection-baseline-qualification-v1",
+  "validationMethodId": "main-wire-integrated-model-baseline-validation-v1",
+  "status": "passed",
+  "nominalDtSec": 0.002,
+  "completedCycleCount": 145,
+  "periodicity": {
+    "status": "period1-converged",
+    "evidenceCycleIndices": [
+      143,
+      144,
+      145
+    ],
+    "latestPeriod1MaximumNormalizedDelta": 0.0009694471969772245
+  },
+  "checkpoint": {
+    "checkpointId": "circleheart.main-wire-integrated-model-standard68-exact-checkpoint.v1",
+    "revision": 72536,
+    "acceptedTimeSec": 145,
+    "checkpointSha256": "6f94efd89653069aa613a377723728141d940e6131afe797b3c1dfa38d8918c3"
+  },
+  "measurements": {
+    "LVP": {
+      "forwardEpisodeCount": 1,
+      "significantPeakCount": 1,
+      "totalVariationRatio": 1.444304938453803,
+      "centralRangeFraction": 0.18490561290924204,
+      "peakPhase01": 0.376
+    },
+    "RVP": {
+      "forwardEpisodeCount": 1,
+      "significantPeakCount": 1,
+      "totalVariationRatio": 1.7276174523621792,
+      "centralRangeFraction": 0.23148213642314902,
+      "peakPhase01": 0.5
+    },
+    "aorticValve": {
+      "ejectionTimeSec": 0.2539999999999907,
+      "meanGradientMmHg": 4.238546950360893,
+      "peakGradientMmHg": 7.637284176126144
+    },
+    "leftVentricle": {
+      "maximumDpDtMmHgPerSec": 2361.592657734929,
+      "minimumDpDtMmHgPerSec": -1161.6212654767476
+    },
+    "mitralFlow": {
+      "peakEMlPerSec": 372.77562769409667,
+      "peakAMlPerSec": 441.3071668312716,
+      "peakEToA": 0.8447078491173085
+    },
+    "timing": {
+      "ictSec": 0.06400000000002137,
+      "irtSec": 0.09200000000001296,
+      "teiIndex": 0.6190476190477319
+    },
+    "hemodynamicPressure": {
+      "aortic": {
+        "maximumMmHg": 90.90297676408183,
+        "minimumMmHg": 67.03238676607786
+      },
+      "pulmonaryArtery": {
+        "maximumMmHg": 29.87455518813078,
+        "minimumMmHg": 9.746198380183575
+      },
+      "centralVenousMeanMmHg": 3.0048069594991653,
+      "pcwpSurrogateMeanMmHg": 9.259935019464637
+    },
+    "cardiacSizeAndFunction": {
+      "bodySurfaceAreaM2": 1.9,
+      "leftVentricle": {
+        "endDiastolicVolumeMl": 145.9650740740728,
+        "endSystolicVolumeMl": 65.96066156567859,
+        "endDiastolicVolumeIndexMlPerM2": 76.82372319688042,
+        "endSystolicVolumeIndexMlPerM2": 34.71613766614663,
+        "ejectionFraction01": 0.5481065454589117
+      },
+      "rightVentricle": {
+        "endDiastolicVolumeMl": 153.7697036718695,
+        "endSystolicVolumeMl": 73.764076966685,
+        "endDiastolicVolumeIndexMlPerM2": 80.93142298519449,
+        "endSystolicVolumeIndexMlPerM2": 38.82319840351842,
+        "ejectionFraction01": 0.5202951218265284
+      },
+      "systemicForwardFlow": {
+        "strokeVolumeMl": 80.00441244093874,
+        "strokeVolumeIndexMlPerM2": 42.107585495230914,
+        "cardiacOutputLPerMin": 4.800264746456325,
+        "cardiacIndexLPerMinPerM2": 2.526455129713855
+      }
+    }
+  },
+  "checks": [
+    {
+      "checkId": "settlement.period1",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "bool"
+    },
+    {
+      "checkId": "waveform.LVP.single-peak-no-ringing",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "bool"
+    },
+    {
+      "checkId": "waveform.LVP.rounded-not-plateau",
+      "status": "passed",
+      "actual": 0.18490561290924204,
+      "minimum": 0.08,
+      "maximum": 0.35,
+      "unit": "fraction"
+    },
+    {
+      "checkId": "waveform.RVP.single-peak-no-ringing",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "bool"
+    },
+    {
+      "checkId": "waveform.RVP.rounded-not-plateau",
+      "status": "passed",
+      "actual": 0.23148213642314902,
+      "minimum": 0.08,
+      "maximum": 0.35,
+      "unit": "fraction"
+    },
+    {
+      "checkId": "aortic-valve.mean-gradient",
+      "status": "passed",
+      "actual": 4.238546950360893,
+      "minimum": 0,
+      "maximum": 5,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "aortic-valve.peak-gradient",
+      "status": "passed",
+      "actual": 7.637284176126144,
+      "minimum": 0,
+      "maximum": 10,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "aortic-valve.ejection-time",
+      "status": "passed",
+      "actual": 0.2539999999999907,
+      "minimum": 0.24,
+      "maximum": 0.34,
+      "unit": "s"
+    },
+    {
+      "checkId": "left-ventricle.maximum-dpdt",
+      "status": "passed",
+      "actual": 2361.592657734929,
+      "minimum": 1200,
+      "maximum": 2500,
+      "unit": "mmHg/s"
+    },
+    {
+      "checkId": "left-ventricle.minimum-dpdt",
+      "status": "passed",
+      "actual": -1161.6212654767476,
+      "minimum": -1400,
+      "maximum": -700,
+      "unit": "mmHg/s"
+    },
+    {
+      "checkId": "mitral-flow.peak-e-to-a",
+      "status": "passed",
+      "actual": 0.8447078491173085,
+      "minimum": 0.8,
+      "maximum": 2,
+      "unit": "ratio"
+    },
+    {
+      "checkId": "timing.ict",
+      "status": "passed",
+      "actual": 0.06400000000002137,
+      "minimum": 0.02,
+      "maximum": 0.07,
+      "unit": "s"
+    },
+    {
+      "checkId": "timing.irt",
+      "status": "passed",
+      "actual": 0.09200000000001296,
+      "minimum": 0.059,
+      "maximum": 0.134,
+      "unit": "s"
+    },
+    {
+      "checkId": "timing.tei-index",
+      "status": "passed",
+      "actual": 0.6190476190477319,
+      "minimum": 0.29,
+      "maximum": 0.65,
+      "unit": "ratio"
+    },
+    {
+      "checkId": "aortic-pressure.maximum",
+      "status": "passed",
+      "actual": 90.90297676408183,
+      "minimum": 90,
+      "maximum": 140,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "aortic-pressure.minimum",
+      "status": "passed",
+      "actual": 67.03238676607786,
+      "minimum": 60,
+      "maximum": 90,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "pulmonary-artery-pressure.maximum",
+      "status": "passed",
+      "actual": 29.87455518813078,
+      "minimum": 15,
+      "maximum": 35,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "pulmonary-artery-pressure.minimum",
+      "status": "passed",
+      "actual": 9.746198380183575,
+      "minimum": 4,
+      "maximum": 15,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "central-venous-pressure.mean",
+      "status": "passed",
+      "actual": 3.0048069594991653,
+      "minimum": 1,
+      "maximum": 8,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "pcwp-surrogate.mean",
+      "status": "passed",
+      "actual": 9.259935019464637,
+      "minimum": 4,
+      "maximum": 13,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "left-ventricle.edv-index",
+      "status": "passed",
+      "actual": 76.82372319688042,
+      "minimum": 34,
+      "maximum": 99,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "left-ventricle.esv-index",
+      "status": "passed",
+      "actual": 34.71613766614663,
+      "minimum": 10,
+      "maximum": 40,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "left-ventricle.ejection-fraction",
+      "status": "passed",
+      "actual": 0.5481065454589117,
+      "minimum": 0.52,
+      "maximum": 0.74,
+      "unit": "ratio"
+    },
+    {
+      "checkId": "right-ventricle.edv-index",
+      "status": "passed",
+      "actual": 80.93142298519449,
+      "minimum": 32,
+      "maximum": 87,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "right-ventricle.esv-index",
+      "status": "passed",
+      "actual": 38.82319840351842,
+      "minimum": 8,
+      "maximum": 44,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "right-ventricle.ejection-fraction",
+      "status": "passed",
+      "actual": 0.5202951218265284,
+      "minimum": 0.42,
+      "maximum": 0.82,
+      "unit": "ratio"
+    },
+    {
+      "checkId": "systemic-forward-flow.cardiac-index",
+      "status": "passed",
+      "actual": 2.526455129713855,
+      "minimum": 2.5,
+      "maximum": 4,
+      "unit": "L/min/m2"
+    },
+    {
+      "checkId": "systemic-forward-flow.stroke-volume-index",
+      "status": "passed",
+      "actual": 42.107585495230914,
+      "minimum": 35,
+      "maximum": 65,
+      "unit": "mL/m2"
+    }
+  ],
+  "preloadReserve": {
+    "qualificationId": "main-wire-integrated-model-formal-fixed-tone-preload-reserve-qualification-v1",
+    "protocolId": "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1",
+    "status": "passed",
+    "sourceGlobalTbvMl": 4900,
+    "hypovolemicGlobalTbvMl": 4312,
+    "hypovolemicGlobalTbvScale": 0.88,
+    "hypervolemicGlobalTbvMl": 5488.000000000001,
+    "hypervolemicGlobalTbvScale": 1.12,
+    "left": {
+      "hypovolemic": {
+        "endpointDirection": "hypovolemic",
+        "baselineFillingPressureMmHg": 9.260392986196209,
+        "endpointFillingPressureMmHg": 5.016544730130437,
+        "directionalFillingPressureChangeMmHg": 4.243848256065772,
+        "baselineCardiacOutputLPerMin": 4.800381782211369,
+        "endpointCardiacOutputLPerMin": 3.885635492118517,
+        "directionalCardiacOutputChangeLPerMin": 0.914746290092852,
+        "directionalCardiacOutputChangeFraction01": 0.1905569872551804,
+        "cardiacOutputSlopeLPerMinPerMmHg": 0.21554641799112317,
+        "baselineEndDiastolicVolumeMl": 145.96700809490213,
+        "endpointEndDiastolicVolumeMl": 122.53150356388639,
+        "directionalEndDiastolicVolumeChangeMl": 23.435504531015738,
+        "directionalEndDiastolicVolumeChangeFraction01": 0.1605534348952256,
+        "baselineEndDiastolicTransmuralPressureMmHg": 15.4839084248802,
+        "endpointEndDiastolicTransmuralPressureMmHg": 6.380666901022612,
+        "directionalEndDiastolicTransmuralPressureChangeMmHg": 9.103241523857587,
+        "endDiastolicVolumeResponseMlPerMmHg": 2.5744131329039717
+      },
+      "hypervolemic": {
+        "endpointDirection": "hypervolemic",
+        "baselineFillingPressureMmHg": 9.260392986196209,
+        "endpointFillingPressureMmHg": 15.956433293705153,
+        "directionalFillingPressureChangeMmHg": 6.6960403075089445,
+        "baselineCardiacOutputLPerMin": 4.800381782211369,
+        "endpointCardiacOutputLPerMin": 4.948890416052947,
+        "directionalCardiacOutputChangeLPerMin": 0.14850863384157797,
+        "directionalCardiacOutputChangeFraction01": 0.030936838063985235,
+        "cardiacOutputSlopeLPerMinPerMmHg": 0.022178575250665723,
+        "baselineEndDiastolicVolumeMl": 145.96700809490213,
+        "endpointEndDiastolicVolumeMl": 151.3006632668121,
+        "directionalEndDiastolicVolumeChangeMl": 5.333655171909982,
+        "directionalEndDiastolicVolumeChangeFraction01": 0.036540141786301765,
+        "baselineEndDiastolicTransmuralPressureMmHg": 15.4839084248802,
+        "endpointEndDiastolicTransmuralPressureMmHg": 22.55448154472165,
+        "directionalEndDiastolicTransmuralPressureChangeMmHg": 7.07057311984145,
+        "endDiastolicVolumeResponseMlPerMmHg": 0.7543455221391704
+      }
+    },
+    "right": {
+      "hypovolemic": {
+        "endpointDirection": "hypovolemic",
+        "baselineFillingPressureMmHg": 3.0049970612804007,
+        "endpointFillingPressureMmHg": 1.8277761531135277,
+        "directionalFillingPressureChangeMmHg": 1.177220908166873,
+        "baselineCardiacOutputLPerMin": 4.80043726720241,
+        "endpointCardiacOutputLPerMin": 3.9017287251750457,
+        "directionalCardiacOutputChangeLPerMin": 0.8987085420273644,
+        "directionalCardiacOutputChangeFraction01": 0.187213891569322,
+        "cardiacOutputSlopeLPerMinPerMmHg": 0.7634153758165931,
+        "baselineEndDiastolicVolumeMl": 153.77308514605772,
+        "endpointEndDiastolicVolumeMl": 127.98792439840062,
+        "directionalEndDiastolicVolumeChangeMl": 25.785160747657102,
+        "directionalEndDiastolicVolumeChangeFraction01": 0.16768318541027954,
+        "baselineEndDiastolicTransmuralPressureMmHg": 3.3514471562030854,
+        "endpointEndDiastolicTransmuralPressureMmHg": 1.4524830523766352,
+        "directionalEndDiastolicTransmuralPressureChangeMmHg": 1.8989641038264502,
+        "endDiastolicVolumeResponseMlPerMmHg": 13.578540371405385
+      },
+      "hypervolemic": {
+        "endpointDirection": "hypervolemic",
+        "baselineFillingPressureMmHg": 3.0049970612804007,
+        "endpointFillingPressureMmHg": 5.349801641156134,
+        "directionalFillingPressureChangeMmHg": 2.344804579875733,
+        "baselineCardiacOutputLPerMin": 4.80043726720241,
+        "endpointCardiacOutputLPerMin": 5.090591063402245,
+        "directionalCardiacOutputChangeLPerMin": 0.29015379619983506,
+        "directionalCardiacOutputChangeFraction01": 0.060443201327142926,
+        "cardiacOutputSlopeLPerMinPerMmHg": 0.12374327425410106,
+        "baselineEndDiastolicVolumeMl": 153.77308514605772,
+        "endpointEndDiastolicVolumeMl": 175.76463100347567,
+        "directionalEndDiastolicVolumeChangeMl": 21.991545857417947,
+        "directionalEndDiastolicVolumeChangeFraction01": 0.14301297159076828,
+        "baselineEndDiastolicTransmuralPressureMmHg": 3.3514471562030854,
+        "endpointEndDiastolicTransmuralPressureMmHg": 6.696690702745713,
+        "directionalEndDiastolicTransmuralPressureChangeMmHg": 3.345243546542628,
+        "endDiastolicVolumeResponseMlPerMmHg": 6.573974525755119
+      }
+    }
+  }
+}
