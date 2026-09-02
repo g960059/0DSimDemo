@@ -315,6 +315,8 @@
         "baselineIndexedVolumesDetail": "BSA 1.9 m²でindex化した弁閉鎖時のEDVI/ESVI。必須範囲：{{range}}。画像モダリティとの完全な同等性は主張しません。",
         "baselineIndexedFlowDetail": "native aortic forward flowをBSA 1.9 m²でindex化。必須範囲：{{range}}。",
         "baselineAvGradientDetail": "exact hydraulic gradientの必須範囲：{{range}}",
+        "baselineAorticPressureDetail": "completed beatのAo node max/min。必須範囲：{{range}}。末梢上腕血圧や波反射を含む測定値との完全な同等性は主張しません。",
+        "baselinePulmonaryPressureDetail": "completed beatのPAP max/min、mean RAP（CVP）、mean LAP（PCWP* surrogate）。必須範囲：{{range}}。*wedge catheter自体はモデル化していません。",
         "baselineLvDpDtDetail": "accepted-step absolute LVPの必須範囲：{{range}}",
         "baselineIctIrtDetail": "波形解析による必須範囲：{{range}}",
         "baselinePreloadReserve": "前負荷予備能",

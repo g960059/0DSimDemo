@@ -23,6 +23,10 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
+  buildMainWirePeriodicPvaMethodV9,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+} from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
   createMainWireIntegratedStudioRoundedEjectionKernelV1,
   createMainWireIntegratedStudioRoundedEjectionReleaseV1,
@@ -94,6 +98,10 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     const methods = resolveMainWireAnalysisMethodsForSurfaceV1(
       roundedSurfaceV1,
     );
+    expect(methods.periodicPvaDerivation).toEqual({
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+      build: buildMainWirePeriodicPvaMethodV9,
+    });
     const composed = composeStandardModelContractV1(
       kernel,
       roundedSurfaceV1,
@@ -116,8 +124,14 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     expect(kernel.primitiveControlCatalog).toHaveLength(52);
     expect(roundedSurfaceV1.controlCatalog.map(({ controlId }) => controlId))
       .toEqual(kernel.primitiveControlCatalog.map(({ controlId }) => controlId));
-    expect(roundedSurfaceV1.derivedOutputCatalog)
-      .toEqual(sourceTopologyWorkbenchSurfaceV1.derivedOutputCatalog);
+    expect(roundedSurfaceV1.derivedOutputCatalog.map(({ outputId }) => outputId))
+      .toEqual(sourceTopologyWorkbenchSurfaceV1.derivedOutputCatalog.map(
+        ({ outputId }) => outputId,
+      ));
+    expect(roundedSurfaceV1.derivedOutputCatalog.every(
+      ({ derivationId }) =>
+        derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+    )).toBe(true);
     expect(roundedSurfaceV1.graphCatalog)
       .toEqual(sourceTopologyWorkbenchSurfaceV1.graphCatalog);
     expect(roundedSurfaceV1.knobCatalog)
@@ -286,8 +300,15 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
           expectedInputEpoch: source.inputEpoch,
         });
         expect(changed.inputEpoch).toBe(source.inputEpoch + 1);
-        expect(changed.acceptedTimeSec).toBeGreaterThan(source.acceptedTimeSec);
-        expect(changed.acceptedRevision).toBeGreaterThan(source.acceptedRevision);
+        // A direct detached preflight may commit at the source clock. Larger
+        // rebases use continuation and commit at a later clock; both are
+        // atomic and must remain runnable after the swap.
+        expect(changed.acceptedTimeSec).toBeGreaterThanOrEqual(
+          source.acceptedTimeSec,
+        );
+        expect(changed.acceptedRevision).toBeGreaterThanOrEqual(
+          source.acceptedRevision,
+        );
         const terminal = await advanceToV1(
           release,
           runtimeSessionId,
@@ -351,7 +372,8 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
   }, 120_000);
 
   it("reports normal-range ET, hydraulic AV gradients, and LV dP/dt after settlement", async () => {
-    const release = createMainWireIntegratedStudioRoundedEjectionReleaseV1();
+    const release =
+      createMainWireIntegratedStudioRoundedEjectionSettledReleaseV1();
     const runtimeSessionId = "standard68/metrics";
     const scenarioId = "baseline";
     await release.executables.simulationAdapter.createSession({
@@ -363,12 +385,10 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       }],
     });
     try {
-      const frame = await advanceToV1(
-        release,
+      const frame = release.executables.simulationAdapter.currentFrame({
         runtimeSessionId,
         scenarioId,
-        12,
-      );
+      });
       const value = (outputId: string) => frame.outputs[outputId]?.value;
       expect(value(ET)).toBeGreaterThanOrEqual(0.24);
       expect(value(ET)).toBeLessThanOrEqual(0.28);

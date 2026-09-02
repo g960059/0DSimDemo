@@ -73,7 +73,7 @@
         "minimum": 4200,
         "maximum": 7000,
         "step": 50,
-        "defaultValue": 5250,
+        "defaultValue": 4900,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -83,7 +83,7 @@
         "minimum": 0.75,
         "maximum": 1.25,
         "step": 0.01,
-        "defaultValue": 0.75,
+        "defaultValue": 0.99,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -93,7 +93,7 @@
         "minimum": 0.75,
         "maximum": 1.33,
         "step": 0.01,
-        "defaultValue": 1.33,
+        "defaultValue": 1.29,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -131,9 +131,9 @@
         "valueType": "number",
         "unit": "1",
         "minimum": 0.5,
-        "maximum": 1,
+        "maximum": 1.5,
         "step": 0.01,
-        "defaultValue": 0.75,
+        "defaultValue": 1.27,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -153,7 +153,7 @@
         "minimum": 0.75,
         "maximum": 1.33,
         "step": 0.01,
-        "defaultValue": 1.33,
+        "defaultValue": 1.29,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -163,7 +163,7 @@
         "minimum": 0.75,
         "maximum": 1.33,
         "step": 0.01,
-        "defaultValue": 1.33,
+        "defaultValue": 1.29,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -173,7 +173,7 @@
         "minimum": 0.75,
         "maximum": 1.33,
         "step": 0.01,
-        "defaultValue": 1.33,
+        "defaultValue": 1.29,
         "changeSemantics": "accepted-state-warm-start"
       },
       {
@@ -2570,12 +2570,12 @@
       "mode": "all-off-zero-inertance-v3"
     },
     "hemodynamicResearchInputs": {
-      "systemicResistance": 0.75,
+      "systemicResistance": 0.99,
       "pulmonaryResistance": 0.625,
       "venousTone": 0.15,
-      "arterialStiffness": 0.75,
+      "arterialStiffness": 1.27,
       "heartRateBpm": 60,
-      "totalBloodVolumeMl": 5250,
+      "totalBloodVolumeMl": 4900,
       "peepCmH2O": 0
     },
     "mechanismResearchInputs": {
@@ -2602,9 +2602,9 @@
         "inputId": "main-wire-five-wall-mechanics-research-input-v1",
         "activeTensionScaleByWall": {
           "LA": 1,
-          "LVFW": 1.33,
-          "SEP": 1.33,
-          "RVFW": 1.33,
+          "LVFW": 1.29,
+          "SEP": 1.29,
+          "RVFW": 1.29,
           "RA": 1
         },
         "passiveStiffnessScaleByWall": {

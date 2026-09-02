@@ -602,6 +602,34 @@ export const WorkbenchSession = ({
             ),
           }),
           Object.freeze({
+            itemId: "aortic-pressure",
+            label: "AoP max / min",
+            value: `${baselineValidation.measurements.hemodynamicPressure
+              .aortic.maximumMmHg.toFixed(0)} / ${baselineValidation
+              .measurements.hemodynamicPressure.aortic.minimumMmHg
+              .toFixed(0)} mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselineAorticPressureDetail",
+              { range: "90–140 / 60–90 mmHg" },
+            ),
+          }),
+          Object.freeze({
+            itemId: "pulmonary-filling-pressure",
+            label: "PAP max / min · CVP / PCWP*",
+            value: `${baselineValidation.measurements.hemodynamicPressure
+              .pulmonaryArtery.maximumMmHg.toFixed(0)} / ${baselineValidation
+              .measurements.hemodynamicPressure.pulmonaryArtery.minimumMmHg
+              .toFixed(0)} · ${baselineValidation.measurements
+              .hemodynamicPressure.centralVenousMeanMmHg.toFixed(1)} / ${
+              baselineValidation.measurements.hemodynamicPressure
+                .pcwpSurrogateMeanMmHg.toFixed(1)
+            } mmHg`,
+            detail: t(
+              "workbench.editor.simulationInfo.baselinePulmonaryPressureDetail",
+              { range: "PAP 15–35 / 4–15 · CVP 1–8 · PCWP* 4–13 mmHg" },
+            ),
+          }),
+          Object.freeze({
             itemId: "indexed-volumes",
             label: "EDVI / ESVI",
             value: `LV ${Math.round(
@@ -619,7 +647,7 @@ export const WorkbenchSession = ({
             )} mL/m²`,
             detail: t(
               "workbench.editor.simulationInfo.baselineIndexedVolumesDetail",
-              { range: "LV 34–76/10–31 · RV 32–87/8–44 mL/m²" },
+              { range: "LV 34–99/10–40 · RV 32–87/8–44 mL/m²" },
             ),
           }),
           Object.freeze({

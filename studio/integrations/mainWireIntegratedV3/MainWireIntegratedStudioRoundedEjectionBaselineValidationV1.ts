@@ -127,6 +127,9 @@ export function validateMainWireIntegratedStudioRoundedEjectionBaselineValidatio
     || !Number.isFinite(report.checkpoint.acceptedTimeSec)
     || !/^[0-9a-f]{64}$/.test(report.checkpoint.checkpointSha256)
     || report.measurements === undefined
+    || !validHemodynamicPressureV1(
+      report.measurements.hemodynamicPressure,
+    )
     || !validCardiacSizeAndFunctionV1(
       report.measurements.cardiacSizeAndFunction,
     )
@@ -165,6 +168,25 @@ export function validateMainWireIntegratedStudioRoundedEjectionBaselineValidatio
     throw new Error("Standard68 baseline validation report is invalid");
   }
   return input as MainWireIntegratedStudioRoundedEjectionBaselineValidationV1;
+}
+
+function validHemodynamicPressureV1(
+  value:
+    MainWireIntegratedModelBaselineValidationMeasurementsV1["hemodynamicPressure"]
+      | undefined,
+): boolean {
+  return value !== undefined
+    && [
+      value.aortic.maximumMmHg,
+      value.aortic.minimumMmHg,
+      value.pulmonaryArtery.maximumMmHg,
+      value.pulmonaryArtery.minimumMmHg,
+      value.centralVenousMeanMmHg,
+      value.pcwpSurrogateMeanMmHg,
+    ].every(Number.isFinite)
+    && value.aortic.maximumMmHg > value.aortic.minimumMmHg
+    && value.pulmonaryArtery.maximumMmHg >
+      value.pulmonaryArtery.minimumMmHg;
 }
 
 function validPreloadReserveSideV1(

@@ -315,6 +315,8 @@
         "baselineIndexedVolumesDetail": "Valve-closure EDVI/ESVI indexed to BSA 1.9 m². Required range: {{range}}. Exact equivalence to an imaging modality is not claimed.",
         "baselineIndexedFlowDetail": "Native aortic forward flow indexed to BSA 1.9 m². Required range: {{range}}.",
         "baselineAvGradientDetail": "Required exact hydraulic-gradient range: {{range}}",
+        "baselineAorticPressureDetail": "Completed-beat Ao-node maximum/minimum. Required range: {{range}}. Exact equivalence to peripheral brachial pressure or a waveform with reflections is not claimed.",
+        "baselinePulmonaryPressureDetail": "Completed-beat PAP maximum/minimum, mean RAP (CVP), and mean LAP (PCWP* surrogate). Required range: {{range}}. *A wedged catheter is not modeled.",
         "baselineLvDpDtDetail": "Required accepted-step absolute-LVP range: {{range}}",
         "baselineIctIrtDetail": "Required waveform-analysis range: {{range}}",
         "baselinePreloadReserve": "Preload reserve",
