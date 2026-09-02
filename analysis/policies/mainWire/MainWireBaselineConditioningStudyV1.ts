@@ -77,7 +77,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     explorationNominalDtSec: number;
     finalistRefinedDtSec: number;
     derivativeInitialization: "common-verified-anchor-continuation";
-    searchInitialization: "nearest-accepted-continuation";
+    searchInitialization: "common-verified-stage-center-continuation";
     rateConditionInitialization:
       "cold-center-then-common-center-continuation";
     finalistInitializationChecks:
@@ -240,7 +240,8 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       finalistRefinedDtSec: 0.001,
       derivativeInitialization:
         "common-verified-anchor-continuation" as const,
-      searchInitialization: "nearest-accepted-continuation" as const,
+      searchInitialization:
+        "common-verified-stage-center-continuation" as const,
       rateConditionInitialization:
         "cold-center-then-common-center-continuation" as const,
       finalistInitializationChecks: Object.freeze([
