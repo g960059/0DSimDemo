@@ -56,8 +56,8 @@ export type MainWireBaselineConditioningCompactCheckV1 = Readonly<{
 
 export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   task: MainWireBaselineConditioningTaskV1;
-  sourceAnchorKind: "standard-baseline" | "condition-center";
-  sourceCheckpointSha256: string;
+  sourceAnchorKind: "cold" | "standard-baseline" | "condition-center";
+  sourceCheckpointSha256: string | null;
   targetCoordinateValue: number | null;
   transformedCoordinateValue: number | null;
   evaluationStatus: MainWireBaselineCalibrationEvaluationV1["status"];
@@ -211,12 +211,14 @@ export async function executeMainWireBaselineConditioningTaskV1(
     nominalDtSec:
       MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
         .explorationNominalDtSec,
-    initialization: isExactBaseline
-      ? Object.freeze({
+    initialization: sourceAnchorKind === "cold"
+      ? Object.freeze({ kind: "cold" as const })
+      : isExactBaseline
+        ? Object.freeze({
           kind: "standard68-exact-checkpoint" as const,
           checkpoint: sourceCheckpoint,
         })
-      : Object.freeze({
+        : Object.freeze({
           kind: "standard68-parameter-continuation" as const,
           sourceCheckpoint,
           sourceHemodynamicResearchInputs:
@@ -230,7 +232,7 @@ export async function executeMainWireBaselineConditioningTaskV1(
     result: compactEvaluationV1(
       task,
       sourceAnchorKind,
-      sourceCheckpoint.checkpointSha256,
+      sourceAnchorKind === "cold" ? null : sourceCheckpoint.checkpointSha256,
       resolved,
       evaluation,
     ),
@@ -437,7 +439,7 @@ function applyConditionV1(
 function compactEvaluationV1(
   task: MainWireBaselineConditioningTaskV1,
   sourceAnchorKind: MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
-  sourceCheckpointSha256: string,
+  sourceCheckpointSha256: string | null,
   resolved: ReturnType<typeof resolveTaskV1>,
   evaluation: MainWireBaselineCalibrationEvaluationV1,
 ): MainWireBaselineConditioningTaskResultV1 {

@@ -74,7 +74,9 @@ async function runCoordinatorV1(): Promise<void> {
   const centerExecutions = await runPoolV1(
     centerTasks.map((task) => Object.freeze({
       task,
-      sourceAnchorKind: "standard-baseline" as const,
+      sourceAnchorKind: task.conditionId === "rest-hr70"
+        ? "cold" as const
+        : "standard-baseline" as const,
       sourceCheckpoint: settledBaselineCheckpointJson,
       returnCheckpoint: true,
     })),
@@ -307,7 +309,8 @@ function parseWorkerJobV1(input: unknown): WorkerJobV1 {
   const record = input as Record<string, unknown>;
   const task = parseTaskV1(record.task);
   if (
-    (record.sourceAnchorKind !== "standard-baseline"
+    (record.sourceAnchorKind !== "cold"
+      && record.sourceAnchorKind !== "standard-baseline"
       && record.sourceAnchorKind !== "condition-center")
     || typeof record.returnCheckpoint !== "boolean"
     || record.sourceCheckpoint === null
