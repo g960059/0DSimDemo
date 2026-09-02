@@ -1,11 +1,10 @@
 import checkpointV1 from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 
 import {
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1,
 } from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import type {
@@ -32,6 +31,10 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
+import {
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1";
 import {
@@ -44,27 +47,45 @@ type Fixture = ReturnType<
 >;
 
 const defaultHemodynamics =
-  MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3;
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1;
 const conditions = Object.freeze([
   conditionV1("baseline", {}),
   conditionV1("pvr-low", { pulmonaryResistance: 0.5 }),
   conditionV1("pvr-high", { pulmonaryResistance: 0.75 }),
-  conditionV1("svr-low", { systemicResistance: 0.85 }),
-  conditionV1("svr-high", { systemicResistance: 1.15 }),
+  conditionV1("svr-low", { systemicResistance: 0.88 }),
+  conditionV1("svr-high", { systemicResistance: 1.08 }),
   conditionV1("venous-tone-low", { venousTone: 0.05 }),
-  conditionV1("venous-tone-high", { venousTone: 0.3 }),
-  conditionV1("arterial-stiffness-low", { arterialStiffness: 0.6 }),
-  conditionV1("arterial-stiffness-high", { arterialStiffness: 0.9 }),
+  conditionV1("venous-tone-high", { venousTone: 0.25 }),
+  conditionV1("arterial-stiffness-low", { arterialStiffness: 1.17 }),
+  conditionV1("arterial-stiffness-high", { arterialStiffness: 1.43 }),
 ]);
 const profile =
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
     0.03,
     0.00025,
   );
-const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
+const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+  defaultHemodynamics,
+  1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+);
 const restored =
   await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
-    .restoreStandard68ExactCheckpoint(checkpointV1);
+    .restoreStandard68ExactCheckpoint(
+      checkpointV1,
+      defaultHemodynamics,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+    );
+const sourceBaselineCycle =
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+    sourceFixture as unknown as
+      MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+    restored.currentAcceptedState(),
+    1,
+    0.002,
+  );
 const baselineFixture = candidateFixtureV1(conditions[0]!.hemodynamics);
 const baselineRun = convergeV1({
   sourceAccepted: restored.currentAcceptedState(),
@@ -91,13 +112,17 @@ const results = conditions.map((condition, index) => {
 });
 
 process.stdout.write(`${JSON.stringify({
-  envelopeId: "main-wire-pulmonary-root-impedance-local-load-envelope-v1",
+  envelopeId: "main-wire-standard69-pulmonary-root-local-load-envelope-v1",
   candidate: {
     rootResistanceMmHgSecPerMl: 0.03,
     inertanceMmHgSec2PerMl: 0.00025,
   },
   scope:
     "one-at-a-time fixed-HR/fixed-TBV local load envelope; not a clinical validation cohort",
+  sourceStandard69Baseline: Object.freeze({
+    settledCheckpointTimeSec: restored.currentAcceptedState().acceptedTimeSec,
+    metrics: summarizeV1(sourceBaselineCycle.traceSamples),
+  }),
   results,
 }, null, 2)}\n`);
 
@@ -117,7 +142,7 @@ function candidateFixtureV1(
   return createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1(
     hemodynamics,
     1,
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
     profile,
   );
 }

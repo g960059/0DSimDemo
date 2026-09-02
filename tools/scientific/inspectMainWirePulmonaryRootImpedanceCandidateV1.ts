@@ -1,5 +1,5 @@
 import checkpointV1 from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 
 import {
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1,
@@ -25,6 +25,10 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
+import {
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1";
 import {
@@ -33,12 +37,16 @@ import {
 
 type Sample = MainWireIntegratedModelPeriodicTerminalTraceSampleV3;
 
-const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
+const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+);
 const targetFixture =
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1(
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
     1,
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
     createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
       0.03,
       0.00025,
@@ -46,7 +54,13 @@ const targetFixture =
   );
 const restored =
   await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
-    .restoreStandard68ExactCheckpoint(checkpointV1);
+    .restoreStandard68ExactCheckpoint(
+      checkpointV1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+    );
 let accepted = warmStartMainWireIntegratedModelV3({
   source: restored.currentAcceptedState(),
   sourceRuntime: sourceFixture as unknown as MainWireIntegratedModelRuntimeV3,
@@ -108,6 +122,7 @@ const profile = Array.from({ length: 21 }, (_, ordinal) => {
 });
 
 process.stdout.write(`${JSON.stringify({
+  sourceBaselineId: "main-wire-integrated-model-standard69-qualified-baseline-v1",
   candidate: {
     rootResistanceMmHgSecPerMl: 0.03,
     effectiveRootResistanceMmHgSecPerMl: 0.01875,

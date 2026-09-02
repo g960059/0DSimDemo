@@ -1,5 +1,5 @@
 import checkpointV1 from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 
 import {
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1,
@@ -28,6 +28,10 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
+import {
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1";
 import {
@@ -45,17 +49,27 @@ const profile =
     0.03,
     0.00025,
   );
-const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
+const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+);
 const targetFixture =
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1(
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
     1,
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
     profile,
   );
 const restored =
   await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
-    .restoreStandard68ExactCheckpoint(checkpointV1);
+    .restoreStandard68ExactCheckpoint(
+      checkpointV1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+    );
 const runs = nominalDtSec.map((dtSec) => runToPeriod1V1(
   restored.currentAcceptedState(),
   dtSec,
@@ -63,7 +77,7 @@ const runs = nominalDtSec.map((dtSec) => runToPeriod1V1(
 const summaries = runs.map((run) => summarizeV1(run.trace));
 
 process.stdout.write(`${JSON.stringify({
-  comparisonId: "main-wire-pulmonary-root-impedance-dt-halving-v1",
+  comparisonId: "main-wire-standard69-pulmonary-root-impedance-dt-halving-v1",
   candidate: {
     rootResistanceMmHgSecPerMl: 0.03,
     effectiveRootResistanceMmHgSecPerMl: 0.01875,

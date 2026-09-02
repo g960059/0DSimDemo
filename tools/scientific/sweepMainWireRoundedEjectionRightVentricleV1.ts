@@ -1,5 +1,5 @@
 import checkpointV1 from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 
 import {
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1,
@@ -28,6 +28,10 @@ import {
   createMainWireIntegratedModelRoundedEjectionFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
+import {
   createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1";
 import {
@@ -36,11 +40,27 @@ import {
 
 type Sample = MainWireIntegratedModelPeriodicTerminalTraceSampleV3;
 
-const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
+const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+);
 const restored =
   await MainWireIntegratedModelStandard68TypedAuthoritySessionV1
-    .restoreStandard68ExactCheckpoint(checkpointV1);
+    .restoreStandard68ExactCheckpoint(
+      checkpointV1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      1,
+      undefined,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+    );
 const sourceAccepted = restored.currentAcceptedState();
+const sourceCycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+  sourceFixture as unknown as MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  sourceAccepted,
+  1,
+  0.002,
+);
 const results = [];
 let priorContinuation: Readonly<{
   accepted: typeof sourceAccepted;
@@ -51,17 +71,13 @@ let priorContinuation: Readonly<{
 
 const preregisteredCandidates = Object.freeze([
   { rootResistanceMmHgSecPerMl: 0.01, inertanceMmHgSec2PerMl: 0 },
-  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0 },
-  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.0001 },
-  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.00025 },
-  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.0005 },
-  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.001 },
-  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.001 },
-  { rootResistanceMmHgSecPerMl: 0.08, inertanceMmHgSec2PerMl: 0.001 },
-  { rootResistanceMmHgSecPerMl: 0.08, inertanceMmHgSec2PerMl: 0.0005 },
-  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.0005 },
-  { rootResistanceMmHgSecPerMl: 0.06, inertanceMmHgSec2PerMl: 0.00025 },
+  { rootResistanceMmHgSecPerMl: 0.024, inertanceMmHgSec2PerMl: 0 },
+  { rootResistanceMmHgSecPerMl: 0.024, inertanceMmHgSec2PerMl: 0.00005 },
+  { rootResistanceMmHgSecPerMl: 0.024, inertanceMmHgSec2PerMl: 0.0001 },
+  { rootResistanceMmHgSecPerMl: 0.03, inertanceMmHgSec2PerMl: 0.0001 },
   { rootResistanceMmHgSecPerMl: 0.03, inertanceMmHgSec2PerMl: 0.00025 },
+  { rootResistanceMmHgSecPerMl: 0.04, inertanceMmHgSec2PerMl: 0.00025 },
+  { rootResistanceMmHgSecPerMl: 0.08, inertanceMmHgSec2PerMl: 0.001 },
 ] as const);
 
 for (const {
@@ -75,9 +91,9 @@ for (const {
     );
   const targetFixture =
     createMainWireIntegratedModelRoundedEjectionPulmonaryRootAblationFixtureV1(
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
     1,
-    undefined,
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
     rootProfile,
   );
   let accepted = warmStartMainWireIntegratedModelV3({
@@ -136,7 +152,13 @@ for (const {
 
 process.stdout.write(`${JSON.stringify({
   sweepId:
-    "main-wire-rounded-ejection-pulmonary-root-impedance-factor-sweep-v1",
+    "main-wire-standard69-pulmonary-root-impedance-factor-sweep-v1",
+  sourceStandard69Baseline: rightHeartSummaryV1(
+    sourceCycle.traceSamples,
+    0.01 * MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1
+      .pulmonaryResistance,
+    0.004,
+  ),
   rootTreatment:
     "PA_PArt source L=0.004 replaced by bounded low-L and characteristic-resistance factor candidates",
   continuationPolicy:
@@ -176,8 +198,16 @@ function rightHeartSummaryV1(
     sum + sample.acceptedDtSec, 0);
   const meanPa = samples.reduce((sum, sample, index) =>
     sum + pulmonaryPressure[index]! * sample.acceptedDtSec, 0) / durationSec;
-  const cPa = 60 / (meanPa + 20);
-  const cPArt = 90 / (meanPa + 20);
+  const meanPulmonaryFlowMlPerSec = samples.reduce((sum, sample) =>
+    sum + sample.valveFlowMlPerSec.PV * sample.acceptedDtSec, 0)
+      / durationSec;
+  const meanPArt = meanPa
+    - effectiveRootResistanceMmHgSecPerMl * meanPulmonaryFlowMlPerSec;
+  const stiffness =
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1
+      .arterialStiffness;
+  const cPa = (60 / stiffness) / (meanPa + 20);
+  const cPArt = (90 / stiffness) / (meanPArt + 20);
   const differentialCompliance = cPa * cPArt / (cPa + cPArt);
   const dampingRatio = inertanceMmHgSec2PerMl === 0
     ? null
@@ -220,8 +250,9 @@ function rightHeartSummaryV1(
     }),
     localLinearizedRootMode: Object.freeze({
       meanPaMmHg: meanPa,
-      partPressureApproximation:
-        "mean PArt approximated by mean PA for local screening only",
+      meanPArtMmHg: meanPArt,
+      meanPArtDerivation:
+        "periodic mean PA minus effective root resistance times mean PV flow",
       differentialComplianceMlPerMmHg: differentialCompliance,
       dampingRatio,
       dampedNaturalPeriodSec:
