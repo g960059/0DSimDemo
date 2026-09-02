@@ -13,3 +13,5 @@ model and Model Surface identities; Surfaces pin versioned analysis methods.
 New exact-model identities inherit the latest compatible production Model
 Surface and its pinned analysis methods by default; omissions or substitutions
 require an explicit compatibility decision and regression coverage.
+
+One human maintainer develops this repository with AI agents.

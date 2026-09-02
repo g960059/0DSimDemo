@@ -57,6 +57,8 @@
     "run:coronary:v2-periodic": "vite-node --script tools/coronary/runMainWireFiveWallCoronaryPeriodicSteadyV2.ts",
     "verify:scientific:valve-research-bracket-numerical-envelope": "vite-node --script tools/scientific/runMainWireValveResearchBracketNumericalRobustnessEnvelopeV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
+    "audit:scientific:main-wire-baseline-numerical-floor-v1": "vite-node --script tools/scientific/runMainWireBaselineNumericalFloorAuditV1.ts",
+    "benchmark:scientific:main-wire-baseline-continuation-v1": "vite-node --script tools/scientific/benchmarkMainWireBaselineContinuationV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",
     "characterize:coronary:v3-reduced-pressure-step-numerical": "vite-node --script tools/scientific/runCoronaryV3ReducedPressureStepNumericalCharacterizationV1.ts --output artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json",

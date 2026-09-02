@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "registryId": "main-wire-normal-reference-evidence-v1",
+  "claimScope": {
+    "currentBaselineEvidenceRole": "construction",
+    "finalConfirmationStatus": "unavailable",
+    "reason": "Standard68 gates and candidate outputs were inspected during model construction; no lineage-disjoint final evidence set has been frozen."
+  },
+  "sources": [
+    {
+      "sourceId": "lang-2015-chamber-quantification",
+      "title": "Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults: An Update from the American Society of Echocardiography and the European Association of Cardiovascular Imaging",
+      "year": 2015,
+      "identifiers": {
+        "doi": "10.1016/j.echo.2014.10.003",
+        "pmid": "25559473"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "kou-2014-norre-chamber-reference",
+      "title": "Echocardiographic reference ranges for normal cardiac chamber size: results from the NORRE study",
+      "year": 2014,
+      "identifiers": {
+        "doi": "10.1093/ehjci/jet284",
+        "pmid": "24451180"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "kawel-boehm-2015-cmr-normal-values",
+      "title": "Normal values for cardiovascular magnetic resonance in adults and children",
+      "year": 2015,
+      "identifiers": {
+        "doi": "10.1186/s12968-015-0111-7",
+        "pmid": "25928314"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "carlsson-2012-cmr-cardiac-output",
+      "title": "Cardiac output and cardiac index measured with cardiovascular magnetic resonance in healthy subjects, elite athletes and patients with congestive heart failure",
+      "year": 2012,
+      "identifiers": {
+        "doi": "10.1186/1532-429X-14-51",
+        "pmid": "22839436"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "barratt-boyes-wood-1958-healthy-hemodynamics",
+      "title": "Cardiac output and related measurements and pressure values in the right heart and associated vessels, together with an analysis of the hemo-dynamic response to the inhalation of high oxygen mixtures in healthy subjects",
+      "year": 1958,
+      "identifiers": {
+        "pmid": "13514210"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "mukherjee-2025-right-heart-guideline",
+      "title": "Guidelines for the Echocardiographic Assessment of the Right Heart in Adults and Special Considerations in Pulmonary Hypertension: Recommendations from the American Society of Echocardiography",
+      "year": 2025,
+      "identifiers": {
+        "doi": "10.1016/j.echo.2025.01.006",
+        "pmid": "40044341"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "kovacs-2009-healthy-pap-review",
+      "title": "Pulmonary arterial pressure during rest and exercise in healthy subjects: a systematic review",
+      "year": 2009,
+      "identifiers": {
+        "doi": "10.1183/09031936.00145608"
+      },
+      "verification": "primary-source-metadata-checked"
+    },
+    {
+      "sourceId": "zeder-2024-healthy-pawp-meta-analysis",
+      "title": "Pulmonary arterial wedge pressure in healthy subjects: a meta-analysis",
+      "year": 2024,
+      "identifiers": {
+        "doi": "10.1183/13993003.00967-2024",
+        "pmid": "38964777"
+      },
+      "verification": "primary-source-metadata-checked"
+    }
+  ],
+  "evidenceBindings": [
+    {
+      "evidenceId": "lang-ase-eacvi-2015",
+      "canonicalSourceIds": [
+        "lang-2015-chamber-quantification"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Adult echocardiographic LV chamber volumes and systolic function.",
+      "limitations": "Modality-, sex-, age-, and body-size-dependent reference context; it does not directly define this model's joint admissible interval."
+    },
+    {
+      "evidenceId": "kou-norre-2014",
+      "canonicalSourceIds": [
+        "kou-2014-norre-chamber-reference"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Two-dimensional echocardiographic adult chamber-size reference ranges.",
+      "limitations": "The cohort and measurement method do not identify a unique 0D-model parameter vector or a joint multivariate normal region."
+    },
+    {
+      "evidenceId": "cmr-consolidated-normal-reference-2016",
+      "canonicalSourceIds": [
+        "kawel-boehm-2015-cmr-normal-values"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "CMR chamber-volume and function reference context across published cohorts.",
+      "limitations": "The retained legacy evidence ID has a 2016 label but resolves to the 2015 publication; CMR and echocardiographic volumes are not interchangeable without a measurement model."
+    },
+    {
+      "evidenceId": "lang-ase-eacvi-2015-3de-rv",
+      "canonicalSourceIds": [
+        "lang-2015-chamber-quantification"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Adult three-dimensional echocardiographic RV volumes and ejection fraction.",
+      "limitations": "A 0D chamber volume is compared only as broad construction context; acquisition and segmentation conventions remain different."
+    },
+    {
+      "evidenceId": "cardiac-index-clinical-reference",
+      "canonicalSourceIds": [
+        "carlsson-2012-cmr-cardiac-output",
+        "barratt-boyes-wood-1958-healthy-hemodynamics"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Resting forward cardiac output indexed to body surface area.",
+      "limitations": "The model interval is an engineering synthesis across methods and cohorts, not a verbatim interval from either source."
+    },
+    {
+      "evidenceId": "resting-indexed-flow-reference",
+      "canonicalSourceIds": [
+        "carlsson-2012-cmr-cardiac-output",
+        "barratt-boyes-wood-1958-healthy-hemodynamics"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Resting systemic forward stroke volume indexed to body surface area.",
+      "limitations": "Stroke-volume index depends on heart rate, body-size convention, cohort, and acquisition method; the gate is a broad engineering envelope."
+    },
+    {
+      "evidenceId": "mukherjee-ase-right-heart-2025",
+      "canonicalSourceIds": [
+        "mukherjee-2025-right-heart-guideline",
+        "kovacs-2009-healthy-pap-review"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Right-heart echocardiographic assessment and healthy pulmonary arterial pressure context.",
+      "limitations": "This does not directly support the exact 10-35 mmHg model interval or validate the current pulmonary waveform shape."
+    },
+    {
+      "evidenceId": "kovacs-pawp-healthy-meta-2024",
+      "canonicalSourceIds": [
+        "zeder-2024-healthy-pawp-meta-analysis"
+      ],
+      "useRole": "construction-context",
+      "measurementMeaning": "Supine resting pulmonary arterial wedge pressure in healthy subjects.",
+      "limitations": "The retained legacy evidence ID uses the last author's name; the model reports mean LA pressure, not a simulated wedged-catheter measurement."
+    }
+  ],
+  "checkGroups": [
+    {
+      "groupId": "settlement",
+      "checkIds": [
+        "settlement.period1"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "exact-contract",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Whether the exact periodic classifier established the required period-one terminal state.",
+      "changeReason": "Fail closed before interpreting any derived baseline measurement."
+    },
+    {
+      "groupId": "ventricular-pressure-morphology",
+      "checkIds": [
+        "waveform.LVP.single-peak-no-ringing",
+        "waveform.LVP.rounded-not-plateau",
+        "waveform.RVP.single-peak-no-ringing",
+        "waveform.RVP.rounded-not-plateau"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Algorithmic peak, variation, and central-range summaries of pressure during the associated semilunar-valve forward-flow episode.",
+      "changeReason": "Reject obvious two-peak ringing and flat ejection plateaus observed during Standard65-to-68 construction."
+    },
+    {
+      "groupId": "aortic-valve-gradient",
+      "checkIds": [
+        "aortic-valve.mean-gradient",
+        "aortic-valve.peak-gradient"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Time-weighted mean and maximum raw LV-minus-Ao node pressure difference during native aortic forward flow.",
+      "changeReason": "Constrain the non-stenotic baseline while retaining the model's explicit pressure-station limitation."
+    },
+    {
+      "groupId": "aortic-ejection-time",
+      "checkIds": [
+        "aortic-valve.ejection-time"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Accepted time accumulated over the primary native aortic forward-flow episode.",
+      "changeReason": "Prevent a gradient reduction obtained by implausibly shortening or prolonging ejection."
+    },
+    {
+      "groupId": "left-ventricular-pressure-rate",
+      "checkIds": [
+        "left-ventricle.maximum-dpdt",
+        "left-ventricle.minimum-dpdt"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Extrema of the accepted-step finite-difference derivative of LV pressure.",
+      "changeReason": "Retain plausible contraction and relaxation rates while adjusting aortic ejection morphology."
+    },
+    {
+      "groupId": "mitral-e-to-a",
+      "checkIds": [
+        "mitral-flow.peak-e-to-a"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Ratio of algorithmically separated early and atrial peak native mitral forward flows.",
+      "changeReason": "Provide a broad diastolic safety sentinel without claiming a clinical Doppler measurement."
+    },
+    {
+      "groupId": "left-ventricular-timing",
+      "checkIds": [
+        "timing.ict",
+        "timing.irt",
+        "timing.tei-index"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Valve-event-defined ICT, IRT, and their sum divided by native aortic ejection time.",
+      "changeReason": "Detect compensation that improves one ejection output by distorting coupled systolic-diastolic timing."
+    },
+    {
+      "groupId": "systemic-pressure",
+      "checkIds": [
+        "aortic-pressure.maximum",
+        "aortic-pressure.minimum",
+        "central-venous-pressure.mean"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Exact-node Ao extrema and time-weighted mean RA pressure over the completed beat.",
+      "changeReason": "Maintain broad resting systemic-pressure compatibility as a construction safety envelope."
+    },
+    {
+      "groupId": "pulmonary-artery-pressure",
+      "checkIds": [
+        "pulmonary-artery-pressure.maximum",
+        "pulmonary-artery-pressure.minimum"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "literature-context-plus-engineering-envelope",
+      "contextEvidenceIds": [
+        "mukherjee-ase-right-heart-2025"
+      ],
+      "measurementMeaning": "Exact pulmonary-artery node pressure extrema over the completed beat.",
+      "changeReason": "Use broad resting pressure context as a sentinel while withholding a pulmonary-waveform validation claim."
+    },
+    {
+      "groupId": "pcwp-surrogate",
+      "checkIds": [
+        "pcwp-surrogate.mean"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "literature-context-plus-engineering-envelope",
+      "contextEvidenceIds": [
+        "kovacs-pawp-healthy-meta-2024"
+      ],
+      "measurementMeaning": "Time-weighted mean model LA pressure used only as a labelled PCWP surrogate.",
+      "changeReason": "Bound left-sided filling pressure while preserving the explicit station and measurement mismatch."
+    },
+    {
+      "groupId": "left-ventricular-indexed-size-function",
+      "checkIds": [
+        "left-ventricle.edv-index",
+        "left-ventricle.esv-index",
+        "left-ventricle.ejection-fraction"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "literature-context-plus-engineering-envelope",
+      "contextEvidenceIds": [
+        "lang-ase-eacvi-2015",
+        "kou-norre-2014",
+        "cmr-consolidated-normal-reference-2016"
+      ],
+      "measurementMeaning": "Valve-event-defined 0D LV volumes indexed to the reference BSA and their event-defined ejection fraction.",
+      "changeReason": "Create a deliberately broad cross-modality construction corridor rather than a joint population-normal claim."
+    },
+    {
+      "groupId": "right-ventricular-indexed-size-function",
+      "checkIds": [
+        "right-ventricle.edv-index",
+        "right-ventricle.esv-index",
+        "right-ventricle.ejection-fraction"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "literature-context-plus-engineering-envelope",
+      "contextEvidenceIds": [
+        "lang-ase-eacvi-2015-3de-rv"
+      ],
+      "measurementMeaning": "Valve-event-defined 0D RV volumes indexed to the reference BSA and their event-defined ejection fraction.",
+      "changeReason": "Retain broad RV size/function safety bounds without extending the current systemic and left-heart claim."
+    },
+    {
+      "groupId": "indexed-systemic-forward-flow",
+      "checkIds": [
+        "systemic-forward-flow.cardiac-index",
+        "systemic-forward-flow.stroke-volume-index"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "literature-context-plus-engineering-envelope",
+      "contextEvidenceIds": [
+        "cardiac-index-clinical-reference",
+        "resting-indexed-flow-reference"
+      ],
+      "measurementMeaning": "Native aortic forward volume and cardiac output indexed to the reference BSA.",
+      "changeReason": "Maintain broad resting forward-flow compatibility across the admitted HR values."
+    }
+  ],
+  "policyRevisions": [
+    {
+      "revisionId": "main-wire-standard68-baseline-policy-r1",
+      "policySha256": "74f5b1ca712b56f304fee1ccf20da3e9dee8c7102213a2cb60dc2e7701cf3356",
+      "evidenceRole": "construction",
+      "changeReason": "Capture the current Standard68 mint policy and healthy-reference context after retrospective provenance repair."
+    }
+  ]
+}
