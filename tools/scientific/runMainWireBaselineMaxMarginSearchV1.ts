@@ -2,7 +2,7 @@ import { execFileSync, spawn, type ChildProcessWithoutNullStreams } from
   "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import settledBaselineCheckpointJson from
@@ -12,6 +12,10 @@ import {
   validateMainWireIntegratedModelStandard68CheckpointV1,
   type MainWireIntegratedModelStandard68CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+import type {
+  MainWireIntegratedModelBaselineValidationCheckIdV1,
+  MainWireIntegratedModelBaselineValidationCheckV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   evaluateMainWireBaselineCalibrationCandidateV1,
   type MainWireBaselineCalibrationEvaluationV1,
@@ -31,8 +35,9 @@ import {
   MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
   compileMainWireBaselineConditioningStudyV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
-import type {
-  MainWireBaselineCalibrationCandidateInputsV1,
+import {
+  applyMainWireBaselineCalibrationParametersV1,
+  type MainWireBaselineCalibrationCandidateInputsV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 type SearchWorkerJobV1 = Readonly<{
@@ -68,6 +73,21 @@ type SearchWorkerExecutionV1 = Readonly<{
   acceptedCheckpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
 }>;
 
+type SearchSeedSelectionV1 = Readonly<{
+  artifactPath: string;
+  artifactSha256: string;
+  searchId: string;
+  studyIdentitySha256: string;
+  executionCommit: string;
+  importedCandidateCount: number;
+  compatibilityGuard: "exact-and-evaluator-sources-unchanged";
+  priorResultRole: "exploratory-seed-selection-only";
+  selectedCandidateId: string;
+  selectedPrimaryWorstBufferedInteriorMargin: number;
+  selectedWorstBufferedInteriorMargin: number;
+  candidateInputs: MainWireBaselineCalibrationCandidateInputsV1;
+}>;
+
 const encodedWorkerJob = argumentV1("--worker-job");
 if (encodedWorkerJob !== null) {
   await runWorkerV1(encodedWorkerJob);
@@ -78,6 +98,7 @@ if (encodedWorkerJob !== null) {
 async function runCoordinatorV1(): Promise<void> {
   const floorPath = resolve(requiredArgumentV1("--numerical-floor"));
   const outputPath = resolve(requiredArgumentV1("--output"));
+  const seedReportArgument = argumentV1("--seed-report");
   const requestedParallelism = positiveIntegerV1(
     argumentV1("--parallelism") ?? "8",
     "parallelism",
@@ -93,19 +114,33 @@ async function runCoordinatorV1(): Promise<void> {
     await validateMainWireIntegratedModelStandard68CheckpointV1(
       settledBaselineCheckpointJson,
     );
-  const initialCandidates = buildMainWireBaselineSearchDesignV1({
+  const baselineDesign = buildMainWireBaselineSearchDesignV1({
     stage: "initial",
   });
+  const sourceCandidateInputs = baselineDesign[0].candidateInputs;
+  const seedSelection = seedReportArgument === null
+    ? null
+    : await loadSearchSeedSelectionV1({
+        artifactPath: resolve(seedReportArgument),
+        numericalFloorArtifactSha256,
+        numericalFloors: numericalFloor.metricFloors,
+        sourceCheckpointSha256: sourceCheckpoint.checkpointSha256,
+        sourceCandidateInputs,
+      });
+  const largestStageCount = seedSelection === null
+    ? Math.max(
+        baselineDesign.length,
+        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+          .refinementCandidateCountIncludingCenter,
+      )
+    : MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
+      .refinementCandidateCountIncludingCenter;
   const effectiveParallelism = Math.min(
     requestedParallelism,
     Math.max(1, availableParallelism() - 1),
     MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
       .maximumParallelEvaluations,
-    initialCandidates.length,
-  );
-  process.stderr.write(
-    `[baseline-search] ${initialCandidates.length} initial candidates, `
-      + `${effectiveParallelism} workers\n`,
+    largestStageCount,
   );
   const startedAt = performance.now();
   let completed = 0;
@@ -115,53 +150,112 @@ async function runCoordinatorV1(): Promise<void> {
       `[baseline-search] ${completed} ${evaluation.candidateId}: `
         + `${evaluation.evaluationStatus}, `
         + `${evaluation.objective?.status ?? "unscored"}, `
-        + `margin=${formatV1(
+        + `primary=${formatV1(
+          evaluation.objective?.primaryWorstBufferedInteriorMargin ?? null,
+        )}, overall=${formatV1(
           evaluation.objective?.worstBufferedInteriorMargin ?? null,
         )}, ${Math.round(evaluation.wallTimeMs)} ms, `
         + `${evaluation.completedCycleCount ?? "-"} cycles\n`,
     );
   };
-  const sourceCandidateInputs = initialCandidates[0].candidateInputs;
-  const initial = await runPoolV1(initialCandidates.map((candidate) =>
-    Object.freeze({
-      candidate,
+  let initial: readonly SearchWorkerExecutionV1[];
+  let refinement: readonly SearchWorkerExecutionV1[];
+  let bestInitialCandidateId: string | null;
+  if (seedSelection === null) {
+    process.stderr.write(
+      `[baseline-search] ${baselineDesign.length} initial candidates, `
+        + `${effectiveParallelism} workers\n`,
+    );
+    initial = await runPoolV1(baselineDesign.map((candidate) =>
+      Object.freeze({
+        candidate,
+        sourceCheckpoint,
+        sourceCandidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })), effectiveParallelism, progress);
+    const bestInitial = bestExecutionV1(initial);
+    if (bestInitial.acceptedCheckpoint === null) {
+      throw new Error("best initial candidate has no accepted checkpoint");
+    }
+    bestInitialCandidateId = bestInitial.evaluation.candidateId;
+    const refinementCandidates = buildMainWireBaselineSearchDesignV1({
+      stage: "refinement",
+      center: bestInitial.candidateInputs,
+    });
+    process.stderr.write(
+      `[baseline-search] ${refinementCandidates.length} refinement candidates `
+        + `around ${bestInitial.evaluation.candidateId}\n`,
+    );
+    refinement = await runPoolV1(refinementCandidates.map((candidate) =>
+      Object.freeze({
+        candidate,
+        sourceCheckpoint: bestInitial.acceptedCheckpoint,
+        sourceCandidateInputs: bestInitial.candidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })), effectiveParallelism, progress);
+  } else {
+    initial = Object.freeze([]);
+    bestInitialCandidateId = null;
+    const refinementCandidates = buildMainWireBaselineSearchDesignV1({
+      stage: "refinement",
+      center: seedSelection.candidateInputs,
+    });
+    process.stderr.write(
+      `[baseline-search] verified prior report selected `
+        + `${seedSelection.selectedCandidateId}; re-evaluating its center, then `
+        + `${refinementCandidates.length - 1} neighbours with `
+        + `${effectiveParallelism} workers\n`,
+    );
+    const center = (await runPoolV1([Object.freeze({
+      candidate: refinementCandidates[0],
       sourceCheckpoint,
       sourceCandidateInputs,
       numericalFloors: numericalFloor.metricFloors,
-    })), effectiveParallelism, progress);
-  const bestInitial = bestExecutionV1(initial);
-  if (bestInitial.acceptedCheckpoint === null) {
-    throw new Error("best initial candidate has no accepted checkpoint");
+    })], 1, progress))[0];
+    if (center.acceptedCheckpoint === null) {
+      throw new Error("imported search seed did not produce an accepted checkpoint");
+    }
+    const neighbours = await runPoolV1(
+      refinementCandidates.slice(1).map((candidate) => Object.freeze({
+        candidate,
+        sourceCheckpoint: center.acceptedCheckpoint!,
+        sourceCandidateInputs: center.candidateInputs,
+        numericalFloors: numericalFloor.metricFloors,
+      })),
+      effectiveParallelism,
+      progress,
+    );
+    refinement = Object.freeze([center, ...neighbours]);
   }
-  const refinementCandidates = buildMainWireBaselineSearchDesignV1({
-    stage: "refinement",
-    center: bestInitial.candidateInputs,
-  });
-  process.stderr.write(
-    `[baseline-search] ${refinementCandidates.length} refinement candidates `
-      + `around ${bestInitial.evaluation.candidateId}\n`,
-  );
-  const refinement = await runPoolV1(refinementCandidates.map((candidate) =>
-    Object.freeze({
-      candidate,
-      sourceCheckpoint: bestInitial.acceptedCheckpoint,
-      sourceCandidateInputs: bestInitial.candidateInputs,
-      numericalFloors: numericalFloor.metricFloors,
-    })), effectiveParallelism, progress);
   const all = [...initial, ...refinement];
-  const ranked = [...all].sort(compareExecutionsV1);
+  const ranked = rankExecutionsV1(all);
   const best = ranked[0];
+  if (best === undefined || best.evaluation.objective === null) {
+    throw new Error("baseline search produced no scored candidate");
+  }
   const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
   const finalists = ranked.slice(0, policy.finalistCount);
-  const bestMargin = best.evaluation.objective
-    ?.worstBufferedInteriorMargin ?? Number.NEGATIVE_INFINITY;
-  const equivalentCandidateIds = ranked.filter(({ evaluation }) => {
+  const bestPrimaryMargin = best.evaluation.objective
+    ?.primaryWorstBufferedInteriorMargin ?? Number.NEGATIVE_INFINITY;
+  const primaryEquivalent = ranked.filter(({ evaluation }) => {
     const objective = evaluation.objective;
     return objective?.status === "feasible"
-      && objective.worstBufferedInteriorMargin !== null
-      && bestMargin - objective.worstBufferedInteriorMargin
-        <= policy.equivalentWorstMarginEpsilon;
-  }).map(({ evaluation }) => evaluation.candidateId);
+      && objective.primaryWorstBufferedInteriorMargin !== null
+      && bestPrimaryMargin - objective.primaryWorstBufferedInteriorMargin
+        <= policy.equivalentPrimaryMarginEpsilon;
+  });
+  const bestEquivalentOverallMargin = primaryEquivalent.length === 0
+    ? Number.NEGATIVE_INFINITY
+    : Math.max(...primaryEquivalent.map(({ evaluation }) =>
+        evaluation.objective?.worstBufferedInteriorMargin
+          ?? Number.NEGATIVE_INFINITY));
+  const equivalentCandidateIds = primaryEquivalent
+    .filter(({ evaluation }) => {
+      const margin = evaluation.objective?.worstBufferedInteriorMargin;
+      return margin !== null && margin !== undefined
+        && bestEquivalentOverallMargin - margin
+          <= policy.equivalentWorstMarginEpsilon;
+    }).map(({ evaluation }) => evaluation.candidateId);
   const study = await compileMainWireBaselineConditioningStudyV1();
   const protocolCommit = gitV1([
     "log",
@@ -176,12 +270,18 @@ async function runCoordinatorV1(): Promise<void> {
     sum + execution.evaluation.wallTimeMs, 0);
   const report = Object.freeze({
     schemaVersion: 1 as const,
-    searchId: "main-wire-baseline-max-margin-search-result-v1" as const,
+    searchId: "main-wire-baseline-max-margin-search-result-v2" as const,
     studyIdentitySha256: study.studyIdentitySha256,
     protocolCommit,
     executionCommit,
-    numericalFloorArtifactPath: floorPath,
+    numericalFloorArtifactPath: portableRepositoryPathV1(floorPath),
     numericalFloorArtifactSha256,
+    executionMode: seedSelection === null
+      ? "full-initial-and-refinement" as const
+      : "verified-report-seeded-refinement" as const,
+    seedSelection: seedSelection === null
+      ? null
+      : searchSeedSelectionReportV1(seedSelection),
     requestedParallelism,
     effectiveParallelism,
     batchWallTimeMs,
@@ -195,7 +295,7 @@ async function runCoordinatorV1(): Promise<void> {
       evaluation.evaluationStatus === "accepted").length,
     feasibleCandidateCount: all.filter(({ evaluation }) =>
       evaluation.objective?.status === "feasible").length,
-    bestInitialCandidateId: bestInitial.evaluation.candidateId,
+    bestInitialCandidateId,
     bestCandidateId: best.evaluation.candidateId,
     finalistCandidateIds: Object.freeze(finalists.map(({ evaluation }) =>
       evaluation.candidateId)),
@@ -206,6 +306,7 @@ async function runCoordinatorV1(): Promise<void> {
     claim: Object.freeze({
       evidenceRole: "construction" as const,
       restCorridorsOnly: true as const,
+      primaryInteriorBeforeMacroHemodynamics: true as const,
       preloadReserveQualified: false as const,
       perturbationSafetyQualified: false as const,
       finalistRefinedDtQualified: false as const,
@@ -415,23 +516,69 @@ function spawnWorkerV1(job: SearchWorkerJobV1): Readonly<{
 function bestExecutionV1(
   evaluations: readonly SearchWorkerExecutionV1[],
 ): SearchWorkerExecutionV1 {
-  const ranked = evaluations.filter(({ evaluation }) =>
-    evaluation.objective !== null).sort(compareExecutionsV1);
+  const ranked = rankExecutionsV1(evaluations).filter(({ evaluation }) =>
+    evaluation.objective !== null);
   const best = ranked[0];
   if (best === undefined) throw new Error("baseline search produced no scored candidate");
   return best;
 }
 
-function compareExecutionsV1(
-  left: SearchWorkerExecutionV1,
-  right: SearchWorkerExecutionV1,
-): number {
-  if (left.evaluation.objective === null) return 1;
-  if (right.evaluation.objective === null) return -1;
-  return compareMainWireBaselineCandidateObjectivesV1(
-    left.evaluation.objective,
-    right.evaluation.objective,
+function rankExecutionsV1(
+  evaluations: readonly SearchWorkerExecutionV1[],
+): readonly SearchWorkerExecutionV1[] {
+  return rankByObjectiveV1(
+    evaluations,
+    ({ evaluation }) => evaluation.objective,
   );
+}
+
+/**
+ * Gives the adjustable macro-hemodynamic margins a real tie-breaking role
+ * without allowing them to outrank a meaningfully better structural fit.
+ */
+function rankByObjectiveV1<T>(
+  values: readonly T[],
+  objectiveOf: (value: T) => MainWireBaselineCandidateObjectiveV1 | null,
+): readonly T[] {
+  const primaryEpsilon = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+    .searchPolicy.equivalentPrimaryMarginEpsilon;
+  const feasiblePrimaryMargins = values.flatMap((value) => {
+    const objective = objectiveOf(value);
+    return objective?.status === "feasible"
+        && objective.primaryWorstBufferedInteriorMargin !== null
+      ? [objective.primaryWorstBufferedInteriorMargin]
+      : [];
+  });
+  const bestPrimaryMargin = feasiblePrimaryMargins.length === 0
+    ? Number.NEGATIVE_INFINITY
+    : Math.max(...feasiblePrimaryMargins);
+  const categoryV1 = (objective: MainWireBaselineCandidateObjectiveV1 | null) => {
+    if (objective === null) return 3;
+    if (objective.status !== "feasible") return 2;
+    const primary = objective.primaryWorstBufferedInteriorMargin;
+    return primary !== null && bestPrimaryMargin - primary <= primaryEpsilon
+      ? 0
+      : 1;
+  };
+  return Object.freeze([...values].sort((left, right) => {
+    const leftObjective = objectiveOf(left);
+    const rightObjective = objectiveOf(right);
+    const leftCategory = categoryV1(leftObjective);
+    const rightCategory = categoryV1(rightObjective);
+    if (leftCategory !== rightCategory) return leftCategory - rightCategory;
+    if (leftObjective === null || rightObjective === null) return 0;
+    if (leftCategory === 0) {
+      const leftOverall = leftObjective.worstBufferedInteriorMargin
+        ?? Number.NEGATIVE_INFINITY;
+      const rightOverall = rightObjective.worstBufferedInteriorMargin
+        ?? Number.NEGATIVE_INFINITY;
+      if (leftOverall !== rightOverall) return rightOverall - leftOverall;
+    }
+    return compareMainWireBaselineCandidateObjectivesV1(
+      leftObjective,
+      rightObjective,
+    );
+  }));
 }
 
 function sameCoordinatesV1(
@@ -439,6 +586,210 @@ function sameCoordinatesV1(
   right: MainWireBaselineCalibrationCandidateInputsV1,
 ): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+async function loadSearchSeedSelectionV1(input: Readonly<{
+  artifactPath: string;
+  numericalFloorArtifactSha256: string;
+  numericalFloors: readonly MainWireBaselineNumericalFloorMetricV1[];
+  sourceCheckpointSha256: string;
+  sourceCandidateInputs: MainWireBaselineCalibrationCandidateInputsV1;
+}>): Promise<SearchSeedSelectionV1> {
+  const artifactJson = JSON.parse(
+    await readFile(input.artifactPath, "utf8"),
+  ) as unknown;
+  const artifactSha256 = await sha256CanonicalJsonHex(artifactJson);
+  const report = recordV1(artifactJson, "seed search report");
+  const searchId = stringFieldV1(report, "searchId", "seed search report");
+  const studyIdentitySha256 = sha256FieldV1(
+    report,
+    "studyIdentitySha256",
+    "seed search report",
+  );
+  const executionCommit = sha1FieldV1(
+    report,
+    "executionCommit",
+    "seed search report",
+  );
+  const reportNumericalFloorSha256 = sha256FieldV1(
+    report,
+    "numericalFloorArtifactSha256",
+    "seed search report",
+  );
+  if (reportNumericalFloorSha256 !== input.numericalFloorArtifactSha256) {
+    throw new Error("seed search report uses a different numerical-floor artifact");
+  }
+  if (gitV1(["merge-base", executionCommit, "HEAD"]) !== executionCommit) {
+    throw new Error("seed search execution commit is not an ancestor of HEAD");
+  }
+  const guardedPaths = Object.freeze([
+    "engine",
+    "analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1.ts",
+    "analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1.ts",
+    "data/physiology/main-wire-normal-reference-evidence-v1.json",
+    "studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json",
+  ]);
+  const changedGuardedPaths = gitV1([
+    "diff",
+    "--name-only",
+    `${executionCommit}..HEAD`,
+    "--",
+    ...guardedPaths,
+  ]);
+  if (changedGuardedPaths !== "") {
+    throw new Error(
+      "seed search compatibility guard detected changed exact/evaluator sources: "
+        + changedGuardedPaths.replaceAll("\n", ", "),
+    );
+  }
+  const rawEvaluations = report.evaluations;
+  if (!Array.isArray(rawEvaluations) || rawEvaluations.length < 1) {
+    throw new Error("seed search report has no evaluations");
+  }
+  const coordinateIds = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1
+    .searchPolicy.coordinateIds;
+  const expectedCheckIds = new Set(input.numericalFloors.map(({ checkId }) =>
+    checkId));
+  const imported = rawEvaluations.flatMap((rawEvaluation, index) => {
+    const evaluation = recordV1(
+      rawEvaluation,
+      `seed search evaluation ${index}`,
+    );
+    if (evaluation.evaluationStatus !== "accepted") return [];
+    const candidateId = stringFieldV1(
+      evaluation,
+      "candidateId",
+      `seed search evaluation ${index}`,
+    );
+    const coordinateValues = recordV1(
+      evaluation.coordinateValues,
+      `seed search evaluation ${candidateId} coordinates`,
+    );
+    const coordinateKeys = Object.keys(coordinateValues).sort();
+    if (JSON.stringify(coordinateKeys) !== JSON.stringify([...coordinateIds].sort())) {
+      throw new Error(`seed search evaluation ${candidateId} coordinate set differs`);
+    }
+    const updates = coordinateIds.map((parameterId) => Object.freeze({
+      parameterId,
+      value: finiteNumberFieldV1(
+        coordinateValues,
+        parameterId,
+        `seed search evaluation ${candidateId} coordinates`,
+      ),
+    }));
+    const candidateInputs = applyMainWireBaselineCalibrationParametersV1(
+      input.sourceCandidateInputs,
+      updates,
+    );
+    const priorObjective = recordV1(
+      evaluation.objective,
+      `seed search evaluation ${candidateId} objective`,
+    );
+    if (!Array.isArray(priorObjective.margins)) {
+      throw new Error(`seed search evaluation ${candidateId} has no margins`);
+    }
+    const failedConstructionCheckIds = new Set(
+      stringArrayV1(
+        evaluation.failedConstructionCheckIds,
+        `seed search evaluation ${candidateId} failed checks`,
+      ),
+    );
+    const checks = priorObjective.margins.map((rawMargin, marginIndex) => {
+      const margin = recordV1(
+        rawMargin,
+        `seed search evaluation ${candidateId} margin ${marginIndex}`,
+      );
+      const checkId = stringFieldV1(
+        margin,
+        "checkId",
+        `seed search evaluation ${candidateId} margin ${marginIndex}`,
+      ) as MainWireIntegratedModelBaselineValidationCheckIdV1;
+      if (!expectedCheckIds.has(checkId)) {
+        throw new Error(
+          `seed search evaluation ${candidateId} has unexpected check ${checkId}`,
+        );
+      }
+      return Object.freeze({
+        checkId,
+        status: failedConstructionCheckIds.has(checkId)
+          ? "failed" as const
+          : "passed" as const,
+        actual: finiteNumberFieldV1(margin, "actual", `margin ${checkId}`),
+        minimum: finiteNumberFieldV1(margin, "minimum", `margin ${checkId}`),
+        maximum: finiteNumberFieldV1(margin, "maximum", `margin ${checkId}`),
+        unit: stringFieldV1(margin, "unit", `margin ${checkId}`),
+      });
+    });
+    if (
+      checks.length !== expectedCheckIds.size
+      || new Set(checks.map(({ checkId }) => checkId)).size
+        !== expectedCheckIds.size
+    ) {
+      throw new Error(`seed search evaluation ${candidateId} check set differs`);
+    }
+    const objective = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: checks as readonly MainWireIntegratedModelBaselineValidationCheckV1[],
+      candidate: candidateInputs,
+      numericalFloors: input.numericalFloors,
+    });
+    return [Object.freeze({ candidateId, candidateInputs, objective })];
+  });
+  if (imported.length === 0) {
+    throw new Error("seed search report has no accepted scored candidate");
+  }
+  const baselineCheckpointWasUsed = rawEvaluations.some((rawEvaluation) => {
+    if (rawEvaluation === null || typeof rawEvaluation !== "object") return false;
+    return (rawEvaluation as Record<string, unknown>).sourceCheckpointSha256
+      === input.sourceCheckpointSha256;
+  });
+  if (!baselineCheckpointWasUsed) {
+    throw new Error("seed search report does not bind the current baseline checkpoint");
+  }
+  const selected = rankByObjectiveV1(imported, ({ objective }) => objective)[0];
+  if (
+    selected === undefined
+    || selected.objective.status !== "feasible"
+    || selected.objective.primaryWorstBufferedInteriorMargin === null
+    || selected.objective.worstBufferedInteriorMargin === null
+  ) {
+    throw new Error("seed search report has no feasible structural-first seed");
+  }
+  return Object.freeze({
+    artifactPath: input.artifactPath,
+    artifactSha256,
+    searchId,
+    studyIdentitySha256,
+    executionCommit,
+    importedCandidateCount: imported.length,
+    compatibilityGuard: "exact-and-evaluator-sources-unchanged" as const,
+    priorResultRole: "exploratory-seed-selection-only" as const,
+    selectedCandidateId: selected.candidateId,
+    selectedPrimaryWorstBufferedInteriorMargin:
+      selected.objective.primaryWorstBufferedInteriorMargin,
+    selectedWorstBufferedInteriorMargin:
+      selected.objective.worstBufferedInteriorMargin,
+    candidateInputs: selected.candidateInputs,
+  });
+}
+
+function searchSeedSelectionReportV1(
+  selection: SearchSeedSelectionV1,
+): Omit<SearchSeedSelectionV1, "candidateInputs"> {
+  return Object.freeze({
+    artifactPath: portableRepositoryPathV1(selection.artifactPath),
+    artifactSha256: selection.artifactSha256,
+    searchId: selection.searchId,
+    studyIdentitySha256: selection.studyIdentitySha256,
+    executionCommit: selection.executionCommit,
+    importedCandidateCount: selection.importedCandidateCount,
+    compatibilityGuard: selection.compatibilityGuard,
+    priorResultRole: selection.priorResultRole,
+    selectedCandidateId: selection.selectedCandidateId,
+    selectedPrimaryWorstBufferedInteriorMargin:
+      selection.selectedPrimaryWorstBufferedInteriorMargin,
+    selectedWorstBufferedInteriorMargin:
+      selection.selectedWorstBufferedInteriorMargin,
+  });
 }
 
 function parseNumericalFloorV1(input: unknown): MainWireBaselineNumericalFloorAuditV1 {
@@ -488,6 +839,81 @@ function parseWorkerExecutionV1(input: unknown): SearchWorkerExecutionV1 {
     throw new Error("search worker execution is incomplete");
   }
   return input as SearchWorkerExecutionV1;
+}
+
+function recordV1(input: unknown, label: string): Record<string, unknown> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return input as Record<string, unknown>;
+}
+
+function stringFieldV1(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+): string {
+  const value = record[key];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`${label}.${key} must be a non-empty string`);
+  }
+  return value;
+}
+
+function finiteNumberFieldV1(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+): number {
+  const value = record[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label}.${key} must be finite`);
+  }
+  return value;
+}
+
+function stringArrayV1(input: unknown, label: string): readonly string[] {
+  if (!Array.isArray(input) || !input.every((value) => typeof value === "string")) {
+    throw new Error(`${label} must be a string array`);
+  }
+  return input;
+}
+
+function sha256FieldV1(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+): string {
+  const value = stringFieldV1(record, key, label);
+  if (!/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error(`${label}.${key} must be a SHA-256 hex digest`);
+  }
+  return value;
+}
+
+function sha1FieldV1(
+  record: Record<string, unknown>,
+  key: string,
+  label: string,
+): string {
+  const value = stringFieldV1(record, key, label);
+  if (!/^[0-9a-f]{40}$/.test(value)) {
+    throw new Error(`${label}.${key} must be a Git commit SHA`);
+  }
+  return value;
+}
+
+function portableRepositoryPathV1(absolutePath: string): string {
+  const portable = relative(process.cwd(), absolutePath);
+  if (
+    portable === ""
+    || portable === ".."
+    || portable.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)
+    || isAbsolute(portable)
+  ) {
+    throw new Error(`artifact must be inside the repository: ${absolutePath}`);
+  }
+  return portable;
 }
 
 function argumentV1(name: string): string | null {

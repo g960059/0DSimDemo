@@ -4,7 +4,7 @@
   "studyIdentitySha256": "9121195ae796d8af07a1958032a51621fb6ea6b7e0235c9fa0a08aa775ba9e67",
   "protocolCommit": "c787772108d975603a05d982d51e4485c4039999",
   "executionCommit": "b95c8800ffa6d2d2435c12c035b0ae4969ee6631",
-  "numericalFloorArtifactPath": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-proximal-arterial-ringing-minimal-v1/data/myocardium/reports/mainwire-baseline-numerical-floor-v1.json",
+  "numericalFloorArtifactPath": "data/myocardium/reports/mainwire-baseline-numerical-floor-v1.json",
   "numericalFloorArtifactSha256": "6c68b16724d3a83d9604b4e268feb1a5ff3774049e8668c1166298c765f1d5bd",
   "requestedParallelism": 8,
   "effectiveParallelism": 8,
