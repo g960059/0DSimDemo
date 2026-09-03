@@ -32,9 +32,10 @@ import {
   type MainWireBaselineCandidateObjectiveV1,
   type MainWireBaselineSearchCandidateV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
-import type {
-  MainWireBaselineNumericalFloorAuditV1,
-  MainWireBaselineNumericalFloorMetricV1,
+import {
+  assertMainWireBaselineNumericalFloorAuditV1,
+  type MainWireBaselineNumericalFloorAuditV1,
+  type MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
@@ -1169,19 +1170,8 @@ function searchSeedSelectionReportV1(
 }
 
 function parseNumericalFloorV1(input: unknown): MainWireBaselineNumericalFloorAuditV1 {
-  if (input === null || typeof input !== "object" || Array.isArray(input)) {
-    throw new Error("numerical-floor artifact must be an object");
-  }
-  const record = input as Partial<MainWireBaselineNumericalFloorAuditV1>;
-  if (
-    record.auditId !== "main-wire-baseline-numerical-floor-audit-v1"
-    || record.status !== "completed"
-    || !Array.isArray(record.metricFloors)
-    || record.metricFloors.length < 1
-  ) {
-    throw new Error("numerical-floor artifact is incomplete");
-  }
-  return input as MainWireBaselineNumericalFloorAuditV1;
+  assertMainWireBaselineNumericalFloorAuditV1(input);
+  return input;
 }
 
 function parseWorkerJobV1(input: unknown): SearchWorkerJobV1 {
