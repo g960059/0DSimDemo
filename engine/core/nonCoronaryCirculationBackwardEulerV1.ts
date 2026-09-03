@@ -24,6 +24,9 @@ import {
 import {
   validateMainWireAlgebraicProximalArterialRootsProfileV1,
 } from "@/engine/core/MainWireAlgebraicProximalArterialRootsProfileV1";
+import {
+  validateMainWireAlgebraicPulmonaryArterialRootProfileV1,
+} from "@/engine/core/MainWireAlgebraicPulmonaryArterialRootProfileV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   fullHotPathInvariantsEnabledV1,
@@ -4549,6 +4552,23 @@ function validateRuntimeOnceV1(
       );
     }
   }
+  const algebraicPulmonaryArterialRootProfile = runtime.vascular
+    .algebraicPulmonaryArterialRootProfile;
+  if (algebraicPulmonaryArterialRootProfile !== undefined) {
+    const issues = validateMainWireAlgebraicPulmonaryArterialRootProfileV1(
+      algebraicPulmonaryArterialRootProfile,
+    );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid algebraicPulmonaryArterialRootProfile: ${issues.join("; ")}`,
+      );
+    }
+    if (algebraicProximalArterialRootsProfile !== undefined) {
+      throw new Error(
+        "algebraic pulmonary root and bilateral algebraic roots are mutually exclusive",
+      );
+    }
+  }
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (
@@ -5065,6 +5085,12 @@ function nonCoronaryDynamicEdgeInertanceV1(
       || edgeName === algebraicRoots.pulmonaryRootEdgeId
     )
   ) return algebraicRoots.inertanceMmHgSec2PerMl;
+  const algebraicPulmonaryRoot = runtime.vascular
+    .algebraicPulmonaryArterialRootProfile;
+  if (
+    algebraicPulmonaryRoot !== undefined
+    && edgeName === algebraicPulmonaryRoot.pulmonaryRootEdgeId
+  ) return algebraicPulmonaryRoot.inertanceMmHgSec2PerMl;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (
     selectedProfile !== undefined
