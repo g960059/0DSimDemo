@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import standard70ValidationJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-baseline-validation.json";
 import normalReferenceEvidenceV1 from
@@ -28,6 +29,10 @@ import {
   buildMainWireBaselineConditioningPerturbationAttributionV1,
   verifyMainWireBaselineConditioningPerturbationAttributionV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningPerturbationAttributionV1";
+import {
+  buildMainWireBaselineConditioningStageAuditV1,
+  verifyMainWireBaselineConditioningStageAuditV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningStageAuditV1";
 import {
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
   buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
@@ -131,6 +136,92 @@ describe("direct refined-dt conditioning derivatives", () => {
       ),
     ).rejects.toThrow(/differs from its reconstruction/);
 
+    const stageAudit = await buildMainWireBaselineConditioningStageAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+    );
+    expect(
+      stageAudit.summary
+        .primaryMaximumComponentSupportedDeclaredPairCoordinateSubsets,
+    )
+      .toEqual([
+        [TBV, ARTERIAL_STIFFNESS],
+        [TBV, ACTIVE_TENSION],
+      ]);
+    expect(stageAudit.claim).toEqual(expect.objectContaining({
+      rolePolicyRetrospectivelyAppliedToExistingSources: true,
+      confirmatoryRoleSelectionClaimed: false,
+      parameterFittingExecuted: false,
+      parameterSubsetAutomaticallySelected: false,
+      independentObservationCountClaimed: false,
+      measurementCovarianceApplied: false,
+      qualificationGatesRemoved: false,
+      rightHeartOrPulmonaryFitClaimed: false,
+    }));
+    const observationInventory = normalReferenceEvidenceV1.checkGroups.map(
+      ({ groupId, checkIds }) => ({ groupId, checkIds }),
+    );
+    expect(stageAudit.stagePolicy.observationInventoryIdentitySha256).toBe(
+      await sha256CanonicalJsonHex(observationInventory),
+    );
+    for (const pair of stageAudit.subsets.filter(({ coordinateIds }) =>
+      coordinateIds.length === 2)) {
+      expect(pair.sourceAllRows.candidateRowCount).toBe(125);
+      expect(pair.sourceAllRows.commonAdmittedRowCount).toBe(125);
+      expect(pair.allConditionsOperatingPointGroups.candidateRowCount)
+        .toBe(45);
+      expect(pair.allConditionsOperatingPointGroups.commonAdmittedRowCount)
+        .toBe(45);
+      expect(pair.restConditionsAllGroups.candidateRowCount).toBe(25);
+      expect(pair.restConditionsAllGroups.commonAdmittedRowCount).toBe(25);
+      expect(pair.operatingPointIdentification.candidateRowCount).toBe(9);
+      expect(pair.operatingPointIdentification.commonAdmittedRowCount).toBe(9);
+      expect(pair.gateOnlyCommonRowCount).toBe(116);
+      expect(pair.operatingPointIdentification.missingCandidateRows)
+        .toEqual([]);
+      expect(pair.identificationRows.every(({ conditionId }) =>
+        conditionId === "rest-hr60")).toBe(true);
+      expect(pair.primaryMaximumComponentResolutionStatus).toBe("supported");
+      expect(pair.sourceResolutionStatus).toBe("supported");
+      expect(pair.identificationByObservationGroup).toHaveLength(4);
+      expect(pair.identificationByObservationGroup.reduce((sum, group) =>
+        sum + group.refinedHalfStepSignalSquaredShare!, 0)).toBeCloseTo(1, 12);
+    }
+    const activePair = stageAudit.subsets.find(({ coordinateIds }) =>
+      coordinateIds.join("::") === [TBV, ACTIVE_TENSION].join("::"))!;
+    expect(activePair.identificationRows).toContainEqual(
+      expect.objectContaining({
+        checkId: "left-ventricle.ejection-fraction",
+      }),
+    );
+    expect(activePair.identificationRows).not.toContainEqual(
+      expect.objectContaining({
+        checkId: "left-ventricle.maximum-dpdt",
+      }),
+    );
+    expect(activePair.identificationRows).not.toContainEqual(
+      expect.objectContaining({
+        checkId: "pulmonary-artery-pressure.maximum",
+      }),
+    );
+    const serializedStageAudit = JSON.parse(JSON.stringify(stageAudit));
+    await expect(verifyMainWireBaselineConditioningStageAuditV1(
+      serializedStageAudit,
+      fixture.coarse,
+      audit,
+      attribution,
+    )).resolves.toEqual(serializedStageAudit);
+    const driftedStageAudit = structuredClone(serializedStageAudit);
+    driftedStageAudit.subsets[0].operatingPointIdentification
+      .toleranceCompositions[0].practicalRank += 1;
+    await expect(verifyMainWireBaselineConditioningStageAuditV1(
+      driftedStageAudit,
+      fixture.coarse,
+      audit,
+      attribution,
+    )).rejects.toThrow(/differs from its reconstruction/);
+
     const serialized = JSON.parse(JSON.stringify(audit));
     await expect(
       verifyMainWireBaselineConditioningRefinedDerivativeAuditV1(
@@ -168,6 +259,26 @@ describe("direct refined-dt conditioning derivatives", () => {
     expect(audit.subsetDiagnostics.filter(({ coordinateIds }) =>
       coordinateIds.length === 2).every(({ resolutionStatus }) =>
       resolutionStatus === "deficient")).toBe(true);
+    const attribution =
+      await buildMainWireBaselineConditioningPerturbationAttributionV1(
+        fixture.coarse,
+        audit,
+      );
+    const stageAudit = await buildMainWireBaselineConditioningStageAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+    );
+    const pairs = stageAudit.subsets.filter(({ coordinateIds }) =>
+      coordinateIds.length === 2);
+    expect(pairs.every(({ sourceResolutionStatus }) =>
+      sourceResolutionStatus === "deficient")).toBe(true);
+    expect(
+      stageAudit.summary.sourceAllRowsDeficientDeclaredPairCoordinateSubsets,
+    ).toEqual([
+      [TBV, ARTERIAL_STIFFNESS],
+      [TBV, ACTIVE_TENSION],
+    ]);
   });
 
   it("attributes only rows admitted by both source resolutions", async () => {
@@ -229,6 +340,35 @@ describe("direct refined-dt conditioning derivatives", () => {
       source.coarseRefinedDerivativePerturbationFrobeniusNorm,
       12,
     );
+    const stageAudit = await buildMainWireBaselineConditioningStageAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+    );
+    const stageSubset = stageAudit.subsets.find(({ coordinateIds }) =>
+      coordinateIds.length === 1 && coordinateIds[0] === TBV)!;
+    expect(stageSubset.operatingPointIdentification.candidateRowCount).toBe(9);
+    expect(stageSubset.operatingPointIdentification.commonAdmittedRowCount)
+      .toBe(8);
+    expect(stageSubset.operatingPointIdentification.missingCandidateRows)
+      .toEqual([{
+      conditionId: excludedConditionId,
+      checkId: excludedCheckId,
+    }]);
+    expect(stageSubset.primaryMaximumComponentResolutionStatus)
+      .toBe("unresolved");
+    expect(stageSubset.compositionRobustnessStatus).toBe("unresolved");
+    const stagePair = stageAudit.subsets.find(({ coordinateIds }) =>
+      coordinateIds.join("::") === [TBV, ACTIVE_TENSION].join("::"))!;
+    expect(stagePair.operatingPointIdentification.candidateRowCount).toBe(9);
+    expect(stagePair.operatingPointIdentification.commonAdmittedRowCount)
+      .toBe(8);
+    expect(stagePair.primaryMaximumComponentResolutionStatus)
+      .toBe("unresolved");
+    expect(
+      stageAudit.summary
+        .primaryMaximumComponentSupportedDeclaredPairCoordinateSubsets,
+    ).not.toContainEqual([TBV, ACTIVE_TENSION]);
   });
 
   it("rejects the wrong dt and a broken coarse-to-refined source chain", async () => {
@@ -500,6 +640,12 @@ function effectV1(
     && checkId === "left-ventricle.maximum-dpdt"
   ) {
     return 0.09;
+  }
+  if (
+    coordinateId === ACTIVE_TENSION
+    && checkId === "left-ventricle.ejection-fraction"
+  ) {
+    return 0.06;
   }
   return 0;
 }
