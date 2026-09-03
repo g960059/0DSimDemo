@@ -146,7 +146,8 @@ and must not weaken these contracts.
 Standard70 provides bounded construction-checkpoint, same-model checkpoint,
 and nearby-parameter continuation paths for that research lane. Each path must
 re-establish period-1 convergence and the applicable baseline gates before
-returning a candidate result. Executable benchmarks own measured performance;
+a candidate can be admitted. Diagnostic failure results remain observable.
+Executable benchmarks own measured performance;
 machine-local timings and worker mechanics are not part of this durable
 contract. A proposed Standard70 finalist must still pass the Standard70
 candidate runner; an older runner's result is not silently relabelled.

@@ -66,7 +66,7 @@ const COPY = Object.freeze({
       "Standard70は同じ双方向preload reserve floorに加え、PVのraw pressure gradient/ET、RV ±dP/dt、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの単峰性とPV閉鎖後PAP reboundをconstruction sentinelとして必須化しています。これらは臨床診断閾値ではありません。",
     controlTitle: "control semantics",
     controlBody:
-      "Heart rateなど通常のcontrol変更はaccepted stateとmodel clockを起点に、新しいfixture epochへatomic warm startします。TBV変更はdetached bounded continuationで後続のaccepted boundaryへ進めてからatomic commitします。いずれも自律神経反射を再現するものではありません。",
+      "Heart rateなど通常のcontrol変更はaccepted stateとmodel clockを起点に、新しいfixture epochへatomic warm startします。TBV変更はdetached preflightされ、bounded continuationが必要な場合は後続のaccepted boundaryをatomic commitすることがあります。いずれも自律神経反射を再現するものではありません。",
     limitationsTitle: "限界",
     limitations: Object.freeze([
       "0Dモデルのため、局所3D flow、jet形状、壁面応力、空間的なwave propagationを解像しません。",
@@ -128,7 +128,7 @@ const COPY = Object.freeze({
       "Standard70 retains those bidirectional preload-reserve floors and adds PV raw pressure gradient/ET, RV ±dP/dt, TV E/A, right-sided ICT/IRT/Tei, PAP/PV-flow unimodality, and post-PV-closure PAP rebound as required construction sentinels. These are not clinical diagnostic thresholds.",
     controlTitle: "Control semantics",
     controlBody:
-      "Heart rate and ordinary controls atomically warm-start a new fixture epoch from the accepted state and model clock. TBV instead uses detached bounded continuation and atomically commits a later accepted boundary. Neither transition models an autonomic reflex.",
+      "Heart rate and ordinary controls atomically warm-start a new fixture epoch from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
     limitationsTitle: "Limitations",
     limitations: Object.freeze([
       "A 0D model does not resolve local 3D flow, jet geometry, wall stress, or spatial wave propagation.",
