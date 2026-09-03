@@ -21,6 +21,9 @@ import {
 import {
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
+import {
+  buildMainWireBaselineConditioningCenterConstructionV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningCenterCacheV1";
 import type {
   MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -224,7 +227,7 @@ export async function buildMainWireBaselineConditioningRefinedDerivativeAuditV1(
     throw new Error("refined derivative evaluations differ from the task plan");
   }
 
-  const centerSources = assertAndOwnCenterSourcesV1(
+  const centerSources = await assertAndOwnCenterSourcesV1(
     input.centerSources,
     expectedTasks,
     evaluations,
@@ -490,12 +493,12 @@ function assertDeclaredPairsWereStepStableV1(
   }
 }
 
-function assertAndOwnCenterSourcesV1(
+async function assertAndOwnCenterSourcesV1(
   sources: readonly MainWireBaselineConditioningRefinedCenterSourceV1[],
   tasks: readonly MainWireBaselineConditioningTaskV1[],
   evaluations: readonly MainWireBaselineConditioningTaskResultV1[],
   coarseEvaluations: readonly MainWireBaselineConditioningTaskResultV1[],
-): readonly MainWireBaselineConditioningRefinedCenterSourceV1[] {
+): Promise<readonly MainWireBaselineConditioningRefinedCenterSourceV1[]> {
   const expectedConditionIds = tasks
     .filter(({ coordinateId }) => coordinateId === null)
     .map(({ conditionId }) => conditionId)
@@ -513,6 +516,13 @@ function assertAndOwnCenterSourcesV1(
       || !sha256V1(source.refinedCheckpointSha256))
   ) {
     throw new Error("refined derivative center sources are invalid");
+  }
+  const expectedConstructions = await Promise.all(received.map(({ conditionId }) =>
+    buildMainWireBaselineConditioningCenterConstructionV1(conditionId)));
+  if (received.some((source, index) =>
+    source.coarseConstructionIdentitySha256
+      !== expectedConstructions[index]!.constructionIdentitySha256)) {
+    throw new Error("refined derivative center construction identity differs");
   }
   const sourceByCondition = new Map(received.map((source) =>
     [source.conditionId, source] as const));

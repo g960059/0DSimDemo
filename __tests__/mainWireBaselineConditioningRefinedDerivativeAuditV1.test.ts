@@ -15,6 +15,9 @@ import {
   type MainWireBaselineConditioningTaskV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
+  buildMainWireBaselineConditioningCenterConstructionV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningCenterCacheV1";
+import {
   buildMainWireBaselineConditioningRefinedDerivativeAuditV1,
   buildMainWireBaselineConditioningRefinedTasksV1,
   verifyMainWireBaselineConditioningRefinedDerivativeAuditV1,
@@ -166,10 +169,13 @@ async function syntheticFixtureV1(refinedScale: number) {
   const conditionIds = fineTasks
     .filter(({ coordinateId }) => coordinateId === null)
     .map(({ conditionId }) => conditionId);
+  const constructions = await Promise.all(conditionIds.map((conditionId) =>
+    buildMainWireBaselineConditioningCenterConstructionV1(conditionId)));
   const centerSources = Object.freeze(conditionIds.map((conditionId, index) =>
     Object.freeze({
       conditionId,
-      coarseConstructionIdentitySha256: index.toString(16).repeat(64),
+      coarseConstructionIdentitySha256:
+        constructions[index].constructionIdentitySha256,
       coarseCheckpointSha256: "d".repeat(64),
       refinedCheckpointSha256: "e".repeat(64),
     }) satisfies MainWireBaselineConditioningRefinedCenterSourceV1));
