@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import settledBaselineCheckpointJson from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
+import type {
+  MainWireIntegratedModelStandard70CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   buildMainWireBaselineConditioningCenterConstructionV1,
   createMainWireBaselineConditioningCenterCacheArtifactV1,
@@ -10,6 +13,8 @@ import {
 import {
   buildMainWireBaselineConditioningAlternativeSubsetSpectraV1,
   buildMainWireBaselineConditioningSpectrumV1,
+  buildMainWireBaselineConditioningTasksV1,
+  evaluateMainWireBaselineConditioningTaskV1,
   type MainWireBaselineConditioningSensitivityV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 
@@ -142,6 +147,25 @@ describe("baseline conditioning spectrum", () => {
       }, first),
     ).rejects.toThrow(/construction identity differs/);
   });
+
+  it("evaluates the current center through Standard70 and retains safety status", async () => {
+    const center = buildMainWireBaselineConditioningTasksV1({
+      mode: "rest-pilot",
+    }).find(({ coordinateId }) => coordinateId === null)!;
+    const result = await evaluateMainWireBaselineConditioningTaskV1(
+      center,
+      settledBaselineCheckpointJson as unknown as
+        MainWireIntegratedModelStandard70CheckpointV1,
+    );
+
+    expect(result.evaluationStatus).toBe("accepted");
+    expect(result.initializationKind).toBe("standard70-exact-checkpoint");
+    expect(result.completedCycleCount).toBe(3);
+    expect(result.objectiveGateStatus).toBe("passed");
+    expect(result.safetySentinelStatus).toBe("passed");
+    expect(result.failedSafetySentinelCheckIds).toEqual([]);
+    expect(result.checks).toHaveLength(28);
+  }, 15_000);
 });
 
 function sensitivityV1(

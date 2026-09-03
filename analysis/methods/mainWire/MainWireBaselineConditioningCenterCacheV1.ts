@@ -1,15 +1,15 @@
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1,
-  validateMainWireIntegratedModelStandard68CheckpointV1,
-  type MainWireIntegratedModelStandard68CheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
+  validateMainWireIntegratedModelStandard70CheckpointV1,
+  type MainWireIntegratedModelStandard70CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
-  MAIN_WIRE_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
-} from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
+  MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import {
   buildMainWireBaselineConditioningCenterCandidateV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
@@ -36,7 +36,7 @@ export type MainWireBaselineConditioningCenterCacheArtifactV1 = Readonly<{
   constructionIdentitySha256: string;
   nominalDtSec: number;
   checkpointSha256: string;
-  checkpoint: MainWireIntegratedModelStandard68CheckpointV1;
+  checkpoint: MainWireIntegratedModelStandard70CheckpointV1;
 }>;
 
 export async function buildMainWireBaselineConditioningCenterConstructionV1(
@@ -55,8 +55,8 @@ export async function buildMainWireBaselineConditioningCenterConstructionV1(
     cacheId: MAIN_WIRE_BASELINE_CONDITIONING_CENTER_CACHE_V1_ID,
     schemaVersion: 1,
     studyIdentitySha256: study.studyIdentitySha256,
-    evaluatorId: MAIN_WIRE_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
-    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1,
+    evaluatorId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
+    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
     periodicPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
     condition,
     targetCandidate:
@@ -81,7 +81,7 @@ export async function createMainWireBaselineConditioningCenterCacheArtifactV1(
     );
   assertConstructionMatchesV1(construction, expected);
   const checkpoint =
-    await validateMainWireIntegratedModelStandard68CheckpointV1(
+    await validateMainWireIntegratedModelStandard70CheckpointV1(
       checkpointInput,
     );
   return Object.freeze({
@@ -131,7 +131,7 @@ export async function validateMainWireBaselineConditioningCenterCacheArtifactV1(
     throw new Error("conditioning center cache construction identity differs");
   }
   const checkpoint =
-    await validateMainWireIntegratedModelStandard68CheckpointV1(
+    await validateMainWireIntegratedModelStandard70CheckpointV1(
       record.checkpoint,
     );
   if (record.checkpointSha256 !== checkpoint.checkpointSha256) {

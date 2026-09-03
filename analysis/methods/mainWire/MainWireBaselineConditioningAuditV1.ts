@@ -1,8 +1,8 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import type {
-  MainWireIntegratedModelStandard68CheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+  MainWireIntegratedModelStandard70CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
@@ -10,13 +10,13 @@ import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineV1";
 import {
-  evaluateMainWireBaselineCalibrationCandidateV1,
-  type MainWireBaselineCalibrationEvaluationV1,
-} from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
+  evaluateMainWireStandard70BaselineCalibrationCandidateV1,
+  type MainWireStandard70BaselineCalibrationEvaluationV1,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
   mainWireBaselineCalibrationParameterV1,
@@ -64,7 +64,8 @@ export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   sourceCheckpointSha256: string | null;
   targetCoordinateValue: number | null;
   transformedCoordinateValue: number | null;
-  evaluationStatus: MainWireBaselineCalibrationEvaluationV1["status"];
+  evaluationStatus:
+    MainWireStandard70BaselineCalibrationEvaluationV1["status"];
   evaluationPhase: string | null;
   requestIdentitySha256: string | null;
   initializationKind: string | null;
@@ -72,14 +73,18 @@ export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   completedCycleCount: number | null;
   classificationStatus: string | null;
   constructionGateStatus: string | null;
+  objectiveGateStatus: string | null;
+  safetySentinelStatus: string | null;
   failedConstructionCheckIds: readonly string[];
+  failedObjectiveCheckIds: readonly string[];
+  failedSafetySentinelCheckIds: readonly string[];
   checks: readonly MainWireBaselineConditioningCompactCheckV1[];
   message: string | null;
 }>;
 
 export type MainWireBaselineConditioningTaskExecutionV1 = Readonly<{
   result: MainWireBaselineConditioningTaskResultV1;
-  acceptedCheckpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
+  acceptedCheckpoint: MainWireIntegratedModelStandard70CheckpointV1 | null;
 }>;
 
 export type MainWireBaselineConditioningSensitivityV1 = Readonly<{
@@ -179,6 +184,7 @@ export type MainWireBaselineConditioningAuditV1 = Readonly<{
     localDiagnosticOnly: true;
     uniqueParameterVectorClaimed: false;
     parameterSubsetAutomaticallySelected: false;
+    standard70SafetySentinelsRequired: true;
     pulmonaryWaveformValidationClaimed: false;
     numericalFloorApplied: false;
     reason: string;
@@ -214,7 +220,7 @@ export function buildMainWireBaselineConditioningTasksV1(input: Readonly<{
 
 export async function evaluateMainWireBaselineConditioningTaskV1(
   task: MainWireBaselineConditioningTaskV1,
-  sourceCheckpoint: MainWireIntegratedModelStandard68CheckpointV1,
+  sourceCheckpoint: MainWireIntegratedModelStandard70CheckpointV1,
   sourceAnchorKind:
     MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"] =
       "standard-baseline",
@@ -228,7 +234,7 @@ export async function evaluateMainWireBaselineConditioningTaskV1(
 
 export async function executeMainWireBaselineConditioningTaskV1(
   task: MainWireBaselineConditioningTaskV1,
-  sourceCheckpoint: MainWireIntegratedModelStandard68CheckpointV1,
+  sourceCheckpoint: MainWireIntegratedModelStandard70CheckpointV1,
   sourceAnchorKind:
     MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
 ): Promise<MainWireBaselineConditioningTaskExecutionV1> {
@@ -248,32 +254,34 @@ export async function executeMainWireBaselineConditioningTaskV1(
     && task.coordinateId === null;
   const useExactCheckpoint = isExactBaseline
     || sourceAnchorKind === "verified-condition-cache";
-  const evaluation = await evaluateMainWireBaselineCalibrationCandidateV1({
-    hemodynamicResearchInputs:
-      resolved.target.hemodynamicResearchInputs,
-    mechanismResearchInputs: resolved.target.mechanismResearchInputs,
-    ventricularContractilityScale:
-      resolved.target.ventricularContractilityScale,
-    nominalDtSec:
-      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
-        .explorationNominalDtSec,
-    initialization: sourceAnchorKind === "cold"
-      ? Object.freeze({ kind: "cold" as const })
-      : useExactCheckpoint
-        ? Object.freeze({
-          kind: "standard68-exact-checkpoint" as const,
-          checkpoint: sourceCheckpoint,
-        })
-        : Object.freeze({
-          kind: "standard68-parameter-continuation" as const,
-          sourceCheckpoint,
-          sourceHemodynamicResearchInputs:
-            sourceCandidate.hemodynamicResearchInputs,
-          sourceVentricularContractilityScale:
-            sourceCandidate.ventricularContractilityScale,
-          sourceMechanismResearchInputs: sourceCandidate.mechanismResearchInputs,
-        }),
-  });
+  const evaluation =
+    await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
+      hemodynamicResearchInputs:
+        resolved.target.hemodynamicResearchInputs,
+      mechanismResearchInputs: resolved.target.mechanismResearchInputs,
+      ventricularContractilityScale:
+        resolved.target.ventricularContractilityScale,
+      nominalDtSec:
+        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+          .explorationNominalDtSec,
+      initialization: sourceAnchorKind === "cold"
+        ? Object.freeze({ kind: "cold" as const })
+        : useExactCheckpoint
+          ? Object.freeze({
+            kind: "standard70-exact-checkpoint" as const,
+            checkpoint: sourceCheckpoint,
+          })
+          : Object.freeze({
+            kind: "standard70-parameter-continuation" as const,
+            sourceCheckpoint,
+            sourceHemodynamicResearchInputs:
+              sourceCandidate.hemodynamicResearchInputs,
+            sourceVentricularContractilityScale:
+              sourceCandidate.ventricularContractilityScale,
+            sourceMechanismResearchInputs:
+              sourceCandidate.mechanismResearchInputs,
+          }),
+    });
   return Object.freeze({
     result: compactEvaluationV1(
       task,
@@ -371,6 +379,8 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
     0,
   );
   const completed = acceptedTaskCount === received.length
+    && received.every(({ safetySentinelStatus }) =>
+      safetySentinelStatus === "passed")
     && sensitivities.every(({ status }) => status === "resolved")
     && positiveControls.every(({ status }) => status === "passed");
   return Object.freeze({
@@ -401,6 +411,7 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
       localDiagnosticOnly: true as const,
       uniqueParameterVectorClaimed: false as const,
       parameterSubsetAutomaticallySelected: false as const,
+      standard70SafetySentinelsRequired: true as const,
       pulmonaryWaveformValidationClaimed: false as const,
       numericalFloorApplied: false as const,
       reason:
@@ -510,7 +521,7 @@ function compactEvaluationV1(
   sourceAnchorKind: MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
   sourceCheckpointSha256: string | null,
   resolved: ReturnType<typeof resolveTaskV1>,
-  evaluation: MainWireBaselineCalibrationEvaluationV1,
+  evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
 ): MainWireBaselineConditioningTaskResultV1 {
   if (evaluation.status !== "accepted") {
     return Object.freeze({
@@ -527,7 +538,11 @@ function compactEvaluationV1(
       completedCycleCount: evaluation.partial?.completedCycleCount ?? null,
       classificationStatus: evaluation.partial?.classificationStatus ?? null,
       constructionGateStatus: null,
+      objectiveGateStatus: null,
+      safetySentinelStatus: null,
       failedConstructionCheckIds: Object.freeze([]),
+      failedObjectiveCheckIds: Object.freeze([]),
+      failedSafetySentinelCheckIds: Object.freeze([]),
       checks: Object.freeze([]),
       message: evaluation.message,
     });
@@ -546,8 +561,12 @@ function compactEvaluationV1(
     completedCycleCount: evaluation.exactResult.completedCycleCount,
     classificationStatus: evaluation.exactResult.classification.status,
     constructionGateStatus: evaluation.constructionGateStatus,
+    objectiveGateStatus: evaluation.objectiveGateStatus,
+    safetySentinelStatus: evaluation.safetySentinelStatus,
     failedConstructionCheckIds: evaluation.failedConstructionCheckIds,
-    checks: Object.freeze(evaluation.exactResult.checks.map((check) =>
+    failedObjectiveCheckIds: evaluation.failedObjectiveCheckIds,
+    failedSafetySentinelCheckIds: evaluation.failedSafetySentinelCheckIds,
+    checks: Object.freeze(evaluation.objectiveChecks.map((check) =>
       Object.freeze({
         checkId: check.checkId,
         status: check.status,
@@ -1003,9 +1022,9 @@ function conditionByIdV1(
 function baselineCandidateV1(): MainWireBaselineCalibrationCandidateInputsV1 {
   return Object.freeze({
     hemodynamicResearchInputs:
-      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
     mechanismResearchInputs:
-      MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
     ventricularContractilityScale: 1,
   });
 }

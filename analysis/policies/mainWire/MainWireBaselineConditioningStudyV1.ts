@@ -1,25 +1,37 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import {
+  canonicalJsonStringify,
   cloneAndFreezeCanonicalJson,
   sha256CanonicalJsonHex,
   type CanonicalJsonValue,
 } from "@/engine/integrity";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineV1";
 import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import {
+  MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import {
   MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
   MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1,
@@ -59,7 +71,19 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
   schemaVersion: 1;
   studyId: typeof MAIN_WIRE_BASELINE_CONDITIONING_STUDY_V1_ID;
   studyMode: "practical-conditioning";
-  exactModelIdentity: typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1;
+  exactModelIdentity: typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1;
+  analysisTarget: Readonly<{
+    evaluatorId:
+      typeof MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID;
+    objectiveAnalysisMethodId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID;
+    safetyAnalysisMethodId:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID;
+    rightHeartSafetyCheckIds:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1;
+    rightHeartSafetyPolicy:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1;
+  }>;
   evidenceRegistryId: string;
   constructionPolicyRevisionId: string;
   parameterPolicyId:
@@ -146,7 +170,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 16;
+    revision: 17;
     changeReason: string;
   }>;
 }>;
@@ -161,7 +185,19 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
     schemaVersion: 1 as const,
     studyId: MAIN_WIRE_BASELINE_CONDITIONING_STUDY_V1_ID,
     studyMode: "practical-conditioning" as const,
-    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_IDENTITY_V1,
+    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
+    analysisTarget: Object.freeze({
+      evaluatorId:
+        MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
+      objectiveAnalysisMethodId:
+        MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID,
+      safetyAnalysisMethodId:
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
+      rightHeartSafetyCheckIds:
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+      rightHeartSafetyPolicy:
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1,
+    }),
     evidenceRegistryId: normalReferenceEvidenceV1.registryId,
     constructionPolicyRevisionId: currentPolicyRevision.revisionId,
     parameterPolicyId:
@@ -337,7 +373,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       releaseLatticeNeighbourDirections: Object.freeze([-1, 1] as const),
       preloadReserveRecovery: Object.freeze({
         maximumOperatingTotalBloodVolumeMl:
-          MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1
+          MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1
             .totalBloodVolumeMl,
         refinementContraction: 0.125 as const,
         minimumSeedPrimaryBufferedInteriorMargin: 0 as const,
@@ -356,9 +392,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 16 as const,
+      revision: 17 as const,
       changeReason:
-        "Permit content-addressed local condition-center checkpoint reuse only after checkpoint validation and an exact period-1 reconfirmation run.",
+        "Bind the active conditioning study to the Standard70 exact model, baseline, evaluator, and mandatory right-heart safety sentinels.",
     }),
   });
 
@@ -378,6 +414,8 @@ export type MainWireBaselineConditioningStudyLintIssueV1 = Readonly<{
     | "search-policy-invalid"
     | "policy-revision-stale"
     | "numerical-policy-invalid"
+    | "exact-model-target-invalid"
+    | "analysis-target-invalid"
     | "claim-scope-invalid"
     | "source-lock-missing";
   path: string;
@@ -394,6 +432,38 @@ export function lintMainWireBaselineConditioningStudyV1(
   source: MainWireBaselineConditioningStudySourceV1,
 ): readonly MainWireBaselineConditioningStudyLintIssueV1[] {
   const issues: MainWireBaselineConditioningStudyLintIssueV1[] = [];
+  if (
+    canonicalJsonStringify(source.exactModelIdentity)
+      !== canonicalJsonStringify(MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1)
+  ) {
+    issues.push(issueV1(
+      "exact-model-target-invalid",
+      "exactModelIdentity",
+      "conditioning study must target the current Standard70 exact identity",
+    ));
+  }
+  if (
+    source.analysisTarget.evaluatorId
+      !== MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID
+    || source.analysisTarget.objectiveAnalysisMethodId
+      !== MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID
+    || source.analysisTarget.safetyAnalysisMethodId
+      !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID
+    || canonicalJsonStringify(source.analysisTarget.rightHeartSafetyCheckIds)
+      !== canonicalJsonStringify(
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+      )
+    || canonicalJsonStringify(source.analysisTarget.rightHeartSafetyPolicy)
+      !== canonicalJsonStringify(
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1,
+      )
+  ) {
+    issues.push(issueV1(
+      "analysis-target-invalid",
+      "analysisTarget",
+      "conditioning study analysis target differs from Standard70",
+    ));
+  }
   const parameterById = new Map(MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1
     .map((parameter) => [parameter.parameterId, parameter] as const));
   const totalBloodVolumeParameter = parameterById.get(
