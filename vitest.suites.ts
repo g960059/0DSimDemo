@@ -222,6 +222,7 @@ export const canonicalScientificTests = [
   "__tests__/coronaryV3StructuralCmdActiveReserveCharacterizationV2.test.ts",
   "__tests__/mainWireAcceptedRhythmEventScheduleV1.test.ts",
   "__tests__/mainWireBaselineConditioningAuditV1.test.ts",
+  "__tests__/mainWireStandard70BaselineCalibrationEvaluatorV1.test.ts",
   "__tests__/mainWireCoronaryBoundaryV2.test.ts",
   "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
   "__tests__/mainWireFiveWallCoronaryCheckpointV2.test.ts",

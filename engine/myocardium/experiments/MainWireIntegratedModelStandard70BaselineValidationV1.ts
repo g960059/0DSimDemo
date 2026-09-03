@@ -60,6 +60,23 @@ export type MainWireIntegratedModelStandard70RightHeartCheckIdV1 =
   | "waveform.PV-flow.single-peak-no-ringing"
   | "waveform.PAP.post-PV-closure-rebound";
 
+export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1 =
+  Object.freeze([
+    "pulmonary-valve.mean-gradient",
+    "pulmonary-valve.peak-gradient",
+    "pulmonary-valve.ejection-time",
+    "right-ventricle.maximum-dpdt",
+    "right-ventricle.minimum-dpdt",
+    "tricuspid-flow.peak-e-to-a",
+    "right-timing.ict",
+    "right-timing.irt",
+    "right-timing.tei-index",
+    "waveform.PAP.single-peak-no-ringing",
+    "waveform.PV-flow.single-forward-episode",
+    "waveform.PV-flow.single-peak-no-ringing",
+    "waveform.PAP.post-PV-closure-rebound",
+  ] as const satisfies readonly MainWireIntegratedModelStandard70RightHeartCheckIdV1[]);
+
 export type MainWireIntegratedModelStandard70RightHeartCheckV1 = Readonly<{
   checkId: MainWireIntegratedModelStandard70RightHeartCheckIdV1;
   status: "passed" | "failed";

@@ -117,6 +117,24 @@ export type MainWireIntegratedModelStandard70CandidateOptionsV1 = Readonly<{
   initialization?: MainWireIntegratedModelStandard70CandidateInitializationV1;
 }>;
 
+export class MainWireIntegratedModelStandard70ObservationUnavailableErrorV1
+  extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name =
+      "MainWireIntegratedModelStandard70ObservationUnavailableErrorV1";
+  }
+}
+
+export class MainWireIntegratedModelStandard70InitializationRejectedErrorV1
+  extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name =
+      "MainWireIntegratedModelStandard70InitializationRejectedErrorV1";
+  }
+}
+
 export type MainWireIntegratedModelStandard70BaselineQualificationV1 =
   Readonly<{
     qualificationId:
@@ -217,52 +235,60 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
     MainWireNormalAdultFiveWallMechanicsStateV1
   > | null = null;
   let continuedAcceptedState: MainWireAcceptedStateV1 | null = null;
-  if (initialization.kind === "standard70-exact-checkpoint") {
-    restored = await restoreMainWireIntegratedModelStandard70V1(
-      standard70RestoreContextV1(fixture),
-      initialization.checkpoint,
-    );
-  } else if (
-    initialization.kind === "standard68-construction-continuation"
-  ) {
-    const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
-      initialization.sourceHemodynamicResearchInputs,
-      initialization.sourceVentricularContractilityScale,
-      initialization.sourceMechanismResearchInputs,
-    );
-    const source = await restoreMainWireIntegratedModelStandard68V1(
-      Object.freeze({
-        base: Object.freeze({
-          ...createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
-            sourceFixture,
-          ),
-          mechanismResearchInputs: sourceFixture.mechanismResearchInputs,
-        }),
-        roundedEjectionAssemblyId: sourceFixture.roundedEjectionAssemblyId,
-      }),
-      initialization.sourceCheckpoint,
-    );
-    continuedAcceptedState = warmStartMainWireIntegratedModelV3({
-      source: source.acceptedState,
-      sourceRuntime: sourceFixture as unknown as MainWireIntegratedModelRuntimeV3,
-      targetRuntime: fixture as unknown as MainWireIntegratedModelRuntimeV3,
-    });
-  } else if (initialization.kind === "standard70-parameter-continuation") {
-    const sourceFixture =
-      createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1(
+  try {
+    if (initialization.kind === "standard70-exact-checkpoint") {
+      restored = await restoreMainWireIntegratedModelStandard70V1(
+        standard70RestoreContextV1(fixture),
+        initialization.checkpoint,
+      );
+    } else if (
+      initialization.kind === "standard68-construction-continuation"
+    ) {
+      const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
         initialization.sourceHemodynamicResearchInputs,
         initialization.sourceVentricularContractilityScale,
         initialization.sourceMechanismResearchInputs,
       );
-    const source = await restoreMainWireIntegratedModelStandard70V1(
-      standard70RestoreContextV1(sourceFixture),
-      initialization.sourceCheckpoint,
+      const source = await restoreMainWireIntegratedModelStandard68V1(
+        Object.freeze({
+          base: Object.freeze({
+            ...createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+              sourceFixture,
+            ),
+            mechanismResearchInputs: sourceFixture.mechanismResearchInputs,
+          }),
+          roundedEjectionAssemblyId: sourceFixture.roundedEjectionAssemblyId,
+        }),
+        initialization.sourceCheckpoint,
+      );
+      continuedAcceptedState = warmStartMainWireIntegratedModelV3({
+        source: source.acceptedState,
+        sourceRuntime:
+          sourceFixture as unknown as MainWireIntegratedModelRuntimeV3,
+        targetRuntime: fixture as unknown as MainWireIntegratedModelRuntimeV3,
+      });
+    } else if (initialization.kind === "standard70-parameter-continuation") {
+      const sourceFixture =
+        createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1(
+          initialization.sourceHemodynamicResearchInputs,
+          initialization.sourceVentricularContractilityScale,
+          initialization.sourceMechanismResearchInputs,
+        );
+      const source = await restoreMainWireIntegratedModelStandard70V1(
+        standard70RestoreContextV1(sourceFixture),
+        initialization.sourceCheckpoint,
+      );
+      continuedAcceptedState = warmStartMainWireIntegratedModelV3({
+        source: source.acceptedState,
+        sourceRuntime:
+          sourceFixture as unknown as MainWireIntegratedModelRuntimeV3,
+        targetRuntime: fixture as unknown as MainWireIntegratedModelRuntimeV3,
+      });
+    }
+  } catch (error) {
+    throw new MainWireIntegratedModelStandard70InitializationRejectedErrorV1(
+      error instanceof Error ? error.message : String(error),
     );
-    continuedAcceptedState = warmStartMainWireIntegratedModelV3({
-      source: source.acceptedState,
-      sourceRuntime: sourceFixture as unknown as MainWireIntegratedModelRuntimeV3,
-      targetRuntime: fixture as unknown as MainWireIntegratedModelRuntimeV3,
-    });
   }
 
   let accepted = continuedAcceptedState
@@ -333,47 +359,54 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
     if (classification.status !== "not-converged") break;
   }
 
-  if (completedBeatMetrics === null) {
-    throw new Error("Standard70 candidate execution completed no beat");
+  let measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1;
+  try {
+    if (completedBeatMetrics === null) {
+      throw new Error("Standard70 candidate execution completed no beat");
+    }
+    const traceMeasurements =
+      measureMainWireIntegratedModelBaselineValidationV1(terminalTrace);
+    const exactAorticValve =
+      completedBeatMetrics.valveForwardPressureGradients.AoV;
+    const exactLeftPressureRate =
+      completedBeatMetrics.ventricularAbsolutePressureRateExtrema.LV;
+    if (
+      exactAorticValve.timeWeightedMeanMmHg === null
+      || exactAorticValve.peakMmHg === null
+    ) {
+      throw new Error("Standard70 aortic beat metrics are incomplete");
+    }
+    const baseMeasurements:
+      MainWireIntegratedModelBaselineValidationMeasurementsV1 = Object.freeze({
+        ...traceMeasurements,
+        aorticValve: Object.freeze({
+          ejectionTimeSec: exactAorticValve.forwardFlowDurationSec,
+          meanGradientMmHg: exactAorticValve.timeWeightedMeanMmHg,
+          peakGradientMmHg: exactAorticValve.peakMmHg,
+        }),
+        leftVentricle: Object.freeze({
+          maximumDpDtMmHgPerSec: exactLeftPressureRate.maximumMmHgPerSec,
+          minimumDpDtMmHgPerSec: exactLeftPressureRate.minimumMmHgPerSec,
+        }),
+        hemodynamicPressure:
+          measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(
+            completedBeatMetrics,
+          ),
+        cardiacSizeAndFunction:
+          measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
+            completedBeatMetrics,
+          ),
+      });
+    measurements = measureMainWireIntegratedModelStandard70BaselineV1(
+      baseMeasurements,
+      terminalTrace,
+      completedBeatMetrics,
+    );
+  } catch (error) {
+    throw new MainWireIntegratedModelStandard70ObservationUnavailableErrorV1(
+      error instanceof Error ? error.message : String(error),
+    );
   }
-  const traceMeasurements =
-    measureMainWireIntegratedModelBaselineValidationV1(terminalTrace);
-  const exactAorticValve =
-    completedBeatMetrics.valveForwardPressureGradients.AoV;
-  const exactLeftPressureRate =
-    completedBeatMetrics.ventricularAbsolutePressureRateExtrema.LV;
-  if (
-    exactAorticValve.timeWeightedMeanMmHg === null
-    || exactAorticValve.peakMmHg === null
-  ) {
-    throw new Error("Standard70 aortic beat metrics are incomplete");
-  }
-  const baseMeasurements: MainWireIntegratedModelBaselineValidationMeasurementsV1 =
-    Object.freeze({
-      ...traceMeasurements,
-      aorticValve: Object.freeze({
-        ejectionTimeSec: exactAorticValve.forwardFlowDurationSec,
-        meanGradientMmHg: exactAorticValve.timeWeightedMeanMmHg,
-        peakGradientMmHg: exactAorticValve.peakMmHg,
-      }),
-      leftVentricle: Object.freeze({
-        maximumDpDtMmHgPerSec: exactLeftPressureRate.maximumMmHgPerSec,
-        minimumDpDtMmHgPerSec: exactLeftPressureRate.minimumMmHgPerSec,
-      }),
-      hemodynamicPressure:
-        measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(
-          completedBeatMetrics,
-        ),
-      cardiacSizeAndFunction:
-        measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
-          completedBeatMetrics,
-        ),
-    });
-  const measurements = measureMainWireIntegratedModelStandard70BaselineV1(
-    baseMeasurements,
-    terminalTrace,
-    completedBeatMetrics,
-  );
   const checks = buildMainWireIntegratedModelStandard70BaselineChecksV1(
     measurements,
     classification.status === "period1-converged",
