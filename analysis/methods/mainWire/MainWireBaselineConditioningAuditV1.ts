@@ -596,6 +596,9 @@ export function assertMainWireBaselineConditioningTaskResultV1(
         && check.actual <= check.maximum
       ? "passed"
       : "failed";
+    const statusIsEncodedByBounds =
+      check.checkId !== "waveform.LVP.rounded-not-plateau"
+      && check.checkId !== "waveform.RVP.rounded-not-plateau";
     if (
       !Number.isFinite(check.actual)
       || !Number.isFinite(check.minimum)
@@ -603,7 +606,8 @@ export function assertMainWireBaselineConditioningTaskResultV1(
       || check.maximum < check.minimum
       || typeof check.unit !== "string"
       || check.unit.length === 0
-      || check.status !== expectedStatus
+      || (check.status !== "passed" && check.status !== "failed")
+      || (statusIsEncodedByBounds && check.status !== expectedStatus)
     ) {
       throw new Error(
         `conditioning check is invalid: ${result.task.taskId}/${check.checkId}`,

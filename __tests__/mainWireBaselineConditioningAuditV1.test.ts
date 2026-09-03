@@ -212,6 +212,38 @@ describe("baseline conditioning spectrum", () => {
       ...serialized,
       centerCheckpointCache: null,
     })).rejects.toThrow(/artifact is incomplete/);
+
+    const phaseOnlyRoundnessFailure = [...serialized.evaluations];
+    const roundnessIndex = phaseOnlyRoundnessFailure.findIndex(
+      ({ checks }: MainWireBaselineConditioningTaskResultV1) =>
+        checks.some(({ checkId }) =>
+          checkId === "waveform.LVP.rounded-not-plateau"),
+    );
+    const roundnessCheckId = "waveform.LVP.rounded-not-plateau";
+    phaseOnlyRoundnessFailure[roundnessIndex] = {
+      ...phaseOnlyRoundnessFailure[roundnessIndex],
+      constructionGateStatus: "failed",
+      objectiveGateStatus: "failed",
+      failedConstructionCheckIds: [roundnessCheckId],
+      failedObjectiveCheckIds: [roundnessCheckId],
+      checks: phaseOnlyRoundnessFailure[roundnessIndex].checks.map((check) =>
+        check.checkId === roundnessCheckId
+          ? { ...check, status: "failed" }
+          : check),
+    };
+    const phaseOnlyArtifact = await buildMainWireBaselineConditioningAuditV1({
+      mode: serialized.mode,
+      protocolCommit: serialized.protocolCommit,
+      executionCommit: serialized.executionCommit,
+      requestedParallelism: serialized.requestedParallelism,
+      effectiveParallelism: serialized.effectiveParallelism,
+      batchWallTimeMs: serialized.batchWallTimeMs,
+      evaluations: phaseOnlyRoundnessFailure,
+      centerCheckpointCache: serialized.centerCheckpointCache,
+    });
+    await expect(verifyMainWireBaselineConditioningAuditV1(
+      JSON.parse(JSON.stringify(phaseOnlyArtifact)),
+    )).resolves.toEqual(JSON.parse(JSON.stringify(phaseOnlyArtifact)));
   });
 });
 
