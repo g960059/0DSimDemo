@@ -151,6 +151,16 @@ identity and checkpoint compatibility are proven; they do not replace cold
 qualification. Performance work requires a measured research-lane bottleneck
 and must not weaken these contracts.
 
+Condition-center checkpoints may be reused from a local content-addressed
+cache whose key binds the resolved study, exact model, evaluator, periodic
+policy, condition, target candidate, and time step. A cache hit is structurally
+validated and must independently re-establish period-1 convergence for three
+cycles. Perturbations remain anchored to the immutable cached checkpoint; the
+reconfirmation trajectory is evidence of continued compatibility, not a new
+anchor. Any missing, stale, malformed, or nonconvergent entry falls back to the
+declared construction path. Cache contents are non-authoritative and are not
+committed.
+
 Standard70 provides bounded construction-checkpoint, same-model checkpoint,
 and nearby-parameter continuation paths for that research lane. Each path must
 re-establish period-1 convergence and the applicable baseline gates before

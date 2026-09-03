@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import settledBaselineCheckpointJson from
+  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+import {
+  buildMainWireBaselineConditioningCenterConstructionV1,
+  createMainWireBaselineConditioningCenterCacheArtifactV1,
+  validateMainWireBaselineConditioningCenterCacheArtifactV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningCenterCacheV1";
 import {
   buildMainWireBaselineConditioningAlternativeSubsetSpectraV1,
   buildMainWireBaselineConditioningSpectrumV1,
@@ -102,6 +109,38 @@ describe("baseline conditioning spectrum", () => {
         coordinates,
         3,
       )).toThrow(/subset request is invalid/);
+  });
+
+  it("binds cached center checkpoints to the complete construction identity", async () => {
+    const first =
+      await buildMainWireBaselineConditioningCenterConstructionV1("rest-hr60");
+    const second =
+      await buildMainWireBaselineConditioningCenterConstructionV1("rest-hr60");
+    const highPreload =
+      await buildMainWireBaselineConditioningCenterConstructionV1(
+        "fixed-control-high-preload",
+      );
+    expect(second).toEqual(first);
+    expect(highPreload.constructionIdentitySha256)
+      .not.toBe(first.constructionIdentitySha256);
+
+    const artifact =
+      await createMainWireBaselineConditioningCenterCacheArtifactV1(
+        first,
+        settledBaselineCheckpointJson,
+      );
+    await expect(
+      validateMainWireBaselineConditioningCenterCacheArtifactV1(
+        artifact,
+        first,
+      ),
+    ).resolves.toEqual(artifact);
+    await expect(
+      validateMainWireBaselineConditioningCenterCacheArtifactV1({
+        ...artifact,
+        constructionIdentitySha256: "0".repeat(64),
+      }, first),
+    ).rejects.toThrow(/construction identity differs/);
   });
 });
 

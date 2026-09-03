@@ -94,6 +94,8 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     spectrumRowAdmission: "complete-and-step-sign-stable";
     practicalRankToleranceComposition:
       "maximum-of-machine-and-observed-step-halving-frobenius";
+    centerCheckpointReuse:
+      "content-addressed-validated-and-exactly-reconfirmed";
     reportSingularSpectrum: true;
     reportAlternativeSubsets: true;
     maximumAdmittedCoordinateCount: 5;
@@ -144,7 +146,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 15;
+    revision: 16;
     changeReason: string;
   }>;
 }>;
@@ -264,6 +266,8 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       spectrumRowAdmission: "complete-and-step-sign-stable" as const,
       practicalRankToleranceComposition:
         "maximum-of-machine-and-observed-step-halving-frobenius" as const,
+      centerCheckpointReuse:
+        "content-addressed-validated-and-exactly-reconfirmed" as const,
       reportSingularSpectrum: true as const,
       reportAlternativeSubsets: true as const,
       maximumAdmittedCoordinateCount: 5 as const,
@@ -352,9 +356,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 15 as const,
+      revision: 16 as const,
       changeReason:
-        "Materialize every proper primary-coordinate subset spectrum required by the declared alternative-subset conditioning policy.",
+        "Permit content-addressed local condition-center checkpoint reuse only after checkpoint validation and an exact period-1 reconfirmation run.",
     }),
   });
 
@@ -644,6 +648,8 @@ export function lintMainWireBaselineConditioningStudyV1(
       !== "complete-and-step-sign-stable"
     || source.conditioningPolicy.practicalRankToleranceComposition
       !== "maximum-of-machine-and-observed-step-halving-frobenius"
+    || source.conditioningPolicy.centerCheckpointReuse
+      !== "content-addressed-validated-and-exactly-reconfirmed"
     || source.numericalPolicy.rateConditionInitialization
       !== "cold-center-then-common-center-continuation"
     || !(source.numericalPolicy.finalistComparisonCorridorFraction > 0)

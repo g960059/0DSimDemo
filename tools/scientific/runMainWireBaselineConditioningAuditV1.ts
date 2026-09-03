@@ -1,12 +1,18 @@
 import { spawn, execFileSync, type ChildProcessWithoutNullStreams } from
   "node:child_process";
-import { writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import settledBaselineCheckpointJson from
   "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+import {
+  buildMainWireBaselineConditioningCenterConstructionV1,
+  createMainWireBaselineConditioningCenterCacheArtifactV1,
+  validateMainWireBaselineConditioningCenterCacheArtifactV1,
+  type MainWireBaselineConditioningCenterConstructionV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningCenterCacheV1";
 import {
   buildMainWireBaselineConditioningAuditV1,
   buildMainWireBaselineConditioningTasksV1,
@@ -71,30 +77,125 @@ async function runCoordinatorV1(): Promise<void> {
   const centerTasks = tasks.filter(({ coordinateId }) => coordinateId === null);
   const perturbationTasks = tasks.filter(({ coordinateId }) =>
     coordinateId !== null);
-  const centerExecutions = await runPoolV1(
-    centerTasks.map((task) => Object.freeze({
-      task,
-      sourceAnchorKind: task.conditionId === "rest-hr70"
-        ? "cold" as const
-        : "standard-baseline" as const,
-      sourceCheckpoint: settledBaselineCheckpointJson,
-      returnCheckpoint: true,
-    })),
-    effectiveParallelism,
-    ({ result }) => progress(result),
+  const centerCacheRequested = !hasFlagV1("--no-center-checkpoint-cache");
+  const centerCacheDirectory = resolve(
+    argumentV1("--center-checkpoint-cache-dir")
+      ?? "artifacts/main-wire-baseline-conditioning-v1/condition-centers",
   );
+  let centerCacheEffective = centerCacheRequested;
+  if (centerCacheEffective) {
+    try {
+      await mkdir(centerCacheDirectory, { recursive: true });
+    } catch (error) {
+      centerCacheEffective = false;
+      process.stderr.write(
+        `[conditioning] center cache disabled: ${errorMessageV1(error)}\n`,
+      );
+    }
+  }
+  const centerCacheLookups = await Promise.all(centerTasks.map((task) =>
+    loadCenterCacheV1(
+      task.conditionId,
+      centerCacheEffective,
+      centerCacheDirectory,
+    )));
+  if (centerCacheEffective) {
+    process.stderr.write(
+      `[conditioning] center cache: `
+        + `${centerCacheLookups.filter(({ status }) => status === "hit").length} hit, `
+        + `${centerCacheLookups.filter(({ status }) => status === "miss").length} miss, `
+        + `${centerCacheLookups.filter(({ status }) => status === "rejected").length} rejected\n`,
+    );
+  }
+  const lookupByTaskId = new Map(centerTasks.map((task, index) =>
+    [task.taskId, centerCacheLookups[index]] as const));
+  const initialCenterJobs = centerTasks.map((task, index) => {
+    const lookup = centerCacheLookups[index];
+    return lookup.status === "hit"
+      ? Object.freeze({
+          task,
+          sourceAnchorKind: "verified-condition-cache" as const,
+          sourceCheckpoint: lookup.checkpoint,
+          returnCheckpoint: true,
+        })
+      : defaultCenterJobV1(task);
+  });
+  const initialCenterExecutions = await runPoolV1(
+    initialCenterJobs,
+    effectiveParallelism,
+    ({ result }) => {
+      const lookup = lookupByTaskId.get(result.task.taskId);
+      if (lookup?.status === "hit" && result.evaluationStatus !== "accepted") {
+        process.stderr.write(
+          `[conditioning] center cache reconfirmation failed: `
+            + `${result.task.conditionId}; recomputing from the declared anchor\n`,
+        );
+        return;
+      }
+      progress(result);
+    },
+  );
+  const centerExecutions = [...initialCenterExecutions];
+  const fallbackCenters = initialCenterExecutions.flatMap(
+    (execution, index) =>
+      centerCacheLookups[index].status === "hit"
+        && execution.result.evaluationStatus !== "accepted"
+        ? [Object.freeze({ index, job: defaultCenterJobV1(centerTasks[index]) })]
+        : [],
+  );
+  if (fallbackCenters.length > 0) {
+    const fallbackExecutions = await runPoolV1(
+      fallbackCenters.map(({ job }) => job),
+      Math.min(effectiveParallelism, fallbackCenters.length),
+      ({ result }) => progress(result),
+    );
+    fallbackCenters.forEach(({ index }, fallbackIndex) => {
+      centerExecutions[index] = fallbackExecutions[fallbackIndex];
+    });
+  }
+  const fallbackConditionIds = new Set(fallbackCenters.map(({ index }) =>
+    centerTasks[index].conditionId));
   const checkpointByCondition = new Map<string,
     MainWireIntegratedModelStandard68CheckpointV1>();
-  for (const execution of centerExecutions) {
+  for (const [index, execution] of centerExecutions.entries()) {
     if (execution.acceptedCheckpoint === null) {
       throw new Error(
         `conditioning center failed: ${execution.result.task.conditionId}`,
       );
     }
+    const lookup = centerCacheLookups[index];
+    const selectedCheckpoint = lookup.status === "hit"
+      && !fallbackConditionIds.has(execution.result.task.conditionId)
+      ? lookup.checkpoint!
+      : execution.acceptedCheckpoint;
     checkpointByCondition.set(
       execution.result.task.conditionId,
-      execution.acceptedCheckpoint,
+      selectedCheckpoint,
     );
+  }
+  let centerCacheWriteCount = 0;
+  let centerCacheWriteFailureCount = 0;
+  if (centerCacheEffective) {
+    await Promise.all(centerExecutions.map(async (execution, index) => {
+      const lookup = centerCacheLookups[index];
+      if (
+        lookup.status === "hit"
+        && !fallbackConditionIds.has(execution.result.task.conditionId)
+      ) return;
+      try {
+        await writeCenterCacheV1(
+          lookup,
+          execution.acceptedCheckpoint!,
+        );
+        centerCacheWriteCount += 1;
+      } catch (error) {
+        centerCacheWriteFailureCount += 1;
+        process.stderr.write(
+          `[conditioning] center cache write failed for `
+            + `${execution.result.task.conditionId}: ${errorMessageV1(error)}\n`,
+        );
+      }
+    }));
   }
   const perturbationExecutions = await runPoolV1(
     perturbationTasks.map((task) => {
@@ -125,6 +226,22 @@ async function runCoordinatorV1(): Promise<void> {
     effectiveParallelism,
     batchWallTimeMs,
     evaluations,
+    centerCheckpointCache: Object.freeze({
+      policy:
+        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
+          .centerCheckpointReuse,
+      requested: centerCacheRequested,
+      effective: centerCacheEffective,
+      hitCount: centerCacheLookups.filter(({ status }) => status === "hit")
+        .length,
+      missCount: centerCacheLookups.filter(({ status }) => status === "miss")
+        .length,
+      rejectedEntryCount: centerCacheLookups.filter(({ status }) =>
+        status === "rejected").length,
+      reconfirmationFallbackCount: fallbackCenters.length,
+      writeCount: centerCacheWriteCount,
+      writeFailureCount: centerCacheWriteFailureCount,
+    }),
   });
   const serialized = `${JSON.stringify(audit, null, 2)}\n`;
   const output = argumentV1("--output");
@@ -135,6 +252,111 @@ async function runCoordinatorV1(): Promise<void> {
     await writeFile(outputPath, serialized, "utf8");
     process.stdout.write(`${outputPath}\n`);
   }
+}
+
+type CenterCacheLookupV1 = Readonly<{
+  status: "disabled" | "hit" | "miss" | "rejected";
+  construction: MainWireBaselineConditioningCenterConstructionV1 | null;
+  cachePath: string | null;
+  checkpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
+}>;
+
+async function loadCenterCacheV1(
+  conditionId: string,
+  enabled: boolean,
+  cacheDirectory: string,
+): Promise<CenterCacheLookupV1> {
+  if (!enabled) {
+    return Object.freeze({
+      status: "disabled" as const,
+      construction: null,
+      cachePath: null,
+      checkpoint: null,
+    });
+  }
+  const construction =
+    await buildMainWireBaselineConditioningCenterConstructionV1(conditionId);
+  const cachePath = join(
+    cacheDirectory,
+    `${construction.constructionIdentitySha256}.json`,
+  );
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readFile(cachePath, "utf8")) as unknown;
+  } catch (error) {
+    if (isMissingFileV1(error)) {
+      return Object.freeze({
+        status: "miss" as const,
+        construction,
+        cachePath,
+        checkpoint: null,
+      });
+    }
+    process.stderr.write(
+      `[conditioning] center cache entry rejected for ${conditionId}: `
+        + `${errorMessageV1(error)}\n`,
+    );
+    return Object.freeze({
+      status: "rejected" as const,
+      construction,
+      cachePath,
+      checkpoint: null,
+    });
+  }
+  try {
+    const artifact =
+      await validateMainWireBaselineConditioningCenterCacheArtifactV1(
+        parsed,
+        construction,
+      );
+    return Object.freeze({
+      status: "hit" as const,
+      construction,
+      cachePath,
+      checkpoint: artifact.checkpoint,
+    });
+  } catch (error) {
+    process.stderr.write(
+      `[conditioning] center cache entry rejected for ${conditionId}: `
+        + `${errorMessageV1(error)}\n`,
+    );
+    return Object.freeze({
+      status: "rejected" as const,
+      construction,
+      cachePath,
+      checkpoint: null,
+    });
+  }
+}
+
+async function writeCenterCacheV1(
+  lookup: CenterCacheLookupV1,
+  checkpoint: MainWireIntegratedModelStandard68CheckpointV1,
+): Promise<void> {
+  if (lookup.construction === null || lookup.cachePath === null) {
+    throw new Error("conditioning center cache destination is unavailable");
+  }
+  const artifact =
+    await createMainWireBaselineConditioningCenterCacheArtifactV1(
+      lookup.construction,
+      checkpoint,
+    );
+  const temporaryPath = `${lookup.cachePath}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, `${JSON.stringify(artifact)}\n`, "utf8");
+  await rename(temporaryPath, lookup.cachePath);
+}
+
+function defaultCenterJobV1(
+  task: MainWireBaselineConditioningTaskV1,
+): WorkerJobV1 {
+  return Object.freeze({
+    task,
+    sourceAnchorKind: task.conditionId === "rest-hr70"
+      ? "cold" as const
+      : "standard-baseline" as const,
+    sourceCheckpoint: settledBaselineCheckpointJson,
+    returnCheckpoint: true,
+  });
 }
 
 async function runWorkerV1(encodedTask: string): Promise<void> {
@@ -311,7 +533,8 @@ function parseWorkerJobV1(input: unknown): WorkerJobV1 {
   if (
     (record.sourceAnchorKind !== "cold"
       && record.sourceAnchorKind !== "standard-baseline"
-      && record.sourceAnchorKind !== "condition-center")
+      && record.sourceAnchorKind !== "condition-center"
+      && record.sourceAnchorKind !== "verified-condition-cache")
     || typeof record.returnCheckpoint !== "boolean"
     || record.sourceCheckpoint === null
     || typeof record.sourceCheckpoint !== "object"
@@ -369,6 +592,21 @@ function argumentV1(name: string): string | null {
     throw new Error(`${name} requires a value`);
   }
   return value;
+}
+
+function hasFlagV1(name: string): boolean {
+  return process.argv.includes(name);
+}
+
+function isMissingFileV1(error: unknown): boolean {
+  return error !== null
+    && typeof error === "object"
+    && "code" in error
+    && error.code === "ENOENT";
+}
+
+function errorMessageV1(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function gitV1(args: readonly string[]): string {
