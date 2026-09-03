@@ -25,6 +25,10 @@ import {
   type MainWireBaselineConditioningRefinedCenterSourceV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningRefinedDerivativeAuditV1";
 import {
+  buildMainWireBaselineConditioningPerturbationAttributionV1,
+  verifyMainWireBaselineConditioningPerturbationAttributionV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningPerturbationAttributionV1";
+import {
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
   buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
@@ -70,6 +74,63 @@ describe("direct refined-dt conditioning derivatives", () => {
       expect(pair.resolutionStatus).toBe("supported");
     }
 
+    const attribution =
+      await buildMainWireBaselineConditioningPerturbationAttributionV1(
+        fixture.coarse,
+        audit,
+      );
+    expect(attribution.status).toBe("completed");
+    expect(attribution.subsets).toHaveLength(audit.subsetDiagnostics.length);
+    expect(attribution.claim).toEqual({
+      attributionOnly: true,
+      changesSourceAdmission: false,
+      observationRoleAssigned: false,
+      parameterSubsetAutomaticallySelected: false,
+      causalExplanationClaimed: false,
+    });
+    for (const subset of attribution.subsets) {
+      const source = audit.subsetDiagnostics.find(({ coordinateIds }) =>
+        coordinateIds.join("::") === subset.coordinateIds.join("::"));
+      expect(source).toBeDefined();
+      expect(subset.rows).toHaveLength(source!.commonAdmittedRowCount);
+      expect(subset.aggregate.coarseStepHalving).toBeCloseTo(
+        source!.coarseStepHalvingPerturbationFrobeniusNorm,
+        12,
+      );
+      expect(subset.aggregate.refinedStepHalving).toBeCloseTo(
+        source!.refinedStepHalvingPerturbationFrobeniusNorm,
+        12,
+      );
+      expect(subset.aggregate.coarseRefinedDerivative).toBeCloseTo(
+        source!.coarseRefinedDerivativePerturbationFrobeniusNorm,
+        12,
+      );
+      expect(Math.hypot(...subset.byCheckId.map(
+        ({ coarseRefinedDerivative }) => coarseRefinedDerivative,
+      ))).toBeCloseTo(subset.aggregate.coarseRefinedDerivative, 12);
+      expect(Math.hypot(...subset.byConditionId.map(
+        ({ coarseRefinedDerivative }) => coarseRefinedDerivative,
+      ))).toBeCloseTo(subset.aggregate.coarseRefinedDerivative, 12);
+    }
+
+    const serializedAttribution = JSON.parse(JSON.stringify(attribution));
+    await expect(
+      verifyMainWireBaselineConditioningPerturbationAttributionV1(
+        serializedAttribution,
+        fixture.coarse,
+        audit,
+      ),
+    ).resolves.toEqual(serializedAttribution);
+    const driftedAttribution = structuredClone(serializedAttribution);
+    driftedAttribution.subsets[0].rows[0].coarseRefinedDerivative += 1;
+    await expect(
+      verifyMainWireBaselineConditioningPerturbationAttributionV1(
+        driftedAttribution,
+        fixture.coarse,
+        audit,
+      ),
+    ).rejects.toThrow(/differs from its reconstruction/);
+
     const serialized = JSON.parse(JSON.stringify(audit));
     await expect(
       verifyMainWireBaselineConditioningRefinedDerivativeAuditV1(
@@ -106,7 +167,68 @@ describe("direct refined-dt conditioning derivatives", () => {
     expect(audit.summary.supportedDeclaredPairCoordinateSubsets).toEqual([]);
     expect(audit.subsetDiagnostics.filter(({ coordinateIds }) =>
       coordinateIds.length === 2).every(({ resolutionStatus }) =>
-        resolutionStatus === "deficient")).toBe(true);
+      resolutionStatus === "deficient")).toBe(true);
+  });
+
+  it("attributes only rows admitted by both source resolutions", async () => {
+    const fixture = await syntheticFixtureV1(1.02);
+    const excludedConditionId = "rest-hr60";
+    const excludedCheckId = "left-ventricle.edv-index";
+    const fineEvaluations = fixture.fineEvaluations.map((evaluation) => {
+      const { task } = evaluation.taskResult;
+      if (
+        task.conditionId !== excludedConditionId
+        || task.coordinateId !== TBV
+        || task.stepFraction !== 0.5
+      ) return evaluation;
+      return Object.freeze({
+        ...evaluation,
+        taskResult: Object.freeze({
+          ...evaluation.taskResult,
+          checks: Object.freeze(evaluation.taskResult.checks.map((check) =>
+            check.checkId === excludedCheckId
+              ? Object.freeze({
+                  ...check,
+                  actual: check.minimum + check.maximum - check.actual,
+                })
+              : check)),
+        }),
+      });
+    });
+    const audit =
+      await buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+        coarseAudit: fixture.coarse,
+        fineEvaluations,
+        centerSources: fixture.centerSources,
+        protocolCommit: "abcdef0",
+        executionCommit: "abcdef1",
+        requestedParallelism: 8,
+        effectiveParallelism: 8,
+        batchWallTimeMs: 50,
+        refinedNominalDtSec: 0.001,
+      });
+    const source = audit.subsetDiagnostics.find(({ coordinateIds }) =>
+      coordinateIds.length === 1 && coordinateIds[0] === TBV)!;
+    expect(source.coarseAdmittedRowCount).toBe(125);
+    expect(source.refinedAdmittedRowCount).toBe(124);
+    expect(source.commonAdmittedRowCount).toBe(124);
+
+    const attribution =
+      await buildMainWireBaselineConditioningPerturbationAttributionV1(
+        fixture.coarse,
+        audit,
+      );
+    const subset = attribution.subsets.find(({ coordinateIds }) =>
+      coordinateIds.length === 1 && coordinateIds[0] === TBV)!;
+    expect(subset.rows).toHaveLength(124);
+    expect(subset.rows).not.toContainEqual(expect.objectContaining({
+      conditionId: excludedConditionId,
+      checkId: excludedCheckId,
+    }));
+    expect(subset.aggregate.coarseRefinedDerivative).toBeCloseTo(
+      source.coarseRefinedDerivativePerturbationFrobeniusNorm,
+      12,
+    );
   });
 
   it("rejects the wrong dt and a broken coarse-to-refined source chain", async () => {
