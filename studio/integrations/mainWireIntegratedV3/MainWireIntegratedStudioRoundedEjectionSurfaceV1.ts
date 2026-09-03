@@ -1,10 +1,8 @@
 import {
-  assertModelSurfaceReleaseManifestV1,
+  assertModelSurfaceReleaseLineageV1,
   derivationCapabilityV1,
   type ModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
-import algebraicProximalRootsSurfaceV1 from
-  "./model-surface-algebraic-proximal-roots-standard67-v1.json";
 import workbenchAnalysisSurfaceV1 from
   "./model-surface-workbench-analysis-v1.json";
 
@@ -22,10 +20,10 @@ import {
  * outputs because the rounded-ejection exact model deliberately returns to the
  * source aortic topology. Controls, derived analyses, and graph presentation
  * otherwise inherit the latest compatible source-topology production Surface;
- * numerical semantics remain in the exact model.
+ * numerical semantics remain in the exact model. This incompatible exposure
+ * change starts a new Surface series, so the source Surface is a composition
+ * input rather than a registry predecessor.
  */
-const predecessor = algebraicProximalRootsSurfaceV1 as unknown as
-  ModelSurfaceReleaseManifestV1;
 const sourceTopologyWorkbench = workbenchAnalysisSurfaceV1 as unknown as
   ModelSurfaceReleaseManifestV1;
 const roundedEjectionDerivedOutputCatalog = Object.freeze(
@@ -50,12 +48,12 @@ const roundedEjectionDerivedOutputCatalog = Object.freeze(
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SURFACE_V1 =
   Object.freeze({
-    ...predecessor,
+    ...sourceTopologyWorkbench,
     surfaceReleaseId:
-      "circleheart.main-wire.surface.rounded-ejection.standard-68.workbench-v2",
+      "circleheart.main-wire.surface.rounded-ejection.standard-68.workbench-v3",
     surfaceSeriesId:
       "circleheart.main-wire.surface.rounded-ejection.standard-68.workbench",
-    predecessorSurfaceReleaseId: predecessor.surfaceReleaseId,
+    predecessorSurfaceReleaseId: null,
     displayName: "Main Wire Standard 68",
     exposedExactOutputIds: Object.freeze([
       ...sourceTopologyWorkbench.exposedExactOutputIds,
@@ -73,7 +71,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SURFACE_V1 =
     protocolCatalog: sourceTopologyWorkbench.protocolCatalog,
   }) satisfies ModelSurfaceReleaseManifestV1;
 
-assertModelSurfaceReleaseManifestV1(
+assertModelSurfaceReleaseLineageV1(
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_SURFACE_V1,
 );
 

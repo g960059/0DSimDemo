@@ -18,6 +18,10 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1 =
 export const MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1 =
   "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69" as const;
 
+/** Exact successor removing only pulmonary PA→PArt momentum memory. */
+export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 =
+  "circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70" as const;
+
 /** Stable family identity shared by the exact model and its Surface. */
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;

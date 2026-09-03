@@ -96,6 +96,7 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import {
@@ -498,6 +499,10 @@ export const WorkbenchSession = ({
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
   const baselineValidation =
     resolveRegisteredExactModelBaselineValidationV1(contract?.modelId);
+  const standard70Measurements = baselineValidation !== null
+      && "pulmonaryValve" in baselineValidation.measurements
+    ? baselineValidation.measurements
+    : null;
   const baselineValidationPresentation = baselineValidation === null
     ? undefined
     : Object.freeze({
@@ -604,6 +609,79 @@ export const WorkbenchSession = ({
               { range: "0.29–0.65" },
             ),
           }),
+          ...(standard70Measurements === null
+            ? []
+            : [
+                Object.freeze({
+                  itemId: "pv-et-gradient",
+                  label: "PV ET · mean / peak gradient",
+                  value: `${Math.round(
+                    standard70Measurements.pulmonaryValve.ejectionTimeSec
+                      * 1_000,
+                  )} ms · ${standard70Measurements.pulmonaryValve
+                    .meanGradientMmHg.toFixed(1)} / ${standard70Measurements
+                    .pulmonaryValve.peakGradientMmHg.toFixed(1)} mmHg`,
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "ET 220–350 ms · mean 0–5 / peak 0–10 mmHg" },
+                  ),
+                }),
+                Object.freeze({
+                  itemId: "rv-dpdt",
+                  label: "RV ±dP/dt",
+                  value: `+${Math.round(
+                    standard70Measurements.rightVentricle
+                      .maximumDpDtMmHgPerSec,
+                  )} / ${Math.round(
+                    standard70Measurements.rightVentricle
+                      .minimumDpDtMmHgPerSec,
+                  )}`,
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "+300–1000 / −700–−150 mmHg/s" },
+                  ),
+                }),
+                Object.freeze({
+                  itemId: "tricuspid-ea",
+                  label: "Tricuspid E/A",
+                  value: standard70Measurements.tricuspidFlow.peakEToA
+                    .toFixed(2),
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "0.8–2.0" },
+                  ),
+                }),
+                Object.freeze({
+                  itemId: "right-ict-irt-tei",
+                  label: "RV ICT / IRT · Tei",
+                  value: `${Math.round(
+                    standard70Measurements.rightTiming.ictSec * 1_000,
+                  )} / ${Math.round(
+                    standard70Measurements.rightTiming.irtSec * 1_000,
+                  )} ms · ${standard70Measurements.rightTiming.teiIndex
+                    .toFixed(2)}`,
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "ICT 20–90 / IRT 30–120 ms · Tei 0.25–0.65" },
+                  ),
+                }),
+                Object.freeze({
+                  itemId: "pulmonary-root-morphology",
+                  label: "PAP / PV flow morphology",
+                  value: `${standard70Measurements.pulmonaryRootMorphology
+                    .papSignificantPeakCount} peak · ${standard70Measurements
+                    .pulmonaryRootMorphology.pvForwardEpisodeCount} episode / ${
+                    standard70Measurements.pulmonaryRootMorphology
+                      .pvFlowSignificantPeakCount
+                  } peak · rebound ${standard70Measurements
+                    .pulmonaryRootMorphology
+                    .maximumPostClosurePapReboundMmHg.toFixed(1)} mmHg`,
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "PAP 1 peak · PV flow 1 episode / 1 peak · rebound ≤0.5 mmHg" },
+                  ),
+                }),
+              ]),
           Object.freeze({
             itemId: "aortic-pressure",
             label: "AoP max / min",
@@ -691,9 +769,12 @@ export const WorkbenchSession = ({
             ),
             detail: t(
               baselineValidation.modelId
-                  === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1
-                ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard69"
-                : "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
+                  === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
+                ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard70"
+                : baselineValidation.modelId
+                    === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1
+                  ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard69"
+                  : "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
               {
                 low: Math.round(
                   (1 - baselineValidation.preloadReserve

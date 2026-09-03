@@ -323,6 +323,7 @@
         "baselineBidirectionalPassed": "Passed at low and high volume",
         "baselinePreloadReserveDetail": "Fixed-control formal period-1 settlement at −{{low}}% / +{{high}}% TBV. Output falls on the low-volume side (LV {{lowLv}} / RV {{lowRv}}) and rises on the high-volume side (LV {{highLv}} / RV {{highRv}} L/min). The direction-specific required criteria for output change, pressure–flow slope, and EDV response are satisfied. This is not validation of a clinical fluid challenge.",
         "baselinePreloadReserveDetailStandard69": "Fixed-control formal period-1 settlement at −{{low}}% / +{{high}}% TBV. Output falls on the low-volume side (LV {{lowLv}} / RV {{lowRv}}) and rises on the high-volume side (LV {{highLv}} / RV {{highRv}} L/min). Standard69 adds floors of ≥3% CO change, ≥0.02 L/min/mmHg CO/filling-pressure slope, and ≥3% EDV change in each direction for both ventricles. These post-exploration construction non-regression floors are not validation of a clinical fluid challenge.",
+        "baselinePreloadReserveDetailStandard70": "Fixed-control formal period-1 settlement at −{{low}}% / +{{high}}% TBV. Output falls on the low-volume side (LV {{lowLv}} / RV {{lowRv}}) and rises on the high-volume side (LV {{highLv}} / RV {{highRv}} L/min). Standard70 re-admits floors of ≥3% CO change, ≥0.02 L/min/mmHg CO/filling-pressure slope, and ≥3% EDV change in each direction for both ventricles. These construction non-regression floors are not validation of a clinical fluid challenge.",
         "baselineTransmuralResponse": "ED transmural response",
         "baselineTransmuralResponseDetail": "Maximum-volume ED transmural pressure falls at low volume (LV {{lowLv}} / RV {{lowRv}} mmHg) and rises at high volume (LV {{highLv}} / RV {{highRv}} mmHg). EDV is required to move in the same direction.",
         "limitationsTitle": "Limitations",
@@ -721,8 +722,16 @@
       "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
       "The proximal systemic and pulmonary arteries use the source 0D momentum/compliance topology. It does not represent spatial wave travel or reflection and must not be interpreted as site-resolved arterial traces.",
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
-      "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
+      "Ordinary controls warm-start from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
+    ],
+    "standard70Items": [
+      "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
+      "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
+      "The proximal systemic artery retains the source momentum/compliance topology; only PA–PArt uses an algebraic flow law retaining the source loss coefficients. The current quadratic coefficient is zero, so the nominal relation is linear. Spatial wave travel and reflection are not represented, so these are not site-resolved arterial traces.",
+      "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
+      "Ordinary controls warm-start from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
+      "Baseline mint gates include right-heart and pulmonary-artery construction sentinels, but do not establish clinical normality for an individual patient or every loading condition."
     ]
   }
 }

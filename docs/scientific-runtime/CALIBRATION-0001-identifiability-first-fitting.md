@@ -20,9 +20,10 @@ evidence frozen before its results are observed; otherwise confirmation is
 explicitly unavailable. Hashing proves content and ordering, not that evidence
 was unseen.
 
-The current claim excludes normal pulmonary-waveform validation. Right-heart
-outputs remain safety sentinels until a dedicated RV/pulmonary model-form study
-supports broader scope.
+The current claim includes baseline construction sentinels for PAP/PV-flow
+morphology, but excludes clinical or envelope-wide pulmonary-waveform
+validation. Right-heart outputs remain safety sentinels until a dedicated
+RV/pulmonary model-form study supports broader scope.
 
 ## Ownership
 
@@ -141,6 +142,17 @@ Continuation and parallel execution may accelerate exploration only when exact
 identity and checkpoint compatibility are proven; they do not replace cold
 qualification. Performance work requires a measured research-lane bottleneck
 and must not weaken these contracts.
+
+Standard70 provides bounded construction-checkpoint, same-model checkpoint,
+and nearby-parameter continuation paths for that research lane. Each path must
+re-establish period-1 convergence and the applicable baseline gates before
+a candidate can be admitted. Diagnostic failure results remain observable.
+Executable benchmarks own measured performance;
+machine-local timings and worker mechanics are not part of this durable
+contract. A proposed Standard70 finalist must still pass the Standard70
+candidate runner; an older runner's result is not silently relabelled.
+Bidirectional preload-reserve, alternate-start, and refined-step checks remain
+finalist/mint work rather than per-candidate screening.
 
 ## Qualification levels
 

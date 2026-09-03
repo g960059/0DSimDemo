@@ -87,6 +87,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
     ]));
     expect(kernel.modelMetricCatalog.map(({ outputId }) => outputId))
       .not.toContain("myocardium.energy.pressure-volume-area.LV");
+    expect(roundedSurfaceV1.predecessorSurfaceReleaseId).toBeNull();
     expect(roundedSurfaceV1.exposedExactOutputIds).toContain(ET);
     expect(roundedSurfaceV1.exposedExactOutputIds).toContain(
       "hemodynamics.pressure.absolute.Ao",
@@ -167,7 +168,7 @@ describe("rounded-ejection Standard68 exact Workbench release", () => {
       standard68.checkpointCodec,
     );
     expect(qualifiedBaselineSurfaceV1).toMatchObject({
-      predecessorSurfaceReleaseId: roundedSurfaceV1.surfaceReleaseId,
+      predecessorSurfaceReleaseId: null,
       derivedOutputCatalog: roundedSurfaceV1.derivedOutputCatalog,
       graphCatalog: roundedSurfaceV1.graphCatalog,
       knobCatalog: roundedSurfaceV1.knobCatalog,

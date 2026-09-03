@@ -7060,6 +7060,47 @@ function validateMainWireAlgebraicProximalArterialRootsProfileV1(input) {
   }
   return Object.freeze(issues);
 }
+const MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1_ID = "main-wire-algebraic-pulmonary-arterial-root-profile-v1";
+const sourcePulmonaryRoot = buildEdges().find(
+  (edge) => edge.name === "PA_PArt"
+);
+if (sourcePulmonaryRoot === void 0 || sourcePulmonaryRoot.kind !== "dynamic" || !(sourcePulmonaryRoot.L !== void 0 && sourcePulmonaryRoot.L > 0)) {
+  throw new Error(
+    "algebraic pulmonary-root profile requires source dynamic PA_PArt edge"
+  );
+}
+const MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1 = Object.freeze({
+  profileId: MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1_ID,
+  pulmonaryRootEdgeId: "PA_PArt",
+  flowLaw: "same-candidate-algebraic-linear-quadratic",
+  inertanceMmHgSec2PerMl: 0,
+  sourceResistanceAndQuadraticLossPreserved: true,
+  sourcePulmonaryArterialComplianceDistributionPreserved: true,
+  systemicAndAorticBranchesUnchanged: true,
+  acceptedRootFlowRecordRole: "exact-accepted-algebraic-flow-readback-not-continuation-memory",
+  parameterSearchOrFitting: false,
+  physiologicalValidationClaimed: false
+});
+function validateMainWireAlgebraicPulmonaryArterialRootProfileV1(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return Object.freeze([
+      "algebraic pulmonary arterial-root profile must be an object"
+    ]);
+  }
+  const expected = MAIN_WIRE_ALGEBRAIC_PULMONARY_ARTERIAL_ROOT_PROFILE_V1;
+  const actualKeys = Object.keys(input).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  const issues = [];
+  if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    issues.push("algebraic pulmonary arterial-root profile fields differ");
+  }
+  for (const key of expectedKeys) {
+    if (input[key] !== expected[key]) {
+      issues.push(`algebraic pulmonary arterial-root profile ${key} differs`);
+    }
+  }
+  return Object.freeze(issues);
+}
 const MAIN_WIRE_FOUR_VALVE_DISEASE_RESEARCH_INPUT_V1_ID = "main-wire-four-valve-disease-research-input-v1";
 const MAIN_WIRE_FOUR_VALVE_IDS_V1 = Object.freeze([
   "MV",
@@ -10957,6 +10998,22 @@ function validateRuntimeOnceV1(runtime) {
       );
     }
   }
+  const algebraicPulmonaryArterialRootProfile = runtime.vascular.algebraicPulmonaryArterialRootProfile;
+  if (algebraicPulmonaryArterialRootProfile !== void 0) {
+    const issues = validateMainWireAlgebraicPulmonaryArterialRootProfileV1(
+      algebraicPulmonaryArterialRootProfile
+    );
+    if (issues.length > 0) {
+      throw new Error(
+        `invalid algebraicPulmonaryArterialRootProfile: ${issues.join("; ")}`
+      );
+    }
+    if (algebraicProximalArterialRootsProfile !== void 0) {
+      throw new Error(
+        "algebraic pulmonary root and bilateral algebraic roots are mutually exclusive"
+      );
+    }
+  }
   requirePositive$4(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive$4(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
   if (runtime.losses.useChiResistance !== void 0 && typeof runtime.losses.useChiResistance !== "boolean") {
@@ -11278,6 +11335,8 @@ function nonCoronaryNonValveEdgeLossAndPressureDerivativesV1(edge, edgeName, run
 function nonCoronaryDynamicEdgeInertanceV1(edge, edgeName, runtime, areaRatio) {
   const algebraicRoots = runtime.vascular.algebraicProximalArterialRootsProfile;
   if (algebraicRoots !== void 0 && (edgeName === algebraicRoots.aorticRootEdgeId || edgeName === algebraicRoots.pulmonaryRootEdgeId)) return algebraicRoots.inertanceMmHgSec2PerMl;
+  const algebraicPulmonaryRoot = runtime.vascular.algebraicPulmonaryArterialRootProfile;
+  if (algebraicPulmonaryRoot !== void 0 && edgeName === algebraicPulmonaryRoot.pulmonaryRootEdgeId) return algebraicPulmonaryRoot.inertanceMmHgSec2PerMl;
   const selectedProfile = runtime.vascular.selectedAorticOutflowProfile;
   if (selectedProfile !== void 0 && edgeName === selectedProfile.sourceDynamicEdgeId) return selectedProfile.ascendingAorticInertanceMmHgSec2PerMl;
   return (edge.L ?? 0) / (edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1);

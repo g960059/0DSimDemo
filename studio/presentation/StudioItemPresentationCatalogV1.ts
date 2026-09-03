@@ -518,6 +518,39 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     ),
     aliases: ["ET", "ejection time", "LVET", "駆出時間"],
   },
+  "hemodynamics.pressure-gradient.valve.mean-hydraulic-forward.PV": {
+    category: "valves",
+    label: textV1(
+      "PV mean pressure gradient (mean PG)",
+      "肺動脈弁平均圧較差 (mean PG)",
+    ),
+    description: textV1(
+      "Time-weighted mean modeled RV − pulmonary-artery-node hydraulic pressure difference over forward-flow accepted steps; catheter and Doppler equivalence is not claimed",
+      "肺動脈弁順行性血流中のaccepted stepについて時間加重平均したモデルRV − 肺動脈node水力学的圧較差。カテーテル・Dopplerとの等価性は主張しない",
+    ),
+    aliases: ["PV mean PG", "pulmonary valve gradient", "肺動脈弁圧較差"],
+  },
+  "hemodynamics.pressure-gradient.valve.peak-hydraulic-forward.PV": {
+    category: "valves",
+    label: textV1(
+      "PV peak pressure gradient (peak PG)",
+      "肺動脈弁最大圧較差 (peak PG)",
+    ),
+    description: textV1(
+      "Maximum modeled RV − pulmonary-artery-node hydraulic pressure difference over forward-flow accepted steps; catheter and Doppler equivalence is not claimed",
+      "肺動脈弁順行性血流中のaccepted stepで最大となるモデルRV − 肺動脈node水力学的圧較差。カテーテル・Dopplerとの等価性は主張しない",
+    ),
+    aliases: ["PV peak PG", "pulmonary valve gradient", "肺動脈弁圧較差"],
+  },
+  "hemodynamics.duration.valve-forward-flow.PV": {
+    category: "valves",
+    label: textV1("Pulmonary ejection time (RVET)", "肺動脈駆出時間 (RVET)"),
+    description: textV1(
+      "Total accepted-step duration of forward modeled pulmonary-valve flow during the completed beat; Doppler RVET equivalence is not claimed",
+      "解析対象となる1心拍でモデル肺動脈弁の順行性血流が認められたaccepted-step時間の総和。Doppler RVETとの等価性は主張しない",
+    ),
+    aliases: ["RVET", "pulmonary ejection time", "右室駆出時間"],
+  },
   "hemodynamics.pressure-rate.maximum-accepted-step.absolute.LV": {
     category: "myocardium",
     label: textV1("LV +dP/dt (accepted-step)", "左室 +dP/dt (accepted-step)"),
@@ -535,6 +568,24 @@ const OUTPUT_PRESENTATION_V1: Readonly<
       "解析対象心拍のaccepted solver step間で求めた左室絶対圧の最小有限差分変化率。フィルタ処理したカテーテル実測値ではない",
     ),
     aliases: ["LV dP/dt min", "-dP/dt", "relaxation", "左室弛緩"],
+  },
+  "hemodynamics.pressure-rate.maximum-accepted-step.absolute.RV": {
+    category: "myocardium",
+    label: textV1("RV +dP/dt (accepted-step)", "右室 +dP/dt (accepted-step)"),
+    description: textV1(
+      "Maximum finite-difference rate of absolute RV pressure over accepted solver steps in the completed beat; it is not a filtered catheter measurement",
+      "解析対象心拍のaccepted solver step間で求めた右室絶対圧の最大有限差分変化率。フィルタ処理したカテーテル実測値ではない",
+    ),
+    aliases: ["RV dP/dt max", "RV contractility", "右室収縮能"],
+  },
+  "hemodynamics.pressure-rate.minimum-accepted-step.absolute.RV": {
+    category: "myocardium",
+    label: textV1("RV −dP/dt (accepted-step)", "右室 −dP/dt (accepted-step)"),
+    description: textV1(
+      "Minimum finite-difference rate of absolute RV pressure over accepted solver steps in the completed beat; it is not a filtered catheter measurement",
+      "解析対象心拍のaccepted solver step間で求めた右室絶対圧の最小有限差分変化率。フィルタ処理したカテーテル実測値ではない",
+    ),
+    aliases: ["RV dP/dt min", "RV relaxation", "右室弛緩"],
   },
   "hemodynamics.output.effective-native-left": {
     category: "hemodynamics",
