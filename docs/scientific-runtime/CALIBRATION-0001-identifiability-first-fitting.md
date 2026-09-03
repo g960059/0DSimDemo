@@ -65,6 +65,15 @@ right-heart checks must pass in every run, but they are not promoted into the
 current objective without dedicated evidence. A rejected safety run leaves the
 audit unresolved.
 
+Conditioning study revision 17 targets Standard70 directly. Its canonical
+identity includes the exact model, evaluator, inherited objective method, and
+the complete Standard70 right-heart safety policy. Finite-difference spectra
+continue to use only the 28 inherited objective checks; all 13 right-heart
+sentinels must pass for every accepted evaluation, and a center is neither
+cached nor used as a continuation anchor when safety admission fails. Reports
+from earlier revisions retain their historical study hash and are not current
+Standard70 evidence.
+
 The policy layer records, without copying code-owned catalogs or formulas:
 
 - parameter role, scope, unit, transform, supported domain, provenance,

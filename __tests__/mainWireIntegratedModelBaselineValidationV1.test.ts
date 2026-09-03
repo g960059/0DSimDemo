@@ -454,10 +454,20 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
     });
     expect(lintMainWireBaselineConditioningStudyV1(confounded)
       .map(({ code }) => code)).toEqual(expect.arrayContaining([
-        "primary-role-mismatch",
-        "confounded-primary-coordinates",
-        "preload-owner-count",
-      ]));
+      "primary-role-mismatch",
+      "confounded-primary-coordinates",
+      "preload-owner-count",
+    ]));
+
+    const staleAnalysisTarget = Object.freeze({
+      ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
+      analysisTarget: Object.freeze({
+        ...MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.analysisTarget,
+        evaluatorId: "stale-evaluator",
+      }),
+    }) as unknown as typeof MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1;
+    expect(lintMainWireBaselineConditioningStudyV1(staleAnalysisTarget)
+      .map(({ code }) => code)).toContain("analysis-target-invalid");
   });
 
   it("adds baseline-local numerical floor and candidate-local finalist allowance", () => {

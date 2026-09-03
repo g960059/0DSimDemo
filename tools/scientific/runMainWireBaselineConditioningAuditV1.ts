@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import settledBaselineCheckpointJson from
-  "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-settled-baseline-checkpoint.json";
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
 import {
   buildMainWireBaselineConditioningCenterConstructionV1,
   createMainWireBaselineConditioningCenterCacheArtifactV1,
@@ -22,9 +22,9 @@ import {
   type MainWireBaselineConditioningTaskV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
-  validateMainWireIntegratedModelStandard68CheckpointV1,
-  type MainWireIntegratedModelStandard68CheckpointV1,
-} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+  validateMainWireIntegratedModelStandard70CheckpointV1,
+  type MainWireIntegratedModelStandard70CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
@@ -125,7 +125,7 @@ async function runCoordinatorV1(): Promise<void> {
     effectiveParallelism,
     ({ result }) => {
       const lookup = lookupByTaskId.get(result.task.taskId);
-      if (lookup?.status === "hit" && result.evaluationStatus !== "accepted") {
+      if (lookup?.status === "hit" && !centerResultAdmittedV1(result)) {
         process.stderr.write(
           `[conditioning] center cache reconfirmation failed: `
             + `${result.task.conditionId}; recomputing from the declared anchor\n`,
@@ -139,7 +139,7 @@ async function runCoordinatorV1(): Promise<void> {
   const fallbackCenters = initialCenterExecutions.flatMap(
     (execution, index) =>
       centerCacheLookups[index].status === "hit"
-        && execution.result.evaluationStatus !== "accepted"
+        && !centerResultAdmittedV1(execution.result)
         ? [Object.freeze({ index, job: defaultCenterJobV1(centerTasks[index]) })]
         : [],
   );
@@ -156,11 +156,15 @@ async function runCoordinatorV1(): Promise<void> {
   const fallbackConditionIds = new Set(fallbackCenters.map(({ index }) =>
     centerTasks[index].conditionId));
   const checkpointByCondition = new Map<string,
-    MainWireIntegratedModelStandard68CheckpointV1>();
+    MainWireIntegratedModelStandard70CheckpointV1>();
   for (const [index, execution] of centerExecutions.entries()) {
-    if (execution.acceptedCheckpoint === null) {
+    if (
+      execution.acceptedCheckpoint === null
+      || !centerResultAdmittedV1(execution.result)
+    ) {
       throw new Error(
-        `conditioning center failed: ${execution.result.task.conditionId}`,
+        `conditioning center failed exact or safety admission: `
+          + execution.result.task.conditionId,
       );
     }
     const lookup = centerCacheLookups[index];
@@ -258,7 +262,7 @@ type CenterCacheLookupV1 = Readonly<{
   status: "disabled" | "hit" | "miss" | "rejected";
   construction: MainWireBaselineConditioningCenterConstructionV1 | null;
   cachePath: string | null;
-  checkpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
+  checkpoint: MainWireIntegratedModelStandard70CheckpointV1 | null;
 }>;
 
 async function loadCenterCacheV1(
@@ -331,7 +335,7 @@ async function loadCenterCacheV1(
 
 async function writeCenterCacheV1(
   lookup: CenterCacheLookupV1,
-  checkpoint: MainWireIntegratedModelStandard68CheckpointV1,
+  checkpoint: MainWireIntegratedModelStandard70CheckpointV1,
 ): Promise<void> {
   if (lookup.construction === null || lookup.cachePath === null) {
     throw new Error("conditioning center cache destination is unavailable");
@@ -363,7 +367,7 @@ async function runWorkerV1(encodedTask: string): Promise<void> {
   const decoded = Buffer.from(encodedTask, "base64url").toString("utf8");
   const job = parseWorkerJobV1(JSON.parse(decoded) as unknown);
   const sourceCheckpoint =
-    await validateMainWireIntegratedModelStandard68CheckpointV1(
+    await validateMainWireIntegratedModelStandard70CheckpointV1(
       job.sourceCheckpoint,
     );
   const execution = await executeMainWireBaselineConditioningTaskV1(
@@ -492,7 +496,7 @@ type WorkerJobV1 = Readonly<{
 
 type WorkerExecutionV1 = Readonly<{
   result: MainWireBaselineConditioningTaskResultV1;
-  acceptedCheckpoint: MainWireIntegratedModelStandard68CheckpointV1 | null;
+  acceptedCheckpoint: MainWireIntegratedModelStandard70CheckpointV1 | null;
 }>;
 
 function parseWorkerExecutionV1(input: unknown): WorkerExecutionV1 {
@@ -503,7 +507,7 @@ function parseWorkerExecutionV1(input: unknown): WorkerExecutionV1 {
   const result = parseTaskResultV1(record.result);
   const acceptedCheckpoint = record.acceptedCheckpoint === null
     ? null
-    : record.acceptedCheckpoint as MainWireIntegratedModelStandard68CheckpointV1;
+    : record.acceptedCheckpoint as MainWireIntegratedModelStandard70CheckpointV1;
   return Object.freeze({ result, acceptedCheckpoint });
 }
 
@@ -518,10 +522,26 @@ function parseTaskResultV1(input: unknown): MainWireBaselineConditioningTaskResu
     || typeof record.wallTimeMs !== "number"
     || !Number.isFinite(record.wallTimeMs)
     || !Array.isArray(record.checks)
+    || !Array.isArray(record.failedConstructionCheckIds)
+    || !Array.isArray(record.failedObjectiveCheckIds)
+    || !Array.isArray(record.failedSafetySentinelCheckIds)
+    || (record.evaluationStatus === "accepted"
+      && (record.objectiveGateStatus !== "passed"
+        && record.objectiveGateStatus !== "failed"))
+    || (record.evaluationStatus === "accepted"
+      && (record.safetySentinelStatus !== "passed"
+        && record.safetySentinelStatus !== "failed"))
   ) {
     throw new Error(`worker result is incomplete for ${task.taskId}`);
   }
   return input as MainWireBaselineConditioningTaskResultV1;
+}
+
+function centerResultAdmittedV1(
+  result: MainWireBaselineConditioningTaskResultV1,
+): boolean {
+  return result.evaluationStatus === "accepted"
+    && result.safetySentinelStatus === "passed";
 }
 
 function parseWorkerJobV1(input: unknown): WorkerJobV1 {
