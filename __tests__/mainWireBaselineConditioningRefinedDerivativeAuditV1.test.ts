@@ -126,6 +126,14 @@ describe("direct refined-dt conditioning derivatives", () => {
       buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
         ...common,
         fineEvaluations: common.fineEvaluations.map((evaluation, index) =>
+          index === 0 ? { ...evaluation, nominalDtSec: 0.002 } : evaluation),
+        refinedNominalDtSec: 0.001,
+      }),
+    ).rejects.toThrow(/task evaluation dt differs/);
+    await expect(
+      buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+        ...common,
+        fineEvaluations: common.fineEvaluations.map((evaluation, index) =>
           index === 0
             ? {
                 ...evaluation,
