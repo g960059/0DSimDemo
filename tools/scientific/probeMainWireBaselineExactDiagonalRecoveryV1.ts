@@ -1,8 +1,11 @@
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
 import settledBaselineCheckpointJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
 import { cloneAndFreezeStudioJson } from "@/domain/json/CanonicalJson";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import {
   validateMainWireIntegratedModelStandard70CheckpointV1,
   type MainWireIntegratedModelStandard70CheckpointV1,
@@ -49,23 +52,40 @@ const sourceCheckpoint =
   await validateMainWireIntegratedModelStandard70CheckpointV1(
     cloneAndFreezeStudioJson(settledBaselineCheckpointJson),
   );
+const probeExecutionCommit = execFileSync(
+  "git",
+  ["rev-parse", "HEAD"],
+  { encoding: "utf8" },
+).trim();
 
+const coarseSource = await jsonArtifactV1(
+  "/tmp/main-wire-standard70-conditioning-primary-envelope-v1.json",
+);
+const refinedSource = await jsonArtifactV1(
+  "/tmp/main-wire-standard70-conditioning-refined-derivatives-v1.json",
+);
+const attributionSource = await jsonArtifactV1(
+  "/tmp/main-wire-standard70-conditioning-perturbation-attribution-v1.json",
+);
+const stageSource = await jsonArtifactV1(
+  "/tmp/main-wire-standard70-conditioning-stage-v1.json",
+);
 const coarse = await verifyMainWireBaselineConditioningAuditV1(
-  await jsonV1("/tmp/main-wire-standard70-conditioning-primary-envelope-v1.json"),
+  coarseSource.input,
 );
 const refined =
   await verifyMainWireBaselineConditioningRefinedDerivativeAuditV1(
-    await jsonV1("/tmp/main-wire-standard70-conditioning-refined-derivatives-v1.json"),
+    refinedSource.input,
     coarse,
   );
 const attribution =
   await verifyMainWireBaselineConditioningPerturbationAttributionV1(
-    await jsonV1("/tmp/main-wire-standard70-conditioning-perturbation-attribution-v1.json"),
+    attributionSource.input,
     coarse,
     refined,
   );
 const stage = await verifyMainWireBaselineConditioningStageAuditV1(
-  await jsonV1("/tmp/main-wire-standard70-conditioning-stage-v1.json"),
+  stageSource.input,
   coarse,
   refined,
   attribution,
@@ -120,6 +140,7 @@ const target = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
 if (target.status !== "accepted") {
   throw new Error(`target failed: ${target.status}/${target.message}`);
 }
+assertAllGatesPassedV1(target, "cold target");
 const targetCheckById = new Map<
   string,
   (typeof target.objectiveChecks)[number]
@@ -210,6 +231,16 @@ const artifact = {
     ? "tbv-plus-active-plus"
     : "tbv-plus-active-minus",
   source: {
+    probeExecutionCommit,
+    coarseArtifactRawSha256: coarseSource.rawSha256,
+    coarseArtifactCanonicalSha256: await sha256CanonicalJsonHex(coarse),
+    refinedArtifactRawSha256: refinedSource.rawSha256,
+    refinedArtifactCanonicalSha256: await sha256CanonicalJsonHex(refined),
+    attributionArtifactRawSha256: attributionSource.rawSha256,
+    attributionArtifactCanonicalSha256:
+      await sha256CanonicalJsonHex(attribution),
+    stageArtifactRawSha256: stageSource.rawSha256,
+    stageArtifactCanonicalSha256: await sha256CanonicalJsonHex(stage),
     studyIdentitySha256: stage.source.studyIdentitySha256,
     exactModelIdentitySha256: stage.source.exactModelIdentitySha256,
     stagePolicyIdentitySha256: stage.stagePolicy.policyIdentitySha256,
@@ -225,7 +256,11 @@ const artifact = {
     completedCycleCount: target.exactResult.completedCycleCount,
     classificationStatus: target.exactResult.classification.status,
     constructionGateStatus: target.constructionGateStatus,
+    objectiveGateStatus: target.objectiveGateStatus,
+    safetySentinelStatus: target.safetySentinelStatus,
     failedConstructionCheckIds: target.failedConstructionCheckIds,
+    failedObjectiveCheckIds: target.failedObjectiveCheckIds,
+    failedSafetySentinelCheckIds: target.failedSafetySentinelCheckIds,
     requestIdentitySha256: target.requestIdentitySha256,
     checkpointSha256: target.exactResult.checkpoint.checkpointSha256,
   },
@@ -286,8 +321,12 @@ const outputPath =
 await writeFile(outputPath, `${JSON.stringify(artifact, null, 2)}\n`, "utf8");
 process.stdout.write(`${outputPath}\n`);
 
-async function jsonV1(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
+async function jsonArtifactV1(path: string) {
+  const raw = await readFile(path, "utf8");
+  return Object.freeze({
+    input: JSON.parse(raw) as unknown,
+    rawSha256: createHash("sha256").update(raw).digest("hex"),
+  });
 }
 
 function solveTwoColumnLeastSquaresV1(
@@ -345,7 +384,27 @@ function acceptedV1<T extends Awaited<ReturnType<typeof continueV1>>>(
   if (evaluation.status !== "accepted") {
     throw new Error(`${label} failed: ${evaluation.status}/${evaluation.message}`);
   }
+  assertAllGatesPassedV1(evaluation, label);
   return evaluation as Extract<T, { status: "accepted" }>;
+}
+
+function assertAllGatesPassedV1(
+  evaluation: Extract<
+    Awaited<ReturnType<typeof continueV1>>,
+    { status: "accepted" }
+  >,
+  label: string,
+): void {
+  if (
+    evaluation.constructionGateStatus !== "passed"
+    || evaluation.objectiveGateStatus !== "passed"
+    || evaluation.safetySentinelStatus !== "passed"
+    || evaluation.failedConstructionCheckIds.length > 0
+    || evaluation.failedObjectiveCheckIds.length > 0
+    || evaluation.failedSafetySentinelCheckIds.length > 0
+  ) {
+    throw new Error(`${label} did not pass every retained gate`);
+  }
 }
 
 function summaryV1(
@@ -362,8 +421,11 @@ function summaryV1(
     completedCycleCount: evaluation.exactResult.completedCycleCount,
     classificationStatus: evaluation.exactResult.classification.status,
     constructionGateStatus: evaluation.constructionGateStatus,
+    objectiveGateStatus: evaluation.objectiveGateStatus,
     safetySentinelStatus: evaluation.safetySentinelStatus,
     failedConstructionCheckIds: evaluation.failedConstructionCheckIds,
+    failedObjectiveCheckIds: evaluation.failedObjectiveCheckIds,
+    failedSafetySentinelCheckIds: evaluation.failedSafetySentinelCheckIds,
   } as const;
 }
 
