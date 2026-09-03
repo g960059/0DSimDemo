@@ -200,6 +200,75 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
       })).toThrow(/Standard70 baseline validation report is invalid/);
   });
 
+  it("rejects incomplete, duplicate, or unknown Standard70 gate evidence", () => {
+    const report =
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
+    const missingInheritedGate = report.checks.slice(1);
+    const missingStandard70Gate = report.checks.slice(0, -1);
+    const duplicateGate = [
+      ...report.checks.slice(0, -1),
+      report.checks[0],
+    ];
+    const unknownGate = [
+      ...report.checks.slice(0, -1),
+      {
+        ...report.checks.at(-1),
+        checkId: "waveform.unknown",
+      },
+    ];
+    for (const checks of [
+      missingInheritedGate,
+      missingStandard70Gate,
+      duplicateGate,
+      unknownGate,
+    ]) {
+      expect(() =>
+        validateMainWireIntegratedStudioStandard70BaselineValidationV1({
+          ...report,
+          checks,
+        })).toThrow(/Standard70 baseline validation report is invalid/);
+    }
+  });
+
+  it("rejects right-heart field substitution and an unknown initialization", () => {
+    const report =
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
+    const { ejectionTimeSec, ...pulmonaryValveWithoutEt } =
+      report.measurements.pulmonaryValve;
+    expect(() =>
+      validateMainWireIntegratedStudioStandard70BaselineValidationV1({
+        ...report,
+        measurements: {
+          ...report.measurements,
+          pulmonaryValve: {
+            ...pulmonaryValveWithoutEt,
+            substitutedField: ejectionTimeSec,
+          },
+        },
+      })).toThrow(/Standard70 baseline validation report is invalid/);
+    expect(() =>
+      validateMainWireIntegratedStudioStandard70BaselineValidationV1({
+        ...report,
+        initializationKind: "unverified-warm-start",
+      })).toThrow(/Standard70 baseline validation report is invalid/);
+  });
+
+  it("rejects extra pulmonary-root morphology fields", () => {
+    const report =
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
+    expect(() =>
+      validateMainWireIntegratedStudioStandard70BaselineValidationV1({
+        ...report,
+        measurements: {
+          ...report.measurements,
+          pulmonaryRootMorphology: {
+            ...report.measurements.pulmonaryRootMorphology,
+            unregisteredPeakCount: 1,
+          },
+        },
+      })).toThrow(/Standard70 baseline validation report is invalid/);
+  });
+
   it("keeps the runtime usable after the previously failing minimum-TBV edit", async () => {
     const release =
       createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1();

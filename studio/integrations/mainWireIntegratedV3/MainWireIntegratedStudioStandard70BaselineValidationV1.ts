@@ -23,6 +23,7 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
   assertMainWireIntegratedModelStandard70BaselinePassedV1,
+  buildMainWireIntegratedModelStandard70BaselineChecksV1,
   type MainWireIntegratedModelStandard70BaselineCheckV1,
   type MainWireIntegratedModelStandard70BaselineMeasurementsV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
@@ -33,6 +34,14 @@ import {
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD70_BASELINE_VALIDATION_V1_SCHEMA_ID =
   "circleheart.main-wire.algebraic-pulmonary-root-baseline-validation.v1" as const;
+
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1 =
+  Object.freeze([
+    "cold",
+    "standard68-construction-continuation",
+    "standard70-exact-checkpoint",
+    "standard70-parameter-continuation",
+  ] as const);
 
 export type MainWireIntegratedStudioStandard70BaselineValidationV1 = Readonly<{
   schemaId:
@@ -136,9 +145,15 @@ export function validateMainWireIntegratedStudioStandard70BaselineValidationV1(
     || report.preloadReservePolicyId !==
       MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID
     || report.status !== "passed"
+    || !MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1
+      .some((kind) => kind === report.initializationKind)
     || report.measurements === undefined
     || report.checks === undefined
     || !validRightHeartMeasurementsV1(report.measurements)
+    || !validCanonicalStandard70ChecksV1(
+      report.measurements,
+      report.checks,
+    )
   ) {
     throw new Error("Standard70 baseline validation report is invalid");
   }
@@ -163,16 +178,32 @@ export function validateMainWireIntegratedStudioStandard70BaselineValidationV1(
 function validRightHeartMeasurementsV1(
   measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1,
 ): boolean {
-  const scalarMeasurements = [
-    ...Object.values(measurements.pulmonaryValve ?? {}),
-    ...Object.values(measurements.rightVentricle ?? {}),
-    ...Object.values(measurements.tricuspidFlow ?? {}),
-    ...Object.values(measurements.rightTiming ?? {}),
-  ];
   const morphology = measurements.pulmonaryRootMorphology;
-  return scalarMeasurements.length === 11
-    && scalarMeasurements.every(Number.isFinite)
-    && morphology !== undefined
+  return validFiniteRecordV1(measurements.pulmonaryValve, [
+    "ejectionTimeSec",
+    "meanGradientMmHg",
+    "peakGradientMmHg",
+  ])
+    && validFiniteRecordV1(measurements.rightVentricle, [
+      "maximumDpDtMmHgPerSec",
+      "minimumDpDtMmHgPerSec",
+    ])
+    && validFiniteRecordV1(measurements.tricuspidFlow, [
+      "peakEMlPerSec",
+      "peakAMlPerSec",
+      "peakEToA",
+    ])
+    && validFiniteRecordV1(measurements.rightTiming, [
+      "ictSec",
+      "irtSec",
+      "teiIndex",
+    ])
+    && validFiniteRecordV1(morphology, [
+      "papSignificantPeakCount",
+      "pvForwardEpisodeCount",
+      "pvFlowSignificantPeakCount",
+      "maximumPostClosurePapReboundMmHg",
+    ])
     && Number.isSafeInteger(morphology.papSignificantPeakCount)
     && Number.isSafeInteger(morphology.pvForwardEpisodeCount)
     && Number.isSafeInteger(morphology.pvFlowSignificantPeakCount)
@@ -181,4 +212,45 @@ function validRightHeartMeasurementsV1(
     && morphology.pvFlowSignificantPeakCount >= 0
     && Number.isFinite(morphology.maximumPostClosurePapReboundMmHg)
     && morphology.maximumPostClosurePapReboundMmHg >= 0;
+}
+
+function validFiniteRecordV1(
+  value: unknown,
+  expectedKeys: readonly string[],
+): value is Readonly<Record<string, number>> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Readonly<Record<string, unknown>>;
+  const actualKeys = Object.keys(record);
+  return actualKeys.length === expectedKeys.length
+    && expectedKeys.every((key) =>
+      Object.prototype.hasOwnProperty.call(record, key))
+    && expectedKeys.every((key) => Number.isFinite(record[key]));
+}
+
+function validCanonicalStandard70ChecksV1(
+  measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1,
+  checks: readonly MainWireIntegratedModelStandard70BaselineCheckV1[],
+): boolean {
+  if (!Array.isArray(checks)) return false;
+  try {
+    const expected = buildMainWireIntegratedModelStandard70BaselineChecksV1(
+      measurements,
+      true,
+    );
+    return checks.length === expected.length
+      && expected.every((expectedCheck, index) => {
+        const actualCheck = checks[index];
+        return actualCheck !== undefined
+          && actualCheck.checkId === expectedCheck.checkId
+          && actualCheck.status === expectedCheck.status
+          && actualCheck.actual === expectedCheck.actual
+          && actualCheck.minimum === expectedCheck.minimum
+          && actualCheck.maximum === expectedCheck.maximum
+          && actualCheck.unit === expectedCheck.unit;
+      });
+  } catch {
+    return false;
+  }
 }

@@ -54842,6 +54842,167 @@ const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1 = Object.freeze({
     )
   })
 });
+function buildMainWireIntegratedModelBaselineValidationChecksV1(measurements2, period1Established) {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1;
+  const checks2 = [
+    exactCheckV1("settlement.period1", 1, 1, "bool"),
+    boundedCheckV1(
+      "waveform.LVP.single-peak-no-ringing",
+      measurements2.LVP.significantPeakCount === policy.pressureMorphology.requiredSignificantPeakCount && measurements2.LVP.forwardEpisodeCount === policy.pressureMorphology.requiredForwardEpisodeCount && measurements2.LVP.totalVariationRatio <= policy.pressureMorphology.maximumTotalVariationRatio ? 1 : 0,
+      1,
+      1,
+      "bool"
+    ),
+    morphologyRoundnessCheckV1("waveform.LVP.rounded-not-plateau", measurements2.LVP),
+    boundedCheckV1(
+      "waveform.RVP.single-peak-no-ringing",
+      measurements2.RVP.significantPeakCount === policy.pressureMorphology.requiredSignificantPeakCount && measurements2.RVP.forwardEpisodeCount === policy.pressureMorphology.requiredForwardEpisodeCount && measurements2.RVP.totalVariationRatio <= policy.pressureMorphology.maximumTotalVariationRatio ? 1 : 0,
+      1,
+      1,
+      "bool"
+    ),
+    morphologyRoundnessCheckV1("waveform.RVP.rounded-not-plateau", measurements2.RVP),
+    rangeCheckV1(
+      "aortic-valve.mean-gradient",
+      measurements2.aorticValve.meanGradientMmHg,
+      policy.aorticValveGradientMmHg.mean,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "aortic-valve.peak-gradient",
+      measurements2.aorticValve.peakGradientMmHg,
+      policy.aorticValveGradientMmHg.peak,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "aortic-valve.ejection-time",
+      measurements2.aorticValve.ejectionTimeSec,
+      policy.aorticEjectionTimeSec,
+      "s"
+    ),
+    rangeCheckV1(
+      "left-ventricle.maximum-dpdt",
+      measurements2.leftVentricle.maximumDpDtMmHgPerSec,
+      policy.lvPressureRateMmHgPerSec.maximum,
+      "mmHg/s"
+    ),
+    rangeCheckV1(
+      "left-ventricle.minimum-dpdt",
+      measurements2.leftVentricle.minimumDpDtMmHgPerSec,
+      policy.lvPressureRateMmHgPerSec.minimum,
+      "mmHg/s"
+    ),
+    rangeCheckV1(
+      "mitral-flow.peak-e-to-a",
+      measurements2.mitralFlow.peakEToA,
+      policy.mitralPeakEToA,
+      "ratio"
+    ),
+    rangeCheckV1(
+      "timing.ict",
+      measurements2.timing.ictSec,
+      policy.ventricularTimingSec.isovolumicContraction,
+      "s"
+    ),
+    rangeCheckV1(
+      "timing.irt",
+      measurements2.timing.irtSec,
+      policy.ventricularTimingSec.isovolumicRelaxation,
+      "s"
+    ),
+    rangeCheckV1(
+      "timing.tei-index",
+      measurements2.timing.teiIndex,
+      policy.ventricularTimingSec.teiIndex,
+      "ratio"
+    ),
+    rangeCheckV1(
+      "aortic-pressure.maximum",
+      measurements2.hemodynamicPressure.aortic.maximumMmHg,
+      policy.hemodynamicPressureMmHg.aortic.maximum,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "aortic-pressure.minimum",
+      measurements2.hemodynamicPressure.aortic.minimumMmHg,
+      policy.hemodynamicPressureMmHg.aortic.minimum,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "pulmonary-artery-pressure.maximum",
+      measurements2.hemodynamicPressure.pulmonaryArtery.maximumMmHg,
+      policy.hemodynamicPressureMmHg.pulmonaryArtery.maximum,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "pulmonary-artery-pressure.minimum",
+      measurements2.hemodynamicPressure.pulmonaryArtery.minimumMmHg,
+      policy.hemodynamicPressureMmHg.pulmonaryArtery.minimum,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "central-venous-pressure.mean",
+      measurements2.hemodynamicPressure.centralVenousMeanMmHg,
+      policy.hemodynamicPressureMmHg.centralVenousMean,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "pcwp-surrogate.mean",
+      measurements2.hemodynamicPressure.pcwpSurrogateMeanMmHg,
+      policy.hemodynamicPressureMmHg.pcwpSurrogateMean,
+      "mmHg"
+    ),
+    rangeCheckV1(
+      "left-ventricle.edv-index",
+      measurements2.cardiacSizeAndFunction.leftVentricle.endDiastolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.leftVentricularEndDiastolicVolumeIndexMlPerM2,
+      "mL/m2"
+    ),
+    rangeCheckV1(
+      "left-ventricle.esv-index",
+      measurements2.cardiacSizeAndFunction.leftVentricle.endSystolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.leftVentricularEndSystolicVolumeIndexMlPerM2,
+      "mL/m2"
+    ),
+    rangeCheckV1(
+      "left-ventricle.ejection-fraction",
+      measurements2.cardiacSizeAndFunction.leftVentricle.ejectionFraction01,
+      policy.indexedCardiacSizeAndFunction.leftVentricularEjectionFraction01,
+      "ratio"
+    ),
+    rangeCheckV1(
+      "right-ventricle.edv-index",
+      measurements2.cardiacSizeAndFunction.rightVentricle.endDiastolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.rightVentricularEndDiastolicVolumeIndexMlPerM2,
+      "mL/m2"
+    ),
+    rangeCheckV1(
+      "right-ventricle.esv-index",
+      measurements2.cardiacSizeAndFunction.rightVentricle.endSystolicVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.rightVentricularEndSystolicVolumeIndexMlPerM2,
+      "mL/m2"
+    ),
+    rangeCheckV1(
+      "right-ventricle.ejection-fraction",
+      measurements2.cardiacSizeAndFunction.rightVentricle.ejectionFraction01,
+      policy.indexedCardiacSizeAndFunction.rightVentricularEjectionFraction01,
+      "ratio"
+    ),
+    rangeCheckV1(
+      "systemic-forward-flow.cardiac-index",
+      measurements2.cardiacSizeAndFunction.systemicForwardFlow.cardiacIndexLPerMinPerM2,
+      policy.indexedCardiacSizeAndFunction.cardiacIndexLPerMinPerM2,
+      "L/min/m2"
+    ),
+    rangeCheckV1(
+      "systemic-forward-flow.stroke-volume-index",
+      measurements2.cardiacSizeAndFunction.systemicForwardFlow.strokeVolumeIndexMlPerM2,
+      policy.indexedCardiacSizeAndFunction.strokeVolumeIndexMlPerM2,
+      "mL/m2"
+    )
+  ];
+  return Object.freeze(checks2);
+}
 function healthyReferenceRangeV1(metricId) {
   const gate2 = MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3.gates.find((candidate) => candidate.metricId === metricId);
   if (gate2 === void 0) {
@@ -54852,8 +55013,157 @@ function healthyReferenceRangeV1(metricId) {
     maximum: gate2.upperInclusive
   });
 }
+function morphologyRoundnessCheckV1(checkId, measurement) {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1.pressureMorphology;
+  const passed = measurement.centralRangeFraction >= policy.minimumCentralRangeFraction && measurement.centralRangeFraction <= policy.maximumCentralRangeFraction && measurement.peakPhase01 >= policy.minimumPeakPhase01 && measurement.peakPhase01 <= policy.maximumPeakPhase01;
+  return Object.freeze({
+    checkId,
+    status: passed ? "passed" : "failed",
+    actual: measurement.centralRangeFraction,
+    minimum: policy.minimumCentralRangeFraction,
+    maximum: policy.maximumCentralRangeFraction,
+    unit: "fraction"
+  });
+}
+function exactCheckV1(checkId, actual, expected, unit) {
+  return boundedCheckV1(checkId, actual, expected, expected, unit);
+}
+function rangeCheckV1(checkId, actual, range, unit) {
+  return boundedCheckV1(
+    checkId,
+    actual,
+    range.minimum,
+    range.maximum,
+    unit
+  );
+}
+function boundedCheckV1(checkId, actual, minimum, maximum, unit) {
+  const status2 = Number.isFinite(actual) && actual >= minimum && actual <= maximum ? "passed" : "failed";
+  return Object.freeze({ checkId, status: status2, actual, minimum, maximum, unit });
+}
 const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID = "main-wire-integrated-model-rounded-ejection-baseline-qualification-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID = "main-wire-integrated-model-standard70-baseline-validation-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1 = Object.freeze({
+  pulmonaryValveGradientMmHg: Object.freeze({
+    mean: Object.freeze({ minimum: 0, maximum: 5 }),
+    peak: Object.freeze({ minimum: 0, maximum: 10 })
+  }),
+  pulmonaryEjectionTimeSec: Object.freeze({ minimum: 0.22, maximum: 0.35 }),
+  rvPressureRateMmHgPerSec: Object.freeze({
+    maximum: Object.freeze({ minimum: 300, maximum: 1e3 }),
+    minimum: Object.freeze({ minimum: -700, maximum: -150 })
+  }),
+  tricuspidPeakEToA: Object.freeze({ minimum: 0.8, maximum: 2 }),
+  ventricularTimingSec: Object.freeze({
+    isovolumicContraction: Object.freeze({ minimum: 0.02, maximum: 0.09 }),
+    isovolumicRelaxation: Object.freeze({ minimum: 0.03, maximum: 0.12 }),
+    teiIndex: Object.freeze({ minimum: 0.25, maximum: 0.65 })
+  }),
+  pulmonaryRootMorphology: Object.freeze({
+    requiredPapSignificantPeakCount: 1,
+    requiredPvForwardEpisodeCount: 1,
+    requiredPvFlowSignificantPeakCount: 1,
+    maximumPostClosurePapReboundMmHg: 0.5
+  })
+});
+function buildMainWireIntegratedModelStandard70BaselineChecksV1(measurements2, period1Established) {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1;
+  return Object.freeze([
+    ...buildMainWireIntegratedModelBaselineValidationChecksV1(
+      measurements2
+    ),
+    rightRangeCheckV1(
+      "pulmonary-valve.mean-gradient",
+      measurements2.pulmonaryValve.meanGradientMmHg,
+      policy.pulmonaryValveGradientMmHg.mean,
+      "mmHg"
+    ),
+    rightRangeCheckV1(
+      "pulmonary-valve.peak-gradient",
+      measurements2.pulmonaryValve.peakGradientMmHg,
+      policy.pulmonaryValveGradientMmHg.peak,
+      "mmHg"
+    ),
+    rightRangeCheckV1(
+      "pulmonary-valve.ejection-time",
+      measurements2.pulmonaryValve.ejectionTimeSec,
+      policy.pulmonaryEjectionTimeSec,
+      "s"
+    ),
+    rightRangeCheckV1(
+      "right-ventricle.maximum-dpdt",
+      measurements2.rightVentricle.maximumDpDtMmHgPerSec,
+      policy.rvPressureRateMmHgPerSec.maximum,
+      "mmHg/s"
+    ),
+    rightRangeCheckV1(
+      "right-ventricle.minimum-dpdt",
+      measurements2.rightVentricle.minimumDpDtMmHgPerSec,
+      policy.rvPressureRateMmHgPerSec.minimum,
+      "mmHg/s"
+    ),
+    rightRangeCheckV1(
+      "tricuspid-flow.peak-e-to-a",
+      measurements2.tricuspidFlow.peakEToA,
+      policy.tricuspidPeakEToA,
+      "ratio"
+    ),
+    rightRangeCheckV1(
+      "right-timing.ict",
+      measurements2.rightTiming.ictSec,
+      policy.ventricularTimingSec.isovolumicContraction,
+      "s"
+    ),
+    rightRangeCheckV1(
+      "right-timing.irt",
+      measurements2.rightTiming.irtSec,
+      policy.ventricularTimingSec.isovolumicRelaxation,
+      "s"
+    ),
+    rightRangeCheckV1(
+      "right-timing.tei-index",
+      measurements2.rightTiming.teiIndex,
+      policy.ventricularTimingSec.teiIndex,
+      "ratio"
+    ),
+    rightRangeCheckV1(
+      "waveform.PAP.single-peak-no-ringing",
+      measurements2.pulmonaryRootMorphology.papSignificantPeakCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology.requiredPapSignificantPeakCount,
+        maximum: policy.pulmonaryRootMorphology.requiredPapSignificantPeakCount
+      }),
+      "count"
+    ),
+    rightRangeCheckV1(
+      "waveform.PV-flow.single-forward-episode",
+      measurements2.pulmonaryRootMorphology.pvForwardEpisodeCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology.requiredPvForwardEpisodeCount,
+        maximum: policy.pulmonaryRootMorphology.requiredPvForwardEpisodeCount
+      }),
+      "count"
+    ),
+    rightRangeCheckV1(
+      "waveform.PV-flow.single-peak-no-ringing",
+      measurements2.pulmonaryRootMorphology.pvFlowSignificantPeakCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology.requiredPvFlowSignificantPeakCount,
+        maximum: policy.pulmonaryRootMorphology.requiredPvFlowSignificantPeakCount
+      }),
+      "count"
+    ),
+    rightRangeCheckV1(
+      "waveform.PAP.post-PV-closure-rebound",
+      measurements2.pulmonaryRootMorphology.maximumPostClosurePapReboundMmHg,
+      Object.freeze({
+        minimum: 0,
+        maximum: policy.pulmonaryRootMorphology.maximumPostClosurePapReboundMmHg
+      }),
+      "mmHg"
+    )
+  ]);
+}
 function assertMainWireIntegratedModelStandard70BaselinePassedV1(checks2, measurements2) {
   const failed2 = checks2.filter(({ status: status2 }) => status2 !== "passed");
   if (failed2.length > 0) {
@@ -54867,6 +55177,16 @@ function assertMainWireIntegratedModelStandard70BaselinePassedV1(checks2, measur
       })}`)
     );
   }
+}
+function rightRangeCheckV1(checkId, actual, range, unit) {
+  return Object.freeze({
+    checkId,
+    status: Number.isFinite(actual) && actual >= range.minimum && actual <= range.maximum ? "passed" : "failed",
+    actual,
+    minimum: range.minimum,
+    maximum: range.maximum,
+    unit
+  });
 }
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_QUALIFICATION_V1_ID = "main-wire-integrated-model-standard70-baseline-qualification-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_V1_SCHEMA_ID = "circleheart.main-wire.rounded-ejection-baseline-validation.v1";
@@ -54965,12 +55285,21 @@ function validCardiacSizeAndFunctionV1(value) {
   );
 }
 const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD70_BASELINE_VALIDATION_V1_SCHEMA_ID = "circleheart.main-wire.algebraic-pulmonary-root-baseline-validation.v1";
+const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1 = Object.freeze([
+  "cold",
+  "standard68-construction-continuation",
+  "standard70-exact-checkpoint",
+  "standard70-parameter-continuation"
+]);
 function validateMainWireIntegratedStudioStandard70BaselineValidationV1(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Standard70 baseline validation report must be an object");
   }
   const report = input;
-  if (report.schemaId !== MAIN_WIRE_INTEGRATED_STUDIO_STANDARD70_BASELINE_VALIDATION_V1_SCHEMA_ID || report.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 || report.qualificationId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_QUALIFICATION_V1_ID || report.validationMethodId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID || report.preloadReservePolicyId !== MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID || report.status !== "passed" || report.measurements === void 0 || report.checks === void 0 || !validRightHeartMeasurementsV1(report.measurements)) {
+  if (report.schemaId !== MAIN_WIRE_INTEGRATED_STUDIO_STANDARD70_BASELINE_VALIDATION_V1_SCHEMA_ID || report.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 || report.qualificationId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_QUALIFICATION_V1_ID || report.validationMethodId !== MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID || report.preloadReservePolicyId !== MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID || report.status !== "passed" || !MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1.some((kind) => kind === report.initializationKind) || report.measurements === void 0 || report.checks === void 0 || !validRightHeartMeasurementsV1(report.measurements) || !validCanonicalStandard70ChecksV1(
+    report.measurements,
+    report.checks
+  )) {
     throw new Error("Standard70 baseline validation report is invalid");
   }
   validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1({
@@ -54988,14 +55317,51 @@ function validateMainWireIntegratedStudioStandard70BaselineValidationV1(input) {
   return input;
 }
 function validRightHeartMeasurementsV1(measurements2) {
-  const scalarMeasurements = [
-    ...Object.values(measurements2.pulmonaryValve ?? {}),
-    ...Object.values(measurements2.rightVentricle ?? {}),
-    ...Object.values(measurements2.tricuspidFlow ?? {}),
-    ...Object.values(measurements2.rightTiming ?? {})
-  ];
   const morphology = measurements2.pulmonaryRootMorphology;
-  return scalarMeasurements.length === 11 && scalarMeasurements.every(Number.isFinite) && morphology !== void 0 && Number.isSafeInteger(morphology.papSignificantPeakCount) && Number.isSafeInteger(morphology.pvForwardEpisodeCount) && Number.isSafeInteger(morphology.pvFlowSignificantPeakCount) && morphology.papSignificantPeakCount >= 0 && morphology.pvForwardEpisodeCount >= 0 && morphology.pvFlowSignificantPeakCount >= 0 && Number.isFinite(morphology.maximumPostClosurePapReboundMmHg) && morphology.maximumPostClosurePapReboundMmHg >= 0;
+  return validFiniteRecordV1(measurements2.pulmonaryValve, [
+    "ejectionTimeSec",
+    "meanGradientMmHg",
+    "peakGradientMmHg"
+  ]) && validFiniteRecordV1(measurements2.rightVentricle, [
+    "maximumDpDtMmHgPerSec",
+    "minimumDpDtMmHgPerSec"
+  ]) && validFiniteRecordV1(measurements2.tricuspidFlow, [
+    "peakEMlPerSec",
+    "peakAMlPerSec",
+    "peakEToA"
+  ]) && validFiniteRecordV1(measurements2.rightTiming, [
+    "ictSec",
+    "irtSec",
+    "teiIndex"
+  ]) && validFiniteRecordV1(morphology, [
+    "papSignificantPeakCount",
+    "pvForwardEpisodeCount",
+    "pvFlowSignificantPeakCount",
+    "maximumPostClosurePapReboundMmHg"
+  ]) && Number.isSafeInteger(morphology.papSignificantPeakCount) && Number.isSafeInteger(morphology.pvForwardEpisodeCount) && Number.isSafeInteger(morphology.pvFlowSignificantPeakCount) && morphology.papSignificantPeakCount >= 0 && morphology.pvForwardEpisodeCount >= 0 && morphology.pvFlowSignificantPeakCount >= 0 && Number.isFinite(morphology.maximumPostClosurePapReboundMmHg) && morphology.maximumPostClosurePapReboundMmHg >= 0;
+}
+function validFiniteRecordV1(value, expectedKeys) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const record = value;
+  const actualKeys = Object.keys(record);
+  return actualKeys.length === expectedKeys.length && expectedKeys.every((key) => Object.prototype.hasOwnProperty.call(record, key)) && expectedKeys.every((key) => Number.isFinite(record[key]));
+}
+function validCanonicalStandard70ChecksV1(measurements2, checks2) {
+  if (!Array.isArray(checks2)) return false;
+  try {
+    const expected = buildMainWireIntegratedModelStandard70BaselineChecksV1(
+      measurements2,
+      true
+    );
+    return checks2.length === expected.length && expected.every((expectedCheck, index) => {
+      const actualCheck = checks2[index];
+      return actualCheck !== void 0 && actualCheck.checkId === expectedCheck.checkId && actualCheck.status === expectedCheck.status && actualCheck.actual === expectedCheck.actual && actualCheck.minimum === expectedCheck.minimum && actualCheck.maximum === expectedCheck.maximum && actualCheck.unit === expectedCheck.unit;
+    });
+  } catch {
+    return false;
+  }
 }
 const checkpointId = "circleheart.main-wire-integrated-model-standard70-exact-checkpoint.v1";
 const schemaVersion = 1;
