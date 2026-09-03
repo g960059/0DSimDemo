@@ -38,6 +38,9 @@ import {
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
+  MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_V1_ID,
+} from "@/engine/vnext/MainWireSolverReplacementCorpusV1";
+import {
   STUDIO_COMMON_SNAPSHOT_ADMISSION_ID_V1,
   type ExactModelKernelManifestV3,
 } from "@/studio/contracts/v2/modelSurface";
@@ -56,6 +59,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
   createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1,
+  type MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
@@ -83,6 +87,12 @@ import {
 import {
   buildMainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
+import {
+  SELECTED_AORTIC_OUTFLOW_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID,
+  compareSelectedAorticOutflowArtifactRevisionsV1,
+  selectedAorticOutflowArtifactEquivalenceReportSha256V1,
+  type SelectedAorticOutflowArtifactEquivalenceReportV1,
+} from "./compareMainWireIntegratedStudioSelectedAorticOutflowArtifactRevisionsV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -136,6 +146,8 @@ const releaseConfigurationV1 = algebraicPulmonaryRootRequested
         "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json",
       lockFile:
         "algebraic-pulmonary-root-standard70-registry-admission-lock.json",
+      equivalenceReportFile:
+        "algebraic-pulmonary-root-standard70-artifact-equivalence-report.json",
       artifactChunkName:
         "main-wire-integrated-algebraic-pulmonary-root-standard70-v1.mjs",
       modelId:
@@ -165,6 +177,8 @@ const releaseConfigurationV1 = algebraicPulmonaryRootRequested
       descriptorFile:
         "MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json",
       lockFile: "qualified-baseline-standard69-registry-admission-lock.json",
+      equivalenceReportFile:
+        "qualified-baseline-standard69-artifact-equivalence-report.json",
       artifactChunkName:
         "main-wire-integrated-qualified-baseline-standard69-v1.mjs",
       modelId:
@@ -192,6 +206,8 @@ const releaseConfigurationV1 = algebraicPulmonaryRootRequested
       descriptorFile:
         "MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json",
       lockFile: "rounded-ejection-standard68-registry-admission-lock.json",
+      equivalenceReportFile:
+        "rounded-ejection-standard68-artifact-equivalence-report.json",
       artifactChunkName:
         "main-wire-integrated-rounded-ejection-standard68-v1.mjs",
       modelId:
@@ -220,6 +236,8 @@ const releaseConfigurationV1 = algebraicPulmonaryRootRequested
         "MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json",
       lockFile:
         "algebraic-proximal-roots-standard67-registry-admission-lock.json",
+      equivalenceReportFile:
+        "algebraic-proximal-roots-standard67-artifact-equivalence-report.json",
       artifactChunkName:
         "main-wire-integrated-algebraic-proximal-roots-standard67-v1.mjs",
       modelId:
@@ -253,6 +271,12 @@ const clientDescriptorPath = path.join(
   clientDescriptorRelativePath,
 );
 const lockPath = path.join(repositoryRoot, lockRelativePath);
+const equivalenceReportRelativePath = integrationRelativeRoot
+  + releaseConfigurationV1.equivalenceReportFile;
+const equivalenceReportPath = path.join(
+  repositoryRoot,
+  equivalenceReportRelativePath,
+);
 
 const CLIENT_DESCRIPTOR_SCHEMA_ID_V1 =
   "circleheart-standard-exact-model-client-descriptor-v1" as const;
@@ -263,6 +287,15 @@ const BASELINE_RUNTIME_RELATIVE_TOLERANCE_V1 = 1e-10;
 type ReleaseV1 = ReturnType<
   typeof createMainWireIntegratedStudioAlgebraicProximalRootsReleaseV1
 >;
+
+type RegistryAdmissionLockV1 = Readonly<{
+  schemaId: typeof REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2;
+  modelId: string;
+  artifactRevisionId: string;
+  artifactSha256: string;
+  predecessorArtifactRevisionId: string | null;
+  equivalenceReportSha256: string | null;
+}>;
 
 await main();
 
@@ -296,26 +329,17 @@ async function main(): Promise<void> {
     defaultFixture:
       releaseConfigurationV1.defaultFixture,
   });
-  const lock = Object.freeze({
-    schemaId: REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2,
-    modelId: sourceRelease.manifest.modelId,
-    artifactRevisionId,
-    artifactSha256,
-    predecessorArtifactRevisionId: null,
-    equivalenceReportSha256: null,
-  });
-
   if (updateRequested) {
-    assertExistingIdentityCanBeWrittenV1(lock);
-    writeFileSync(artifactPath, firstBuild);
-    writeFileSync(
-      clientDescriptorPath,
-      `${JSON.stringify(descriptor, null, 2)}\n`,
-      "utf8",
+    const writtenLock = await updateArtifactAndLockV1(
+      sourceRelease.manifest.modelId,
+      artifactRevisionId,
+      artifactSha256,
+      firstBuild,
+      descriptor,
     );
-    writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
     process.stdout.write(
-      `Wrote ${releaseConfigurationV1.label} exact release (${artifactRevisionId})\n`,
+      `Wrote ${releaseConfigurationV1.label} exact release `
+        + `(${writtenLock.artifactRevisionId})\n`,
     );
     return;
   }
@@ -332,18 +356,35 @@ async function main(): Promise<void> {
   const committedDescriptor = JSON.parse(
     readFileSync(clientDescriptorPath, "utf8"),
   ) as unknown;
-  const committedLock = JSON.parse(readFileSync(lockPath, "utf8")) as unknown;
+  const committedLock = parseLockV1(
+    readFileSync(lockPath, "utf8"),
+    `committed ${releaseConfigurationV1.label} lock`,
+  );
   if (
     studioCanonicalJsonStringify(committedDescriptor)
       !== studioCanonicalJsonStringify(descriptor)
-    || studioCanonicalJsonStringify(committedLock)
-      !== studioCanonicalJsonStringify(lock)
   ) {
-    fail("committed client descriptor or admission lock differs");
+    fail("committed client descriptor differs from the source release");
   }
-  assertImmutableAgainstBaseV1(lock);
+  if (
+    committedLock.modelId !== sourceRelease.manifest.modelId
+    || committedLock.artifactRevisionId !== artifactRevisionId
+    || committedLock.artifactSha256 !== artifactSha256
+  ) {
+    fail("committed admission lock does not identify the exact artifact");
+  }
+  const committedEquivalenceReport = readCurrentEquivalenceReportV1(
+    committedLock,
+  );
+  await assertBaseRevisionTransitionV1(
+    committedLock,
+    committedDescriptor,
+    committedEquivalenceReport,
+    committedArtifact,
+  );
   process.stdout.write(
-    `${releaseConfigurationV1.label} registry admission verified: ${lock.modelId} (${artifactRevisionId})\n`,
+    `${releaseConfigurationV1.label} registry admission verified: `
+      + `${committedLock.modelId} (${artifactRevisionId})\n`,
   );
 }
 
@@ -395,6 +436,10 @@ async function assertAlgebraicPulmonaryRootBaselineQualificationV1():
     "right-timing.ict",
     "right-timing.irt",
     "right-timing.tei-index",
+    "waveform.PAP.single-peak-no-ringing",
+    "waveform.PV-flow.single-forward-episode",
+    "waveform.PV-flow.single-peak-no-ringing",
+    "waveform.PAP.post-PV-closure-rebound",
   ];
   const passedIds = new Set<string>(
     report.checks
@@ -801,60 +846,404 @@ function exactContractV1(
   return model;
 }
 
-function assertExistingIdentityCanBeWrittenV1(
-  next: Readonly<{ modelId: string; artifactRevisionId: string }>,
-): void {
-  if (!existsSync(lockPath)) return;
-  const current = JSON.parse(readFileSync(lockPath, "utf8")) as {
-    modelId?: unknown;
-    artifactRevisionId?: unknown;
-  };
-  if (
-    current.modelId !== next.modelId
-    || current.artifactRevisionId !== next.artifactRevisionId
-  ) {
-    const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF
-      || "origin/main";
-    try {
-      execFileSync("git", ["show", `${baseRef}:${lockRelativePath}`], {
-        cwd: repositoryRoot,
-        stdio: "ignore",
-      });
-    } catch {
-      // The candidate identity has not been admitted on the base branch yet.
-      return;
+type ClientDescriptorV1 = Readonly<{
+  schemaId: typeof CLIENT_DESCRIPTOR_SCHEMA_ID_V1;
+  manifest: ExactModelKernelManifestV3;
+  defaultFixture: unknown;
+}>;
+
+async function updateArtifactAndLockV1(
+  modelId: string,
+  artifactRevisionId: string,
+  artifactSha256: string,
+  artifact: Uint8Array,
+  clientDescriptor: ClientDescriptorV1,
+): Promise<RegistryAdmissionLockV1> {
+  const currentPrior = existsSync(lockPath)
+    ? parseLockV1(
+        readFileSync(lockPath, "utf8"),
+        `existing ${releaseConfigurationV1.label} lock`,
+      )
+    : null;
+  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
+  const baseLockBytes = usableBaseRefV1(baseRef)
+    ? readPriorBytesV1(baseRef, lockRelativePath)
+    : null;
+  const basePrior = baseLockBytes === null
+    ? null
+    : parseLockV1(
+        new TextDecoder().decode(baseLockBytes),
+        `${releaseConfigurationV1.label} lock at ${baseRef}`,
+      );
+  // An explicitly usable base ref is the release boundary. If this model ID
+  // does not exist there, the candidate is a first admission even when a
+  // locally generated lock already exists in the worktree.
+  const prior = usableBaseRefV1(baseRef) ? basePrior : currentPrior;
+  let predecessorArtifactRevisionId: string | null = null;
+  let equivalenceReportSha256: string | null = null;
+
+  if (prior === null) {
+    if (existsSync(equivalenceReportPath)) {
+      fail("a first model identity cannot have an equivalence report");
     }
-    fail(
-      `an existing ${releaseConfigurationV1.label} identity cannot be rewritten without explicit same-model equivalence evidence`,
-    );
+  } else {
+    if (prior.modelId !== modelId) {
+      fail("the dedicated registry path cannot change modelId");
+    }
+    if (prior.artifactRevisionId === artifactRevisionId) {
+      if (prior.artifactSha256 !== artifactSha256) {
+        fail("the existing lock disagrees with identical revision bytes");
+      }
+      if (basePrior === null) readCurrentEquivalenceReportV1(prior);
+      predecessorArtifactRevisionId = prior.predecessorArtifactRevisionId;
+      equivalenceReportSha256 = prior.equivalenceReportSha256;
+    } else {
+      const predecessorArtifact = basePrior === null
+        ? existingBytesV1(artifactPath)
+        : readPriorBytesV1(baseRef!, artifactRelativePath);
+      const predecessorClientBytes = basePrior === null
+        ? existingBytesV1(clientDescriptorPath)
+        : readPriorBytesV1(baseRef!, clientDescriptorRelativePath);
+      if (predecessorArtifact === null || predecessorClientBytes === null) {
+        fail("the predecessor artifact or client descriptor is missing");
+      }
+      const predecessorClient = parseClientDescriptorV1(
+        new TextDecoder().decode(predecessorClientBytes),
+        `predecessor ${releaseConfigurationV1.label} client descriptor`,
+      );
+      const predecessorManifest = studioCanonicalJsonStringify(
+        predecessorClient.manifest,
+      );
+      if (
+        predecessorClient.manifest.modelId !== prior.modelId
+        || sha256V1(predecessorArtifact) !== prior.artifactSha256
+        || exactPackageSha256V1(predecessorManifest, predecessorArtifact)
+          !== prior.artifactRevisionId
+        || predecessorManifest
+          !== studioCanonicalJsonStringify(clientDescriptor.manifest)
+      ) {
+        fail("the predecessor artifact, manifest, and lock disagree");
+      }
+      const report = await compareSelectedAorticOutflowArtifactRevisionsV1({
+        predecessorArtifact,
+        predecessorArtifactRevisionId: prior.artifactRevisionId,
+        candidateArtifact: artifact,
+        candidateArtifactRevisionId: artifactRevisionId,
+        defaultFixture: releaseConfigurationV1.defaultFixture as
+          MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
+      });
+      predecessorArtifactRevisionId = prior.artifactRevisionId;
+      equivalenceReportSha256 =
+        selectedAorticOutflowArtifactEquivalenceReportSha256V1(report);
+      writeFileSync(
+        equivalenceReportPath,
+        `${JSON.stringify(report, null, 2)}\n`,
+        "utf8",
+      );
+    }
+  }
+
+  const lock: RegistryAdmissionLockV1 = Object.freeze({
+    schemaId: REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2,
+    modelId,
+    artifactRevisionId,
+    artifactSha256,
+    predecessorArtifactRevisionId,
+    equivalenceReportSha256,
+  });
+  writeFileSync(artifactPath, artifact);
+  writeFileSync(
+    clientDescriptorPath,
+    `${JSON.stringify(clientDescriptor, null, 2)}\n`,
+    "utf8",
+  );
+  writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`, "utf8");
+  return lock;
+}
+
+function readCurrentEquivalenceReportV1(
+  lock: RegistryAdmissionLockV1,
+): SelectedAorticOutflowArtifactEquivalenceReportV1 | null {
+  if (lock.equivalenceReportSha256 === null) {
+    if (existsSync(equivalenceReportPath)) {
+      fail("an unbound artifact equivalence report remains");
+    }
+    return null;
+  }
+  if (!existsSync(equivalenceReportPath)) {
+    fail("the admission lock requires a missing equivalence report");
+  }
+  const report = parseEquivalenceReportV1(
+    readFileSync(equivalenceReportPath, "utf8"),
+  );
+  if (
+    report.modelId !== lock.modelId
+    || report.predecessorArtifactRevisionId
+      !== lock.predecessorArtifactRevisionId
+    || report.candidateArtifactRevisionId !== lock.artifactRevisionId
+    || selectedAorticOutflowArtifactEquivalenceReportSha256V1(report)
+      !== lock.equivalenceReportSha256
+  ) {
+    fail("the artifact equivalence report does not match its lock");
+  }
+  return report;
+}
+
+async function assertBaseRevisionTransitionV1(
+  current: RegistryAdmissionLockV1,
+  currentClientInput: unknown,
+  currentReport: SelectedAorticOutflowArtifactEquivalenceReportV1 | null,
+  currentArtifact: Uint8Array,
+): Promise<void> {
+  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
+  if (!usableBaseRefV1(baseRef)) return;
+  const priorBytes = readPriorBytesV1(baseRef, lockRelativePath);
+  if (priorBytes === null) {
+    if (
+      current.predecessorArtifactRevisionId !== null
+      || current.equivalenceReportSha256 !== null
+    ) {
+      fail("a first model identity cannot inherit artifact lineage");
+    }
+    return;
+  }
+  const prior = parseLockV1(
+    new TextDecoder().decode(priorBytes),
+    `${releaseConfigurationV1.label} lock at ${baseRef}`,
+  );
+  if (prior.modelId !== current.modelId) {
+    fail("the dedicated registry path changed modelId");
+  }
+  const currentClient = parseClientDescriptorV1(
+    JSON.stringify(currentClientInput),
+    `current ${releaseConfigurationV1.label} client descriptor`,
+  );
+  const priorClientBytes = readPriorBytesV1(
+    baseRef,
+    clientDescriptorRelativePath,
+  );
+  if (priorClientBytes === null) {
+    fail("the predecessor client descriptor is missing at the base ref");
+  }
+  const priorClient = parseClientDescriptorV1(
+    new TextDecoder().decode(priorClientBytes),
+    `predecessor ${releaseConfigurationV1.label} client descriptor`,
+  );
+  if (
+    studioCanonicalJsonStringify(priorClient.manifest)
+      !== studioCanonicalJsonStringify(currentClient.manifest)
+    || studioCanonicalJsonStringify(priorClient.defaultFixture)
+      !== studioCanonicalJsonStringify(currentClient.defaultFixture)
+  ) {
+    fail("the exact manifest or default fixture changed under the same modelId");
+  }
+  if (prior.artifactRevisionId === current.artifactRevisionId) {
+    if (
+      current.predecessorArtifactRevisionId
+        !== prior.predecessorArtifactRevisionId
+      || current.equivalenceReportSha256 !== prior.equivalenceReportSha256
+    ) {
+      fail("an unchanged revision cannot rewrite lineage evidence");
+    }
+    return;
+  }
+  if (
+    current.predecessorArtifactRevisionId !== prior.artifactRevisionId
+    || currentReport === null
+  ) {
+    fail("a same-model change requires predecessor-bound byte-exact evidence");
+  }
+  const priorArtifact = readPriorBytesV1(baseRef, artifactRelativePath);
+  if (
+    priorArtifact === null
+    || sha256V1(priorArtifact) !== prior.artifactSha256
+    || exactPackageSha256V1(
+      studioCanonicalJsonStringify(priorClient.manifest),
+      priorArtifact,
+    ) !== prior.artifactRevisionId
+  ) {
+    fail("the predecessor artifact does not match its base lock");
+  }
+  const reproduced = await compareSelectedAorticOutflowArtifactRevisionsV1({
+    predecessorArtifact: priorArtifact,
+    predecessorArtifactRevisionId: prior.artifactRevisionId,
+    candidateArtifact: currentArtifact,
+    candidateArtifactRevisionId: current.artifactRevisionId,
+    defaultFixture: releaseConfigurationV1.defaultFixture as
+      MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
+  });
+  if (
+    studioCanonicalJsonStringify(reproduced)
+      !== studioCanonicalJsonStringify(currentReport)
+  ) {
+    fail("the artifact equivalence report is not reproducible from base");
   }
 }
 
-function assertImmutableAgainstBaseV1(
-  current: Readonly<{ modelId: string; artifactRevisionId: string }>,
-): void {
-  const baseRef = process.env.CIRCLEHEART_REGISTRY_BASE_REF;
-  if (baseRef === undefined || baseRef === "" || /^0+$/.test(baseRef)) return;
-  let raw: string;
-  try {
-    raw = execFileSync("git", ["show", `${baseRef}:${lockRelativePath}`], {
-      cwd: repositoryRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    });
-  } catch {
-    return;
-  }
-  const prior = JSON.parse(raw) as {
-    modelId?: unknown;
-    artifactRevisionId?: unknown;
-  };
+function parseLockV1(text: string, label: string): RegistryAdmissionLockV1 {
+  const parsed: unknown = JSON.parse(text);
+  const record = exactPlainRecordV1(parsed, label);
+  const keys = Object.keys(record).sort();
+  const expected = [
+    "artifactRevisionId",
+    "artifactSha256",
+    "equivalenceReportSha256",
+    "modelId",
+    "predecessorArtifactRevisionId",
+    "schemaId",
+  ];
   if (
-    prior.modelId !== current.modelId
-    || prior.artifactRevisionId !== current.artifactRevisionId
+    keys.length !== expected.length
+    || keys.some((key, index) => key !== expected[index])
+    || record.schemaId !== REGISTRY_ADMISSION_LOCK_SCHEMA_ID_V2
+    || typeof record.modelId !== "string"
+    || !sha256HexV1(record.artifactRevisionId)
+    || !sha256HexV1(record.artifactSha256)
+    || (
+      record.predecessorArtifactRevisionId !== null
+      && !sha256HexV1(record.predecessorArtifactRevisionId)
+    )
+    || (
+      record.equivalenceReportSha256 !== null
+      && !sha256HexV1(record.equivalenceReportSha256)
+    )
+    || (
+      (record.predecessorArtifactRevisionId === null)
+      !== (record.equivalenceReportSha256 === null)
+    )
   ) {
-    fail(`the committed ${releaseConfigurationV1.label} exact identity changed against the base ref`);
+    fail(`${label} is invalid`);
   }
+  return parsed as RegistryAdmissionLockV1;
+}
+
+function parseClientDescriptorV1(
+  text: string,
+  label: string,
+): ClientDescriptorV1 {
+  const parsed: unknown = JSON.parse(text);
+  const record = exactPlainRecordV1(parsed, label);
+  const keys = Object.keys(record).sort();
+  if (
+    keys.length !== 3
+    || keys[0] !== "defaultFixture"
+    || keys[1] !== "manifest"
+    || keys[2] !== "schemaId"
+    || record.schemaId !== CLIENT_DESCRIPTOR_SCHEMA_ID_V1
+    || record.manifest === null
+    || typeof record.manifest !== "object"
+  ) {
+    fail(`${label} is invalid`);
+  }
+  return parsed as ClientDescriptorV1;
+}
+
+function parseEquivalenceReportV1(
+  text: string,
+): SelectedAorticOutflowArtifactEquivalenceReportV1 {
+  const parsed: unknown = JSON.parse(text);
+  const record = exactPlainRecordV1(parsed, "artifact equivalence report");
+  const expected = [
+    "candidateArtifactRevisionId",
+    "cases",
+    "corpusId",
+    "equality",
+    "modelId",
+    "predecessorArtifactRevisionId",
+    "schemaId",
+  ];
+  const keys = Object.keys(record).sort();
+  if (
+    keys.length !== expected.length
+    || keys.some((key, index) => key !== expected[index])
+    || record.schemaId
+      !== SELECTED_AORTIC_OUTFLOW_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID
+    || typeof record.modelId !== "string"
+    || !sha256HexV1(record.predecessorArtifactRevisionId)
+    || !sha256HexV1(record.candidateArtifactRevisionId)
+    || record.corpusId !== MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_V1_ID
+    || record.equality !== "byte-exact"
+    || !Array.isArray(record.cases)
+    || record.cases.length === 0
+  ) {
+    fail("artifact equivalence report is invalid");
+  }
+  for (const [index, artifactCase] of record.cases.entries()) {
+    const caseRecord = exactPlainRecordV1(
+      artifactCase,
+      `artifact equivalence report case ${index}`,
+    );
+    const expectedCaseKeys = [
+      "acceptedStepCount",
+      "advancedFrameEquality",
+      "caseId",
+      "exactCaptureEquality",
+      "initialFrameEquality",
+    ];
+    const caseKeys = Object.keys(caseRecord).sort();
+    if (
+      caseKeys.length !== expectedCaseKeys.length
+      || caseKeys.some((key, keyIndex) =>
+        key !== expectedCaseKeys[keyIndex])
+      || typeof caseRecord.caseId !== "string"
+      || typeof caseRecord.acceptedStepCount !== "number"
+      || !Number.isSafeInteger(caseRecord.acceptedStepCount)
+      || caseRecord.acceptedStepCount <= 0
+      || caseRecord.initialFrameEquality !== "byte-exact"
+      || caseRecord.advancedFrameEquality !== "byte-exact"
+      || caseRecord.exactCaptureEquality !== "byte-exact"
+    ) {
+      fail(`artifact equivalence report case ${index} is invalid`);
+    }
+  }
+  return parsed as SelectedAorticOutflowArtifactEquivalenceReportV1;
+}
+
+function exactPlainRecordV1(
+  value: unknown,
+  label: string,
+): Record<string, unknown> {
+  if (
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    fail(`${label} must be a plain JSON object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function usableBaseRefV1(value: string | undefined): value is string {
+  return value !== undefined && value !== "" && !/^0+$/.test(value);
+}
+
+function existingBytesV1(filePath: string): Uint8Array | null {
+  return existsSync(filePath) ? new Uint8Array(readFileSync(filePath)) : null;
+}
+
+function readPriorBytesV1(
+  baseRef: string,
+  relativePath: string,
+): Uint8Array | null {
+  try {
+    return new Uint8Array(execFileSync(
+      "git",
+      ["show", `${baseRef}:${relativePath}`],
+      {
+        cwd: repositoryRoot,
+        encoding: "buffer",
+        maxBuffer: 32 * 1024 * 1024,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    ));
+  } catch {
+    return null;
+  }
+}
+
+function sha256HexV1(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
 function exactPackageSha256V1(

@@ -76,6 +76,7 @@ export async function compareSelectedAorticOutflowArtifactRevisionsV1(
     predecessorArtifactRevisionId: string;
     candidateArtifact: Uint8Array;
     candidateArtifactRevisionId: string;
+    defaultFixture?: MainWireIntegratedStudioSelectedAorticOutflowFixtureV1;
   }>,
 ): Promise<SelectedAorticOutflowArtifactEquivalenceReportV1> {
   const [predecessor, candidate] = await Promise.all([
@@ -94,6 +95,8 @@ export async function compareSelectedAorticOutflowArtifactRevisionsV1(
   const cases = [];
   for (const corpusCase of MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_CASES_V1) {
     const fixture = selectedFixtureForCorpusCaseV1(
+      input.defaultFixture
+        ?? MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
       corpusCase.hemodynamicResearchInputs,
       corpusCase.ventricularContractilityScale,
     );
@@ -261,6 +264,7 @@ async function captureV1(
 }
 
 function selectedFixtureForCorpusCaseV1(
+  defaultFixture: MainWireIntegratedStudioSelectedAorticOutflowFixtureV1,
   hemodynamicResearchInputs:
     MainWireIntegratedStudioSelectedAorticOutflowFixtureV1[
       "hemodynamicResearchInputs"
@@ -268,7 +272,7 @@ function selectedFixtureForCorpusCaseV1(
   ventricularContractilityScale: number,
 ): MainWireIntegratedStudioSelectedAorticOutflowFixtureV1 {
   const base = structuredClone(
-    MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
+    defaultFixture,
   );
   return Object.freeze({
     ...base,
