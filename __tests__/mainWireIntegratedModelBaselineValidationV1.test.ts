@@ -388,7 +388,7 @@ describe("baseline construction and calibration gates", () => {
     const updates = Object.freeze([
       Object.freeze({
         parameterId: "hemodynamics.systemic-resistance" as const,
-        value: 0.99,
+        value: 1.01,
       }),
       Object.freeze({
         parameterId:
@@ -406,7 +406,7 @@ describe("baseline construction and calibration gates", () => {
     expect(readMainWireBaselineCalibrationParameterV1(
       forward,
       "hemodynamics.systemic-resistance",
-    )).toBe(0.99);
+    )).toBe(1.01);
     expect(readMainWireBaselineCalibrationParameterV1(
       forward,
       "myocardium.common-ventricular-active-tension-scale",
