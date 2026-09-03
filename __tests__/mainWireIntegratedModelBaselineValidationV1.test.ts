@@ -5,8 +5,11 @@ import {
   evaluateMainWireBaselineCalibrationCandidateV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
 import {
+  MAIN_WIRE_BASELINE_NUMERICAL_FLOOR_AUDIT_V1_ID,
+  assertMainWireBaselineNumericalFloorAuditV1,
   buildMainWireBaselineNumericalFloorMetricV1,
   composeMainWireBaselineFinalistComparisonToleranceV1,
+  type MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   buildMainWireBaselineConditioningSingularValuesV1,
@@ -385,6 +388,53 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
     });
   });
 
+  it("rejects incomplete or inconsistent numerical-floor evidence", () => {
+    const checks = buildMainWireIntegratedModelBaselineValidationChecksV1(
+      normalMeasurementsV1(),
+      true,
+    );
+    const metricFloors = checks.map(zeroNumericalFloorV1);
+    const acceptedRun = (nominalDtSec: number) => ({
+      status: "accepted",
+      nominalDtSec,
+    });
+    const audit = {
+      auditId: MAIN_WIRE_BASELINE_NUMERICAL_FLOOR_AUDIT_V1_ID,
+      status: "completed",
+      coarseDtSec: 0.002,
+      fineDtSec: 0.001,
+      runs: {
+        coldA: acceptedRun(0.002),
+        coldB: acceptedRun(0.002),
+        compatibleCheckpoint: acceptedRun(0.002),
+        fineCold: acceptedRun(0.001),
+      },
+      repeatDeterministic: true,
+      metricFloors,
+      unresolvedRunLabels: [],
+      claim: {
+        comparisonKind: "difference-audit-not-convergence-order",
+        physiologicalPassThresholdApplied: false,
+        optimizerApplied: false,
+        fineGridUsedAsDifferenceReference: true,
+      },
+    };
+    expect(() => assertMainWireBaselineNumericalFloorAuditV1(audit))
+      .not.toThrow();
+    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
+      ...audit,
+      metricFloors: metricFloors.slice(1),
+    })).toThrow(/do not cover the evidence registry/);
+    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
+      ...audit,
+      metricFloors: [metricFloors[0], ...metricFloors.slice(0, -1)],
+    })).toThrow(/duplicated/);
+    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
+      ...audit,
+      fineDtSec: 0.0015,
+    })).toThrow(/must halve coarseDtSec/);
+  });
+
   it("compiles the conditioning study deterministically and fails closed on confounded primary coordinates", async () => {
     expect(lintMainWireBaselineConditioningStudyV1(
       MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
@@ -615,35 +665,50 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
     expect(compareMainWireBaselineCandidateObjectivesV1(interior, edge))
       .toBeLessThan(0);
 
-    const structuralFirst = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: [
-        check(1_850),
-        Object.freeze({
-          checkId: "aortic-pressure.maximum" as const,
-          status: "passed" as const,
-          actual: 91,
-          minimum: 90,
-          maximum: 140,
-          unit: "mmHg",
-        }),
-      ],
+    const structuralChecks = [
+      check(1_850),
+      Object.freeze({
+        checkId: "aortic-pressure.maximum" as const,
+        status: "passed" as const,
+        actual: 91,
+        minimum: 90,
+        maximum: 140,
+        unit: "mmHg",
+      }),
+    ];
+    const macroChecks = [
+      check(1_240),
+      Object.freeze({
+        checkId: "aortic-pressure.maximum" as const,
+        status: "passed" as const,
+        actual: 115,
+        minimum: 90,
+        maximum: 140,
+        unit: "mmHg",
+      }),
+    ];
+    expect(() => scoreMainWireBaselineCandidateObjectiveV1({
+      checks: structuralChecks,
       candidate: first[0].candidateInputs,
       numericalFloors: [],
+    })).toThrow(/numerical floor coverage differs/);
+    expect(() => scoreMainWireBaselineCandidateObjectiveV1({
+      checks: structuralChecks,
+      candidate: first[0].candidateInputs,
+      numericalFloors: [
+        zeroNumericalFloorV1(structuralChecks[0]),
+        zeroNumericalFloorV1(structuralChecks[0]),
+      ],
+    })).toThrow(/numerical floor is duplicated/);
+    const structuralFirst = scoreMainWireBaselineCandidateObjectiveV1({
+      checks: structuralChecks,
+      candidate: first[0].candidateInputs,
+      numericalFloors: structuralChecks.map(zeroNumericalFloorV1),
     });
     const macroFirst = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: [
-        check(1_240),
-        Object.freeze({
-          checkId: "aortic-pressure.maximum" as const,
-          status: "passed" as const,
-          actual: 115,
-          minimum: 90,
-          maximum: 140,
-          unit: "mmHg",
-        }),
-      ],
+      checks: macroChecks,
       candidate: first[0].candidateInputs,
-      numericalFloors: [],
+      numericalFloors: macroChecks.map(zeroNumericalFloorV1),
     });
     expect(structuralFirst.worstBufferedInteriorMargin)
       .toBeLessThan(macroFirst.worstBufferedInteriorMargin!);
@@ -721,6 +786,30 @@ function normalMeasurementsV1():
         cardiacIndexLPerMinPerM2: 3,
       }),
     }),
+  });
+}
+
+function zeroNumericalFloorV1(
+  check: Readonly<{
+    checkId: MainWireBaselineNumericalFloorMetricV1["checkId"];
+    unit: string;
+    minimum: number;
+    maximum: number;
+  }>,
+): MainWireBaselineNumericalFloorMetricV1 {
+  const constructionCorridorWidth = check.maximum - check.minimum;
+  return Object.freeze({
+    checkId: check.checkId,
+    unit: check.unit,
+    constructionMinimum: check.minimum,
+    constructionMaximum: check.maximum,
+    constructionCorridorWidth,
+    coldRepeatAbsoluteDifference: 0,
+    coldCheckpointAbsoluteDifference: 0,
+    dtHalvingAbsoluteDifference: 0,
+    numericalFloorAbsolute: 0,
+    numericalFloorFractionOfCorridor:
+      constructionCorridorWidth > 0 ? 0 : null,
   });
 }
 

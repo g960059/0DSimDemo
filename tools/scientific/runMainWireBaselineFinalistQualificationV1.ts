@@ -34,9 +34,11 @@ import {
   scoreMainWireBaselineCandidateObjectiveV1,
   type MainWireBaselineCandidateObjectiveV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
-import type {
-  MainWireBaselineNumericalFloorAuditV1,
-  MainWireBaselineNumericalFloorMetricV1,
+import {
+  assertMainWireBaselineNumericalFloorAuditV1,
+  indexMainWireBaselineNumericalFloorsV1,
+  type MainWireBaselineNumericalFloorAuditV1,
+  type MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   composeMainWireBaselineFinalistComparisonToleranceV1,
@@ -621,8 +623,13 @@ function compareEvaluationsV1(
   }
   const comparisonById = new Map(comparison.checks.map((check) =>
     [check.checkId, check] as const));
-  const floorById = new Map(numericalFloors.map((floor) =>
-    [floor.checkId, floor] as const));
+  if (comparisonById.size !== comparison.checks.length) {
+    throw new Error("comparison contract contains duplicate checks");
+  }
+  const floorById = indexMainWireBaselineNumericalFloorsV1(
+    reference.checks,
+    numericalFloors,
+  );
   const differences = reference.checks.map((check) => {
     const other = comparisonById.get(check.checkId);
     const floor = floorById.get(check.checkId);
@@ -945,16 +952,8 @@ function baselineCandidateV1(): MainWireBaselineCalibrationCandidateInputsV1 {
 }
 
 function parseNumericalFloorV1(input: unknown): MainWireBaselineNumericalFloorAuditV1 {
-  const record = recordV1(input, "numerical-floor artifact");
-  if (
-    record.auditId !== "main-wire-baseline-numerical-floor-audit-v1"
-    || record.status !== "completed"
-    || !Array.isArray(record.metricFloors)
-    || record.metricFloors.length < 1
-  ) {
-    throw new Error("numerical-floor artifact is incomplete");
-  }
-  return input as MainWireBaselineNumericalFloorAuditV1;
+  assertMainWireBaselineNumericalFloorAuditV1(input);
+  return input;
 }
 
 function recordV1(input: unknown, label: string): Record<string, unknown> {

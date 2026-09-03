@@ -8,8 +8,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
-import type {
-  MainWireBaselineNumericalFloorMetricV1,
+import {
+  indexMainWireBaselineNumericalFloorsV1,
+  type MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
@@ -320,20 +321,14 @@ export function scoreMainWireBaselineCandidateObjectiveV1(input: Readonly<{
   numericalFloors: readonly MainWireBaselineNumericalFloorMetricV1[];
 }>): MainWireBaselineCandidateObjectiveV1 {
   const policy = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy;
-  const floorById = new Map(input.numericalFloors.map((floor) =>
-    [floor.checkId, floor] as const));
+  const floorById = indexMainWireBaselineNumericalFloorsV1(
+    input.checks,
+    input.numericalFloors,
+  );
   const margins = input.checks.map((check) => {
     const width = check.maximum - check.minimum;
-    const floor = floorById.get(check.checkId);
-    if (
-      floor !== undefined
-      && (floor.unit !== check.unit
-        || floor.constructionMinimum !== check.minimum
-        || floor.constructionMaximum !== check.maximum)
-    ) {
-      throw new Error(`numerical floor contract differs for ${check.checkId}`);
-    }
-    const numericalFloorAbsolute = floor?.numericalFloorAbsolute ?? 0;
+    const floor = floorById.get(check.checkId)!;
+    const numericalFloorAbsolute = floor.numericalFloorAbsolute;
     const exactGatePassed = check.status === "passed";
     if (!(width > 0)) {
       return Object.freeze({
