@@ -107,9 +107,10 @@ truth.
 
 The active-tension error is not random-looking scatter: it has nearly the same
 negative bias in both controls (-0.1334 and -0.1353 release steps) despite
-opposite active-tension directions. A residual decomposition performed during
-review attributed about 81 percent of the combined residual norm to the common
-component shared by the two +TBV targets. This is consistent with local
+opposite active-tension directions. A review decomposition of the two
+release-step parameter-error vectors assigned 81.78 percent of the sum of
+common- and differential-component norms to the common component shared by
+the two +TBV targets. This is consistent with local
 curvature along the common TBV leg. Consequently, these results validate only
 the tested one-step neighborhood. They do not provide comfortable headroom for
 two-step extrapolation.
