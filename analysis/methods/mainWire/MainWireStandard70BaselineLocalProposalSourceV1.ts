@@ -224,6 +224,7 @@ export async function buildMainWireStandard70BaselineLocalProposalSourceV1(
       admittedRow === undefined
       || check === undefined
       || admittedRow.halfStepRow.length !== 2
+      || admittedRow.unit !== check.unit
       || admittedRow.constructionCorridorWidth
         !== check.maximum - check.minimum
     ) {
