@@ -59,8 +59,8 @@ sentinels; both sets are identity-bound and failure remains visible.
 The Standard70 numerical-floor audit repeats cold construction, repeats from
 the resulting exact same-model checkpoint, and halves the nominal time step.
 It computes one-to-one floors for the 28 inherited objective checks, including
-zero-floor records for zero-width event sentinels;
-those zero-width records are not continuous optimizer rows. All 13 Standard70
+zero-floor records for zero-width event sentinels. Those records are not
+continuous optimizer rows. All 13 Standard70
 right-heart checks must pass in every run, but they are not promoted into the
 current objective without dedicated evidence. A rejected safety run leaves the
 audit unresolved.
