@@ -48,6 +48,16 @@ type Fixture = ReturnType<
 
 const defaultHemodynamics =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1;
+const rootResistanceMmHgSecPerMl = finiteArgumentV1(
+  "--root-resistance",
+  0.03,
+);
+const inertanceMmHgSec2PerMl = finiteArgumentV1(
+  "--root-inertance",
+  0.00025,
+);
+const maximumCycles = positiveIntegerArgumentV1("--maximum-cycles", 80);
+const requestedConditionId = stringArgumentV1("--condition");
 const conditions = Object.freeze([
   conditionV1("baseline", {}),
   conditionV1("pvr-low", { pulmonaryResistance: 0.5 }),
@@ -61,8 +71,8 @@ const conditions = Object.freeze([
 ]);
 const profile =
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
-    0.03,
-    0.00025,
+    rootResistanceMmHgSecPerMl,
+    inertanceMmHgSec2PerMl,
   );
 const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
   defaultHemodynamics,
@@ -92,11 +102,17 @@ const baselineRun = convergeV1({
   sourceFixture,
   targetFixture: baselineFixture,
 });
-const results = conditions.map((condition, index) => {
-  const fixture = index === 0
+const selectedConditions = requestedConditionId === null
+  ? conditions
+  : conditions.filter((condition) => condition.conditionId === requestedConditionId);
+if (selectedConditions.length === 0) {
+  throw new Error(`unknown envelope condition: ${requestedConditionId}`);
+}
+const results = selectedConditions.map((condition) => {
+  const fixture = condition.conditionId === "baseline"
     ? baselineFixture
     : candidateFixtureV1(condition.hemodynamics);
-  const run = index === 0
+  const run = condition.conditionId === "baseline"
     ? baselineRun
     : convergeV1({
         sourceAccepted: baselineRun.accepted,
@@ -111,11 +127,13 @@ const results = conditions.map((condition, index) => {
   });
 });
 
-process.stdout.write(`${JSON.stringify({
+const report = Object.freeze({
   envelopeId: "main-wire-standard69-pulmonary-root-local-load-envelope-v1",
   candidate: {
-    rootResistanceMmHgSecPerMl: 0.03,
-    inertanceMmHgSec2PerMl: 0.00025,
+    rootResistanceMmHgSecPerMl,
+    effectiveBaselineRootResistanceMmHgSecPerMl:
+      rootResistanceMmHgSecPerMl * defaultHemodynamics.pulmonaryResistance,
+    inertanceMmHgSec2PerMl,
   },
   scope:
     "one-at-a-time fixed-HR/fixed-TBV local load envelope; not a clinical validation cohort",
@@ -124,7 +142,12 @@ process.stdout.write(`${JSON.stringify({
     metrics: summarizeV1(sourceBaselineCycle.traceSamples),
   }),
   results,
-}, null, 2)}\n`);
+});
+process.stdout.write(`${JSON.stringify(
+  booleanArgumentV1("--compact") ? compactReportV1(report) : report,
+  null,
+  2,
+)}\n`);
 
 function conditionV1(
   conditionId: string,
@@ -165,9 +188,11 @@ function convergeV1(input: Readonly<{
   });
   let trace: readonly Sample[] = [];
   let delta = Number.POSITIVE_INFINITY;
+  const deltaHistory: number[] = [];
   let consecutivePasses = 0;
   let completedCycles = 0;
-  for (let cycle = 1; cycle <= 80; cycle += 1) {
+  const startedAt = performance.now();
+  for (let cycle = 1; cycle <= maximumCycles; cycle += 1) {
     const prior = accepted;
     const run = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       input.targetFixture as unknown as
@@ -185,13 +210,21 @@ function convergeV1(input: Readonly<{
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
       input.targetFixture.config,
     ).overall.maximumNormalizedDelta;
+    deltaHistory.push(delta);
     consecutivePasses = delta <= 0.001 ? consecutivePasses + 1 : 0;
     if (consecutivePasses >= 3) break;
   }
   return Object.freeze({
     accepted,
     trace,
-    convergence: Object.freeze({ completedCycles, consecutivePasses, delta }),
+    convergence: Object.freeze({
+      completedCycles,
+      consecutivePasses,
+      converged: consecutivePasses >= 3,
+      delta,
+      finalDeltaHistory: Object.freeze(deltaHistory.slice(-12)),
+      wallTimeMs: performance.now() - startedAt,
+    }),
   });
 }
 
@@ -202,6 +235,9 @@ function summarizeV1(samples: readonly Sample[]) {
   const pvOpen = thresholdOpenV1(pvFlow);
   const pvOpening = transitionV1(pvOpen, false, true);
   const pvClosure = nextTransitionV1(pvOpen, pvOpening, true, false);
+  const pvIndices = cyclicIndicesV1(samples.length, pvOpening, pvClosure);
+  const peakPvFlowIndex = pvIndices.reduce((best, index) =>
+    pvFlow[index]! > pvFlow[best]! ? index : best, pvIndices[0]!);
   const tvOpen = thresholdOpenV1(tvFlow);
   const tvClosure = previousTransitionV1(tvOpen, pvOpening, true, false);
   const tvOpening = nextTransitionV1(tvOpen, pvClosure, false, true);
@@ -234,7 +270,12 @@ function summarizeV1(samples: readonly Sample[]) {
     tricuspidPeakEToA: inletPeakRatioV1(samples, tvOpen, pvOpen),
     pulmonaryValve: Object.freeze({
       peakCount: prominentPeakCountV1(pvFlow),
-      peakFlowMlPerSec: Math.max(...pvFlow),
+      peakFlowMlPerSec: pvFlow[peakPvFlowIndex],
+      accelerationTimeSec: cyclicDurationV1(
+        samples,
+        pvOpening,
+        (peakPvFlowIndex + 1) % samples.length,
+      ),
       meanGradientMmHg: samples.reduce((sum, sample, index) =>
         sum + (pvOpen[index]
           ? pvGradient[index]! * sample.acceptedDtSec
@@ -396,4 +437,79 @@ function cyclicIndicesV1(length: number, start: number, end: number) {
     result.push(index);
   }
   return result;
+}
+
+function compactReportV1(input: typeof report) {
+  return Object.freeze({
+    envelopeId: input.envelopeId,
+    candidate: input.candidate,
+    scope: input.scope,
+    sourceStandard69Baseline: Object.freeze({
+      settledCheckpointTimeSec:
+        input.sourceStandard69Baseline.settledCheckpointTimeSec,
+      metrics: compactMetricsV1(input.sourceStandard69Baseline.metrics),
+    }),
+    results: input.results.map((result) => Object.freeze({
+      conditionId: result.conditionId,
+      convergence: result.convergence,
+      metrics: compactMetricsV1(result.metrics),
+    })),
+  });
+}
+
+function compactMetricsV1(metrics: ReturnType<typeof summarizeV1>) {
+  return Object.freeze({
+    strokeVolumeMl: metrics.strokeVolumeMl,
+    lvpMorphology: metrics.left.LVP,
+    rvpMorphology: metrics.rvpMorphology,
+    aorticValve: metrics.left.aorticValve,
+    leftTiming: metrics.left.timing,
+    rightTiming: metrics.rightTiming,
+    leftVentricleDpDtMmHgPerSec: metrics.left.leftVentricle,
+    rightVentricleDpDtMmHgPerSec: metrics.rvPressureRateMmHgPerSec,
+    mitralPeakEToA: metrics.left.mitralFlow.peakEToA,
+    tricuspidPeakEToA: metrics.tricuspidPeakEToA,
+    pulmonaryValve: metrics.pulmonaryValve,
+    pulmonaryArtery: metrics.pulmonaryArtery,
+    aorticPressure: metrics.left.hemodynamicPressure.aortic,
+    centralVenousMeanMmHg:
+      metrics.left.hemodynamicPressure.centralVenousMeanMmHg,
+    pcwpSurrogateMeanMmHg:
+      metrics.left.hemodynamicPressure.pcwpSurrogateMeanMmHg,
+    cardiacSizeAndFunction: metrics.left.cardiacSizeAndFunction,
+  });
+}
+
+function finiteArgumentV1(name: string, fallback: number): number {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return fallback;
+  const raw = process.argv[index + 1];
+  if (raw === undefined || raw.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) throw new Error(`${name} must be finite`);
+  return value;
+}
+
+function positiveIntegerArgumentV1(name: string, fallback: number): number {
+  const value = finiteArgumentV1(name, fallback);
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${name} must be a positive integer`);
+  }
+  return value;
+}
+
+function stringArgumentV1(name: string): string | null {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return null;
+  const value = process.argv[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
+}
+
+function booleanArgumentV1(name: string): boolean {
+  return process.argv.includes(name);
 }

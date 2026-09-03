@@ -44,10 +44,18 @@ type Accepted = ReturnType<
 >;
 
 const nominalDtSec = Object.freeze([0.002, 0.001] as const);
+const rootResistanceMmHgSecPerMl = finiteArgumentV1(
+  "--root-resistance",
+  0.03,
+);
+const inertanceMmHgSec2PerMl = finiteArgumentV1(
+  "--root-inertance",
+  0.00025,
+);
 const profile =
   createMainWireAlgebraicPulmonaryArterialRootResistanceResearchProfileV1(
-    0.03,
-    0.00025,
+    rootResistanceMmHgSecPerMl,
+    inertanceMmHgSec2PerMl,
   );
 const sourceFixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
@@ -79,9 +87,12 @@ const summaries = runs.map((run) => summarizeV1(run.trace));
 process.stdout.write(`${JSON.stringify({
   comparisonId: "main-wire-standard69-pulmonary-root-impedance-dt-halving-v1",
   candidate: {
-    rootResistanceMmHgSecPerMl: 0.03,
-    effectiveRootResistanceMmHgSecPerMl: 0.01875,
-    inertanceMmHgSec2PerMl: 0.00025,
+    rootResistanceMmHgSecPerMl,
+    effectiveRootResistanceMmHgSecPerMl:
+      rootResistanceMmHgSecPerMl
+      * MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1
+        .pulmonaryResistance,
+    inertanceMmHgSec2PerMl,
   },
   runs: runs.map((run, index) => Object.freeze({
     nominalDtSec: nominalDtSec[index],
@@ -424,4 +435,16 @@ function cyclicIndicesV1(length: number, start: number, end: number) {
 
 function relativeDifferenceV1(left: number, right: number) {
   return Math.abs(right - left) / Math.max(Math.abs(left), Math.abs(right), 1e-12);
+}
+
+function finiteArgumentV1(name: string, fallback: number): number {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return fallback;
+  const raw = process.argv[index + 1];
+  if (raw === undefined || raw.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  const value = Number(raw);
+  if (!Number.isFinite(value)) throw new Error(`${name} must be finite`);
+  return value;
 }
