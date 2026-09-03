@@ -3,6 +3,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_OUTPUT_CATALOG_V3,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionDocumentationAuthorityV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
@@ -18,16 +19,23 @@ import roundedEjectionDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
 import qualifiedBaselineDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json";
+import algebraicPulmonaryRootDescriptorV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
 import roundedEjectionSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
 import qualifiedBaselineSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import algebraicPulmonaryRootSurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
@@ -42,9 +50,10 @@ export type MainWireStandard68DocumentationFactsV1 = Readonly<{
   identity: RegisteredModelDocumentationIdentityV1 & Readonly<{
     kind:
       | "main-wire-rounded-ejection-standard68"
-      | "main-wire-qualified-baseline-standard69";
+      | "main-wire-qualified-baseline-standard69"
+      | "main-wire-algebraic-pulmonary-root-standard70";
   }>;
-  generation: 68 | 69;
+  generation: 68 | 69 | 70;
   stations: Readonly<{
     aopOutputId: string;
     abpOutputId: string;
@@ -56,6 +65,9 @@ export type MainWireStandard68DocumentationFactsV1 = Readonly<{
     aorticOutflowCirculationProfileId:
       "main-wire-source-aortic-outflow-topology-v3";
     proximalArterialRootMomentum: "source-inertance";
+    pulmonaryArterialRootMomentum:
+      | "source-inertance"
+      | "algebraic-no-inertance";
     newContinuousStateAdded: false;
     valveOpeningStateAdded: false;
   }>;
@@ -86,20 +98,28 @@ export function resolveMainWireStandard68DocumentationFactsV1(
     identity.kind === "main-wire-qualified-baseline-standard69"
     && identity.modelId
       === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
+  const standard70 =
+    identity.kind === "main-wire-algebraic-pulmonary-root-standard70"
+    && identity.modelId
+      === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1;
   const standard68 = identity.kind === "main-wire-rounded-ejection-standard68"
     && identity.modelId
       === MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
-  if (!standard68 && !standard69) {
+  if (!standard68 && !standard69 && !standard70) {
     return null;
   }
 
   try {
-    const descriptor = standard69
-      ? qualifiedBaselineDescriptorV1
-      : roundedEjectionDescriptorV1;
-    const releaseSurface = standard69
-      ? qualifiedBaselineSurfaceV1
-      : roundedEjectionSurfaceV1;
+    const descriptor = standard70
+      ? algebraicPulmonaryRootDescriptorV1
+      : standard69
+        ? qualifiedBaselineDescriptorV1
+        : roundedEjectionDescriptorV1;
+    const releaseSurface = standard70
+      ? algebraicPulmonaryRootSurfaceV1
+      : standard69
+        ? qualifiedBaselineSurfaceV1
+        : roundedEjectionSurfaceV1;
     const manifest = descriptor.manifest as unknown as
       ExactModelKernelManifestV3;
     const surface = releaseSurface as unknown as
@@ -173,6 +193,10 @@ export function resolveMainWireStandard68DocumentationFactsV1(
         !== claim.ventricularMaterialProfileId
       || manifest.equations.aorticOutflowCirculationProfileId
         !== claim.aorticOutflowCirculationProfileId
+      || (standard70
+        ? manifest.equations.pulmonaryArterialRootProfileId
+          !== "main-wire-algebraic-pulmonary-arterial-root-profile-v1"
+        : manifest.equations.pulmonaryArterialRootProfileId !== undefined)
     ) {
       return null;
     }
@@ -200,14 +224,20 @@ export function resolveMainWireStandard68DocumentationFactsV1(
       return null;
     }
 
-    const baseline = standard69
-      ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
-      : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+    const baseline = standard70
+      ? MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1
+      : standard69
+        ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
+        : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
     if (baseline.checks.some(({ status }) => status !== "passed")) return null;
 
     return Object.freeze({
       identity: identity as MainWireStandard68DocumentationFactsV1["identity"],
-      generation: standard69 ? 69 as const : 68 as const,
+      generation: standard70
+        ? 70 as const
+        : standard69
+          ? 69 as const
+          : 68 as const,
       stations: Object.freeze({
         aopOutputId,
         abpOutputId,
@@ -219,6 +249,9 @@ export function resolveMainWireStandard68DocumentationFactsV1(
         aorticOutflowCirculationProfileId:
           claim.aorticOutflowCirculationProfileId,
         proximalArterialRootMomentum: claim.proximalArterialRootMomentum,
+        pulmonaryArterialRootMomentum: standard70
+          ? "algebraic-no-inertance" as const
+          : "source-inertance" as const,
         newContinuousStateAdded: claim.newContinuousStateAdded,
         valveOpeningStateAdded: claim.valveOpeningStateAdded,
       }),

@@ -181,6 +181,24 @@ export type MainWireIntegratedModelBaselineCardiacSizeAndFunctionV1 =
 type Sample = MainWireIntegratedModelPeriodicTerminalTraceSampleV3;
 type ValveId = keyof Sample["valveFlowMlPerSec"];
 type VentricularPressureId = "LV" | "RV";
+export type MainWireIntegratedModelBaselineVentricularSideV1 =
+  | "left"
+  | "right";
+
+export type MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1 =
+  Readonly<{
+    ejectionTimeSec: number;
+    inletFlow: Readonly<{
+      peakEMlPerSec: number;
+      peakAMlPerSec: number;
+      peakEToA: number;
+    }>;
+    timing: Readonly<{
+      ictSec: number;
+      irtSec: number;
+      teiIndex: number;
+    }>;
+  }>;
 
 type ForwardEpisodeV1 = Readonly<{
   start: number;
@@ -221,8 +239,11 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
   const gradients = aorticSamples.map((sample) =>
     sample.absolutePressureMmHg.LV - sample.absolutePressureMmHg.Ao);
   const pressureRate = pressureRateExtremaV1(samples, "LV");
-  const timing = ventricularTimingV1(samples, aorticEpisode, cycleLengthSec);
-  const mitral = mitralPeakEToAV1(samples, timing);
+  const leftTimingAndInletFlow =
+    measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
+      samples,
+      "left",
+    );
   const cardiacSizeAndFunction = cardiacSizeAndFunctionFromTraceV1(
     samples,
     cycleLengthSec,
@@ -245,19 +266,58 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
       minimumDpDtMmHgPerSec: pressureRate.minimum,
     }),
     mitralFlow: Object.freeze({
-      peakEMlPerSec: mitral.peakE,
-      peakAMlPerSec: mitral.peakA,
-      peakEToA: mitral.peakE / mitral.peakA,
+      ...leftTimingAndInletFlow.inletFlow,
+    }),
+    timing: Object.freeze({
+      ...leftTimingAndInletFlow.timing,
+    }),
+    hemodynamicPressure,
+    cardiacSizeAndFunction,
+  });
+}
+
+/**
+ * Analysis-owned valve-event timing and biphasic inflow measurement shared by
+ * left- and right-heart mint qualification. It uses the same accepted-step
+ * threshold and cyclic event convention on both sides.
+ */
+export function measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
+  samples: readonly Sample[],
+  side: MainWireIntegratedModelBaselineVentricularSideV1,
+): MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1 {
+  if (samples.length < 12) {
+    throw new Error("baseline timing requires a complete accepted-step cycle");
+  }
+  const cycleLengthSec = samples.reduce(
+    (sum, sample) => sum + requirePositiveFiniteV1(
+      sample.acceptedDtSec,
+      "acceptedDtSec",
+    ),
+    0,
+  );
+  const outletValveId = side === "left" ? "AoV" : "PV";
+  const inletValveId = side === "left" ? "MV" : "TV";
+  const outletEpisode = primaryForwardEpisodeV1(samples, outletValveId);
+  const timing = ventricularTimingV1(
+    samples,
+    outletEpisode,
+    cycleLengthSec,
+    inletValveId,
+  );
+  const inlet = inletPeakEToAV1(samples, timing, inletValveId);
+  return Object.freeze({
+    ejectionTimeSec: timing.ejectionTimeSec,
+    inletFlow: Object.freeze({
+      peakEMlPerSec: inlet.peakE,
+      peakAMlPerSec: inlet.peakA,
+      peakEToA: inlet.peakE / inlet.peakA,
     }),
     timing: Object.freeze({
       ictSec: timing.ictSec,
       irtSec: timing.irtSec,
       teiIndex:
-        (timing.ictSec + timing.irtSec) /
-        timing.ejectionTimeSec,
+        (timing.ictSec + timing.irtSec) / timing.ejectionTimeSec,
     }),
-    hemodynamicPressure,
-    cardiacSizeAndFunction,
   });
 }
 
@@ -725,12 +785,13 @@ function ventricularTimingV1(
   samples: readonly Sample[],
   outlet: ForwardEpisodeV1,
   cycleLengthSec: number,
+  inletValveId: "MV" | "TV",
 ) {
   const inletPeak = Math.max(...samples.map((sample) =>
-    sample.valveFlowMlPerSec.MV));
+    sample.valveFlowMlPerSec[inletValveId]));
   const inletThreshold = Math.max(1, 0.01 * inletPeak);
   const inletOpen = samples.map((sample) =>
-    sample.valveFlowMlPerSec.MV > inletThreshold);
+    sample.valveFlowMlPerSec[inletValveId] > inletThreshold);
   const outletStart = outlet.start % samples.length;
   const outletEnd = outlet.end % samples.length;
   const inletClosure = previousTransitionV1(
@@ -758,9 +819,10 @@ function ventricularTimingV1(
   });
 }
 
-function mitralPeakEToAV1(
+function inletPeakEToAV1(
   samples: readonly Sample[],
   timing: Readonly<{ inletClosure: number; inletOpening: number }>,
+  inletValveId: "MV" | "TV",
 ) {
   const fillingIndices = cyclicHalfOpenIndicesV1(
     samples.length,
@@ -768,7 +830,7 @@ function mitralPeakEToAV1(
     timing.inletClosure,
   );
   const filling = fillingIndices.map((index) =>
-    samples[index]!.valveFlowMlPerSec.MV);
+    samples[index]!.valveFlowMlPerSec[inletValveId]);
   const candidates = filling.flatMap((flow, index) =>
     index > 0 && index < filling.length - 1
       && flow > filling[index - 1]!
@@ -797,7 +859,7 @@ function mitralPeakEToAV1(
   const peakA = best?.second.flow ?? 0;
   if (!(peakE > 0) || !(peakA > 0)) {
     throw new Error(
-      "baseline validation could not resolve two separated positive mitral E/A peaks",
+      `baseline validation could not resolve two separated positive ${inletValveId} E/A peaks`,
     );
   }
   return Object.freeze({ peakE, peakA });

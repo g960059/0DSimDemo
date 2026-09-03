@@ -11,6 +11,7 @@ import {
   MAIN_WIRE_AORTIC_RECOVERED_ROOT_PROFILE_V1,
 } from "@/engine/valves/MainWireAorticRecoveredRootProfileV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
@@ -25,6 +26,8 @@ import roundedEjectionStandard68SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
 import qualifiedBaselineStandard69SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import algebraicPulmonaryRootStandard70SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import {
   resolveMainWireStandard66DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
@@ -52,6 +55,10 @@ const STANDARD69_MODEL_ID =
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
 const STANDARD69_SURFACE_RELEASE_ID =
   qualifiedBaselineStandard69SurfaceV1.surfaceReleaseId;
+const STANDARD70_MODEL_ID =
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1;
+const STANDARD70_SURFACE_RELEASE_ID =
+  algebraicPulmonaryRootStandard70SurfaceV1.surfaceReleaseId;
 
 describe("model documentation V1", () => {
   it("builds a locale-scoped URL from the exact model and Surface release", () => {
@@ -358,6 +365,41 @@ describe("model documentation V1", () => {
     expect(valid).toContain("Main Wire Standard 69");
     expect(valid).toContain("Standard 68の数式構成を保ち");
     expect(valid).toContain(STANDARD69_MODEL_ID);
+  });
+
+  it("renders Standard70 with the asymmetric pulmonary-root limitation", () => {
+    const identity = resolveRegisteredModelDocumentationV1(
+      STANDARD70_MODEL_ID,
+      STANDARD70_SURFACE_RELEASE_ID,
+    );
+    expect(identity).toMatchObject({
+      kind: "main-wire-algebraic-pulmonary-root-standard70",
+      modelId: STANDARD70_MODEL_ID,
+    });
+    expect(resolveRegisteredModelDisclosureV1(
+      STANDARD70_MODEL_ID,
+      STANDARD70_SURFACE_RELEASE_ID,
+    )).toMatchObject({
+      badgeLabel: "MW 70",
+      limitationsTranslationKey: "modelLimitations.standard70Items",
+    });
+    expect(resolveMainWireStandard68DocumentationFactsV1(identity!))
+      .toMatchObject({
+        generation: 70,
+        dynamics: {
+          proximalArterialRootMomentum: "source-inertance",
+          pulmonaryArterialRootMomentum: "algebraic-no-inertance",
+        },
+      });
+    const valid = renderDocumentationRoute(modelDocumentationHref({
+      locale: "ja",
+      modelId: STANDARD70_MODEL_ID,
+      surfaceReleaseId: STANDARD70_SURFACE_RELEASE_ID,
+    }));
+    expect(valid).toContain('data-testid="standard70-model-documentation-v1"');
+    expect(valid).toContain("Main Wire Standard 70");
+    expect(valid).toContain("PA–PArt間のみ");
+    expect(valid).toContain(STANDARD70_MODEL_ID);
   });
 });
 

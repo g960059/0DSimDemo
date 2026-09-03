@@ -5,8 +5,8 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 88;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 49;
+export const FAST_SUITE_FILE_BUDGET = 89;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 50;
 
 export const fastTests = [
   "__tests__/analysisMethodRegistryV1.test.ts",
@@ -43,6 +43,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseaseResearchBracketsV1.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
+  "__tests__/mainWireAlgebraicPulmonaryArterialRootProfileV1.test.ts",
   "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
   "__tests__/mainWireSelectedAorticOutflowCirculationProfileV1.test.ts",
   "__tests__/mainWireIntegratedModelHotPathIntegrityV3.test.ts",
@@ -132,6 +133,7 @@ export const prSmokeTests = [
   "__tests__/mainWireIntegratedStudioModelV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireAorticRecoveredRootPortValveV1.test.ts",
+  "__tests__/mainWireAlgebraicPulmonaryArterialRootProfileV1.test.ts",
   "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
@@ -160,6 +162,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/mainWireIntegratedStudioAlgebraicPulmonaryRootV1.test.ts",
   "__tests__/mainWireIntegratedStudioPublishedHemodynamicDomainsV1.test.ts",
   "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
   "__tests__/mainWireIntegratedStudioStructuralAnalysisV3.test.ts",

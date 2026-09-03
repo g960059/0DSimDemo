@@ -1,4 +1,5 @@
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
@@ -16,13 +17,16 @@ import roundedEjectionStandard68SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
 import qualifiedBaselineStandard69SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import algebraicPulmonaryRootStandard70SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   kind:
     | "main-wire-selected-aortic-outflow-standard66"
     | "main-wire-algebraic-proximal-roots-standard67"
     | "main-wire-rounded-ejection-standard68"
-    | "main-wire-qualified-baseline-standard69";
+    | "main-wire-qualified-baseline-standard69"
+    | "main-wire-algebraic-pulmonary-root-standard70";
   modelId: string;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -36,7 +40,8 @@ export type RegisteredModelDisclosureV1 = Readonly<{
     | "modelLimitations.items"
     | "modelLimitations.standard66Items"
     | "modelLimitations.standard67Items"
-    | "modelLimitations.standard68Items";
+    | "modelLimitations.standard68Items"
+    | "modelLimitations.standard70Items";
 }>;
 
 const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
@@ -71,6 +76,16 @@ const STANDARD69_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
   modelId: MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   surfaceReleaseId: qualifiedBaselineStandard69SurfaceV1.surfaceReleaseId,
   surfaceSeriesId: qualifiedBaselineStandard69SurfaceV1.surfaceSeriesId,
+});
+
+const STANDARD70_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
+  kind: "main-wire-algebraic-pulmonary-root-standard70" as const,
+  modelId:
+    MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+  surfaceReleaseId:
+    algebraicPulmonaryRootStandard70SurfaceV1.surfaceReleaseId,
+  surfaceSeriesId:
+    algebraicPulmonaryRootStandard70SurfaceV1.surfaceSeriesId,
 });
 
 /**
@@ -109,10 +124,19 @@ export function resolveRegisteredModelDocumentationV1(
       === STANDARD69_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
   ) {
     identity = STANDARD69_DOCUMENTATION_IDENTITY_V1;
+  } else if (
+    modelId === STANDARD70_DOCUMENTATION_IDENTITY_V1.modelId
+    && surfaceReleaseId
+      === STANDARD70_DOCUMENTATION_IDENTITY_V1.surfaceReleaseId
+  ) {
+    identity = STANDARD70_DOCUMENTATION_IDENTITY_V1;
   }
   if (identity === null) return null;
-  const surface = identity.kind === "main-wire-qualified-baseline-standard69"
-    ? qualifiedBaselineStandard69SurfaceV1
+  const surface = identity.kind
+      === "main-wire-algebraic-pulmonary-root-standard70"
+    ? algebraicPulmonaryRootStandard70SurfaceV1
+    : identity.kind === "main-wire-qualified-baseline-standard69"
+      ? qualifiedBaselineStandard69SurfaceV1
     : identity.kind === "main-wire-rounded-ejection-standard68"
       ? roundedEjectionStandard68SurfaceV1
     : identity.kind === "main-wire-algebraic-proximal-roots-standard67"
@@ -163,6 +187,17 @@ export function resolveRegisteredModelDisclosureV1(
       shortLabel: "Main Wire Standard 69",
       limitationsTranslationKey:
         "modelLimitations.standard68Items" as const,
+    });
+  }
+  if (
+    documentation.kind === "main-wire-algebraic-pulmonary-root-standard70"
+  ) {
+    return Object.freeze({
+      documentation,
+      badgeLabel: "MW 70",
+      shortLabel: "Main Wire Standard 70",
+      limitationsTranslationKey:
+        "modelLimitations.standard70Items" as const,
     });
   }
   if (documentation.kind === "main-wire-algebraic-proximal-roots-standard67") {

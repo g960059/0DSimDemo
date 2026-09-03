@@ -14,6 +14,9 @@ import {
   qualifyMainWireIntegratedModelStandard69BaselineV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineQualificationV1";
 import {
+  qualifyMainWireIntegratedModelStandard70BaselineV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
@@ -22,8 +25,15 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineV1";
+import {
   MainWireIntegratedModelStandard68TypedAuthoritySessionV1,
 } from "@/engine/vnext/MainWireIntegratedModelStandard68TypedAuthoritySessionV1";
+import {
+  MainWireIntegratedModelStandard70TypedAuthoritySessionV1,
+} from "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import {
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -59,11 +69,20 @@ import {
   createMainWireIntegratedStudioQualifiedBaselineSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1";
 import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SETTLED_CHECKPOINT_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
+  createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
+import {
   buildMainWireIntegratedStudioRoundedEjectionBaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
 import {
   buildMainWireIntegratedStudioStandard69BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard69BaselineValidationV1";
+import {
+  buildMainWireIntegratedStudioStandard70BaselineValidationV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
 
 const repositoryRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -78,23 +97,64 @@ const roundedEjectionRequested = requestedArguments.includes(
 const qualifiedBaselineRequested = requestedArguments.includes(
   "--qualified-baseline",
 );
-if (roundedEjectionRequested && qualifiedBaselineRequested) {
+const algebraicPulmonaryRootRequested = requestedArguments.includes(
+  "--algebraic-pulmonary-root",
+);
+if (
+  [
+    roundedEjectionRequested,
+    qualifiedBaselineRequested,
+    algebraicPulmonaryRootRequested,
+  ].filter(Boolean).length > 1
+) {
   throw new Error(
-    "--rounded-ejection and --qualified-baseline are mutually exclusive",
+    "construction selection arguments are mutually exclusive",
   );
 }
 const roundedConstructionRequested =
-  roundedEjectionRequested || qualifiedBaselineRequested;
+  roundedEjectionRequested
+  || qualifiedBaselineRequested
+  || algebraicPulmonaryRootRequested;
 const updateRequested = requestedArguments.includes("--write");
 if (requestedArguments.some((argument) =>
   argument !== "--write"
   && argument !== "--rounded-ejection"
-  && argument !== "--qualified-baseline")) {
-  throw new Error(
-    "supported arguments are --write, --rounded-ejection, and --qualified-baseline",
-  );
+  && argument !== "--qualified-baseline"
+  && argument !== "--algebraic-pulmonary-root")) {
+  throw new Error("unsupported registry verification argument");
 }
-const releaseConfigurationV1 = qualifiedBaselineRequested
+const releaseConfigurationV1 = algebraicPulmonaryRootRequested
+  ? Object.freeze({
+      label: "algebraic-pulmonary-root Standard70",
+      idSlug: "algebraic-pulmonary-root-standard70",
+      displayName: "Main Wire Standard 70",
+      entryFile:
+        "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.entry.ts",
+      artifactFile:
+        "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs",
+      descriptorFile:
+        "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json",
+      lockFile:
+        "algebraic-pulmonary-root-standard70-registry-admission-lock.json",
+      artifactChunkName:
+        "main-wire-integrated-algebraic-pulmonary-root-standard70-v1.mjs",
+      modelId:
+        "circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70",
+      fixtureId:
+        "main-wire-integrated-model-algebraic-pulmonary-root-fixture-v1",
+      proximalArterialRootsProfileId: null,
+      pulmonaryArterialRootProfileId:
+        "main-wire-algebraic-pulmonary-arterial-root-profile-v1",
+      numericalSessionId:
+        "main-wire-integrated-model-standard70-typed-authority-session-v1",
+      checkpointId:
+        "circleheart.main-wire-integrated-model-standard70-exact-checkpoint.v1",
+      createRelease:
+        createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1,
+      defaultFixture:
+        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
+    })
+  : qualifiedBaselineRequested
   ? Object.freeze({
       label: "qualified-baseline Standard69",
       idSlug: "qualified-baseline-standard69",
@@ -111,6 +171,7 @@ const releaseConfigurationV1 = qualifiedBaselineRequested
         "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69",
       fixtureId: "main-wire-integrated-model-rounded-ejection-fixture-v1",
       proximalArterialRootsProfileId: null,
+      pulmonaryArterialRootProfileId: null,
       numericalSessionId:
         "main-wire-integrated-model-standard68-typed-authority-session-v1",
       checkpointId:
@@ -137,6 +198,7 @@ const releaseConfigurationV1 = qualifiedBaselineRequested
         "circleheart.main-wire-integrated-transaction-v3.rounded-ejection.standard-68",
       fixtureId: "main-wire-integrated-model-rounded-ejection-fixture-v1",
       proximalArterialRootsProfileId: null,
+      pulmonaryArterialRootProfileId: null,
       numericalSessionId:
         "main-wire-integrated-model-standard68-typed-authority-session-v1",
       checkpointId:
@@ -166,6 +228,7 @@ const releaseConfigurationV1 = qualifiedBaselineRequested
         "main-wire-integrated-model-algebraic-proximal-roots-fixture-v1",
       proximalArterialRootsProfileId:
         "main-wire-algebraic-proximal-arterial-roots-profile-v1",
+      pulmonaryArterialRootProfileId: null,
       numericalSessionId:
         "main-wire-integrated-model-standard67-typed-authority-session-v1",
       checkpointId:
@@ -204,7 +267,9 @@ type ReleaseV1 = ReturnType<
 await main();
 
 async function main(): Promise<void> {
-  if (roundedConstructionRequested) {
+  if (algebraicPulmonaryRootRequested) {
+    await assertAlgebraicPulmonaryRootBaselineQualificationV1();
+  } else if (roundedConstructionRequested) {
     await assertRoundedEjectionBaselineQualificationV1();
   }
   const sourceRelease = releaseConfigurationV1.createRelease();
@@ -280,6 +345,65 @@ async function main(): Promise<void> {
   process.stdout.write(
     `${releaseConfigurationV1.label} registry admission verified: ${lock.modelId} (${artifactRevisionId})\n`,
   );
+}
+
+async function assertAlgebraicPulmonaryRootBaselineQualificationV1():
+  Promise<void> {
+  const qualification =
+    await qualifyMainWireIntegratedModelStandard70BaselineV1(
+      MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_SETTLED_CHECKPOINT_V1,
+    );
+  const settledSession =
+    await MainWireIntegratedModelStandard70TypedAuthoritySessionV1
+      .restoreStandard70ExactCheckpoint(
+        qualification.checkpoint,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+        1,
+        undefined,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
+      );
+  const preloadReserve =
+    await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+      settledSession,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+    );
+  const report = buildMainWireIntegratedStudioStandard70BaselineValidationV1(
+    qualification,
+    preloadReserve,
+  );
+  if (
+    !sameBaselineAcrossSupportedRuntimeV1(
+      report,
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
+    )
+    || !sameBaselineAcrossSupportedRuntimeV1(
+      qualification.checkpoint,
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SETTLED_CHECKPOINT_V1,
+    )
+  ) {
+    fail(
+      "fresh Standard70 qualification differs from the committed baseline",
+    );
+  }
+  const requiredRightHeartCheckIds = [
+    "pulmonary-valve.mean-gradient",
+    "pulmonary-valve.peak-gradient",
+    "pulmonary-valve.ejection-time",
+    "right-ventricle.maximum-dpdt",
+    "right-ventricle.minimum-dpdt",
+    "tricuspid-flow.peak-e-to-a",
+    "right-timing.ict",
+    "right-timing.irt",
+    "right-timing.tei-index",
+  ];
+  const passedIds = new Set<string>(
+    report.checks
+      .filter(({ status }) => status === "passed")
+      .map(({ checkId }) => checkId),
+  );
+  if (requiredRightHeartCheckIds.some((checkId) => !passedIds.has(checkId))) {
+    fail("Standard70 qualification omits a required right-heart mint gate");
+  }
 }
 
 async function assertRoundedEjectionBaselineQualificationV1(): Promise<void> {
@@ -461,6 +585,14 @@ function assertStandard67ManifestV1(
   ) {
     fail("source release binds the wrong proximal-root identity");
   }
+  if (
+    releaseConfigurationV1.pulmonaryArterialRootProfileId === null
+      ? "pulmonaryArterialRootProfileId" in manifest.equations
+      : manifest.equations.pulmonaryArterialRootProfileId
+        !== releaseConfigurationV1.pulmonaryArterialRootProfileId
+  ) {
+    fail("source release binds the wrong pulmonary-root identity");
+  }
   const structuralAnalysisCapabilities = [
     "analysis/main-wire-integrated-v3-guyton-starling-structural-orientation-v1",
     "analysis/main-wire-integrated-v3-formal-fixed-tbv-pressure-volume-relations-v1",
@@ -551,9 +683,11 @@ async function assertArtifactAdmissionV1(
       runtimeSessionId: sourceSessionId,
       scenarioId,
     });
-    const baselineReport = qualifiedBaselineRequested
-      ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
-      : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
+    const baselineReport = algebraicPulmonaryRootRequested
+      ? MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1
+      : qualifiedBaselineRequested
+        ? MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_VALIDATION_REPORT_V1
+        : MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_REPORT_V1;
     const expectedInitialRevision = roundedConstructionRequested
       ? baselineReport.checkpoint.revision
       : 0;

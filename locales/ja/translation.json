@@ -323,6 +323,7 @@
         "baselineBidirectionalPassed": "低・高容量側とも合格",
         "baselinePreloadReserveDetail": "固定制御・formal period-1 settlementでTBV −{{low}}% / +{{high}}%。低容量側CO低下 LV {{lowLv}} / RV {{lowRv}}、高容量側CO増加 LV {{highLv}} / RV {{highRv}} L/min。方向別に定めたCO変化率、圧—流量勾配、EDV応答の必須基準を満たします。臨床的fluid challengeの検証ではありません。",
         "baselinePreloadReserveDetailStandard69": "固定制御・formal period-1 settlementでTBV −{{low}}% / +{{high}}%。低容量側CO低下 LV {{lowLv}} / RV {{lowRv}}、高容量側CO増加 LV {{highLv}} / RV {{highRv}} L/min。Standard69追加floor：CO変化率 ≥3%、CO/充満圧勾配 ≥0.02 L/min/mmHg、EDV変化率 ≥3%（各方向・両心室）。探索後に固定したconstruction用退行防止基準であり、臨床的fluid challengeの検証ではありません。",
+        "baselinePreloadReserveDetailStandard70": "固定制御・formal period-1 settlementでTBV −{{low}}% / +{{high}}%。低容量側CO低下 LV {{lowLv}} / RV {{lowRv}}、高容量側CO増加 LV {{highLv}} / RV {{highRv}} L/min。Standard70で再承認したfloor：CO変化率 ≥3%、CO/充満圧勾配 ≥0.02 L/min/mmHg、EDV変化率 ≥3%（各方向・両心室）。construction用退行防止基準であり、臨床的fluid challengeの検証ではありません。",
         "baselineTransmuralResponse": "ED transmural応答",
         "baselineTransmuralResponseDetail": "最大容量ED landmarkのtransmural pressureが低容量側で低下（LV {{lowLv}} / RV {{lowRv}} mmHg）、高容量側で上昇（LV {{highLv}} / RV {{highRv}} mmHg）。EDVも同方向に変化することを必須化しています。",
         "limitationsTitle": "制限事項",
@@ -723,6 +724,14 @@
       "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
       "control変更はaccepted stateとmodel clockを保持するwarm startです。自律神経反射や実測の変時性応答を再現したものではありません。",
       "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
+    ],
+    "standard70Items": [
+      "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
+      "0D集中定数モデルです。AoPは大動脈弁直後の大動脈基部compliance node圧、ABPは体動脈compartment圧です。局所圧回復はAoPに適用せず、いずれも実際のカテーテルまたはカフ測定位置そのものではありません。",
+      "近位体動脈はsource momentum/compliance topologyを保ち、PA–PArt間のみ抵抗と二次損失を保つ代数的flow lawです。空間的な波動伝播・反射を表現せず、部位別の動脈波形とは解釈できません。",
+      "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
+      "control変更はaccepted stateとmodel clockを保持するwarm startです。自律神経反射や実測の変時性応答を再現したものではありません。",
+      "baseline mint gateには右心・肺動脈のconstruction sentinelを含みますが、患者個別または全負荷条件での臨床的正常性を保証しません。"
     ]
   }
 }
