@@ -257,11 +257,30 @@ export async function executeMainWireBaselineConditioningTaskV1(
   sourceAnchorKind:
     MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
 ): Promise<MainWireBaselineConditioningTaskExecutionV1> {
+  return executeMainWireBaselineConditioningTaskAtNominalDtV1(
+    task,
+    sourceCheckpoint,
+    sourceAnchorKind,
+    MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+      .explorationNominalDtSec,
+  );
+}
+
+export async function executeMainWireBaselineConditioningTaskAtNominalDtV1(
+  task: MainWireBaselineConditioningTaskV1,
+  sourceCheckpoint: MainWireIntegratedModelStandard70CheckpointV1,
+  sourceAnchorKind:
+    MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
+  nominalDtSec: number,
+): Promise<MainWireBaselineConditioningTaskExecutionV1> {
   if (
     sourceAnchorKind === "verified-condition-cache"
     && task.coordinateId !== null
   ) {
     throw new Error("verified condition cache may initialize only a center task");
+  }
+  if (!(nominalDtSec > 0) || !Number.isFinite(nominalDtSec)) {
+    throw new Error("conditioning task nominal dt must be positive and finite");
   }
   const resolved = resolveTaskV1(task);
   const sourceCandidate = sourceAnchorKind === "condition-center"
@@ -280,9 +299,7 @@ export async function executeMainWireBaselineConditioningTaskV1(
       mechanismResearchInputs: resolved.target.mechanismResearchInputs,
       ventricularContractilityScale:
         resolved.target.ventricularContractilityScale,
-      nominalDtSec:
-        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
-          .explorationNominalDtSec,
+      nominalDtSec,
       initialization: sourceAnchorKind === "cold"
         ? Object.freeze({ kind: "cold" as const })
         : useExactCheckpoint
@@ -371,7 +388,9 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
     throw new Error("conditioning audit evaluation task semantics differ");
   }
   const study = await compileMainWireBaselineConditioningStudyV1();
-  const sensitivities = buildSensitivitiesV1(received);
+  const sensitivities = buildMainWireBaselineConditioningSensitivitiesV1(
+    received,
+  );
   const primarySpectrum = buildMainWireBaselineConditioningSpectrumV1(
     sensitivities,
     MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.primaryCoordinateIds,
@@ -814,7 +833,7 @@ function compactEvaluationV1(
   });
 }
 
-function buildSensitivitiesV1(
+export function buildMainWireBaselineConditioningSensitivitiesV1(
   evaluations: readonly MainWireBaselineConditioningTaskResultV1[],
 ): readonly MainWireBaselineConditioningSensitivityV1[] {
   const taskById = new Map(evaluations.map((evaluation) =>

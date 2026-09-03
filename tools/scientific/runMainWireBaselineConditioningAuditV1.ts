@@ -16,11 +16,17 @@ import {
 import {
   buildMainWireBaselineConditioningAuditV1,
   buildMainWireBaselineConditioningTasksV1,
-  executeMainWireBaselineConditioningTaskV1,
+  executeMainWireBaselineConditioningTaskAtNominalDtV1,
+  verifyMainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningTaskResultV1,
   type MainWireBaselineConditioningTaskV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
+import {
+  buildMainWireBaselineConditioningRefinedDerivativeAuditV1,
+  buildMainWireBaselineConditioningRefinedTasksV1,
+  MAIN_WIRE_BASELINE_CONDITIONING_REFINED_DERIVATIVE_POLICY_V1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningRefinedDerivativeAuditV1";
 import {
   validateMainWireIntegratedModelStandard70CheckpointV1,
   type MainWireIntegratedModelStandard70CheckpointV1,
@@ -32,6 +38,8 @@ import {
 const workerTask = argumentV1("--worker-task");
 if (workerTask !== null) {
   await runWorkerV1(workerTask);
+} else if (hasFlagV1("--refined-derivative-audit")) {
+  await runRefinedDerivativeCoordinatorV1();
 } else {
   await runCoordinatorV1();
 }
@@ -117,6 +125,9 @@ async function runCoordinatorV1(): Promise<void> {
           sourceAnchorKind: "verified-condition-cache" as const,
           sourceCheckpoint: lookup.checkpoint,
           returnCheckpoint: true,
+          nominalDtSec:
+            MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+              .explorationNominalDtSec,
         })
       : defaultCenterJobV1(task);
   });
@@ -212,6 +223,9 @@ async function runCoordinatorV1(): Promise<void> {
         sourceAnchorKind: "condition-center" as const,
         sourceCheckpoint,
         returnCheckpoint: false,
+        nominalDtSec:
+          MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+            .explorationNominalDtSec,
       });
     }),
     effectiveParallelism,
@@ -247,6 +261,175 @@ async function runCoordinatorV1(): Promise<void> {
       writeFailureCount: centerCacheWriteFailureCount,
     }),
   });
+  const serialized = `${JSON.stringify(audit, null, 2)}\n`;
+  const output = argumentV1("--output");
+  if (output === null) {
+    process.stdout.write(serialized);
+  } else {
+    const outputPath = resolve(output);
+    await writeFile(outputPath, serialized, "utf8");
+    process.stdout.write(`${outputPath}\n`);
+  }
+}
+
+async function runRefinedDerivativeCoordinatorV1(): Promise<void> {
+  const coarseAuditPath = resolve(requiredArgumentV1("--coarse-audit"));
+  const coarseAuditInput = JSON.parse(
+    await readFile(coarseAuditPath, "utf8"),
+  ) as unknown;
+  const coarseAudit = await verifyMainWireBaselineConditioningAuditV1(
+    coarseAuditInput,
+  );
+  if (
+    coarseAudit.status !== "completed"
+    || coarseAudit.mode !== "primary-envelope"
+  ) {
+    throw new Error(
+      "refined derivative audit requires a completed primary-envelope audit",
+    );
+  }
+  const requestedParallelism = parsePositiveIntegerV1(
+    argumentV1("--parallelism") ?? "8",
+    "parallelism",
+  );
+  const tasks = buildMainWireBaselineConditioningRefinedTasksV1();
+  const effectiveParallelism = Math.min(
+    requestedParallelism,
+    Math.max(1, availableParallelism() - 1),
+    MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+      .maximumParallelEvaluations,
+    tasks.length,
+  );
+  const refinedNominalDtSec =
+    MAIN_WIRE_BASELINE_CONDITIONING_REFINED_DERIVATIVE_POLICY_V1
+      .refinedNominalDtSec;
+  const protocolCommit = gitV1([
+    "log",
+    "-1",
+    "--format=%H",
+    "--",
+    "analysis/methods/mainWire/"
+      + "MainWireBaselineConditioningRefinedDerivativeAuditV1.ts",
+  ]);
+  const executionCommit = gitV1(["rev-parse", "HEAD"]);
+  const cacheDirectory = resolve(
+    argumentV1("--coarse-center-checkpoint-cache-dir")
+      ?? "artifacts/main-wire-baseline-conditioning-v1/condition-centers",
+  );
+  const centerTasks = tasks.filter(({ coordinateId }) => coordinateId === null);
+  const perturbationTasks = tasks.filter(({ coordinateId }) =>
+    coordinateId !== null);
+  process.stderr.write(
+    `[conditioning-refined] ${tasks.length} tasks at ${refinedNominalDtSec} s, `
+      + `${effectiveParallelism} workers\n`,
+  );
+  const lookups = await Promise.all(centerTasks.map((task) =>
+    loadCenterCacheV1(task.conditionId, true, cacheDirectory)));
+  const centerJobs = centerTasks.map((task, index): WorkerJobV1 => {
+    const lookup = lookups[index];
+    if (
+      lookup.status !== "hit"
+      || lookup.checkpoint === null
+      || lookup.construction === null
+    ) {
+      throw new Error(
+        `refined derivative audit requires the verified coarse center cache: `
+          + task.conditionId,
+      );
+    }
+    return Object.freeze({
+      task,
+      sourceAnchorKind: "verified-condition-cache" as const,
+      sourceCheckpoint: lookup.checkpoint,
+      returnCheckpoint: true,
+      nominalDtSec: refinedNominalDtSec,
+    });
+  });
+  const startedAt = performance.now();
+  let completed = 0;
+  const progress = (result: MainWireBaselineConditioningTaskResultV1) => {
+    completed += 1;
+    process.stderr.write(
+      `[conditioning-refined] ${completed}/${tasks.length} `
+        + `${result.task.taskId}: ${result.evaluationStatus}, `
+        + `${Math.round(result.wallTimeMs)} ms\n`,
+    );
+  };
+  const centerExecutions = await runPoolV1(
+    centerJobs,
+    Math.min(effectiveParallelism, centerJobs.length),
+    ({ result }) => progress(result),
+  );
+  const refinedCheckpointByCondition = new Map<string,
+    MainWireIntegratedModelStandard70CheckpointV1>();
+  const centerSources = centerExecutions.map((execution, index) => {
+    const lookup = lookups[index];
+    if (
+      !centerResultAdmittedV1(execution.result)
+      || execution.acceptedCheckpoint === null
+      || lookup.checkpoint === null
+      || lookup.construction === null
+    ) {
+      throw new Error(
+        `refined derivative center failed exact or safety admission: `
+          + execution.result.task.conditionId,
+      );
+    }
+    refinedCheckpointByCondition.set(
+      execution.result.task.conditionId,
+      execution.acceptedCheckpoint,
+    );
+    return Object.freeze({
+      conditionId: execution.result.task.conditionId,
+      coarseConstructionIdentitySha256:
+        lookup.construction.constructionIdentitySha256,
+      coarseCheckpointSha256: lookup.checkpoint.checkpointSha256,
+      refinedCheckpointSha256:
+        execution.acceptedCheckpoint.checkpointSha256,
+    });
+  });
+  const perturbationJobs = perturbationTasks.map((task): WorkerJobV1 => {
+    const sourceCheckpoint = refinedCheckpointByCondition.get(task.conditionId);
+    if (sourceCheckpoint === undefined) {
+      throw new Error(
+        `refined condition center is missing: ${task.conditionId}`,
+      );
+    }
+    return Object.freeze({
+      task,
+      sourceAnchorKind: "condition-center" as const,
+      sourceCheckpoint,
+      returnCheckpoint: false,
+      nominalDtSec: refinedNominalDtSec,
+    });
+  });
+  const perturbationExecutions = await runPoolV1(
+    perturbationJobs,
+    effectiveParallelism,
+    ({ result }) => progress(result),
+  );
+  const batchWallTimeMs = performance.now() - startedAt;
+  const audit =
+    await buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+      coarseAudit: coarseAuditInput,
+      fineEvaluations: Object.freeze([
+        ...centerExecutions.map(({ result }) => Object.freeze({
+          nominalDtSec: refinedNominalDtSec,
+          taskResult: result,
+        })),
+        ...perturbationExecutions.map(({ result }) => Object.freeze({
+          nominalDtSec: refinedNominalDtSec,
+          taskResult: result,
+        })),
+      ]),
+      centerSources,
+      protocolCommit,
+      executionCommit,
+      requestedParallelism,
+      effectiveParallelism,
+      batchWallTimeMs,
+      refinedNominalDtSec,
+    });
   const serialized = `${JSON.stringify(audit, null, 2)}\n`;
   const output = argumentV1("--output");
   if (output === null) {
@@ -360,6 +543,9 @@ function defaultCenterJobV1(
       : "standard-baseline" as const,
     sourceCheckpoint: settledBaselineCheckpointJson,
     returnCheckpoint: true,
+    nominalDtSec:
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.numericalPolicy
+        .explorationNominalDtSec,
   });
 }
 
@@ -370,10 +556,11 @@ async function runWorkerV1(encodedTask: string): Promise<void> {
     await validateMainWireIntegratedModelStandard70CheckpointV1(
       job.sourceCheckpoint,
     );
-  const execution = await executeMainWireBaselineConditioningTaskV1(
+  const execution = await executeMainWireBaselineConditioningTaskAtNominalDtV1(
     job.task,
     sourceCheckpoint,
     job.sourceAnchorKind,
+    job.nominalDtSec,
   );
   process.stdout.write(JSON.stringify(Object.freeze({
     result: execution.result,
@@ -492,6 +679,7 @@ type WorkerJobV1 = Readonly<{
     MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"];
   sourceCheckpoint: unknown;
   returnCheckpoint: boolean;
+  nominalDtSec: number;
 }>;
 
 type WorkerExecutionV1 = Readonly<{
@@ -556,6 +744,9 @@ function parseWorkerJobV1(input: unknown): WorkerJobV1 {
       && record.sourceAnchorKind !== "condition-center"
       && record.sourceAnchorKind !== "verified-condition-cache")
     || typeof record.returnCheckpoint !== "boolean"
+    || typeof record.nominalDtSec !== "number"
+    || !(record.nominalDtSec > 0)
+    || !Number.isFinite(record.nominalDtSec)
     || record.sourceCheckpoint === null
     || typeof record.sourceCheckpoint !== "object"
   ) {
@@ -611,6 +802,12 @@ function argumentV1(name: string): string | null {
   if (value === undefined || value.startsWith("--")) {
     throw new Error(`${name} requires a value`);
   }
+  return value;
+}
+
+function requiredArgumentV1(name: string): string {
+  const value = argumentV1(name);
+  if (value === null) throw new Error(`${name} is required`);
   return value;
 }
 

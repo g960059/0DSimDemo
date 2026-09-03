@@ -127,6 +127,36 @@ export type MainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1 =
     constructionPolicyIdentitySha256: string;
   }>;
 
+export type MainWireStandard70BaselineCalibrationInitializationIdentityV1 =
+  | Readonly<{ kind: "cold" }>
+  | Readonly<{
+      kind: "standard70-exact-checkpoint";
+      checkpointSha256: string;
+    }>
+  | Readonly<{
+      kind:
+        | "standard68-construction-continuation"
+        | "standard70-parameter-continuation";
+      sourceCheckpointSha256: string;
+      sourceHemodynamicResearchInputs:
+        MainWireIntegratedModelHemodynamicResearchInputsV3;
+      sourceVentricularContractilityScale: number;
+      sourceMechanismResearchInputs:
+        MainWireIntegratedModelMechanismResearchInputsV3;
+    }>;
+
+export type MainWireStandard70BaselineCalibrationRequestIdentityInputV1 =
+  Readonly<{
+    constructionPolicyIdentitySha256: string;
+    hemodynamicResearchInputs:
+      MainWireIntegratedModelHemodynamicResearchInputsV3;
+    ventricularContractilityScale: number;
+    mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3;
+    nominalDtSec: number;
+    initialization:
+      MainWireStandard70BaselineCalibrationInitializationIdentityV1;
+  }>;
+
 export async function buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1():
   Promise<MainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1> {
   const constructionPolicyRevisionId =
@@ -146,6 +176,52 @@ export async function buildMainWireStandard70BaselineCalibrationConstructionPoli
       standard70RightHeartPolicy:
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1,
     }),
+  });
+}
+
+/**
+ * Canonical identity of one exact evaluator request. Keeping this public lets
+ * higher-level audit verifiers bind a compact result to the task, source,
+ * model/policy/method identities, and numerical dt that produced it.
+ */
+export async function buildMainWireStandard70BaselineCalibrationRequestIdentityV1(
+  input: MainWireStandard70BaselineCalibrationRequestIdentityInputV1,
+): Promise<string> {
+  if (!sha256V1(input.constructionPolicyIdentitySha256)) {
+    throw new Error("baseline calibration construction policy identity is invalid");
+  }
+  const hemodynamicResearchInputs = validatedHemodynamicsV1(
+    input.hemodynamicResearchInputs,
+    "request identity candidate",
+  );
+  const ventricularContractilityScale = validatedContractilityV1(
+    input.ventricularContractilityScale,
+    "request identity candidate",
+  );
+  const mechanismResearchInputs =
+    validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+      input.mechanismResearchInputs,
+    );
+  if (!(input.nominalDtSec > 0) || !Number.isFinite(input.nominalDtSec)) {
+    throw new Error("baseline calibration request identity dt must be positive finite");
+  }
+  const initialization = validatedInitializationIdentityV1(
+    input.initialization,
+  );
+  return sha256CanonicalJsonHex({
+    evaluatorId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
+    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
+    objectiveAnalysisMethodId:
+      MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID,
+    safetyAnalysisMethodId:
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
+    constructionPolicyIdentitySha256:
+      input.constructionPolicyIdentitySha256,
+    hemodynamicResearchInputs,
+    ventricularContractilityScale,
+    mechanismResearchInputs,
+    nominalDtSec: input.nominalDtSec,
+    initialization,
   });
 }
 
@@ -242,21 +318,16 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
       errorMessageV1(error),
     );
   }
-  const requestIdentitySha256 = await sha256CanonicalJsonHex({
-    evaluatorId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
-    exactModelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
-    objectiveAnalysisMethodId:
-      MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID,
-    safetyAnalysisMethodId:
-      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
-    constructionPolicyIdentitySha256:
-      constructionPolicy.constructionPolicyIdentitySha256,
-    hemodynamicResearchInputs,
-    ventricularContractilityScale,
-    mechanismResearchInputs,
-    nominalDtSec,
-    initialization: initializationIdentityV1(initialization),
-  });
+  const requestIdentitySha256 =
+    await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+      constructionPolicyIdentitySha256:
+        constructionPolicy.constructionPolicyIdentitySha256,
+      hemodynamicResearchInputs,
+      ventricularContractilityScale,
+      mechanismResearchInputs,
+      nominalDtSec,
+      initialization: initializationIdentityV1(initialization),
+    });
 
   let exactResult: MainWireIntegratedModelStandard70BaselineQualificationV1;
   try {
@@ -463,7 +534,7 @@ function failureV1(
 
 function initializationIdentityV1(
   initialization: MainWireIntegratedModelStandard70CandidateInitializationV1,
-) {
+): MainWireStandard70BaselineCalibrationInitializationIdentityV1 {
   if (initialization.kind === "cold") return initialization;
   if (initialization.kind === "standard70-exact-checkpoint") {
     return Object.freeze({
@@ -482,6 +553,47 @@ function initializationIdentityV1(
     sourceMechanismResearchInputs:
       initialization.sourceMechanismResearchInputs,
   });
+}
+
+function validatedInitializationIdentityV1(
+  initialization:
+    MainWireStandard70BaselineCalibrationInitializationIdentityV1,
+): MainWireStandard70BaselineCalibrationInitializationIdentityV1 {
+  if (initialization.kind === "cold") {
+    return Object.freeze({ kind: initialization.kind });
+  }
+  if (initialization.kind === "standard70-exact-checkpoint") {
+    if (!sha256V1(initialization.checkpointSha256)) {
+      throw new Error("baseline calibration checkpoint identity is invalid");
+    }
+    return Object.freeze({
+      kind: initialization.kind,
+      checkpointSha256: initialization.checkpointSha256,
+    });
+  }
+  if (!sha256V1(initialization.sourceCheckpointSha256)) {
+    throw new Error("baseline calibration source checkpoint identity is invalid");
+  }
+  return Object.freeze({
+    kind: initialization.kind,
+    sourceCheckpointSha256: initialization.sourceCheckpointSha256,
+    sourceHemodynamicResearchInputs: validatedHemodynamicsV1(
+      initialization.sourceHemodynamicResearchInputs,
+      "request identity continuation source",
+    ),
+    sourceVentricularContractilityScale: validatedContractilityV1(
+      initialization.sourceVentricularContractilityScale,
+      "request identity continuation source",
+    ),
+    sourceMechanismResearchInputs:
+      validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
+        initialization.sourceMechanismResearchInputs,
+      ),
+  });
+}
+
+function sha256V1(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
 function errorMessageV1(error: unknown): string {
