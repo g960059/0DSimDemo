@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMainWireBaselineConditioningAlternativeSubsetSpectraV1,
   buildMainWireBaselineConditioningSpectrumV1,
   type MainWireBaselineConditioningSensitivityV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
@@ -73,6 +74,34 @@ describe("baseline conditioning spectrum", () => {
       [sensitivity, sensitivity],
       [coordinates[0]],
     )).toThrow(/sensitivity is duplicated/);
+  });
+
+  it("reports every proper coordinate subset without selecting one", () => {
+    const sensitivities = [
+      sensitivityV1("aortic-valve.mean-gradient", coordinates[0], 3, 3),
+      sensitivityV1("aortic-valve.mean-gradient", coordinates[1], 0, 0),
+      sensitivityV1("aortic-pressure.maximum", coordinates[0], 0, 0),
+      sensitivityV1("aortic-pressure.maximum", coordinates[1], 1, 1),
+    ];
+    const subsets =
+      buildMainWireBaselineConditioningAlternativeSubsetSpectraV1(
+        sensitivities,
+        coordinates,
+        2,
+      );
+
+    expect(subsets.map(({ coordinateIds }) => coordinateIds)).toEqual([
+      [coordinates[0]],
+      [coordinates[1]],
+    ]);
+    expect(subsets.map(({ practicalRankStatus }) => practicalRankStatus))
+      .toEqual(["full", "full"]);
+    expect(() =>
+      buildMainWireBaselineConditioningAlternativeSubsetSpectraV1(
+        sensitivities,
+        coordinates,
+        3,
+      )).toThrow(/subset request is invalid/);
   });
 });
 

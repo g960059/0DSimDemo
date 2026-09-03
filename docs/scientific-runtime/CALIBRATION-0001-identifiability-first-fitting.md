@@ -140,6 +140,8 @@ halving. Machine rank remains visible, while practical rank uses the larger of
 the machine threshold and the observed full-versus-half-step Jacobian
 perturbation Frobenius norm. This is a conservative local resolution diagnostic,
 not a finite-difference convergence-order or inferential uncertainty claim.
+Every proper subset of the declared primary coordinates is reported under the
+same rule; the audit does not automatically choose or admit one.
 
 Search begins only after an admissible small subset is declared. Feasibility
 dominates score, materially distinct basins are retained, and finalists are
