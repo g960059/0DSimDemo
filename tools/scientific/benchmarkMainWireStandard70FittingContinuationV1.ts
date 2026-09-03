@@ -20,6 +20,16 @@ const sourceCheckpoint = cloneAndFreezeStudioJson(
   standard69CheckpointJsonV1,
 ) as unknown as MainWireIntegratedModelStandard68CheckpointV1;
 
+const includeColdReference =
+  process.env.CIRCLEHEART_STANDARD70_BENCHMARK_COLD === "1";
+const coldStartedAt = performance.now();
+const cold = includeColdReference
+  ? await evaluateMainWireIntegratedModelStandard70CandidateV1({
+      initialization: Object.freeze({ kind: "cold" as const }),
+    })
+  : null;
+const coldDurationMs = performance.now() - coldStartedAt;
+
 const constructionStartedAt = performance.now();
 const construction =
   await evaluateMainWireIntegratedModelStandard70CandidateV1({
@@ -68,6 +78,15 @@ const neighborDurationMs = performance.now() - neighborStartedAt;
 process.stdout.write(`${JSON.stringify({
   benchmarkId: "main-wire-standard70-fitting-continuation-benchmark-v1",
   performanceIsMachineLocalAndNonGating: true,
+  coldReference: cold === null
+    ? "set CIRCLEHEART_STANDARD70_BENCHMARK_COLD=1 to include"
+    : summaryV1(cold, coldDurationMs),
+  baselineColdWallTimeRatios: cold === null
+    ? null
+    : Object.freeze({
+        constructionContinuation: coldDurationMs / constructionDurationMs,
+        verifiedCheckpoint: coldDurationMs / verifiedDurationMs,
+      }),
   constructionContinuation: summaryV1(
     construction,
     constructionDurationMs,
@@ -100,6 +119,8 @@ function summaryV1(
       tricuspidPeakEToA: qualification.measurements.tricuspidFlow.peakEToA,
       rightTiming: qualification.measurements.rightTiming,
       RVP: qualification.measurements.RVP,
+      pulmonaryRootMorphology:
+        qualification.measurements.pulmonaryRootMorphology,
     }),
   });
 }
