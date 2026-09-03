@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import {
   buildMainWireBaselineConditioningSingularValuesV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
@@ -68,7 +69,7 @@ const SINGULAR_VALUES = Object.freeze([
 ] as const);
 
 describe("Standard70 baseline local proposal", () => {
-  it("recovers a non-orthogonal one-step synthetic truth", async () => {
+  it("recovers non-orthogonal one-step truths in both active directions", async () => {
     const result = await buildMainWireStandard70BaselineLocalProposalV1(
       inputV1(),
     );
@@ -80,7 +81,7 @@ describe("Standard70 baseline local proposal", () => {
     expect(result.coordinates.map(({ projectedOffsetInReleaseSteps }) =>
       projectedOffsetInReleaseSteps)).toEqual([1, 1]);
     expect(result.normalizedResidualFraction).toBeLessThan(1e-12);
-    expect(result.syntheticTruthRecoveryStatus).toBe("exact");
+    expect(result.projectedDeclaredTruthMatchStatus).toBe("matched");
     expect(result.claim).toEqual({
       artifactContentsVerified: false,
       exactReplayExecuted: false,
@@ -90,6 +91,17 @@ describe("Standard70 baseline local proposal", () => {
       inferentialUncertaintyClaimed: false,
       presetOrCaseFittingQualified: false,
     });
+
+    const opposite = await buildMainWireStandard70BaselineLocalProposalV1(
+      inputV1({ truth: [4_950, 1.23] }),
+    );
+    expect(opposite.status).toBe("proposed");
+    if (opposite.status !== "proposed") return;
+    expect(opposite.coordinates.map(({ projectedValue }) => projectedValue))
+      .toEqual([4_950, 1.23]);
+    expect(opposite.coordinates.map(({ projectedOffsetInReleaseSteps }) =>
+      projectedOffsetInReleaseSteps)).toEqual([1, -1]);
+    expect(opposite.projectedDeclaredTruthMatchStatus).toBe("matched");
   });
 
   it("refuses failed gates, non-local truth, and a zero response", async () => {
@@ -209,6 +221,37 @@ describe("Standard70 baseline local proposal", () => {
       ...malformed,
       source: { ...malformed.source, studyIdentitySha256: "not-a-digest" },
     })).rejects.toThrow(/provenance digest is invalid/);
+  });
+
+  it("owns one immutable snapshot before the first digest await", async () => {
+    const mutable = (
+      JSON.parse(JSON.stringify(inputV1()))
+    ) as MainWireStandard70BaselineLocalProposalInputV1;
+    const expectedIdentity = await sha256CanonicalJsonHex(mutable);
+    const pending = buildMainWireStandard70BaselineLocalProposalV1(mutable);
+    const row = mutable.basis.rows[0] as unknown as {
+      unit: string;
+      halfStepNormalizedDerivatives: [number, number];
+    };
+    const center = mutable.centerObservations[0] as {
+      unit: string;
+      actual: number;
+    };
+    const target = mutable.targetObservations[0] as {
+      unit: string;
+      actual: number;
+    };
+    row.unit = "";
+    row.halfStepNormalizedDerivatives[0] = 1_000;
+    center.unit = "";
+    target.unit = "";
+    target.actual += 1_000;
+
+    const result = await pending;
+    expect(result.status).toBe("proposed");
+    expect(result.inputIdentitySha256).toBe(expectedIdentity);
+    if (result.status !== "proposed") return;
+    expect(result.projectedDeclaredTruthMatchStatus).toBe("matched");
   });
 });
 

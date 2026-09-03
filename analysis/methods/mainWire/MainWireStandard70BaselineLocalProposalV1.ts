@@ -1,4 +1,8 @@
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import {
+  cloneAndFreezeCanonicalJson,
+  sha256CanonicalJsonHex,
+  type CanonicalJsonValue,
+} from "@/engine/integrity";
 import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
@@ -150,7 +154,7 @@ export type MainWireStandard70BaselineLocalProposalV1 =
         projectedOffsetInReleaseSteps: number;
         continuousErrorFromTruthInReleaseSteps: number;
       }>[];
-      syntheticTruthRecoveryStatus: "exact" | "mismatch";
+      projectedDeclaredTruthMatchStatus: "matched" | "mismatched";
       claim: Readonly<{
         artifactContentsVerified: false;
         exactReplayExecuted: false;
@@ -170,23 +174,26 @@ export type MainWireStandard70BaselineLocalProposalV1 =
 export async function buildMainWireStandard70BaselineLocalProposalV1(
   input: MainWireStandard70BaselineLocalProposalInputV1,
 ): Promise<MainWireStandard70BaselineLocalProposalV1> {
-  assertInputContractV1(input);
+  const ownedInput = (
+    cloneAndFreezeCanonicalJson<CanonicalJsonValue>(input)
+  ) as unknown as MainWireStandard70BaselineLocalProposalInputV1;
+  assertInputContractV1(ownedInput);
   const common = Object.freeze({
     proposalId: MAIN_WIRE_STANDARD70_BASELINE_LOCAL_PROPOSAL_V1_ID,
     policyIdentitySha256: await sha256CanonicalJsonHex(
       MAIN_WIRE_STANDARD70_BASELINE_LOCAL_PROPOSAL_POLICY_V1,
     ),
-    inputIdentitySha256: await sha256CanonicalJsonHex(input),
-    stageArtifactIdentitySha256: input.source.stageArtifactIdentitySha256,
+    inputIdentitySha256: await sha256CanonicalJsonHex(ownedInput),
+    stageArtifactIdentitySha256: ownedInput.source.stageArtifactIdentitySha256,
     refinedArtifactIdentitySha256:
-      input.source.refinedArtifactIdentitySha256,
-    targetRequestIdentitySha256: input.target.requestIdentitySha256,
+      ownedInput.source.refinedArtifactIdentitySha256,
+    targetRequestIdentitySha256: ownedInput.target.requestIdentitySha256,
   });
-  if (!targetGatesPassedV1(input.target)) {
+  if (!targetGatesPassedV1(ownedInput.target)) {
     return refusalV1(common, "target-gates-failed", null);
   }
 
-  const truthOffsets = input.coordinates.map((coordinate) =>
+  const truthOffsets = ownedInput.coordinates.map((coordinate) =>
     releaseOffsetV1(
       coordinate.parameterId,
       coordinate.centerValue,
@@ -200,18 +207,18 @@ export async function buildMainWireStandard70BaselineLocalProposalV1(
   }
 
   const centerByKey = observationMapV1(
-    input.centerObservations,
+    ownedInput.centerObservations,
     "center",
   );
   const targetByKey = observationMapV1(
-    input.targetObservations,
+    ownedInput.targetObservations,
     "target",
   );
-  const matrix = input.basis.rows.map((row) =>
+  const matrix = ownedInput.basis.rows.map((row) =>
     row.halfStepNormalizedDerivatives.map((value) =>
       value / row.weightDivisor));
-  assertBasisMatrixV1(input, matrix);
-  const response = input.basis.rows.map((row) => {
+  assertBasisMatrixV1(ownedInput, matrix);
+  const response = ownedInput.basis.rows.map((row) => {
     const key = rowKeyV1(row);
     const center = centerByKey.get(key);
     const target = targetByKey.get(key);
@@ -246,7 +253,7 @@ export async function buildMainWireStandard70BaselineLocalProposalV1(
     );
   }
 
-  const estimates = input.coordinates.map((coordinate, index) => {
+  const estimates = ownedInput.coordinates.map((coordinate, index) => {
     const descriptor = mainWireBaselineCalibrationParameterV1(
       coordinate.parameterId,
     );
@@ -309,15 +316,15 @@ export async function buildMainWireStandard70BaselineLocalProposalV1(
   return Object.freeze({
     ...common,
     status: "proposed" as const,
-    rowCount: input.basis.rows.length,
+    rowCount: ownedInput.basis.rows.length,
     responseNorm,
     normalizedResidualNorm,
     normalizedResidualFraction,
     coordinates: Object.freeze(accepted),
-    syntheticTruthRecoveryStatus: accepted.every((estimate) =>
+    projectedDeclaredTruthMatchStatus: accepted.every((estimate) =>
       estimate.projectedValue === estimate.syntheticTruthValue)
-      ? "exact" as const
-      : "mismatch" as const,
+      ? "matched" as const
+      : "mismatched" as const,
     claim: Object.freeze({
       artifactContentsVerified: false as const,
       exactReplayExecuted: false as const,
