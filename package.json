@@ -62,6 +62,7 @@
     "verify:scientific:valve-research-bracket-numerical-envelope": "vite-node --script tools/scientific/runMainWireValveResearchBracketNumericalRobustnessEnvelopeV1.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
     "audit:scientific:main-wire-baseline-numerical-floor-v1": "vite-node --script tools/scientific/runMainWireBaselineNumericalFloorAuditV1.ts",
+    "audit:scientific:main-wire-standard70-baseline-numerical-floor-v1": "vite-node --script tools/scientific/runMainWireStandard70BaselineNumericalFloorAuditV1.ts",
     "benchmark:scientific:main-wire-baseline-continuation-v1": "vite-node --script tools/scientific/benchmarkMainWireBaselineContinuationV1.ts",
     "benchmark:scientific:main-wire-standard70-continuation-v1": "vite-node --script tools/scientific/benchmarkMainWireStandard70FittingContinuationV1.ts",
     "audit:scientific:main-wire-baseline-conditioning-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts",
