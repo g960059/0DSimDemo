@@ -53,6 +53,14 @@ describe("Standard70 baseline numerical-floor evidence", () => {
     })).toThrow(/do not cover objective checks/);
     expect(() => assertMainWireStandard70BaselineNumericalFloorAuditV1({
       ...audit,
+      metricFloors: [audit.metricFloors[0], ...audit.metricFloors.slice(0, -1)],
+    })).toThrow(/duplicated/);
+    expect(() => assertMainWireStandard70BaselineNumericalFloorAuditV1({
+      ...audit,
+      fineDtSec: 0.0015,
+    })).toThrow(/must halve coarseDtSec/);
+    expect(() => assertMainWireStandard70BaselineNumericalFloorAuditV1({
+      ...audit,
       runs: {
         ...audit.runs,
         fineCold: {

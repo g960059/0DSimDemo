@@ -20,6 +20,19 @@ const checkpoint = standard70CheckpointJson as unknown as
   MainWireIntegratedModelStandard70CheckpointV1;
 
 describe("Standard70 baseline calibration evaluator", () => {
+  it("classifies pre-execution interruption without creating a request identity", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const result = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
+      abortSignal: controller.signal,
+    });
+    expect(result).toMatchObject({
+      status: "operational-interrupted",
+      phase: "interruption",
+      requestIdentitySha256: null,
+    });
+  });
+
   it("rejects a non-enumerated calibration heart rate before execution", async () => {
     const result =
       await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
