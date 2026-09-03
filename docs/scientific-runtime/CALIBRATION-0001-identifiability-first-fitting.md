@@ -135,6 +135,12 @@ pivoting diagnose practical conditioning at the declared anchors; they do not
 prove global or structural identifiability and cannot automatically admit a
 parameter subset.
 
+Spectrum rows require complete derivatives whose signs agree after step
+halving. Machine rank remains visible, while practical rank uses the larger of
+the machine threshold and the observed full-versus-half-step Jacobian
+perturbation Frobenius norm. This is a conservative local resolution diagnostic,
+not a finite-difference convergence-order or inferential uncertainty claim.
+
 Search begins only after an admissible small subset is declared. Feasibility
 dominates score, materially distinct basins are retained, and finalists are
 checked with independent initialization and refined numerical resolution.

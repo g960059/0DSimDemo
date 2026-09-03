@@ -94,12 +94,25 @@ export type MainWireBaselineConditioningSensitivityV1 = Readonly<{
 
 export type MainWireBaselineConditioningSpectrumV1 = Readonly<{
   coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[];
+  candidateRowCount: number;
   rowCount: number;
+  rowAdmissionPolicy: "complete-and-step-sign-stable";
+  excludedRows: readonly Readonly<{
+    conditionId: string;
+    checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
+    reason: "unresolved-sensitivity" | "step-sign-unstable";
+  }>[];
   singularValues: readonly number[];
   singularValueRatiosToMaximum: readonly number[];
   numericalRank: number;
   numericalRankTolerance: number;
   conditionNumber: number | null;
+  practicalRank: number;
+  practicalRankTolerance: number;
+  practicalRankToleranceComposition:
+    "maximum-of-machine-and-observed-step-halving-frobenius";
+  practicalConditionNumber: number | null;
+  observedStepHalvingPerturbationFrobeniusNorm: number;
   columnNorms: Readonly<Record<string, number>>;
   columnCosines: readonly Readonly<{
     leftCoordinateId: MainWireBaselineCalibrationParameterIdV1;
@@ -273,13 +286,13 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   }
   const study = await compileMainWireBaselineConditioningStudyV1();
   const sensitivities = buildSensitivitiesV1(received);
-  const primarySpectrum = buildSpectrumV1(
+  const primarySpectrum = buildMainWireBaselineConditioningSpectrumV1(
     sensitivities,
     MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.primaryCoordinateIds,
   );
   const allCoordinateIds = uniqueV1(received.flatMap(({ task }) =>
     task.coordinateId === null ? [] : [task.coordinateId]));
-  const allCoordinateSpectrum = buildSpectrumV1(
+  const allCoordinateSpectrum = buildMainWireBaselineConditioningSpectrumV1(
     sensitivities,
     allCoordinateIds,
   );
@@ -590,63 +603,155 @@ function centralNormalizedDerivativeV1(
     / transformedSpan;
 }
 
-function buildSpectrumV1(
+export function buildMainWireBaselineConditioningSpectrumV1(
   sensitivities: readonly MainWireBaselineConditioningSensitivityV1[],
   coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[],
 ): MainWireBaselineConditioningSpectrumV1 | null {
   if (coordinateIds.length === 0) return null;
+  if (new Set(coordinateIds).size !== coordinateIds.length) {
+    throw new Error("conditioning spectrum coordinate IDs are duplicated");
+  }
   const groupByCheckId = new Map<string, string>();
-  const continuousCountByGroup = new Map<string, number>();
   for (const group of normalReferenceEvidenceV1.checkGroups) {
-    const continuous = group.checkIds.filter((checkId) => {
-      const sensitivity = sensitivities.find((candidate) =>
-        candidate.checkId === checkId
-        && candidate.constructionCorridorWidth > 0);
-      return sensitivity !== undefined;
-    });
-    continuousCountByGroup.set(group.groupId, continuous.length);
     for (const checkId of group.checkIds) groupByCheckId.set(checkId, group.groupId);
+  }
+  const sensitivityByKey = new Map<
+    string,
+    MainWireBaselineConditioningSensitivityV1
+  >();
+  for (const sensitivity of sensitivities) {
+    const key = sensitivityKeyV1(
+      sensitivity.conditionId,
+      sensitivity.checkId,
+      sensitivity.coordinateId,
+    );
+    if (sensitivityByKey.has(key)) {
+      throw new Error(`conditioning sensitivity is duplicated: ${key}`);
+    }
+    sensitivityByKey.set(key, sensitivity);
   }
   const rowKeys = uniqueV1(sensitivities.map(({ conditionId, checkId }) =>
     `${conditionId}::${checkId}`));
-  const rows: number[][] = [];
+  const admitted: Readonly<{
+    conditionId: string;
+    checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
+    groupKey: string;
+    fullStepRow: readonly number[];
+    halfStepRow: readonly number[];
+  }>[] = [];
+  const excludedRows:
+    MainWireBaselineConditioningSpectrumV1["excludedRows"][number][] = [];
+  let candidateRowCount = 0;
   for (const rowKey of rowKeys) {
     const [conditionId, checkId] = rowKey.split("::");
     const groupId = groupByCheckId.get(checkId);
     if (groupId === undefined) continue;
-    const count = continuousCountByGroup.get(groupId) ?? 0;
-    if (count < 1) continue;
-    const row = coordinateIds.map((coordinateId) =>
-      sensitivities.find((candidate) =>
-        candidate.conditionId === conditionId
-        && candidate.checkId === checkId
-        && candidate.coordinateId === coordinateId)
-        ?.halfStepNormalizedDerivative ?? null);
-    if (row.some((value) => value === null)) continue;
-    rows.push((row as number[]).map((value) => value / Math.sqrt(count)));
+    candidateRowCount += 1;
+    const rowSensitivities = coordinateIds.map((coordinateId) =>
+      sensitivityByKey.get(sensitivityKeyV1(
+        conditionId,
+        checkId as MainWireIntegratedModelBaselineValidationCheckIdV1,
+        coordinateId,
+      )));
+    if (rowSensitivities.some((sensitivity) =>
+      sensitivity?.status !== "resolved"
+      || sensitivity.fullStepNormalizedDerivative === null
+      || sensitivity.halfStepNormalizedDerivative === null)) {
+      excludedRows.push(Object.freeze({
+        conditionId,
+        checkId: checkId as MainWireIntegratedModelBaselineValidationCheckIdV1,
+        reason: "unresolved-sensitivity" as const,
+      }));
+      continue;
+    }
+    if (rowSensitivities.some((sensitivity) =>
+      sensitivity?.signStable !== true)) {
+      excludedRows.push(Object.freeze({
+        conditionId,
+        checkId: checkId as MainWireIntegratedModelBaselineValidationCheckIdV1,
+        reason: "step-sign-unstable" as const,
+      }));
+      continue;
+    }
+    const resolved = rowSensitivities as readonly MainWireBaselineConditioningSensitivityV1[];
+    admitted.push(Object.freeze({
+      conditionId,
+      checkId: checkId as MainWireIntegratedModelBaselineValidationCheckIdV1,
+      groupKey: `${conditionId}::${groupId}`,
+      fullStepRow: Object.freeze(resolved.map((sensitivity) =>
+        sensitivity.fullStepNormalizedDerivative!)),
+      halfStepRow: Object.freeze(resolved.map((sensitivity) =>
+        sensitivity.halfStepNormalizedDerivative!)),
+    }));
   }
-  if (rows.length === 0) return null;
+  const admittedCountByGroup = new Map<string, number>();
+  for (const candidate of admitted) {
+    admittedCountByGroup.set(
+      candidate.groupKey,
+      (admittedCountByGroup.get(candidate.groupKey) ?? 0) + 1,
+    );
+  }
+  const weightedRows = admitted.map((candidate) => {
+    const scale = Math.sqrt(admittedCountByGroup.get(candidate.groupKey)!);
+    return Object.freeze({
+      fullStepRow: candidate.fullStepRow.map((value) => value / scale),
+      halfStepRow: candidate.halfStepRow.map((value) => value / scale),
+    });
+  });
+  const rows = weightedRows.map(({ halfStepRow }) => halfStepRow);
+  const fullStepRows = weightedRows.map(({ fullStepRow }) => fullStepRow);
   const singularValues = buildMainWireBaselineConditioningSingularValuesV1(
     rows,
     coordinateIds.length,
   );
   const maximum = singularValues[0] ?? 0;
-  const tolerance = maximum * Math.max(rows.length, coordinateIds.length)
+  const numericalRankTolerance = maximum
+    * Math.max(rows.length, coordinateIds.length)
     * Number.EPSILON;
-  const positive = singularValues.filter((value) => value > tolerance);
+  const numericalPositive = singularValues.filter((value) =>
+    value > numericalRankTolerance);
+  // The Frobenius norm bounds the spectral norm of the observed Jacobian
+  // difference. It is used without assuming a finite-difference error order.
+  const observedStepHalvingPerturbationFrobeniusNorm = Math.sqrt(
+    rows.reduce((sum, row, rowIndex) => sum + row.reduce(
+      (rowSum, value, columnIndex) => rowSum
+        + (value - fullStepRows[rowIndex][columnIndex]) ** 2,
+      0,
+    ), 0),
+  );
+  const practicalRankTolerance = Math.max(
+    numericalRankTolerance,
+    observedStepHalvingPerturbationFrobeniusNorm,
+  );
+  const practicalPositive = singularValues.filter((value) =>
+    value > practicalRankTolerance);
   const columnVectors = coordinateIds.map((_, columnIndex) =>
     rows.map((row) => row[columnIndex]));
   return Object.freeze({
     coordinateIds: Object.freeze([...coordinateIds]),
+    candidateRowCount,
     rowCount: rows.length,
+    rowAdmissionPolicy:
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
+        .spectrumRowAdmission,
+    excludedRows: Object.freeze(excludedRows),
     singularValues: Object.freeze(singularValues),
     singularValueRatiosToMaximum: Object.freeze(singularValues.map((value) =>
       maximum > 0 ? value / maximum : 0)),
-    numericalRank: positive.length,
-    numericalRankTolerance: tolerance,
-    conditionNumber: positive.length < coordinateIds.length
+    numericalRank: numericalPositive.length,
+    numericalRankTolerance,
+    conditionNumber: numericalPositive.length < coordinateIds.length
       ? null
-      : positive[0] / positive.at(-1)!,
+      : numericalPositive[0] / numericalPositive.at(-1)!,
+    practicalRank: practicalPositive.length,
+    practicalRankTolerance,
+    practicalRankToleranceComposition:
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
+        .practicalRankToleranceComposition,
+    practicalConditionNumber: practicalPositive.length < coordinateIds.length
+      ? null
+      : practicalPositive[0] / practicalPositive.at(-1)!,
+    observedStepHalvingPerturbationFrobeniusNorm,
     columnNorms: Object.freeze(Object.fromEntries(coordinateIds.map(
       (coordinateId, index) => [coordinateId, normV1(columnVectors[index])],
     ))),
@@ -668,6 +773,14 @@ function buildSpectrumV1(
       "construction-corridor-and-equal-mass-within-evidence-group" as const,
     inferentialClaimed: false as const,
   });
+}
+
+function sensitivityKeyV1(
+  conditionId: string,
+  checkId: MainWireIntegratedModelBaselineValidationCheckIdV1,
+  coordinateId: MainWireBaselineCalibrationParameterIdV1,
+): string {
+  return `${conditionId}::${checkId}::${coordinateId}`;
 }
 
 export function buildMainWireBaselineConditioningSingularValuesV1(

@@ -91,6 +91,9 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
   conditioningPolicy: Readonly<{
     finiteDifferenceScheme: "central-transformed-step-with-halving";
     nearestNeighbourContinuationForDerivatives: false;
+    spectrumRowAdmission: "complete-and-step-sign-stable";
+    practicalRankToleranceComposition:
+      "maximum-of-machine-and-observed-step-halving-frobenius";
     reportSingularSpectrum: true;
     reportAlternativeSubsets: true;
     maximumAdmittedCoordinateCount: 5;
@@ -141,7 +144,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 13;
+    revision: 14;
     changeReason: string;
   }>;
 }>;
@@ -258,6 +261,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
     conditioningPolicy: Object.freeze({
       finiteDifferenceScheme: "central-transformed-step-with-halving" as const,
       nearestNeighbourContinuationForDerivatives: false as const,
+      spectrumRowAdmission: "complete-and-step-sign-stable" as const,
+      practicalRankToleranceComposition:
+        "maximum-of-machine-and-observed-step-halving-frobenius" as const,
       reportSingularSpectrum: true as const,
       reportAlternativeSubsets: true as const,
       maximumAdmittedCoordinateCount: 5 as const,
@@ -346,9 +352,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 13 as const,
+      revision: 14 as const,
       changeReason:
-        "Require an explicit exposed-control-lattice projection and one-step neighbourhood before release qualification, while keeping continuous coordinates for conditioning and exploration.",
+        "Exclude incomplete or step-sign-unstable Jacobian rows and separate machine rank from an observed step-halving practical rank diagnostic.",
     }),
   });
 
@@ -634,6 +640,10 @@ export function lintMainWireBaselineConditioningStudyV1(
     )
     || source.conditioningPolicy.nearestNeighbourContinuationForDerivatives
       !== false
+    || source.conditioningPolicy.spectrumRowAdmission
+      !== "complete-and-step-sign-stable"
+    || source.conditioningPolicy.practicalRankToleranceComposition
+      !== "maximum-of-machine-and-observed-step-halving-frobenius"
     || source.numericalPolicy.rateConditionInitialization
       !== "cold-center-then-common-center-continuation"
     || !(source.numericalPolicy.finalistComparisonCorridorFraction > 0)
@@ -645,7 +655,7 @@ export function lintMainWireBaselineConditioningStudyV1(
     issues.push(issueV1(
       "numerical-policy-invalid",
       "numericalPolicy",
-      "dt refinement, derivative initialization, or parallel bound is invalid",
+      "dt refinement, derivative conditioning, or parallel bound is invalid",
     ));
   }
   if (
