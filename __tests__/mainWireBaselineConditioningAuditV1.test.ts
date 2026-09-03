@@ -2,9 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import settledBaselineCheckpointJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
+import standard70ValidationJson from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-baseline-validation.json";
+import normalReferenceEvidenceV1 from
+  "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import type {
   MainWireIntegratedModelStandard70CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
+import type {
+  MainWireIntegratedModelBaselineValidationCheckV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   buildMainWireBaselineConditioningCenterConstructionV1,
   createMainWireBaselineConditioningCenterCacheArtifactV1,
@@ -12,11 +19,18 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningCenterCacheV1";
 import {
   buildMainWireBaselineConditioningAlternativeSubsetSpectraV1,
+  buildMainWireBaselineConditioningAuditV1,
   buildMainWireBaselineConditioningSpectrumV1,
   buildMainWireBaselineConditioningTasksV1,
   evaluateMainWireBaselineConditioningTaskV1,
+  resolveMainWireBaselineConditioningTaskV1,
+  verifyMainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningSensitivityV1,
+  type MainWireBaselineConditioningTaskResultV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
+import {
+  MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
+} from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
 
 const coordinates = [
   "hemodynamics.total-blood-volume-ml",
@@ -166,7 +180,154 @@ describe("baseline conditioning spectrum", () => {
     expect(result.failedSafetySentinelCheckIds).toEqual([]);
     expect(result.checks).toHaveLength(28);
   }, 15_000);
+
+  it("rebuilds a serialized audit and rejects derived or endpoint drift", async () => {
+    const audit = await syntheticCompletedAuditV1();
+    const serialized = JSON.parse(JSON.stringify(audit));
+
+    await expect(verifyMainWireBaselineConditioningAuditV1(serialized))
+      .resolves.toEqual(serialized);
+    await expect(verifyMainWireBaselineConditioningAuditV1({
+      ...serialized,
+      primarySpectrum: {
+        ...serialized.primarySpectrum,
+        practicalRank: serialized.primarySpectrum.practicalRank + 1,
+      },
+    })).rejects.toThrow(/differs from its reconstruction/);
+    const perturbationIndex = serialized.evaluations.findIndex(
+      ({ task }: MainWireBaselineConditioningTaskResultV1) =>
+        task.coordinateId !== null,
+    );
+    const impossibleAnchor = [...serialized.evaluations];
+    impossibleAnchor[perturbationIndex] = {
+      ...impossibleAnchor[perturbationIndex],
+      sourceAnchorKind: "verified-condition-cache",
+      initializationKind: "standard70-exact-checkpoint",
+    };
+    await expect(verifyMainWireBaselineConditioningAuditV1({
+      ...serialized,
+      evaluations: impossibleAnchor,
+    })).rejects.toThrow(/provenance is invalid/);
+    await expect(verifyMainWireBaselineConditioningAuditV1({
+      ...serialized,
+      centerCheckpointCache: null,
+    })).rejects.toThrow(/artifact is incomplete/);
+
+    const phaseOnlyRoundnessFailure = [...serialized.evaluations];
+    const roundnessIndex = phaseOnlyRoundnessFailure.findIndex(
+      ({ checks }: MainWireBaselineConditioningTaskResultV1) =>
+        checks.some(({ checkId }) =>
+          checkId === "waveform.LVP.rounded-not-plateau"),
+    );
+    const roundnessCheckId = "waveform.LVP.rounded-not-plateau";
+    phaseOnlyRoundnessFailure[roundnessIndex] = {
+      ...phaseOnlyRoundnessFailure[roundnessIndex],
+      constructionGateStatus: "failed",
+      objectiveGateStatus: "failed",
+      failedConstructionCheckIds: [roundnessCheckId],
+      failedObjectiveCheckIds: [roundnessCheckId],
+      checks: phaseOnlyRoundnessFailure[roundnessIndex].checks.map((check) =>
+        check.checkId === roundnessCheckId
+          ? { ...check, status: "failed" }
+          : check),
+    };
+    const phaseOnlyArtifact = await buildMainWireBaselineConditioningAuditV1({
+      mode: serialized.mode,
+      protocolCommit: serialized.protocolCommit,
+      executionCommit: serialized.executionCommit,
+      requestedParallelism: serialized.requestedParallelism,
+      effectiveParallelism: serialized.effectiveParallelism,
+      batchWallTimeMs: serialized.batchWallTimeMs,
+      evaluations: phaseOnlyRoundnessFailure,
+      centerCheckpointCache: serialized.centerCheckpointCache,
+    });
+    await expect(verifyMainWireBaselineConditioningAuditV1(
+      JSON.parse(JSON.stringify(phaseOnlyArtifact)),
+    )).resolves.toEqual(JSON.parse(JSON.stringify(phaseOnlyArtifact)));
+  });
 });
+
+async function syntheticCompletedAuditV1() {
+  const objectiveIds = new Set(normalReferenceEvidenceV1.checkGroups.flatMap(
+    ({ checkIds }) => checkIds,
+  ));
+  const objectiveChecks = standard70ValidationJson.checks.filter(({ checkId }) =>
+    objectiveIds.has(checkId)) as
+      MainWireIntegratedModelBaselineValidationCheckV1[];
+  const evaluations = buildMainWireBaselineConditioningTasksV1({
+    mode: "rest-pilot",
+  }).map((task): MainWireBaselineConditioningTaskResultV1 => {
+    const resolved = resolveMainWireBaselineConditioningTaskV1(task);
+    const activeDpDtEffect = task.coordinateId
+        === "myocardium.common-ventricular-active-tension-scale"
+      ? (resolved.transformedCoordinateValue ?? 0) * 0.05
+      : 0;
+    const checks = objectiveChecks.map((check) => {
+      const width = check.maximum - check.minimum;
+      const actual = (check.minimum + check.maximum) / 2
+        + (check.checkId === "left-ventricle.maximum-dpdt"
+          ? activeDpDtEffect * width
+          : 0);
+      return Object.freeze({
+        checkId: check.checkId,
+        status: "passed" as const,
+        actual,
+        minimum: check.minimum,
+        maximum: check.maximum,
+        unit: check.unit,
+      });
+    });
+    const center = task.coordinateId === null;
+    return Object.freeze({
+      task,
+      sourceAnchorKind: center
+        ? "standard-baseline" as const
+        : "condition-center" as const,
+      sourceCheckpointSha256: center ? "a".repeat(64) : "b".repeat(64),
+      targetCoordinateValue: resolved.targetCoordinateValue,
+      transformedCoordinateValue: resolved.transformedCoordinateValue,
+      evaluationStatus: "accepted" as const,
+      evaluationPhase: null,
+      requestIdentitySha256: "c".repeat(64),
+      initializationKind: center
+        ? "standard70-exact-checkpoint"
+        : "standard70-parameter-continuation",
+      wallTimeMs: 1,
+      completedCycleCount: 3,
+      classificationStatus: "period1-converged",
+      constructionGateStatus: "passed" as const,
+      objectiveGateStatus: "passed" as const,
+      safetySentinelStatus: "passed" as const,
+      failedConstructionCheckIds: Object.freeze([]),
+      failedObjectiveCheckIds: Object.freeze([]),
+      failedSafetySentinelCheckIds: Object.freeze([]),
+      checks: Object.freeze(checks),
+      message: null,
+    });
+  });
+  return buildMainWireBaselineConditioningAuditV1({
+    mode: "rest-pilot",
+    protocolCommit: "abcdef0",
+    executionCommit: "abcdef1",
+    requestedParallelism: 1,
+    effectiveParallelism: 1,
+    batchWallTimeMs: 25,
+    evaluations,
+    centerCheckpointCache: Object.freeze({
+      policy:
+        MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
+          .centerCheckpointReuse,
+      requested: false,
+      effective: false,
+      hitCount: 0,
+      missCount: 0,
+      rejectedEntryCount: 0,
+      reconfirmationFallbackCount: 0,
+      writeCount: 0,
+      writeFailureCount: 0,
+    }),
+  });
+}
 
 function sensitivityV1(
   checkId: MainWireBaselineConditioningSensitivityV1["checkId"],
