@@ -26,7 +26,7 @@ const COPY = Object.freeze({
     qualifiedSubtitle: "検証済みbaselineを備えた統合0D循環動態モデル",
     pulmonaryRootTitle: "Main Wire Standard 70",
     pulmonaryRootSubtitle:
-      "肺動脈rootの非物理的ringingを除いた統合0D循環動態モデル",
+      "代数的肺動脈rootを備えた統合0D循環動態モデル",
     status: "研究・教育用モデル · 臨床的妥当性は未確立",
     lead:
       "このページはStandard 68のexact model、現在のModel Surface、versioned analysisを分けて説明します。baseline gateは数理・生理的な品質管理であり、患者個別の診断や治療判断を保証するものではありません。",
@@ -66,7 +66,7 @@ const COPY = Object.freeze({
       "Standard70は同じ双方向preload reserve floorに加え、PVのraw pressure gradient/ET、RV ±dP/dt、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの単峰性とPV閉鎖後PAP reboundをconstruction sentinelとして必須化しています。これらは臨床診断閾値ではありません。",
     controlTitle: "control semantics",
     controlBody:
-      "Heart rateを含むcontrol変更はaccepted stateとmodel clockを保持し、新しいfixture epochへ移るatomic warm startです。自律神経反射や実測の変時性応答ではありません。",
+      "Heart rateなど通常のcontrol変更はaccepted stateとmodel clockを起点に、新しいfixture epochへatomic warm startします。TBV変更はdetached bounded continuationで後続のaccepted boundaryへ進めてからatomic commitします。いずれも自律神経反射を再現するものではありません。",
     limitationsTitle: "限界",
     limitations: Object.freeze([
       "0Dモデルのため、局所3D flow、jet形状、壁面応力、空間的なwave propagationを解像しません。",
@@ -88,7 +88,7 @@ const COPY = Object.freeze({
     qualifiedSubtitle: "Integrated 0D haemodynamic model with a qualified baseline",
     pulmonaryRootTitle: "Main Wire Standard 70",
     pulmonaryRootSubtitle:
-      "Integrated 0D haemodynamic model without pulmonary-root ringing",
+      "Integrated 0D haemodynamic model with an algebraic pulmonary root",
     status: "Research and education model · not clinically validated",
     lead:
       "This page separates the Standard 68 exact model, its current Model Surface, and versioned analyses. Baseline gates are mathematical and physiological quality controls, not patient-specific diagnostic or treatment validation.",
@@ -128,7 +128,7 @@ const COPY = Object.freeze({
       "Standard70 retains those bidirectional preload-reserve floors and adds PV raw pressure gradient/ET, RV ±dP/dt, TV E/A, right-sided ICT/IRT/Tei, PAP/PV-flow unimodality, and post-PV-closure PAP rebound as required construction sentinels. These are not clinical diagnostic thresholds.",
     controlTitle: "Control semantics",
     controlBody:
-      "Control changes, including heart rate, atomically warm-start a new fixture epoch while retaining accepted state and model clock. This is not an autonomic reflex or measured chronotropic response.",
+      "Heart rate and ordinary controls atomically warm-start a new fixture epoch from the accepted state and model clock. TBV instead uses detached bounded continuation and atomically commits a later accepted boundary. Neither transition models an autonomic reflex.",
     limitationsTitle: "Limitations",
     limitations: Object.freeze([
       "A 0D model does not resolve local 3D flow, jet geometry, wall stress, or spatial wave propagation.",

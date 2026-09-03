@@ -722,7 +722,7 @@
       "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
       "The proximal systemic and pulmonary arteries use the source 0D momentum/compliance topology. It does not represent spatial wave travel or reflection and must not be interpreted as site-resolved arterial traces.",
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
-      "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
+      "Ordinary controls warm-start from the accepted state and model clock. TBV instead uses bounded detached continuation and atomically commits a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
     ],
     "standard70Items": [
@@ -730,7 +730,7 @@
       "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
       "The proximal systemic artery retains the source momentum/compliance topology; only PA–PArt uses an algebraic flow law retaining the source loss coefficients. The current quadratic coefficient is zero, so the nominal relation is linear. Spatial wave travel and reflection are not represented, so these are not site-resolved arterial traces.",
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
-      "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
+      "Ordinary controls warm-start from the accepted state and model clock. TBV instead uses bounded detached continuation and atomically commits a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates include right-heart and pulmonary-artery construction sentinels, but do not establish clinical normality for an individual patient or every loading condition."
     ]
   }
