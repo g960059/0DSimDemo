@@ -2,32 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import normalReferenceEvidenceV1 from "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import {
-  evaluateMainWireBaselineCalibrationCandidateV1,
-} from "@/analysis/methods/mainWire/MainWireBaselineCalibrationEvaluatorV1";
-import {
-  MAIN_WIRE_BASELINE_NUMERICAL_FLOOR_AUDIT_V1_ID,
-  assertMainWireBaselineNumericalFloorAuditV1,
   buildMainWireBaselineNumericalFloorMetricV1,
-  composeMainWireBaselineFinalistComparisonToleranceV1,
-  type MainWireBaselineNumericalFloorMetricV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineNumericalFloorAuditV1";
 import {
   buildMainWireBaselineConditioningSingularValuesV1,
   buildMainWireBaselineConditioningTasksV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
-  buildMainWireBaselineCoordinateProfileDesignV1,
-  buildMainWireBaselineReleaseLatticeDesignV1,
-  buildMainWireBaselineSearchDesignV1,
-  buildMainWireBaselineSegmentDesignV1,
-  compareMainWireBaselineCandidateObjectivesV1,
-  scoreMainWireBaselineCandidateObjectiveV1,
-} from "@/analysis/methods/mainWire/MainWireBaselineMaxMarginSearchV1";
-import {
   applyMainWireBaselineCalibrationParametersV1,
-  assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1,
-  mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1,
-  projectMainWireBaselineCalibrationParameterToReleaseLatticeV1,
   readMainWireBaselineCalibrationParameterV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import {
@@ -54,9 +36,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_HEALTHY_REFERENCE_CONTEXT_V3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelHealthyReferenceContextV3";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineV1";
 
 const indexedCheckIds = Object.freeze([
   "left-ventricle.edv-index",
@@ -78,7 +60,7 @@ const pressureCheckIds = Object.freeze([
   "pcwp-surrogate.mean",
 ] as const);
 
-describe("rounded-ejection baseline fitting and mint gates", () => {
+describe("baseline construction and calibration gates", () => {
   it("binds every construction gate to explicit evidence roles and a revisioned policy digest", async () => {
     const sourceIds = normalReferenceEvidenceV1.sources.map(({ sourceId }) =>
       sourceId);
@@ -332,32 +314,6 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
       ),
     ).toBe(0);
   });
-
-  it("separates calibration request rejection and interruption before exact execution", async () => {
-    const invalidHeartRate = await evaluateMainWireBaselineCalibrationCandidateV1({
-      hemodynamicResearchInputs: Object.freeze({
-        ...MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
-        heartRateBpm: 65,
-      }),
-    });
-    expect(invalidHeartRate).toMatchObject({
-      status: "invalid-or-physical",
-      phase: "request-validation",
-      requestIdentitySha256: null,
-    });
-
-    const controller = new AbortController();
-    controller.abort();
-    const interrupted = await evaluateMainWireBaselineCalibrationCandidateV1({
-      abortSignal: controller.signal,
-    });
-    expect(interrupted).toMatchObject({
-      status: "operational-interrupted",
-      phase: "interruption",
-      requestIdentitySha256: null,
-    });
-  });
-
   it("keeps numerical differences separate before applying any physiological threshold", () => {
     const check = (
       actual: number,
@@ -387,54 +343,6 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
       numericalFloorFractionOfCorridor: 0.05,
     });
   });
-
-  it("rejects incomplete or inconsistent numerical-floor evidence", () => {
-    const checks = buildMainWireIntegratedModelBaselineValidationChecksV1(
-      normalMeasurementsV1(),
-      true,
-    );
-    const metricFloors = checks.map(zeroNumericalFloorV1);
-    const acceptedRun = (nominalDtSec: number) => ({
-      status: "accepted",
-      nominalDtSec,
-    });
-    const audit = {
-      auditId: MAIN_WIRE_BASELINE_NUMERICAL_FLOOR_AUDIT_V1_ID,
-      status: "completed",
-      coarseDtSec: 0.002,
-      fineDtSec: 0.001,
-      runs: {
-        coldA: acceptedRun(0.002),
-        coldB: acceptedRun(0.002),
-        compatibleCheckpoint: acceptedRun(0.002),
-        fineCold: acceptedRun(0.001),
-      },
-      repeatDeterministic: true,
-      metricFloors,
-      unresolvedRunLabels: [],
-      claim: {
-        comparisonKind: "difference-audit-not-convergence-order",
-        physiologicalPassThresholdApplied: false,
-        optimizerApplied: false,
-        fineGridUsedAsDifferenceReference: true,
-      },
-    };
-    expect(() => assertMainWireBaselineNumericalFloorAuditV1(audit))
-      .not.toThrow();
-    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
-      ...audit,
-      metricFloors: metricFloors.slice(1),
-    })).toThrow(/do not cover the evidence registry/);
-    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
-      ...audit,
-      metricFloors: [metricFloors[0], ...metricFloors.slice(0, -1)],
-    })).toThrow(/duplicated/);
-    expect(() => assertMainWireBaselineNumericalFloorAuditV1({
-      ...audit,
-      fineDtSec: 0.0015,
-    })).toThrow(/must halve coarseDtSec/);
-  });
-
   it("compiles the conditioning study deterministically and fails closed on confounded primary coordinates", async () => {
     expect(lintMainWireBaselineConditioningStudyV1(
       MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
@@ -469,34 +377,18 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
     expect(lintMainWireBaselineConditioningStudyV1(staleAnalysisTarget)
       .map(({ code }) => code)).toContain("analysis-target-invalid");
   });
-
-  it("adds baseline-local numerical floor and candidate-local finalist allowance", () => {
-    expect(composeMainWireBaselineFinalistComparisonToleranceV1(
-      0.268,
-      11,
-      0.02,
-      1e-12,
-    )).toBeCloseTo(0.488000000001, 12);
-    expect(() => composeMainWireBaselineFinalistComparisonToleranceV1(
-      -0.1,
-      11,
-      0.02,
-      0,
-    )).toThrow(/numericalFloorAbsolute/);
-  });
-
   it("applies calibration coordinates independent of update ordering", () => {
     const base = Object.freeze({
       hemodynamicResearchInputs:
-        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
       mechanismResearchInputs:
-        MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
       ventricularContractilityScale: 1,
     });
     const updates = Object.freeze([
       Object.freeze({
         parameterId: "hemodynamics.systemic-resistance" as const,
-        value: 0.99,
+        value: 1.01,
       }),
       Object.freeze({
         parameterId:
@@ -514,7 +406,7 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
     expect(readMainWireBaselineCalibrationParameterV1(
       forward,
       "hemodynamics.systemic-resistance",
-    )).toBe(0.99);
+    )).toBe(1.01);
     expect(readMainWireBaselineCalibrationParameterV1(
       forward,
       "myocardium.common-ventricular-active-tension-scale",
@@ -535,199 +427,6 @@ describe("rounded-ejection baseline fitting and mint gates", () => {
       [[3, 0], [0, 2]],
       2,
     )).toEqual([3, 2]);
-  });
-
-  it("builds a deterministic bounded search and ranks floor-buffered interiors first", () => {
-    const first = buildMainWireBaselineSearchDesignV1({ stage: "initial" });
-    const second = buildMainWireBaselineSearchDesignV1({ stage: "initial" });
-    expect(first).toHaveLength(24);
-    expect(second).toEqual(first);
-    expect(buildMainWireBaselineSearchDesignV1({
-      stage: "refinement",
-      center: first[3].candidateInputs,
-    })).toHaveLength(16);
-    const recoveryCenter = applyMainWireBaselineCalibrationParametersV1(
-      first[0].candidateInputs,
-      [Object.freeze({
-        parameterId: "hemodynamics.total-blood-volume-ml" as const,
-        value: 4_850,
-      })],
-    );
-    const recoveryPolicy =
-      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy
-        .preloadReserveRecovery;
-    const recovery = buildMainWireBaselineSearchDesignV1({
-      stage: "refinement",
-      center: recoveryCenter,
-      contractionOverride: recoveryPolicy.refinementContraction,
-      coordinateBounds: Object.freeze({
-        "hemodynamics.total-blood-volume-ml": Object.freeze({
-          maximum: recoveryPolicy.maximumOperatingTotalBloodVolumeMl,
-        }),
-      }),
-    });
-    const recoveryVolumes = recovery.map(({ candidateInputs }) =>
-      candidateInputs.hemodynamicResearchInputs.totalBloodVolumeMl);
-    expect(recoveryVolumes[0]).toBe(4_850);
-    expect(Math.max(...recoveryVolumes)).toBeLessThanOrEqual(
-      recoveryPolicy.maximumOperatingTotalBloodVolumeMl,
-    );
-    expect(Math.min(...recoveryVolumes)).toBeLessThan(4_850);
-    expect(Math.max(...recoveryVolumes)).toBeGreaterThan(4_850);
-
-    const segment = buildMainWireBaselineSegmentDesignV1({
-      start: first[1].candidateInputs,
-      end: first[2].candidateInputs,
-    });
-    expect(segment).toHaveLength(5);
-    expect(segment[0].candidateInputs).toEqual(first[1].candidateInputs);
-    expect(segment.at(-1)?.candidateInputs).toEqual(first[2].candidateInputs);
-    const parameterId = "hemodynamics.total-blood-volume-ml" as const;
-    const startValue = readMainWireBaselineCalibrationParameterV1(
-      first[1].candidateInputs,
-      parameterId,
-    );
-    const endValue = readMainWireBaselineCalibrationParameterV1(
-      first[2].candidateInputs,
-      parameterId,
-    );
-    expect(segment[2].coordinateValues[parameterId]).toBeCloseTo(
-      Math.sqrt(startValue * endValue),
-      10,
-    );
-
-    const profile = buildMainWireBaselineCoordinateProfileDesignV1({
-      center: first[0].candidateInputs,
-      coordinateId:
-        "myocardium.common-ventricular-passive-stiffness-scale",
-      direction: -1,
-    });
-    expect(profile).toHaveLength(5);
-    expect(profile[0].candidateInputs).toEqual(first[0].candidateInputs);
-    expect(profile.map(({ coordinateValues }) =>
-      coordinateValues[
-        "myocardium.common-ventricular-passive-stiffness-scale"
-      ])).toEqual([...profile].map(({ coordinateValues }) =>
-        coordinateValues[
-          "myocardium.common-ventricular-passive-stiffness-scale"
-        ]).sort((left, right) => right - left));
-
-    const lattice = buildMainWireBaselineReleaseLatticeDesignV1({
-      center: first[1].candidateInputs,
-    });
-    expect(lattice).toHaveLength(11);
-    const latticeCoordinateIds =
-      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.searchPolicy.coordinateIds;
-    expect(lattice.every(({ candidateInputs }) =>
-      latticeCoordinateIds.every((coordinateId) =>
-        mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
-          coordinateId,
-          readMainWireBaselineCalibrationParameterV1(
-            candidateInputs,
-            coordinateId,
-          ),
-        )))).toBe(true);
-    expect(lattice[0].coordinateValues[parameterId]).toBe(
-      projectMainWireBaselineCalibrationParameterToReleaseLatticeV1(
-        parameterId,
-        startValue,
-      ),
-    );
-    expect(() => assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
-      first[1].candidateInputs,
-      latticeCoordinateIds,
-    )).toThrow(/off the exposed control lattice/);
-
-    const check = (actual: number) => Object.freeze({
-      checkId: "left-ventricle.maximum-dpdt" as const,
-      status: actual >= 1_200 && actual <= 2_500
-        ? "passed" as const
-        : "failed" as const,
-      actual,
-      minimum: 1_200,
-      maximum: 2_500,
-      unit: "mmHg/s",
-    });
-    const floor = Object.freeze({
-      checkId: "left-ventricle.maximum-dpdt" as const,
-      unit: "mmHg/s",
-      constructionMinimum: 1_200,
-      constructionMaximum: 2_500,
-      constructionCorridorWidth: 1_300,
-      coldRepeatAbsoluteDifference: 0,
-      coldCheckpointAbsoluteDifference: 1,
-      dtHalvingAbsoluteDifference: 20,
-      numericalFloorAbsolute: 20,
-      numericalFloorFractionOfCorridor: 20 / 1_300,
-    });
-    const edge = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: [check(2_490)],
-      candidate: first[0].candidateInputs,
-      numericalFloors: [floor],
-    });
-    const interior = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: [check(2_400)],
-      candidate: first[0].candidateInputs,
-      numericalFloors: [floor],
-    });
-    expect(edge.status).toBe("corridor-rejected");
-    expect(interior.status).toBe("feasible");
-    expect(compareMainWireBaselineCandidateObjectivesV1(interior, edge))
-      .toBeLessThan(0);
-
-    const structuralChecks = [
-      check(1_850),
-      Object.freeze({
-        checkId: "aortic-pressure.maximum" as const,
-        status: "passed" as const,
-        actual: 91,
-        minimum: 90,
-        maximum: 140,
-        unit: "mmHg",
-      }),
-    ];
-    const macroChecks = [
-      check(1_240),
-      Object.freeze({
-        checkId: "aortic-pressure.maximum" as const,
-        status: "passed" as const,
-        actual: 115,
-        minimum: 90,
-        maximum: 140,
-        unit: "mmHg",
-      }),
-    ];
-    expect(() => scoreMainWireBaselineCandidateObjectiveV1({
-      checks: structuralChecks,
-      candidate: first[0].candidateInputs,
-      numericalFloors: [],
-    })).toThrow(/numerical floor coverage differs/);
-    expect(() => scoreMainWireBaselineCandidateObjectiveV1({
-      checks: structuralChecks,
-      candidate: first[0].candidateInputs,
-      numericalFloors: [
-        zeroNumericalFloorV1(structuralChecks[0]),
-        zeroNumericalFloorV1(structuralChecks[0]),
-      ],
-    })).toThrow(/numerical floor is duplicated/);
-    const structuralFirst = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: structuralChecks,
-      candidate: first[0].candidateInputs,
-      numericalFloors: structuralChecks.map(zeroNumericalFloorV1),
-    });
-    const macroFirst = scoreMainWireBaselineCandidateObjectiveV1({
-      checks: macroChecks,
-      candidate: first[0].candidateInputs,
-      numericalFloors: macroChecks.map(zeroNumericalFloorV1),
-    });
-    expect(structuralFirst.worstBufferedInteriorMargin)
-      .toBeLessThan(macroFirst.worstBufferedInteriorMargin!);
-    expect(structuralFirst.primaryWorstBufferedInteriorMargin)
-      .toBeGreaterThan(macroFirst.primaryWorstBufferedInteriorMargin!);
-    expect(compareMainWireBaselineCandidateObjectivesV1(
-      structuralFirst,
-      macroFirst,
-    )).toBeLessThan(0);
   });
 });
 
@@ -798,31 +497,6 @@ function normalMeasurementsV1():
     }),
   });
 }
-
-function zeroNumericalFloorV1(
-  check: Readonly<{
-    checkId: MainWireBaselineNumericalFloorMetricV1["checkId"];
-    unit: string;
-    minimum: number;
-    maximum: number;
-  }>,
-): MainWireBaselineNumericalFloorMetricV1 {
-  const constructionCorridorWidth = check.maximum - check.minimum;
-  return Object.freeze({
-    checkId: check.checkId,
-    unit: check.unit,
-    constructionMinimum: check.minimum,
-    constructionMaximum: check.maximum,
-    constructionCorridorWidth,
-    coldRepeatAbsoluteDifference: 0,
-    coldCheckpointAbsoluteDifference: 0,
-    dtHalvingAbsoluteDifference: 0,
-    numericalFloorAbsolute: 0,
-    numericalFloorFractionOfCorridor:
-      constructionCorridorWidth > 0 ? 0 : null,
-  });
-}
-
 function directionalResponseV1(
   endpointDirection: "hypovolemic" | "hypervolemic",
 ): MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1 {

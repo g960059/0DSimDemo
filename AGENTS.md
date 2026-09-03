@@ -15,3 +15,7 @@ Surface and its pinned analysis methods by default; omissions or substitutions
 require an explicit compatibility decision and regression coverage.
 
 One human maintainer develops this repository with AI agents.
+
+Before the first release there are no external users. Retire obsolete model
+identities, code, and tests instead of preserving legacy compatibility; keep
+dependencies and regression coverage required by the current model and Surface.
