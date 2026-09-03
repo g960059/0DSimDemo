@@ -56,7 +56,11 @@ export type MainWireBaselineConditioningCompactCheckV1 = Readonly<{
 
 export type MainWireBaselineConditioningTaskResultV1 = Readonly<{
   task: MainWireBaselineConditioningTaskV1;
-  sourceAnchorKind: "cold" | "standard-baseline" | "condition-center";
+  sourceAnchorKind:
+    | "cold"
+    | "standard-baseline"
+    | "condition-center"
+    | "verified-condition-cache";
   sourceCheckpointSha256: string | null;
   targetCoordinateValue: number | null;
   transformedCoordinateValue: number | null;
@@ -144,6 +148,17 @@ export type MainWireBaselineConditioningAuditV1 = Readonly<{
   observedThroughputSpeedup: number;
   taskCount: number;
   acceptedTaskCount: number;
+  centerCheckpointCache: Readonly<{
+    policy: "content-addressed-validated-and-exactly-reconfirmed";
+    requested: boolean;
+    effective: boolean;
+    hitCount: number;
+    missCount: number;
+    rejectedEntryCount: number;
+    reconfirmationFallbackCount: number;
+    writeCount: number;
+    writeFailureCount: number;
+  }>;
   evaluations: readonly MainWireBaselineConditioningTaskResultV1[];
   sensitivities: readonly MainWireBaselineConditioningSensitivityV1[];
   primarySpectrum: MainWireBaselineConditioningSpectrumV1 | null;
@@ -217,13 +232,22 @@ export async function executeMainWireBaselineConditioningTaskV1(
   sourceAnchorKind:
     MainWireBaselineConditioningTaskResultV1["sourceAnchorKind"],
 ): Promise<MainWireBaselineConditioningTaskExecutionV1> {
+  if (
+    sourceAnchorKind === "verified-condition-cache"
+    && task.coordinateId !== null
+  ) {
+    throw new Error("verified condition cache may initialize only a center task");
+  }
   const resolved = resolveTaskV1(task);
   const sourceCandidate = sourceAnchorKind === "condition-center"
-    ? applyConditionV1(baselineCandidateV1(), conditionByIdV1(task.conditionId))
+    || sourceAnchorKind === "verified-condition-cache"
+    ? buildMainWireBaselineConditioningCenterCandidateV1(task.conditionId)
     : baselineCandidateV1();
   const isExactBaseline = sourceAnchorKind === "standard-baseline"
     && task.conditionId === "rest-hr60"
     && task.coordinateId === null;
+  const useExactCheckpoint = isExactBaseline
+    || sourceAnchorKind === "verified-condition-cache";
   const evaluation = await evaluateMainWireBaselineCalibrationCandidateV1({
     hemodynamicResearchInputs:
       resolved.target.hemodynamicResearchInputs,
@@ -235,7 +259,7 @@ export async function executeMainWireBaselineConditioningTaskV1(
         .explorationNominalDtSec,
     initialization: sourceAnchorKind === "cold"
       ? Object.freeze({ kind: "cold" as const })
-      : isExactBaseline
+      : useExactCheckpoint
         ? Object.freeze({
           kind: "standard68-exact-checkpoint" as const,
           checkpoint: sourceCheckpoint,
@@ -272,6 +296,9 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   effectiveParallelism: number;
   batchWallTimeMs: number;
   evaluations: readonly MainWireBaselineConditioningTaskResultV1[];
+  centerCheckpointCache: MainWireBaselineConditioningAuditV1[
+    "centerCheckpointCache"
+  ];
 }>): Promise<MainWireBaselineConditioningAuditV1> {
   if (!/^[0-9a-f]{7,64}$/.test(input.protocolCommit)) {
     throw new Error("conditioning audit requires a protocol commit hash");
@@ -282,6 +309,10 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   const expectedTasks = buildMainWireBaselineConditioningTasksV1({
     mode: input.mode,
   });
+  assertCenterCheckpointCacheSummaryV1(
+    input.centerCheckpointCache,
+    expectedTasks.filter(({ coordinateId }) => coordinateId === null).length,
+  );
   const expectedIds = expectedTasks.map(({ taskId }) => taskId);
   const received = [...input.evaluations]
     .sort((left, right) => left.task.taskId.localeCompare(right.task.taskId));
@@ -358,6 +389,7 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
       : 0,
     taskCount: received.length,
     acceptedTaskCount,
+    centerCheckpointCache: Object.freeze({ ...input.centerCheckpointCache }),
     evaluations: Object.freeze(received),
     sensitivities,
     primarySpectrum,
@@ -465,6 +497,12 @@ function applyConditionV1(
           * condition.systemicResistanceMultiplier,
       }),
   });
+}
+
+export function buildMainWireBaselineConditioningCenterCandidateV1(
+  conditionId: string,
+): MainWireBaselineCalibrationCandidateInputsV1 {
+  return applyConditionV1(baselineCandidateV1(), conditionByIdV1(conditionId));
 }
 
 function compactEvaluationV1(
@@ -843,6 +881,50 @@ function sensitivityKeyV1(
   coordinateId: MainWireBaselineCalibrationParameterIdV1,
 ): string {
   return `${conditionId}::${checkId}::${coordinateId}`;
+}
+
+function assertCenterCheckpointCacheSummaryV1(
+  summary: MainWireBaselineConditioningAuditV1["centerCheckpointCache"],
+  centerTaskCount: number,
+): void {
+  if (
+    summary.policy
+      !== "content-addressed-validated-and-exactly-reconfirmed"
+    || typeof summary.requested !== "boolean"
+    || typeof summary.effective !== "boolean"
+    || (!summary.requested && summary.effective)
+  ) {
+    throw new Error("conditioning center checkpoint cache policy is invalid");
+  }
+  const counts = [
+    summary.hitCount,
+    summary.missCount,
+    summary.rejectedEntryCount,
+    summary.reconfirmationFallbackCount,
+    summary.writeCount,
+    summary.writeFailureCount,
+  ];
+  if (counts.some((count) =>
+    !Number.isSafeInteger(count) || count < 0)) {
+    throw new Error("conditioning center checkpoint cache counts are invalid");
+  }
+  if (!summary.effective) {
+    if (counts.some((count) => count !== 0)) {
+      throw new Error("disabled conditioning center cache recorded activity");
+    }
+    return;
+  }
+  if (
+    summary.hitCount + summary.missCount + summary.rejectedEntryCount
+      !== centerTaskCount
+    || summary.reconfirmationFallbackCount > summary.hitCount
+    || summary.writeCount + summary.writeFailureCount
+      !== summary.missCount
+        + summary.rejectedEntryCount
+        + summary.reconfirmationFallbackCount
+  ) {
+    throw new Error("conditioning center checkpoint cache accounting differs");
+  }
 }
 
 export function buildMainWireBaselineConditioningSingularValuesV1(
