@@ -142,6 +142,22 @@ identity and checkpoint compatibility are proven; they do not replace cold
 qualification. Performance work requires a measured research-lane bottleneck
 and must not weaken these contracts.
 
+Standard70 exposes three bounded fast paths for that research lane: conversion
+from the verified Standard69 construction checkpoint, same-model verified
+checkpoint confirmation, and same-model parameter continuation from a nearby
+candidate. Every path re-establishes three consecutive period-1 cycles before
+returning a candidate result. On the development machine used for the release,
+the committed benchmark completed construction conversion in 8 cycles
+(about 9.0 s), exact-checkpoint confirmation in 3 cycles (about 3.3 s), and a
+one-lattice-step systemic-resistance continuation in 10 cycles (about 11.0 s).
+Wall times are machine-local and non-gating; cycle counts and exact
+qualification semantics are the portable result. The ordinary search runner
+may use up to eight worker processes for proposal generation. A proposed
+Standard70 finalist must still pass the Standard70 candidate runner; the older
+runner's result is not silently relabelled. Bidirectional preload-reserve,
+alternate-start, and refined-step checks remain finalist/mint work rather than
+per-candidate screening.
+
 ## Qualification levels
 
 A construction-only baseline may be minted when its exact artifact and settled

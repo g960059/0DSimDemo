@@ -19,6 +19,13 @@ Surface. The model does not represent a patient-specific heart, spatial
 electrophysiology, CFD, autonomic reflexes, remodeling, dynamically coupled
 tissue metabolism, or regional ischemia.
 
+The current Standard70 construction retains the Standard69 rounded-ejection
+heart and systemic aortic-root dynamics. It removes only the PA-to-PArt local
+momentum state, using an algebraic flow law with the existing resistance and
+quadratic loss while retaining the PA and PArt compliances. This is a minimal
+model-form correction for the rejected pulmonary-root ringing; it is not a
+distributed pulmonary-wave or valve-jet model.
+
 ## Runtime authority
 
 The typed numerical Session owns one accepted state and stages a complete
