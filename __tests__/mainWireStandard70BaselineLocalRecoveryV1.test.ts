@@ -113,6 +113,27 @@ describe("baseline reference and executable local recovery", () => {
     },
   );
 
+  it("replays the projected candidate even when it differs from the declared truth", async () => {
+    evaluate.mockImplementationOnce(async (input = {}) => {
+      const target = await acceptedV1(input);
+      const otherCandidate = applyMainWireBaselineCalibrationParametersV1(
+        input as MainWireBaselineCalibrationCandidateInputsV1,
+        [{ parameterId: source.coordinates[1].parameterId, value: 1.23 }],
+      );
+      const otherResponse = await acceptedV1({ ...input, ...otherCandidate });
+      return { ...target, objectiveChecks: otherResponse.objectiveChecks };
+    });
+    const result = await runMainWireStandard70BaselineLocalRecoveryV1(request);
+    expect(result.status).toBe("replayed");
+    if (result.status !== "replayed") return;
+    expect(result.proposal.projectedDeclaredTruthMatchStatus).toBe("mismatched");
+    expect(readMainWireBaselineCalibrationParameterV1(
+      evaluate.mock.calls[1]![0] as MainWireBaselineCalibrationCandidateInputsV1,
+      source.coordinates[1].parameterId,
+    )).toBe(1.23);
+    expect(result.comparison.maximumAbsoluteNormalizedDifference).toBe(0);
+  });
+
   it("snapshots caller input before any await or progress callback", async () => {
     const mutable = structuredClone(request);
     const pending = runMainWireStandard70BaselineLocalRecoveryV1(mutable);
