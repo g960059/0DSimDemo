@@ -8,9 +8,11 @@ import {
 import {
   assertMainWireBaselineConditioningTaskResultV1,
   buildMainWireBaselineConditioningAdmittedMatrixV1,
+  buildMainWireBaselineConditioningCenterCandidateV1,
   buildMainWireBaselineConditioningSensitivitiesV1,
   buildMainWireBaselineConditioningSingularValuesV1,
   buildMainWireBaselineConditioningTasksV1,
+  resolveMainWireBaselineConditioningTaskV1,
   verifyMainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningAuditV1,
   type MainWireBaselineConditioningSensitivityV1,
@@ -20,6 +22,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
+  buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import {
   buildMainWireBaselineConditioningCenterConstructionV1,
@@ -236,6 +239,12 @@ export async function buildMainWireBaselineConditioningRefinedDerivativeAuditV1(
   const study = await compileMainWireBaselineConditioningStudyV1();
   const constructionPolicy =
     await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+  await assertFineRequestIdentitiesV1(
+    evaluations,
+    centerSources,
+    constructionPolicy.constructionPolicyIdentitySha256,
+    input.refinedNominalDtSec,
+  );
   const fineSensitivities =
     buildMainWireBaselineConditioningSensitivitiesV1(evaluations);
   const failedTaskIds = evaluations
@@ -557,6 +566,72 @@ async function assertAndOwnCenterSourcesV1(
     }
   }
   return Object.freeze(received.map((source) => Object.freeze({ ...source })));
+}
+
+async function assertFineRequestIdentitiesV1(
+  evaluations: readonly MainWireBaselineConditioningTaskResultV1[],
+  centerSources:
+    readonly MainWireBaselineConditioningRefinedCenterSourceV1[],
+  constructionPolicyIdentitySha256: string,
+  nominalDtSec: number,
+): Promise<void> {
+  const sourceByCondition = new Map(centerSources.map((source) =>
+    [source.conditionId, source] as const));
+  await Promise.all(evaluations.map(async (evaluation) => {
+    if (evaluation.requestIdentitySha256 === null) {
+      if (evaluation.evaluationPhase !== "request-validation") {
+        throw new Error(
+          `refined derivative request identity is missing: `
+            + evaluation.task.taskId,
+        );
+      }
+      return;
+    }
+    const source = sourceByCondition.get(evaluation.task.conditionId);
+    if (source === undefined) {
+      throw new Error(
+        `refined derivative request source is missing: `
+          + evaluation.task.taskId,
+      );
+    }
+    const resolved = resolveMainWireBaselineConditioningTaskV1(
+      evaluation.task,
+    );
+    const centerCandidate = buildMainWireBaselineConditioningCenterCandidateV1(
+      evaluation.task.conditionId,
+    );
+    const initialization = evaluation.task.coordinateId === null
+      ? Object.freeze({
+          kind: "standard70-exact-checkpoint" as const,
+          checkpointSha256: source.coarseCheckpointSha256,
+        })
+      : Object.freeze({
+          kind: "standard70-parameter-continuation" as const,
+          sourceCheckpointSha256: source.refinedCheckpointSha256,
+          sourceHemodynamicResearchInputs:
+            centerCandidate.hemodynamicResearchInputs,
+          sourceVentricularContractilityScale:
+            centerCandidate.ventricularContractilityScale,
+          sourceMechanismResearchInputs:
+            centerCandidate.mechanismResearchInputs,
+        });
+    const expected =
+      await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+        constructionPolicyIdentitySha256,
+        hemodynamicResearchInputs: resolved.target.hemodynamicResearchInputs,
+        ventricularContractilityScale:
+          resolved.target.ventricularContractilityScale,
+        mechanismResearchInputs: resolved.target.mechanismResearchInputs,
+        nominalDtSec,
+        initialization,
+      });
+    if (evaluation.requestIdentitySha256 !== expected) {
+      throw new Error(
+        `refined derivative request identity differs: `
+          + evaluation.task.taskId,
+      );
+    }
+  }));
 }
 
 function assertExecutionMetadataV1(input: Readonly<{

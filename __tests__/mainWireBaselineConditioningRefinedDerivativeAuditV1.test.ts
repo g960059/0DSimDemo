@@ -9,6 +9,7 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   buildMainWireBaselineConditioningAuditV1,
+  buildMainWireBaselineConditioningCenterCandidateV1,
   buildMainWireBaselineConditioningTasksV1,
   resolveMainWireBaselineConditioningTaskV1,
   type MainWireBaselineConditioningTaskResultV1,
@@ -23,6 +24,10 @@ import {
   verifyMainWireBaselineConditioningRefinedDerivativeAuditV1,
   type MainWireBaselineConditioningRefinedCenterSourceV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningRefinedDerivativeAuditV1";
+import {
+  buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
+  buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import type {
   MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -146,6 +151,49 @@ describe("direct refined-dt conditioning derivatives", () => {
         refinedNominalDtSec: 0.001,
       }),
     ).rejects.toThrow(/source chain differs/);
+    await expect(
+      buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+        ...common,
+        fineEvaluations: common.fineEvaluations.map((evaluation, index) =>
+          index === 0
+            ? {
+                ...evaluation,
+                taskResult: {
+                  ...evaluation.taskResult,
+                  requestIdentitySha256: "9".repeat(64),
+                },
+              }
+            : evaluation),
+        refinedNominalDtSec: 0.001,
+      }),
+    ).rejects.toThrow(/request identity differs/);
+    const relabeledTask = common.fineEvaluations[0]!.taskResult.task;
+    const relabeledSource = fixture.centerSources.find(({ conditionId }) =>
+      conditionId === relabeledTask.conditionId)!;
+    const constructionPolicy =
+      await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+    const coarseDtRequestIdentity = await fineRequestIdentityV1(
+      relabeledTask,
+      relabeledSource,
+      constructionPolicy.constructionPolicyIdentitySha256,
+      0.002,
+    );
+    await expect(
+      buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+        ...common,
+        fineEvaluations: common.fineEvaluations.map((evaluation, index) =>
+          index === 0
+            ? {
+                ...evaluation,
+                taskResult: {
+                  ...evaluation.taskResult,
+                  requestIdentitySha256: coarseDtRequestIdentity,
+                },
+              }
+            : evaluation),
+        refinedNominalDtSec: 0.001,
+      }),
+    ).rejects.toThrow(/request identity differs/);
   });
 });
 
@@ -187,13 +235,67 @@ async function syntheticFixtureV1(refinedScale: number) {
       coarseCheckpointSha256: "d".repeat(64),
       refinedCheckpointSha256: "e".repeat(64),
     }) satisfies MainWireBaselineConditioningRefinedCenterSourceV1));
+  const sourceByCondition = new Map(centerSources.map((source) =>
+    [source.conditionId, source] as const));
+  const constructionPolicy =
+    await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+  const fineEvaluations = Object.freeze(await Promise.all(fineTasks.map(
+    async (task) => {
+      const taskResult = taskResultV1(task, refinedScale, true);
+      const source = sourceByCondition.get(task.conditionId)!;
+      const requestIdentitySha256 = await fineRequestIdentityV1(
+        task,
+        source,
+        constructionPolicy.constructionPolicyIdentitySha256,
+        0.001,
+      );
+      return Object.freeze({
+        nominalDtSec: 0.001,
+        taskResult: Object.freeze({
+          ...taskResult,
+          requestIdentitySha256,
+        }),
+      });
+    },
+  )));
   return Object.freeze({
     coarse,
     centerSources,
-    fineEvaluations: Object.freeze(fineTasks.map((task) => Object.freeze({
-      nominalDtSec: 0.001,
-      taskResult: taskResultV1(task, refinedScale, true),
-    }))),
+    fineEvaluations,
+  });
+}
+
+async function fineRequestIdentityV1(
+  task: MainWireBaselineConditioningTaskV1,
+  source: MainWireBaselineConditioningRefinedCenterSourceV1,
+  constructionPolicyIdentitySha256: string,
+  nominalDtSec: number,
+): Promise<string> {
+  const resolved = resolveMainWireBaselineConditioningTaskV1(task);
+  const centerCandidate =
+    buildMainWireBaselineConditioningCenterCandidateV1(task.conditionId);
+  return buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+    constructionPolicyIdentitySha256,
+    hemodynamicResearchInputs: resolved.target.hemodynamicResearchInputs,
+    ventricularContractilityScale:
+      resolved.target.ventricularContractilityScale,
+    mechanismResearchInputs: resolved.target.mechanismResearchInputs,
+    nominalDtSec,
+    initialization: task.coordinateId === null
+      ? Object.freeze({
+          kind: "standard70-exact-checkpoint" as const,
+          checkpointSha256: source.coarseCheckpointSha256,
+        })
+      : Object.freeze({
+          kind: "standard70-parameter-continuation" as const,
+          sourceCheckpointSha256: source.refinedCheckpointSha256,
+          sourceHemodynamicResearchInputs:
+            centerCandidate.hemodynamicResearchInputs,
+          sourceVentricularContractilityScale:
+            centerCandidate.ventricularContractilityScale,
+          sourceMechanismResearchInputs:
+            centerCandidate.mechanismResearchInputs,
+        }),
   });
 }
 
