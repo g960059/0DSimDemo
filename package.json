@@ -70,6 +70,7 @@
     "audit:scientific:main-wire-baseline-conditioning-perturbation-attribution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --perturbation-attribution",
     "audit:scientific:main-wire-baseline-conditioning-stage-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --stage-audit",
     "audit:scientific:main-wire-baseline-conditioning-resolution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningResolutionAuditV1.ts",
+    "recover:scientific:main-wire-baseline-local-v1": "vite-node --script tools/scientific/runMainWireStandard70BaselineLocalRecoveryV1.ts",
     "fit:scientific:main-wire-baseline-max-margin-v1": "vite-node --script tools/scientific/runMainWireBaselineMaxMarginSearchV1.ts",
     "qualify:scientific:main-wire-baseline-finalist-v1": "vite-node --script tools/scientific/runMainWireBaselineFinalistQualificationV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
