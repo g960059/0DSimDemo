@@ -69,6 +69,7 @@
     "audit:scientific:main-wire-baseline-conditioning-refined-derivatives-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --refined-derivative-audit",
     "audit:scientific:main-wire-baseline-conditioning-perturbation-attribution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --perturbation-attribution",
     "audit:scientific:main-wire-baseline-conditioning-stage-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --stage-audit",
+    "audit:scientific:main-wire-baseline-local-recovery-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --local-recovery-audit",
     "audit:scientific:main-wire-baseline-conditioning-resolution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningResolutionAuditV1.ts",
     "fit:scientific:main-wire-baseline-max-margin-v1": "vite-node --script tools/scientific/runMainWireBaselineMaxMarginSearchV1.ts",
     "qualify:scientific:main-wire-baseline-finalist-v1": "vite-node --script tools/scientific/runMainWireBaselineFinalistQualificationV1.ts",

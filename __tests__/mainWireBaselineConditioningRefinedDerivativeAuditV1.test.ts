@@ -34,6 +34,10 @@ import {
   verifyMainWireBaselineConditioningStageAuditV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningStageAuditV1";
 import {
+  buildMainWireBaselineLocalRecoveryAuditV1,
+  verifyMainWireBaselineLocalRecoveryAuditV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineLocalRecoveryAuditV1";
+import {
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
   buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
@@ -222,6 +226,53 @@ describe("direct refined-dt conditioning derivatives", () => {
       attribution,
     )).rejects.toThrow(/differs from its reconstruction/);
 
+    const recovery = await buildMainWireBaselineLocalRecoveryAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    );
+    expect(recovery.summary.controlCount).toBe(12);
+    expect(recovery.summary.passedControlCount).toBe(12);
+    expect(recovery.summary.allControlsRecoverTruthLatticePoint).toBe(true);
+    expect(
+      recovery.summary.maximumAbsoluteRecoveryErrorInReleaseLatticeSteps,
+    ).toBeLessThan(0.5);
+    expect(recovery.summary.unsupportedComparisonRefusalRequired).toBe(false);
+    expect(recovery.summary.unsupportedComparisonRefused).toBe(false);
+    expect(recovery.unsupportedComparisonRefusal.refusalStatus)
+      .toBe("not-required");
+    expect(recovery.controls.every(({ boundCheckStatus }) =>
+      boundCheckStatus === "passed")).toBe(true);
+    expect(recovery.claim).toEqual({
+      localLinearizedRecoveryOnly: true,
+      crossEstimateRatherThanSelfEstimateControls: true,
+      exactNonlinearSyntheticTargetsEvaluated: false,
+      optimizerExecuted: false,
+      parameterSubsetAutomaticallySelected: false,
+      uniqueParameterVectorClaimed: false,
+      rawParameterConfoundRefusalClaimed: false,
+      measurementOrModelDiscrepancyApplied: false,
+      presetOrCaseFittingQualified: false,
+    });
+    const serializedRecovery = JSON.parse(JSON.stringify(recovery));
+    await expect(verifyMainWireBaselineLocalRecoveryAuditV1(
+      serializedRecovery,
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    )).resolves.toEqual(serializedRecovery);
+    const driftedRecovery = structuredClone(serializedRecovery);
+    driftedRecovery.controls[0].recoveredCoordinateValues[TBV] += 1;
+    await expect(verifyMainWireBaselineLocalRecoveryAuditV1(
+      driftedRecovery,
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    )).rejects.toThrow(/differs from its reconstruction/);
+
     const serialized = JSON.parse(JSON.stringify(audit));
     await expect(
       verifyMainWireBaselineConditioningRefinedDerivativeAuditV1(
@@ -279,6 +330,56 @@ describe("direct refined-dt conditioning derivatives", () => {
       [TBV, ARTERIAL_STIFFNESS],
       [TBV, ACTIVE_TENSION],
     ]);
+    await expect(buildMainWireBaselineLocalRecoveryAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    )).rejects.toThrow(/not supported on a complete primary basis/);
+  });
+
+  it("recovers the supported pair and refuses the unsupported comparison", async () => {
+    const fixture = await syntheticFixtureV1(1.02, -1);
+    const audit =
+      await buildMainWireBaselineConditioningRefinedDerivativeAuditV1({
+        coarseAudit: fixture.coarse,
+        fineEvaluations: fixture.fineEvaluations,
+        centerSources: fixture.centerSources,
+        protocolCommit: "abcdef0",
+        executionCommit: "abcdef1",
+        requestedParallelism: 8,
+        effectiveParallelism: 8,
+        batchWallTimeMs: 50,
+        refinedNominalDtSec: 0.001,
+      });
+    const attribution =
+      await buildMainWireBaselineConditioningPerturbationAttributionV1(
+        fixture.coarse,
+        audit,
+      );
+    const stageAudit = await buildMainWireBaselineConditioningStageAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+    );
+    const recovery = await buildMainWireBaselineLocalRecoveryAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    );
+
+    expect(recovery.summary.allControlsRecoverTruthLatticePoint).toBe(true);
+    expect(recovery.summary.unsupportedComparisonRefusalRequired).toBe(true);
+    expect(recovery.summary.unsupportedComparisonRefused).toBe(true);
+    expect(recovery.unsupportedComparisonRefusal).toEqual(
+      expect.objectContaining({
+        coordinateIds: [TBV, ARTERIAL_STIFFNESS],
+        refusalRequired: true,
+        recoveryAttempted: false,
+        refusalStatus: "passed",
+      }),
+    );
   });
 
   it("attributes only rows admitted by both source resolutions", async () => {
@@ -369,6 +470,12 @@ describe("direct refined-dt conditioning derivatives", () => {
       stageAudit.summary
         .primaryMaximumComponentSupportedDeclaredPairCoordinateSubsets,
     ).not.toContainEqual([TBV, ACTIVE_TENSION]);
+    await expect(buildMainWireBaselineLocalRecoveryAuditV1(
+      fixture.coarse,
+      audit,
+      attribution,
+      stageAudit,
+    )).rejects.toThrow(/not supported on a complete primary basis/);
   });
 
   it("rejects the wrong dt and a broken coarse-to-refined source chain", async () => {
@@ -459,7 +566,10 @@ describe("direct refined-dt conditioning derivatives", () => {
   });
 });
 
-async function syntheticFixtureV1(refinedScale: number) {
+async function syntheticFixtureV1(
+  refinedScale: number,
+  arterialStiffnessRefinedScale = refinedScale,
+) {
   const coarseTasks = buildMainWireBaselineConditioningTasksV1({
     mode: "primary-envelope",
   });
@@ -503,7 +613,13 @@ async function syntheticFixtureV1(refinedScale: number) {
     await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
   const fineEvaluations = Object.freeze(await Promise.all(fineTasks.map(
     async (task) => {
-      const taskResult = taskResultV1(task, refinedScale, true);
+      const taskResult = taskResultV1(
+        task,
+        task.coordinateId === ARTERIAL_STIFFNESS
+          ? arterialStiffnessRefinedScale
+          : refinedScale,
+        true,
+      );
       const source = sourceByCondition.get(task.conditionId)!;
       const requestIdentitySha256 = await fineRequestIdentityV1(
         task,
