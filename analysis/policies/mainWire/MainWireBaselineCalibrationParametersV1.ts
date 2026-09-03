@@ -250,23 +250,6 @@ export function mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
   return Math.abs(latticeIndex - Math.round(latticeIndex)) <= tolerance;
 }
 
-export function assertMainWireBaselineCalibrationCandidateOnReleaseLatticeV1(
-  candidate: MainWireBaselineCalibrationCandidateInputsV1,
-  parameterIds: readonly MainWireBaselineCalibrationParameterIdV1[],
-): void {
-  const offLattice = parameterIds.filter((parameterId) =>
-    !mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(
-      parameterId,
-      readMainWireBaselineCalibrationParameterV1(candidate, parameterId),
-    ));
-  if (offLattice.length > 0) {
-    throw new Error(
-      `baseline release candidate is off the exposed control lattice: `
-        + offLattice.join(", "),
-    );
-  }
-}
-
 function applyOneV1(
   candidate: MainWireBaselineCalibrationCandidateInputsV1,
   parameterId: MainWireBaselineCalibrationParameterIdV1,
