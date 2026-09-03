@@ -1,0 +1,335 @@
+{
+  "experimentId": "main-wire-standard70-exact-diagonal-recovery-probe-v1",
+  "controlId": "tbv-plus-active-minus",
+  "source": {
+    "probeExecutionCommit": "b762de75ddbd8feffa8597aaa60f1124d8b6f90c",
+    "coarseArtifactRawSha256": "6504bc1448380cc820f99460d552bf865bf5666f59f34c1215e15631d723b7e0",
+    "coarseArtifactCanonicalSha256": "54d97a100de9ec3c4d8737eed0506b847abffc31ad144c480c35b46a673c64fa",
+    "refinedArtifactRawSha256": "2e725909868839e640502639f94fac90757e3923a58e37c8a48675f128869feb",
+    "refinedArtifactCanonicalSha256": "ac52c347c90cd84787fd78fb3d048b2fbf98cb0d15727cd0f823aa0de13e9726",
+    "attributionArtifactRawSha256": "00ca50a62940ffb78dc45601442daf4e0bb8d5f09760b1b6094d1d8e1ebe3773",
+    "attributionArtifactCanonicalSha256": "035259b93aa07fabaa19a11258ad33f3824618f9fe9c7232a4f8e69f067633f8",
+    "stageArtifactRawSha256": "be4cba5386dadcedd8c6f47240bc5528243cecb504f41011643e2c0df34f0610",
+    "stageArtifactCanonicalSha256": "dda2c888c5bdb2d9b4e4f4c6d34c018ed8aacc0c986387764d30a28c8325e6fd",
+    "studyIdentitySha256": "95bc363dcd241f8a216ada87dfce953cda8c1ebd6d457be2cd99bcbb7884c262",
+    "exactModelIdentitySha256": "4be8586cb319c3ea28d06abdd130b5d629089484325b800ffd8f31c8097e415b",
+    "stagePolicyIdentitySha256": "1c9abe06af8e5603b9062a35d4690ad456297a8b452b510200234a2f7a50874a",
+    "refinedAuditExecutionCommit": "734d77cb44098bbcac339acb33ccc8dcb4a2c1c1",
+    "baselineCheckpointSha256": "06d561fd0267ba32e5b9d2d73a6e07afbbf3ab33736eca6c4910aab9db095a22"
+  },
+  "target": {
+    "values": {
+      "totalBloodVolumeMl": 4950,
+      "activeTensionScale": 1.23
+    },
+    "initializationKind": "cold",
+    "completedCycleCount": 138,
+    "classificationStatus": "period1-converged",
+    "constructionGateStatus": "passed",
+    "objectiveGateStatus": "passed",
+    "safetySentinelStatus": "passed",
+    "failedConstructionCheckIds": [],
+    "failedObjectiveCheckIds": [],
+    "failedSafetySentinelCheckIds": [],
+    "requestIdentitySha256": "987938239d6279a68ce41a688dd56a26015c7cd59068bef4fd1cab7e1017bdd9",
+    "checkpointSha256": "61b5bb74ef238f52fb98d469d2742b0f640b68c8a3fd63975e4ad8fe999a092e"
+  },
+  "estimate": {
+    "transformedOffsets": [
+      0.01059138602828863,
+      -0.009198208438258013
+    ],
+    "continuousValues": [
+      4952.173599179079,
+      1.2286465174347263
+    ],
+    "projectedValues": [
+      4950,
+      1.23
+    ],
+    "errorsInReleaseLatticeSteps": [
+      0.04347198358158494,
+      -0.13534825652736782
+    ],
+    "responseNorm": 0.06121903204721311,
+    "fittedResidualNorm": 0.0018216935567046397,
+    "fittedResidualFraction": 0.029756980726185284
+  },
+  "intermediateStarts": [
+    {
+      "label": "tbv-first-intermediate",
+      "requestIdentitySha256": "8ecfa89a23b889eb3fd4ed7d8fdfb06722b99e6ff9e8f283067a63cf79dec664",
+      "checkpointSha256": "1f0669f7bffa9d5b24b1b551684b3fdcc95d35a7d125a67cd334aa74fd3b9592",
+      "completedCycleCount": 17,
+      "classificationStatus": "period1-converged",
+      "constructionGateStatus": "passed",
+      "objectiveGateStatus": "passed",
+      "safetySentinelStatus": "passed",
+      "failedConstructionCheckIds": [],
+      "failedObjectiveCheckIds": [],
+      "failedSafetySentinelCheckIds": []
+    },
+    {
+      "label": "active-first-intermediate",
+      "requestIdentitySha256": "3e790acdc8d9eb0c11699f63da1d0949639dbd225ea8e07035db6d9d132db126",
+      "checkpointSha256": "f59a8524fd83c3d7a7df75f19b400d61a9c35f4fdbc63309eaacaa803f18d804",
+      "completedCycleCount": 7,
+      "classificationStatus": "period1-converged",
+      "constructionGateStatus": "passed",
+      "objectiveGateStatus": "passed",
+      "safetySentinelStatus": "passed",
+      "failedConstructionCheckIds": [],
+      "failedObjectiveCheckIds": [],
+      "failedSafetySentinelCheckIds": []
+    }
+  ],
+  "replays": [
+    {
+      "label": "direct-baseline",
+      "requestIdentitySha256": "e0646c3c5e3be785cdee3929e680004b2837a00825dfd2c1fba5bd691a314ad9",
+      "checkpointSha256": "d82dedb413ed1b1d574150369857b309cb031c13bddf13d3a45f10843c194a74",
+      "completedCycleCount": 17,
+      "classificationStatus": "period1-converged",
+      "constructionGateStatus": "passed",
+      "objectiveGateStatus": "passed",
+      "safetySentinelStatus": "passed",
+      "failedConstructionCheckIds": [],
+      "failedObjectiveCheckIds": [],
+      "failedSafetySentinelCheckIds": [],
+      "primaryResidual": {
+        "l2Norm": 0.0013835587109389882,
+        "maximumAbsoluteNormalizedResidual": 0.0009776274956157813,
+        "rows": [
+          {
+            "checkId": "aortic-pressure.maximum",
+            "normalizedResidual": -0.0005154061746708412
+          },
+          {
+            "checkId": "aortic-pressure.minimum",
+            "normalizedResidual": -0.0009776274956157813
+          },
+          {
+            "checkId": "central-venous-pressure.mean",
+            "normalizedResidual": 0.00026472846563044906
+          },
+          {
+            "checkId": "pcwp-surrogate.mean",
+            "normalizedResidual": 0.0004831663416175284
+          },
+          {
+            "checkId": "left-ventricle.edv-index",
+            "normalizedResidual": 0.0000612363340959807
+          },
+          {
+            "checkId": "left-ventricle.esv-index",
+            "normalizedResidual": -0.0001311043320280432
+          },
+          {
+            "checkId": "left-ventricle.ejection-fraction",
+            "normalizedResidual": 0.000337191531142757
+          },
+          {
+            "checkId": "systemic-forward-flow.cardiac-index",
+            "normalizedResidual": 0.0003876804343716067
+          },
+          {
+            "checkId": "systemic-forward-flow.stroke-volume-index",
+            "normalizedResidual": 0.00032306702864302655
+          }
+        ]
+      }
+    },
+    {
+      "label": "tbv-first",
+      "requestIdentitySha256": "2d49fa174c4f7777c5a3f338f670d9fea453a53f7a3aa9959509305f3ad35cf9",
+      "checkpointSha256": "41ae9b23a886ceed9cfb8525e7b71c0cd6f3357110b603b6056cf04f95f7a7af",
+      "completedCycleCount": 7,
+      "classificationStatus": "period1-converged",
+      "constructionGateStatus": "passed",
+      "objectiveGateStatus": "passed",
+      "safetySentinelStatus": "passed",
+      "failedConstructionCheckIds": [],
+      "failedObjectiveCheckIds": [],
+      "failedSafetySentinelCheckIds": [],
+      "primaryResidual": {
+        "l2Norm": 0.000929144408828607,
+        "maximumAbsoluteNormalizedResidual": 0.0007115866132708928,
+        "rows": [
+          {
+            "checkId": "aortic-pressure.maximum",
+            "normalizedResidual": -0.0004118408715838345
+          },
+          {
+            "checkId": "aortic-pressure.minimum",
+            "normalizedResidual": -0.0007115866132708928
+          },
+          {
+            "checkId": "central-venous-pressure.mean",
+            "normalizedResidual": 0.0001769364197756321
+          },
+          {
+            "checkId": "pcwp-surrogate.mean",
+            "normalizedResidual": -0.0002843225096999586
+          },
+          {
+            "checkId": "left-ventricle.edv-index",
+            "normalizedResidual": -0.00007600976007207563
+          },
+          {
+            "checkId": "left-ventricle.esv-index",
+            "normalizedResidual": -0.00018155983247906244
+          },
+          {
+            "checkId": "left-ventricle.ejection-fraction",
+            "normalizedResidual": 0.00018818023746841882
+          },
+          {
+            "checkId": "systemic-forward-flow.cardiac-index",
+            "normalizedResidual": 0.000024796731493314412
+          },
+          {
+            "checkId": "systemic-forward-flow.stroke-volume-index",
+            "normalizedResidual": 0.000020663942910934846
+          }
+        ]
+      }
+    },
+    {
+      "label": "active-first",
+      "requestIdentitySha256": "70269c589b1a8ec8c94975efd634333e97e4273612909c8119e94c177b7286ae",
+      "checkpointSha256": "ef40bdd0c9f24b0672747e3ea311bdadf1e66682487cb55bef004dd1d9efaec9",
+      "completedCycleCount": 17,
+      "classificationStatus": "period1-converged",
+      "constructionGateStatus": "passed",
+      "objectiveGateStatus": "passed",
+      "safetySentinelStatus": "passed",
+      "failedConstructionCheckIds": [],
+      "failedObjectiveCheckIds": [],
+      "failedSafetySentinelCheckIds": [],
+      "primaryResidual": {
+        "l2Norm": 0.0014143106232146578,
+        "maximumAbsoluteNormalizedResidual": 0.0009812034713091043,
+        "rows": [
+          {
+            "checkId": "aortic-pressure.maximum",
+            "normalizedResidual": -0.000513871168499779
+          },
+          {
+            "checkId": "aortic-pressure.minimum",
+            "normalizedResidual": -0.0009812034713091043
+          },
+          {
+            "checkId": "central-venous-pressure.mean",
+            "normalizedResidual": 0.0002732524527848041
+          },
+          {
+            "checkId": "pcwp-surrogate.mean",
+            "normalizedResidual": 0.0005297823851530362
+          },
+          {
+            "checkId": "left-ventricle.edv-index",
+            "normalizedResidual": 0.00006966421341370488
+          },
+          {
+            "checkId": "left-ventricle.esv-index",
+            "normalizedResidual": -0.00012576045162647473
+          },
+          {
+            "checkId": "left-ventricle.ejection-fraction",
+            "normalizedResidual": 0.00034238307105993526
+          },
+          {
+            "checkId": "systemic-forward-flow.cardiac-index",
+            "normalizedResidual": 0.0004066637732662943
+          },
+          {
+            "checkId": "systemic-forward-flow.stroke-volume-index",
+            "normalizedResidual": 0.00033888647772175836
+          }
+        ]
+      }
+    }
+  ],
+  "replaySummary": {
+    "replayCount": 3,
+    "passedConstructionGateCount": 3,
+    "passedSafetySentinelCount": 3,
+    "maximumPrimaryNormalizedResidual": 0.0009812034713091043
+  },
+  "targetPrimaryChecks": [
+    {
+      "checkId": "aortic-pressure.maximum",
+      "actual": 91.533969514116,
+      "minimum": 90,
+      "maximum": 140,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "aortic-pressure.minimum",
+      "actual": 67.94283862174007,
+      "minimum": 60,
+      "maximum": 90,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "central-venous-pressure.mean",
+      "actual": 3.1953189556767443,
+      "minimum": 1,
+      "maximum": 8,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "pcwp-surrogate.mean",
+      "actual": 9.686409801980782,
+      "minimum": 4,
+      "maximum": 13,
+      "unit": "mmHg"
+    },
+    {
+      "checkId": "left-ventricle.edv-index",
+      "actual": 77.37971429509224,
+      "minimum": 34,
+      "maximum": 99,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "left-ventricle.esv-index",
+      "actual": 35.139912203877365,
+      "minimum": 10,
+      "maximum": 40,
+      "unit": "mL/m2"
+    },
+    {
+      "checkId": "left-ventricle.ejection-fraction",
+      "actual": 0.5458769456052891,
+      "minimum": 0.52,
+      "maximum": 0.74,
+      "unit": "ratio"
+    },
+    {
+      "checkId": "systemic-forward-flow.cardiac-index",
+      "actual": 2.534388074222855,
+      "minimum": 2.5,
+      "maximum": 4,
+      "unit": "L/min/m2"
+    },
+    {
+      "checkId": "systemic-forward-flow.stroke-volume-index",
+      "actual": 42.23980123704759,
+      "minimum": 35,
+      "maximum": 65,
+      "unit": "mL/m2"
+    }
+  ],
+  "claim": {
+    "exactNonlinearSyntheticTargetEvaluated": true,
+    "independentColdTarget": true,
+    "localJacobianEstimateEvaluated": true,
+    "releaseLatticeRecoveryEvaluated": true,
+    "continuationOrderCompared": true,
+    "optimizerExecuted": false,
+    "multipleInteriorTargetControlsEvaluated": false,
+    "deliberatelyConfoundedRawParametersEvaluated": false,
+    "presetOrCaseFittingQualified": false
+  }
+}
