@@ -546,8 +546,8 @@ const OUTPUT_PRESENTATION_V1: Readonly<
     category: "valves",
     label: textV1("Pulmonary ejection time (RVET)", "肺動脈駆出時間 (RVET)"),
     description: textV1(
-      "Total accepted-step duration of forward pulmonary-valve flow during the completed beat",
-      "解析対象となる1心拍で肺動脈弁の順行性血流が認められたaccepted-step時間の総和",
+      "Total accepted-step duration of forward modeled pulmonary-valve flow during the completed beat; Doppler RVET equivalence is not claimed",
+      "解析対象となる1心拍でモデル肺動脈弁の順行性血流が認められたaccepted-step時間の総和。Doppler RVETとの等価性は主張しない",
     ),
     aliases: ["RVET", "pulmonary ejection time", "右室駆出時間"],
   },

@@ -163,16 +163,22 @@ export function validateMainWireIntegratedStudioStandard70BaselineValidationV1(
 function validRightHeartMeasurementsV1(
   measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1,
 ): boolean {
-  return [
+  const scalarMeasurements = [
     ...Object.values(measurements.pulmonaryValve ?? {}),
     ...Object.values(measurements.rightVentricle ?? {}),
     ...Object.values(measurements.tricuspidFlow ?? {}),
     ...Object.values(measurements.rightTiming ?? {}),
-  ].length === 11
-    && [
-      ...Object.values(measurements.pulmonaryValve ?? {}),
-      ...Object.values(measurements.rightVentricle ?? {}),
-      ...Object.values(measurements.tricuspidFlow ?? {}),
-      ...Object.values(measurements.rightTiming ?? {}),
-    ].every(Number.isFinite);
+  ];
+  const morphology = measurements.pulmonaryRootMorphology;
+  return scalarMeasurements.length === 11
+    && scalarMeasurements.every(Number.isFinite)
+    && morphology !== undefined
+    && Number.isSafeInteger(morphology.papSignificantPeakCount)
+    && Number.isSafeInteger(morphology.pvForwardEpisodeCount)
+    && Number.isSafeInteger(morphology.pvFlowSignificantPeakCount)
+    && morphology.papSignificantPeakCount >= 0
+    && morphology.pvForwardEpisodeCount >= 0
+    && morphology.pvFlowSignificantPeakCount >= 0
+    && Number.isFinite(morphology.maximumPostClosurePapReboundMmHg)
+    && morphology.maximumPostClosurePapReboundMmHg >= 0;
 }

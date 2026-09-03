@@ -21,10 +21,16 @@ tissue metabolism, or regional ischemia.
 
 The current Standard70 construction retains the Standard69 rounded-ejection
 heart and systemic aortic-root dynamics. It removes only the PA-to-PArt local
-momentum state, using an algebraic flow law with the existing resistance and
-quadratic loss while retaining the PA and PArt compliances. This is a minimal
+momentum state, using an algebraic flow law with the existing linear resistance
+and source quadratic-loss coefficient while retaining the PA and PArt
+compliances. This is a minimal
 model-form correction for the rejected pulmonary-root ringing; it is not a
 distributed pulmonary-wave or valve-jet model.
+
+The source PA-to-PArt quadratic-loss coefficient is currently zero, so its
+nominal Standard70 relation is purely linear. “Preserved” means that the source
+coefficient was not fitted or replaced; it does not claim a nonzero quadratic
+loss.
 
 ## Runtime authority
 

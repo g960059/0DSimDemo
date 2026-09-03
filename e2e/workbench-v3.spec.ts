@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
-const qualifiedBaselineRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-registry-admission-lock.json",
+const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
+  "../studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
 const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
@@ -11,7 +11,7 @@ const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
 ), "utf8")) as Readonly<{ modelId: string }>;
 
 const DEFAULT_EXACT_MODEL_ID =
-  qualifiedBaselineRegistryAdmissionLock.modelId;
+  defaultRegistryAdmissionLock.modelId;
 const MODEL_LAB_EXACT_MODEL_ID = standardModelLabRegistryAdmissionLock.modelId;
 const UUID_RESOURCE_ID =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -101,7 +101,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop production Standard69 inherits the complete analysis Surface", async ({
+test("@desktop production Standard70 inherits the complete analysis Surface", async ({
   page,
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
@@ -807,7 +807,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   ).toBeLessThanOrEqual(0.25);
 
   // Mutating the restored copy remains branch-local after the durable
-  // round-trip. Standard69 warm-starts only that branch from its accepted
+  // round-trip. Standard70 warm-starts only that branch from its accepted
   // state and clock; the baseline fixture and trajectory remain untouched.
   const restoredCopyEpoch = await inputEpoch(page);
   const restoredCopyTimeBeforeMutation = await modelTime(root);
@@ -844,7 +844,7 @@ test("@desktop simulation information stays human-facing", async ({
   await expect(documentationLink).toBeVisible();
   await expect(documentationLink).toHaveAttribute(
     "href",
-    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.qualified-baseline\.standard-69\?surface=/,
+    /\/ja\/models\/circleheart\.main-wire-integrated-transaction-v3\.algebraic-pulmonary-root\.standard-70\?surface=/,
   );
   const limitations = dialog.locator("details").filter({
     hasText: "制限事項",
@@ -857,6 +857,8 @@ test("@desktop simulation information stays human-facing", async ({
     "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysis",
   );
   await expect(dialog.getByText("数理モデルのbaseline検証", { exact: true }))
+    .toBeVisible();
+  await expect(dialog.getByText("PAP / PV flow morphology", { exact: true }))
     .toBeVisible();
   await expect(dialog.getByText("Exact model ID", { exact: true }))
     .toHaveCount(0);
@@ -871,10 +873,10 @@ test("@desktop simulation information stays human-facing", async ({
   await documentationLink.click();
   const documentationPage = await documentationPageOpened;
   await expect(
-    documentationPage.getByTestId("standard69-model-documentation-v1"),
+    documentationPage.getByTestId("standard70-model-documentation-v1"),
   ).toBeVisible();
   await expect(documentationPage.getByRole("heading", {
-    name: "Main Wire Standard 69",
+    name: "Main Wire Standard 70",
     exact: true,
   })).toBeVisible();
   await documentationPage.close();

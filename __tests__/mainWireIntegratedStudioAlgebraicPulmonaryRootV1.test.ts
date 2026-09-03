@@ -10,8 +10,30 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70OutputRegistryV1";
 import {
+  restoreMainWireIntegratedModelStandard68V1,
+  type MainWireIntegratedModelStandard68CheckpointV1,
+} from "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
+import {
   evaluateMainWireIntegratedModelStandard70CandidateV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import {
+  measureMainWireIntegratedModelPulmonaryRootMorphologyV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
+import {
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3,
+  type MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  createMainWireIntegratedModelRoundedEjectionFixtureV1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionFixtureV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard69BaselineV1";
+import {
+  cloneAndFreezeStudioJson,
+} from "@/domain/json/CanonicalJson";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SETTLED_CHECKPOINT_V1,
@@ -22,9 +44,14 @@ import algebraicPulmonaryRootSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import qualifiedBaselineSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import standard69CheckpointJsonV1 from
+  "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 import {
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
+import {
+  validateMainWireIntegratedStudioStandard70BaselineValidationV1,
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
 
 const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
@@ -65,11 +92,19 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
     expect(resolveRegisteredExactModelBaselineValidationV1(
       MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
     )).toEqual(validation);
-    expect(validation.checks).toHaveLength(37);
+    expect(validation.checks).toHaveLength(41);
     expect(validation.checks.every(({ status }) => status === "passed"))
       .toBe(true);
     expect(validation.measurements.LVP.significantPeakCount).toBe(1);
     expect(validation.measurements.RVP.significantPeakCount).toBe(1);
+    expect(validation.measurements.pulmonaryRootMorphology).toMatchObject({
+      papSignificantPeakCount: 1,
+      pvForwardEpisodeCount: 1,
+      pvFlowSignificantPeakCount: 1,
+      maximumPostClosurePapReboundMmHg: expect.any(Number),
+    });
+    expect(validation.measurements.pulmonaryRootMorphology
+      .maximumPostClosurePapReboundMmHg).toBeLessThanOrEqual(0.5);
     expect(validation.measurements.pulmonaryValve).toMatchObject({
       ejectionTimeSec: expect.any(Number),
       meanGradientMmHg: expect.any(Number),
@@ -114,6 +149,55 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
     } finally {
       release.executables.simulationAdapter.disposeSession(runtimeSessionId);
     }
+  });
+
+  it("rejects the predecessor pulmonary-root ringing phenotype", async () => {
+    const fixture = createMainWireIntegratedModelRoundedEjectionFixtureV1(
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      1,
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD69_BASELINE_MECHANISM_INPUTS_V1,
+    );
+    const restored = await restoreMainWireIntegratedModelStandard68V1(
+      Object.freeze({
+        base: Object.freeze({
+          ...createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+            fixture,
+          ),
+          mechanismResearchInputs: fixture.mechanismResearchInputs,
+        }),
+        roundedEjectionAssemblyId: fixture.roundedEjectionAssemblyId,
+      }),
+      cloneAndFreezeStudioJson(
+        standard69CheckpointJsonV1,
+      ) as unknown as MainWireIntegratedModelStandard68CheckpointV1,
+    );
+    const cycle = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      fixture as unknown as MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+      restored.acceptedState,
+      1,
+      0.002,
+    );
+    const morphology =
+      measureMainWireIntegratedModelPulmonaryRootMorphologyV1(
+        cycle.traceSamples,
+      );
+    expect(morphology.papSignificantPeakCount).toBeGreaterThan(1);
+    expect(morphology.pvFlowSignificantPeakCount).toBeGreaterThan(1);
+    expect(morphology.maximumPostClosurePapReboundMmHg)
+      .toBeGreaterThan(0.5);
+  }, 30_000);
+
+  it("rejects a baseline report without pulmonary-root morphology evidence", () => {
+    const report =
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
+    expect(() =>
+      validateMainWireIntegratedStudioStandard70BaselineValidationV1({
+        ...report,
+        measurements: {
+          ...report.measurements,
+          pulmonaryRootMorphology: undefined,
+        },
+      })).toThrow(/Standard70 baseline validation report is invalid/);
   });
 
   it("keeps the runtime usable after the previously failing minimum-TBV edit", async () => {

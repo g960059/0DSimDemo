@@ -728,7 +728,7 @@
     "standard70Items": [
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
       "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",
-      "The proximal systemic artery retains the source momentum/compliance topology; only PA–PArt uses an algebraic flow law retaining resistance and quadratic loss. Spatial wave travel and reflection are not represented, so these are not site-resolved arterial traces.",
+      "The proximal systemic artery retains the source momentum/compliance topology; only PA–PArt uses an algebraic flow law retaining the source loss coefficients. The current quadratic coefficient is zero, so the nominal relation is linear. Spatial wave travel and reflection are not represented, so these are not site-resolved arterial traces.",
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
       "Control changes retain the accepted state and model clock through a warm start. This is not an autonomic reflex or a measured chronotropic response.",
       "Baseline mint gates include right-heart and pulmonary-artery construction sentinels, but do not establish clinical normality for an individual patient or every loading condition."

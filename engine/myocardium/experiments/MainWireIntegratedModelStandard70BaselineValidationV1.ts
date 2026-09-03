@@ -3,6 +3,7 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
   buildMainWireIntegratedModelBaselineValidationChecksV1,
+  countMainWireIntegratedModelSignificantPressurePeaksV1,
   measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
   type MainWireIntegratedModelBaselineValidationCheckV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
@@ -36,6 +37,12 @@ export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1 =
       isovolumicRelaxation: Object.freeze({ minimum: 0.03, maximum: 0.12 }),
       teiIndex: Object.freeze({ minimum: 0.25, maximum: 0.65 }),
     }),
+    pulmonaryRootMorphology: Object.freeze({
+      requiredPapSignificantPeakCount: 1,
+      requiredPvForwardEpisodeCount: 1,
+      requiredPvFlowSignificantPeakCount: 1,
+      maximumPostClosurePapReboundMmHg: 0.5,
+    }),
   });
 
 export type MainWireIntegratedModelStandard70RightHeartCheckIdV1 =
@@ -47,7 +54,11 @@ export type MainWireIntegratedModelStandard70RightHeartCheckIdV1 =
   | "tricuspid-flow.peak-e-to-a"
   | "right-timing.ict"
   | "right-timing.irt"
-  | "right-timing.tei-index";
+  | "right-timing.tei-index"
+  | "waveform.PAP.single-peak-no-ringing"
+  | "waveform.PV-flow.single-forward-episode"
+  | "waveform.PV-flow.single-peak-no-ringing"
+  | "waveform.PAP.post-PV-closure-rebound";
 
 export type MainWireIntegratedModelStandard70RightHeartCheckV1 = Readonly<{
   checkId: MainWireIntegratedModelStandard70RightHeartCheckIdV1;
@@ -79,7 +90,15 @@ export type MainWireIntegratedModelStandard70BaselineMeasurementsV1 =
       irtSec: number;
       teiIndex: number;
     }>;
+    pulmonaryRootMorphology: MainWireIntegratedModelPulmonaryRootMorphologyV1;
   }>;
+
+export type MainWireIntegratedModelPulmonaryRootMorphologyV1 = Readonly<{
+  papSignificantPeakCount: number;
+  pvForwardEpisodeCount: number;
+  pvFlowSignificantPeakCount: number;
+  maximumPostClosurePapReboundMmHg: number;
+}>;
 
 export type MainWireIntegratedModelStandard70BaselineCheckV1 =
   | MainWireIntegratedModelBaselineValidationCheckV1
@@ -104,6 +123,8 @@ export function measureMainWireIntegratedModelStandard70BaselineV1(
       samples,
       "right",
     );
+  const pulmonaryRootMorphology =
+    measureMainWireIntegratedModelPulmonaryRootMorphologyV1(samples);
   return Object.freeze({
     ...base,
     pulmonaryValve: Object.freeze({
@@ -117,6 +138,57 @@ export function measureMainWireIntegratedModelStandard70BaselineV1(
     }),
     tricuspidFlow: right.inletFlow,
     rightTiming: right.timing,
+    pulmonaryRootMorphology,
+  });
+}
+
+/**
+ * Full-cycle pulmonary-root ringing sentinels. Unlike the ventricular shape
+ * metric, PAP is inspected through diastole so a second post-ejection hump
+ * cannot be hidden outside the PV-forward interval.
+ */
+export function measureMainWireIntegratedModelPulmonaryRootMorphologyV1(
+  samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
+): MainWireIntegratedModelPulmonaryRootMorphologyV1 {
+  if (samples.length < 12) {
+    throw new Error("pulmonary-root morphology requires one complete cycle");
+  }
+  const pap = samples.map((sample) => sample.absolutePressureMmHg.PA);
+  const pvFlow = samples.map((sample) => sample.valveFlowMlPerSec.PV);
+  if (
+    pap.some((value) => !Number.isFinite(value))
+    || pvFlow.some((value) => !Number.isFinite(value))
+  ) {
+    throw new Error("pulmonary-root morphology received a nonfinite trace");
+  }
+  const threshold = Math.max(1, 0.01 * Math.max(...pvFlow));
+  const episodes = cyclicForwardEpisodesV1(
+    pvFlow.map((flow) => flow > threshold),
+  );
+  if (episodes.length === 0) {
+    throw new Error("pulmonary-root morphology found no PV forward episode");
+  }
+  const primary = [...episodes].sort((left, right) =>
+    episodePositiveFlowV1(pvFlow, right)
+      - episodePositiveFlowV1(pvFlow, left)
+  )[0]!;
+  const primaryFlow = primary.indices.map((index) => pvFlow[index]!);
+  let runningMinimum = pap[(primary.end + 1) % pap.length]!;
+  let maximumRebound = 0;
+  for (let offset = 1; offset < pap.length; offset += 1) {
+    const index = (primary.end + 1 + offset) % pap.length;
+    if (primary.indices.includes(index)) break;
+    const pressure = pap[index]!;
+    maximumRebound = Math.max(maximumRebound, pressure - runningMinimum);
+    runningMinimum = Math.min(runningMinimum, pressure);
+  }
+  return Object.freeze({
+    papSignificantPeakCount:
+      countMainWireIntegratedModelSignificantPressurePeaksV1(pap),
+    pvForwardEpisodeCount: episodes.length,
+    pvFlowSignificantPeakCount:
+      countMainWireIntegratedModelSignificantPressurePeaksV1(primaryFlow),
+    maximumPostClosurePapReboundMmHg: maximumRebound,
   });
 }
 
@@ -184,6 +256,50 @@ export function buildMainWireIntegratedModelStandard70BaselineChecksV1(
       policy.ventricularTimingSec.teiIndex,
       "ratio",
     ),
+    rightRangeCheckV1(
+      "waveform.PAP.single-peak-no-ringing",
+      measurements.pulmonaryRootMorphology.papSignificantPeakCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology
+          .requiredPapSignificantPeakCount,
+        maximum: policy.pulmonaryRootMorphology
+          .requiredPapSignificantPeakCount,
+      }),
+      "count",
+    ),
+    rightRangeCheckV1(
+      "waveform.PV-flow.single-forward-episode",
+      measurements.pulmonaryRootMorphology.pvForwardEpisodeCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology
+          .requiredPvForwardEpisodeCount,
+        maximum: policy.pulmonaryRootMorphology
+          .requiredPvForwardEpisodeCount,
+      }),
+      "count",
+    ),
+    rightRangeCheckV1(
+      "waveform.PV-flow.single-peak-no-ringing",
+      measurements.pulmonaryRootMorphology.pvFlowSignificantPeakCount,
+      Object.freeze({
+        minimum: policy.pulmonaryRootMorphology
+          .requiredPvFlowSignificantPeakCount,
+        maximum: policy.pulmonaryRootMorphology
+          .requiredPvFlowSignificantPeakCount,
+      }),
+      "count",
+    ),
+    rightRangeCheckV1(
+      "waveform.PAP.post-PV-closure-rebound",
+      measurements.pulmonaryRootMorphology
+        .maximumPostClosurePapReboundMmHg,
+      Object.freeze({
+        minimum: 0,
+        maximum: policy.pulmonaryRootMorphology
+          .maximumPostClosurePapReboundMmHg,
+      }),
+      "mmHg",
+    ),
   ]);
 }
 
@@ -202,9 +318,10 @@ export function assertMainWireIntegratedModelStandard70BaselinePassedV1(
         + (measurements === undefined
           ? ""
           : `; pressure morphology=${JSON.stringify({
-              LVP: measurements.LVP,
-              RVP: measurements.RVP,
-            })}`),
+            LVP: measurements.LVP,
+            RVP: measurements.RVP,
+            pulmonaryRoot: measurements.pulmonaryRootMorphology,
+          })}`),
     );
   }
 }
@@ -228,4 +345,47 @@ function rightRangeCheckV1(
     maximum: range.maximum,
     unit,
   });
+}
+
+type ForwardEpisodeV1 = Readonly<{
+  indices: readonly number[];
+  end: number;
+}>;
+
+function cyclicForwardEpisodesV1(
+  open: readonly boolean[],
+): readonly ForwardEpisodeV1[] {
+  if (!open.some(Boolean)) return Object.freeze([]);
+  const closedBoundary = open.findIndex((value) => !value);
+  if (closedBoundary < 0) {
+    return Object.freeze([Object.freeze({
+      indices: Object.freeze(open.map((_, index) => index)),
+      end: open.length - 1,
+    })]);
+  }
+  const episodes: ForwardEpisodeV1[] = [];
+  let active: number[] = [];
+  for (let offset = 1; offset <= open.length; offset += 1) {
+    const index = (closedBoundary + offset) % open.length;
+    if (open[index]) {
+      active.push(index);
+    } else if (active.length > 0) {
+      episodes.push(Object.freeze({
+        indices: Object.freeze(active),
+        end: active.at(-1)!,
+      }));
+      active = [];
+    }
+  }
+  return Object.freeze(episodes);
+}
+
+function episodePositiveFlowV1(
+  flow: readonly number[],
+  episode: ForwardEpisodeV1,
+): number {
+  return episode.indices.reduce(
+    (sum, index) => sum + Math.max(0, flow[index]!),
+    0,
+  );
 }

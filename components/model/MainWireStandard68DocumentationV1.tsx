@@ -33,7 +33,7 @@ const COPY = Object.freeze({
     qualifiedLead:
       "このページはStandard 69のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 69はStandard 68の数式構成を保ち、独立したbaseline fittingとmint gateを通過した既定作動点を持ちます。これは患者個別の診断や治療判断を保証するものではありません。",
     pulmonaryRootLead:
-      "このページはStandard 70のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 70はStandard 69を基礎に、PA–PArt間だけを抵抗・二次損失を保つ代数的flow lawへ変更し、右心・肺動脈を含むbaseline gateを通過しています。これは患者個別の診断や治療判断を保証するものではありません。",
+      "このページはStandard 70のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 70はStandard 69を基礎に、PA–PArt間だけをsourceの損失係数を保つ代数的flow lawへ変更し、右心・肺動脈を含むbaseline gateを通過しています。現在の二次損失係数は0で、名目上は線形抵抗です。これは患者個別の診断や治療判断を保証するものではありません。",
     scopeTitle: "モデルの範囲",
     scopeBody:
       "心室相互作用、四弁、体循環・肺循環、冠循環、regular sinus rhythm、呼吸・心膜圧を結合した集中定数モデルです。心室materialとmatched-alpha calcium/relaxation構成をrounded-ejection assemblyへ更新しています。",
@@ -53,7 +53,7 @@ const COPY = Object.freeze({
       "新しいcontinuous state、AV opening state、局所pressure-recovery correctionは追加していません。",
     ]),
     pulmonaryRootDynamicsItem:
-      "近位体動脈はsource momentum/compliance topologyを保ちます。PA–PArt間のみ局所inertanceを持たない代数的flow lawとし、抵抗・二次損失・PA/PArt complianceは保持します。",
+      "近位体動脈はsource momentum/compliance topologyを保ちます。PA–PArt間のみ局所inertanceを持たない代数的flow lawとし、線形抵抗・source二次損失係数・PA/PArt complianceは保持します。source二次損失係数は現在0です。",
     analysisTitle: "Surfaceとanalysis",
     analysisBody:
       "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。ESPVRはpreload低下側からbaselineまでを用い、EDPVRとStarlingは高容量側を含む双方向familyを保持します。これらの分岐計算はexact stateやcheckpointを変更しません。",
@@ -63,7 +63,7 @@ const COPY = Object.freeze({
     qualifiedBaselinePolicy:
       "Standard69の追加floorは、各方向・両心室でCO変化率3%以上、CO/充満圧勾配0.02 L/min/mmHg以上、EDV変化率3%以上です。探索結果の確認後に固定したconstruction用退行防止基準であり、独立した生理学的検証ではありません。",
     pulmonaryRootBaselinePolicy:
-      "Standard70は同じ双方向preload reserve floorに加え、PVのraw pressure gradient/ET、RV ±dP/dt、TV E/A、右室ICT/IRT/Teiをconstruction sentinelとして必須化しています。これらは臨床診断閾値ではありません。",
+      "Standard70は同じ双方向preload reserve floorに加え、PVのraw pressure gradient/ET、RV ±dP/dt、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの単峰性とPV閉鎖後PAP reboundをconstruction sentinelとして必須化しています。これらは臨床診断閾値ではありません。",
     controlTitle: "control semantics",
     controlBody:
       "Heart rateを含むcontrol変更はaccepted stateとmodel clockを保持し、新しいfixture epochへ移るatomic warm startです。自律神経反射や実測の変時性応答ではありません。",
@@ -95,7 +95,7 @@ const COPY = Object.freeze({
     qualifiedLead:
       "This page separates the Standard 69 exact model, its current Model Surface, and versioned analyses. Standard 69 retains the Standard 68 equations and adds a separately fitted, mint-qualified default operating point. This does not establish patient-specific diagnostic or treatment validity.",
     pulmonaryRootLead:
-      "This page separates the Standard 70 exact model, its current Model Surface, and versioned analyses. Standard 70 changes only PA–PArt to an algebraic flow law retaining resistance and quadratic loss, and passes baseline gates that include the right heart and pulmonary artery. This does not establish patient-specific diagnostic or treatment validity.",
+      "This page separates the Standard 70 exact model, its current Model Surface, and versioned analyses. Standard 70 changes only PA–PArt to an algebraic flow law retaining the source loss coefficients, and passes baseline gates that include the right heart and pulmonary artery. The current quadratic coefficient is zero, so the nominal relation is linear. This does not establish patient-specific diagnostic or treatment validity.",
     scopeTitle: "Model scope",
     scopeBody:
       "A lumped model coupling ventricular interaction, four valves, systemic and pulmonary circulation, coronary circulation, regular sinus rhythm, respiration, and pericardial pressure. Ventricular material and matched-alpha calcium/relaxation use the rounded-ejection assembly.",
@@ -115,7 +115,7 @@ const COPY = Object.freeze({
       "No new continuous state, AV opening state, or local pressure-recovery correction is added.",
     ]),
     pulmonaryRootDynamicsItem:
-      "The proximal systemic artery retains the source momentum/compliance topology. Only PA–PArt uses an algebraic flow law without local inertance; resistance, quadratic loss, and PA/PArt compliance remain.",
+      "The proximal systemic artery retains the source momentum/compliance topology. Only PA–PArt uses an algebraic flow law without local inertance; linear resistance, the source quadratic-loss coefficient, and PA/PArt compliance remain. The source quadratic coefficient is currently zero.",
     analysisTitle: "Surface and analysis",
     analysisBody:
       "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. ESPVR uses the preload-reduction limb through baseline, while EDPVR and Starling retain the bidirectional family. Their branch computations do not mutate exact state or checkpoints.",
@@ -125,7 +125,7 @@ const COPY = Object.freeze({
     qualifiedBaselinePolicy:
       "Standard69 adds floors of 3% CO change, 0.02 L/min/mmHg CO/filling-pressure slope, and 3% EDV change in each direction for both ventricles. They were frozen after exploratory result inspection as construction non-regression floors, not independent physiological validation.",
     pulmonaryRootBaselinePolicy:
-      "Standard70 retains those bidirectional preload-reserve floors and adds PV raw pressure gradient/ET, RV ±dP/dt, TV E/A, and right-sided ICT/IRT/Tei as required construction sentinels. These are not clinical diagnostic thresholds.",
+      "Standard70 retains those bidirectional preload-reserve floors and adds PV raw pressure gradient/ET, RV ±dP/dt, TV E/A, right-sided ICT/IRT/Tei, PAP/PV-flow unimodality, and post-PV-closure PAP rebound as required construction sentinels. These are not clinical diagnostic thresholds.",
     controlTitle: "Control semantics",
     controlBody:
       "Control changes, including heart rate, atomically warm-start a new fixture epoch while retaining accepted state and model clock. This is not an autonomic reflex or measured chronotropic response.",

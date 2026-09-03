@@ -110,6 +110,12 @@
       "ictSec": 0.060000000000002274,
       "irtSec": 0.06999999999999318,
       "teiIndex": 0.5
+    },
+    "pulmonaryRootMorphology": {
+      "papSignificantPeakCount": 1,
+      "pvForwardEpisodeCount": 1,
+      "pvFlowSignificantPeakCount": 1,
+      "maximumPostClosurePapReboundMmHg": 0.00877088458680042
     }
   },
   "checks": [
@@ -408,6 +414,38 @@
       "minimum": 0.25,
       "maximum": 0.65,
       "unit": "ratio"
+    },
+    {
+      "checkId": "waveform.PAP.single-peak-no-ringing",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "count"
+    },
+    {
+      "checkId": "waveform.PV-flow.single-forward-episode",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "count"
+    },
+    {
+      "checkId": "waveform.PV-flow.single-peak-no-ringing",
+      "status": "passed",
+      "actual": 1,
+      "minimum": 1,
+      "maximum": 1,
+      "unit": "count"
+    },
+    {
+      "checkId": "waveform.PAP.post-PV-closure-rebound",
+      "status": "passed",
+      "actual": 0.00877088458680042,
+      "minimum": 0,
+      "maximum": 0.5,
+      "unit": "mmHg"
     }
   ],
   "preloadReserve": {

@@ -728,7 +728,7 @@
     "standard70Items": [
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
       "0D集中定数モデルです。AoPは大動脈弁直後の大動脈基部compliance node圧、ABPは体動脈compartment圧です。局所圧回復はAoPに適用せず、いずれも実際のカテーテルまたはカフ測定位置そのものではありません。",
-      "近位体動脈はsource momentum/compliance topologyを保ち、PA–PArt間のみ抵抗と二次損失を保つ代数的flow lawです。空間的な波動伝播・反射を表現せず、部位別の動脈波形とは解釈できません。",
+      "近位体動脈はsource momentum/compliance topologyを保ち、PA–PArt間のみsourceの損失係数を保つ代数的flow lawです。現在の二次損失係数は0で、名目上は線形抵抗です。空間的な波動伝播・反射を表現せず、部位別の動脈波形とは解釈できません。",
       "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
       "control変更はaccepted stateとmodel clockを保持するwarm startです。自律神経反射や実測の変時性応答を再現したものではありません。",
       "baseline mint gateには右心・肺動脈のconstruction sentinelを含みますが、患者個別または全負荷条件での臨床的正常性を保証しません。"

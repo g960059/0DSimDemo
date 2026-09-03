@@ -665,6 +665,22 @@ export const WorkbenchSession = ({
                     { range: "ICT 20–90 / IRT 30–120 ms · Tei 0.25–0.65" },
                   ),
                 }),
+                Object.freeze({
+                  itemId: "pulmonary-root-morphology",
+                  label: "PAP / PV flow morphology",
+                  value: `${standard70Measurements.pulmonaryRootMorphology
+                    .papSignificantPeakCount} peak · ${standard70Measurements
+                    .pulmonaryRootMorphology.pvForwardEpisodeCount} episode / ${
+                    standard70Measurements.pulmonaryRootMorphology
+                      .pvFlowSignificantPeakCount
+                  } peak · rebound ${standard70Measurements
+                    .pulmonaryRootMorphology
+                    .maximumPostClosurePapReboundMmHg.toFixed(1)} mmHg`,
+                  detail: t(
+                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    { range: "PAP 1 peak · PV flow 1 episode / 1 peak · rebound ≤0.5 mmHg" },
+                  ),
+                }),
               ]),
           Object.freeze({
             itemId: "aortic-pressure",
