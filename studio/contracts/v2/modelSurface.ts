@@ -705,6 +705,34 @@ export function assertAdditiveModelSurfaceUpgradeV1(
   );
 }
 
+/**
+ * Validate the declared registry lineage, not only the manifest's local shape.
+ * A new Surface series has no predecessor; a successor names and extends the
+ * immediately preceding release in the same series.
+ */
+export function assertModelSurfaceReleaseLineageV1(
+  current: ModelSurfaceReleaseManifestV1,
+  previous?: ModelSurfaceReleaseManifestV1,
+): void {
+  assertModelSurfaceReleaseManifestV1(current);
+  if (current.predecessorSurfaceReleaseId === null) {
+    if (previous !== undefined) {
+      throw new ModelSurfaceValidationErrorV1(
+        "$.surfaceRelease.predecessorSurfaceReleaseId",
+        "a root Surface release must not supply a predecessor",
+      );
+    }
+    return;
+  }
+  if (previous === undefined) {
+    throw new ModelSurfaceValidationErrorV1(
+      "$.surfaceRelease.predecessorSurfaceReleaseId",
+      `requires predecessor ${current.predecessorSurfaceReleaseId}`,
+    );
+  }
+  assertAdditiveModelSurfaceUpgradeV1(previous, current);
+}
+
 function assertExactOutputExposureExtensionV1(
   previous: ModelSurfaceReleaseManifestV1,
   next: ModelSurfaceReleaseManifestV1,

@@ -8,8 +8,8 @@ import type {
   StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
-  assertAdditiveModelSurfaceUpgradeV1,
   assertModelSurfaceReleaseManifestV1,
+  assertModelSurfaceReleaseLineageV1,
   assertStudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 
@@ -31,7 +31,9 @@ async function main(): Promise<void> {
   const secret = projectServiceRoleJwtV1(options.projectRef);
   const baseUrl = `https://${options.projectRef}.supabase.co`;
 
-  if (manifest.predecessorSurfaceReleaseId !== null) {
+  if (manifest.predecessorSurfaceReleaseId === null) {
+    assertModelSurfaceReleaseLineageV1(manifest);
+  } else {
     const predecessorRows = await rpcV1(
       baseUrl,
       secret,
@@ -54,7 +56,7 @@ async function main(): Promise<void> {
     }
     const predecessor = (predecessorRow as Record<string, unknown>).manifest;
     assertModelSurfaceReleaseManifestV1(predecessor);
-    assertAdditiveModelSurfaceUpgradeV1(predecessor, manifest);
+    assertModelSurfaceReleaseLineageV1(manifest, predecessor);
   }
 
   await rpcV1(baseUrl, secret, "register_model_surface_release_v1", {

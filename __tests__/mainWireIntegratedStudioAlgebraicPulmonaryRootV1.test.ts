@@ -71,7 +71,7 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
       },
     });
     expect(algebraicPulmonaryRootSurfaceV1).toMatchObject({
-      predecessorSurfaceReleaseId: qualifiedBaselineSurfaceV1.surfaceReleaseId,
+      predecessorSurfaceReleaseId: null,
       derivedOutputCatalog: qualifiedBaselineSurfaceV1.derivedOutputCatalog,
       graphCatalog: qualifiedBaselineSurfaceV1.graphCatalog,
       controlCatalog: qualifiedBaselineSurfaceV1.controlCatalog,

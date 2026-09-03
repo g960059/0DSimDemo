@@ -24,6 +24,7 @@ import {
   assertAdditiveModelSurfaceUpgradeV1,
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
+  assertModelSurfaceReleaseLineageV1,
   composeStandardModelContractV1,
   derivationCapabilityV1,
   outputCapabilityV1,
@@ -1685,6 +1686,13 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     const validatedCurrentSurface: unknown =
       mainWireIntegratedStudioStandardSurfaceV1;
     assertModelSurfaceReleaseManifestV1(validatedCurrentSurface);
+    expect(() => assertModelSurfaceReleaseLineageV1(
+      validatedCurrentSurface,
+    )).not.toThrow();
+    expect(() => assertModelSurfaceReleaseLineageV1(
+      validatedCurrentSurface,
+      validatedCurrentSurface,
+    )).toThrow(/root Surface release must not supply a predecessor/);
     const incompatibleSuccessor = structuredClone(
       mainWireIntegratedStudioStandardSurfaceV1,
     );
@@ -1695,9 +1703,16 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     incompatibleSuccessor.exposedExactOutputIds.pop();
     const validatedSuccessor: unknown = incompatibleSuccessor;
     assertModelSurfaceReleaseManifestV1(validatedSuccessor);
+    expect(() => assertModelSurfaceReleaseLineageV1(
+      validatedSuccessor,
+    )).toThrow(/requires predecessor/);
     expect(() => assertAdditiveModelSurfaceUpgradeV1(
       validatedCurrentSurface,
       validatedSuccessor,
+    )).toThrow(/cannot hide exact output/);
+    expect(() => assertModelSurfaceReleaseLineageV1(
+      validatedSuccessor,
+      validatedCurrentSurface,
     )).toThrow(/cannot hide exact output/);
   });
 
