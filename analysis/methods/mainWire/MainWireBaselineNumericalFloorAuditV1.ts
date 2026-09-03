@@ -160,7 +160,10 @@ export function assertMainWireBaselineNumericalFloorAuditV1(
   }
   const receivedCheckIds = new Set<string>();
   audit.metricFloors.forEach((metric, index) => {
-    assertNumericalFloorMetricV1(metric, `numerical-floor metric ${index}`);
+    assertMainWireBaselineNumericalFloorMetricV1(
+      metric,
+      `numerical-floor metric ${index}`,
+    );
     if (receivedCheckIds.has(metric.checkId)) {
       throw new Error(`numerical-floor metric is duplicated for ${metric.checkId}`);
     }
@@ -188,7 +191,10 @@ export function indexMainWireBaselineNumericalFloorsV1(
     MainWireBaselineNumericalFloorMetricV1
   >();
   for (const [index, floor] of floors.entries()) {
-    assertNumericalFloorMetricV1(floor, `numerical floor ${index}`);
+    assertMainWireBaselineNumericalFloorMetricV1(
+      floor,
+      `numerical floor ${index}`,
+    );
     if (floorById.has(floor.checkId)) {
       throw new Error(`numerical floor is duplicated for ${floor.checkId}`);
     }
@@ -464,7 +470,7 @@ function syntheticUnresolvedV1(
   });
 }
 
-function assertNumericalFloorMetricV1(
+export function assertMainWireBaselineNumericalFloorMetricV1(
   value: unknown,
   label: string,
 ): asserts value is MainWireBaselineNumericalFloorMetricV1 {
