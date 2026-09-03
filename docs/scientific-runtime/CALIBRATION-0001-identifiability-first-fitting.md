@@ -143,23 +143,15 @@ identity and checkpoint compatibility are proven; they do not replace cold
 qualification. Performance work requires a measured research-lane bottleneck
 and must not weaken these contracts.
 
-Standard70 exposes three bounded fast paths for that research lane: conversion
-from the verified Standard69 construction checkpoint, same-model verified
-checkpoint confirmation, and same-model parameter continuation from a nearby
-candidate. Every path re-establishes three consecutive period-1 cycles before
-returning a candidate result. On the development machine used for the release,
-the optional cold reference required 144 cycles (about 154.8 s). The committed
-benchmark completed construction conversion in 8 cycles (about 9.0 s; 17x
-relative to that cold reference), exact-checkpoint confirmation in 3 cycles
-(about 3.4 s; 46x), and a one-lattice-step systemic-resistance continuation in
-10 cycles (about 11.1 s). Wall times are machine-local and non-gating; cycle
-counts and exact qualification semantics are the portable result. The ordinary
-search runner may use up to eight worker processes for proposal generation. A
-proposed
-Standard70 finalist must still pass the Standard70 candidate runner; the older
-runner's result is not silently relabelled. Bidirectional preload-reserve,
-alternate-start, and refined-step checks remain finalist/mint work rather than
-per-candidate screening.
+Standard70 provides bounded construction-checkpoint, same-model checkpoint,
+and nearby-parameter continuation paths for that research lane. Each path must
+re-establish period-1 convergence and the applicable baseline gates before
+returning a candidate result. Executable benchmarks own measured performance;
+machine-local timings and worker mechanics are not part of this durable
+contract. A proposed Standard70 finalist must still pass the Standard70
+candidate runner; an older runner's result is not silently relabelled.
+Bidirectional preload-reserve, alternate-start, and refined-step checks remain
+finalist/mint work rather than per-candidate screening.
 
 ## Qualification levels
 
