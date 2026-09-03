@@ -14,6 +14,9 @@ import {
 export const MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID =
   "main-wire-baseline-calibration-parameter-policy-v1" as const;
 
+export const MAIN_WIRE_BASELINE_CALIBRATION_ALLOWED_HEART_RATES_BPM_V1 =
+  Object.freeze([60, 70] as const);
+
 export const MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_IDS_V1 = Object.freeze([
   "hemodynamics.total-blood-volume-ml",
   "hemodynamics.venous-tone",

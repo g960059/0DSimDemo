@@ -49,6 +49,13 @@ those references into canonical JSON and one content identity. Every
 evaluation and result binds the resolved study, exact model, analysis method,
 initialization, and numerical policy used to create it.
 
+A successor exact model is a new fitting target, even when most equations are
+unchanged. Historical search results may seed investigation but cannot be
+silently relabelled or used as current-model evaluations. For the current
+Standard70 target, the inherited normal-reference checks remain objective
+observations and the additional right-heart checks remain mandatory safety
+sentinels; both sets are identity-bound and failure remains visible.
+
 The policy layer records, without copying code-owned catalogs or formulas:
 
 - parameter role, scope, unit, transform, supported domain, provenance,

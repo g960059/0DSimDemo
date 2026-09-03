@@ -28,12 +28,12 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
+import {
+  MAIN_WIRE_BASELINE_CALIBRATION_ALLOWED_HEART_RATES_BPM_V1,
+} from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 export const MAIN_WIRE_BASELINE_CALIBRATION_EVALUATOR_V1_ID =
   "main-wire-baseline-calibration-evaluator-v1" as const;
-
-export const MAIN_WIRE_BASELINE_CALIBRATION_ALLOWED_HEART_RATES_BPM_V1 =
-  Object.freeze([60, 70] as const);
 
 export type MainWireBaselineCalibrationEvaluationRequestV1 = Readonly<{
   hemodynamicResearchInputs?:
