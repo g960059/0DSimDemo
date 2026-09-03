@@ -1,5 +1,6 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
+import { canonicalJsonStringify } from "@/engine/integrity";
 import type {
   MainWireIntegratedModelStandard70CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
@@ -9,6 +10,9 @@ import {
 import type {
   MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
@@ -131,6 +135,21 @@ export type MainWireBaselineConditioningSpectrumV1 = Readonly<{
   weighting:
     "construction-corridor-and-equal-mass-within-evidence-group";
   inferentialClaimed: false;
+}>;
+
+export type MainWireBaselineConditioningAdmittedMatrixV1 = Readonly<{
+  coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[];
+  candidateRowCount: number;
+  excludedRows: MainWireBaselineConditioningSpectrumV1["excludedRows"];
+  rows: readonly Readonly<{
+    conditionId: string;
+    checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
+    unit: string;
+    constructionCorridorWidth: number;
+    weightDivisor: number;
+    fullStepRow: readonly number[];
+    halfStepRow: readonly number[];
+  }>[];
 }>;
 
 export type MainWireBaselineConditioningSubsetSpectrumV1 = Readonly<{
@@ -314,6 +333,17 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   if (!/^[0-9a-f]{7,64}$/.test(input.executionCommit)) {
     throw new Error("conditioning audit requires an execution commit hash");
   }
+  if (
+    !Number.isSafeInteger(input.requestedParallelism)
+    || input.requestedParallelism < 1
+    || !Number.isSafeInteger(input.effectiveParallelism)
+    || input.effectiveParallelism < 1
+    || input.effectiveParallelism > input.requestedParallelism
+    || !Number.isFinite(input.batchWallTimeMs)
+    || input.batchWallTimeMs < 0
+  ) {
+    throw new Error("conditioning audit execution metadata is invalid");
+  }
   const expectedTasks = buildMainWireBaselineConditioningTasksV1({
     mode: input.mode,
   });
@@ -324,6 +354,7 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   const expectedIds = expectedTasks.map(({ taskId }) => taskId);
   const received = [...input.evaluations]
     .sort((left, right) => left.task.taskId.localeCompare(right.task.taskId));
+  received.forEach(assertMainWireBaselineConditioningTaskResultV1);
   const receivedIds = received.map(({ task }) => task.taskId);
   if (
     new Set(receivedIds).size !== receivedIds.length
@@ -331,6 +362,13 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
     || [...expectedIds].sort().some((id, index) => id !== receivedIds[index])
   ) {
     throw new Error("conditioning audit evaluations do not match the task set");
+  }
+  const expectedTaskById = new Map(expectedTasks.map((task) =>
+    [task.taskId, task] as const));
+  if (received.some(({ task }) =>
+    canonicalJsonStringify(task)
+      !== canonicalJsonStringify(expectedTaskById.get(task.taskId)))) {
+    throw new Error("conditioning audit evaluation task semantics differ");
   }
   const study = await compileMainWireBaselineConditioningStudyV1();
   const sensitivities = buildSensitivitiesV1(received);
@@ -420,6 +458,193 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
   });
 }
 
+/**
+ * Validate stored task-result contracts and rebuild all derived report fields.
+ * This checks internal consistency; it does not authenticate raw evaluations.
+ */
+export async function verifyMainWireBaselineConditioningAuditV1(
+  input: unknown,
+): Promise<MainWireBaselineConditioningAuditV1> {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("conditioning audit artifact must be an object");
+  }
+  const record = input as Partial<MainWireBaselineConditioningAuditV1>;
+  if (
+    record.auditId !== MAIN_WIRE_BASELINE_CONDITIONING_AUDIT_V1_ID
+    || (record.mode !== "rest-pilot"
+      && record.mode !== "primary-envelope"
+      && record.mode !== "full-envelope")
+    || typeof record.protocolCommit !== "string"
+    || typeof record.executionCommit !== "string"
+    || typeof record.requestedParallelism !== "number"
+    || typeof record.effectiveParallelism !== "number"
+    || typeof record.batchWallTimeMs !== "number"
+    || !Array.isArray(record.evaluations)
+    || record.centerCheckpointCache === null
+    || typeof record.centerCheckpointCache !== "object"
+    || Array.isArray(record.centerCheckpointCache)
+  ) {
+    throw new Error("conditioning audit artifact is incomplete");
+  }
+  const rebuilt = await buildMainWireBaselineConditioningAuditV1({
+    mode: record.mode,
+    protocolCommit: record.protocolCommit,
+    executionCommit: record.executionCommit,
+    requestedParallelism: record.requestedParallelism,
+    effectiveParallelism: record.effectiveParallelism,
+    batchWallTimeMs: record.batchWallTimeMs,
+    evaluations: record.evaluations,
+    centerCheckpointCache: record.centerCheckpointCache,
+  });
+  if (canonicalJsonStringify(rebuilt) !== canonicalJsonStringify(input)) {
+    throw new Error("conditioning audit artifact differs from its reconstruction");
+  }
+  return input as MainWireBaselineConditioningAuditV1;
+}
+
+export function assertMainWireBaselineConditioningTaskResultV1(
+  result: MainWireBaselineConditioningTaskResultV1,
+): void {
+  const resolved = resolveTaskV1(result.task);
+  const center = result.task.coordinateId === null;
+  if (
+    (result.sourceAnchorKind !== "cold"
+      && result.sourceAnchorKind !== "standard-baseline"
+      && result.sourceAnchorKind !== "condition-center"
+      && result.sourceAnchorKind !== "verified-condition-cache")
+    || (center && result.sourceAnchorKind === "condition-center")
+    || (!center && result.sourceAnchorKind !== "condition-center")
+    || (result.sourceAnchorKind === "cold"
+      ? result.sourceCheckpointSha256 !== null
+      : !sha256V1(result.sourceCheckpointSha256))
+    || result.targetCoordinateValue !== resolved.targetCoordinateValue
+    || result.transformedCoordinateValue !== resolved.transformedCoordinateValue
+    || !Number.isFinite(result.wallTimeMs)
+    || result.wallTimeMs < 0
+  ) {
+    throw new Error(
+      `conditioning task-result provenance is invalid: ${result.task.taskId}`,
+    );
+  }
+  if (result.evaluationStatus !== "accepted") {
+    if (
+      result.evaluationStatus !== "invalid-or-physical"
+      && result.evaluationStatus !== "numerical-unresolved"
+      && result.evaluationStatus !== "nonsettled-or-event-change"
+      && result.evaluationStatus !== "operational-interrupted"
+    ) {
+      throw new Error(
+        `conditioning task-result status is invalid: ${result.task.taskId}`,
+      );
+    }
+    if (
+      result.initializationKind !== null
+      || result.constructionGateStatus !== null
+      || result.objectiveGateStatus !== null
+      || result.safetySentinelStatus !== null
+      || result.failedConstructionCheckIds.length !== 0
+      || result.failedObjectiveCheckIds.length !== 0
+      || result.failedSafetySentinelCheckIds.length !== 0
+      || result.checks.length !== 0
+      || typeof result.message !== "string"
+      || result.message.length === 0
+      || typeof result.evaluationPhase !== "string"
+    ) {
+      throw new Error(
+        `conditioning failed task-result is inconsistent: ${result.task.taskId}`,
+      );
+    }
+    return;
+  }
+  const expectedInitializationKind = result.sourceAnchorKind === "cold"
+    ? "cold"
+    : result.sourceAnchorKind === "verified-condition-cache"
+      || (result.sourceAnchorKind === "standard-baseline"
+        && result.task.conditionId === "rest-hr60")
+      ? "standard70-exact-checkpoint"
+      : "standard70-parameter-continuation";
+  const expectedCheckIds = normalReferenceEvidenceV1.checkGroups.flatMap(
+    ({ checkIds }) => checkIds,
+  );
+  const checkIds = result.checks.map(({ checkId }) => checkId);
+  const checkIdSet = new Set<string>(checkIds);
+  if (
+    result.evaluationPhase !== null
+    || result.initializationKind !== expectedInitializationKind
+    || !sha256V1(result.requestIdentitySha256)
+    || !Number.isSafeInteger(result.completedCycleCount)
+    || result.completedCycleCount < 1
+    || typeof result.classificationStatus !== "string"
+    || result.classificationStatus.length === 0
+    || (result.constructionGateStatus !== "passed"
+      && result.constructionGateStatus !== "failed")
+    || (result.objectiveGateStatus !== "passed"
+      && result.objectiveGateStatus !== "failed")
+    || (result.safetySentinelStatus !== "passed"
+      && result.safetySentinelStatus !== "failed")
+    || result.message !== null
+    || checkIdSet.size !== checkIds.length
+    || checkIds.length !== expectedCheckIds.length
+    || expectedCheckIds.some((checkId) => !checkIdSet.has(checkId))
+  ) {
+    throw new Error(
+      `conditioning accepted task-result is incomplete: ${result.task.taskId}`,
+    );
+  }
+  for (const check of result.checks) {
+    const expectedStatus = check.actual >= check.minimum
+        && check.actual <= check.maximum
+      ? "passed"
+      : "failed";
+    if (
+      !Number.isFinite(check.actual)
+      || !Number.isFinite(check.minimum)
+      || !Number.isFinite(check.maximum)
+      || check.maximum < check.minimum
+      || typeof check.unit !== "string"
+      || check.unit.length === 0
+      || check.status !== expectedStatus
+    ) {
+      throw new Error(
+        `conditioning check is invalid: ${result.task.taskId}/${check.checkId}`,
+      );
+    }
+  }
+  const expectedFailedObjective = result.checks
+    .filter(({ status }) => status === "failed")
+    .map(({ checkId }) => checkId);
+  const safetyIds = new Set<string>(
+    MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+  );
+  if (
+    result.failedSafetySentinelCheckIds.some((checkId) =>
+      !safetyIds.has(checkId))
+    || new Set(result.failedSafetySentinelCheckIds).size
+      !== result.failedSafetySentinelCheckIds.length
+    || canonicalJsonStringify(result.failedObjectiveCheckIds)
+      !== canonicalJsonStringify(expectedFailedObjective)
+    || canonicalJsonStringify(result.failedConstructionCheckIds)
+      !== canonicalJsonStringify([
+        ...expectedFailedObjective,
+        ...result.failedSafetySentinelCheckIds,
+      ])
+    || result.objectiveGateStatus
+      !== (expectedFailedObjective.length === 0 ? "passed" : "failed")
+    || result.safetySentinelStatus
+      !== (result.failedSafetySentinelCheckIds.length === 0
+        ? "passed"
+        : "failed")
+    || result.constructionGateStatus
+      !== (result.failedConstructionCheckIds.length === 0
+        ? "passed"
+        : "failed")
+  ) {
+    throw new Error(
+      `conditioning task-result gates are inconsistent: ${result.task.taskId}`,
+    );
+  }
+}
+
 function resolveTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
   target: MainWireBaselineCalibrationCandidateInputsV1;
   targetCoordinateValue: number | null;
@@ -459,6 +684,12 @@ function resolveTaskV1(task: MainWireBaselineConditioningTaskV1): Readonly<{
     targetCoordinateValue,
     transformedCoordinateValue,
   });
+}
+
+export function resolveMainWireBaselineConditioningTaskV1(
+  task: MainWireBaselineConditioningTaskV1,
+): ReturnType<typeof resolveTaskV1> {
+  return resolveTaskV1(task);
 }
 
 function perturbationValueV1(
@@ -678,12 +909,14 @@ function centralNormalizedDerivativeV1(
     / transformedSpan;
 }
 
-export function buildMainWireBaselineConditioningSpectrumV1(
+export function buildMainWireBaselineConditioningAdmittedMatrixV1(
   sensitivities: readonly MainWireBaselineConditioningSensitivityV1[],
   coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[],
-): MainWireBaselineConditioningSpectrumV1 | null {
-  if (coordinateIds.length === 0) return null;
-  if (new Set(coordinateIds).size !== coordinateIds.length) {
+): MainWireBaselineConditioningAdmittedMatrixV1 {
+  if (
+    coordinateIds.length === 0
+    || new Set(coordinateIds).size !== coordinateIds.length
+  ) {
     throw new Error("conditioning spectrum coordinate IDs are duplicated");
   }
   const groupByCheckId = new Map<string, string>();
@@ -711,6 +944,8 @@ export function buildMainWireBaselineConditioningSpectrumV1(
     conditionId: string;
     checkId: MainWireIntegratedModelBaselineValidationCheckIdV1;
     groupKey: string;
+    unit: string;
+    constructionCorridorWidth: number;
     fullStepRow: readonly number[];
     halfStepRow: readonly number[];
   }>[] = [];
@@ -749,10 +984,20 @@ export function buildMainWireBaselineConditioningSpectrumV1(
       continue;
     }
     const resolved = rowSensitivities as readonly MainWireBaselineConditioningSensitivityV1[];
+    if (resolved.some((sensitivity) =>
+      sensitivity.unit !== resolved[0]!.unit
+      || sensitivity.constructionCorridorWidth
+        !== resolved[0]!.constructionCorridorWidth)) {
+      throw new Error(
+        `conditioning sensitivity row contract differs: ${conditionId}/${checkId}`,
+      );
+    }
     admitted.push(Object.freeze({
       conditionId,
       checkId: checkId as MainWireIntegratedModelBaselineValidationCheckIdV1,
       groupKey: `${conditionId}::${groupId}`,
+      unit: resolved[0]!.unit,
+      constructionCorridorWidth: resolved[0]!.constructionCorridorWidth,
       fullStepRow: Object.freeze(resolved.map((sensitivity) =>
         sensitivity.fullStepNormalizedDerivative!)),
       halfStepRow: Object.freeze(resolved.map((sensitivity) =>
@@ -766,15 +1011,38 @@ export function buildMainWireBaselineConditioningSpectrumV1(
       (admittedCountByGroup.get(candidate.groupKey) ?? 0) + 1,
     );
   }
-  const weightedRows = admitted.map((candidate) => {
-    const scale = Math.sqrt(admittedCountByGroup.get(candidate.groupKey)!);
-    return Object.freeze({
-      fullStepRow: candidate.fullStepRow.map((value) => value / scale),
-      halfStepRow: candidate.halfStepRow.map((value) => value / scale),
-    });
+  return Object.freeze({
+    coordinateIds: Object.freeze([...coordinateIds]),
+    candidateRowCount,
+    excludedRows: Object.freeze(excludedRows),
+    rows: Object.freeze(admitted.map((candidate) => {
+      const scale = Math.sqrt(admittedCountByGroup.get(candidate.groupKey)!);
+      return Object.freeze({
+        conditionId: candidate.conditionId,
+        checkId: candidate.checkId,
+        unit: candidate.unit,
+        constructionCorridorWidth: candidate.constructionCorridorWidth,
+        weightDivisor: scale,
+        fullStepRow: candidate.fullStepRow,
+        halfStepRow: candidate.halfStepRow,
+      });
+    })),
   });
-  const rows = weightedRows.map(({ halfStepRow }) => halfStepRow);
-  const fullStepRows = weightedRows.map(({ fullStepRow }) => fullStepRow);
+}
+
+export function buildMainWireBaselineConditioningSpectrumV1(
+  sensitivities: readonly MainWireBaselineConditioningSensitivityV1[],
+  coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[],
+): MainWireBaselineConditioningSpectrumV1 | null {
+  if (coordinateIds.length === 0) return null;
+  const matrix = buildMainWireBaselineConditioningAdmittedMatrixV1(
+    sensitivities,
+    coordinateIds,
+  );
+  const rows = matrix.rows.map(({ halfStepRow, weightDivisor }) =>
+    halfStepRow.map((value) => value / weightDivisor));
+  const fullStepRows = matrix.rows.map(({ fullStepRow, weightDivisor }) =>
+    fullStepRow.map((value) => value / weightDivisor));
   const singularValues = buildMainWireBaselineConditioningSingularValuesV1(
     rows,
     coordinateIds.length,
@@ -803,13 +1071,13 @@ export function buildMainWireBaselineConditioningSpectrumV1(
   const columnVectors = coordinateIds.map((_, columnIndex) =>
     rows.map((row) => row[columnIndex]));
   return Object.freeze({
-    coordinateIds: Object.freeze([...coordinateIds]),
-    candidateRowCount,
+    coordinateIds: matrix.coordinateIds,
+    candidateRowCount: matrix.candidateRowCount,
     rowCount: rows.length,
     rowAdmissionPolicy:
       MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
         .spectrumRowAdmission,
-    excludedRows: Object.freeze(excludedRows),
+    excludedRows: matrix.excludedRows,
     singularValues: Object.freeze(singularValues),
     singularValueRatiosToMaximum: Object.freeze(singularValues.map((value) =>
       maximum > 0 ? value / maximum : 0)),
@@ -1052,6 +1320,10 @@ function taskV1(
 
 function uniqueV1<T>(values: readonly T[]): T[] {
   return [...new Set(values)];
+}
+
+function sha256V1(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
 }
 
 function normV1(values: readonly number[]): number {

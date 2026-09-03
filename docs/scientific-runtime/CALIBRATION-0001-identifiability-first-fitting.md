@@ -168,6 +168,13 @@ not a finite-difference convergence-order or inferential uncertainty claim.
 Every proper subset of the declared primary coordinates is reported under the
 same rule; the audit does not automatically choose or admit one.
 
+A baseline coarse-versus-fine output difference is not an envelope-wide bound
+on derivative error. Transporting it independently to every finite-difference
+endpoint may be reported only as a hypothetical componentwise endpoint-budget
+stress reference; it is not a rank or subset-admission gate. Direct
+coarse-versus-refined derivative agreement is required before numerical
+resolution can support a selected subset.
+
 Search begins only after an admissible small subset is declared. Feasibility
 dominates score, materially distinct basins are retained, and finalists are
 checked with independent initialization and refined numerical resolution.
