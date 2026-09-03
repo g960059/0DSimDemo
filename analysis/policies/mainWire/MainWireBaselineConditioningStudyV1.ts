@@ -144,7 +144,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 14;
+    revision: 15;
     changeReason: string;
   }>;
 }>;
@@ -352,9 +352,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 14 as const,
+      revision: 15 as const,
       changeReason:
-        "Exclude incomplete or step-sign-unstable Jacobian rows and separate machine rank from an observed step-halving practical rank diagnostic.",
+        "Materialize every proper primary-coordinate subset spectrum required by the declared alternative-subset conditioning policy.",
     }),
   });
 

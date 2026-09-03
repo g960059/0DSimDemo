@@ -124,6 +124,12 @@ export type MainWireBaselineConditioningSpectrumV1 = Readonly<{
   inferentialClaimed: false;
 }>;
 
+export type MainWireBaselineConditioningSubsetSpectrumV1 = Readonly<{
+  coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[];
+  spectrum: MainWireBaselineConditioningSpectrumV1;
+  practicalRankStatus: "full" | "deficient";
+}>;
+
 export type MainWireBaselineConditioningAuditV1 = Readonly<{
   auditId: typeof MAIN_WIRE_BASELINE_CONDITIONING_AUDIT_V1_ID;
   studyIdentitySha256: string;
@@ -141,6 +147,8 @@ export type MainWireBaselineConditioningAuditV1 = Readonly<{
   evaluations: readonly MainWireBaselineConditioningTaskResultV1[];
   sensitivities: readonly MainWireBaselineConditioningSensitivityV1[];
   primarySpectrum: MainWireBaselineConditioningSpectrumV1 | null;
+  primaryAlternativeSubsetSpectra:
+    readonly MainWireBaselineConditioningSubsetSpectrumV1[];
   allCoordinateSpectrum: MainWireBaselineConditioningSpectrumV1 | null;
   positiveControls: readonly Readonly<{
     controlId: string;
@@ -155,6 +163,7 @@ export type MainWireBaselineConditioningAuditV1 = Readonly<{
     evidenceRole: "construction";
     localDiagnosticOnly: true;
     uniqueParameterVectorClaimed: false;
+    parameterSubsetAutomaticallySelected: false;
     pulmonaryWaveformValidationClaimed: false;
     numericalFloorApplied: false;
     reason: string;
@@ -290,6 +299,13 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
     sensitivities,
     MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.primaryCoordinateIds,
   );
+  const primaryAlternativeSubsetSpectra =
+    buildMainWireBaselineConditioningAlternativeSubsetSpectraV1(
+      sensitivities,
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.primaryCoordinateIds,
+      MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1.conditioningPolicy
+        .maximumAdmittedCoordinateCount,
+    );
   const allCoordinateIds = uniqueV1(received.flatMap(({ task }) =>
     task.coordinateId === null ? [] : [task.coordinateId]));
   const allCoordinateSpectrum = buildMainWireBaselineConditioningSpectrumV1(
@@ -345,12 +361,14 @@ export async function buildMainWireBaselineConditioningAuditV1(input: Readonly<{
     evaluations: Object.freeze(received),
     sensitivities,
     primarySpectrum,
+    primaryAlternativeSubsetSpectra,
     allCoordinateSpectrum,
     positiveControls: Object.freeze(positiveControls),
     claim: Object.freeze({
       evidenceRole: "construction" as const,
       localDiagnosticOnly: true as const,
       uniqueParameterVectorClaimed: false as const,
+      parameterSubsetAutomaticallySelected: false as const,
       pulmonaryWaveformValidationClaimed: false as const,
       numericalFloorApplied: false as const,
       reason:
@@ -773,6 +791,50 @@ export function buildMainWireBaselineConditioningSpectrumV1(
       "construction-corridor-and-equal-mass-within-evidence-group" as const,
     inferentialClaimed: false as const,
   });
+}
+
+export function buildMainWireBaselineConditioningAlternativeSubsetSpectraV1(
+  sensitivities: readonly MainWireBaselineConditioningSensitivityV1[],
+  coordinateIds: readonly MainWireBaselineCalibrationParameterIdV1[],
+  maximumCoordinateCount: number,
+): readonly MainWireBaselineConditioningSubsetSpectrumV1[] {
+  if (
+    !Number.isSafeInteger(maximumCoordinateCount)
+    || maximumCoordinateCount < 1
+    || maximumCoordinateCount > coordinateIds.length
+    || coordinateIds.length > 30
+    || new Set(coordinateIds).size !== coordinateIds.length
+  ) {
+    throw new Error("conditioning subset request is invalid");
+  }
+  const subsets: MainWireBaselineCalibrationParameterIdV1[][] = [];
+  const upperMask = 2 ** coordinateIds.length;
+  for (let mask = 1; mask < upperMask - 1; mask += 1) {
+    const subset = coordinateIds.filter((_, index) =>
+      (mask & (2 ** index)) !== 0);
+    if (subset.length <= maximumCoordinateCount) subsets.push(subset);
+  }
+  subsets.sort((left, right) =>
+    left.length - right.length
+    || coordinateIds.reduce((order, coordinateId) => {
+      if (order !== 0) return order;
+      return left.includes(coordinateId) === right.includes(coordinateId)
+        ? 0
+        : left.includes(coordinateId) ? -1 : 1;
+    }, 0));
+  return Object.freeze(subsets.map((coordinateSubset) => {
+    const spectrum = buildMainWireBaselineConditioningSpectrumV1(
+      sensitivities,
+      coordinateSubset,
+    )!;
+    return Object.freeze({
+      coordinateIds: Object.freeze([...coordinateSubset]),
+      spectrum,
+      practicalRankStatus: spectrum.practicalRank === coordinateSubset.length
+        ? "full" as const
+        : "deficient" as const,
+    });
+  }));
 }
 
 function sensitivityKeyV1(
