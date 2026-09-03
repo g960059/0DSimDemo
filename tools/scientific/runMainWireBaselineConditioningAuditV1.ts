@@ -28,6 +28,9 @@ import {
   MAIN_WIRE_BASELINE_CONDITIONING_REFINED_DERIVATIVE_POLICY_V1,
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningRefinedDerivativeAuditV1";
 import {
+  buildMainWireBaselineConditioningPerturbationAttributionV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineConditioningPerturbationAttributionV1";
+import {
   validateMainWireIntegratedModelStandard70CheckpointV1,
   type MainWireIntegratedModelStandard70CheckpointV1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
@@ -38,6 +41,8 @@ import {
 const workerTask = argumentV1("--worker-task");
 if (workerTask !== null) {
   await runWorkerV1(workerTask);
+} else if (hasFlagV1("--perturbation-attribution")) {
+  await runPerturbationAttributionV1();
 } else if (hasFlagV1("--refined-derivative-audit")) {
   await runRefinedDerivativeCoordinatorV1();
 } else {
@@ -431,6 +436,31 @@ async function runRefinedDerivativeCoordinatorV1(): Promise<void> {
       refinedNominalDtSec,
     });
   const serialized = `${JSON.stringify(audit, null, 2)}\n`;
+  const output = argumentV1("--output");
+  if (output === null) {
+    process.stdout.write(serialized);
+  } else {
+    const outputPath = resolve(output);
+    await writeFile(outputPath, serialized, "utf8");
+    process.stdout.write(`${outputPath}\n`);
+  }
+}
+
+async function runPerturbationAttributionV1(): Promise<void> {
+  const coarseAuditInput = JSON.parse(await readFile(
+    resolve(requiredArgumentV1("--coarse-audit")),
+    "utf8",
+  )) as unknown;
+  const refinedAuditInput = JSON.parse(await readFile(
+    resolve(requiredArgumentV1("--refined-audit")),
+    "utf8",
+  )) as unknown;
+  const attribution =
+    await buildMainWireBaselineConditioningPerturbationAttributionV1(
+      coarseAuditInput,
+      refinedAuditInput,
+    );
+  const serialized = `${JSON.stringify(attribution, null, 2)}\n`;
   const output = argumentV1("--output");
   if (output === null) {
     process.stdout.write(serialized);
