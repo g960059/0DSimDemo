@@ -35,7 +35,7 @@ const { values } = parseArgs({ options: { output: { type: "string" }, evaluation
 if (!values.output || Boolean(values.evaluation) !== Boolean(values.request)) {
   throw new Error("--output NEW_DIRECTORY [--evaluation FILE --request FILE] [--dt-sec .002|.001]");
 }
-const sourcePath = resolve(values.evaluation ?? "studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json");
+const sourcePath = resolve(values.evaluation ?? "data/model-baselines/standard70-launch-baseline.json");
 const sourceText = await readFile(sourcePath, "utf8"), raw = JSON.parse(sourceText), evaluation = raw.evaluation ?? raw;
 const requestText = values.request ? await readFile(values.request, "utf8") : null;
 const requested = requestText ? JSON.parse(requestText) : raw.candidateInputs;

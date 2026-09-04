@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import launchJson from "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+import launchJson from "@/data/model-baselines/standard70-launch-baseline.json";
 import { createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1";
 import { createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,

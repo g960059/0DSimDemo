@@ -20,7 +20,7 @@ import {
   type MainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
 import launchBaselineJsonV1 from
-  "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+  "@/data/model-baselines/standard70-launch-baseline.json";
 
 const ROUNDED_EJECTION_BASELINE_VALIDATION_V1 =
   validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(

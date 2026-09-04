@@ -28,7 +28,7 @@ import { buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
-import launchBaseline from "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
 const checkpoint = launchBaseline.qualificationCheckpoint;
 
 const { values } = parseArgs({ options: { request: { type: "string" },

@@ -12,7 +12,7 @@ import type { MainWireIntegratedStudioStandard70BaselineValidationV1 } from
 import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import launchJson from
-  "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+  "@/data/model-baselines/standard70-launch-baseline.json";
 
 export type MainWireStandard70LaunchBaselineV1 = Readonly<{
   schemaId: "circleheart-standard70-launch-baseline-v1";

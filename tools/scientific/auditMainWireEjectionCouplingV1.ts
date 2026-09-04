@@ -68,7 +68,7 @@ const cycles = Number(values["replay-cycles"]);
 if (!values.output || ![0, 2, 3].includes(cycles) || (values.request && !values.evaluation)) {
   throw new Error("--output NEW_DIRECTORY [--evaluation FILE --request FILE] [--replay-cycles 0|2|3 --dt-sec .002|.001|.0005|.00025]; without evaluation use registered baseline and replay 2 or 3 cycles");
 }
-const sourcePath = resolve(values.evaluation ?? "studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json");
+const sourcePath = resolve(values.evaluation ?? "data/model-baselines/standard70-launch-baseline.json");
 const sourceText = await readFile(sourcePath, "utf8");
 const raw = JSON.parse(sourceText);
 const evaluation = raw.evaluation ?? raw;
