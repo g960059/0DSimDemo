@@ -201,12 +201,20 @@ Executable benchmarks own measured performance;
 machine-local timings and worker mechanics are not part of this durable
 contract. A proposed Standard70 finalist must still pass the Standard70
 candidate runner; an older runner's result is not silently relabelled.
-Bidirectional preload-reserve, alternate-start, and refined-step checks remain
-finalist/mint work rather than mandatory per-candidate screening. If reserve
-repeatedly rejects improved resting points, compare a small declared set of
-fixed-control preload responses before expanding the resting search. Retain
-settled sub-floor measurements separately from admission; neither a numerical
-failure nor a failed response becomes qualified by retaining its observations.
+Alternate-start and refined-step checks remain finalist/mint work. When reserve
+repeatedly rejects improved resting points, fixed-control preload contrasts may
+motivate reserve-aware candidate selection. Rest-only scores may prune only as
+optimistic bounds for that declared construction score, not as proof about
+unmeasured final conditions. Retain settled sub-floor measurements separately
+from admission; neither numerical failure nor a failed response becomes qualified.
+
+An already measured full formal reserve protocol can be reused for construction
+qualification when its checkpoint, complete candidate inputs, numerical policy,
+reserve policy and execution tier match. The existing response qualifiers must
+still pass. Record that reuse explicitly; repeating the same construction
+measurement does not create independent evidence. Cold, refined-step and declared
+load/rate checks remain separate. A bounded local search and its measured
+shortlist do not establish that the full feasible set has been explored.
 
 ## Qualification levels
 

@@ -17,11 +17,10 @@ import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   type DesignScoreV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import { measureMainWireIntegratedModelFormalPreloadReserveV1,
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
-  type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
-import { MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from
-  "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
+import { designReservePolicyV1, reserveCandidateIdentityV1, qualifyMeasuredDesignReserveV1,
+  designQualificationPathV1, validateDesignQualificationResultV1, mapDesignInOrderV1,
+  type DesignReserveResultV1 as ReserveResult } from "./mainWireBaselineDesignExecutionV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import type { MainWireBaselineCalibrationCandidateInputsV1 } from
@@ -40,14 +39,12 @@ const { values } = parseArgs({ options: { output: { type: "string" },
   "reserve-worker": { type: "string" },
   "maximum-evaluations": { type: "string", default: String(policy.maximumEvaluations) },
   "qualify-finalists": { type: "string", default: "3" },
+  "initial-step-scale": { type: "string", default: "1" },
   "seed-request": { type: "string" }, "seed-evaluation": { type: "string" } } });
 if (!values.output) throw new Error("--output NEW_DIRECTORY is required");
 selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
 const executionTier = hotPathIntegrityTierV1();
 const output = resolve(values.output);
-type ReserveResult = { reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV1 | null;
-  failure: string | null; wallTimeMs: number; executionTier: "full-invariant";
-  sourceCheckpointSha256: string };
 if (values.worker) {
   process.stderr.write(`[execution-tier] ${executionTier}\n`);
   const input = JSON.parse(await readFile(values.worker, "utf8")) as
@@ -60,7 +57,9 @@ if (values.worker) {
     }
     const startedAt = performance.now();
     const result: ReserveResult = { reserve: null, failure: null, wallTimeMs: 0,
-      executionTier: "full-invariant", sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256 };
+      executionTier: "full-invariant", sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
+      candidateIdentitySha256: await reserveCandidateIdentityV1(input as MainWireBaselineCalibrationCandidateInputsV1, evaluation.nominalDtSec),
+      reservePolicyIdentity: await sha256CanonicalJsonHex(designReservePolicyV1) };
     try {
       selectHotPathIntegrityTierV1("full-invariant");
       const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
@@ -82,12 +81,14 @@ if (values.worker) {
   const parallelism = Number(values.parallelism);
   const maximumEvaluations = Number(values["maximum-evaluations"]);
   const maximumFinalists = Number(values["qualify-finalists"]);
+  const initialStepScale = Number(values["initial-step-scale"]);
   if (!Number.isInteger(parallelism) || parallelism < 1 || parallelism > 8) {
     throw new Error("--parallelism must be 1..8");
   }
   if (!Number.isInteger(maximumEvaluations) || maximumEvaluations < 1 || maximumEvaluations > policy.maximumEvaluations
-    || !Number.isInteger(maximumFinalists) || maximumFinalists < 0 || maximumFinalists > 3) {
-    throw new Error("evaluation budget must be 1..49 and finalist budget 0..3");
+    || !Number.isInteger(maximumFinalists) || maximumFinalists < 0 || maximumFinalists > 3
+    || ![1, 0.5, 0.25].includes(initialStepScale)) {
+    throw new Error("evaluation budget must be 1..49, finalist budget 0..3, initial step 1|0.5|0.25");
   }
   await mkdir(output); // Never overwrite a preceding experiment.
   const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
@@ -117,12 +118,11 @@ if (values.worker) {
     seedCheckpoint = source.exactResult.checkpoint;
   }
   const policyIdentity = await sha256CanonicalJsonHex(policy);
-  const reservePolicy = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
-    standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
+  const reservePolicy = designReservePolicyV1;
   const reservePolicyIdentity = await sha256CanonicalJsonHex(reservePolicy);
   await writeFile(resolve(output, "protocol.json"), JSON.stringify({
     executionCommit, executionTier, policy, policyIdentity, reservePolicy, reservePolicyIdentity,
-    reference, parallelism, maximumEvaluations, maximumFinalists, heartRateBpm, seed,
+    reference, parallelism, maximumEvaluations, maximumFinalists, initialStepScale, heartRateBpm, seed,
     seedCheckpointSha256: seedCheckpoint.checkpointSha256,
     claim: "bounded exploratory construction; not identifiability or final qualification",
   }, null, 2), { flag: "wx" });
@@ -145,8 +145,7 @@ if (values.worker) {
     });
   }
   async function evaluate(inputs: MainWireBaselineCalibrationCandidateInputsV1,
-    initialization: MainWireStandard70BaselineCalibrationEvaluationRequestV1["initialization"]) {
-    const index = count++;
+    initialization: MainWireStandard70BaselineCalibrationEvaluationRequestV1["initialization"], index = count++) {
     const request = { ...inputs, nominalDtSec: policy.nominalDtSec, initialization };
     const requestPath = resolve(output, `${index}.request.json`);
     const resultPath = resolve(output, `${index}.result.json`);
@@ -181,7 +180,7 @@ if (values.worker) {
   await measureReserve(best);
   if (!Number.isFinite(best.score.minimumMargin)) throw new Error("initial preload protocol was unresolved");
   seen.add(await sha256CanonicalJsonHex(seed));
-  let stepScale: 1 | 0.5 | 0.25 = 1;
+  let stepScale = initialStepScale as 1 | 0.5 | 0.25;
   let stopReason = "evaluation-budget";
   while (count < maximumEvaluations) {
     const proposals: MainWireBaselineCalibrationCandidateInputsV1[] = [];
@@ -198,20 +197,20 @@ if (values.worker) {
       sourceHemodynamicResearchInputs: source.inputs.hemodynamicResearchInputs,
       sourceMechanismResearchInputs: source.inputs.mechanismResearchInputs,
       sourceVentricularContractilityScale: source.inputs.ventricularContractilityScale };
-    for (let i = 0; i < proposals.length; i += parallelism) {
-      const batch = await Promise.all(proposals.slice(i, i + parallelism)
-        .map((candidate) => evaluate(candidate, initialization)));
-      // Freeze the incumbent within each parallel batch. Since adding reserve
-      // can only lower a score, rest-only bounds safely avoid unhelpful runs.
-      const incumbent = best.score;
-      await Promise.all(batch.map(async (entry) => {
-        if (mainWireBaselineDesignBetterV1(scoreMainWireBaselineOperatingPointV1(entry.evaluation), incumbent)) {
-          await measureReserve(entry);
-        } else entry.reserveScreen = "rest-bound-pruned";
-      }));
-      for (const entry of batch) {
-        if (mainWireBaselineDesignBetterV1(entry.score, best.score)) best = entry;
-      }
+    // Freeze source, incumbent and indices for the whole neighborhood. Worker
+    // completion order changes occupancy, never the proposals or ranking order.
+    const incumbent = best.score;
+    const firstIndex = count;
+    count += proposals.length;
+    const batch = await mapDesignInOrderV1(proposals, parallelism, async (candidate, ordinal) => {
+      const entry = await evaluate(candidate, initialization, firstIndex + ordinal);
+      if (mainWireBaselineDesignBetterV1(scoreMainWireBaselineOperatingPointV1(entry.evaluation), incumbent)) {
+        await measureReserve(entry);
+      } else entry.reserveScreen = "rest-bound-pruned";
+      return entry;
+    });
+    for (const entry of batch) {
+      if (mainWireBaselineDesignBetterV1(entry.score, best.score)) best = entry;
     }
     if (best.index === source.index) {
       if (stepScale === 0.25) { stopReason = "mesh-exhausted"; break; }
@@ -226,16 +225,36 @@ if (values.worker) {
     .slice(0, maximumFinalists);
   const qualificationResults: { index: number; modes: { mode: string; qualified: boolean; resultPath: string }[];
     qualified: boolean }[] = [];
+  await writeFile(resolve(output, "search.json"), JSON.stringify({ executionCommit, policyIdentity, reservePolicyIdentity,
+    evaluationCount: count, bestIndex: best.index, stopReason,
+    candidates: history.map(({ index, inputs, score, reserveScreen }) => ({ index, inputs, score, reserveScreen })),
+    finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   for (const finalist of finalists) {
     async function qualify(mode: string) {
-      const path = resolve(output, `${finalist.index}.${mode}.json`);
-      await runChild("tools/scientific/qualifyMainWireBaselineOperatingPointDesignV1.ts", [
-        "--request", resolve(output, `${finalist.index}.request.json`),
-        "--evaluation", resolve(output, `${finalist.index}.result.json`),
-        "--mode", mode, "--output", path, "--integrity-tier", "full-invariant"], true);
-      const result = JSON.parse(await readFile(path, "utf8")) as { qualified: boolean };
-      process.stderr.write(`[qualification] ${finalist.index}/${mode}: ${result.qualified}\n`);
-      return { mode, qualified: result.qualified, resultPath: `${finalist.index}.${mode}.json` };
+      const relativePath = designQualificationPathV1(finalist.index, mode);
+      const path = resolve(output, relativePath);
+      const expected = { mode, sourceRequestPath: resolve(output, `${finalist.index}.request.json`),
+        sourceEvaluationPath: resolve(output, `${finalist.index}.result.json`), executionCommit };
+      if (mode === "reserve") {
+        if (!finalist.reserve || finalist.evaluation.status !== "accepted") throw new Error("missing finalist reserve");
+        const reserve = qualifyMeasuredDesignReserveV1(finalist.reserve, {
+          sourceCheckpointSha256: finalist.evaluation.exactResult.checkpoint.checkpointSha256,
+          candidateIdentitySha256: await reserveCandidateIdentityV1(finalist.inputs, finalist.evaluation.nominalDtSec),
+          reservePolicyIdentity,
+        });
+        // This is already full formal-settlement construction evidence. Do not
+        // spend another full protocol rerunning it or call reuse independent confirmation.
+        await writeFile(path, JSON.stringify({ ...expected, qualified: true, executionTier: "full-invariant",
+          reusedMeasuredReserve: true, sourceReservePath: `${finalist.index}.reserve.json`, reserve,
+          baselineAdopted: false }), { flag: "wx" });
+      } else {
+        await runChild("tools/scientific/qualifyMainWireBaselineOperatingPointDesignV1.ts", [
+          "--request", expected.sourceRequestPath, "--evaluation", expected.sourceEvaluationPath,
+          "--mode", mode, "--output", path, "--integrity-tier", "full-invariant"], true);
+      }
+      const qualified = validateDesignQualificationResultV1(JSON.parse(await readFile(path, "utf8")), expected);
+      process.stderr.write(`[qualification] ${finalist.index}/${mode}: ${qualified}\n`);
+      return { mode, qualified, resultPath: relativePath };
     }
     const modes = [await qualify("refined")];
     if (modes[0]!.qualified) {
@@ -265,6 +284,7 @@ if (values.worker) {
     reserveEvaluationCount: history.filter((row) => row.reserve !== null).length,
     finalQualificationExecuted: qualificationResults.length > 0, qualificationResults,
     qualifiedCandidateIndex: qualificationResults.find((row) => row.qualified)?.index ?? null,
+    searchLimitation: "bounded local search; finalist budget is drawn only from measured nominal-feasible candidates; pruning does not establish feasibility or optimality under unmeasured final conditions",
     baselineAdopted: false,
   }, null, 2), { flag: "wx" });
   process.stdout.write(`${output}/result.json\n`);

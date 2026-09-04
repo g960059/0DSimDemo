@@ -1,4 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { designQualificationPathV1, validateDesignQualificationResultV1, qualifyMeasuredDesignReserveV1,
+  reserveCandidateIdentityV1, mapDesignInOrderV1, type DesignReserveResultV1 } from
+  "@/tools/scientific/mainWireBaselineDesignExecutionV1";
 import {
   scoreMainWireBaselineOperatingPointV1,
   mainWireBaselineDesignBetterV1,
@@ -356,6 +362,73 @@ describe("bounded baseline operating-point design", () => {
         }
       }
     }
+  });
+
+  it("reuses only full measured reserve bound to the candidate, checkpoint, and policy", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const expected = { sourceCheckpointSha256: "a".repeat(64),
+      candidateIdentitySha256: await reserveCandidateIdentityV1(anchor, 0.002), reservePolicyIdentity: "b".repeat(64) };
+    const result: DesignReserveResultV1 = { ...expected, executionTier: "full-invariant",
+      reserve: reserveFixtureV1(), failure: null, wallTimeMs: 1 };
+    expect(qualifyMeasuredDesignReserveV1(result, expected).status).toBe("passed");
+    for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+      expect(() => qualifyMeasuredDesignReserveV1({ ...result, [key]: "f".repeat(64) }, expected)).toThrow(/incompatible/);
+    }
+    for (const invalid of [{ ...result, reserve: null }, { ...result, failure: "unresolved" },
+      { ...result, executionTier: "hot-path-lean" as "full-invariant" }]) {
+      expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/missing, failed, or incompatible/);
+    }
+    const failed = reserveFixtureV1();
+    failed.left.hypervolemic = { ...failed.left.hypervolemic, directionalCardiacOutputChangeFraction01: 0.025 };
+    expect(() => qualifyMeasuredDesignReserveV1({ ...result, reserve: failed }, expected)).toThrow(/Standard70/);
+    failed.left.hypervolemic = { ...failed.left.hypervolemic, endpointCardiacOutputLPerMin: NaN };
+    expect(() => qualifyMeasuredDesignReserveV1({ ...result, reserve: failed }, expected)).toThrow(/incompatible/);
+    expect(await reserveCandidateIdentityV1(anchor, 0.001)).not.toBe(expected.candidateIdentitySha256);
+    expect(await reserveCandidateIdentityV1({ ...anchor, hemodynamicResearchInputs: {
+      ...anchor.hemodynamicResearchInputs, totalBloodVolumeMl: 4950 } }, 0.002)).not.toBe(expected.candidateIdentitySha256);
+  });
+
+  it("completes a finalist artifact handoff without overwriting its search reserve", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "baseline-finalist-artifacts-"));
+    try {
+      const reservePath = join(directory, "7.reserve.json");
+      const measured = { reserve: reserveFixtureV1(), qualified: undefined };
+      await writeFile(reservePath, JSON.stringify(measured), { flag: "wx" });
+      const expected = { mode: "reserve", sourceRequestPath: "7.request.json",
+        sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
+      const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant" };
+      const path = join(directory, designQualificationPathV1(7, "reserve"));
+      expect(path).not.toBe(reservePath);
+      await writeFile(path, JSON.stringify(result), { flag: "wx" });
+      expect(validateDesignQualificationResultV1(JSON.parse(await readFile(path, "utf8")), expected)).toBe(true);
+      expect(validateDesignQualificationResultV1({ ...result, qualified: false }, expected)).toBe(false);
+      expect(JSON.parse(await readFile(reservePath, "utf8"))).toEqual({ reserve: measured.reserve });
+      for (const malformed of [measured, { ...result, qualified: "true" }, { ...result, mode: "cold" },
+        { ...result, sourceRequestPath: "another-request" }, { ...result, executionCommit: "another-commit" },
+        { ...result, executionTier: "hot-path-lean" }, { ...result, baselineAdopted: true }]) {
+        expect(() => validateDesignQualificationResultV1(malformed, expected)).toThrow(/shape or provenance/);
+      }
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it("keeps bounded queue indices and results independent of completion order", async () => {
+    let active = 0;
+    let maximumActive = 0;
+    const assigned: number[] = [];
+    const finished: number[] = [];
+    const run = await mapDesignInOrderV1([30, 1, 1, 1, 1], 2, async (delay, index) => {
+      assigned.push(index);
+      maximumActive = Math.max(maximumActive, ++active);
+      await new Promise((done) => setTimeout(done, delay));
+      finished.push(index);
+      active--;
+      return index;
+    });
+    expect(maximumActive).toBe(2);
+    expect(assigned).toEqual([0, 1, 2, 3, 4]);
+    expect(finished[0]).toBe(1);
+    expect(run).toEqual([0, 1, 2, 3, 4]);
+    await expect(mapDesignInOrderV1([], 0, async () => 0)).rejects.toThrow(/parallelism/);
   });
 });
 
