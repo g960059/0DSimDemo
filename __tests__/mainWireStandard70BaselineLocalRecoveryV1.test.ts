@@ -235,6 +235,12 @@ describe("bounded baseline operating-point design", () => {
       point.hemodynamicResearchInputs.totalBloodVolumeMl <= 5200)).toBe(true);
     expect(mainWireBaselineDesignNeighborsV1(anchor, anchor, 0.25).every((point) =>
       point.hemodynamicResearchInputs.totalBloodVolumeMl % 50 === 0)).toBe(true);
+    const upperActive = applyMainWireBaselineCalibrationParametersV1(anchor, [
+      { parameterId: "myocardium.common-ventricular-active-tension-scale", value: 1.33 },
+    ]);
+    expect(() => mainWireBaselineDesignNeighborsV1(anchor, upperActive, 1)).not.toThrow();
+    expect(mainWireBaselineDesignNeighborsV1(anchor, upperActive, 1).every((point) =>
+      point.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall.LVFW <= 1.33)).toBe(true);
   });
 
   it("does not trade a failed safety gate for a better pressure/flow score", async () => {

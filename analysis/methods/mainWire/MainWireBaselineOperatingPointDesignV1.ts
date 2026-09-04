@@ -1,6 +1,7 @@
 import {
   applyMainWireBaselineCalibrationParametersV1,
   readMainWireBaselineCalibrationParameterV1,
+  mainWireBaselineCalibrationParameterV1,
   type MainWireBaselineCalibrationCandidateInputsV1,
   type MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -95,9 +96,13 @@ export function mainWireBaselineDesignNeighborsV1(
         + direction[i]! * coordinate.step * stepScale;
       return { parameterId: coordinate.parameterId, value: Number(value.toFixed(8)) };
     });
-    if (updates.some((update, i) => Math.abs(update.value
-      - readMainWireBaselineCalibrationParameterV1(anchor, update.parameterId))
-        > policy.coordinates[i]!.radius + 1e-8)) return [];
+    if (updates.some((update, i) => {
+      const domain = mainWireBaselineCalibrationParameterV1(update.parameterId);
+      return update.value < domain.minimum || update.value > domain.maximum
+        || Math.abs(update.value
+          - readMainWireBaselineCalibrationParameterV1(anchor, update.parameterId))
+            > policy.coordinates[i]!.radius + 1e-8;
+    })) return [];
     // TBV's smallest accepted release step is 50 mL. Do not produce 25 mL presets.
     if (updates[0]!.value % 50 !== 0) return [];
     return [applyMainWireBaselineCalibrationParametersV1(current, updates)];

@@ -12,15 +12,20 @@ import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   scoreMainWireBaselineOperatingPointV1, mainWireBaselineDesignBetterV1,
   mainWireBaselineDesignNeighborsV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import type { MainWireBaselineCalibrationCandidateInputsV1 } from
+import { applyMainWireBaselineCalibrationParametersV1,
+  readMainWireBaselineCalibrationParameterV1,
+  type MainWireBaselineCalibrationCandidateInputsV1 } from
   "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 } from
+  "@/domain/model/MainWireStandardIdentityV1";
 import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import checkpoint from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
 
 const { values } = parseArgs({ options: { output: { type: "string" },
-  worker: { type: "string" }, parallelism: { type: "string", default: "8" } } });
+  worker: { type: "string" }, parallelism: { type: "string", default: "8" },
+  "seed-request": { type: "string" }, "seed-evaluation": { type: "string" } } });
 if (!values.output) throw new Error("--output NEW_DIRECTORY is required");
 const output = resolve(values.output);
 if (values.worker) {
@@ -39,10 +44,34 @@ if (values.worker) {
   await mkdir(output); // Never overwrite a preceding experiment.
   const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   const reference = resolveMainWireFittingReferenceV1(policy.referenceId);
+  if (reference.selectedConstruction.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1) {
+    throw new Error("design evaluator is only compatible with the Standard70 reference");
+  }
   const anchor = reference.selectedConstruction.candidateInputs;
+  let seed: MainWireBaselineCalibrationCandidateInputsV1 = anchor;
+  let seedCheckpoint = checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1;
+  if (Boolean(values["seed-request"]) !== Boolean(values["seed-evaluation"])) {
+    throw new Error("seed request and evaluation must be supplied together");
+  }
+  if (values["seed-request"] && values["seed-evaluation"]) {
+    const request = JSON.parse(await readFile(values["seed-request"], "utf8")) as MainWireBaselineCalibrationCandidateInputsV1;
+    seed = applyMainWireBaselineCalibrationParametersV1(anchor, policy.coordinates.map((coordinate) => {
+      const value = readMainWireBaselineCalibrationParameterV1(request, coordinate.parameterId);
+      if (Math.abs(value - readMainWireBaselineCalibrationParameterV1(anchor, coordinate.parameterId)) > coordinate.radius + 1e-8) {
+        throw new Error("seed exceeds the fixed design radius");
+      }
+      return { parameterId: coordinate.parameterId, value };
+    }));
+    const source = JSON.parse(await readFile(values["seed-evaluation"], "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
+    if (source.status !== "accepted") throw new Error("seed requires an exact candidate checkpoint");
+    // The prior observations are never scored or trusted. Exact restore binds
+    // all frozen inputs, then independently re-establishes periodic closure.
+    seedCheckpoint = source.exactResult.checkpoint;
+  }
   const policyIdentity = await sha256CanonicalJsonHex(policy);
   await writeFile(resolve(output, "protocol.json"), JSON.stringify({
-    executionCommit, policy, policyIdentity, reference, parallelism,
+    executionCommit, policy, policyIdentity, reference, parallelism, seed,
+    seedCheckpointSha256: seedCheckpoint.checkpointSha256,
     claim: "bounded exploratory construction; not identifiability or final qualification",
   }, null, 2), { flag: "wx" });
   const startedAt = performance.now();
@@ -74,12 +103,12 @@ if (values.worker) {
     process.stderr.write(`[design] ${index}: ${evaluation.status} ${JSON.stringify(score)}\n`);
     return entry;
   }
-  let best = await evaluate(anchor, { kind: "standard70-exact-checkpoint",
-    checkpoint: checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1 });
+  let best = await evaluate(seed, { kind: "standard70-exact-checkpoint",
+    checkpoint: seedCheckpoint });
   if (!scoreMainWireBaselineOperatingPointV1(best.evaluation).feasible) {
     throw new Error("committed baseline did not reconfirm");
   }
-  seen.add(await sha256CanonicalJsonHex(anchor));
+  seen.add(await sha256CanonicalJsonHex(seed));
   let stepScale: 1 | 0.5 | 0.25 = 1;
   let stopReason = "evaluation-budget";
   while (count < policy.maximumEvaluations) {
