@@ -43,8 +43,10 @@ const hemodynamics = { ...request.hemodynamicResearchInputs,
 const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
   ...request, hemodynamicResearchInputs: hemodynamics,
   nominalDtSec: values.mode === "refined" ? 0.001 : 0.002,
-  initialization: values.mode === "cold" ? { kind: "cold" }
-    : values.mode === "hr70" || values.mode === "afterload"
+  // Different pacing periods do not share the same exact cycle boundary.
+  // Qualify the discrete HR70 condition cold; never relabel the HR60 clock.
+  initialization: values.mode === "cold" || values.mode === "hr70" ? { kind: "cold" }
+    : values.mode === "afterload"
       ? { kind: "standard70-parameter-continuation", sourceCheckpoint: previous.exactResult.checkpoint,
         sourceHemodynamicResearchInputs: request.hemodynamicResearchInputs,
         sourceMechanismResearchInputs: request.mechanismResearchInputs,
