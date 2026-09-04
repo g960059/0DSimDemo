@@ -1,0 +1,54 @@
+{
+  "schemaId": "standard70-browser-research-archive-v1",
+  "purpose": "Before/after disclosure layout verification of selected-baseline launch, not physiological validation.",
+  "sourceWorktree": "codex/standard70-baseline-minimal-v1",
+  "sourceAttribution": "Original browser script did not record source hashes or execution commit; results are retained without retroactively asserting such a binding.",
+  "sourceMilestones": [
+    "b97ce6ef before disclosure layout fix",
+    "af93d019 disclosure wrapping fix",
+    "d9370bf5 EOF whitespace fix"
+  ],
+  "reproduction": "Original script uses historical absolute dependency/output paths and local URL; adapt to a new worktree and new output directory.",
+  "archive": {
+    "path": "browser-evidence.tar.gz",
+    "bytes": 823837,
+    "sha256": "08b84340eeb939ca41adde9a0292d1bd4e9e48f932628c21900465870ff06a43"
+  },
+  "files": [
+    {
+      "path": "standard70-minimal-browser.ayqssM/baseline-info.png",
+      "bytes": 220589,
+      "sha256": "4940e61df36878535d8189e04977b4e111d283fa3379d6733500b8130968242b"
+    },
+    {
+      "path": "standard70-minimal-browser.ayqssM/result.json",
+      "bytes": 4810,
+      "sha256": "b6556b397d6549b055442bd9b3ac7cc368546cc28cdbea325436be8fca77ceca"
+    },
+    {
+      "path": "standard70-minimal-browser.ayqssM/workbench.png",
+      "bytes": 196122,
+      "sha256": "c807f40b6aef4eb8f2f61448f818965fdee3c20fc398158a5e51c3450da6a0f7"
+    },
+    {
+      "path": "standard70-minimal-browser.nd9GgC/baseline-info.png",
+      "bytes": 224567,
+      "sha256": "c09250e7df1e2a25f1a1ed7ba8edc3b998b91278abd2cba29e127ddedb4760a8"
+    },
+    {
+      "path": "standard70-minimal-browser.nd9GgC/result.json",
+      "bytes": 4810,
+      "sha256": "c6e934bd39c5522f309f51c0c36b1f1f5cdd6ac7ba7112e0781367ce25a56dcf"
+    },
+    {
+      "path": "standard70-minimal-browser.nd9GgC/workbench.png",
+      "bytes": 194137,
+      "sha256": "72a2aabc2a59595d456657c8a273b04b285458a1ad5596b750e73b2885ac1974"
+    },
+    {
+      "path": "verify-standard70-minimal-browser.mjs",
+      "bytes": 2931,
+      "sha256": "1cbc8285c0cbd922cf5488938b65d972259bf6bb119b62ec3d1b2667cbd5279a"
+    }
+  ]
+}
