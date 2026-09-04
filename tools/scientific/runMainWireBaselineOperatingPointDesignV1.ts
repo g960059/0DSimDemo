@@ -16,7 +16,7 @@ import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   scoreMainWireBaselineReserveAwareV1,
   type DesignScoreV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import { measureMainWireIntegratedModelFormalPreloadReserveV1,
+import { measureMainWireIntegratedModelFormalPreloadReserveV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { designReservePolicyV1, reserveCandidateIdentityV1, qualifyMeasuredDesignReserveV1,
   designQualificationPathV1, validateDesignQualificationResultV1, mapDesignInOrderV1,
@@ -68,7 +68,7 @@ if (values.worker) {
       const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
         evaluation.exactResult.checkpoint, input.hemodynamicResearchInputs,
         input.ventricularContractilityScale, undefined, input.mechanismResearchInputs);
-      result.reserve = await measureMainWireIntegratedModelFormalPreloadReserveV1(session, input.hemodynamicResearchInputs);
+      result.reserve = await measureMainWireIntegratedModelFormalPreloadReserveV2(session, input.hemodynamicResearchInputs);
     } catch (error) { result.failure = error instanceof Error ? error.message : String(error); }
     finally { selectHotPathIntegrityTierV1(executionTier); }
     result.wallTimeMs = performance.now() - startedAt;

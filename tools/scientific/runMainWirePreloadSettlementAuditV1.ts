@@ -239,7 +239,9 @@ if (!high) throw new Error("high endpoint not retained");
 const stoppedState = high.currentAcceptedState();
 await writeFile(resolve(output, "original.json"), JSON.stringify({ reserve, branches: originalBranches, stoppedState }), { flag: "wx" });
 const extension = extendHighEndpoint(high.delegate, extraCycles, inputs.hemodynamicResearchInputs.heartRateBpm);
+if (!(high.delegate instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1)) throw new Error("missing exact checkpoint owner");
+const endCheckpoint = await high.delegate.checkpointStandard70Exact();
 await writeFile(resolve(output, "result.json"), JSON.stringify({ protocol, reserve,
-  originalBranches, extension, endState: high.currentAcceptedState(),
+  originalBranches, extension, endState: high.currentAcceptedState(), endCheckpoint,
   wallTimeMs: performance.now() - startMs, baselineAdopted: false }), { flag: "wx" });
 process.stdout.write(`${output}/result.json\n`);

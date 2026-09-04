@@ -9,7 +9,8 @@ import {
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { scoreMainWireBaselineOperatingPointV1, mainWireBaselineDesignQualificationPassedV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import { qualifyMainWireIntegratedModelFormalPreloadReserveV1 } from
+import { measureMainWireIntegratedModelFormalPreloadReserveV2,
+  qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1 } from
   "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { assertMainWireStandard70PreloadReservePassedV1 } from
   "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
@@ -81,8 +82,10 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
       evaluation.exactResult.checkpoint, request.hemodynamicResearchInputs,
       request.ventricularContractilityScale, undefined, request.mechanismResearchInputs,
     );
-    reserve = await qualifyMainWireIntegratedModelFormalPreloadReserveV1(session, request.hemodynamicResearchInputs);
-    assertMainWireStandard70PreloadReservePassedV1(reserve as Awaited<ReturnType<typeof qualifyMainWireIntegratedModelFormalPreloadReserveV1>>);
+    const qualifiedReserve = qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(
+      await measureMainWireIntegratedModelFormalPreloadReserveV2(session, request.hemodynamicResearchInputs));
+    reserve = qualifiedReserve;
+    assertMainWireStandard70PreloadReservePassedV1(qualifiedReserve);
     reserveStatus = "passed";
   } catch (error) {
     reserveStatus = "failed";

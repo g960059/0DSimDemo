@@ -35,7 +35,7 @@ export function mainWireStandard70PreloadReserveDirectionalResponsePassedV1(
 }
 
 export function assertMainWireStandard70PreloadReservePassedV1(
-  qualification: MainWireIntegratedModelFormalPreloadReserveQualificationV1,
+  qualification: Pick<MainWireIntegratedModelFormalPreloadReserveQualificationV1, "left" | "right">,
 ): void {
   for (const [ventricle, side] of Object.entries({
     LV: qualification.left,

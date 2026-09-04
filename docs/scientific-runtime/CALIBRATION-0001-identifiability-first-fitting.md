@@ -221,6 +221,15 @@ measurement does not create independent evidence. Cold, refined-step and declare
 load/rate checks remain separate. A bounded local search and its measured
 shortlist do not establish that the full feasible set has been explored.
 
+Fixed-control preload measurements must establish reservoir closure at matching
+cardiac phase, not merely small adjacent changes in CO and filling pressure.
+Conserved total blood volume alone does not exclude continued redistribution.
+Keep the numerical settlement policy distinct from physiological response
+floors and version it in fitting provenance; older measurements cannot satisfy
+a newer policy by relabelling. Beat-average and instantaneous valve-landmark
+precision must respect their different sampling errors. A bounded post-stop
+extension checks the accuracy of a new settlement policy before fitting uses it.
+
 ## Qualification levels
 
 A construction-only baseline may be minted when its exact artifact and settled

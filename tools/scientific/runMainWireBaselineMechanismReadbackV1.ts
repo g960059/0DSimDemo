@@ -9,7 +9,7 @@ import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 as Standard70S
 import { MainWireIntegratedTypedAuthoritySessionV1 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import { createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1";
-import type { MainWireIntegratedModelRuntimeV3 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import type { MainWireIntegratedModelStandard70CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import type { MainWireFiveWallLandTriSegReadbackV1 } from
   "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import type { MainWireNormalAdultWallMaterialReadbackV1 } from
@@ -26,14 +26,6 @@ import type { MainWireStandard70BaselineCalibrationEvaluationV1 as Evaluation } 
 type State = ReturnType<Standard70Session["currentAcceptedState"]>;
 type Runtime = ReturnType<typeof createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1>;
 type Observation = ReturnType<Standard70Session["observe"]>;
-// The same typed analysis-fork constructor used by Standard70, restricted to
-// this read-only research CLI. No new production restore or model-ID seam.
-class AcceptedAuditStateSession extends MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime: Runtime, state: State) {
-    super(runtime as unknown as MainWireIntegratedModelRuntimeV3, state,
-      "fixed-tbv-protocol-fork", null, undefined, undefined, null, state);
-  }
-}
 const walls = ["LVFW", "SEP", "RVFW"] as const;
 const systemicArteries = ["Ao", "SA", "Art"] as const;
 const graph = buildNonCoronaryCirculationGraphV1();
@@ -109,7 +101,7 @@ if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim())
 const raw = JSON.parse(await readFile(values.evaluation, "utf8")) as Evaluation & { evaluation?: Evaluation; inputs?: Inputs };
 const evaluation = raw.evaluation ?? raw;
 const inputs: Inputs = values.request ? JSON.parse(await readFile(values.request, "utf8")) : raw.inputs!;
-const audit = JSON.parse(await readFile(values.audit, "utf8")) as { endState: State;
+const audit = JSON.parse(await readFile(values.audit, "utf8")) as { endState: State; endCheckpoint: MainWireIntegratedModelStandard70CheckpointV1;
   protocol: { settlement: string; checkpointSha256: string; hemodynamicResearchInputs: Inputs["hemodynamicResearchInputs"];
     mechanismResearchInputs: Inputs["mechanismResearchInputs"]; ventricularContractilityScale: number } };
 if (evaluation.status !== "accepted" || !inputs || ![60, 70].includes(inputs.hemodynamicResearchInputs.heartRateBpm)
@@ -136,6 +128,12 @@ await writeFile(resolve(output, "protocol.json"), JSON.stringify(protocol, null,
 const source = await Standard70Session.restoreStandard70ExactCheckpoint(evaluation.exactResult.checkpoint,
   inputs.hemodynamicResearchInputs, inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs);
 const rest = collect(source, runtime);
-const high = collect(new AcceptedAuditStateSession(runtime, audit.endState), runtime);
+await writeFile(resolve(output, "rest.json"), JSON.stringify(rest), { flag: "wx" });
+const highSession = await Standard70Session.restoreStandard70ExactCheckpoint(audit.endCheckpoint,
+  inputs.hemodynamicResearchInputs, inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs);
+if (await sha256CanonicalJsonHex(highSession.currentAcceptedState()) !== await sha256CanonicalJsonHex(audit.endState)) {
+  throw new Error("audit state and exact-owned checkpoint differ");
+}
+const high = collect(highSession, runtime);
 await writeFile(resolve(output, "result.json"), JSON.stringify({ protocol, rest, high, baselineAdopted: false }), { flag: "wx" });
 process.stdout.write(`${output}/result.json\n`);

@@ -99,7 +99,7 @@ export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: Desig
 /** The same reserve gates used for minting, not a substitute fluid-response target. */
 export function scoreMainWireBaselineReserveAwareV1(
   evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
-  reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV1 | null,
+  reserve: Pick<MainWireIntegratedModelFormalPreloadReserveMeasurementV1, "left" | "right"> | null,
 ): DesignScoreV1 {
   const rest = scoreMainWireBaselineOperatingPointV1(evaluation);
   const unresolved = { ...rest, feasible: false, minimumMargin: -Infinity,

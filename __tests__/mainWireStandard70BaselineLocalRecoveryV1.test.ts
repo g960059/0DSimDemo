@@ -16,8 +16,11 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
-  type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  type MainWireIntegratedModelFormalPreloadReserveMeasurementV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
+  "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 
 import {
   buildMainWireBaselineConditioningSyntheticArtifactsV1,
@@ -381,10 +384,19 @@ describe("bounded baseline operating-point design", () => {
       { ...result, sourceEvaluationExecutionTier: "unknown" as "full-invariant" }]) {
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/missing, failed, or incompatible/);
     }
-    for (const override of [{ protocolId: "other" }, { sourceGlobalTbvMl: 5000 },
+    for (const override of [{ protocolId: "other" },
+      { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID }, { sourceGlobalTbvMl: 5000 },
       { hypovolemicGlobalTbvScale: 0.9 }, { hypervolemicGlobalTbvScale: 1.1 },
       { hypovolemicGlobalTbvMl: 4450 }, { hypervolemicGlobalTbvMl: NaN }]) {
       const invalid = { ...result, reserve: { ...result.reserve!, ...override } } as DesignReserveResultV1;
+      expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/incompatible/);
+    }
+    for (const override of [{ maximumRecentRedistributedVolumeMl: 0.051 },
+      { maximumRecentRedistributedVolumeMl: undefined }, { maximumRecentNormalizedOutputDelta: NaN },
+      { maximumRecentNormalizedLandmarkDelta: 1.1 }, { completedBeatCount: 3 },
+      { measurementDurationSec: 61 }, { policyId: "old" }]) {
+      const invalid = { ...result, reserve: { ...result.reserve!, settlement: { ...result.reserve!.settlement,
+        hypervolemic: { ...result.reserve!.settlement.hypervolemic, ...override } } } } as DesignReserveResultV1;
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/incompatible/);
     }
     expect(() => qualifyMeasuredDesignReserveV1(result, { ...expected, sourceGlobalTbvMl: NaN })).toThrow(/incompatible/);
@@ -468,11 +480,15 @@ function reserveFixtureV1() {
   const side = { hypovolemic: response, hypervolemic: { ...response, endpointDirection: "hypervolemic" as const,
     endpointFillingPressureMmHg: 12, endpointCardiacOutputLPerMin: 5.3,
     endpointEndDiastolicVolumeMl: 154, endpointEndDiastolicTransmuralPressureMmHg: 10 } };
-  return { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+  const evidence = { policyId: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.policyId, completedBeatCount: 30,
+    maximumRecentRedistributedVolumeMl: 0.03, maximumRecentNormalizedOutputDelta: 0.02,
+    maximumRecentNormalizedLandmarkDelta: 0.4, measurementDurationSec: 30 };
+  return { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
     sourceGlobalTbvMl: 4900, hypovolemicGlobalTbvMl: 4900 * 0.88, hypervolemicGlobalTbvMl: 4900 * 1.12,
     hypovolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale,
     hypervolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale,
-    left: structuredClone(side), right: structuredClone(side) } satisfies MainWireIntegratedModelFormalPreloadReserveMeasurementV1;
+    left: structuredClone(side), right: structuredClone(side),
+    settlement: { center: evidence, hypovolemic: evidence, hypervolemic: evidence } } satisfies MainWireIntegratedModelFormalPreloadReserveMeasurementV2;
 }
 
 // The exact evaluator is covered independently; this fixture exercises only

@@ -1,9 +1,11 @@
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
-  type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  type MainWireIntegratedModelFormalPreloadReserveMeasurementV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
+  "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 import { assertMainWireStandard70PreloadReservePassedV1,
   MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from
   "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
@@ -15,7 +17,9 @@ import type { MainWireIntegratedModelStandard70CandidateInitializationV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 
 export const designReservePolicyV1 = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
-  standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
+  standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1,
+  measurementProtocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  settlement: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 };
 
 export async function reserveCandidateIdentityV1(inputs: MainWireBaselineCalibrationCandidateInputsV1, nominalDtSec: number) {
   return sha256CanonicalJsonHex({ hemodynamicResearchInputs: inputs.hemodynamicResearchInputs,
@@ -24,7 +28,7 @@ export async function reserveCandidateIdentityV1(inputs: MainWireBaselineCalibra
 }
 
 export type DesignReserveResultV1 = {
-  reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV1 | null;
+  reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV2 | null;
   failure: string | null; wallTimeMs: number; executionTier: "full-invariant";
   sourceCheckpointSha256: string; candidateIdentitySha256: string; reservePolicyIdentity: string;
   sourceEvaluationExecutionTier: "full-invariant" | "hot-path-lean";
@@ -36,10 +40,29 @@ export function qualifyMeasuredDesignReserveV1(result: DesignReserveResultV1, ex
 }) {
   const { sourceGlobalTbvMl, ...identities } = expected;
   const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  const settlementPolicy = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2;
   if (!result.reserve || result.failure !== null || result.executionTier !== "full-invariant"
     || !["full-invariant", "hot-path-lean"].includes(result.sourceEvaluationExecutionTier)
     || (Object.keys(identities) as (keyof typeof identities)[]).some((key) => result[key] !== identities[key])
-    || result.reserve.protocolId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID
+    || result.reserve.protocolId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID
+    || (["center", "hypovolemic", "hypervolemic"] as const).some((key) => {
+      const evidence = result.reserve!.settlement?.[key];
+      return !evidence || evidence.policyId !== settlementPolicy.policyId
+        || [evidence.completedBeatCount, evidence.maximumRecentRedistributedVolumeMl,
+          evidence.maximumRecentNormalizedOutputDelta, evidence.maximumRecentNormalizedLandmarkDelta,
+          evidence.measurementDurationSec].some((value) => typeof value !== "number" || !Number.isFinite(value))
+        || !Number.isInteger(evidence.completedBeatCount)
+        || evidence.completedBeatCount < settlementPolicy.consecutiveComparisonCount + 1
+        || evidence.completedBeatCount > settlementPolicy.maximumCompleteBeatCount
+        || evidence.maximumRecentRedistributedVolumeMl < 0
+        || evidence.maximumRecentRedistributedVolumeMl > settlementPolicy.maximumRedistributedVolumePerBeatMl
+        || evidence.maximumRecentNormalizedOutputDelta < 0
+        || evidence.maximumRecentNormalizedOutputDelta > settlementPolicy.maximumNormalizedOutputDelta
+        || evidence.maximumRecentNormalizedLandmarkDelta < 0
+        || evidence.maximumRecentNormalizedLandmarkDelta > settlementPolicy.maximumNormalizedLandmarkDelta
+        || !(evidence.measurementDurationSec > 0)
+        || evidence.measurementDurationSec > settlementPolicy.maximumMeasurementDurationSec;
+    })
     || !(sourceGlobalTbvMl > 0) || !Number.isFinite(sourceGlobalTbvMl)
     || !(Math.abs(result.reserve.sourceGlobalTbvMl - sourceGlobalTbvMl) <= 1e-6)
     || (["hypovolemic", "hypervolemic"] as const).some((direction) =>

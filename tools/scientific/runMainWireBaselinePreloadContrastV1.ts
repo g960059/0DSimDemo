@@ -14,11 +14,10 @@ import { evaluateMainWireStandard70BaselineCalibrationCandidateV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { scoreMainWireBaselineOperatingPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import { measureMainWireIntegratedModelFormalPreloadReserveV1,
-  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 } from
+import { measureMainWireIntegratedModelFormalPreloadReserveV2 } from
   "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
-  MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from
+} from
   "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
@@ -28,6 +27,7 @@ import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import checkpointJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
+import { designReservePolicyV1 } from "./mainWireBaselineDesignExecutionV1";
 
 // A small, declared counterfactual experiment, not another optimizer. All
 // branches reuse the existing fixed-control, independently settled protocol.
@@ -51,6 +51,7 @@ if (!Array.isArray(contrasts) || !contrasts.length || contrasts.length > 12
   || new Set(contrasts.map((row) => row.id)).size !== contrasts.length) throw new Error("invalid bounded contrast design");
 const allowed: readonly MainWireBaselineCalibrationParameterIdV1[] = [
   "hemodynamics.total-blood-volume-ml", "hemodynamics.systemic-resistance",
+  "hemodynamics.arterial-stiffness",
   "myocardium.common-ventricular-active-tension-scale", "myocardium.common-ventricular-passive-stiffness-scale",
 ];
 for (const row of contrasts) {
@@ -83,7 +84,7 @@ if (values.worker !== undefined) {
   await writeFile(resolve(output, `${contrast.id}.request.json`), JSON.stringify(request), { flag: "wx" });
   const startedAt = performance.now();
   const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1(request);
-  let reserve: Awaited<ReturnType<typeof measureMainWireIntegratedModelFormalPreloadReserveV1>> | null = null;
+  let reserve: Awaited<ReturnType<typeof measureMainWireIntegratedModelFormalPreloadReserveV2>> | null = null;
   let reserveFailure: string | null = null;
   // Continuous rest-corridor failures remain diagnostic observations. Solver,
   // event, discrete morphology and right-heart safety failures cannot start a protocol.
@@ -94,7 +95,7 @@ if (values.worker !== undefined) {
         evaluation.exactResult.checkpoint, inputs.hemodynamicResearchInputs,
         inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs,
       );
-      reserve = await measureMainWireIntegratedModelFormalPreloadReserveV1(session, inputs.hemodynamicResearchInputs);
+      reserve = await measureMainWireIntegratedModelFormalPreloadReserveV2(session, inputs.hemodynamicResearchInputs);
     } catch (error) { reserveFailure = error instanceof Error ? error.message : String(error); }
     finally { selectHotPathIntegrityTierV1(executionTier); }
   }
@@ -104,8 +105,7 @@ if (values.worker !== undefined) {
   if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw new Error("contrast requires a clean committed worktree");
   await mkdir(output);
   const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  const reservePolicy = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
-    standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
+  const reservePolicy = designReservePolicyV1;
   const reservePolicyIdentity = await sha256CanonicalJsonHex(reservePolicy);
   const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, executionTier, reserveExecutionTier, contrasts, heartRateBpm,
     reservePolicy, reservePolicyIdentity,
@@ -130,7 +130,7 @@ if (values.worker !== undefined) {
       });
       const result = JSON.parse(await readFile(resolve(output, `${contrast.id}.result.json`), "utf8")) as {
         evaluation: Awaited<ReturnType<typeof evaluateMainWireStandard70BaselineCalibrationCandidateV1>>;
-        reserve: Awaited<ReturnType<typeof measureMainWireIntegratedModelFormalPreloadReserveV1>> | null;
+        reserve: Awaited<ReturnType<typeof measureMainWireIntegratedModelFormalPreloadReserveV2>> | null;
         reserveFailure: string | null; wallTimeMs: number;
       };
       const reserve = result.reserve;
