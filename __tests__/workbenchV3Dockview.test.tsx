@@ -784,6 +784,18 @@ describe("V3 Dockview Workbench", () => {
               label: "Tei index",
               value: "0.60",
               detail: "Required range: 0.29–0.65",
+            }, {
+              itemId: "pulmonary-morphology",
+              label: "PAP / PV flow morphology",
+              value: "1 peak · 1 episode / 1 peak · rebound 0.0 mmHg",
+              detail: "Native waveform morphology",
+              status: "reference",
+            }, {
+              itemId: "lv-dpdt",
+              label: "LV ±dP/dt",
+              value: "+2587 / −1306",
+              detail: "Reference warning, not numerical failure",
+              status: "warning",
             }],
           },
         }]}
@@ -799,6 +811,10 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("Tei index");
     expect(markup).toContain("0.60");
     expect(markup).toContain("Required range: 0.29–0.65");
+    expect(markup).toContain('class="min-w-0 break-words">1 peak · 1 episode / 1 peak · rebound 0.0 mmHg</span>');
+    expect(markup).toContain("max-w-[65%]");
+    expect(markup).toContain("text-amber-400");
+    expect(markup).toContain("Reference warning, not numerical failure");
   });
 
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {

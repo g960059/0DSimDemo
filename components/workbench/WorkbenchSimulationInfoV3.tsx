@@ -415,7 +415,7 @@ export function WorkbenchSimulationInfoPanelV3({
                     <div
                       key={item.itemId}
                       title={item.detail}
-                      className={`flex min-h-9 items-center justify-between gap-3 px-4 py-2 text-[11px] ${
+                      className={`flex min-h-9 min-w-0 items-center justify-between gap-3 px-4 py-2 text-[11px] ${
                         index > 0 ? "border-t border-wb-line" : ""
                       } ${
                         index === 1
@@ -423,14 +423,14 @@ export function WorkbenchSimulationInfoPanelV3({
                           : ""
                       } ${index % 2 === 1 ? "sm:border-l sm:border-wb-line" : ""}`}
                     >
-                      <dt className="text-wb-muted">{item.label}</dt>
-                      <dd className="flex shrink-0 items-center gap-1.5 font-medium tabular-nums text-wb-text">
+                      <dt className="min-w-0 text-wb-muted">{item.label}</dt>
+                      <dd className="flex min-w-0 max-w-[65%] items-center justify-end gap-1.5 text-right font-medium tabular-nums text-wb-text">
                         {item.status === "warning"
-                          ? <AlertTriangle className="h-3 w-3 text-amber-400" aria-hidden="true" />
+                          ? <AlertTriangle className="h-3 w-3 shrink-0 text-amber-400" aria-hidden="true" />
                           : item.status === "reference"
-                            ? <Info className="h-3 w-3 text-wb-subtle" aria-hidden="true" />
-                            : <Check className="h-3 w-3 text-wb-accent" aria-hidden="true" />}
-                        {item.value}
+                            ? <Info className="h-3 w-3 shrink-0 text-wb-subtle" aria-hidden="true" />
+                            : <Check className="h-3 w-3 shrink-0 text-wb-accent" aria-hidden="true" />}
+                        <span className="min-w-0 break-words">{item.value}</span>
                       </dd>
                     </div>
                   ))}
