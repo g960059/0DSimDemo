@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { describe, expect, it } from "vitest";
 
 import normalReferenceEvidenceV1 from
@@ -87,7 +88,7 @@ describe("Standard70 baseline numerical-floor evidence", () => {
 });
 
 async function completeAuditV1() {
-  const objectiveIds = new Set(normalReferenceEvidenceV1.checkGroups.flatMap(
+  const objectiveIds = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(
     ({ checkIds }) => checkIds,
   ));
   const objectiveChecks = standard70ValidationJson.checks.filter(({ checkId }) =>
@@ -125,7 +126,7 @@ async function completeAuditV1() {
     requestIdentitySha256: "c".repeat(64),
     exactModelIdentitySha256,
     constructionPolicyRevisionId:
-      normalReferenceEvidenceV1.policyRevisions.at(-1)!.revisionId,
+      normalReferenceEvidenceV1.evaluationPolicyId,
     constructionPolicyIdentitySha256,
     initializationKind,
     nominalDtSec,
@@ -152,7 +153,7 @@ async function completeAuditV1() {
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
       evaluatorId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
       constructionPolicyRevisionId:
-        normalReferenceEvidenceV1.policyRevisions.at(-1)!.revisionId,
+        normalReferenceEvidenceV1.evaluationPolicyId,
       constructionPolicyIdentitySha256,
     }),
     status: "completed",

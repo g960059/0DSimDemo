@@ -185,6 +185,7 @@ test("@desktop production Standard70 inherits the complete analysis Surface", as
   const controlArea = page.getByRole("region", { name: "コントロールエリア" });
   const heartRate = controlArea.getByRole("slider", { name: "心拍数 (HR)" });
   await expect(heartRate).toBeVisible();
+  await expect(heartRate).toHaveValue("70");
   await expect(controlArea.getByRole("slider")).toHaveCount(7);
   await expect(
     controlArea.getByRole("slider", { name: "体血管抵抗 (SVR)" }),
@@ -622,6 +623,14 @@ test("@desktop baseline duplication stays independent and requires explicit save
 }) => {
   const root = page.getByTestId("v3-dockview-workbench");
   const scenarioRegion = page.getByRole("region", { name: "Scenarios" });
+  const heartRate = page.getByRole("slider", { name: "心拍数 (HR)" });
+  await expect(heartRate).toBeEnabled();
+  const baselineHeartRate = await heartRate.inputValue();
+  const heartRateStep = Number(await heartRate.getAttribute("step") ?? "1");
+  expect(Number.isFinite(heartRateStep)).toBe(true);
+  expect(heartRateStep).toBeGreaterThan(0);
+  const copyHeartRate = String(Number(baselineHeartRate) - heartRateStep);
+  const changedCopyHeartRate = String(Number(copyHeartRate) - heartRateStep);
   await expect(
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
   ).toHaveCount(1);
@@ -642,13 +651,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
     scenarioRegion.getByRole("button", { name: /Scenarioメニュー:/ }),
   ).toHaveCount(2);
   const immediateCopyEpoch = await inputEpoch(page);
-  const heartRate = page.getByRole("slider", {
-    name: "心拍数 (HR)",
-  });
   await expect(heartRate).toBeEnabled({ timeout: 5_000 });
+  await expect(heartRate).toHaveValue(baselineHeartRate);
   await heartRate.press("ArrowLeft");
   await expect.poll(() => inputEpoch(page)).toBeGreaterThan(immediateCopyEpoch);
-  await expect(heartRate).toHaveValue("59");
+  await expect(heartRate).toHaveValue(copyHeartRate);
   await expect(
     page.getByRole("button", { name: "保存", exact: true }),
   ).toBeVisible();
@@ -739,11 +746,11 @@ test("@desktop baseline duplication stays independent and requires explicit save
     exact: true,
   });
   await baselineScenario.click();
-  await expect(heartRate).toHaveValue("60");
+  await expect(heartRate).toHaveValue(baselineHeartRate);
   const baselineCheckpointTime = await modelTime(root);
 
   await copyScenario.click();
-  await expect(heartRate).toHaveValue("59");
+  await expect(heartRate).toHaveValue(copyHeartRate);
   // Selection waits for global Pause to drain every lane, so this is the
   // exact copy time that the following explicit Save must capture.
   const copyCheckpointTime = await modelTime(root);
@@ -786,16 +793,16 @@ test("@desktop baseline duplication stays independent and requires explicit save
   // Scenario selection drains any final in-flight batches before adopting the
   // selected frame, making both post-reload times stable for comparison.
   await restoredCopy.click();
-  await expect(heartRate).toHaveValue("59");
+  await expect(heartRate).toHaveValue(copyHeartRate);
   await restoredBaseline.click();
-  await expect(heartRate).toHaveValue("60");
+  await expect(heartRate).toHaveValue(baselineHeartRate);
   const restoredBaselineTime = await modelTime(root);
   const baselineAutostartAdvance =
     restoredBaselineTime - baselineCheckpointTime;
   expect(baselineAutostartAdvance).toBeGreaterThan(0.02);
 
   await restoredCopy.click();
-  await expect(heartRate).toHaveValue("59");
+  await expect(heartRate).toHaveValue(copyHeartRate);
   const restoredCopyTime = await modelTime(root);
   const copyAutostartAdvance = restoredCopyTime - copyCheckpointTime;
   // The copy was never selected while playback ran. Its positive advancement
@@ -813,7 +820,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
   const restoredCopyTimeBeforeMutation = await modelTime(root);
   const restoredCopyRevisionBeforeMutation = await acceptedRevision(page);
   await heartRate.press("ArrowLeft");
-  await expect(heartRate).toHaveValue("58");
+  await expect(heartRate).toHaveValue(changedCopyHeartRate);
   await expect.poll(() => inputEpoch(page), { timeout: 30_000 })
     .toBeGreaterThan(restoredCopyEpoch);
   await expect.poll(() => modelTime(root))
@@ -822,7 +829,7 @@ test("@desktop baseline duplication stays independent and requires explicit save
     restoredCopyRevisionBeforeMutation,
   );
   await restoredBaseline.click();
-  await expect(heartRate).toHaveValue("60");
+  await expect(heartRate).toHaveValue(baselineHeartRate);
 });
 
 test("@desktop simulation information stays human-facing", async ({

@@ -10,6 +10,7 @@ import {
 import type {
   ExperimentSnapshotV2,
   ExperimentV2,
+  ScenarioCheckpointV2,
 } from "@/studio/contracts/v2/content";
 import {
   composeStandardModelContractV1,
@@ -180,6 +181,39 @@ describe("Studio numerical authoring V1", () => {
     expect(repository.snapshot()).not.toBeNull();
   }, 30_000);
 
+  it("uses a launch checkpoint for new scenarios but never replaces saved captures", async () => {
+    const firstRepository = memoryRepositoryV1();
+    const firstModels = numericalModelsV1();
+    const first = await previewStudioExperimentPlanV1(firstRepository, firstModels, {
+      experimentId: null, expectedVersion: null, title: "Launch source",
+      scenarioOperations: [{ operation: "add", scenarioId: "scenario/baseline", label: "Baseline", sourceScenarioId: null, controls: [] }],
+      presentation: { mode: "default", note: "" }, executionBudget: executionBudgetV1(), observeOutputIds: null,
+    });
+    await applyStudioExperimentPlanV1(firstRepository, firstModels, first.plan);
+    const source = firstRepository.experiment()!.content.scenarios[0]!.capture;
+    const models = numericalModelsV1({ defaultCheckpoint: source.checkpoint });
+    const repository = memoryRepositoryV1();
+    const launched = await previewStudioExperimentPlanV1(repository, models, {
+      experimentId: null, expectedVersion: null, title: "Settled launch",
+      scenarioOperations: [{ operation: "add", scenarioId: "scenario/baseline", label: "Baseline", sourceScenarioId: null, controls: [] }],
+      presentation: { mode: "default", note: "" }, executionBudget: executionBudgetV1(), observeOutputIds: null,
+    });
+    const applied = await applyStudioExperimentPlanV1(repository, models, launched.plan);
+    const capture = repository.experiment()!.content.scenarios[0]!.capture;
+    expect(capture.checkpoint.acceptedTimeSec).toBeGreaterThan(source.checkpoint.acceptedTimeSec);
+    expect(capture.checkpoint.acceptedRevision).toBeGreaterThan(source.checkpoint.acceptedRevision);
+    const invalidNewDefault = numericalModelsV1({ defaultCheckpoint: {
+      acceptedRevision: 999, acceptedTimeSec: 999, payload: { invalid: true },
+    } });
+    const updated = await previewStudioExperimentPlanV1(repository, invalidNewDefault, {
+      experimentId: applied.savedExperiment.experimentId, expectedVersion: 0, title: "Saved source",
+      scenarioOperations: [{ operation: "update", scenarioId: "scenario/baseline", label: "Renamed", controls: [] }],
+      presentation: { mode: "preserve", note: "" }, executionBudget: executionBudgetV1(), observeOutputIds: null,
+    });
+    await applyStudioExperimentPlanV1(repository, invalidNewDefault, updated.plan);
+    expect(repository.experiment()!.content.scenarios[0]!.capture).toEqual(capture);
+  });
+
   it("requires packed presentation and execution-plan adapters in the single ABI", () => {
     const release = createCircleHeartExactModelReleaseV1();
     const composed = composeStandardModelContractV1(
@@ -223,7 +257,7 @@ function executionBudgetV1() {
 }
 
 function numericalModelsV1(
-  options: Readonly<{ periodicPvaSupported?: boolean }> = Object.freeze({}),
+  options: Readonly<{ periodicPvaSupported?: boolean; defaultCheckpoint?: ScenarioCheckpointV2 }> = Object.freeze({}),
 ): StudioAuthoringNumericalModelPortV1 {
   const release = createCircleHeartExactModelReleaseV1();
   const composed = composeStandardModelContractV1(
@@ -238,6 +272,7 @@ function numericalModelsV1(
   const resolved = Object.freeze({
     contract: composed.contract,
     defaultFixture: standardDescriptorV1.defaultFixture,
+    ...(options.defaultCheckpoint === undefined ? {} : { defaultCheckpoint: options.defaultCheckpoint }),
     periodicPvaSupported: options.periodicPvaSupported ?? true,
     runtime: Object.freeze({
       ...runtime,

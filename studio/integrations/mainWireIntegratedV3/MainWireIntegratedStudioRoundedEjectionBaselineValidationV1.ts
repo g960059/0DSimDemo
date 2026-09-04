@@ -170,7 +170,7 @@ export function validateMainWireIntegratedStudioRoundedEjectionBaselineValidatio
   return input as MainWireIntegratedStudioRoundedEjectionBaselineValidationV1;
 }
 
-function validHemodynamicPressureV1(
+export function validHemodynamicPressureV1(
   value:
     MainWireIntegratedModelBaselineValidationMeasurementsV1["hemodynamicPressure"]
       | undefined,
@@ -189,7 +189,7 @@ function validHemodynamicPressureV1(
       value.pulmonaryArtery.minimumMmHg;
 }
 
-function validPreloadReserveSideV1(
+export function validPreloadReserveSideV1(
   side: MainWireIntegratedModelFormalPreloadReserveQualificationV1["left"]
     | undefined,
 ): boolean {
@@ -268,7 +268,7 @@ function approximatelyEqualV1(left: number, right: number): boolean {
     1e-10 * Math.max(1, Math.abs(left), Math.abs(right));
 }
 
-function validCardiacSizeAndFunctionV1(
+export function validCardiacSizeAndFunctionV1(
   value:
     MainWireIntegratedModelBaselineValidationMeasurementsV1["cardiacSizeAndFunction"]
       | undefined,
