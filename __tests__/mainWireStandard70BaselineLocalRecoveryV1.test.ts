@@ -43,6 +43,10 @@ import { evaluateMainWireBaselinePressureRateQualityV1,
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
+import { evaluateMainWireBaselineColdConsistencyV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselineColdConsistencyV1";
+import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID } from
+  "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
 
 import {
   buildMainWireBaselineConditioningSyntheticArtifactsV1,
@@ -109,7 +113,7 @@ beforeEach(() => {
 describe("baseline reference and executable local recovery", () => {
   it("binds the prospective research bounds into the design policy", () => {
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.policyId)
-      .toBe("main-wire-baseline-operating-point-design-v5");
+      .toBe("main-wire-baseline-operating-point-design-v6");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterPolicyId)
       .toBe("main-wire-baseline-calibration-parameter-policy-v2");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterDomains.find(
@@ -681,7 +685,7 @@ describe("bounded baseline operating-point design", () => {
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
-  it.each(["cold", "hr60", "hr70", "afterload"])("requires complete feasible evidence for cached qualified %s", async (mode) => {
+  it.each(["hr60", "hr70", "afterload"])("requires complete feasible evidence for cached qualified %s", async (mode) => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const evaluation = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
     const expected = { mode, sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
@@ -695,6 +699,34 @@ describe("bounded baseline operating-point design", () => {
       expect(() => validateDesignQualificationResultV1({ ...result, evaluation: invalid }, expected)).toThrow(/feasible evaluation/);
     }
     expect(validateDesignQualificationResultV1({ ...result, qualified: false, evaluation: undefined }, expected)).toBe(false);
+  });
+
+  it("requires same-dt initialization agreement bound to the cached cold evaluation", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const accepted = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const evaluation = { ...accepted, exactResult: { ...accepted.exactResult,
+      checkpoint: standard70CheckpointJson, measurements: standard70ValidationJson.measurements,
+      observation: { methodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID },
+    } } as unknown as MainWireStandard70BaselineCalibrationAcceptedEvaluationV1;
+    const source = { evaluation, candidateIdentitySha256: "c".repeat(64) };
+    const coldConsistency = evaluateMainWireBaselineColdConsistencyV1({ warm: source, cold: source });
+    expect(coldConsistency.status).toBe("passed");
+    const expected = { mode: "cold", sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
+    const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant", evaluation, coldConsistency };
+    expect(validateDesignQualificationResultV1(JSON.parse(JSON.stringify(result)), expected, source)).toBe(true);
+    expect(() => validateDesignQualificationResultV1(result, expected)).toThrow(/actual nominal source/);
+    expect(() => validateDesignQualificationResultV1(result, expected, { ...source,
+      evaluation: { ...evaluation, requestIdentitySha256: "e".repeat(64) },
+    })).toThrow(/warm-evaluation-binding-mismatch/);
+    for (const changed of [
+      { ...result, coldConsistency: undefined },
+      { ...result, coldConsistency: { ...coldConsistency, checks: [] } },
+      { ...result, evaluation: { ...evaluation, requestIdentitySha256: "f".repeat(64) } },
+      { ...result, evaluation: { ...evaluation, nominalDtSec: 0.001 } },
+      { ...result, evaluation: { ...evaluation, exactResult: { ...evaluation.exactResult,
+        checkpoint: { ...evaluation.exactResult.checkpoint, checkpointSha256: "f".repeat(64) } } } },
+    ]) expect(() => validateDesignQualificationResultV1(changed, expected, source)).toThrow(/Cold consistency/);
+    expect(validateDesignQualificationResultV1({ ...result, qualified: false, coldConsistency: null }, expected)).toBe(false);
   });
 
   it("binds cached refined quality to the fine evaluation's dt, checkpoint, and all four extrema", async () => {

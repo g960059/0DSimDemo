@@ -20,6 +20,8 @@ import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireF
 import { designRateInitializationV1 } from "./mainWireBaselineDesignExecutionV1";
 import { evaluateMainWireBaselinePressureRateQualityV1 } from
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
+import { evaluateMainWireBaselineColdConsistencyV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselineColdConsistencyV1";
 import { buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
   buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1, initializationIdentityV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
@@ -55,6 +57,10 @@ if (previous.status !== "accepted" || !scoreMainWireBaselineOperatingPointV1(pre
   throw new Error("qualification requires an accepted screened candidate with explicit inputs");
 }
 const currentPolicy = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+const sourceDtSec = request.nominalDtSec ?? 0.002;
+if (sourceDtSec !== 0.002 || previous.nominalDtSec !== sourceDtSec) {
+  throw new Error("baseline design qualification requires a bound 2-ms source; refined is 1 ms, cold keeps 2 ms");
+}
 if (previous.constructionPolicyIdentitySha256 !== currentPolicy.constructionPolicyIdentitySha256
   || previous.requestIdentitySha256 !== await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
     constructionPolicyIdentitySha256: currentPolicy.constructionPolicyIdentitySha256,
@@ -77,7 +83,7 @@ const hemodynamics = { ...request.hemodynamicResearchInputs,
 };
 const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
   ...request, hemodynamicResearchInputs: hemodynamics,
-  nominalDtSec: values.mode === "refined" ? 0.001 : 0.002,
+  nominalDtSec: values.mode === "refined" ? sourceDtSec / 2 : sourceDtSec,
   // Never relabel the finalist's different pacing clock. A compatible official
   // source can screen this rate; the selected baseline still needs its own cold run.
   initialization: ["hr60", "hr70"].includes(values.mode!) && values["rate-initialization"] === "same-clock-checkpoint"
@@ -120,12 +126,18 @@ const pressureRateQuality = values.mode === "refined" && evaluation.status === "
     coarse: { qualification: previous.exactResult, candidateIdentitySha256 },
     fine: { qualification: evaluation.exactResult, candidateIdentitySha256 },
   }) : null;
+const coldConsistency = values.mode === "cold" && evaluation.status === "accepted"
+  ? evaluateMainWireBaselineColdConsistencyV1({
+    warm: { evaluation: previous, candidateIdentitySha256 },
+    cold: { evaluation, candidateIdentitySha256 },
+  }) : null;
 const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus)
-  && (values.mode !== "refined" || pressureRateQuality?.status === "passed");
+  && (values.mode !== "refined" || pressureRateQuality?.status === "passed")
+  && (values.mode !== "cold" || coldConsistency?.status === "passed");
 await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, mode: values.mode, qualified,
   rateInitializationPolicy: values["rate-initialization"], conditionHemodynamicResearchInputs: hemodynamics,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
-  wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve, pressureRateQuality,
+  wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve, pressureRateQuality, coldConsistency,
   baselineAdopted: false }, null, 2), { flag: "wx" });
 process.stdout.write(`${values.output}\n`);
 if (!qualified) process.exitCode = 1;

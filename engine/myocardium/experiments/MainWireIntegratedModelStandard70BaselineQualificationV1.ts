@@ -78,12 +78,14 @@ import {
 import type {
   MainWireIntegratedModelRuntimeV3,
 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_QUALIFICATION_V1_ID =
   "main-wire-integrated-model-standard70-baseline-qualification-v1" as const;
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_NOMINAL_DT_SEC_V1 =
   0.002 as const;
+export const MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID =
+  "main-wire-standard70-timing-and-inlet-real-lookahead-window-v1" as const;
 
 export type MainWireIntegratedModelStandard70CandidateInitializationV1 =
   | Readonly<{ kind: "cold" }>
@@ -161,7 +163,20 @@ export type MainWireIntegratedModelStandard70BaselineQualificationV1 =
     checkpoint: MainWireIntegratedModelStandard70CheckpointV1;
     terminalTrace:
       readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+    /** Actual accepted endpoints beyond the retained checkpoint, used only for
+     * timing/inlet observation. The checkpoint and canonical cycle stay fixed. */
+    timingAndInletTrace?: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+    timingAndInletObservationWindow?: MainWireStandard70TimingAndInletWindowV1;
   }>;
+
+type MainWireStandard70TimingAndInletWindowV1 = Readonly<{
+  policyId: typeof MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID;
+  checkpointAcceptedTimeSec: number;
+  observedThroughAcceptedTimeSec: number;
+  lookaheadCycleCount: 1;
+  executedLookaheadStepCount: number;
+  retainedLookaheadStepCount: number;
+}>;
 
 export async function qualifyMainWireIntegratedModelStandard70BaselineV1(
   sourceCheckpoint: MainWireIntegratedModelStandard68CheckpointV1,
@@ -376,13 +391,27 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
   }
 
   let measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1;
+  let timingWindow: Pick<MainWireIntegratedModelStandard70BaselineQualificationV1,
+    "timingAndInletTrace" | "timingAndInletObservationWindow"> = {};
   try {
     if (completedBeatMetrics === null) {
       throw new Error("Standard70 candidate execution completed no beat");
     }
+    if (options.timingAndInletObserver !== undefined) {
+      timingWindow = completeMainWireStandard70TimingAndInletTraceV1({
+        terminalTrace,
+        completedBeatEndTimeSec: completedBeatMetrics.endTimeSec,
+        runLookaheadCycle: () => runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+          periodicFixture, accepted, completedCycleCount + 1, nominalDtSec,
+          // No beat-accumulator callback: this real measurement lookahead must
+          // not advance the qualified state, completed beat or periodic chain.
+        ).traceSamples,
+      });
+    }
     measurements = measureMainWireIntegratedModelStandard70CandidateEvidenceV1({
       terminalTrace, completedBeat: completedBeatMetrics,
       timingAndInletObserver: options.timingAndInletObserver,
+      ...timingWindow,
     });
   } catch (error) {
     throw new MainWireIntegratedModelStandard70ObservationUnavailableErrorV1(
@@ -419,6 +448,85 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
     checks,
     checkpoint,
     terminalTrace,
+    ...timingWindow,
+  });
+}
+
+/** Re-observation reads the same source trace plus its recorded real suffix,
+ * never a replacement trace silently detached from the qualified cycle. */
+export function mainWireStandard70TimingAndInletObservationTraceV1(input: Pick<
+  MainWireIntegratedModelStandard70BaselineQualificationV1,
+  "terminalTrace" | "timingAndInletTrace" | "timingAndInletObservationWindow"
+>) {
+  const trace = input.timingAndInletTrace, window = input.timingAndInletObservationWindow;
+  if (trace === undefined && window === undefined) return input.terminalTrace;
+  const retained = (trace?.length ?? 0) - input.terminalTrace.length;
+  if (trace === undefined || window === undefined
+    || window.policyId !== MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID
+    || window.lookaheadCycleCount !== 1 || retained <= 0 || window.retainedLookaheadStepCount !== retained
+    || !Number.isSafeInteger(window.executedLookaheadStepCount) || window.executedLookaheadStepCount < retained
+    || window.checkpointAcceptedTimeSec !== input.terminalTrace.at(-1)?.acceptedTimeSec
+    || window.observedThroughAcceptedTimeSec !== trace.at(-1)?.acceptedTimeSec
+    || !(window.observedThroughAcceptedTimeSec > window.checkpointAcceptedTimeSec)
+    || canonicalJsonStringify(trace.slice(0, input.terminalTrace.length)) !== canonicalJsonStringify(input.terminalTrace)) {
+    throw new Error("Timing/inlet lookahead is not bound to its original terminal trace and window");
+  }
+  return trace;
+}
+
+/** Fill only the missing real post-capture inlet closures. Executing one normal
+ * cycle reuses the scheduler and all its invariants; retaining its shortest
+ * required prefix avoids a second ejection in the timing evidence. No periodic
+ * copy, extrapolated closure, or replacement completed beat is permitted. */
+export function completeMainWireStandard70TimingAndInletTraceV1(input: Readonly<{
+  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  completedBeatEndTimeSec: number;
+  runLookaheadCycle: () => readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+}>): Pick<MainWireIntegratedModelStandard70BaselineQualificationV1,
+  "timingAndInletTrace" | "timingAndInletObservationWindow"> {
+  const { terminalTrace, completedBeatEndTimeSec } = input;
+  if (terminalTrace.length < 2 || !Number.isFinite(completedBeatEndTimeSec)) {
+    throw new Error("Timing/inlet window requires a terminal trace and finite completed-beat end");
+  }
+  const closures = new Set<"MV" | "TV">();
+  const acceptPair = (previous: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+    next: MainWireIntegratedModelPeriodicTerminalTraceSampleV3) => {
+    const elapsed = next.acceptedTimeSec - previous.acceptedTimeSec;
+    const tolerance = 128 * Number.EPSILON * Math.max(1, Math.abs(next.acceptedTimeSec));
+    if (!(elapsed > 0) || !Number.isFinite(elapsed) || !Number.isFinite(next.acceptedDtSec)
+      || Math.abs(elapsed - next.acceptedDtSec) > tolerance) {
+      throw new Error("Timing/inlet lookahead must contain contiguous actual accepted endpoints");
+    }
+    for (const valve of ["MV", "TV"] as const) {
+      const left = previous.valveFlowMlPerSec[valve], right = next.valveFlowMlPerSec[valve];
+      if (!Number.isFinite(left) || !Number.isFinite(right)) throw new Error("Timing/inlet window has nonfinite flow");
+      if (left > 0 && right <= 0
+        && previous.acceptedTimeSec + left / (left - right) * elapsed > completedBeatEndTimeSec) {
+        closures.add(valve);
+      }
+    }
+  };
+  for (let index = 1; index < terminalTrace.length; index += 1) acceptPair(terminalTrace[index - 1]!, terminalTrace[index]!);
+  if (closures.size === 2) return Object.freeze({});
+  const lookahead = input.runLookaheadCycle();
+  const last = terminalTrace.at(-1)!;
+  let retainedLookaheadStepCount = 0;
+  for (const next of lookahead) {
+    acceptPair(retainedLookaheadStepCount === 0 ? last : lookahead[retainedLookaheadStepCount - 1]!, next);
+    retainedLookaheadStepCount += 1;
+    if (closures.size === 2) break;
+  }
+  if (closures.size !== 2) throw new Error("Timing/inlet observation has no complete post-capture inlet closures within one real lookahead cycle");
+  return Object.freeze({
+    timingAndInletTrace: Object.freeze([...terminalTrace, ...lookahead.slice(0, retainedLookaheadStepCount)]),
+    timingAndInletObservationWindow: Object.freeze({
+      policyId: MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID,
+      checkpointAcceptedTimeSec: last.acceptedTimeSec,
+      observedThroughAcceptedTimeSec: lookahead[retainedLookaheadStepCount - 1]!.acceptedTimeSec,
+      lookaheadCycleCount: 1 as const,
+      executedLookaheadStepCount: lookahead.length,
+      retainedLookaheadStepCount,
+    }),
   });
 }
 
@@ -426,11 +534,15 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
  * availability testable without executing or altering the exact model. */
 export function measureMainWireIntegratedModelStandard70CandidateEvidenceV1(input: Readonly<{
   terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  timingAndInletTrace?: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  timingAndInletObservationWindow?: MainWireStandard70TimingAndInletWindowV1;
   completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3;
   timingAndInletObserver?: MainWireIntegratedModelStandard70TimingAndInletObserverV1;
 }>): MainWireIntegratedModelStandard70BaselineMeasurementsV1 {
   const { terminalTrace, completedBeat } = input;
-  const observed = input.timingAndInletObserver?.({ terminalTrace, completedBeat });
+  const observed = input.timingAndInletObserver?.({
+    terminalTrace: mainWireStandard70TimingAndInletObservationTraceV1(input), completedBeat,
+  });
   if (input.timingAndInletObserver !== undefined && (observed?.left === undefined || observed.right === undefined)) {
     throw new Error("explicit timing/inlet observer must return both ventricles");
   }

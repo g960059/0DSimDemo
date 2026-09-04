@@ -5,7 +5,8 @@ import type { MainWireIntegratedModelStandard70BaselineQualificationV1,
   MainWireIntegratedModelStandard70TimingAndInletObserverV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { observeMainWireBaselineV2, type MainWireBaselineObservationV2 } from "./MainWireBaselineObservationV2";
-import { evaluateMainWireIntegratedModelStandard70CandidateV1 } from
+import { evaluateMainWireIntegratedModelStandard70CandidateV1,
+  mainWireStandard70TimingAndInletObservationTraceV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import type { MainWireIntegratedModelStandard68CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard68CheckpointV1";
@@ -62,7 +63,9 @@ export function observeMainWireStandard70QualificationV2(
 ) {
   const completedBeat = qualification.checkpoint.baseStandardCheckpointV2.completedBeatMetrics;
   if (completedBeat === null) throw new Error("Baseline observation requires a completed exact beat");
-  const observation = observeMainWireBaselineV2({ samples: qualification.terminalTrace, completedBeat });
+  const observation = observeMainWireBaselineV2({
+    samples: mainWireStandard70TimingAndInletObservationTraceV1(qualification), completedBeat,
+  });
   const projected = projectTimingAndInletV2(observation);
   const measurements = Object.freeze({
     ...qualification.measurements,

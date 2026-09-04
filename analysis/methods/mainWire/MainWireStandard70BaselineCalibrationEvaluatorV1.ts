@@ -30,6 +30,7 @@ import {
   MainWireIntegratedModelStandard70InitializationRejectedErrorV1,
   MainWireIntegratedModelStandard70ObservationUnavailableErrorV1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_NOMINAL_DT_SEC_V1,
+  MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID,
   type MainWireIntegratedModelStandard70BaselineQualificationV1,
   type MainWireIntegratedModelStandard70CandidateInitializationV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
@@ -49,7 +50,7 @@ import {
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 export const MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID =
-  "main-wire-standard70-baseline-calibration-evaluator-v2" as const;
+  "main-wire-standard70-baseline-calibration-evaluator-v3" as const;
 
 export type MainWireStandard70BaselineCalibrationEvaluationRequestV1 =
   Readonly<{
@@ -180,6 +181,7 @@ export async function buildMainWireStandard70BaselineCalibrationConstructionPoli
       constructionPolicyRevisionId,
       evaluationPolicyId: MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
       observationMethodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
+      observationWindowPolicyId: MAIN_WIRE_STANDARD70_TIMING_AND_INLET_WINDOW_POLICY_V1_ID,
       objectiveCheckGroups: normalReferenceEvidenceV1.checkGroups,
       standard70SafetyAnalysisMethodId:
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,

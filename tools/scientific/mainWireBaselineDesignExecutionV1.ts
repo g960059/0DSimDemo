@@ -24,6 +24,8 @@ import { scoreMainWireBaselineOperatingPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import { assertMainWireBaselinePressureRateQualityV1 } from
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
+import { assertMainWireBaselineColdConsistencyV1, type MainWireBaselineColdConsistencySourceV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselineColdConsistencyV1";
 import { validPreloadReserveSideV1 } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
 
@@ -124,7 +126,7 @@ export function designQualificationPathV1(index: number, mode: string) {
 
 export function validateDesignQualificationResultV1(raw: unknown, expected: {
   mode: string; sourceRequestPath: string; sourceEvaluationPath: string; executionCommit: string;
-}): boolean {
+}, source?: MainWireBaselineColdConsistencySourceV1): boolean {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw new Error("missing qualification result");
   const result = raw as Record<string, unknown>;
   if (typeof result.qualified !== "boolean" || result.executionTier !== "full-invariant"
@@ -138,6 +140,13 @@ export function validateDesignQualificationResultV1(raw: unknown, expected: {
   let feasible = false;
   try { feasible = !!evaluation && scoreMainWireBaselineOperatingPointV1(evaluation).feasible; } catch { /* Malformed imported evidence. */ }
   if (!evaluation || !feasible) throw new Error("qualification result requires a complete feasible evaluation");
+  if (expected.mode === "cold") {
+    if (!source) throw new Error("Cold consistency requires the actual nominal source and candidate identity");
+    assertMainWireBaselineColdConsistencyV1(result.coldConsistency, {
+      warm: source,
+      cold: { evaluation, candidateIdentitySha256: source.candidateIdentitySha256 },
+    });
+  }
   if (expected.mode === "refined") {
     assertMainWireBaselinePressureRateQualityV1(result.pressureRateQuality);
     const quality = result.pressureRateQuality;

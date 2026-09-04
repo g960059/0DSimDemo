@@ -308,7 +308,10 @@ if (values.worker) {
           "--rate-initialization", "same-clock-checkpoint"], true);
       }
       const result = JSON.parse(await readFile(path, "utf8"));
-      const qualified = validateDesignQualificationResultV1(result, expected);
+      const qualified = validateDesignQualificationResultV1(result, expected,
+        mode === "cold" && finalist.evaluation.status === "accepted"
+          ? { evaluation: finalist.evaluation, candidateIdentitySha256: await sha256CanonicalJsonHex(finalist.inputs) }
+          : undefined);
       process.stderr.write(`[qualification] ${finalist.index}/${mode}: ${qualified}\n`);
       return { mode, qualified, resultPath: relativePath,
         evaluationStatus: result.evaluation?.status ?? null,

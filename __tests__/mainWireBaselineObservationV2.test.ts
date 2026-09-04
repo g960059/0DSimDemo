@@ -6,7 +6,8 @@ import standard70ValidationJson from
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { observeMainWireStandard70QualificationV2, observeMainWireStandard70TimingAndInletV2 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
-import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1 } from
+import { measureMainWireIntegratedModelStandard70CandidateEvidenceV1,
+  completeMainWireStandard70TimingAndInletTraceV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import { reviewMainWireBaselineEvidenceSourceV2 } from
   "@/tools/scientific/reviewMainWireBaselineEvidenceV2";
@@ -210,6 +211,41 @@ describe("baseline observation V2", () => {
     expect(measured.aorticValve.ejectionTimeSec).toBe(expected.left.ejectionTimeSec);
     expect(measured.pulmonaryValve.ejectionTimeSec).toBe(expected.right.ejectionTimeSec);
     expect(JSON.stringify(input)).toBe(before);
+  });
+
+  it("uses real lookahead only for timing/inlet while keeping cycle morphology and exact pressure-rate measurements", () => {
+    const full = candidateEvidenceFixtureV2();
+    const terminalTrace = full.terminalTrace.slice(0, -1);
+    const terminalBefore = JSON.stringify(terminalTrace);
+    const window = completeMainWireStandard70TimingAndInletTraceV1({ terminalTrace,
+      completedBeatEndTimeSec: full.completedBeat.endTimeSec,
+      runLookaheadCycle: () => full.terminalTrace.slice(-1),
+    });
+    expect(() => measureMainWireIntegratedModelStandard70CandidateEvidenceV1({ ...full, terminalTrace,
+      timingAndInletObserver: observeMainWireStandard70TimingAndInletV2 })).toThrow(/post-capture/);
+    const measured = measureMainWireIntegratedModelStandard70CandidateEvidenceV1({ ...full, terminalTrace, ...window,
+      timingAndInletObserver: (input) => {
+        expect(input.terminalTrace).toBe(window.timingAndInletTrace);
+        expect(input.completedBeat).toBe(full.completedBeat);
+        return observeMainWireStandard70TimingAndInletV2(input);
+      },
+    });
+    const observed = observeMainWireStandard70TimingAndInletV2(full);
+    // The same original (truncated-for-filling) cycle plus a supplied observed
+    // timing result yields identical shape, pressure and size measurements.
+    const cycleOnly = measureMainWireIntegratedModelStandard70CandidateEvidenceV1({ ...full, terminalTrace,
+      timingAndInletObserver: () => observed,
+    });
+    expect(measured).toEqual(cycleOnly);
+    expect(JSON.stringify(terminalTrace)).toBe(terminalBefore);
+    const qualification = { ...qualificationFixtureV2(), terminalTrace, ...window };
+    const sourceBefore = JSON.stringify(qualification.checkpoint);
+    const reobserved = observeMainWireStandard70QualificationV2(qualification);
+    expect(reobserved.checkpoint).toBe(qualification.checkpoint);
+    expect(reobserved.terminalTrace).toBe(terminalTrace);
+    expect(JSON.stringify(reobserved.checkpoint)).toBe(sourceBefore);
+    expect(reobserved.measurements.timing).toEqual(measured.timing);
+    expect(reobserved.measurements.mitralFlow).toEqual(measured.mitralFlow);
   });
 
   it("rejects incomplete or inconsistent explicit observations without falling back or using placeholders", () => {
