@@ -6,6 +6,8 @@ import {
   createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
   createMainWireIntegratedModelSelectedAorticOutflowFixtureV1,
+  runMainWireIntegratedModelRegularSinusAllOffCycleV3,
+  runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
@@ -486,6 +488,101 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
         periodLag: 1,
       },
     ]);
+  }, 60_000);
+
+  it("shares exact cycle clocks, events and traces with an injected canonical research executor", () => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      heartRateBpm: 70,
+    });
+    const initial = fixture.cold.acceptedState;
+    const before = JSON.stringify(initial);
+    const canonicalObserved: number[] = [], researchObserved: number[] = [];
+    const canonical = runMainWireIntegratedModelRegularSinusAllOffCycleV3(
+      fixture, initial, 1, 0.002,
+      (step) => canonicalObserved.push(step.acceptedState.acceptedTimeSec),
+    );
+    let executorCalls = 0;
+    const research = runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+      fixture, initial, 1, 0.002,
+      (previous, input) => {
+        executorCalls += 1;
+        return stepMainWireIntegratedModelV3(fixture.provider, previous, input);
+      },
+      (step) => researchObserved.push(step.acceptedState.acceptedTimeSec),
+    );
+    expect(research).toEqual(canonical);
+    expect(researchObserved).toEqual(canonicalObserved);
+    expect(executorCalls).toBe(research.acceptedStepCount);
+    expect(research.acceptedAtrialCaptureIds).toHaveLength(1);
+    expect(research.acceptedVentricularCaptureIds).toHaveLength(1);
+    expect(research.deliveredCalciumDepositIds).toHaveLength(2);
+    expect(research.traceSamples.some((sample) => sample.acceptedDtSec < 0.001)).toBe(true);
+    expect(JSON.stringify(initial)).toBe(before);
+
+    let failedObserverCalls = 0;
+    expect(() => runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+      fixture, initial, 1, 0.002,
+      (previous, input) => stepMainWireIntegratedModelV3(fixture.provider, previous,
+        { ...input, candidateTimeSec: input.candidateTimeSec + 1 }),
+      () => { failedObserverCalls += 1; },
+    )).toThrow(/periodic step failed/);
+    expect(failedObserverCalls).toBe(0);
+    expect(JSON.stringify(initial)).toBe(before);
+    expect(() => runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+      fixture, initial, 1, 0.002, undefined as never,
+    )).toThrow(/research cycle step executor is required/);
+  }, 60_000);
+
+  it.each([0.0005, 0.00025])("permits %s s refinement only through the research cycle with exact clocks and ownership", (nominalDtSec) => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3({
+      ...MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
+      heartRateBpm: 70,
+    });
+    const initial = fixture.cold.acceptedState, before = JSON.stringify(initial);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.minimumNominalDtSec).toBe(0.001);
+    expect(() => runMainWireIntegratedModelRegularSinusAllOffCycleV3(fixture, initial, 1, nominalDtSec))
+      .toThrow(/nominalDtSec must be from 0.001/);
+    const observedTimes: number[] = [];
+    let allOwnerClocksMatch = true;
+    const research = runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+      fixture, initial, 1, nominalDtSec,
+      (previous, input) => stepMainWireIntegratedModelV3(fixture.provider, previous, input),
+      (step) => {
+        const state = step.acceptedState;
+        observedTimes.push(state.acceptedTimeSec);
+        allOwnerClocksMatch &&= state.acceptedTimeSec === state.composedRhythm.acceptedTimeSec
+          && state.acceptedTimeSec === state.coronary.acceptedTimeSec
+          && state.acceptedTimeSec === state.coronary.circulation.acceptedTimeSec;
+      },
+    );
+    expect(research.startTimeSec).toBe(initial.acceptedTimeSec);
+    expect(research.endTimeSec).toBe(fixture.cycleLengthSec);
+    expect(research.terminalAcceptedState.acceptedTimeSec).toBe(research.endTimeSec);
+    expect(research.terminalAcceptedState.revision).toBe(initial.revision + research.acceptedStepCount);
+    expect(research.acceptedStepCount).toBeGreaterThan(1_100);
+    expect(research.acceptedStepCount).toBeLessThanOrEqual(Math.ceil(1_100 * 0.001 / nominalDtSec));
+    expect(research.traceSamples.map((sample) => sample.acceptedTimeSec)).toEqual(observedTimes);
+    expect(allOwnerClocksMatch).toBe(true);
+    expect(research.traceSamples.every((sample, index, samples) => sample.acceptedDtSec > 0
+      && sample.acceptedDtSec <= nominalDtSec + 1e-12
+      && sample.acceptedDtSec === sample.acceptedTimeSec - (samples[index - 1]?.acceptedTimeSec ?? initial.acceptedTimeSec)))
+      .toBe(true);
+    expect(research.traceSamples.some((sample) => sample.acceptedDtSec < nominalDtSec - 1e-12)).toBe(true);
+    expect(research.acceptedAtrialCaptureIds).toHaveLength(1);
+    expect(research.acceptedVentricularCaptureIds).toHaveLength(1);
+    expect(research.deliveredCalciumDepositIds).toHaveLength(2);
+    expect(research.oneComposedCalciumOwnerOnly).toBe(true);
+    expect(research.allDynamicMcsAcceptedFlowsExactlyZero).toBe(true);
+    expect(research.coronaryAutoregulationWindow).toMatchObject({ windowIndex: 0,
+      startTimeSec: initial.acceptedTimeSec, endTimeSec: research.endTimeSec, acceptedStepCount: research.acceptedStepCount });
+    expect(JSON.stringify(initial)).toBe(before);
+    for (const invalidDtSec of [0.000249, 0, -0.001, NaN, Infinity, 0.011]) {
+      expect(() => runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+        fixture, initial, 1, invalidDtSec,
+        (previous, input) => stepMainWireIntegratedModelV3(fixture.provider, previous, input),
+      )).toThrow(/nominalDtSec/);
+    }
   }, 60_000);
 
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {

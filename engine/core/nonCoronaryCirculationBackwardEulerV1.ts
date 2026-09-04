@@ -46,6 +46,12 @@ import {
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/valves/MainWireQuasiSteadyOrificeValveV2";
 import {
+  stepMainWireFixedPathMomentumValveResearchV1,
+  validateMainWireFixedPathMomentumValveResearchInputV1,
+  type MainWireFixedPathMomentumValveResearchInputV1,
+  type MainWireFixedPathMomentumValveResearchEvaluationV1,
+} from "@/engine/valves/MainWireFixedPathMomentumValveResearchV1";
+import {
   stressedVolumeFromPtm,
   type VascularPvLaw,
 } from "@/engine/vascularPv";
@@ -101,7 +107,8 @@ export type NonCoronaryValveNameV1 =
 
 export type NonCoronaryValveEvaluationV1 =
   | MainWireQuasiSteadyOrificeValveEvaluationV2
-  | MainWireAorticRecoveredRootPortValveEvaluationV1;
+  | MainWireAorticRecoveredRootPortValveEvaluationV1
+  | MainWireFixedPathMomentumValveResearchEvaluationV1;
 
 const NON_CORONARY_NODE_INDEX_BY_NAME_V1 = Object.freeze(Object.fromEntries(
   NON_CORONARY_NODE_NAMES_V1.map((name, index) => [name, index]),
@@ -432,6 +439,8 @@ export type NonCoronaryCirculationTrialInputV1<
   options?: NonCoronaryCirculationNewtonOptionsV1;
   protocolResistanceScaleByEdge?:
     NonCoronaryProtocolResistanceScaleByEdgeV1;
+  /** Reference-only research trial; Q is externally owned, never checkpointed here. */
+  aorticMomentumResearch?: MainWireFixedPathMomentumValveResearchInputV1;
   conservativeCompanion?: NonCoronaryConservativeCompanionAdapterV1<
     TEvaluation,
     TCompanionTrial
@@ -1363,6 +1372,16 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
   try {
     requirePositive(input.dtSec, "dtSec");
     validateRuntime(input.runtime);
+    if (input.aorticMomentumResearch !== undefined) {
+      const research = input.aorticMomentumResearch;
+      validateMainWireFixedPathMomentumValveResearchInputV1(research);
+      if (research.baseRevision !== input.previousAcceptedState.revision
+        || research.baseAcceptedTimeSec !== input.previousAcceptedState.acceptedTimeSec
+        || input.runtime.vascular.selectedAorticOutflowProfile !== undefined) {
+        throw new Error("aortic momentum research has stale accepted Q or incompatible recovered-root profile");
+      }
+      input = { ...input, aorticMomentumResearch: Object.freeze({ ...research }) };
+    }
     validateProtocolResistanceScaleByEdge(
       input.protocolResistanceScaleByEdge,
     );
@@ -1421,6 +1440,9 @@ export function prepareNonCoronaryCandidateEvaluatorV1<
   input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): NonCoronaryPreparedCandidateEvaluatorV1<TEvaluation, TCompanionTrial> {
+  if (input.aorticMomentumResearch !== undefined) {
+    throw new Error("aortic momentum research is restricted to the reference BE trial");
+  }
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
@@ -1634,6 +1656,9 @@ export function evaluateNonCoronaryCirculationCandidateProbeV1<
   candidateIndependentNodeVolumesMl: Float64Array,
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): NonCoronaryCirculationCandidateProbeV1<TEvaluation, TCompanionTrial> {
+  if (input.aorticMomentumResearch !== undefined) {
+    throw new Error("aortic momentum research is restricted to the reference BE trial");
+  }
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
@@ -1787,6 +1812,9 @@ export function materializeNonCoronaryCirculationCandidateTrialV1<
   externalDiagnostics: NonCoronaryExternallySolvedCandidateDiagnosticsV1,
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
 ): NonCoronaryCirculationTrialSuccessV1<TEvaluation, TCompanionTrial> {
+  if (input.aorticMomentumResearch !== undefined) {
+    throw new Error("aortic momentum research is restricted to the reference BE trial");
+  }
   validateAcceptedState(input.previousAcceptedState);
   requirePositive(input.dtSec, "dtSec");
   validateRuntime(input.runtime);
@@ -2696,7 +2724,16 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       const selectedAorticOutflowProfile =
         input.runtime.vascular.selectedAorticOutflowProfile;
       const evaluation: NonCoronaryValveEvaluationV1 =
-        valveName === "AoV" && selectedAorticOutflowProfile !== undefined
+        valveName === "AoV" && input.aorticMomentumResearch !== undefined
+          ? stepMainWireFixedPathMomentumValveResearchV1(
+              previousOpening01,
+              input.dtSec,
+              upstreamPressure,
+              downstreamPressure,
+              valveResearchInput.valves.AoV,
+              input.aorticMomentumResearch,
+            )
+          : valveName === "AoV" && selectedAorticOutflowProfile !== undefined
           ? stepMainWireAorticRecoveredRootPortValveScalarsV1(
               previousOpening01,
               input.dtSec,

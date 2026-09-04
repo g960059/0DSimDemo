@@ -35,6 +35,8 @@ import {
   respiratoryExternalPressureForKindV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
+import type { MainWireFixedPathMomentumValveResearchInputV1 } from
+  "@/engine/valves/MainWireFixedPathMomentumValveResearchV1";
 import {
   CoronaryBackwardEulerTransactionV2,
   CORONARY_AUTOREGULATION_HYDRAULIC_OBSERVABLE_COUNT_V2,
@@ -2348,6 +2350,8 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   coronaryScratchWorkspace?: CoronaryBackwardEulerScratchWorkspaceV2,
   nonCoronaryScratchWorkspace?: NonCoronaryBackwardEulerScratchWorkspaceV1,
   previousAcceptedNumericalSource?: NonCoronaryAcceptedNumericalSourceV1,
+  /** Explicit reference-only trial extension; its accepted Q owner is external. */
+  aorticMomentumResearch?: MainWireFixedPathMomentumValveResearchInputV1,
 ): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -2410,6 +2414,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         runtime: input.runtime,
         mechanicalSupport: input.mechanicalSupport,
         dynamicMechanicalSupport: input.dynamicMechanicalSupport,
+        ...(aorticMomentumResearch === undefined ? {} : { aorticMomentumResearch }),
         options: input.circulationNewtonOptions,
         scratchWorkspace: nonCoronaryScratchWorkspace,
         protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,

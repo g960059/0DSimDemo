@@ -206,6 +206,11 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/mainWireAorticMomentumResearchV1.test.ts",
+  "__tests__/mainWireFixedPathMomentumValveResearchV1.test.ts",
+  "__tests__/mainWireEjectionCouplingAuditV1.test.ts",
+  "__tests__/mainWireEjectionBalanceDecompositionV1.test.ts",
+  "__tests__/mainWirePrescribedFlowMomentumV1.test.ts",
   "__tests__/mainWireBaselineObservationV2.test.ts",
   "__tests__/mainWireBaselineGateRolesV1.test.ts",
   "__tests__/mainWireBaselinePressureRateQualityV1.test.ts",

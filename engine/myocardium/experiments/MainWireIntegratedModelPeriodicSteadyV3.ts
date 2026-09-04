@@ -39,6 +39,7 @@ import {
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelStepInputV3,
+  type MainWireIntegratedModelStepResultV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
@@ -1260,7 +1261,63 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
   nominalDtSec: number,
   acceptedStepObserver?: (step: SuccessfulStep) => void,
 ): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
-  assertPeriodicNominalDtSec(nominalDtSec);
+  return runMainWireIntegratedModelRegularSinusAllOffCycleLoopV3(
+    fixture, initial, cycleIndex, nominalDtSec, acceptedStepObserver,
+  );
+}
+
+export type MainWireIntegratedModelResearchCycleStepExecutorV3 = (
+  previous: AcceptedState,
+  input: MainWireIntegratedModelStepInputV3,
+) => MainWireIntegratedModelStepResultV3<WallState>;
+
+/**
+ * Research-only executor seam sharing the canonical event scheduler, accepted
+ * trace and construction assertions. Injection confers no production model
+ * identity or qualification eligibility. Callers own atomic research state
+ * promotion and must not persist changed terminal state as a production exact
+ * checkpoint. The ordinary cycle entry has no injection argument.
+ * This entry alone permits 0.25–1 ms nominal refinement with a proportionate
+ * finite step budget; canonical periodic/qualification policy is unchanged.
+ */
+export function runMainWireIntegratedModelRegularSinusAllOffResearchCycleV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: number,
+  executeStep: MainWireIntegratedModelResearchCycleStepExecutorV3,
+  acceptedStepObserver?: (step: SuccessfulStep) => void,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
+  if (typeof executeStep !== "function") {
+    throw new TypeError("research cycle step executor is required");
+  }
+  return runMainWireIntegratedModelRegularSinusAllOffCycleLoopV3(
+    fixture, initial, cycleIndex, nominalDtSec, acceptedStepObserver, executeStep,
+  );
+}
+
+function runMainWireIntegratedModelRegularSinusAllOffCycleLoopV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  initial: AcceptedState,
+  cycleIndex: number,
+  nominalDtSec: number,
+  acceptedStepObserver?: (step: SuccessfulStep) => void,
+  executeResearchStep?: MainWireIntegratedModelResearchCycleStepExecutorV3,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
+  const canonicalMinimumDtSec = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.minimumNominalDtSec;
+  const researchRefinement = executeResearchStep !== undefined && nominalDtSec < canonicalMinimumDtSec;
+  if (researchRefinement) {
+    if (!Number.isFinite(nominalDtSec) || nominalDtSec < 0.00025) {
+      throw new RangeError("research nominalDtSec refinement must be at least 0.00025");
+    }
+  } else {
+    assertPeriodicNominalDtSec(nominalDtSec);
+  }
+  // Preserve the canonical finite work guard, scaling only for the explicitly
+  // injected research entry's finer grid; event/conservation guards are shared.
+  const canonicalStepCap = MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun;
+  const maximumAcceptedStepCount = researchRefinement
+    ? Math.ceil(canonicalStepCap * canonicalMinimumDtSec / nominalDtSec) : canonicalStepCap;
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
     throw new Error("V3 periodic cycle index must be a positive integer");
   }
@@ -1302,10 +1359,7 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
     [];
 
   while (accepted.acceptedTimeSec < endTimeSec) {
-    if (
-      acceptedStepCount >=
-      MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3.maximumAcceptedStepCountPerRun
-    ) {
+    if (acceptedStepCount >= maximumAcceptedStepCount) {
       throw new Error("V3 periodic cycle exceeded accepted-step bound");
     }
     const nominalTargetTimeSec = Math.min(
@@ -1334,11 +1388,16 @@ export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
       throw new Error("V3 periodic scheduler returned an invalid step");
     }
     const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
-    const stepped = stepMainWireIntegratedModelV3(
-      fixture.provider,
-      accepted,
-      stepInput(fixture, maximum.candidateTimeSec),
-    );
+    const stepped = executeResearchStep === undefined
+      ? stepMainWireIntegratedModelV3(
+          fixture.provider,
+          accepted,
+          stepInput(fixture, maximum.candidateTimeSec),
+        )
+      : executeResearchStep(
+          accepted,
+          stepInput(fixture, maximum.candidateTimeSec),
+        );
     if (stepped.converged === false) {
       throw new Error(
         `V3 periodic step failed at ${accepted.acceptedTimeSec}s: ${stepped.message}`,
