@@ -124,6 +124,22 @@ describe("selected Standard70 launch baseline", () => {
       .not.toBe(launch.validationReport.checkpoint.checkpointSha256);
   });
 
+  it.each(["stale", "rehashed"])("rejects paired candidate and fixture edits with %s evidence digests", async (evidence) => {
+    const changed = JSON.parse(JSON.stringify(launch));
+    changed.candidateInputs.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall.LVFW += 0.01;
+    changed.capture.fixture.mechanismResearchInputs = changed.candidateInputs.mechanismResearchInputs;
+    const changedDigest = await sha256CanonicalJsonHex(changed.candidateInputs);
+    expect(changedDigest).not.toBe(launch.provenance.candidateIdentitySha256);
+    if (evidence === "rehashed") {
+      changed.provenance.candidateIdentitySha256 = changedDigest;
+      changed.validationReport.assessment.pressureRateQuality.grids.coarse.candidateIdentitySha256 = changedDigest;
+      changed.validationReport.assessment.pressureRateQuality.grids.fine.candidateIdentitySha256 = changedDigest;
+    }
+    expect(changed.capture.checkpoint).toEqual(launch.capture.checkpoint);
+    expect(changed.qualificationCheckpoint).toEqual(launch.qualificationCheckpoint);
+    expect(() => validateMainWireStandard70LaunchBaselineV1(changed)).toThrow();
+  });
+
   it("rejects inconsistent fixture, candidate, report and checkpoint pairings before launch", () => {
     const mutations = [
       (v: any) => { v.modelId = "different"; },

@@ -15,6 +15,36 @@ import launchJson from
 import surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
+// Keep the reviewed construction independent of the imported capture/evidence.
+// A new selection must deliberately update this pin as well as its evidence;
+// editing candidate and fixture together must not reuse the old checkpoint.
+const reviewedSelection = Object.freeze({
+  baselineId: "main-wire-standard70-pressure-flow-baseline-v2",
+  candidateIdentitySha256: "4a8a52e3347b85b24458781b0f1c98a3f0c1d78a65a3786e32220b3cd6abe7a1",
+  candidateCanonicalJson: studioCanonicalJsonStringify({
+    ventricularContractilityScale: 1,
+    hemodynamicResearchInputs: {
+      ...descriptor.defaultFixture.hemodynamicResearchInputs,
+      systemicResistance: 1.01, arterialStiffness: 1.42,
+      heartRateBpm: 70, totalBloodVolumeMl: 5050,
+    },
+    mechanismResearchInputs: {
+      ...descriptor.defaultFixture.mechanismResearchInputs,
+      chamberMechanics: {
+        ...descriptor.defaultFixture.mechanismResearchInputs.chamberMechanics,
+        activeTensionScaleByWall: {
+          ...descriptor.defaultFixture.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall,
+          LVFW: 1.32, SEP: 1.32, RVFW: 1.32,
+        },
+        passiveStiffnessScaleByWall: {
+          ...descriptor.defaultFixture.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall,
+          LVFW: 1.04, SEP: 1.04, RVFW: 1.04,
+        },
+      },
+    },
+  }),
+});
+
 export type MainWireStandard70LaunchBaselineV1 = Readonly<{
   schemaId: "circleheart-standard70-launch-baseline-v1";
   baselineId: string;
@@ -48,13 +78,11 @@ export function validateMainWireStandard70LaunchBaselineV1(input: unknown): Main
   const reject = (): never => { throw new Error("Standard70 launch metadata is not bound to its selected capture"); };
   if (!value || value.schemaId !== "circleheart-standard70-launch-baseline-v1"
     || value.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
-    || typeof value.baselineId !== "string" || !value.baselineId.trim()
+    || value.baselineId !== reviewedSelection.baselineId
     || !value.candidateInputs || !value.capture || !value.validationReport || !value.provenance) reject();
   const candidate = value.candidateInputs;
-  // The exposed material scales own contractility. No hidden multiplier is
-  // added to the existing launch fixture schema by this baseline search.
-  if (candidate.ventricularContractilityScale !== 1
-    || ![60, 70].includes(candidate.hemodynamicResearchInputs?.heartRateBpm)
+  if (studioCanonicalJsonStringify(candidate) !== reviewedSelection.candidateCanonicalJson
+    || value.provenance.candidateIdentitySha256 !== reviewedSelection.candidateIdentitySha256
     || studioCanonicalJsonStringify(value.capture.fixture) !== studioCanonicalJsonStringify({
       ...descriptor.defaultFixture,
       hemodynamicResearchInputs: candidate.hemodynamicResearchInputs,
