@@ -8,6 +8,7 @@ import { designQualificationPathV1, validateDesignQualificationResultV1, qualify
 import {
   scoreMainWireBaselineOperatingPointV1,
   mainWireBaselineDesignBetterV1,
+  combineMainWireBaselineConditionScoreV1,
   mainWireBaselineDesignNeighborsV1,
   mainWireBaselineDesignQualificationPassedV1,
   mainWireBaselineDesignSeedV1,
@@ -311,6 +312,10 @@ describe("bounded baseline operating-point design", () => {
     const nearer = { ...outside, minimumMargin: -0.05 };
     expect(mainWireBaselineDesignBetterV1(nearer, outside)).toBe(true);
     expect(mainWireBaselineDesignBetterV1(nearer, score)).toBe(false);
+    const combinedCondition = combineMainWireBaselineConditionScoreV1(score, nearer);
+    expect(combinedCondition.feasible).toBe(false);
+    expect(combinedCondition.minimumMargin).toBe(nearer.minimumMargin);
+    expect(combinedCondition.pressureFlowTargetGap).toBe(score.pressureFlowTargetGap);
     expect(mainWireBaselineDesignBetterV1({ ...outside, minimumMargin: -Infinity }, outside)).toBe(false);
     const continuous = { ...good, constructionGateStatus: "failed" as const,
       objectiveGateStatus: "failed" as const,

@@ -41,6 +41,7 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   finalQualificationRequired: ["cold", "refined-dt", "bidirectional-preload-reserve", "load-and-rate-envelope"],
   rateConditionInitialization: "same-clock-official-checkpoint-otherwise-cold",
   qualificationOrder: "refined-then-reserve-load-rate-then-selected-baseline-cold",
+  earlyConditionScreen: "other-allowed-heart-rate-before-expensive-reserve",
 });
 
 export type DesignScoreV1 = Readonly<{
@@ -103,6 +104,17 @@ export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: Desig
     return left.minimumMargin > right.minimumMargin;
   }
   return left.pressureFlowMargin > right.pressureFlowMargin + 0.001;
+}
+
+/** Conditions are constraints; only the chosen baseline has the design target. */
+export function combineMainWireBaselineConditionScoreV1(primary: DesignScoreV1, condition: DesignScoreV1): DesignScoreV1 {
+  const minimumMargin = Math.min(primary.minimumMargin, condition.minimumMargin);
+  return { ...primary, feasible: primary.feasible && condition.feasible, minimumMargin,
+    activeConstraints: [
+      ...(primary.minimumMargin <= minimumMargin + 0.01 ? primary.activeConstraints : []),
+      ...(condition.minimumMargin <= minimumMargin + 0.01
+        ? condition.activeConstraints.map((id) => `other-heart-rate.${id}`) : []),
+    ] };
 }
 
 /** The same reserve gates used for minting, not a substitute fluid-response target. */

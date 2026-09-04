@@ -14,12 +14,14 @@ import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   mainWireBaselineDesignNeighborsV1,
   mainWireBaselineDesignSeedV1,
   scoreMainWireBaselineReserveAwareV1,
+  combineMainWireBaselineConditionScoreV1,
   type DesignScoreV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import { measureMainWireIntegratedModelFormalPreloadReserveV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { designReservePolicyV1, reserveCandidateIdentityV1, qualifyMeasuredDesignReserveV1,
   designQualificationPathV1, validateDesignQualificationResultV1, mapDesignInOrderV1,
+  designRateInitializationV1,
   type DesignReserveResultV1 as ReserveResult } from "./mainWireBaselineDesignExecutionV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
@@ -133,6 +135,7 @@ if (values.worker) {
   let count = 0;
   type Entry = { index: number; inputs: MainWireBaselineCalibrationCandidateInputsV1;
     evaluation: MainWireStandard70BaselineCalibrationEvaluationV1; reserve: ReserveResult | null;
+    rateEvaluation: MainWireStandard70BaselineCalibrationEvaluationV1 | null; restScore: DesignScoreV1;
     reserveScreen: "not-run" | "measured" | "unresolved" | "rest-bound-pruned"; score: DesignScoreV1 };
   const history: Entry[] = [];
   const seen = new Set<string>();
@@ -158,11 +161,29 @@ if (values.worker) {
     const evaluation = JSON.parse(await readFile(resultPath, "utf8")) as
       MainWireStandard70BaselineCalibrationEvaluationV1;
     const entry: Entry = { index, inputs, evaluation, reserve: null, reserveScreen: "not-run",
+      rateEvaluation: null, restScore: scoreMainWireBaselineOperatingPointV1(evaluation),
       score: scoreMainWireBaselineReserveAwareV1(evaluation, null) };
     history.push(entry);
     const score = scoreMainWireBaselineOperatingPointV1(evaluation);
     process.stderr.write(`[design] ${index}: ${evaluation.status} ${JSON.stringify(score)}\n`);
     return entry;
+  }
+  async function screenOtherRate(entry: Entry) {
+    const rate = heartRateBpm === 60 ? 70 : 60;
+    const requestPath = resolve(output, `${entry.index}.rate-request.json`);
+    const resultPath = resolve(output, `${entry.index}.rate-result.json`);
+    const request = { ...entry.inputs,
+      hemodynamicResearchInputs: { ...entry.inputs.hemodynamicResearchInputs, heartRateBpm: rate },
+      nominalDtSec: policy.nominalDtSec,
+      initialization: designRateInitializationV1(rate, reference.selectedConstruction.candidateInputs,
+        checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1) };
+    await writeFile(requestPath, JSON.stringify(request), { flag: "wx" });
+    await runChild("tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts", ["--worker", requestPath,
+      "--output", resultPath, "--integrity-tier", executionTier]);
+    entry.rateEvaluation = JSON.parse(await readFile(resultPath, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
+    entry.restScore = combineMainWireBaselineConditionScoreV1(scoreMainWireBaselineOperatingPointV1(entry.evaluation),
+      scoreMainWireBaselineOperatingPointV1(entry.rateEvaluation));
+    process.stderr.write(`[rate-screen] ${entry.index}/HR${rate}: ${JSON.stringify(entry.restScore)}\n`);
   }
   async function measureReserve(entry: Entry) {
     const path = resolve(output, `${entry.index}.reserve.json`);
@@ -172,7 +193,10 @@ if (values.worker) {
       "--output", path, "--integrity-tier", executionTier]);
     entry.reserve = JSON.parse(await readFile(path, "utf8")) as ReserveResult;
     entry.reserveScreen = entry.reserve.reserve ? "measured" : "unresolved";
-    entry.score = scoreMainWireBaselineReserveAwareV1(entry.evaluation, entry.reserve.reserve);
+    if (!entry.rateEvaluation) throw new Error("reserve candidate lacks the declared early rate screen");
+    entry.score = combineMainWireBaselineConditionScoreV1(
+      scoreMainWireBaselineReserveAwareV1(entry.evaluation, entry.reserve.reserve),
+      scoreMainWireBaselineOperatingPointV1(entry.rateEvaluation));
     process.stderr.write(`[reserve] ${entry.index}: ${JSON.stringify(entry.score)}\n`);
   }
   let best = await evaluate(seed, heartRateBpm !== 60 && !values["seed-evaluation"]
@@ -180,6 +204,8 @@ if (values.worker) {
   if (!Number.isFinite(scoreMainWireBaselineOperatingPointV1(best.evaluation).minimumMargin)) {
     throw new Error("initial candidate did not reconfirm numerical, event and safety gates");
   }
+  await screenOtherRate(best);
+  if (!Number.isFinite(best.restScore.minimumMargin)) throw new Error("initial other-rate screen was unresolved");
   await measureReserve(best);
   if (!Number.isFinite(best.score.minimumMargin)) throw new Error("initial preload protocol was unresolved");
   seen.add(await sha256CanonicalJsonHex(seed));
@@ -212,7 +238,9 @@ if (values.worker) {
     const batch = await mapDesignInOrderV1(proposals, parallelism, async (candidate, ordinal) => {
       const entry = await evaluate(candidate, initialization, firstIndex + ordinal);
       if (mainWireBaselineDesignBetterV1(scoreMainWireBaselineOperatingPointV1(entry.evaluation), incumbent)) {
-        await measureReserve(entry);
+        await screenOtherRate(entry);
+        if (mainWireBaselineDesignBetterV1(entry.restScore, incumbent)) await measureReserve(entry);
+        else entry.reserveScreen = "rest-bound-pruned";
       } else entry.reserveScreen = "rest-bound-pruned";
       return entry;
     });
@@ -235,7 +263,8 @@ if (values.worker) {
     qualified: boolean }[] = [];
   await writeFile(resolve(output, "search.json"), JSON.stringify({ executionCommit, policyIdentity, reservePolicyIdentity,
     evaluationCount: count, bestIndex: best.index, stopReason,
-    candidates: history.map(({ index, inputs, score, reserveScreen }) => ({ index, inputs, score, reserveScreen })),
+    candidates: history.map(({ index, inputs, score, restScore, reserveScreen, rateEvaluation }) => ({ index, inputs, score, restScore, reserveScreen,
+      rateScreenPath: rateEvaluation ? `${index}.rate-result.json` : null })),
     finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   for (const finalist of finalists) {
     async function qualify(mode: string) {
@@ -285,8 +314,9 @@ if (values.worker) {
     qualificationResults.push({ index: finalist.index, modes, qualified });
     if (qualified) break;
   }
-  const summarized = history.sort((a, b) => a.index - b.index).map(({ index, inputs, evaluation, reserve, reserveScreen, score }) => ({
-    index, inputs, score, restScore: scoreMainWireBaselineOperatingPointV1(evaluation),
+  const summarized = history.sort((a, b) => a.index - b.index).map(({ index, inputs, evaluation, reserve, reserveScreen, score, restScore, rateEvaluation }) => ({
+    index, inputs, score, restScore, baselineRestScore: scoreMainWireBaselineOperatingPointV1(evaluation),
+    rateScreenPath: rateEvaluation ? `${index}.rate-result.json` : null,
     reserveScreen, reservePath: reserve ? `${index}.reserve.json` : null,
     reserveWallTimeMs: reserve?.wallTimeMs ?? 0, reserveFailure: reserve?.failure ?? null,
     resultPath: `${index}.result.json`, status: evaluation.status,
@@ -300,6 +330,8 @@ if (values.worker) {
     summedEvaluationWallTimeMs: history.reduce((sum, x) => sum + x.evaluation.wallTimeMs, 0),
     stopReason, evaluationCount: count, bestIndex: best.index, candidates: summarized,
     reserveEvaluationCount: history.filter((row) => row.reserve !== null).length,
+    rateScreenEvaluationCount: history.filter((row) => row.rateEvaluation !== null).length,
+    summedRateScreenWallTimeMs: history.reduce((sum, row) => sum + (row.rateEvaluation?.wallTimeMs ?? 0), 0),
     finalQualificationExecuted: qualificationResults.length > 0, qualificationResults,
     qualifiedCandidateIndex: qualificationResults.find((row) => row.qualified)?.index ?? null,
     searchLimitation: "bounded local search; finalist budget is drawn only from measured nominal-feasible candidates; pruning does not establish feasibility or optimality under unmeasured final conditions",
