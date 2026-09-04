@@ -17,7 +17,7 @@ const { values } = parseArgs({ options: { output: { type: "string" }, parallelis
 if (values.help) {
   process.stdout.write("Usage: npm run recover:baseline:synthetic -- --output NEW_DIRECTORY [--parallelism 1..4]\n"
     + "Runs two frozen synthetic controls from two frozen starts. Local smoke only; no model/baseline adoption.\n"
-    + "At most 20 exact evaluations per job (17 search + target + cold/refined finalist), 15-minute job timeout.\n"
+    + "At most 21 exact evaluations per job (17 search + cold/refined target + cold/refined finalist), 15-minute job timeout.\n"
     + "Requires a clean committed worktree; outputs never overwrite prior evidence.\n");
   process.exit(0);
 }
@@ -87,14 +87,22 @@ if (values.worker) {
     const pair = runs.filter((run) => run.controlId === controlId);
     const [a, b] = pair.map((run) => run.result && "search" in run.result ? run.result.search : null);
     const comparable = a?.best.evaluation.assessment.status === "admitted" && b?.best.evaluation.assessment.status === "admitted";
+    const [targetA, targetB] = pair.map((run) => run.result && "targetObservations" in run.result ? run.result.targetObservations : null);
+    const targetRepeatabilityDifference = targetA && targetB ? recoveryResidualV1(targetA, targetB) : null;
+    // Triangle inequality: two epsilon fits to separately executed targets can
+    // differ by 2 epsilon plus the measured target-repeatability difference.
+    const maximumOutputEnsembleSpread = targetRepeatabilityDifference === null ? null
+      : policy.maximumNormalizedTwoStartOutputSpread + targetRepeatabilityDifference;
     return { controlId, status: comparable ? "compared" : "unresolved",
       maximumNormalizedOutputDifference: comparable ? recoveryResidualV1(a.best.evaluation.observations, b.best.evaluation.observations) : null,
+      targetRepeatabilityDifference, maximumOutputEnsembleSpread,
       candidatePointsEqual: comparable ? JSON.stringify(a.best.point) === JSON.stringify(b.best.point) : null,
-      claim: "two-start-local-output-comparison-not-unique-parameter-identification" };
+      claim: policy.twoStartComparisonRole };
   });
   const passed = runs.every((run) => run.result?.status === "local-smoke-passed")
     && comparisons.every((comparison) => comparison.maximumNormalizedOutputDifference !== null
-      && comparison.maximumNormalizedOutputDifference <= policy.maximumNormalizedTargetResidual);
+      && comparison.maximumOutputEnsembleSpread !== null
+      && comparison.maximumNormalizedOutputDifference <= comparison.maximumOutputEnsembleSpread + 1e-12);
   await writeJson("result.json", { executionCommit, wallTimeMs: performance.now() - started,
     status: passed ? "local-smoke-passed" : "local-smoke-unresolved", runs, comparisons,
     finalQualificationPending: policy.qualificationPending, claims: policy.claims });

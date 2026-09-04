@@ -24,7 +24,7 @@ const TBV = "hemodynamics.total-blood-volume-ml" as const;
 const ACTIVE = "myocardium.common-ventricular-active-tension-scale" as const;
 export type RecoveryPointV1 = readonly [number, number];
 export const MAIN_WIRE_BASELINE_SYNTHETIC_RECOVERY_V1 = ownedV1({
-  policyId: "main-wire-current-reference-synthetic-recovery-v1",
+  policyId: "main-wire-current-reference-synthetic-recovery-v2",
   referenceId: "baseline", baselineId: "main-wire-standard70-pressure-flow-baseline-v2",
   coordinateIds: [TBV, ACTIVE],
   controls: { A: [5000, 1.30], B: [5050, 1.31] },
@@ -36,9 +36,11 @@ export const MAIN_WIRE_BASELINE_SYNTHETIC_RECOVERY_V1 = ownedV1({
   observationIds: ["aortic-pressure.maximum", "aortic-pressure.minimum", "pcwp-surrogate.mean",
     "left-ventricle.edv-index", "left-ventricle.esv-index"],
   maximumNormalizedTargetResidual: 0.005,
+  maximumNormalizedTwoStartOutputSpread: 0.01,
+  twoStartComparisonRole: "two-epsilon-output-ensemble-bound-for-individual-matches-not-parameter-uniqueness",
   residualToleranceRole: "engineering-smoke-tolerance-not-measurement-uncertainty-or-numerical-floor",
-  search: "bounded-axis-pattern-search-max-residual-then-rms-deterministic-ties",
-  initialization: "cold-target-cold-start-then-incumbent-only-continuation",
+  search: "axis-pattern-search-with-diagonal-probes-only-after-axis-stall-within-same-budget",
+  initialization: "cold-target-and-own-checkpoint-refined-target-cold-start-then-incumbent-only-continuation",
   afterload: "not-required",
   qualificationPending: ["bidirectional-preload-reserve", "other-allowed-heart-rate", "condition-order-comparison"],
   claims: { practicalRankEstablished: false, parameterUniquenessClaimed: false,
@@ -51,7 +53,8 @@ type Assessment = Readonly<{ status: "admitted" | "construction-deviation" | "sc
   reasons: readonly string[] }>;
 type Observation = Readonly<{ checkId: string; unit: string; minimum: number; maximum: number; actual: number }>;
 type SearchEvaluation = Readonly<{ assessment: Assessment; observations: readonly Observation[] }>;
-type EvaluatedPoint = Readonly<{ point: RecoveryPointV1; evaluation: SearchEvaluation; residual: number | null; tieResidual: number | null }>;
+type EvaluatedPoint = Readonly<{ point: RecoveryPointV1; evaluation: SearchEvaluation; residual: number | null; tieResidual: number | null;
+  proposalKind: "start" | "axis" | "diagonal-after-axis-stall" }>;
 
 /** Pure bounded search. The synthetic truth and target checkpoint are never inputs. */
 export async function searchMainWireBaselineSyntheticTargetV1(
@@ -60,18 +63,18 @@ export async function searchMainWireBaselineSyntheticTargetV1(
 ) {
   validatePointV1(start);
   const visited = new Map<string, EvaluatedPoint>();
-  async function visit(point: RecoveryPointV1, incumbent: RecoveryPointV1 | null) {
+  async function visit(point: RecoveryPointV1, incumbent: RecoveryPointV1 | null, proposalKind: EvaluatedPoint["proposalKind"]) {
     const evaluation = await evaluate(point, incumbent);
     const residual = ["admitted", "construction-deviation"].includes(evaluation.assessment.status)
       ? recoveryResidualV1(evaluation.observations, target) : null;
     const tieResidual = residual === null ? null : Math.hypot(...target.map((row) =>
       (evaluation.observations.find((other) => other.checkId === row.checkId)!.actual - row.actual)
       / (row.maximum - row.minimum))) / Math.sqrt(target.length);
-    const entry = { point, evaluation, residual, tieResidual };
+    const entry = { point, evaluation, residual, tieResidual, proposalKind };
     visited.set(keyV1(point), entry);
     return entry;
   }
-  let best = await visit(ownedV1(start), null);
+  let best = await visit(ownedV1(start), null, "start");
   let stopReason = "initialization-rejected";
   while (best.residual !== null) {
     if (best.evaluation.assessment.status === "admitted" && best.residual <= POLICY.maximumNormalizedTargetResidual) {
@@ -83,9 +86,20 @@ export async function searchMainWireBaselineSyntheticTargetV1(
     for (const neighbor of recoveryNeighborsV1(anchor.point)) {
       const prior = visited.get(keyV1(neighbor));
       if (!prior && visited.size >= POLICY.maximumSearchEvaluations) break;
-      const candidate = prior ?? await visit(neighbor, anchor.point);
+      const candidate = prior ?? await visit(neighbor, anchor.point, "axis");
       compared++;
       if (betterV1(candidate, best)) best = candidate;
+    }
+    if (best === anchor && visited.size < POLICY.maximumSearchEvaluations) {
+      // No gate relaxation or larger budget: a paired move can cross an axis
+      // feasibility barrier without accepting an invalid intermediate state.
+      for (const neighbor of recoveryDiagonalNeighborsV1(anchor.point)) {
+        const prior = visited.get(keyV1(neighbor));
+        if (!prior && visited.size >= POLICY.maximumSearchEvaluations) break;
+        const candidate = prior ?? await visit(neighbor, anchor.point, "diagonal-after-axis-stall");
+        compared++;
+        if (betterV1(candidate, best)) best = candidate;
+      }
     }
     if (best === anchor) { stopReason = visited.size >= POLICY.maximumSearchEvaluations
       ? "evaluation-budget" : compared ? "local-lattice-stall" : "no-admissible-neighbor"; break; }
@@ -100,6 +114,15 @@ export function recoveryNeighborsV1(point: RecoveryPointV1): readonly RecoveryPo
     changed[axis] = Number((changed[axis] + direction * POLICY.steps[axis]).toFixed(8));
     const bound = POLICY.bounds[axis];
     return changed[axis] < bound[0] || changed[axis] > bound[1] ? [] : [Object.freeze(changed)];
+  }));
+}
+
+export function recoveryDiagonalNeighborsV1(point: RecoveryPointV1): readonly RecoveryPointV1[] {
+  validatePointV1(point);
+  return ([-1, 1] as const).flatMap((left) => ([-1, 1] as const).flatMap((right) => {
+    const changed: RecoveryPointV1 = [point[0] + left * POLICY.steps[0], Number((point[1] + right * POLICY.steps[1]).toFixed(8))];
+    return changed.some((value, axis) => value < POLICY.bounds[axis]![0] || value > POLICY.bounds[axis]![1])
+      ? [] : [Object.freeze(changed)];
   }));
 }
 
@@ -205,9 +228,15 @@ export async function runMainWireBaselineSyntheticRecoveryV1(
     if (!check) throw new Error(`missing recovery observation: ${id}`);
     return { checkId: check.checkId, unit: check.unit, minimum: check.minimum, maximum: check.maximum, actual: check.actual };
   }) : [];
-  if (targetAssessment.status !== "admitted") return { ...provenance, status: "target-rejected" as const, targetAssessment,
+  if (target.status !== "accepted" || targetAssessment.status !== "admitted") return { ...provenance, status: "target-rejected" as const, targetAssessment,
     evaluationCount: ordinal, finalQualification: null };
   const targetRows = observations(target);
+  const refinedTarget = await execute("target-refined", truth,
+    { kind: "standard70-exact-checkpoint", checkpoint: target.exactResult.checkpoint }, POLICY.refinedDtSec);
+  const refinedTargetAssessment = assessMainWireBaselineSyntheticEvaluationV1(refinedTarget);
+  if (refinedTargetAssessment.status !== "admitted") return { ...provenance, status: "refined-target-rejected" as const,
+    targetAssessment, refinedTargetAssessment, evaluationCount: ordinal, finalQualification: null };
+  const refinedTargetRows = observations(refinedTarget);
   const evaluated = new Map<string, Accepted>(); // Never insert the target or its checkpoint.
   const search = await searchMainWireBaselineSyntheticTargetV1(start, targetRows, async (point, incumbent) => {
     const source = incumbent === null ? undefined : evaluated.get(keyV1(incumbent));
@@ -226,7 +255,8 @@ export async function runMainWireBaselineSyntheticRecoveryV1(
   });
   const nominal = evaluated.get(keyV1(search.best.point));
   if (!nominal || search.best.evaluation.assessment.status !== "admitted") return { ...provenance,
-    status: "search-unresolved" as const, targetAssessment, search, evaluationCount: ordinal, finalQualification: null };
+    status: "search-unresolved" as const, targetAssessment, refinedTargetAssessment, targetObservations: targetRows,
+    search, evaluationCount: ordinal, finalQualification: null };
   const cold = await execute("finalist-cold", search.best.point, { kind: "cold" });
   const fine = await execute("finalist-refined", search.best.point,
     { kind: "standard70-exact-checkpoint", checkpoint: nominal.exactResult.checkpoint }, POLICY.refinedDtSec);
@@ -239,8 +269,9 @@ export async function runMainWireBaselineSyntheticRecoveryV1(
     fine: { qualification: fine.exactResult, candidateIdentitySha256 } }) : null;
   const finalQualification = { coldAssessment, fineAssessment, coldConsistency, pressureRateQuality,
     coldTargetResidual: coldAssessment.status === "admitted" ? recoveryResidualV1(observations(cold), targetRows) : null,
-    refinedTargetResidual: fineAssessment.status === "admitted" ? recoveryResidualV1(observations(fine), targetRows) : null,
-    refinedTargetComparisonRole: "cross-dt-smoke-not-refined-synthetic-truth-or-accuracy-proof",
+    refinedTargetResidual: fineAssessment.status === "admitted" ? recoveryResidualV1(observations(fine), refinedTargetRows) : null,
+    mixedGridResidualDiagnosticOnly: fineAssessment.status === "admitted" ? recoveryResidualV1(observations(fine), targetRows) : null,
+    refinedTargetComparisonRole: "same-grid-actual-synthetic-target-with-independent-target-checkpoint-not-accuracy-proof",
     pending: POLICY.qualificationPending };
   const localChecksPassed = search.best.residual! <= POLICY.maximumNormalizedTargetResidual
     && coldAssessment.status === "admitted" && fineAssessment.status === "admitted"
@@ -248,7 +279,8 @@ export async function runMainWireBaselineSyntheticRecoveryV1(
     && finalQualification.coldTargetResidual! <= POLICY.maximumNormalizedTargetResidual
     && finalQualification.refinedTargetResidual! <= POLICY.maximumNormalizedTargetResidual;
   return { ...provenance, status: localChecksPassed ? "local-smoke-passed" as const : "local-smoke-unresolved" as const,
-    targetAssessment, search, finalQualification, evaluationCount: ordinal,
+    targetAssessment, refinedTargetAssessment, targetObservations: targetRows, refinedTargetObservations: refinedTargetRows,
+    search, finalQualification, evaluationCount: ordinal,
     declaredTruthPointMatched: keyV1(search.best.point) === keyV1(truth) };
 }
 

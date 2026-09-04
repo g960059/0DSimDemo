@@ -11,7 +11,7 @@ import { buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
   buildMainWireStandard70BaselineCalibrationRequestIdentityV1, initializationIdentityV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { MAIN_WIRE_BASELINE_SYNTHETIC_RECOVERY_V1 as policy, assessMainWireBaselineSyntheticEvaluationV1,
-  recoveryNeighborsV1, recoveryResidualV1, searchMainWireBaselineSyntheticTargetV1,
+  recoveryNeighborsV1, recoveryDiagonalNeighborsV1, recoveryResidualV1, searchMainWireBaselineSyntheticTargetV1,
   runMainWireBaselineSyntheticRecoveryV1, type RecoveryPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineSyntheticRecoveryV1";
 import type { MainWireStandard70BaselineCalibrationAcceptedEvaluationV1 as Accepted,
@@ -43,6 +43,7 @@ describe("current-reference synthetic recovery policy", () => {
     expect(policy.afterload).toBe("not-required");
     expect(Object.values(policy.claims).every((value) => value === false)).toBe(true);
     expect(policy.qualificationPending).toContain("condition-order-comparison");
+    expect(policy.maximumNormalizedTwoStartOutputSpread).toBe(2 * policy.maximumNormalizedTargetResidual);
   });
 
   it("changes policy identity when the reference binding changes", async () => {
@@ -86,6 +87,28 @@ describe("bounded derivative-free target matching", () => {
       async (point) => ({ assessment: admitted, observations: observations(point) }));
     expect(result.evaluationCount).toBeLessThanOrEqual(17);
     expect(result.stopReason).not.toBe("target-residual-reached");
+  });
+
+  it("probes paired moves only after an axis feasibility stall, keeping the same budget", async () => {
+    const start: RecoveryPointV1 = [5050, 1.31], truth = policy.controls.A;
+    const result = await searchMainWireBaselineSyntheticTargetV1(start, observations(truth), async (point) => {
+      const axisOnly = Number(point[0] !== start[0]) + Number(point[1] !== start[1]) === 1;
+      return { assessment: axisOnly ? { status: "construction-deviation", reasons: ["timing.tei-index"] } : admitted,
+        observations: observations(point) };
+    });
+    expect(result.best.point).toEqual(truth);
+    expect(result.evaluations.slice(1, 5).every((row) => row.proposalKind === "axis")).toBe(true);
+    expect(result.evaluations.slice(5).every((row) => row.proposalKind === "diagonal-after-axis-stall")).toBe(true);
+    expect(result.evaluationCount).toBeLessThanOrEqual(17);
+    expect(result.evaluations.filter((row) => row.evaluation.assessment.status === "construction-deviation")).toHaveLength(4);
+  });
+
+  it("does not spend diagonal probes while axis moves still improve", async () => {
+    const result = await searchMainWireBaselineSyntheticTargetV1(policy.starts.reference, observations(policy.controls.B), async (point) => ({
+      assessment: admitted, observations: observations(point),
+    }));
+    expect(result.evaluations.some((row) => row.proposalKind === "diagonal-after-axis-stall")).toBe(false);
+    expect(recoveryDiagonalNeighborsV1([4900, 1.27])).toEqual([[4950, 1.28]]);
   });
 
   it("retains rejected trials, never selecting them as zero-residual solutions", async () => {
@@ -163,16 +186,16 @@ describe("admission and scope", () => {
       .rejects.toThrow(/actual request/);
     expect(record).toHaveBeenCalledTimes(1); // Retain the evidence even when verification rejects it.
   });
-  it("uses cold target and cold start, then only the actual incumbent checkpoint", async () => {
+  it("uses the target checkpoint only for its refined target, never for cold start or search continuation", async () => {
     const seen: Request[] = [];
     const construction = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
     const exactModelIdentitySha256 = await sha256CanonicalJsonHex(MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1);
     const selected = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     await expect(runMainWireBaselineSyntheticRecoveryV1({ controlId: "A", startId: "reference" }, async (request) => {
       seen.push(request);
-      if (seen.length === 3) throw new Error("fixture-stop-after-continuation-request");
+      if (seen.length === 4) throw new Error("fixture-stop-after-continuation-request");
       const e = fixture();
-      const point = seen.length === 1 ? policy.controls.A : policy.starts.reference;
+      const point = seen.length <= 2 ? policy.controls.A : policy.starts.reference;
       const response = observations(point);
       return { ...e, ...construction, exactModelIdentitySha256,
         objectiveAnalysisMethodId: MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID,
@@ -187,15 +210,19 @@ describe("admission and scope", () => {
           const value = response.find((other) => other.checkId === row.checkId);
           return value ? { ...row, actual: (row.minimum + row.maximum) / 2 + value.actual / 200 * (row.maximum - row.minimum) } : row;
         }),
-        exactResult: { ...e.exactResult, checkpoint: { checkpointSha256: seen.length === 1 ? "target-only" : "search-incumbent" } },
+        exactResult: { ...e.exactResult, nominalDtSec: request.nominalDtSec, initializationKind: request.initialization!.kind,
+          checkpoint: { checkpointSha256: (seen.length === 1 ? "a" : seen.length === 2 ? "b" : "c").repeat(64) } },
       } as unknown as Accepted; // Plumbing fixture, not a valid exact checkpoint or trajectory.
     })).rejects.toThrow("fixture-stop-after-continuation-request");
     expect(seen[0]!.initialization).toEqual({ kind: "cold" });
-    expect(seen[1]!.initialization).toEqual({ kind: "cold" });
-    expect(seen[2]!.initialization).toMatchObject({ kind: "standard70-parameter-continuation",
-      sourceCheckpoint: { checkpointSha256: "search-incumbent" }, sourceHemodynamicResearchInputs: selected.hemodynamicResearchInputs,
+    expect(seen[1]!.nominalDtSec).toBe(0.001);
+    expect(seen[1]!.initialization).toMatchObject({ kind: "standard70-exact-checkpoint", checkpoint: { checkpointSha256: "a".repeat(64) } });
+    expect(seen[2]!.initialization).toEqual({ kind: "cold" });
+    expect(seen[3]!.initialization).toMatchObject({ kind: "standard70-parameter-continuation",
+      sourceCheckpoint: { checkpointSha256: "c".repeat(64) }, sourceHemodynamicResearchInputs: selected.hemodynamicResearchInputs,
       sourceMechanismResearchInputs: selected.mechanismResearchInputs, sourceVentricularContractilityScale: selected.ventricularContractilityScale });
-    expect(JSON.stringify(seen[2]!.initialization)).not.toContain("target-only");
+    expect(JSON.stringify(seen[3]!.initialization)).not.toContain("a".repeat(64));
+    expect(JSON.stringify(seen[3]!.initialization)).not.toContain("b".repeat(64));
   });
 });
 
