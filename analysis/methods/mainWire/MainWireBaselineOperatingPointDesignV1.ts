@@ -13,7 +13,7 @@ import type {
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   policyId: "main-wire-baseline-operating-point-design-v1",
   referenceId: "baseline",
-  heartRateBpm: 60,
+  allowedHeartRatesBpm: [60, 70] as const,
   coordinates: Object.freeze([
     { parameterId: "hemodynamics.total-blood-volume-ml", step: 100, radius: 300 },
     { parameterId: "myocardium.common-ventricular-active-tension-scale", step: 0.04, radius: 0.12 },
@@ -40,15 +40,11 @@ export function scoreMainWireBaselineOperatingPointV1(
   const failed = { feasible: false, minimumMargin: -Infinity,
     pressureFlowMargin: -Infinity, activeConstraints: [] } as const;
   if (evaluation.status !== "accepted") return failed;
-  if (evaluation.constructionGateStatus !== "passed"
-    || evaluation.objectiveGateStatus !== "passed"
-    || evaluation.safetySentinelStatus !== "passed"
-    || evaluation.failedConstructionCheckIds.length > 0
-    || evaluation.failedObjectiveCheckIds.length > 0
+  if (evaluation.safetySentinelStatus !== "passed"
     || evaluation.failedSafetySentinelCheckIds.length > 0
     || [...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]
-      .some((check) => check.status !== "passed" || !Number.isFinite(check.actual)
-        || check.actual < check.minimum || check.actual > check.maximum)) {
+      .some((check) => !Number.isFinite(check.actual)
+        || (check.minimum === check.maximum && check.status !== "passed"))) {
     return failed;
   }
   const margins = evaluation.objectiveChecks
@@ -62,7 +58,13 @@ export function scoreMainWireBaselineOperatingPointV1(
     throw new Error("operating-point design requires complete pressure/flow observations");
   }
   const minimumMargin = Math.min(...margins.map((row) => row.margin));
-  return { feasible: true, minimumMargin,
+  const feasible = evaluation.constructionGateStatus === "passed"
+    && evaluation.objectiveGateStatus === "passed"
+    && evaluation.failedConstructionCheckIds.length === 0
+    && evaluation.failedObjectiveCheckIds.length === 0
+    && [...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]
+      .every((check) => check.status === "passed" && check.actual >= check.minimum && check.actual <= check.maximum);
+  return { feasible, minimumMargin,
     pressureFlowMargin: Math.min(...pressureFlow as number[]),
     activeConstraints: margins.filter((row) => row.margin <= minimumMargin + 0.01)
       .map((row) => row.id) };
@@ -70,7 +72,10 @@ export function scoreMainWireBaselineOperatingPointV1(
 
 export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: DesignScoreV1): boolean {
   if (left.feasible !== right.feasible) return left.feasible;
-  if (!left.feasible) return false;
+  // A finite negative margin is a continuous construction violation, not a
+  // solver failure. It can guide feasibility restoration, never final adoption.
+  if (!Number.isFinite(left.minimumMargin)) return false;
+  if (!Number.isFinite(right.minimumMargin)) return true;
   // Changes below 0.1% of a corridor are not a reason to chase a numerical edge.
   if (Math.abs(left.minimumMargin - right.minimumMargin) > 0.001) {
     return left.minimumMargin > right.minimumMargin;
@@ -93,9 +98,9 @@ export function mainWireBaselineDesignNeighborsV1(
   stepScale: 1 | 0.5 | 0.25,
 ): readonly MainWireBaselineCalibrationCandidateInputsV1[] {
   const policy = MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1;
-  if (anchor.hemodynamicResearchInputs.heartRateBpm !== policy.heartRateBpm
-    || current.hemodynamicResearchInputs.heartRateBpm !== policy.heartRateBpm) {
-    throw new Error("operating-point design is pinned to HR60");
+  if (!(policy.allowedHeartRatesBpm as readonly number[]).includes(anchor.hemodynamicResearchInputs.heartRateBpm)
+    || current.hemodynamicResearchInputs.heartRateBpm !== anchor.hemodynamicResearchInputs.heartRateBpm) {
+    throw new Error("operating-point design fixes one allowed HR per run");
   }
   const directions = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0],
     [0, 0, 1], [0, 0, -1], [1, 1, 1], [-1, -1, -1]];

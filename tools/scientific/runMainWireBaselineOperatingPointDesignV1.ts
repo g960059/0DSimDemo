@@ -25,6 +25,7 @@ import checkpoint from
 
 const { values } = parseArgs({ options: { output: { type: "string" },
   worker: { type: "string" }, parallelism: { type: "string", default: "8" },
+  "heart-rate": { type: "string", default: "60" },
   "seed-request": { type: "string" }, "seed-evaluation": { type: "string" } } });
 if (!values.output) throw new Error("--output NEW_DIRECTORY is required");
 const output = resolve(values.output);
@@ -47,7 +48,12 @@ if (values.worker) {
   if (reference.selectedConstruction.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1) {
     throw new Error("design evaluator is only compatible with the Standard70 reference");
   }
-  const anchor = reference.selectedConstruction.candidateInputs;
+  const heartRateBpm = Number(values["heart-rate"]);
+  if (!(policy.allowedHeartRatesBpm as readonly number[]).includes(heartRateBpm)) {
+    throw new Error("--heart-rate must be 60 or 70");
+  }
+  const anchor = { ...reference.selectedConstruction.candidateInputs,
+    hemodynamicResearchInputs: { ...reference.selectedConstruction.candidateInputs.hemodynamicResearchInputs, heartRateBpm } };
   let seed: MainWireBaselineCalibrationCandidateInputsV1 = anchor;
   let seedCheckpoint = checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1;
   if (Boolean(values["seed-request"]) !== Boolean(values["seed-evaluation"])) {
@@ -70,7 +76,7 @@ if (values.worker) {
   }
   const policyIdentity = await sha256CanonicalJsonHex(policy);
   await writeFile(resolve(output, "protocol.json"), JSON.stringify({
-    executionCommit, policy, policyIdentity, reference, parallelism, seed,
+    executionCommit, policy, policyIdentity, reference, parallelism, heartRateBpm, seed,
     seedCheckpointSha256: seedCheckpoint.checkpointSha256,
     claim: "bounded exploratory construction; not identifiability or final qualification",
   }, null, 2), { flag: "wx" });
@@ -103,10 +109,10 @@ if (values.worker) {
     process.stderr.write(`[design] ${index}: ${evaluation.status} ${JSON.stringify(score)}\n`);
     return entry;
   }
-  let best = await evaluate(seed, { kind: "standard70-exact-checkpoint",
-    checkpoint: seedCheckpoint });
-  if (!scoreMainWireBaselineOperatingPointV1(best.evaluation).feasible) {
-    throw new Error("committed baseline did not reconfirm");
+  let best = await evaluate(seed, heartRateBpm !== 60 && !values["seed-evaluation"]
+    ? { kind: "cold" } : { kind: "standard70-exact-checkpoint", checkpoint: seedCheckpoint });
+  if (!Number.isFinite(scoreMainWireBaselineOperatingPointV1(best.evaluation).minimumMargin)) {
+    throw new Error("initial candidate did not reconfirm numerical, event and safety gates");
   }
   seen.add(await sha256CanonicalJsonHex(seed));
   let stepScale: 1 | 0.5 | 0.25 = 1;
