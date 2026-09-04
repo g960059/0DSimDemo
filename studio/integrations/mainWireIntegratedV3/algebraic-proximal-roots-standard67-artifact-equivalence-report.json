@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.algebraic-proximal-roots.standard-67",
-  "predecessorArtifactRevisionId": "dcee3341b85b1677d05621f00327fa3102ccfd37e2ef3f668173f581cae43d64",
-  "candidateArtifactRevisionId": "794ba6010624823e225b10ee47d9bbd16dc4f8126e3373646d11ab1d7aad18f5",
+  "predecessorArtifactRevisionId": "794ba6010624823e225b10ee47d9bbd16dc4f8126e3373646d11ab1d7aad18f5",
+  "candidateArtifactRevisionId": "4d9a57a0565f12c115c40ba50e9aa478f9b548c5fad0a0c0d3a9d8d564bbc9e5",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [

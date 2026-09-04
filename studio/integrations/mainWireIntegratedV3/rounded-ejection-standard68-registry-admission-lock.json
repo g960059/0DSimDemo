@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.rounded-ejection.standard-68",
-  "artifactRevisionId": "692f413e1c4008f2a17b1b977cba1304b55c25c6963f84a31885c91a9a501ea8",
-  "artifactSha256": "b08f00ced854246958011efa0beb6071521dd004a4f32563570fd149d7d7b3ec",
-  "predecessorArtifactRevisionId": "9149d55df447dcefae13b2882a3033816c01c680b8f4db3d134af7b9438a13c1",
-  "equivalenceReportSha256": "00932b109189fe83cf6974aad834a53072e809f279db1b7f2d61219efc6388fb"
+  "artifactRevisionId": "e1146f7917f609b012a8c8f240c19b80442e2d7cb840dc15e368c7ab86b62e42",
+  "artifactSha256": "1d3e7cd1e4e9d24b5715ba6086a7c3b94a2ed16be9825fd08bcc9a7def7db93e",
+  "predecessorArtifactRevisionId": "692f413e1c4008f2a17b1b977cba1304b55c25c6963f84a31885c91a9a501ea8",
+  "equivalenceReportSha256": "9215baaebcb40cf2a3eb7e6b3182f022481f58c0391398b7f08f6cf116a06995"
 }
