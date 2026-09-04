@@ -78,6 +78,15 @@ export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: Desig
   return left.pressureFlowMargin > right.pressureFlowMargin + 0.001;
 }
 
+export function mainWireBaselineDesignQualificationPassedV1(
+  evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
+  reserveRequired: boolean,
+  reserveStatus: "not-run" | "passed" | "failed",
+): boolean {
+  return scoreMainWireBaselineOperatingPointV1(evaluation).feasible
+    && (!reserveRequired || reserveStatus === "passed");
+}
+
 export function mainWireBaselineDesignNeighborsV1(
   anchor: MainWireBaselineCalibrationCandidateInputsV1,
   current: MainWireBaselineCalibrationCandidateInputsV1,

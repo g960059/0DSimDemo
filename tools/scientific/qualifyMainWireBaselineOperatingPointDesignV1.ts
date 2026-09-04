@@ -6,7 +6,7 @@ import {
   type MainWireStandard70BaselineCalibrationEvaluationV1,
   type MainWireStandard70BaselineCalibrationEvaluationRequestV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
-import { scoreMainWireBaselineOperatingPointV1 } from
+import { scoreMainWireBaselineOperatingPointV1, mainWireBaselineDesignQualificationPassedV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import { qualifyMainWireIntegratedModelFormalPreloadReserveV1 } from
   "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
@@ -68,9 +68,10 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
     reserveFailure = error instanceof Error ? error.message : String(error);
   }
 }
-await writeFile(values.output, JSON.stringify({ executionCommit, mode: values.mode,
+const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus);
+await writeFile(values.output, JSON.stringify({ executionCommit, mode: values.mode, qualified,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
   wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve,
   baselineAdopted: false }, null, 2), { flag: "wx" });
 process.stdout.write(`${values.output}\n`);
-if (evaluation.status !== "accepted" || reserveStatus === "failed") process.exitCode = 1;
+if (!qualified) process.exitCode = 1;

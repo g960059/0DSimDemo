@@ -3,6 +3,7 @@ import {
   scoreMainWireBaselineOperatingPointV1,
   mainWireBaselineDesignBetterV1,
   mainWireBaselineDesignNeighborsV1,
+  mainWireBaselineDesignQualificationPassedV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 
 import {
@@ -249,11 +250,19 @@ describe("bounded baseline operating-point design", () => {
     // This synthetic fixture exercises the ordering, not model physiology.
     const score = scoreMainWireBaselineOperatingPointV1(good);
     expect(score.feasible).toBe(true);
+    expect(mainWireBaselineDesignQualificationPassedV1(good, false, "not-run")).toBe(true);
+    expect(mainWireBaselineDesignQualificationPassedV1(good, true, "not-run")).toBe(false);
+    expect(mainWireBaselineDesignQualificationPassedV1(good, true, "failed")).toBe(false);
+    expect(mainWireBaselineDesignQualificationPassedV1(good, true, "passed")).toBe(true);
     for (const property of ["constructionGateStatus", "objectiveGateStatus", "safetySentinelStatus"] as const) {
       const rejected = scoreMainWireBaselineOperatingPointV1({ ...good, [property]: "failed" });
       expect(rejected.feasible).toBe(false);
       expect(mainWireBaselineDesignBetterV1(rejected, score)).toBe(false);
       expect(mainWireBaselineDesignBetterV1(score, rejected)).toBe(true);
+      expect(mainWireBaselineDesignQualificationPassedV1({ ...good, [property]: "failed" }, false, "not-run"))
+        .toBe(false);
+      expect(mainWireBaselineDesignQualificationPassedV1({ ...good, [property]: "failed" }, true, "passed"))
+        .toBe(false);
     }
     const malformed = { ...good, objectiveChecks: good.objectiveChecks.map((check, index) =>
       index === 0 ? { ...check, actual: NaN } : check) };
