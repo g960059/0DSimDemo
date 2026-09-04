@@ -17762,6 +17762,22 @@ const MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 = Object.freeze({
   maximumMeasurementDurationSec: 54,
   maximumObservationGapSec: 0.010001
 });
+function validMainWireFixedToneSettlementEvidenceV2(evidence2) {
+  if (evidence2 === null || typeof evidence2 !== "object" || Array.isArray(evidence2)) return false;
+  const value = evidence2;
+  const policy = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2;
+  if (value.policyId !== policy.policyId || [
+    value.completedBeatCount,
+    value.maximumRecentRedistributedVolumeMl,
+    value.maximumRecentNormalizedOutputDelta,
+    value.maximumRecentNormalizedLandmarkDelta,
+    value.measurementDurationSec
+  ].some((field) => typeof field !== "number" || !Number.isFinite(field))) {
+    return false;
+  }
+  const measured = value;
+  return Number.isInteger(measured.completedBeatCount) && measured.completedBeatCount >= policy.consecutiveComparisonCount + 1 && measured.completedBeatCount <= policy.maximumCompleteBeatCount && measured.maximumRecentRedistributedVolumeMl >= 0 && measured.maximumRecentRedistributedVolumeMl <= policy.maximumRedistributedVolumePerBeatMl && measured.maximumRecentNormalizedOutputDelta >= 0 && measured.maximumRecentNormalizedOutputDelta <= policy.maximumNormalizedOutputDelta && measured.maximumRecentNormalizedLandmarkDelta >= 0 && measured.maximumRecentNormalizedLandmarkDelta <= policy.maximumNormalizedLandmarkDelta && measured.measurementDurationSec > 0 && measured.measurementDurationSec <= policy.maximumMeasurementDurationSec;
+}
 class MainWireFixedToneVolumeClosureV2 {
   constructor() {
     this.previous = null;
@@ -17850,6 +17866,7 @@ const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_TBV_SCALES_V3 =
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_TBV_SCALES_V3 = Object.freeze([1.08, 1.16, 1.24, 1.32, 1.4]);
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3 = 0.5;
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID = "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1";
+const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID = "main-wire-integrated-model-fixed-tone-reservoir-settled-preload-reserve-v2";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID = "main-wire-integrated-model-formal-fixed-tone-preload-reserve-qualification-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 = Object.freeze({
   hypovolemicGlobalTbvScale: 0.88,
@@ -18086,6 +18103,21 @@ function formalPressureVolumeSamplePairV3(observation2, session) {
     })
   });
 }
+function measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(beat) {
+  if (!Number.isFinite(beat.startTimeSec) || !Number.isFinite(beat.endTimeSec) || !(beat.endTimeSec > beat.startTimeSec)) {
+    throw new Error("formal preload-reserve V2 requires a complete beat clock");
+  }
+  const read = (side) => {
+    const metrics = side === "left" ? beat.leftVentricularValveEventMetrics : beat.rightVentricularValveEventMetrics;
+    const valveId = side === "left" ? "MV" : "TV";
+    const event = metrics?.endDiastolic;
+    if (metrics?.pressureBasis !== "absolute-and-transmural" || metrics.inletValveId !== valveId || event == null || event.event !== "valve-closure-zero-flow-crossing" || event.valveId !== valveId || !Number.isFinite(event.volumeMl) || !(event.volumeMl > 0) || !Number.isFinite(event.transmuralPressureMmHg) || !Number.isFinite(event.timeSec) || event.timeSec < beat.startTimeSec || event.timeSec > beat.endTimeSec) {
+      throw new Error(`formal preload-reserve V2 requires a finite ${valveId}-closure ED landmark`);
+    }
+    return Object.freeze({ volumeMl: event.volumeMl, pressureMmHg: event.transmuralPressureMmHg });
+  };
+  return Object.freeze({ left: read("left"), right: read("right") });
+}
 function runMainWireIntegratedModelResponsiveStarlingProtocolV3(sourceSession, onProgress, partition) {
   const sourceGlobalTbvMl = sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   const paired = [];
@@ -18220,6 +18252,7 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl, re
   const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
   const beats = [];
   const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+  const landmarkClosureScore = reservoirClosure ? mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2 : formalBeatPairClosureScoreV3;
   if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
   const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
   let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
@@ -18246,10 +18279,10 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl, re
     }
     lastCompletedBeatId = completed.endAtrialCaptureId;
     beats.push(completed);
-    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats, formalBeatPairClosureScoreV3) && (!volumeClosure || volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta)) {
+    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats, landmarkClosureScore) && (!volumeClosure || volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, landmarkClosureScore) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta)) {
       return Object.freeze({ status: "settled", branch });
     }
-    if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+    if (beats.length >= 5 && period2DetectedV3(beats, landmarkClosureScore)) {
       return rejectedV3("active-controller source reached a period-2 boundary");
     }
     if (beats.length >= (reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumCompleteBeatCount : FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3)) break;
@@ -18432,7 +18465,8 @@ async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScal
         branch: measured.branch,
         scale: requestedScale,
         pair: measured.pair,
-        ...measured.settlementEvidence ? { settlementEvidence: measured.settlementEvidence } : {}
+        ...measured.settlementEvidence ? { settlementEvidence: measured.settlementEvidence } : {},
+        ...measured.preloadEndDiastolic ? { preloadEndDiastolic: measured.preloadEndDiastolic } : {}
       });
       accept(acceptedBoundary);
       if (stopAfterAccepted(measured.pair)) {
@@ -18676,6 +18710,7 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
     const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     const beats = [];
     const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+    const landmarkClosureScore = reservoirClosure ? mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2 : formalBeatPairClosureScoreV3;
     if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
     const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
     const frozenWindow = branch.currentAcceptedState().coronary.coronaryAutoregulationBinding.windowPolicy;
@@ -18716,18 +18751,18 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
       if (volumeClosure) {
-        locallyConverged = volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta;
+        locallyConverged = volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, landmarkClosureScore) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta;
         if (locallyConverged && pressureVolumeBeats.length > 0) break;
-        if (period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+        if (period2DetectedV3(beats, landmarkClosureScore)) {
           return rejectedV3("fixed-tone PVA branch reached a period-2 boundary");
         }
       } else if (locallyConverged) {
         if (pressureVolumeBeats.length > 0) break;
       } else if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
-        if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
+        if (period1ConvergedV3(beats, landmarkClosureScore)) {
           locallyConverged = true;
           if (pressureVolumeBeats.length > 0) break;
-        } else if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+        } else if (beats.length >= 5 && period2DetectedV3(beats, landmarkClosureScore)) {
           return rejectedV3(
             "fixed-tone PVA branch reached a period-2 boundary"
           );
@@ -18738,10 +18773,10 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
         break;
     }
     if (!locallyConverged) {
-      const previousScore = beats.length >= 3 ? formalBeatPairClosureScoreV3(beats.at(-3), beats.at(-2)) : Number.POSITIVE_INFINITY;
+      const previousScore = beats.length >= 3 ? landmarkClosureScore(beats.at(-3), beats.at(-2)) : Number.POSITIVE_INFINITY;
       const latestScore = latestBeatClosureScoreV3(
         beats,
-        formalBeatPairClosureScoreV3
+        landmarkClosureScore
       );
       return rejectedV3(
         `fixed-tone PVA branch did not establish strict period-1 closure (beats=${beats.length}, previous=${previousScore}, latest=${latestScore}` + (volumeClosure ? `, redistributedVolumeMl=${volumeClosure.maximumRecentRedistributedVolumeMl()}` : "") + ")"
@@ -18763,7 +18798,7 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       completedBeatCount: beats.length,
       maximumNormalizedBeatDelta: recentBeatClosureScoreV3(
         beats,
-        formalBeatPairClosureScoreV3
+        landmarkClosureScore
       ),
       settled: true,
       finiteAndFixedTbvPassed: true,
@@ -18776,12 +18811,13 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       status: "accepted",
       branch,
       observation: branch.observe(),
+      ...reservoirClosure ? { preloadEndDiastolic: measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(selectedBeat) } : {},
       ...volumeClosure ? { settlementEvidence: {
         policyId: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.policyId,
         completedBeatCount: beats.length,
         maximumRecentRedistributedVolumeMl: volumeClosure.maximumRecentRedistributedVolumeMl(),
         maximumRecentNormalizedOutputDelta: fixedToneRecentOutputScoreV2(beats),
-        maximumRecentNormalizedLandmarkDelta: fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3),
+        maximumRecentNormalizedLandmarkDelta: fixedToneRecentOutputScoreV2(beats, landmarkClosureScore),
         measurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec
       } } : {},
       pair: Object.freeze({
@@ -19004,6 +19040,17 @@ function formalBeatPairClosureScoreV3(left, right) {
       left.rightVentricularPressureVolumeLandmarks.endSystolic,
       right.rightVentricularPressureVolumeLandmarks.endSystolic
     )
+  );
+}
+function mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2(previous, current) {
+  const previousEd = measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(previous);
+  const currentEd = measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(current);
+  return Math.max(
+    formalBeatPairClosureScoreV3(previous, current),
+    ...["left", "right"].flatMap((side) => [
+      Math.abs(currentEd[side].volumeMl - previousEd[side].volumeMl) / VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3,
+      Math.abs(currentEd[side].pressureMmHg - previousEd[side].pressureMmHg) / VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3
+    ])
   );
 }
 function averageBeatMetricsV3(beats) {
@@ -37396,7 +37443,7 @@ if (!Number.isSafeInteger(CANONICAL_MAXIMUM_CYCLE_COUNT_V3) || CANONICAL_MAXIMUM
     "integrated V3 canonical slow-time horizon must contain an exact positive number of sinus cycles"
   );
 }
-Object.freeze({
+const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 = Object.freeze({
   policyId: "integrated-full-accepted-state-periodic-policy-v3-preregistered",
   period1NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period1NormalizedTolerance,
   period2NormalizedTolerance: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2.period2NormalizedTolerance,
@@ -54875,33 +54922,6 @@ function requiredSelectedIdV1(value, label) {
 function selectedAdvanceFailureMessageV1(advance) {
   return advance.status === "failed" ? `Selected Standard66 presentation step failed: ${advance.reason}: ${advance.message}` : "Selected Standard66 presentation step did not advance";
 }
-const MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID = "main-wire-standard70-preload-reserve-policy-v1";
-const MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 = Object.freeze({
-  policyId: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID,
-  minimumDirectionalCardiacOutputChangeFraction01: 0.03,
-  minimumCardiacOutputSlopeLPerMinPerMmHg: 0.02,
-  minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.03
-});
-function mainWireStandard70PreloadReserveDirectionalResponsePassedV1(response) {
-  const policy = MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1;
-  return mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
-    response
-  ) && response.directionalCardiacOutputChangeFraction01 >= policy.minimumDirectionalCardiacOutputChangeFraction01 && response.cardiacOutputSlopeLPerMinPerMmHg >= policy.minimumCardiacOutputSlopeLPerMinPerMmHg && response.directionalEndDiastolicVolumeChangeFraction01 >= policy.minimumDirectionalEndDiastolicVolumeChangeFraction01;
-}
-function assertMainWireStandard70PreloadReservePassedV1(qualification) {
-  for (const [ventricle, side] of Object.entries({
-    LV: qualification.left,
-    RV: qualification.right
-  })) {
-    for (const response of [side.hypovolemic, side.hypervolemic]) {
-      if (!mainWireStandard70PreloadReserveDirectionalResponsePassedV1(response)) {
-        throw new Error(
-          `Standard70 ${ventricle} ${response.endpointDirection} preload reserve failed`
-        );
-      }
-    }
-  }
-}
 const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID = "main-wire-integrated-model-baseline-validation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1 = Object.freeze({
   pressureMorphology: Object.freeze({
@@ -55157,7 +55177,6 @@ function boundedCheckV1(checkId, actual, minimum, maximum, unit) {
   const status2 = Number.isFinite(actual) && actual >= minimum && actual <= maximum ? "passed" : "failed";
   return Object.freeze({ checkId, status: status2, actual, minimum, maximum, unit });
 }
-const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID = "main-wire-integrated-model-rounded-ejection-baseline-qualification-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID = "main-wire-integrated-model-standard70-baseline-validation-v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1 = Object.freeze({
   pulmonaryValveGradientMmHg: Object.freeze({
@@ -55304,7 +55323,127 @@ function rightRangeCheckV1(checkId, actual, range, unit) {
     unit
   });
 }
+const MAIN_WIRE_BASELINE_OBSERVATION_V2_ID = "main-wire-baseline-observation-v2";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_QUALIFICATION_V1_ID = "main-wire-integrated-model-standard70-baseline-qualification-v1";
+const evaluationPolicyId = "main-wire-standard70-baseline-evaluation-roles-v1";
+const checkGroups = /* @__PURE__ */ JSON.parse(`[{"groupId":"settlement","checkIds":["settlement.period1"],"evidenceRole":"construction","thresholdBasis":"exact-contract","contextEvidenceIds":[],"measurementMeaning":"Whether the exact periodic classifier established the required period-one terminal state.","changeReason":"Fail closed before interpreting any derived baseline measurement.","analysisPartition":"objective","evaluationRole":"numerical-quality","observationLimitations":"Period-one settlement is numerical admissibility, not physiological normality or independent model validation.","evidenceGap":"No clinical population interval applies to an exact periodic-classifier contract.","sourceComparisons":[]},{"groupId":"ventricular-pressure-morphology","checkIds":["waveform.LVP.single-peak-no-ringing","waveform.LVP.rounded-not-plateau","waveform.RVP.single-peak-no-ringing","waveform.RVP.rounded-not-plateau"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Algorithmic peak, variation, and central-range summaries of pressure during the associated semilunar-valve forward-flow episode.","changeReason":"Reject obvious two-peak ringing and flat ejection plateaus observed during Standard65-to-68 construction.","analysisPartition":"objective","evaluationRole":"construction-guard","observationLimitations":"Pressure-peak prominence, total variation, central pressure range and peak phase depend on the trace resolution and the selected semilunar forward-flow episode; they do not measure a clinical ventricular pressure contour classification.","evidenceGap":"No primary healthy-cohort distribution supports the exact peak-count, variation, central-range or peak-phase cutoffs. These remain construction choices made after observing earlier model artifacts.","sourceComparisons":[]},{"groupId":"aortic-valve-gradient","checkIds":["aortic-valve.mean-gradient","aortic-valve.peak-gradient"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Time-weighted mean and maximum raw LV-minus-Ao node pressure difference during native aortic forward flow.","changeReason":"Constrain the non-stenotic baseline while retaining the model's explicit pressure-station limitation.","analysisPartition":"objective","evaluationRole":"construction-guard","observationLimitations":"This hydraulic node gradient is neither a Doppler Bernoulli gradient nor a simultaneous catheter LV-to-recovered-aortic pressure difference; pressure recovery and spatial acceleration are not observed.","evidenceGap":"No matching healthy-population source establishes the exact mean or peak cutoffs for these model pressure stations. Stenosis diagnostic thresholds would not validate them.","sourceComparisons":[]},{"groupId":"aortic-ejection-time","checkIds":["aortic-valve.ejection-time"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Native AoV zero-flow opening to exact completed-beat closure; the observer requires agreement with the completed beat's accumulated positive-flow duration.","changeReason":"Prevent a gradient reduction obtained by implausibly shortening or prolonging ejection.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"A single complete ejection episode is required. This hydraulic duration is shared with left ICT, IRT and Tei calculations, but is not color-TDI, Doppler-envelope or ECG timing; HR and population selection matter.","evidenceGap":"The frozen construction interval is provisional. Similarity to the retrospective Copenhagen interval does not establish its historical derivation or cross-method validity.","sourceComparisons":[{"sourceId":"alhakak-2023-copenhagen-cardiac-time-intervals","locator":"Table 2; Methods, Cardiac time intervals","targetPopulation":"1,969 Danish adults without cardiovascular disease or risk factors; median age 46 (IQR 33-58) years, 61.5% women, HR 63 +/- 10/min.","observationMeaning":"Color-TDI M-mode mitral-leaflet event timing; pooled 95% prediction intervals, not interchangeable with other Doppler or hydraulic event methods.","sourceRange":"LVET 248-336 ms.","comparisonToChosenBounds":"The chosen interval is slightly broader at both endpoints; no observer-specific calibration has established equivalence."}]},{"groupId":"left-ventricular-pressure-rate","checkIds":["left-ventricle.maximum-dpdt","left-ventricle.minimum-dpdt"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Maximum and minimum accepted-step finite-difference derivative of absolute intracavitary LV pressure over the completed beat.","changeReason":"Retain plausible contraction and relaxation rates while adjusting aortic ejection morphology.","analysisPartition":"objective","evaluationRole":"reference-warning","observationLimitations":"Accepted-step bandwidth, pressure loading, HR, preload, medication and catheter filtering affect extrema. Published negative dP/dt is often a positive magnitude, whereas this model stores a signed minimum; this is not a transmural derivative.","evidenceGap":"The positive corridor overlaps small normal-LV patient series, but the frozen negative corridor excludes their resting means. Neither series supplies a population-normal acceptance interval; keep both corridors as warnings rather than validated pass/fail physiology.","sourceComparisons":[{"sourceId":"bussmann-1977-normal-lv-contractile-relaxation-reserve","locator":"Abstract; resting values before ergometer exercise","targetPopulation":"13 patients described as having a normal LV; not a population-based, sex/age-stratified healthy sample.","observationMeaning":"Invasive maximal LV pressure rise and pressure-fall magnitude; the accessible abstract does not fully establish acquisition bandwidth.","sourceRange":"Resting maximum +1721 +/- 378 mmHg/s; negative magnitude 1862 +/- 343 mmHg/s (mean +/- SD).","comparisonToChosenBounds":"The positive mean lies within the frozen corridor; the signed negative mean does not. Exercise values cannot justify a resting cutoff."},{"sourceId":"hirota-1980-lv-relaxation","locator":"Methods p. 757; normal-control table p. 759; abstract","targetPopulation":"18 normal controls including patients investigated for chest pain, murmurs or other indications; not a healthy population reference sample.","observationMeaning":"Millar LV micromanometer and continuous differentiator; average of five sinus beats, after premedication.","sourceRange":"Maximum +1674 +/- 421 mmHg/s; negative magnitude 1864 +/- 390 mmHg/s (observed negative-magnitude range 1275-2772).","comparisonToChosenBounds":"The frozen relaxation corridor excludes the control mean and much of the observed range. Means/SDs and observed extrema are context, not newly selected cutoffs."}]},{"groupId":"mitral-e-to-a","checkIds":["mitral-flow.peak-e-to-a"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Ratio of peak native mitral forward volume flow in early and atrial filling windows anchored to the observed atrial-capture event.","changeReason":"Provide a broad diastolic safety sentinel without claiming a clinical Doppler measurement.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"Volume-flow peaks are not leaflet-tip Doppler velocities; varying effective valve area can change their ratio. A complete post-capture inlet closure and identifiable E/A windows are required, and age, rhythm, HR and loading affect interpretation.","evidenceGap":"The fixed corridor is provisional, not an age-specific Doppler normal interval. Better event anchoring does not remove the flow-versus-velocity observation mismatch.","sourceComparisons":[{"sourceId":"nagueh-2025-lv-diastolic-function","locator":"Tables 3 and 5 (p. 551)","targetPopulation":"Healthy reference data grouped by age; guideline echocardiographic assessment in adults, with age- and sex-aware supplementary data.","observationMeaning":"PW Doppler mitral leaflet-tip E and A velocities, identified relative to ECG T and P waves; estimated fifth-to-95th percentiles.","sourceRange":"E/A: ages 20-39, 0.88-2.73; ages 40-60, 0.69-2.07; ages 60-80, 0.50-1.40.","comparisonToChosenBounds":"The chosen bounds truncate some healthy age-specific ranges and admit values outside others; numerical overlap cannot validate a native volume-flow ratio."}]},{"groupId":"left-ventricular-timing","checkIds":["timing.ict","timing.irt","timing.tei-index"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"ICT from exact MV closure to AoV zero-flow opening, IRT from exact AoV closure to MV zero-flow opening, and (ICT + IRT) divided by the matched aortic ejection duration.","changeReason":"Detect compensation that improves one ejection output by distorting coupled systolic-diastolic timing.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"Closure landmarks and trace-interpolated openings must describe one complete beat. Tei is algebraically linked to ICT, IRT and the separately checked ejection time, so these are not independent constraints.","evidenceGap":"The intervals remain provisional hydraulic timing targets. Matching some published endpoints does not establish a measurement-equivalence study or historical source derivation.","sourceComparisons":[{"sourceId":"alhakak-2023-copenhagen-cardiac-time-intervals","locator":"Table 2; Methods, Cardiac time intervals","targetPopulation":"1,969 Danish adults without cardiovascular disease or risk factors; median age 46 (IQR 33-58) years, 61.5% women, HR 63 +/- 10/min.","observationMeaning":"Color-TDI M-mode mitral-leaflet event timing; pooled 95% prediction intervals, not interchangeable with other Doppler or hydraulic event methods.","sourceRange":"IVCT 20-59 ms; IVRT 59-134 ms; MPI 0.29-0.65.","comparisonToChosenBounds":"IRT and Tei endpoints match this pooled table, while the chosen ICT upper bound is wider. The source expressly limits generalization across measurement methods."}]},{"groupId":"systemic-pressure","checkIds":["aortic-pressure.maximum","aortic-pressure.minimum","central-venous-pressure.mean"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Completed-beat extrema of absolute Ao root-compliance-node pressure and time-weighted mean absolute RA pressure; the active AoP display uses this same Ao node.","changeReason":"Maintain broad resting systemic-pressure compatibility as a construction safety envelope.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"The lumped central Ao node has no arterial propagation, peripheral amplification or pressure recovery and is not a brachial cuff observation. RA pressure is intracavitary, not transmural; its beat mean does not reproduce end-expiratory catheter averaging or IVC-based RAP estimation.","evidenceGap":"No verified primary healthy central-aortic source establishes both chosen Ao ranges. The RA range is broader than the invasive reference below. All three are provisional resting construction targets.","sourceComparisons":[{"sourceId":"humbert-2022-esc-ers-pulmonary-hypertension","locator":"Table 11; section 5.1.12.1","targetPopulation":"Adult resting right-heart catheterization reference values summarized by the guideline, not a new sex-, age-, or BSA-stratified healthy cohort.","observationMeaning":"Supine catheter pressure, mid-thoracic zero and end-expiratory reading; output by direct Fick or thermodilution.","sourceRange":"Mean RAP 2-6 mmHg; systemic systolic/diastolic pressure is illustrated as 120/80 mmHg, not a reference interval.","comparisonToChosenBounds":"The chosen RA corridor is wider. A single illustrative arterial pressure cannot substantiate either Ao endpoint."}]},{"groupId":"pulmonary-artery-pressure","checkIds":["pulmonary-artery-pressure.maximum","pulmonary-artery-pressure.minimum"],"evidenceRole":"construction","thresholdBasis":"literature-context-plus-engineering-envelope","contextEvidenceIds":["mukherjee-ase-right-heart-2025"],"measurementMeaning":"Extrema of absolute model PA root-node pressure over the exact completed beat.","changeReason":"Use broad resting pressure context as a sentinel while withholding a pulmonary-waveform validation claim.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"This is an invasive-like lumped pressure signal, not TR-derived RVSP/PASP or a spatially resolved catheter waveform; respiratory reference and averaging differ. RVSP is not PASP when an RV-to-PA gradient is present.","evidenceGap":"The chosen systolic and diastolic upper bounds are broader than both cited invasive references. This remains a provisional pressure envelope, not confirmation of normal PAP or pulmonary waveform shape.","sourceComparisons":[{"sourceId":"humbert-2022-esc-ers-pulmonary-hypertension","locator":"Table 11; section 5.1.12.1","targetPopulation":"Adult resting right-heart catheterization reference values summarized by the guideline, not a new sex-, age-, or BSA-stratified healthy cohort.","observationMeaning":"Supine catheter pressure, mid-thoracic zero and end-expiratory reading; output by direct Fick or thermodilution.","sourceRange":"PAP systolic 15-30 mmHg; diastolic 4-12 mmHg.","comparisonToChosenBounds":"The chosen lower bounds match; the upper bounds are deliberately wider and are not the guideline's normal interval."},{"sourceId":"kovacs-2009-healthy-pap-review","locator":"Table 1; healthy resting supine catheterization data","targetPopulation":"47 studies, 1,187 healthy participants overall; resting supine systolic PAP available in 625, with heterogeneous age and sex representation.","observationMeaning":"Invasive resting supine PAP pooled across cohorts; mean +/- SD rather than a joint systolic/diastolic normal region.","sourceRange":"Systolic 20.8 +/- 4.4 mmHg (upper limit 29.6); diastolic 8.8 +/- 3.0 mmHg.","comparisonToChosenBounds":"These distributions provide context but do not establish the chosen wider systolic and diastolic corridors."}]},{"groupId":"pcwp-surrogate","checkIds":["pcwp-surrogate.mean"],"evidenceRole":"construction","thresholdBasis":"literature-context-plus-engineering-envelope","contextEvidenceIds":["kovacs-pawp-healthy-meta-2024"],"measurementMeaning":"Time-weighted completed-beat mean absolute LA pressure, exposed only as a labelled PCWP surrogate.","changeReason":"Bound left-sided filling pressure while preserving the explicit station and measurement mismatch.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"Mean intracavitary LA pressure is not LVEDP, transmural LA pressure or an actual wedged-catheter observation. Wedge zero, respiratory sampling and transmission through the pulmonary circulation are not reproduced.","evidenceGap":"The chosen upper limit has healthy PAWP context, but the lower bound lacks an exact source and no observation study establishes this model's LA-mean-to-PAWP equivalence.","sourceComparisons":[{"sourceId":"zeder-2024-healthy-pawp-meta-analysis","locator":"Main results; individual-data and zero-reference subgroup analyses","targetPopulation":"960 mainly nonobese healthy participants from 49 studies; individual-data subset n=159, median age 26 (IQR 23-53), 67% men.","observationMeaning":"Resting supine catheter PAWP, with heterogeneous zero references and respiratory conventions; significant sex differences.","sourceRange":"Pooled PAWP 9.4 +/- 1.82 mmHg; upper limit 13 mmHg (mid-thoracic-zero subgroup 12.2 mmHg).","comparisonToChosenBounds":"The chosen upper limit matches the pooled upper limit, not every subgroup. The study does not establish the chosen lower limit or validate mean model LA pressure as a wedge observation."}]},{"groupId":"left-ventricular-indexed-size-function","checkIds":["left-ventricle.edv-index","left-ventricle.esv-index","left-ventricle.ejection-fraction"],"evidenceRole":"construction","thresholdBasis":"literature-context-plus-engineering-envelope","contextEvidenceIds":["lang-ase-eacvi-2015","kou-norre-2014","cmr-consolidated-normal-reference-2016"],"measurementMeaning":"Valve-event-defined 0D LV volumes indexed to the reference BSA and their event-defined ejection fraction.","changeReason":"Create a deliberately broad cross-modality construction corridor rather than a joint population-normal claim.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"ED/ES are volumes at native inlet/outlet closure, not necessarily global extrema. Event definitions can align with imaging, but 0D cavity boundaries lack echo/CMR segmentation conventions. Fixed reference BSA does not select a sex/age cohort; EF is derived from the two volumes.","evidenceGap":"The frozen corridor combines context across methods; its volume endpoints do not reproduce the cited echo or CMR intervals, and its independent marginal gates are not a joint healthy distribution.","sourceComparisons":[{"sourceId":"lang-2015-chamber-quantification","locator":"Table 2 (p. 7); ED/ES definition (p. 6)","targetPopulation":"Adult sex-specific echocardiographic reference data.","observationMeaning":"2D biplane LV volumes indexed to BSA; ED/ES may use valve events or cavity extrema; normal ranges based on mean +/- 2 SD.","sourceRange":"Men: EDVi 34-74, ESVi 11-31 mL/m2, EF 52-72%; women: 29-61, 8-24, 54-74%.","comparisonToChosenBounds":"Chosen EF is the sex-union; the volume corridor is not the sex-union and admits larger volumes."},{"sourceId":"kou-2014-norre-chamber-reference","locator":"Table 2, pp. 684-685","targetPopulation":"734 healthy adults (320 men, 414 women), age 45.8 +/- 13.3 years, predominantly white Europeans from 22 institutions.","observationMeaning":"Biplane Simpson 2D echo, excluding papillary muscles and trabeculae from the cavity; BSA indexing does not remove age/sex effects.","sourceRange":"Men: EDVi 34.8-75.7, ESVi 11.7-28.8 mL/m2, EF 55.8-71.3%; women: 34.2-67.6, 10.5-25.9, 57.3-72.6%.","comparisonToChosenBounds":"The chosen volume and EF bounds are broader than these sex-specific intervals; the source does not support their exact endpoints."},{"sourceId":"kawel-boehm-2015-cmr-normal-values","locator":"Table 2 (p. 2)","targetPopulation":"Pooled adult European cohorts, ages 20-80 years; sex-specific results.","observationMeaning":"1.5 T SSFP CMR with LV papillary muscles included in mass; mean +/- 2 SD.","sourceRange":"Men: EDVi 57-105, ESVi 14-38 mL/m2, EF 57-77%; women: 56-96, 14-34, 57-77%.","comparisonToChosenBounds":"The chosen corridor is not a CMR normal interval and can exclude source-normal EDVi or EF while admitting much lower volumes."}]},{"groupId":"right-ventricular-indexed-size-function","checkIds":["right-ventricle.edv-index","right-ventricle.esv-index","right-ventricle.ejection-fraction"],"evidenceRole":"construction","thresholdBasis":"literature-context-plus-engineering-envelope","contextEvidenceIds":["lang-ase-eacvi-2015-3de-rv"],"measurementMeaning":"Valve-event-defined 0D RV volumes indexed to the reference BSA and their event-defined ejection fraction.","changeReason":"Retain broad RV size/function safety bounds without extending the current systemic and left-heart claim.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"Native TV/PV closure volumes and derived EF do not specify a 3D-echo or CMR segmentation method. BSA indexing alone does not remove sex/age effects; EF and the two event volumes are algebraically linked.","evidenceGap":"The volume bounds match a union of male/female 3D-echo ranges, not a population-specific or cross-modality range. The EF endpoints combine age/sex subgroup extremes rather than defining a single healthy cohort.","sourceComparisons":[{"sourceId":"lang-2015-chamber-quantification","locator":"Table 8 (p. 20); Supplemental Table 8 (p. 39.e13)","targetPopulation":"Adult sex-specific 3D-echo data; supplemental RV EF limits further stratified by age.","observationMeaning":"3D-echo RV volume segmentation and BSA indexing; subgroup EF limits are fifth/95th percentiles.","sourceRange":"Men: EDVi 35-87, ESVi 10-44 mL/m2; women: 32-74, 8-36. Subgroup EF extremes include 42% and 82%; general RV EF below 45% is abnormal.","comparisonToChosenBounds":"Volume bounds reproduce the sex-union. EF bounds span subgroup extremes, not a universal normal range."},{"sourceId":"kawel-boehm-2015-cmr-normal-values","locator":"Table 6 (p. 7)","targetPopulation":"Healthy adult cohorts aged 20-68 years, sex-specific results; indexed RV ESV uses the Hudsmith cohort.","observationMeaning":"1.5 T SSFP CMR with RV trabeculations and papillary muscles in the cavity; mean +/- 2 SD.","sourceRange":"Men: EDVi 61-121, ESVi 19-59 mL/m2, EF 52-72%; women: 48-112, 12-52, 51-71%.","comparisonToChosenBounds":"Chosen volume bounds exclude substantial CMR-normal values; the 3D-echo corridor cannot be called a broad cross-modality RV normal interval."}]},{"groupId":"indexed-systemic-forward-flow","checkIds":["systemic-forward-flow.cardiac-index","systemic-forward-flow.stroke-volume-index"],"evidenceRole":"construction","thresholdBasis":"literature-context-plus-engineering-envelope","contextEvidenceIds":["cardiac-index-clinical-reference","resting-indexed-flow-reference"],"measurementMeaning":"Positive-only native AoV flow integrated for stroke volume and converted to cardiac output over the completed beat, both indexed to reference BSA.","changeReason":"Maintain broad resting forward-flow compatibility across the admitted HR values.","analysisPartition":"objective","evaluationRole":"physiological-target","observationLimitations":"Forward volume is not signed net aortic flow or EDV-minus-ESV when regurgitation or other routes exist. CI and SVI are linked by HR, so at a fixed HR they are not independent targets; reference BSA and body habitus remain relevant.","evidenceGap":"CI has an exact guideline interval, but SVI is a cross-source construction choice. The retained Barratt-Boyes binding was metadata-verified only and does not provide a verified quantitative derivation here.","sourceComparisons":[{"sourceId":"humbert-2022-esc-ers-pulmonary-hypertension","locator":"Table 11; section 5.1.12.1","targetPopulation":"Adult resting right-heart catheterization reference values summarized by the guideline, not a new sex-, age-, or BSA-stratified healthy cohort.","observationMeaning":"Supine catheter pressure, mid-thoracic zero and end-expiratory reading; output by direct Fick or thermodilution.","sourceRange":"CI 2.5-4.0 L/min/m2; SVI 33-47 mL/m2.","comparisonToChosenBounds":"CI endpoints match exactly; SVI endpoints do not. Fick/thermodilution output is not necessarily the model's positive-only valve-flow output."},{"sourceId":"carlsson-2012-cmr-cardiac-output","locator":"Methods; healthy-group results and age analysis","targetPopulation":"144 healthy nonathletic adults, 68 women, ages 21-81 (mean 39 +/- 16) years; BMI <=30, no cardiovascular disease or medication.","observationMeaning":"Supine free-breathing ascending-aortic phase-contrast CMR; signed whole-cycle flow integrated for SV, Mosteller BSA.","sourceRange":"CI 3.2 +/- 0.5 L/min/m2; SVI 51 +/- 7 mL/m2 (mean +/- SD).","comparisonToChosenBounds":"The chosen SVI interval is close to, but not identical to, a calculated mean +/- 2 SD interval of 37-65. Such a calculation is not a published universal normal cutoff."}]},{"groupId":"pulmonary-valve-gradient","checkIds":["pulmonary-valve.mean-gradient","pulmonary-valve.peak-gradient"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Time-weighted mean and maximum raw RV-minus-PA node pressure difference while native PV flow is positive over the completed beat.","changeReason":"Record the existing Standard70 right-heart gradient sentinels without promoting them to left-objective groups or changing their numerical limits.","analysisPartition":"right-heart-sentinel","evaluationRole":"construction-guard","observationLimitations":"The model's hydraulic gradient is not a Doppler Bernoulli or recovered catheter gradient; an explicit outlet node does not provide spatial velocity, pressure recovery or an invasive sensor model.","evidenceGap":"No source establishes the exact mean and peak healthy cutoffs for these pressure stations. These remain non-stenotic construction guards, not clinical normal-gradient intervals.","sourceComparisons":[]},{"groupId":"pulmonary-ejection-time","checkIds":["pulmonary-valve.ejection-time"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Native PV zero-flow opening to exact completed-beat closure; the observer requires agreement with the completed beat's accumulated positive-flow duration.","changeReason":"Record the existing Standard70 pulmonary ejection-time corridor with its missing method-matched normative evidence.","analysisPartition":"right-heart-sentinel","evaluationRole":"physiological-target","observationLimitations":"A complete single ejection episode is required. This duration also enters right ICT, IRT and Tei calculations; hydraulic timing is not a Doppler-envelope or tissue-Doppler measurement and depends on HR/loading.","evidenceGap":"No exact primary normal interval was identified for this observer and target population. Retain the frozen interval only as a provisional physiological target; left-sided LVET data do not establish a right-sided range.","sourceComparisons":[]},{"groupId":"right-ventricular-pressure-rate","checkIds":["right-ventricle.maximum-dpdt","right-ventricle.minimum-dpdt"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Maximum and minimum accepted-step finite-difference derivative of absolute intracavitary RV pressure over the completed beat.","changeReason":"Reclassify the existing Standard70 RV derivative corridors as reference warnings without altering the recorded numerical bounds.","analysisPartition":"right-heart-sentinel","evaluationRole":"reference-warning","observationLimitations":"These load- and bandwidth-dependent extrema are neither transmural pressure derivatives nor the mean RV-to-RA pressure-gradient rise inferred over a selected TR velocity interval. Signed negative extrema must not be confused with published pressure-fall magnitudes.","evidenceGap":"No verified source establishes either frozen normal corridor. Sparse normal-PAP invasive data and a method-specific abnormal Doppler threshold justify contextual warnings, not hard healthy-population acceptance limits.","sourceComparisons":[{"sourceId":"mukherjee-2025-right-heart-guideline","locator":"RV dP/dt section, pp. 158-159","targetPopulation":"Adult right-heart echocardiography; normal-reference data are limited.","observationMeaning":"TR Doppler 1-to-2 m/s upslope converted to a 12 mmHg pressure-gradient rise divided by time.","sourceRange":"RV dP/dt below 400 mmHg/s is abnormal for this Doppler method.","comparisonToChosenBounds":"This is not the maximum native intracavitary derivative and does not establish either chosen endpoint or a normal upper limit."},{"sourceId":"stein-1980-rv-pressure-fall","locator":"Abstract; normal-PAP and pulmonary-hypertension groups","targetPopulation":"34 patients: eight with normal PAP, 17 with pulmonary hypertension, nine with pulmonary hypertension and RV failure; not a general healthy reference cohort.","observationMeaning":"Maximal invasive RV pressure-fall magnitude; strong pressure-load dependence, with acquisition detail incompletely resolved by the abstract.","sourceRange":"Normal-PAP group 170 +/- 20 mmHg/s; pulmonary-hypertension groups 670 +/- 60 mmHg/s, with or without RV failure.","comparisonToChosenBounds":"Both loading groups can fit the broad signed negative corridor. The reported summary values are not a healthy reference interval and cannot define its bounds."}]},{"groupId":"tricuspid-e-to-a","checkIds":["tricuspid-flow.peak-e-to-a"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Ratio of peak native tricuspid forward volume flow in early and atrial filling windows anchored to the observed atrial-capture event.","changeReason":"Record the existing Standard70 inflow-ratio corridor without claiming a clinical Doppler measurement.","analysisPartition":"right-heart-sentinel","evaluationRole":"physiological-target","observationLimitations":"Requires identifiable windows and an observed post-capture inlet closure. Volume-flow peaks do not equal Doppler velocities if effective valve area changes; respiration, HR, rhythm, age and loading remain relevant.","evidenceGap":"The numerical corridor resembles a guideline Doppler interval but remains provisional for the native-flow observer; the source upper endpoint is exclusive whereas the frozen gate is inclusive.","sourceComparisons":[{"sourceId":"mukherjee-2025-right-heart-guideline","locator":"Table 1; RV diastolic function, pp. 168-169","targetPopulation":"Adult echocardiographic reference context.","observationMeaning":"PW tricuspid inflow E/A velocities; end-expiratory averaging over at least five beats.","sourceRange":"Tricuspid E/A >=0.8 and <2.0.","comparisonToChosenBounds":"The chosen numeric endpoints match, but flow-versus-velocity and respiratory averaging differ; this is not method-matched validation."}]},{"groupId":"right-ventricular-timing","checkIds":["right-timing.ict","right-timing.irt","right-timing.tei-index"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"ICT from exact TV closure to PV zero-flow opening, IRT from exact PV closure to TV zero-flow opening, and (ICT + IRT) divided by the matched pulmonary ejection duration.","changeReason":"Record the existing Standard70 event-timing corridors while retaining their construction origin and observation mismatch.","analysisPartition":"right-heart-sentinel","evaluationRole":"physiological-target","observationLimitations":"One complete valve-event sequence is required. Tei is algebraically linked to ICT, IRT and the separately checked pulmonary ET; PW-Doppler, TDI and hydraulic timings are different observations.","evidenceGap":"No primary source was identified for the chosen joint ICT/IRT/Tei corridors. The source below supplies method-specific context, not equivalent normal intervals; all three remain provisional physiological targets.","sourceComparisons":[{"sourceId":"mukherjee-2025-right-heart-guideline","locator":"RV MPI, pp. 158-159; IVRT, pp. 168-169","targetPopulation":"Adult right-heart echocardiography.","observationMeaning":"PW-Doppler or tissue-Doppler MPI and tissue-Doppler IVRT, not native valve-flow events.","sourceRange":"MPI <0.40 by PW Doppler or <0.55 by TDI; IVRT <=73 ms by TDI.","comparisonToChosenBounds":"The chosen upper IRT and Tei bounds are wider, and no chosen lower bound or ICT interval follows from these thresholds."}]},{"groupId":"pulmonary-root-morphology","checkIds":["waveform.PAP.single-peak-no-ringing","waveform.PV-flow.single-forward-episode","waveform.PV-flow.single-peak-no-ringing","waveform.PAP.post-PV-closure-rebound"],"evidenceRole":"construction","thresholdBasis":"engineering-guess","contextEvidenceIds":[],"measurementMeaning":"Algorithmic full-cycle PA pressure peak count, thresholded PV forward-episode count, primary-episode PV flow peak count and maximal post-episode PA rebound.","changeReason":"Record Standard70 pulmonary ringing and re-ejection guards as construction-only waveform criteria.","analysisPartition":"right-heart-sentinel","evaluationRole":"construction-guard","observationLimitations":"The episode threshold and peak-prominence algorithm define these observations; the post-episode rebound is not an invasive dicrotic-notch metric. One peak does not characterize the entire pressure or flow contour.","evidenceGap":"No primary normal distribution supports the exact one-peak, one-episode or rebound cutoffs. A qualitative Doppler flow shape must not be cited as proof of these pressure-waveform thresholds.","sourceComparisons":[{"sourceId":"mukherjee-2025-right-heart-guideline","locator":"RVOT Doppler flow, p. 158","targetPopulation":"Adult resting right-heart echocardiography.","observationMeaning":"Qualitative RVOT Doppler velocity waveform: parabolic with a midsystolic peak.","sourceRange":null,"comparisonToChosenBounds":"Qualitative flow context only; it establishes no peak-prominence, PAP peak-count or post-PV-closure rebound cutoff."}]}]`);
+const evidence = {
+  evaluationPolicyId,
+  checkGroups
+};
+const MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID = evidence.evaluationPolicyId;
+evidence.checkGroups.filter((group) => group.analysisPartition === "objective");
+const roles = /* @__PURE__ */ new Map();
+for (const group of evidence.checkGroups) {
+  const role = group.evaluationRole;
+  if (!["numerical-quality", "physiological-target", "construction-guard", "reference-warning"].includes(role)) {
+    throw new Error(`Unknown baseline gate role: ${role}`);
+  }
+  for (const id of group.checkIds) {
+    if (roles.has(id)) throw new Error(`Duplicate baseline gate evidence: ${id}`);
+    roles.set(id, role);
+  }
+}
+function mainWireBaselineGateRoleV1(checkId) {
+  const role = roles.get(checkId);
+  if (role === void 0) throw new Error(`Missing baseline gate evidence: ${checkId}`);
+  return role;
+}
+function mainWireBaselineCheckBlocksV1(check) {
+  const role = mainWireBaselineGateRoleV1(check.checkId);
+  if (!Number.isFinite(check.actual) || !Number.isFinite(check.minimum) || !Number.isFinite(check.maximum) || check.minimum > check.maximum || !["passed", "failed"].includes(check.status)) return true;
+  if (role === "reference-warning") {
+    if (check.checkId.endsWith(".maximum-dpdt")) return check.actual <= 0;
+    if (check.checkId.endsWith(".minimum-dpdt")) return check.actual >= 0;
+    return false;
+  }
+  return check.status !== "passed" || check.actual < check.minimum || check.actual > check.maximum;
+}
+function mainWireBaselineCheckWarnsV1(check) {
+  return mainWireBaselineGateRoleV1(check.checkId) === "reference-warning" && !mainWireBaselineCheckBlocksV1(check) && (check.status !== "passed" || check.actual < check.minimum || check.actual > check.maximum);
+}
+function assertMainWireBaselineCheckCoverageV1(checks2) {
+  const ids = new Set(checks2.map(({ checkId }) => checkId));
+  if (ids.size !== checks2.length || ids.size !== roles.size || [...roles.keys()].some((id) => !ids.has(id))) {
+    throw new Error("Standard70 baseline check coverage differs from evidence registry");
+  }
+}
+const MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_V1_ID = "main-wire-baseline-pressure-rate-quality-v1";
+const MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_POLICY_V1 = Object.freeze({
+  provenance: "engineering-numerical-sensitivity-and-single-segment-spike-screen",
+  maximumTwoGridRelativeDifference: 0.05,
+  minimumAdjacentSameSignMagnitudeFraction: 0.5,
+  comparison: "two-grid-consistency-not-convergence-order-or-accuracy-proof",
+  physiologicalNormalityClaimed: false,
+  fullBeatTraceCompletenessClaimed: false,
+  peakPhaseBasis: "segment-midpoint-within-completed-atrial-beat"
+});
+function assertMainWireBaselinePressureRateQualityV1(value) {
+  const reject = () => {
+    throw new Error("Pressure-rate quality report is not internally consistent passed V1 evidence");
+  };
+  const record = (input) => input !== null && typeof input === "object" && !Array.isArray(input) ? input : reject();
+  const finite2 = (input) => typeof input === "number" && Number.isFinite(input);
+  const sha = (input) => typeof input === "string" && /^[0-9a-f]{64}$/.test(input);
+  const report = record(value), grids = record(report.grids);
+  if (report.methodId !== MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_V1_ID || report.status !== "passed" || report.issue !== null || canonicalJsonStringify(report.policy) !== canonicalJsonStringify(MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_POLICY_V1)) reject();
+  const coarse = record(grids.coarse), fine = record(grids.fine);
+  for (const grid of [coarse, fine]) {
+    const model = record(grid.modelIdentity);
+    if (!sha(grid.checkpointSha256) || !sha(grid.candidateIdentitySha256) || !finite2(grid.nominalDtSec) || !(grid.nominalDtSec > 0) || Object.keys(model).length === 0 || Object.values(model).some((field) => typeof field !== "string" || field.length === 0)) reject();
+  }
+  if (fine.nominalDtSec !== coarse.nominalDtSec / 2 || fine.candidateIdentitySha256 !== coarse.candidateIdentitySha256 || canonicalJsonStringify(fine.modelIdentity) !== canonicalJsonStringify(coarse.modelIdentity)) reject();
+  const expected = /* @__PURE__ */ new Set(["left-ventricle.maximum-dpdt", "left-ventricle.minimum-dpdt", "right-ventricle.maximum-dpdt", "right-ventricle.minimum-dpdt"]);
+  if (!Array.isArray(report.checks) || report.checks.length !== expected.size) reject();
+  for (const raw of report.checks) {
+    const check = record(raw), id = check.checkId;
+    if (typeof id !== "string" || !expected.delete(id) || check.status !== "passed") reject();
+    const sign = id.includes(".maximum-") ? 1 : -1;
+    const peaks = [record(check.coarse), record(check.fine)];
+    peaks.forEach((peak, index) => {
+      if (peak.status !== "passed" || peak.issue !== null || !finite2(peak.reportedMmHgPerSec) || !(sign * peak.reportedMmHgPerSec > 0) || !finite2(peak.observedMmHgPerSec) || !nearV1(peak.observedMmHgPerSec, peak.reportedMmHgPerSec) || !finite2(peak.peakStartTimeSec) || !finite2(peak.peakEndTimeSec) || !(peak.peakEndTimeSec > peak.peakStartTimeSec) || peak.peakEndTimeSec - peak.peakStartTimeSec > [coarse, fine][index].nominalDtSec + toleranceV1(peak.peakEndTimeSec) || !finite2(peak.peakPhase01) || peak.peakPhase01 < 0 || peak.peakPhase01 > 1) reject();
+      const neighbors = [peak.previousSameSignFraction, peak.nextSameSignFraction];
+      if (neighbors.some((fraction2) => fraction2 !== null && (!finite2(fraction2) || fraction2 < 0 || fraction2 > 1 + toleranceV1(fraction2))) || Math.max(...neighbors.map((fraction2) => fraction2 === null ? 0 : fraction2)) < MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_POLICY_V1.minimumAdjacentSameSignMagnitudeFraction) reject();
+    });
+    const a = peaks[0].reportedMmHgPerSec, b = peaks[1].reportedMmHgPerSec;
+    const difference = Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b));
+    if (!finite2(check.relativeDifference) || check.relativeDifference !== difference || difference > MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_POLICY_V1.maximumTwoGridRelativeDifference) reject();
+  }
+}
+function toleranceV1(...values2) {
+  return 128 * Number.EPSILON * Math.max(1, ...values2.map(Math.abs));
+}
+function nearV1(left, right) {
+  return Number.isFinite(left) && Number.isFinite(right) && Math.abs(left - right) <= toleranceV1(left, right);
+}
+const MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID = "main-wire-standard70-preload-reserve-policy-v1";
+const MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 = Object.freeze({
+  policyId: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID,
+  minimumDirectionalCardiacOutputChangeFraction01: 0.03,
+  minimumCardiacOutputSlopeLPerMinPerMmHg: 0.02,
+  minimumDirectionalEndDiastolicVolumeChangeFraction01: 0.03
+});
+function mainWireStandard70PreloadReserveDirectionalResponsePassedV1(response) {
+  const policy = MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1;
+  return mainWireIntegratedModelFormalPreloadReserveDirectionalResponsePassedV1(
+    response
+  ) && response.directionalCardiacOutputChangeFraction01 >= policy.minimumDirectionalCardiacOutputChangeFraction01 && response.cardiacOutputSlopeLPerMinPerMmHg >= policy.minimumCardiacOutputSlopeLPerMinPerMmHg && response.directionalEndDiastolicVolumeChangeFraction01 >= policy.minimumDirectionalEndDiastolicVolumeChangeFraction01;
+}
+function assertMainWireStandard70PreloadReservePassedV1(qualification) {
+  for (const [ventricle, side] of Object.entries({
+    LV: qualification.left,
+    RV: qualification.right
+  })) {
+    for (const response of [side.hypovolemic, side.hypervolemic]) {
+      if (!mainWireStandard70PreloadReserveDirectionalResponsePassedV1(response)) {
+        throw new Error(
+          `Standard70 ${ventricle} ${response.endpointDirection} preload reserve failed`
+        );
+      }
+    }
+  }
+}
+const MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID = "main-wire-integrated-model-rounded-ejection-baseline-qualification-v1";
 const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_V1_SCHEMA_ID = "circleheart.main-wire.rounded-ejection-baseline-validation.v1";
 function validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(input) {
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -55418,19 +55557,45 @@ function validateMainWireIntegratedStudioStandard70BaselineValidationV1(input) {
   )) {
     throw new Error("Standard70 baseline validation report is invalid");
   }
-  validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1({
-    ...report,
-    schemaId: MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_V1_SCHEMA_ID,
-    modelId: MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
-    qualificationId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID,
-    validationMethodId: MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID
-  });
-  assertMainWireIntegratedModelStandard70BaselinePassedV1(
-    report.checks,
-    report.measurements
-  );
+  if (report.assessment !== void 0) {
+    validateCurrentAssessmentV1(report);
+  } else {
+    validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1({
+      ...report,
+      schemaId: MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_BASELINE_VALIDATION_V1_SCHEMA_ID,
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+      qualificationId: MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_QUALIFICATION_V1_ID,
+      validationMethodId: MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_V1_ID
+    });
+    assertMainWireIntegratedModelStandard70BaselinePassedV1(report.checks, report.measurements);
+  }
   assertMainWireStandard70PreloadReservePassedV1(report.preloadReserve);
   return input;
+}
+function assertCurrentChecksV1(checks2) {
+  assertMainWireBaselineCheckCoverageV1(checks2);
+  const failed2 = checks2.filter(mainWireBaselineCheckBlocksV1);
+  if (failed2.length) throw new Error(`Standard70 baseline assessment rejected: ${failed2.map((x) => `${x.checkId}=${x.actual}`).join("; ")}`);
+}
+function validateCurrentAssessmentV1(report) {
+  const reserve = report.preloadReserve;
+  const assessment = report.assessment;
+  assertMainWireBaselinePressureRateQualityV1(assessment.pressureRateQuality);
+  const expectedWarnings = report.checks.filter(mainWireBaselineCheckWarnsV1).map(({ checkId }) => checkId);
+  const near = (a, b) => Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  if (assessment.policyId !== MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID || assessment.observationMethodId !== MAIN_WIRE_BASELINE_OBSERVATION_V2_ID || JSON.stringify(assessment.referenceWarningCheckIds) !== JSON.stringify(expectedWarnings) || !(report.nominalDtSec > 0) || !Number.isFinite(report.nominalDtSec) || !Number.isSafeInteger(report.completedCycleCount) || report.completedCycleCount < 3 || report.periodicity?.status !== "period1-converged" || !Number.isFinite(report.periodicity.latestPeriod1MaximumNormalizedDelta) || report.periodicity.latestPeriod1MaximumNormalizedDelta < 0 || report.periodicity.latestPeriod1MaximumNormalizedDelta > MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance || !Array.isArray(report.periodicity.evidenceCycleIndices) || report.periodicity.evidenceCycleIndices.length !== MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.consecutiveCycles || report.periodicity.evidenceCycleIndices.some((cycle, index, cycles) => !Number.isSafeInteger(cycle) || cycle < 1 || cycle > report.completedCycleCount || index > 0 && cycle !== cycles[index - 1] + 1) || report.periodicity.evidenceCycleIndices.at(-1) !== report.completedCycleCount || !report.checkpoint || typeof report.checkpoint.checkpointId !== "string" || !Number.isSafeInteger(report.checkpoint.revision) || !Number.isFinite(report.checkpoint.acceptedTimeSec) || !/^[0-9a-f]{64}$/.test(report.checkpoint.checkpointSha256) || !validHemodynamicPressureV1(report.measurements.hemodynamicPressure) || !validCardiacSizeAndFunctionV1(report.measurements.cardiacSizeAndFunction) || ![report.measurements.mitralFlow, report.measurements.tricuspidFlow].every((flow) => flow && Number.isFinite(flow.peakEMlPerSec) && flow.peakEMlPerSec > 0 && Number.isFinite(flow.peakAMlPerSec) && flow.peakAMlPerSec > 0 && near(flow.peakEToA, flow.peakEMlPerSec / flow.peakAMlPerSec)) || assessment.pressureRateQuality.grids.coarse.checkpointSha256 !== report.checkpoint.checkpointSha256 || assessment.pressureRateQuality.grids.coarse.nominalDtSec !== report.nominalDtSec || canonicalJsonStringify(assessment.pressureRateQuality.grids.coarse.modelIdentity) !== canonicalJsonStringify(MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1) || assessment.pressureRateQuality.checks.some((check) => {
+    const ventricle = check.checkId.startsWith("left-") ? report.measurements.leftVentricle : report.measurements.rightVentricle;
+    return !near(check.coarse.reportedMmHgPerSec, check.checkId.includes(".maximum-") ? ventricle.maximumDpDtMmHgPerSec : ventricle.minimumDpDtMmHgPerSec);
+  }) || !reserve || reserve.qualificationId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID || reserve.protocolId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID || reserve.endDiastolicDefinition !== "inlet-valve-closure" || ["center", "hypovolemic", "hypervolemic"].some((key) => !validMainWireFixedToneSettlementEvidenceV2(reserve.settlement?.[key])) || reserve.status !== "passed" || !validPreloadReserveSideV1(reserve.left) || !validPreloadReserveSideV1(reserve.right) || !near(reserve.hypovolemicGlobalTbvScale, 0.88) || !near(reserve.hypervolemicGlobalTbvScale, 1.12) || !(reserve.sourceGlobalTbvMl > 0) || !near(reserve.hypovolemicGlobalTbvMl, reserve.sourceGlobalTbvMl * reserve.hypovolemicGlobalTbvScale) || !near(reserve.hypervolemicGlobalTbvMl, reserve.sourceGlobalTbvMl * reserve.hypervolemicGlobalTbvScale) || !near(
+    report.measurements.timing.teiIndex,
+    (report.measurements.timing.ictSec + report.measurements.timing.irtSec) / report.measurements.aorticValve.ejectionTimeSec
+  ) || !near(
+    report.measurements.rightTiming.teiIndex,
+    (report.measurements.rightTiming.ictSec + report.measurements.rightTiming.irtSec) / report.measurements.pulmonaryValve.ejectionTimeSec
+  )) {
+    throw new Error("Standard70 current baseline assessment is invalid");
+  }
+  assertCurrentChecksV1(report.checks);
 }
 function validRightHeartMeasurementsV1(measurements2) {
   const morphology = measurements2.pulmonaryRootMorphology;
