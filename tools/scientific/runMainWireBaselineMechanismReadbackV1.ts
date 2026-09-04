@@ -14,6 +14,8 @@ import { restoreMainWireIntegratedModelStandard70V1, type MainWireIntegratedMode
 import { createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type { MainWireIntegratedModelRuntimeV3 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
+import type { MainWireNormalAdultFiveWallMechanicsStateV1 } from
+  "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import type { MainWireFiveWallLandTriSegReadbackV1 } from
   "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import type { MainWireNormalAdultWallMaterialReadbackV1 } from
@@ -34,7 +36,8 @@ type Observation = ReturnType<Standard70Session["observe"]>;
 // frozen-control manifest. A live Standard70 restore intentionally uses the
 // live-controller manifest and cannot restore this different analysis regime.
 class RestoredAnalysisFork extends MainWireIntegratedTypedAuthoritySessionV1 {
-  constructor(runtime: Runtime, restored: Awaited<ReturnType<typeof restoreMainWireIntegratedModelStandard70V1>>) {
+  constructor(runtime: Runtime, restored: Awaited<ReturnType<
+    typeof restoreMainWireIntegratedModelStandard70V1<MainWireNormalAdultFiveWallMechanicsStateV1>>>) {
     super(runtime as unknown as MainWireIntegratedModelRuntimeV3, restored.acceptedState,
       "fixed-tbv-protocol-fork", null, restored, undefined, null, restored.acceptedState);
   }
@@ -148,7 +151,10 @@ const restored = await restoreMainWireIntegratedModelStandard70V1({
   algebraicPulmonaryRootAssemblyId: runtime.algebraicPulmonaryRootAssemblyId,
 }, audit.endCheckpoint);
 const highSession = new RestoredAnalysisFork(runtime, restored);
-if (await sha256CanonicalJsonHex(highSession.currentAcceptedState()) !== await sha256CanonicalJsonHex(audit.endState)) {
+// Compare the stored diagnostic JSON representation (typed arrays become
+// index records). Restoration authority remains the exact-owned checkpoint.
+if (await sha256CanonicalJsonHex(JSON.parse(JSON.stringify(highSession.currentAcceptedState())))
+  !== await sha256CanonicalJsonHex(audit.endState)) {
   throw new Error("audit state and exact-owned checkpoint differ");
 }
 const high = collect(highSession, runtime);
