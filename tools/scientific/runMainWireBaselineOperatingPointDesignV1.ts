@@ -22,7 +22,7 @@ import { measureMainWireIntegratedModelFormalPreloadReserveV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { designReservePolicyV1, reserveCandidateIdentityV1, qualifyMeasuredDesignReserveV1,
   designQualificationPathV1, validateDesignQualificationResultV1, mapDesignInOrderV1,
-  designRateInitializationV1,
+  designEarlyRateInitializationV1,
   type DesignReserveResultV1 as ReserveResult } from "./mainWireBaselineDesignExecutionV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
@@ -136,6 +136,7 @@ if (values.worker) {
   let count = 0;
   type Entry = { index: number; inputs: MainWireBaselineCalibrationCandidateInputsV1;
     evaluation: MainWireStandard70BaselineCalibrationEvaluationV1; reserve: ReserveResult | null;
+    rateRequest: (MainWireBaselineCalibrationCandidateInputsV1 & MainWireStandard70BaselineCalibrationEvaluationRequestV1) | null;
     rateEvaluation: MainWireStandard70BaselineCalibrationEvaluationV1 | null; restScore: DesignScoreV1;
     proposalArterialStorageMl: number | null;
     reserveScreen: "not-run" | "measured" | "unresolved" | "rest-bound-pruned"; score: DesignScoreV1 };
@@ -164,23 +165,26 @@ if (values.worker) {
       MainWireStandard70BaselineCalibrationEvaluationV1;
     const entry: Entry = { index, inputs, evaluation, reserve: null, reserveScreen: "not-run",
       proposalArterialStorageMl: null,
-      rateEvaluation: null, restScore: scoreMainWireBaselineOperatingPointV1(evaluation),
+      rateRequest: null, rateEvaluation: null, restScore: scoreMainWireBaselineOperatingPointV1(evaluation),
       score: scoreMainWireBaselineReserveAwareV1(evaluation, null) };
     history.push(entry);
     const score = scoreMainWireBaselineOperatingPointV1(evaluation);
     process.stderr.write(`[design] ${index}: ${evaluation.status} ${JSON.stringify(score)}\n`);
     return entry;
   }
-  async function screenOtherRate(entry: Entry) {
+  async function screenOtherRate(entry: Entry, source?: Entry) {
     const rate = heartRateBpm === 60 ? 70 : 60;
     const requestPath = resolve(output, `${entry.index}.rate-request.json`);
     const resultPath = resolve(output, `${entry.index}.rate-result.json`);
     const request = { ...entry.inputs,
       hemodynamicResearchInputs: { ...entry.inputs.hemodynamicResearchInputs, heartRateBpm: rate },
       nominalDtSec: policy.nominalDtSec,
-      initialization: designRateInitializationV1(rate, reference.selectedConstruction.candidateInputs,
-        checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1) };
+      initialization: designEarlyRateInitializationV1(rate, reference.selectedConstruction.candidateInputs,
+        checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1,
+        source?.rateRequest && source.rateEvaluation
+          ? { request: source.rateRequest, evaluation: source.rateEvaluation } : undefined) };
     await writeFile(requestPath, JSON.stringify(request), { flag: "wx" });
+    entry.rateRequest = request;
     await runChild("tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts", ["--worker", requestPath,
       "--output", resultPath, "--integrity-tier", executionTier]);
     entry.rateEvaluation = JSON.parse(await readFile(resultPath, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
@@ -247,7 +251,7 @@ if (values.worker) {
     const batch = await mapDesignInOrderV1(proposals, parallelism, async (candidate, ordinal) => {
       const entry = await evaluate(candidate, initialization, firstIndex + ordinal);
       if (mainWireBaselineDesignBetterV1(scoreMainWireBaselineOperatingPointV1(entry.evaluation), incumbent)) {
-        await screenOtherRate(entry);
+        await screenOtherRate(entry, source);
         if (mainWireBaselineDesignBetterV1(entry.restScore, incumbent)) await measureReserve(entry);
         else entry.reserveScreen = "rest-bound-pruned";
       } else entry.reserveScreen = "rest-bound-pruned";

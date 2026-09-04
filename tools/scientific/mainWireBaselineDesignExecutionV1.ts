@@ -15,6 +15,10 @@ import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import type { MainWireIntegratedModelStandard70CandidateInitializationV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import type { MainWireStandard70BaselineCalibrationEvaluationV1 } from
+  "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
+import { scoreMainWireBaselineOperatingPointV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 
 export const designReservePolicyV1 = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1,
@@ -93,6 +97,24 @@ export function designRateInitializationV1(heartRateBpm: number,
       sourceMechanismResearchInputs: source.mechanismResearchInputs,
       sourceVentricularContractilityScale: source.ventricularContractilityScale }
     : { kind: "cold" };
+}
+
+/** Early screening alone may continue from the frozen incumbent's counterpart. */
+export function designEarlyRateInitializationV1(heartRateBpm: number,
+  officialInputs: MainWireBaselineCalibrationCandidateInputsV1,
+  officialCheckpoint: MainWireIntegratedModelStandard70CheckpointV1,
+  source?: { request: MainWireBaselineCalibrationCandidateInputsV1;
+    evaluation: MainWireStandard70BaselineCalibrationEvaluationV1 },
+): MainWireIntegratedModelStandard70CandidateInitializationV1 {
+  if (source?.request.hemodynamicResearchInputs.heartRateBpm === heartRateBpm
+    && source.evaluation.status === "accepted"
+    && source.evaluation.exactResult.classification.status === "period1-converged"
+    && Number.isFinite(scoreMainWireBaselineOperatingPointV1(source.evaluation).minimumMargin)) {
+    // A finite corridor failure is still an exact accepted state. Retain every
+    // actual source input; exact restore, not HR relabelling, binds the checkpoint.
+    return designRateInitializationV1(heartRateBpm, source.request, source.evaluation.exactResult.checkpoint);
+  }
+  return designRateInitializationV1(heartRateBpm, officialInputs, officialCheckpoint);
 }
 
 export function designQualificationPathV1(index: number, mode: string) {

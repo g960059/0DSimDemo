@@ -2,8 +2,11 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import standard70CheckpointJson from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
 import { designQualificationPathV1, validateDesignQualificationResultV1, qualifyMeasuredDesignReserveV1,
-  reserveCandidateIdentityV1, mapDesignInOrderV1, designRateInitializationV1, type DesignReserveResultV1 } from
+  reserveCandidateIdentityV1, mapDesignInOrderV1, designRateInitializationV1, designEarlyRateInitializationV1,
+  type DesignReserveResultV1 } from
   "@/tools/scientific/mainWireBaselineDesignExecutionV1";
 import {
   scoreMainWireBaselineOperatingPointV1,
@@ -45,6 +48,7 @@ import {
   MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
   type MainWireStandard70BaselineCalibrationAcceptedEvaluationV1,
   type MainWireStandard70BaselineCalibrationEvaluationRequestV1,
+  type MainWireStandard70BaselineCalibrationEvaluationV1,
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
@@ -88,11 +92,21 @@ beforeEach(() => {
 
 describe("baseline reference and executable local recovery", () => {
   it("binds the prospective research bounds into the design policy", () => {
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.policyId)
+      .toBe("main-wire-baseline-operating-point-design-v4");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterPolicyId)
       .toBe("main-wire-baseline-calibration-parameter-policy-v2");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterDomains.find(
       (row) => row.parameterId === "hemodynamics.arterial-stiffness"))
       .toMatchObject({ minimum: 0.5, maximum: 2.2, releaseStep: 0.01 });
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.earlyRateInitialization).toEqual({
+      seed: "same-clock-official-checkpoint-otherwise-cold",
+      neighborhood: "fixed-incumbent-same-clock-counterpart-checkpoint-with-actual-source-inputs",
+      sourceEligibility: "exact-accepted-and-numerical-event-safety-resolved",
+      fallback: "same-clock-official-checkpoint-otherwise-cold",
+    });
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.rateConditionInitialization)
+      .toBe("same-clock-official-checkpoint-otherwise-cold");
   });
 
   it("adds lattice-bounded storage-compensated directions without replacing axial proposals", () => {
@@ -464,6 +478,89 @@ describe("bounded baseline operating-point design", () => {
       sourceVentricularContractilityScale: anchor.ventricularContractilityScale,
     });
     expect(designRateInitializationV1(70, anchor, checkpoint)).toEqual({ kind: "cold" });
+  });
+
+  it.each([60, 70])("uses the accepted HR%s counterpart's actual inputs, including outside normal corridors", async (rate) => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const officialCheckpoint = { checkpointSha256: "b".repeat(64) } as Parameters<typeof designRateInitializationV1>[2];
+    const inputs = applyMainWireBaselineCalibrationParametersV1(anchor, [
+      { parameterId: "hemodynamics.total-blood-volume-ml", value: 4950 },
+      { parameterId: "myocardium.common-ventricular-active-tension-scale", value: 1.24 },
+      { parameterId: "myocardium.common-ventricular-passive-stiffness-scale", value: 1.1 },
+    ]);
+    const rateRequest = { ...inputs,
+      hemodynamicResearchInputs: { ...inputs.hemodynamicResearchInputs, heartRateBpm: rate },
+      ventricularContractilityScale: 1.02,
+      nominalDtSec: 0.002, initialization: designRateInitializationV1(rate, anchor, officialCheckpoint) };
+    const good = await acceptedV1(rateRequest);
+    const outside = { ...good, constructionGateStatus: "failed" as const, objectiveGateStatus: "failed" as const,
+      failedConstructionCheckIds: ["systemic-forward-flow.cardiac-index" as const],
+      failedObjectiveCheckIds: ["systemic-forward-flow.cardiac-index" as const],
+      objectiveChecks: good.objectiveChecks.map((check) => check.checkId === "systemic-forward-flow.cardiac-index"
+        ? { ...check, actual: check.minimum - 0.1, status: "failed" as const } : check) };
+    expect(scoreMainWireBaselineOperatingPointV1(outside).feasible).toBe(false);
+    for (const evaluation of [good, outside]) {
+      const initialization = designEarlyRateInitializationV1(rate, anchor, officialCheckpoint,
+        { request: rateRequest, evaluation });
+      expect(initialization).toEqual({ kind: "standard70-parameter-continuation",
+        sourceCheckpoint: evaluation.exactResult.checkpoint,
+        sourceHemodynamicResearchInputs: rateRequest.hemodynamicResearchInputs,
+        sourceMechanismResearchInputs: rateRequest.mechanismResearchInputs,
+        sourceVentricularContractilityScale: rateRequest.ventricularContractilityScale });
+      // The persisted request retains the actual source, not the official
+      // ancestor's inputs or the primary candidate's differently clocked inputs.
+      expect(JSON.parse(JSON.stringify({ ...rateRequest, initialization })).initialization).toEqual(initialization);
+      expect(initialization).not.toEqual(rateRequest.initialization);
+    }
+  });
+
+  it.each([60, 70])("falls back for missing, differently clocked, or unresolved HR%s counterparts", async (rate) => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const officialCheckpoint = { checkpointSha256: "b".repeat(64) } as Parameters<typeof designRateInitializationV1>[2];
+    const rateRequest = { ...anchor,
+      hemodynamicResearchInputs: { ...anchor.hemodynamicResearchInputs, heartRateBpm: rate }, nominalDtSec: 0.002 };
+    const good = await acceptedV1(rateRequest);
+    const fallback = designRateInitializationV1(rate, anchor, officialCheckpoint);
+    expect(designEarlyRateInitializationV1(rate, anchor, officialCheckpoint)).toEqual(fallback);
+    expect(designEarlyRateInitializationV1(rate, anchor, officialCheckpoint, {
+      request: { ...rateRequest, hemodynamicResearchInputs: {
+        ...rateRequest.hemodynamicResearchInputs, heartRateBpm: rate === 60 ? 70 : 60 } }, evaluation: good,
+    })).toEqual(fallback);
+    const invalid: MainWireStandard70BaselineCalibrationEvaluationV1[] = [
+      ...(["numerical-unresolved", "nonsettled-or-event-change", "invalid-or-physical", "operational-interrupted"] as const)
+        .map((status) => ({ evaluatorId: good.evaluatorId, status, phase: "exact-execution" as const,
+          requestIdentitySha256: null, wallTimeMs: 1, message: "fixture failure", partial: null })),
+      { ...good, safetySentinelStatus: "failed" },
+      { ...good, exactResult: { ...good.exactResult,
+        classification: { ...good.exactResult.classification, status: "not-converged" } } },
+      { ...good, objectiveChecks: [...good.objectiveChecks, { checkId: "settlement.period1",
+        minimum: 1, maximum: 1, actual: 0, unit: "bool", status: "failed" }] },
+      { ...good, objectiveChecks: good.objectiveChecks.map((check, index) => index === 0 ? { ...check, actual: NaN } : check) },
+    ];
+    for (const evaluation of invalid) {
+      expect(designEarlyRateInitializationV1(rate, anchor, officialCheckpoint,
+        { request: rateRequest, evaluation })).toEqual(fallback);
+    }
+  });
+
+  it.each(["hemodynamicResearchInputs", "mechanismResearchInputs", "ventricularContractilityScale"] as const)(
+    "leaves exact restore to reject counterpart checkpoint ownership drift in %s", async (key) => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const checkpoint = standard70CheckpointJson as unknown as Parameters<typeof designRateInitializationV1>[2];
+    const alternate = { ...applyMainWireBaselineCalibrationParametersV1(anchor, [
+      { parameterId: "hemodynamics.total-blood-volume-ml", value: 4950 },
+      { parameterId: "myocardium.common-ventricular-passive-stiffness-scale", value: 1.1 },
+    ]), ventricularContractilityScale: 1.02 };
+    const rateRequest = { ...anchor, [key]: alternate[key], nominalDtSec: 0.002 };
+    const fixture = await acceptedV1(rateRequest);
+    const initialization = designEarlyRateInitializationV1(60, anchor, checkpoint, {
+      request: rateRequest, evaluation: { ...fixture, exactResult: { ...fixture.exactResult, checkpoint } },
+    });
+    const { evaluateMainWireStandard70BaselineCalibrationCandidateV1: exactEvaluate } = await vi.importActual<
+      typeof import("@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1")
+    >("@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1");
+    expect(await exactEvaluate({ ...anchor, nominalDtSec: 0.002, initialization }))
+      .toMatchObject({ status: "invalid-or-physical", phase: "initialization" });
   });
 
   it("completes a finalist artifact handoff without overwriting its search reserve", async () => {

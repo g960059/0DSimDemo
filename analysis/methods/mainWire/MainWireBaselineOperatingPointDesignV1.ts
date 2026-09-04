@@ -24,7 +24,7 @@ import { vascularPvLawFromNodeV1 } from "@/engine/core/circulationGraphKernelV1"
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
-  policyId: "main-wire-baseline-operating-point-design-v3",
+  policyId: "main-wire-baseline-operating-point-design-v4",
   parameterPolicyId: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
   parameterDomains: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1.map(
     ({ parameterId, minimum, maximum, finiteDifferenceStep }) =>
@@ -50,6 +50,12 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   rateConditionInitialization: "same-clock-official-checkpoint-otherwise-cold",
   qualificationOrder: "refined-then-reserve-load-rate-then-selected-baseline-cold",
   earlyConditionScreen: "other-allowed-heart-rate-before-expensive-reserve",
+  earlyRateInitialization: {
+    seed: "same-clock-official-checkpoint-otherwise-cold",
+    neighborhood: "fixed-incumbent-same-clock-counterpart-checkpoint-with-actual-source-inputs",
+    sourceEligibility: "exact-accepted-and-numerical-event-safety-resolved",
+    fallback: "same-clock-official-checkpoint-otherwise-cold",
+  },
   additionalProposalDirections: "arterial-stiffness-with-pressure-preserving-storage-compensation",
   proposalVolumeReadback: "same-input-exact-checkpoint-arterial-volume-above-unstressed",
 });
