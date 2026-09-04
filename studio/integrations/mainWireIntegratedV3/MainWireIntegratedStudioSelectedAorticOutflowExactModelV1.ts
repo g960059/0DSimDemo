@@ -19,11 +19,11 @@ import type {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3,
   MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
-  validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import {
   validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1,
+  validateAndOwnMainWireIntegratedStudioStandard68To70HemodynamicInputsV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioPublishedHemodynamicDomainsV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_MECHANISM_RESEARCH_INPUTS_V3,
@@ -2482,7 +2482,7 @@ function validateAndOwnSelectedFixtureV1(
       mode: "all-off-zero-inertance-v3",
     }),
     hemodynamicResearchInputs: variant.generation === 68
-      ? validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
+      ? validateAndOwnMainWireIntegratedStudioStandard68To70HemodynamicInputsV1(
           record.hemodynamicResearchInputs,
         )
       : validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicInputsV1(

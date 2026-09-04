@@ -51,7 +51,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3 =
     }),
     arterialStiffness: Object.freeze({
       minimum: 0.5,
-      maximum: 1.5,
+      // Prospective arterial-storage/compliance study; published domains stay
+      // pinned separately. This scale affects pulmonary arteries as well.
+      maximum: 2.2,
       step: 0.01,
     }),
     heartRateBpm: Object.freeze({

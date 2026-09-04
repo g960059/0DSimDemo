@@ -2,10 +2,11 @@ import {
   MAIN_WIRE_CORONARY_DISEASE_RESEARCH_INPUT_RANGES_V2,
 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
 import {
-  MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
   type MainWireIntegratedModelHemodynamicResearchInputKeyV3,
   type MainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
+import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD68_TO70_HEMODYNAMIC_RANGES_V1 } from
+  "./MainWireIntegratedStudioPublishedHemodynamicDomainsV1";
 import {
   type MainWireIntegratedModelMechanismResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
@@ -490,7 +491,7 @@ function hemodynamicDefinitionV1(
   return definitionV1(
     HEMODYNAMIC_CONTROL_BY_INPUT_V1[key],
     hemodynamicUnitV1(key),
-    MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3[key],
+    MAIN_WIRE_INTEGRATED_STUDIO_STANDARD68_TO70_HEMODYNAMIC_RANGES_V1[key],
     MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1[key],
   );
 }

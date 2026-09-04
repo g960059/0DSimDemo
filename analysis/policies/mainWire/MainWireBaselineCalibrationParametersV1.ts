@@ -12,7 +12,7 @@ import {
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 
 export const MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID =
-  "main-wire-baseline-calibration-parameter-policy-v1" as const;
+  "main-wire-baseline-calibration-parameter-policy-v2" as const;
 
 export const MAIN_WIRE_BASELINE_CALIBRATION_ALLOWED_HEART_RATES_BPM_V1 =
   Object.freeze([60, 70] as const);

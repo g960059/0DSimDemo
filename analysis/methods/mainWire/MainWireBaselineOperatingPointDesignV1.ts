@@ -3,6 +3,8 @@ import {
   readMainWireBaselineCalibrationParameterV1,
   mainWireBaselineCalibrationParameterV1,
   mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1,
+  MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
+  MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1,
   type MainWireBaselineCalibrationCandidateInputsV1,
   type MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -17,17 +19,23 @@ import {
   MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 as reserveFloors,
   mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
 } from "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
+import { buildNonCoronaryCirculationGraphV1 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import { vascularPvLawFromNodeV1 } from "@/engine/core/circulationGraphKernelV1";
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
-  policyId: "main-wire-baseline-operating-point-design-v2",
+  policyId: "main-wire-baseline-operating-point-design-v3",
+  parameterPolicyId: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
+  parameterDomains: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1.map(
+    ({ parameterId, minimum, maximum, finiteDifferenceStep }) =>
+      ({ parameterId, minimum, maximum, releaseStep: finiteDifferenceStep })),
   referenceId: "baseline",
   allowedHeartRatesBpm: [60, 70] as const,
   coordinates: Object.freeze([
     { parameterId: "hemodynamics.total-blood-volume-ml", step: 100, radius: 300 },
     { parameterId: "myocardium.common-ventricular-active-tension-scale", step: 0.04, radius: 0.12 },
     { parameterId: "hemodynamics.systemic-resistance", step: 0.04, radius: 0.16 },
-    { parameterId: "hemodynamics.arterial-stiffness", step: 0.08, radius: 0.32 },
+    { parameterId: "hemodynamics.arterial-stiffness", step: 0.2, radius: 0.9 },
     { parameterId: "myocardium.common-ventricular-passive-stiffness-scale", step: 0.08, radius: 0.24 },
   ] satisfies readonly { parameterId: MainWireBaselineCalibrationParameterIdV1; step: number; radius: number }[]),
   maximumEvaluations: 49,
@@ -42,6 +50,8 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   rateConditionInitialization: "same-clock-official-checkpoint-otherwise-cold",
   qualificationOrder: "refined-then-reserve-load-rate-then-selected-baseline-cold",
   earlyConditionScreen: "other-allowed-heart-rate-before-expensive-reserve",
+  additionalProposalDirections: "arterial-stiffness-with-pressure-preserving-storage-compensation",
+  proposalVolumeReadback: "same-input-exact-checkpoint-arterial-volume-above-unstressed",
 });
 
 export type DesignScoreV1 = Readonly<{
@@ -188,6 +198,7 @@ export function mainWireBaselineDesignNeighborsV1(
   anchor: MainWireBaselineCalibrationCandidateInputsV1,
   current: MainWireBaselineCalibrationCandidateInputsV1,
   stepScale: 1 | 0.5 | 0.25,
+  arterialStorageMl?: number,
 ): readonly MainWireBaselineCalibrationCandidateInputsV1[] {
   const policy = MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1;
   if (!(policy.allowedHeartRatesBpm as readonly number[]).includes(anchor.hemodynamicResearchInputs.heartRateBpm)
@@ -196,12 +207,38 @@ export function mainWireBaselineDesignNeighborsV1(
   }
   const directions = policy.coordinates.flatMap((_, axis) => [1, -1].map((sign) =>
     policy.coordinates.map((__, i) => i === axis ? sign : 0)));
-  return directions.flatMap((direction) => {
-    const updates = policy.coordinates.map((coordinate, i) => {
+  const proposals = directions.map((direction) =>
+    policy.coordinates.map((coordinate, i) => {
       const value = readMainWireBaselineCalibrationParameterV1(current, coordinate.parameterId)
         + direction[i]! * coordinate.step * stepScale;
       return { parameterId: coordinate.parameterId, value: Number(value.toFixed(8)) };
-    });
+    }));
+  if (arterialStorageMl !== undefined) {
+    if (!(arterialStorageMl > 0) || !Number.isFinite(arterialStorageMl)) {
+      throw new Error("arterial storage proposal requires a positive finite exact readback");
+    }
+    const stiffnessId = "hemodynamics.arterial-stiffness";
+    const tbvId = "hemodynamics.total-blood-volume-ml";
+    const stiffnessAxis = policy.coordinates.findIndex((axis) => axis.parameterId === stiffnessId);
+    const oldStiffness = readMainWireBaselineCalibrationParameterV1(current, stiffnessId);
+    const volumeDomain = mainWireBaselineCalibrationParameterV1(tbvId);
+    for (const sign of [1, -1]) {
+      const newStiffness = oldStiffness + sign * policy.coordinates[stiffnessAxis]!.step * stepScale;
+      if (!(newStiffness > 0)) continue;
+      // The admitted exponential law's Vs scales as 1/stiffness; Vu stays
+      // fixed. Preserve instantaneous arterial pressures as a proposal only.
+      // Actual closed-loop flow, pressures and reserve must all be remeasured.
+      const proposedTbv = readMainWireBaselineCalibrationParameterV1(current, tbvId)
+        + arterialStorageMl * (oldStiffness / newStiffness - 1);
+      const tbv = volumeDomain.minimum + volumeDomain.finiteDifferenceStep
+        * Math.round((proposedTbv - volumeDomain.minimum) / volumeDomain.finiteDifferenceStep);
+      proposals.push(policy.coordinates.map(({ parameterId }) => ({ parameterId,
+        value: Number((parameterId === stiffnessId ? newStiffness : parameterId === tbvId ? tbv
+          : readMainWireBaselineCalibrationParameterV1(current, parameterId)).toFixed(8)),
+      })));
+    }
+  }
+  return proposals.flatMap((updates) => {
     if (updates.some((update, i) => {
       const domain = mainWireBaselineCalibrationParameterV1(update.parameterId);
       return update.value < domain.minimum || update.value > domain.maximum
@@ -213,4 +250,19 @@ export function mainWireBaselineDesignNeighborsV1(
     if (updates[0]!.value % 50 !== 0) return [];
     return [applyMainWireBaselineCalibrationParametersV1(current, updates)];
   });
+}
+
+/** All systemic AND pulmonary arterial stores affected by this scalar. */
+export function mainWireBaselineArterialStorageMlV1(
+  inputs: MainWireBaselineCalibrationCandidateInputsV1,
+  nodeVolumesMl: Readonly<Record<string, number>>,
+): number {
+  return buildNonCoronaryCirculationGraphV1().nodes
+    .filter((node) => node.kind === "arterial")
+    .reduce((sum, node) => {
+      const law = vascularPvLawFromNodeV1(node, inputs.hemodynamicResearchInputs);
+      const storage = nodeVolumesMl[node.name]! - law.Vu;
+      if (!(storage > 0) || !Number.isFinite(storage)) throw new Error("missing positive arterial store");
+      return sum + storage;
+    }, 0);
 }

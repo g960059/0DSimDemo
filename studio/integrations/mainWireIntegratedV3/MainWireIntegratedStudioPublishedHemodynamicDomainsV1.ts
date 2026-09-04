@@ -34,3 +34,24 @@ export function validateAndOwnMainWireIntegratedStudioPreStandard68HemodynamicIn
   }
   return owned;
 }
+
+/** Later research bounds must not mutate Standard68-70's published contract. */
+export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD68_TO70_HEMODYNAMIC_RANGES_V1 =
+  Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3,
+    arterialStiffness: Object.freeze({
+      ...MAIN_WIRE_INTEGRATED_MODEL_HEMODYNAMIC_RESEARCH_RANGES_V3.arterialStiffness,
+      maximum: 1.5,
+    }),
+  });
+
+export function validateAndOwnMainWireIntegratedStudioStandard68To70HemodynamicInputsV1(
+  value: unknown,
+): MainWireIntegratedModelHemodynamicResearchInputsV3 {
+  const owned = validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(value);
+  if (owned.arterialStiffness > MAIN_WIRE_INTEGRATED_STUDIO_STANDARD68_TO70_HEMODYNAMIC_RANGES_V1
+    .arterialStiffness.maximum) {
+    throw new Error("Standard68-70 arterialStiffness exceeds its published maximum");
+  }
+  return owned;
+}

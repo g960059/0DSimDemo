@@ -13,6 +13,8 @@ import {
   mainWireBaselineDesignQualificationPassedV1,
   mainWireBaselineDesignSeedV1,
   scoreMainWireBaselineReserveAwareV1,
+  mainWireBaselineArterialStorageMlV1,
+  MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
@@ -85,6 +87,38 @@ beforeEach(() => {
 });
 
 describe("baseline reference and executable local recovery", () => {
+  it("binds the prospective research bounds into the design policy", () => {
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterPolicyId)
+      .toBe("main-wire-baseline-calibration-parameter-policy-v2");
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterDomains.find(
+      (row) => row.parameterId === "hemodynamics.arterial-stiffness"))
+      .toMatchObject({ minimum: 0.5, maximum: 2.2, releaseStep: 0.01 });
+  });
+
+  it("adds lattice-bounded storage-compensated directions without replacing axial proposals", () => {
+    const base = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const nodes = { Ao: 100, SA: 250, Art: 80, PA: 25, PArt: 35 };
+    const storage = mainWireBaselineArterialStorageMlV1(base, nodes);
+    expect(storage).toBe(490); // Include both pulmonary arteries, not only PA.
+    const axial = mainWireBaselineDesignNeighborsV1(base, base, 1);
+    const all = mainWireBaselineDesignNeighborsV1(base, base, 1, storage);
+    expect(all.slice(0, axial.length)).toEqual(axial);
+    const coupled = all.slice(axial.length);
+    expect(coupled.map((row) => [row.hemodynamicResearchInputs.arterialStiffness,
+      row.hemodynamicResearchInputs.totalBloodVolumeMl])).toEqual([[1.5, 4850], [1.1, 5000]]);
+    for (const row of coupled) {
+      expect(row.mechanismResearchInputs).toEqual(base.mechanismResearchInputs);
+      expect(row.hemodynamicResearchInputs.heartRateBpm).toBe(60);
+      expect(row.hemodynamicResearchInputs.venousTone).toBe(base.hemodynamicResearchInputs.venousTone);
+    }
+    expect(() => mainWireBaselineArterialStorageMlV1(base, { ...nodes, PArt: NaN })).toThrow();
+    expect(() => mainWireBaselineDesignNeighborsV1(base, base, 1, Infinity)).toThrow();
+    const edge = applyMainWireBaselineCalibrationParametersV1(base,
+      [{ parameterId: "hemodynamics.arterial-stiffness", value: 2.2 }]);
+    expect(mainWireBaselineDesignNeighborsV1(base, edge, 1, storage).every(
+      (row) => row.hemodynamicResearchInputs.arterialStiffness <= 2.2)).toBe(true);
+  });
+
   it("registers the baseline target policy separately from selected parameters", () => {
     const reference = resolveMainWireFittingReferenceV1("baseline");
     expect(reference.label).toBe("baseline");

@@ -15,6 +15,7 @@ import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   mainWireBaselineDesignSeedV1,
   scoreMainWireBaselineReserveAwareV1,
   combineMainWireBaselineConditionScoreV1,
+  mainWireBaselineArterialStorageMlV1,
   type DesignScoreV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 import { measureMainWireIntegratedModelFormalPreloadReserveV2,
@@ -136,6 +137,7 @@ if (values.worker) {
   type Entry = { index: number; inputs: MainWireBaselineCalibrationCandidateInputsV1;
     evaluation: MainWireStandard70BaselineCalibrationEvaluationV1; reserve: ReserveResult | null;
     rateEvaluation: MainWireStandard70BaselineCalibrationEvaluationV1 | null; restScore: DesignScoreV1;
+    proposalArterialStorageMl: number | null;
     reserveScreen: "not-run" | "measured" | "unresolved" | "rest-bound-pruned"; score: DesignScoreV1 };
   const history: Entry[] = [];
   const seen = new Set<string>();
@@ -161,6 +163,7 @@ if (values.worker) {
     const evaluation = JSON.parse(await readFile(resultPath, "utf8")) as
       MainWireStandard70BaselineCalibrationEvaluationV1;
     const entry: Entry = { index, inputs, evaluation, reserve: null, reserveScreen: "not-run",
+      proposalArterialStorageMl: null,
       rateEvaluation: null, restScore: scoreMainWireBaselineOperatingPointV1(evaluation),
       score: scoreMainWireBaselineReserveAwareV1(evaluation, null) };
     history.push(entry);
@@ -217,7 +220,13 @@ if (values.worker) {
       break;
     }
     const proposals: MainWireBaselineCalibrationCandidateInputsV1[] = [];
-    for (const candidate of mainWireBaselineDesignNeighborsV1(anchor, best.inputs, stepScale)) {
+    if (best.evaluation.status !== "accepted") throw new Error("unaccepted proposal source");
+    const proposalSource = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
+      best.evaluation.exactResult.checkpoint, best.inputs.hemodynamicResearchInputs,
+      best.inputs.ventricularContractilityScale, undefined, best.inputs.mechanismResearchInputs);
+    best.proposalArterialStorageMl = mainWireBaselineArterialStorageMlV1(best.inputs,
+      proposalSource.currentAcceptedState().coronary.circulation.nodeVolumesMl);
+    for (const candidate of mainWireBaselineDesignNeighborsV1(anchor, best.inputs, stepScale, best.proposalArterialStorageMl)) {
       const key = await sha256CanonicalJsonHex(candidate);
       if (!seen.has(key) && count + proposals.length < maximumEvaluations) {
         seen.add(key); proposals.push(candidate);
@@ -263,7 +272,7 @@ if (values.worker) {
     qualified: boolean }[] = [];
   await writeFile(resolve(output, "search.json"), JSON.stringify({ executionCommit, policyIdentity, reservePolicyIdentity,
     evaluationCount: count, bestIndex: best.index, stopReason,
-    candidates: history.map(({ index, inputs, score, restScore, reserveScreen, rateEvaluation }) => ({ index, inputs, score, restScore, reserveScreen,
+    candidates: history.map(({ index, inputs, score, restScore, reserveScreen, rateEvaluation, proposalArterialStorageMl }) => ({ index, inputs, score, restScore, reserveScreen, proposalArterialStorageMl,
       rateScreenPath: rateEvaluation ? `${index}.rate-result.json` : null })),
     finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   for (const finalist of finalists) {
@@ -314,8 +323,9 @@ if (values.worker) {
     qualificationResults.push({ index: finalist.index, modes, qualified });
     if (qualified) break;
   }
-  const summarized = history.sort((a, b) => a.index - b.index).map(({ index, inputs, evaluation, reserve, reserveScreen, score, restScore, rateEvaluation }) => ({
+  const summarized = history.sort((a, b) => a.index - b.index).map(({ index, inputs, evaluation, reserve, reserveScreen, score, restScore, rateEvaluation, proposalArterialStorageMl }) => ({
     index, inputs, score, restScore, baselineRestScore: scoreMainWireBaselineOperatingPointV1(evaluation),
+    proposalArterialStorageMl,
     rateScreenPath: rateEvaluation ? `${index}.rate-result.json` : null,
     reserveScreen, reservePath: reserve ? `${index}.reserve.json` : null,
     reserveWallTimeMs: reserve?.wallTimeMs ?? 0, reserveFailure: reserve?.failure ?? null,
