@@ -202,7 +202,11 @@ machine-local timings and worker mechanics are not part of this durable
 contract. A proposed Standard70 finalist must still pass the Standard70
 candidate runner; an older runner's result is not silently relabelled.
 Bidirectional preload-reserve, alternate-start, and refined-step checks remain
-finalist/mint work rather than per-candidate screening.
+finalist/mint work rather than mandatory per-candidate screening. If reserve
+repeatedly rejects improved resting points, compare a small declared set of
+fixed-control preload responses before expanding the resting search. Retain
+settled sub-floor measurements separately from admission; neither a numerical
+failure nor a failed response becomes qualified by retaining its observations.
 
 ## Qualification levels
 

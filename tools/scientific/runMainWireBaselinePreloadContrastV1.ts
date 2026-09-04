@@ -13,9 +13,11 @@ import { evaluateMainWireStandard70BaselineCalibrationCandidateV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { scoreMainWireBaselineOperatingPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import { measureMainWireIntegratedModelFormalPreloadReserveV1 } from
+import { measureMainWireIntegratedModelFormalPreloadReserveV1,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 } from
   "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
-import { mainWireStandard70PreloadReserveDirectionalResponsePassedV1 } from
+import { mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
+  MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from
   "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
@@ -30,12 +32,14 @@ import checkpointJson from
 // branches reuse the existing fixed-control, independently settled protocol.
 type Contrast = { id: string; updates: { parameterId: MainWireBaselineCalibrationParameterIdV1; value: number }[] };
 const { values } = parseArgs({ options: { design: { type: "string" }, output: { type: "string" },
-  parallelism: { type: "string", default: "6" }, worker: { type: "string" } } });
+  parallelism: { type: "string", default: "6" }, "heart-rate": { type: "string", default: "60" }, worker: { type: "string" } } });
 if (!values.design || !values.output) throw new Error("--design JSON --output NEW_DIRECTORY [--parallelism 1..8]");
 const contrasts = JSON.parse(await readFile(values.design, "utf8")) as Contrast[];
 const parallelism = Number(values.parallelism);
+const heartRateBpm = Number(values["heart-rate"]);
 if (!Array.isArray(contrasts) || !contrasts.length || contrasts.length > 12
   || !Number.isInteger(parallelism) || parallelism < 1 || parallelism > 8
+  || ![60, 70].includes(heartRateBpm)
   || new Set(contrasts.map((row) => row.id)).size !== contrasts.length) throw new Error("invalid bounded contrast design");
 const allowed: readonly MainWireBaselineCalibrationParameterIdV1[] = [
   "hemodynamics.total-blood-volume-ml", "hemodynamics.systemic-resistance",
@@ -53,14 +57,16 @@ const reference = resolveMainWireFittingReferenceV1("baseline");
 if (reference.selectedConstruction.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1) {
   throw new Error("preload contrast runner only supports Standard70");
 }
-const anchor = reference.selectedConstruction.candidateInputs;
+const source = reference.selectedConstruction.candidateInputs;
+const anchor = { ...source, hemodynamicResearchInputs: { ...source.hemodynamicResearchInputs, heartRateBpm } };
 const checkpoint = checkpointJson as unknown as MainWireIntegratedModelStandard70CheckpointV1;
 const output = resolve(values.output);
 if (values.worker !== undefined) {
   const contrast = contrasts.find((row) => row.id === values.worker);
   if (!contrast) throw new Error("unknown contrast");
   const inputs = applyMainWireBaselineCalibrationParametersV1(anchor, contrast.updates);
-  const request = { ...inputs, nominalDtSec: 0.002, initialization: {
+  const request = { ...inputs, nominalDtSec: 0.002, initialization: heartRateBpm !== source.hemodynamicResearchInputs.heartRateBpm
+    ? { kind: "cold" as const } : {
     kind: "standard70-parameter-continuation" as const, sourceCheckpoint: checkpoint,
     sourceHemodynamicResearchInputs: anchor.hemodynamicResearchInputs,
     sourceMechanismResearchInputs: anchor.mechanismResearchInputs,
@@ -72,7 +78,7 @@ if (values.worker !== undefined) {
   let reserve: Awaited<ReturnType<typeof measureMainWireIntegratedModelFormalPreloadReserveV1>> | null = null;
   let reserveFailure: string | null = null;
   // Continuous rest-corridor failures remain diagnostic observations. Solver,
-  // event, morphology and right-heart safety failures cannot start a protocol.
+  // event, discrete morphology and right-heart safety failures cannot start a protocol.
   if (evaluation.status === "accepted" && Number.isFinite(scoreMainWireBaselineOperatingPointV1(evaluation).minimumMargin)) {
     try {
       const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
@@ -88,7 +94,11 @@ if (values.worker !== undefined) {
   if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw new Error("contrast requires a clean committed worktree");
   await mkdir(output);
   const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, contrasts,
+  const reservePolicy = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+    standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
+  const reservePolicyIdentity = await sha256CanonicalJsonHex(reservePolicy);
+  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, contrasts, heartRateBpm,
+    reservePolicy, reservePolicyIdentity,
     reference, checkpointSha256: checkpoint.checkpointSha256, nominalDtSec: 0.002, parallelism,
     claim: "exploratory fixed-control preload responses; no isolated-contractility identification or baseline adoption" };
   const protocolIdentity = await sha256CanonicalJsonHex(protocol);
@@ -101,7 +111,7 @@ if (values.worker !== undefined) {
       await new Promise<void>((done, fail) => {
         const child = spawn(process.execPath, ["node_modules/vite-node/vite-node.mjs", "--script",
           "tools/scientific/runMainWireBaselinePreloadContrastV1.ts", "--design", resolve(output, "design.json"),
-          "--output", output, "--worker", contrast.id], { stdio: ["ignore", "ignore", "pipe"] });
+          "--output", output, "--heart-rate", String(heartRateBpm), "--worker", contrast.id], { stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
         child.stderr.on("data", (data) => { stderr += String(data); });
         child.on("error", fail);
@@ -126,7 +136,7 @@ if (values.worker !== undefined) {
     }));
     rows.push(...batch);
   }
-  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, protocolIdentity,
+  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, protocolIdentity, reservePolicyIdentity,
     wallTimeMs: performance.now() - startedAt, rows, finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   process.stdout.write(`${output}/result.json\n`);
 }
