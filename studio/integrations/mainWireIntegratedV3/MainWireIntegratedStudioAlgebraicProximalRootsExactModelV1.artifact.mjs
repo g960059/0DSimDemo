@@ -8696,6 +8696,64 @@ function authoritativeExcludedCoronaryColdSeedVolumeMl(runtime) {
     0
   );
 }
+const MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 = Object.freeze({
+  policyId: "main-wire-fixed-tone-reservoir-closure-v2",
+  consecutiveComparisonCount: 3,
+  maximumRedistributedVolumePerBeatMl: 0.05,
+  maximumNormalizedOutputDelta: 0.1,
+  // Instantaneous ED/ES pressure readouts retain the admitted 2-ms sampling
+  // tolerance. Their discretization floor is not a slow-reservoir transient.
+  maximumNormalizedLandmarkDelta: 1,
+  maximumCompleteBeatCount: 50,
+  maximumMeasurementDurationSec: 54,
+  maximumObservationGapSec: 0.010001
+});
+class MainWireFixedToneVolumeClosureV2 {
+  constructor() {
+    this.previous = null;
+    this.boundary = null;
+    this.recentRedistributionsMl = [];
+    this.lastBoundaryTimeSec = Number.NEGATIVE_INFINITY;
+  }
+  accept(sample, completedBeatEndTimeSec) {
+    const keys = Object.keys(sample.volumesMl);
+    if (!Number.isFinite(sample.timeSec) || !keys.length || keys.some((key) => !Number.isFinite(sample.volumesMl[key]))) {
+      throw new Error("fixed-tone volume closure requires finite reservoir samples");
+    }
+    const previous = this.previous;
+    this.previous = sample;
+    if (previous === null) return;
+    const dt = sample.timeSec - previous.timeSec;
+    if (!(dt > 0) || dt > MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumObservationGapSec || keys.length !== Object.keys(previous.volumesMl).length || keys.some((key) => !Object.hasOwn(previous.volumesMl, key))) {
+      throw new Error("fixed-tone volume closure lost its observation clock or reservoir identity");
+    }
+    if (completedBeatEndTimeSec === null || completedBeatEndTimeSec <= this.lastBoundaryTimeSec) return;
+    if (!Number.isFinite(completedBeatEndTimeSec)) throw new Error("invalid completed-beat boundary");
+    if (completedBeatEndTimeSec < previous.timeSec - 1e-9) return;
+    if (completedBeatEndTimeSec > sample.timeSec + 1e-9) throw new Error("future completed-beat boundary");
+    const fraction2 = Math.max(0, Math.min(1, (completedBeatEndTimeSec - previous.timeSec) / dt));
+    const volumesMl = Object.fromEntries(keys.map((key) => [
+      key,
+      previous.volumesMl[key] + fraction2 * (sample.volumesMl[key] - previous.volumesMl[key])
+    ]));
+    const boundary2 = { timeSec: completedBeatEndTimeSec, volumesMl };
+    if (this.boundary !== null) {
+      const redistributionMl = 0.5 * keys.reduce((sum, key) => sum + Math.abs(volumesMl[key] - this.boundary.volumesMl[key]), 0);
+      this.recentRedistributionsMl.push(redistributionMl);
+      this.recentRedistributionsMl = this.recentRedistributionsMl.slice(
+        -MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.consecutiveComparisonCount
+      );
+    }
+    this.boundary = boundary2;
+    this.lastBoundaryTimeSec = completedBeatEndTimeSec;
+  }
+  maximumRecentRedistributedVolumeMl() {
+    return this.recentRedistributionsMl.length === MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.consecutiveComparisonCount ? Math.max(...this.recentRedistributionsMl) : Number.POSITIVE_INFINITY;
+  }
+  converged() {
+    return this.maximumRecentRedistributedVolumeMl() <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumRedistributedVolumePerBeatMl;
+  }
+}
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_PROTOCOL_V3_ID = "main-wire-integrated-model-responsive-fixed-tone-tbv-starling-preview-v3";
 const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_TBV_SCALES_V3 = Object.freeze([
   0.23,
@@ -8962,6 +9020,21 @@ function formalPressureVolumeSamplePairV3(observation2, session) {
     })
   });
 }
+function measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(beat) {
+  if (!Number.isFinite(beat.startTimeSec) || !Number.isFinite(beat.endTimeSec) || !(beat.endTimeSec > beat.startTimeSec)) {
+    throw new Error("formal preload-reserve V2 requires a complete beat clock");
+  }
+  const read = (side) => {
+    const metrics = side === "left" ? beat.leftVentricularValveEventMetrics : beat.rightVentricularValveEventMetrics;
+    const valveId = side === "left" ? "MV" : "TV";
+    const event = metrics?.endDiastolic;
+    if (metrics?.pressureBasis !== "absolute-and-transmural" || metrics.inletValveId !== valveId || event == null || event.event !== "valve-closure-zero-flow-crossing" || event.valveId !== valveId || !Number.isFinite(event.volumeMl) || !(event.volumeMl > 0) || !Number.isFinite(event.transmuralPressureMmHg) || !Number.isFinite(event.timeSec) || event.timeSec < beat.startTimeSec || event.timeSec > beat.endTimeSec) {
+      throw new Error(`formal preload-reserve V2 requires a finite ${valveId}-closure ED landmark`);
+    }
+    return Object.freeze({ volumeMl: event.volumeMl, pressureMmHg: event.transmuralPressureMmHg });
+  };
+  return Object.freeze({ left: read("left"), right: read("right") });
+}
 function runMainWireIntegratedModelResponsiveStarlingProtocolV3(sourceSession, onProgress, partition) {
   const sourceGlobalTbvMl = sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   const paired = [];
@@ -9082,7 +9155,7 @@ function formalExpectedPointCountV3(partition) {
   }
   return MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PVA_MINIMUM_POINT_COUNT_V3;
 }
-function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
+function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl, reservoirClosure = false) {
   let branch;
   try {
     branch = sourceSession.forkAtFixedGlobalTotalBloodVolume(sourceGlobalTbvMl);
@@ -9091,10 +9164,14 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
   }
   const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
   const beats = [];
+  const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+  const landmarkClosureScore = reservoirClosure ? mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2 : formalBeatPairClosureScoreV3;
+  if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
+  const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
   let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
-  for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+  for (let ordinal = 1; ordinal <= (reservoirClosure ? maximumDurationSec / FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 : MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3); ordinal += 1) {
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
-    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+    if (acceptedTimeSec - originTimeSec >= maximumDurationSec)
       break;
     const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
       branch,
@@ -9102,6 +9179,7 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
     );
     if (attemptedAdvance.status === "rejected") return attemptedAdvance;
     const advance = attemptedAdvance.advance;
+    if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, advance.observation);
     const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (Math.abs(acceptedTbvMl - sourceGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3) {
       return rejectedV3(
@@ -9114,16 +9192,16 @@ function settleFormalPressureVolumeSourceV3(sourceSession, sourceGlobalTbvMl) {
     }
     lastCompletedBeatId = completed.endAtrialCaptureId;
     beats.push(completed);
-    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
+    if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 && period1ConvergedV3(beats, landmarkClosureScore) && (!volumeClosure || volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, landmarkClosureScore) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta)) {
       return Object.freeze({ status: "settled", branch });
     }
-    if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+    if (beats.length >= 5 && period2DetectedV3(beats, landmarkClosureScore)) {
       return rejectedV3("active-controller source reached a period-2 boundary");
     }
-    if (beats.length >= FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3) break;
+    if (beats.length >= (reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumCompleteBeatCount : FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3)) break;
   }
   return rejectedV3(
-    "active-controller source did not establish complete-beat period-1 closure"
+    "active-controller source did not establish complete-beat period-1 closure" + (volumeClosure ? ` (beats=${beats.length}, redistributedVolumeMl=${volumeClosure.maximumRecentRedistributedVolumeMl()}, outputScore=${fixedToneRecentOutputScoreV2(beats)})` : "")
   );
 }
 async function runFormalHypovolemicCoverageChainV3(centerBranch, centerPair, sourceGlobalTbvMl, append) {
@@ -9256,7 +9334,7 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
   }
 }
-async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false) {
+async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false, reservoirClosure = false) {
   const boundary2 = initialBoundary;
   let continuationBranch = initialBoundary.branch;
   let continuationScale = initialBoundary.scale;
@@ -9292,13 +9370,16 @@ async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScal
     const measured = await measureFormalPressureVolumeBranchV3(
       continuationBranch,
       sourceGlobalTbvMl * requestedScale,
-      "continuation"
+      "continuation",
+      reservoirClosure
     );
     if (measured.status === "accepted" && formalPairQualifiedV3(measured.pair)) {
       const acceptedBoundary = Object.freeze({
         branch: measured.branch,
         scale: requestedScale,
-        pair: measured.pair
+        pair: measured.pair,
+        ...measured.settlementEvidence ? { settlementEvidence: measured.settlementEvidence } : {},
+        ...measured.preloadEndDiastolic ? { preloadEndDiastolic: measured.preloadEndDiastolic } : {}
       });
       accept(acceptedBoundary);
       if (stopAfterAccepted(measured.pair)) {
@@ -9533,7 +9614,7 @@ function mainWireIntegratedModelStarlingDescendingLimbV3(points) {
   }
   return null;
 }
-async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTbvMl, role) {
+async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTbvMl, role, reservoirClosure = false) {
   let branch;
   try {
     branch = sourceSession.forkResponsiveStarlingAtFixedGlobalTotalBloodVolume(
@@ -9541,13 +9622,22 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
     );
     const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     const beats = [];
+    const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+    const landmarkClosureScore = reservoirClosure ? mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2 : formalBeatPairClosureScoreV3;
+    if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
+    const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
+    const frozenWindow = branch.currentAcceptedState().coronary.coronaryAutoregulationBinding.windowPolicy;
+    const deadlineSec = Math.min(
+      originTimeSec + maximumDurationSec,
+      frozenWindow.originAcceptedTimeSec + frozenWindow.durationSec - 1e-8
+    );
     const pressureVolumeBeats = [];
     const pressureVolumeLoopCollector = new FormalFixedTbvPressureVolumeLoopCollectorV3();
     let lastCompletedBeatId = branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
     let locallyConverged = false;
-    for (let ordinal = 1; ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3; ordinal += 1) {
+    for (let ordinal = 1; ordinal <= (reservoirClosure ? maximumDurationSec / FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 : MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3); ordinal += 1) {
       const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
-      if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+      if (reservoirClosure ? acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 > deadlineSec : acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
         break;
       const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
         branch,
@@ -9555,6 +9645,7 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       );
       if (attemptedAdvance.status === "rejected") return attemptedAdvance;
       const advance = attemptedAdvance.advance;
+      if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, advance.observation);
       const acceptedTbvMl = advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
       if (Math.abs(acceptedTbvMl - targetGlobalTbvMl) > FIXED_TBV_TOLERANCE_ML_V3) {
         return rejectedV3("fixed global TBV changed during PVA settlement");
@@ -9572,30 +9663,36 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (locallyConverged) {
+      if (volumeClosure) {
+        locallyConverged = volumeClosure.converged() && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta && fixedToneRecentOutputScoreV2(beats, landmarkClosureScore) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta;
+        if (locallyConverged && pressureVolumeBeats.length > 0) break;
+        if (period2DetectedV3(beats, landmarkClosureScore)) {
+          return rejectedV3("fixed-tone PVA branch reached a period-2 boundary");
+        }
+      } else if (locallyConverged) {
         if (pressureVolumeBeats.length > 0) break;
       } else if (beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3) {
-        if (period1ConvergedV3(beats, formalBeatPairClosureScoreV3)) {
+        if (period1ConvergedV3(beats, landmarkClosureScore)) {
           locallyConverged = true;
           if (pressureVolumeBeats.length > 0) break;
-        } else if (beats.length >= 5 && period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+        } else if (beats.length >= 5 && period2DetectedV3(beats, landmarkClosureScore)) {
           return rejectedV3(
             "fixed-tone PVA branch reached a period-2 boundary"
           );
         }
       }
-      const maximumBeatCount = role === "operating-anchor" ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
+      const maximumBeatCount = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumCompleteBeatCount : role === "operating-anchor" ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
       if (beats.length >= maximumBeatCount && (!locallyConverged || pressureVolumeBeats.length > 0))
         break;
     }
     if (!locallyConverged) {
-      const previousScore = beats.length >= 3 ? formalBeatPairClosureScoreV3(beats.at(-3), beats.at(-2)) : Number.POSITIVE_INFINITY;
+      const previousScore = beats.length >= 3 ? landmarkClosureScore(beats.at(-3), beats.at(-2)) : Number.POSITIVE_INFINITY;
       const latestScore = latestBeatClosureScoreV3(
         beats,
-        formalBeatPairClosureScoreV3
+        landmarkClosureScore
       );
       return rejectedV3(
-        `fixed-tone PVA branch did not establish strict period-1 closure (beats=${beats.length}, previous=${previousScore}, latest=${latestScore})`
+        `fixed-tone PVA branch did not establish strict period-1 closure (beats=${beats.length}, previous=${previousScore}, latest=${latestScore}` + (volumeClosure ? `, redistributedVolumeMl=${volumeClosure.maximumRecentRedistributedVolumeMl()}` : "") + ")"
       );
     }
     const pressureVolumeBeat = pressureVolumeBeats.at(-1);
@@ -9614,7 +9711,7 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       completedBeatCount: beats.length,
       maximumNormalizedBeatDelta: recentBeatClosureScoreV3(
         beats,
-        formalBeatPairClosureScoreV3
+        landmarkClosureScore
       ),
       settled: true,
       finiteAndFixedTbvPassed: true,
@@ -9627,6 +9724,15 @@ async function measureFormalPressureVolumeBranchV3(sourceSession, targetGlobalTb
       status: "accepted",
       branch,
       observation: branch.observe(),
+      ...reservoirClosure ? { preloadEndDiastolic: measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(selectedBeat) } : {},
+      ...volumeClosure ? { settlementEvidence: {
+        policyId: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.policyId,
+        completedBeatCount: beats.length,
+        maximumRecentRedistributedVolumeMl: volumeClosure.maximumRecentRedistributedVolumeMl(),
+        maximumRecentNormalizedOutputDelta: fixedToneRecentOutputScoreV2(beats),
+        maximumRecentNormalizedLandmarkDelta: fixedToneRecentOutputScoreV2(beats, landmarkClosureScore),
+        measurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec
+      } } : {},
       pair: Object.freeze({
         right: Object.freeze({
           ...common,
@@ -9761,6 +9867,19 @@ function measureBranchV3(sourceSession, targetGlobalTbvMl, options) {
     })
   });
 }
+function recordFixedToneReservoirVolumesV2(collector, observation2) {
+  const state = observation2.acceptedState;
+  collector.accept({ timeSec: state.acceptedTimeSec, volumesMl: {
+    ...state.coronary.circulation.nodeVolumesMl,
+    ...Object.fromEntries(Object.entries(state.coronary.coronary.volumeMlByNode).map(([key, value]) => [`coronary.${key}`, value]))
+  } }, observation2.completedBeatMetrics?.endTimeSec ?? null);
+}
+function fixedToneRecentOutputScoreV2(beats, score = beatPairClosureScoreV3) {
+  const count = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.consecutiveComparisonCount;
+  if (beats.length < count + 1) return Number.POSITIVE_INFINITY;
+  const suffix = beats.slice(-(count + 1));
+  return Math.max(...suffix.slice(1).map((beat, index) => score(suffix[index], beat)));
+}
 function period1ConvergedV3(beats, closureScore = beatPairClosureScoreV3) {
   const consecutiveComparisonCount = 2;
   if (beats.length < consecutiveComparisonCount + 1) return false;
@@ -9834,6 +9953,17 @@ function formalBeatPairClosureScoreV3(left, right) {
       left.rightVentricularPressureVolumeLandmarks.endSystolic,
       right.rightVentricularPressureVolumeLandmarks.endSystolic
     )
+  );
+}
+function mainWireIntegratedModelFormalPreloadLandmarkClosureScoreV2(previous, current) {
+  const previousEd = measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(previous);
+  const currentEd = measureMainWireIntegratedModelFormalPreloadEndDiastolicV2(current);
+  return Math.max(
+    formalBeatPairClosureScoreV3(previous, current),
+    ...["left", "right"].flatMap((side) => [
+      Math.abs(currentEd[side].volumeMl - previousEd[side].volumeMl) / VENTRICULAR_LANDMARK_VOLUME_CLOSURE_ML_V3,
+      Math.abs(currentEd[side].pressureMmHg - previousEd[side].pressureMmHg) / VENTRICULAR_LANDMARK_PRESSURE_CLOSURE_MMHG_V3
+    ])
   );
 }
 function averageBeatMetricsV3(beats) {
