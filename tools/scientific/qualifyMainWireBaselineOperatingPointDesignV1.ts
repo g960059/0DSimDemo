@@ -18,6 +18,12 @@ import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { designRateInitializationV1 } from "./mainWireBaselineDesignExecutionV1";
+import { evaluateMainWireBaselinePressureRateQualityV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
+import { buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
+  buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1, initializationIdentityV1 } from
+  "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
+import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import checkpoint from
@@ -47,6 +53,18 @@ if (previous.status !== "accepted" || !scoreMainWireBaselineOperatingPointV1(pre
   || !request.hemodynamicResearchInputs || !request.mechanismResearchInputs
   || request.ventricularContractilityScale === undefined) {
   throw new Error("qualification requires an accepted screened candidate with explicit inputs");
+}
+const currentPolicy = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+if (previous.constructionPolicyIdentitySha256 !== currentPolicy.constructionPolicyIdentitySha256
+  || previous.requestIdentitySha256 !== await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+    constructionPolicyIdentitySha256: currentPolicy.constructionPolicyIdentitySha256,
+    hemodynamicResearchInputs: request.hemodynamicResearchInputs,
+    mechanismResearchInputs: request.mechanismResearchInputs,
+    ventricularContractilityScale: request.ventricularContractilityScale,
+    nominalDtSec: request.nominalDtSec ?? 0.002,
+    initialization: initializationIdentityV1(request.initialization ?? { kind: "cold" }),
+  })) {
+  throw new Error("qualification source request does not bind the saved evaluation");
 }
 const startedAt = performance.now();
 let reserve: unknown = null;
@@ -92,11 +110,22 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
     reserveFailure = error instanceof Error ? error.message : String(error);
   } finally { selectHotPathIntegrityTierV1(executionTier); }
 }
-const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus);
+const candidateIdentitySha256 = await sha256CanonicalJsonHex({
+  hemodynamicResearchInputs: request.hemodynamicResearchInputs,
+  ventricularContractilityScale: request.ventricularContractilityScale,
+  mechanismResearchInputs: request.mechanismResearchInputs,
+});
+const pressureRateQuality = values.mode === "refined" && evaluation.status === "accepted"
+  ? evaluateMainWireBaselinePressureRateQualityV1({
+    coarse: { qualification: previous.exactResult, candidateIdentitySha256 },
+    fine: { qualification: evaluation.exactResult, candidateIdentitySha256 },
+  }) : null;
+const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus)
+  && (values.mode !== "refined" || pressureRateQuality?.status === "passed");
 await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, mode: values.mode, qualified,
   rateInitializationPolicy: values["rate-initialization"], conditionHemodynamicResearchInputs: hemodynamics,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
-  wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve,
+  wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve, pressureRateQuality,
   baselineAdopted: false }, null, 2), { flag: "wx" });
 process.stdout.write(`${values.output}\n`);
 if (!qualified) process.exitCode = 1;

@@ -17,6 +17,15 @@ import {
   qualifyMainWireIntegratedModelStandard70BaselineV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
 import {
+  qualifyMainWireStandard70BaselineAssessmentV2,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
+import {
+  mainWireBaselineCheckBlocksV1,
+} from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelRoundedEjectionBaselineV1";
@@ -36,6 +45,7 @@ import {
 } from "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import {
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
+  qualifyMainWireIntegratedModelFormalPreloadReserveV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
   MAIN_WIRE_SOLVER_REPLACEMENT_CORPUS_V1_ID,
@@ -86,6 +96,7 @@ import {
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard69BaselineValidationV1";
 import {
   buildMainWireIntegratedStudioStandard70BaselineValidationV1,
+  buildMainWireIntegratedStudioStandard70BaselineValidationV2,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
 import {
   SELECTED_AORTIC_OUTFLOW_ARTIFACT_EQUIVALENCE_REPORT_V1_SCHEMA_ID,
@@ -390,8 +401,16 @@ async function main(): Promise<void> {
 
 async function assertAlgebraicPulmonaryRootBaselineQualificationV1():
   Promise<void> {
-  const qualification =
-    await qualifyMainWireIntegratedModelStandard70BaselineV1(
+  const currentAssessment =
+    MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1.assessment === undefined
+      ? null
+      : await qualifyMainWireStandard70BaselineAssessmentV2(
+        MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_SETTLED_CHECKPOINT_V1,
+      );
+  // Reproduce the committed report's own policy; historical evidence is not
+  // retrospectively relabelled as a current assessment.
+  const qualification = currentAssessment?.qualification
+    ?? await qualifyMainWireIntegratedModelStandard70BaselineV1(
       MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_SETTLED_CHECKPOINT_V1,
     );
   const settledSession =
@@ -403,15 +422,22 @@ async function assertAlgebraicPulmonaryRootBaselineQualificationV1():
         undefined,
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
       );
-  const preloadReserve =
-    await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
-      settledSession,
-      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  const report = currentAssessment === null
+    ? buildMainWireIntegratedStudioStandard70BaselineValidationV1(
+      qualification,
+      await qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+        settledSession,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      ),
+    )
+    : buildMainWireIntegratedStudioStandard70BaselineValidationV2(
+      qualification,
+      await qualifyMainWireIntegratedModelFormalPreloadReserveV2(
+        settledSession,
+        MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
+      ),
+      currentAssessment.pressureRateQuality,
     );
-  const report = buildMainWireIntegratedStudioStandard70BaselineValidationV1(
-    qualification,
-    preloadReserve,
-  );
   if (
     !sameBaselineAcrossSupportedRuntimeV1(
       report,
@@ -426,27 +452,15 @@ async function assertAlgebraicPulmonaryRootBaselineQualificationV1():
       "fresh Standard70 qualification differs from the committed baseline",
     );
   }
-  const requiredRightHeartCheckIds = [
-    "pulmonary-valve.mean-gradient",
-    "pulmonary-valve.peak-gradient",
-    "pulmonary-valve.ejection-time",
-    "right-ventricle.maximum-dpdt",
-    "right-ventricle.minimum-dpdt",
-    "tricuspid-flow.peak-e-to-a",
-    "right-timing.ict",
-    "right-timing.irt",
-    "right-timing.tei-index",
-    "waveform.PAP.single-peak-no-ringing",
-    "waveform.PV-flow.single-forward-episode",
-    "waveform.PV-flow.single-peak-no-ringing",
-    "waveform.PAP.post-PV-closure-rebound",
-  ];
-  const passedIds = new Set<string>(
+  const admittedIds = new Set<string>(
     report.checks
-      .filter(({ status }) => status === "passed")
+      .filter((check) => report.assessment === undefined
+        ? check.status === "passed"
+        : !mainWireBaselineCheckBlocksV1(check))
       .map(({ checkId }) => checkId),
   );
-  if (requiredRightHeartCheckIds.some((checkId) => !passedIds.has(checkId))) {
+  if (MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1
+    .some((checkId) => !admittedIds.has(checkId))) {
     fail("Standard70 qualification omits a required right-heart mint gate");
   }
 }

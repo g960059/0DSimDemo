@@ -21,6 +21,33 @@ export type MainWireFixedToneSettlementEvidenceV2 = Readonly<{
   measurementDurationSec: number;
 }>;
 
+/** Admission checks the measured evidence without upgrading historical records. */
+export function validMainWireFixedToneSettlementEvidenceV2(
+  evidence: unknown,
+): evidence is MainWireFixedToneSettlementEvidenceV2 {
+  if (evidence === null || typeof evidence !== "object" || Array.isArray(evidence)) return false;
+  const value = evidence as Record<string, unknown>;
+  const policy = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2;
+  if (value.policyId !== policy.policyId
+    || [value.completedBeatCount, value.maximumRecentRedistributedVolumeMl,
+      value.maximumRecentNormalizedOutputDelta, value.maximumRecentNormalizedLandmarkDelta,
+      value.measurementDurationSec].some((field) => typeof field !== "number" || !Number.isFinite(field))) {
+    return false;
+  }
+  const measured = value as MainWireFixedToneSettlementEvidenceV2;
+  return Number.isInteger(measured.completedBeatCount)
+    && measured.completedBeatCount >= policy.consecutiveComparisonCount + 1
+    && measured.completedBeatCount <= policy.maximumCompleteBeatCount
+    && measured.maximumRecentRedistributedVolumeMl >= 0
+    && measured.maximumRecentRedistributedVolumeMl <= policy.maximumRedistributedVolumePerBeatMl
+    && measured.maximumRecentNormalizedOutputDelta >= 0
+    && measured.maximumRecentNormalizedOutputDelta <= policy.maximumNormalizedOutputDelta
+    && measured.maximumRecentNormalizedLandmarkDelta >= 0
+    && measured.maximumRecentNormalizedLandmarkDelta <= policy.maximumNormalizedLandmarkDelta
+    && measured.measurementDurationSec > 0
+    && measured.measurementDurationSec <= policy.maximumMeasurementDurationSec;
+}
+
 type Sample = Readonly<{ timeSec: number; volumesMl: Readonly<Record<string, number>> }>;
 
 /**

@@ -20,6 +20,7 @@ import {
   measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1,
   measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
+  type MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   assertMainWireIntegratedModelStandard70BaselinePassedV1,
@@ -115,6 +116,17 @@ export type MainWireIntegratedModelStandard70CandidateOptionsV1 = Readonly<{
   mechanismResearchInputs?: MainWireIntegratedModelMechanismResearchInputsV3;
   nominalDtSec?: number;
   initialization?: MainWireIntegratedModelStandard70CandidateInitializationV1;
+  /** Analysis-only callback: excluded from exact model, parameter and checkpoint
+   * identities. Omission retains the historical measurement path unchanged. */
+  timingAndInletObserver?: MainWireIntegratedModelStandard70TimingAndInletObserverV1;
+}>;
+
+export type MainWireIntegratedModelStandard70TimingAndInletObserverV1 = (input: Readonly<{
+  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3;
+}>) => Readonly<{
+  left: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1;
+  right: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1;
 }>;
 
 export class MainWireIntegratedModelStandard70ObservationUnavailableErrorV1
@@ -368,44 +380,10 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
     if (completedBeatMetrics === null) {
       throw new Error("Standard70 candidate execution completed no beat");
     }
-    const traceMeasurements =
-      measureMainWireIntegratedModelBaselineValidationV1(terminalTrace);
-    const exactAorticValve =
-      completedBeatMetrics.valveForwardPressureGradients.AoV;
-    const exactLeftPressureRate =
-      completedBeatMetrics.ventricularAbsolutePressureRateExtrema.LV;
-    if (
-      exactAorticValve.timeWeightedMeanMmHg === null
-      || exactAorticValve.peakMmHg === null
-    ) {
-      throw new Error("Standard70 aortic beat metrics are incomplete");
-    }
-    const baseMeasurements:
-      MainWireIntegratedModelBaselineValidationMeasurementsV1 = Object.freeze({
-        ...traceMeasurements,
-        aorticValve: Object.freeze({
-          ejectionTimeSec: exactAorticValve.forwardFlowDurationSec,
-          meanGradientMmHg: exactAorticValve.timeWeightedMeanMmHg,
-          peakGradientMmHg: exactAorticValve.peakMmHg,
-        }),
-        leftVentricle: Object.freeze({
-          maximumDpDtMmHgPerSec: exactLeftPressureRate.maximumMmHgPerSec,
-          minimumDpDtMmHgPerSec: exactLeftPressureRate.minimumMmHgPerSec,
-        }),
-        hemodynamicPressure:
-          measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(
-            completedBeatMetrics,
-          ),
-        cardiacSizeAndFunction:
-          measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(
-            completedBeatMetrics,
-          ),
-      });
-    measurements = measureMainWireIntegratedModelStandard70BaselineV1(
-      baseMeasurements,
-      terminalTrace,
-      completedBeatMetrics,
-    );
+    measurements = measureMainWireIntegratedModelStandard70CandidateEvidenceV1({
+      terminalTrace, completedBeat: completedBeatMetrics,
+      timingAndInletObserver: options.timingAndInletObserver,
+    });
   } catch (error) {
     throw new MainWireIntegratedModelStandard70ObservationUnavailableErrorV1(
       error instanceof Error ? error.message : String(error),
@@ -442,6 +420,43 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
     checkpoint,
     terminalTrace,
   });
+}
+
+/** Pure post-run projection; keeping this seam separate makes observation
+ * availability testable without executing or altering the exact model. */
+export function measureMainWireIntegratedModelStandard70CandidateEvidenceV1(input: Readonly<{
+  terminalTrace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
+  completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3;
+  timingAndInletObserver?: MainWireIntegratedModelStandard70TimingAndInletObserverV1;
+}>): MainWireIntegratedModelStandard70BaselineMeasurementsV1 {
+  const { terminalTrace, completedBeat } = input;
+  const observed = input.timingAndInletObserver?.({ terminalTrace, completedBeat });
+  if (input.timingAndInletObserver !== undefined && (observed?.left === undefined || observed.right === undefined)) {
+    throw new Error("explicit timing/inlet observer must return both ventricles");
+  }
+  const traceMeasurements = measureMainWireIntegratedModelBaselineValidationV1(terminalTrace, observed?.left);
+  const exactAorticValve = completedBeat.valveForwardPressureGradients.AoV;
+  const exactLeftPressureRate = completedBeat.ventricularAbsolutePressureRateExtrema.LV;
+  if (exactAorticValve.timeWeightedMeanMmHg === null || exactAorticValve.peakMmHg === null) {
+    throw new Error("Standard70 aortic beat metrics are incomplete");
+  }
+  if (observed !== undefined) for (const [side, valve] of [["left", "AoV"], ["right", "PV"]] as const) {
+    const actual = observed[side].ejectionTimeSec, exact = completedBeat.valveForwardPressureGradients[valve].forwardFlowDurationSec;
+    if (!Number.isFinite(actual) || !Number.isFinite(exact)
+      || Math.abs(actual - exact) > 128 * Number.EPSILON * Math.max(1, Math.abs(actual), Math.abs(exact))) {
+      throw new Error("timing/inlet observer ET differs from the exact completed-beat forward duration");
+    }
+  }
+  const baseMeasurements: MainWireIntegratedModelBaselineValidationMeasurementsV1 = Object.freeze({
+    ...traceMeasurements,
+    aorticValve: Object.freeze({ ejectionTimeSec: exactAorticValve.forwardFlowDurationSec,
+      meanGradientMmHg: exactAorticValve.timeWeightedMeanMmHg, peakGradientMmHg: exactAorticValve.peakMmHg }),
+    leftVentricle: Object.freeze({ maximumDpDtMmHgPerSec: exactLeftPressureRate.maximumMmHgPerSec,
+      minimumDpDtMmHgPerSec: exactLeftPressureRate.minimumMmHgPerSec }),
+    hemodynamicPressure: measureMainWireIntegratedModelExactBaselineHemodynamicPressureV1(completedBeat),
+    cardiacSizeAndFunction: measureMainWireIntegratedModelExactBaselineCardiacSizeAndFunctionV1(completedBeat),
+  });
+  return measureMainWireIntegratedModelStandard70BaselineV1(baseMeasurements, terminalTrace, completedBeat, observed?.right);
 }
 
 type MainWireAcceptedStateV1 = Readonly<

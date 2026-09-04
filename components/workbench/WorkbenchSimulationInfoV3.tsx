@@ -27,6 +27,7 @@ export type WorkbenchSimulationInfoModelV3 = Readonly<{
       label: string;
       value: string;
       detail: string;
+      status?: "reference" | "warning";
     }>[];
   }>;
 }>;
@@ -424,7 +425,11 @@ export function WorkbenchSimulationInfoPanelV3({
                     >
                       <dt className="text-wb-muted">{item.label}</dt>
                       <dd className="flex shrink-0 items-center gap-1.5 font-medium tabular-nums text-wb-text">
-                        <Check className="h-3 w-3 text-wb-accent" aria-hidden="true" />
+                        {item.status === "warning"
+                          ? <AlertTriangle className="h-3 w-3 text-amber-400" aria-hidden="true" />
+                          : item.status === "reference"
+                            ? <Info className="h-3 w-3 text-wb-subtle" aria-hidden="true" />
+                            : <Check className="h-3 w-3 text-wb-accent" aria-hidden="true" />}
                         {item.value}
                       </dd>
                     </div>

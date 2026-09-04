@@ -11,6 +11,12 @@ import {
 import type {
   MainWireStandard70BaselineCalibrationEvaluationV1,
 } from "./MainWireStandard70BaselineCalibrationEvaluatorV1";
+import { MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID } from "./MainWireStandard70BaselineCalibrationEvaluatorV1";
+import { assertMainWireBaselineCheckCoverageV1, MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1,
+  mainWireBaselineCheckBlocksV1, mainWireBaselineGateRoleV1 } from
+  "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1 } from
+  "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 as reserveBase,
   type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
@@ -24,7 +30,7 @@ import { vascularPvLawFromNodeV1 } from "@/engine/core/circulationGraphKernelV1"
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
-  policyId: "main-wire-baseline-operating-point-design-v4",
+  policyId: "main-wire-baseline-operating-point-design-v5",
   parameterPolicyId: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
   parameterDomains: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETERS_V1.map(
     ({ parameterId, minimum, maximum, finiteDifferenceStep }) =>
@@ -68,12 +74,29 @@ export type DesignScoreV1 = Readonly<{
   activeConstraints: readonly string[];
 }>;
 
+const objectiveCheckIdsV1 = new Set<string>(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1
+  .flatMap(({ checkIds }) => checkIds));
+const safetySentinelCheckIdsV1 = new Set<string>(MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1);
+
 export function scoreMainWireBaselineOperatingPointV1(
   evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
 ): DesignScoreV1 {
   const failed = { feasible: false, minimumMargin: -Infinity,
     pressureFlowMargin: -Infinity, pressureFlowTargetGap: Infinity, activeConstraints: [] } as const;
   if (evaluation.status !== "accepted") return failed;
+  if (evaluation.evaluatorId !== MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID) return failed;
+  // A partial or mispartitioned evaluation is unresolved, never a more feasible
+  // candidate merely because its difficult observations disappeared.
+  if (!Array.isArray(evaluation.objectiveChecks) || !Array.isArray(evaluation.safetySentinelChecks)) return failed;
+  try {
+    assertMainWireBaselineCheckCoverageV1([...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]);
+  } catch {
+    return failed;
+  }
+  if (evaluation.objectiveChecks.length !== objectiveCheckIdsV1.size
+    || evaluation.safetySentinelChecks.length !== safetySentinelCheckIdsV1.size
+    || evaluation.objectiveChecks.some(({ checkId }) => !objectiveCheckIdsV1.has(checkId))
+    || evaluation.safetySentinelChecks.some(({ checkId }) => !safetySentinelCheckIdsV1.has(checkId))) return failed;
   if (evaluation.safetySentinelStatus !== "passed"
     || evaluation.failedSafetySentinelCheckIds.length > 0
     || [...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]
@@ -82,7 +105,8 @@ export function scoreMainWireBaselineOperatingPointV1(
     return failed;
   }
   const margins = evaluation.objectiveChecks
-    .filter((check) => check.maximum > check.minimum)
+    .filter((check) => check.maximum > check.minimum
+      && mainWireBaselineGateRoleV1(check.checkId) !== "reference-warning")
     .map((check) => ({ id: check.checkId, margin: Math.min(
       check.actual - check.minimum, check.maximum - check.actual,
     ) / (check.maximum - check.minimum) }));
@@ -97,7 +121,7 @@ export function scoreMainWireBaselineOperatingPointV1(
     && evaluation.failedConstructionCheckIds.length === 0
     && evaluation.failedObjectiveCheckIds.length === 0
     && [...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]
-      .every((check) => check.status === "passed" && check.actual >= check.minimum && check.actual <= check.maximum);
+      .every((check) => !mainWireBaselineCheckBlocksV1(check));
   return { feasible, minimumMargin,
     pressureFlowMargin: Math.min(...pressureFlow as number[]),
     pressureFlowTargetGap: Math.hypot(...(pressureFlow as number[]).map((margin) => Math.max(0,

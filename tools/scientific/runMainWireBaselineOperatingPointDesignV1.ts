@@ -297,6 +297,8 @@ if (values.worker) {
         // spend another full protocol rerunning it or call reuse independent confirmation.
         await writeFile(path, JSON.stringify({ ...expected, qualified: true, executionTier: "full-invariant",
           sourceEvaluationExecutionTier: finalist.reserve.sourceEvaluationExecutionTier,
+          evaluation: finalist.evaluation, conditionHemodynamicResearchInputs: finalist.inputs.hemodynamicResearchInputs,
+          reserveExecutionTier: "full-invariant", reserveStatus: "passed", reserveFailure: null,
           reusedMeasuredReserve: true, sourceReservePath: `${finalist.index}.reserve.json`, reserve,
           baselineAdopted: false }), { flag: "wx" });
       } else {
@@ -337,6 +339,7 @@ if (values.worker) {
     requestIdentitySha256: evaluation.requestIdentitySha256,
     wallTimeMs: evaluation.wallTimeMs,
     checks: evaluation.status === "accepted" ? evaluation.objectiveChecks : null,
+    referenceWarnings: evaluation.status === "accepted" ? evaluation.referenceWarningCheckIds : [],
     failed: evaluation.status === "accepted" ? evaluation.failedConstructionCheckIds : evaluation.message,
   }));
   await writeFile(resolve(output, "result.json"), JSON.stringify({

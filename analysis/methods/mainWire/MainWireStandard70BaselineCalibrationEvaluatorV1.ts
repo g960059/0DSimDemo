@@ -1,5 +1,13 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
+import { observeMainWireStandard70QualificationV2, observeMainWireStandard70TimingAndInletV2 } from "./MainWireStandard70BaselineAssessmentV2";
+import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID } from "./MainWireBaselineObservationV2";
+import {
+  MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
+  assertMainWireBaselineCheckCoverageV1,
+  mainWireBaselineCheckBlocksV1,
+  mainWireBaselineCheckWarnsV1,
+} from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1,
@@ -41,7 +49,7 @@ import {
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 export const MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID =
-  "main-wire-standard70-baseline-calibration-evaluator-v1" as const;
+  "main-wire-standard70-baseline-calibration-evaluator-v2" as const;
 
 export type MainWireStandard70BaselineCalibrationEvaluationRequestV1 =
   Readonly<{
@@ -88,6 +96,8 @@ export type MainWireStandard70BaselineCalibrationAcceptedEvaluationV1 =
     constructionGateStatus: "passed" | "failed";
     objectiveGateStatus: "passed" | "failed";
     safetySentinelStatus: "passed" | "failed";
+    /** Measured out-of-reference values, retained without automatic rejection. */
+    referenceWarningCheckIds: readonly string[];
     failedConstructionCheckIds: readonly (
       | MainWireIntegratedModelBaselineValidationCheckIdV1
       | MainWireIntegratedModelStandard70RightHeartCheckIdV1
@@ -160,7 +170,7 @@ export type MainWireStandard70BaselineCalibrationRequestIdentityInputV1 =
 export async function buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1():
   Promise<MainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1> {
   const constructionPolicyRevisionId =
-    normalReferenceEvidenceV1.policyRevisions.at(-1)?.revisionId;
+    MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID;
   if (constructionPolicyRevisionId === undefined) {
     throw new Error("normal-reference evidence registry has no policy revision");
   }
@@ -168,6 +178,8 @@ export async function buildMainWireStandard70BaselineCalibrationConstructionPoli
     constructionPolicyRevisionId,
     constructionPolicyIdentitySha256: await sha256CanonicalJsonHex({
       constructionPolicyRevisionId,
+      evaluationPolicyId: MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
+      observationMethodId: MAIN_WIRE_BASELINE_OBSERVATION_V2_ID,
       objectiveCheckGroups: normalReferenceEvidenceV1.checkGroups,
       standard70SafetyAnalysisMethodId:
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID,
@@ -228,7 +240,8 @@ export async function buildMainWireStandard70BaselineCalibrationRequestIdentityV
 /**
  * Analysis-owned fail-closed adapter for the current Standard70 exact model.
  * The historical normal-reference checks remain objective observations while
- * the Standard70 right-heart checks remain mandatory safety sentinels. A
+ * the Standard70 right-heart checks retain their separately reported roles. A
+ * finite pressure-rate reference warning is not a physiological rejection. A
  * valid simulation may fail either gate set; such a result is still returned
  * as accepted so search cannot confuse a rejected construction with a solver
  * or settlement failure.
@@ -337,6 +350,7 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
       mechanismResearchInputs,
       nominalDtSec,
       initialization,
+      timingAndInletObserver: observeMainWireStandard70TimingAndInletV2,
     });
   } catch (error) {
     if (
@@ -395,6 +409,7 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
 
   let partition: ReturnType<typeof partitionChecksV1>;
   try {
+    exactResult = observeMainWireStandard70QualificationV2(exactResult);
     partition = partitionChecksV1(exactResult.checks);
   } catch (error) {
     return failureV1(
@@ -407,10 +422,10 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
     );
   }
   const failedObjectiveCheckIds = partition.objectiveChecks
-    .filter(({ status }) => status === "failed")
+    .filter(mainWireBaselineCheckBlocksV1)
     .map(({ checkId }) => checkId);
   const failedSafetySentinelCheckIds = partition.safetySentinelChecks
-    .filter(({ status }) => status === "failed")
+    .filter(mainWireBaselineCheckBlocksV1)
     .map(({ checkId }) => checkId);
   const failedConstructionCheckIds = Object.freeze([
     ...failedObjectiveCheckIds,
@@ -444,6 +459,8 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
       ? "passed" as const
       : "failed" as const,
     failedConstructionCheckIds,
+    referenceWarningCheckIds: Object.freeze(exactResult.checks
+      .filter(mainWireBaselineCheckWarnsV1).map(({ checkId }) => checkId)),
     failedObjectiveCheckIds: Object.freeze(failedObjectiveCheckIds),
     failedSafetySentinelCheckIds:
       Object.freeze(failedSafetySentinelCheckIds),
@@ -460,12 +477,13 @@ function partitionChecksV1(
   safetySentinelChecks:
     readonly MainWireIntegratedModelStandard70RightHeartCheckV1[];
 }> {
-  const objectiveIds = normalReferenceEvidenceV1.checkGroups.flatMap(
-    ({ checkIds }) => checkIds,
-  );
   const safetyIds = [
     ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
   ];
+  assertMainWireBaselineCheckCoverageV1(checks);
+  const objectiveIds = normalReferenceEvidenceV1.checkGroups.flatMap(
+    ({ checkIds }) => checkIds,
+  ).filter((id) => !(safetyIds as readonly string[]).includes(id));
   const allIds = [...objectiveIds, ...safetyIds];
   const receivedIds = checks.map(({ checkId }) => checkId);
   const receivedIdSet = new Set<string>(receivedIds);
@@ -532,7 +550,7 @@ function failureV1(
   });
 }
 
-function initializationIdentityV1(
+export function initializationIdentityV1(
   initialization: MainWireIntegratedModelStandard70CandidateInitializationV1,
 ): MainWireStandard70BaselineCalibrationInitializationIdentityV1 {
   if (initialization.kind === "cold") return initialization;

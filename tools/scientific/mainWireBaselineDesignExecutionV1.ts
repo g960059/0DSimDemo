@@ -1,10 +1,12 @@
-import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID,
   type MainWireIntegratedModelFormalPreloadReserveMeasurementV2,
+  type MainWireIntegratedModelFormalPreloadReserveQualificationV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
-import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
+import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2, validMainWireFixedToneSettlementEvidenceV2 } from
   "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 import { assertMainWireStandard70PreloadReservePassedV1,
   MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from
@@ -15,14 +17,20 @@ import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import type { MainWireIntegratedModelStandard70CandidateInitializationV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
-import type { MainWireStandard70BaselineCalibrationEvaluationV1 } from
+import type { MainWireStandard70BaselineCalibrationAcceptedEvaluationV1,
+  MainWireStandard70BaselineCalibrationEvaluationV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { scoreMainWireBaselineOperatingPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
+import { assertMainWireBaselinePressureRateQualityV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
+import { validPreloadReserveSideV1 } from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionBaselineValidationV1";
 
 export const designReservePolicyV1 = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1,
   measurementProtocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  endDiastolicDefinition: "inlet-valve-closure",
   settlement: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 };
 
 export async function reserveCandidateIdentityV1(inputs: MainWireBaselineCalibrationCandidateInputsV1, nominalDtSec: number) {
@@ -43,45 +51,38 @@ export function qualifyMeasuredDesignReserveV1(result: DesignReserveResultV1, ex
   sourceGlobalTbvMl: number;
 }) {
   const { sourceGlobalTbvMl, ...identities } = expected;
-  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
-  const settlementPolicy = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2;
   if (!result.reserve || result.failure !== null || result.executionTier !== "full-invariant"
     || !["full-invariant", "hot-path-lean"].includes(result.sourceEvaluationExecutionTier)
-    || (Object.keys(identities) as (keyof typeof identities)[]).some((key) => result[key] !== identities[key])
-    || result.reserve.protocolId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID
-    || (["center", "hypovolemic", "hypervolemic"] as const).some((key) => {
-      const evidence = result.reserve!.settlement?.[key];
-      return !evidence || evidence.policyId !== settlementPolicy.policyId
-        || [evidence.completedBeatCount, evidence.maximumRecentRedistributedVolumeMl,
-          evidence.maximumRecentNormalizedOutputDelta, evidence.maximumRecentNormalizedLandmarkDelta,
-          evidence.measurementDurationSec].some((value) => typeof value !== "number" || !Number.isFinite(value))
-        || !Number.isInteger(evidence.completedBeatCount)
-        || evidence.completedBeatCount < settlementPolicy.consecutiveComparisonCount + 1
-        || evidence.completedBeatCount > settlementPolicy.maximumCompleteBeatCount
-        || evidence.maximumRecentRedistributedVolumeMl < 0
-        || evidence.maximumRecentRedistributedVolumeMl > settlementPolicy.maximumRedistributedVolumePerBeatMl
-        || evidence.maximumRecentNormalizedOutputDelta < 0
-        || evidence.maximumRecentNormalizedOutputDelta > settlementPolicy.maximumNormalizedOutputDelta
-        || evidence.maximumRecentNormalizedLandmarkDelta < 0
-        || evidence.maximumRecentNormalizedLandmarkDelta > settlementPolicy.maximumNormalizedLandmarkDelta
-        || !(evidence.measurementDurationSec > 0)
-        || evidence.measurementDurationSec > settlementPolicy.maximumMeasurementDurationSec;
-    })
+    || (Object.keys(identities) as (keyof typeof identities)[]).some((key) => result[key] !== identities[key])) {
+    throw new Error("measured reserve is missing, failed, or incompatible with this finalist");
+  }
+  return qualifyCurrentDesignReserveObservationV1(result.reserve, sourceGlobalTbvMl);
+}
+
+function qualifyCurrentDesignReserveObservationV1(
+  reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV2,
+  sourceGlobalTbvMl: number,
+) {
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+  if (reserve.protocolId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID
+    || reserve.endDiastolicDefinition !== designReservePolicyV1.endDiastolicDefinition
+    || (["center", "hypovolemic", "hypervolemic"] as const).some((key) =>
+      !validMainWireFixedToneSettlementEvidenceV2(reserve.settlement?.[key]))
     || !(sourceGlobalTbvMl > 0) || !Number.isFinite(sourceGlobalTbvMl)
-    || !(Math.abs(result.reserve.sourceGlobalTbvMl - sourceGlobalTbvMl) <= 1e-6)
+    || !(Math.abs(reserve.sourceGlobalTbvMl - sourceGlobalTbvMl) <= 1e-6)
     || (["hypovolemic", "hypervolemic"] as const).some((direction) =>
-      result.reserve![`${direction}GlobalTbvScale`] !== policy[`${direction}GlobalTbvScale`]
-      || !(Math.abs(result.reserve![`${direction}GlobalTbvMl`]
-        - result.reserve!.sourceGlobalTbvMl * policy[`${direction}GlobalTbvScale`]) <= 1e-6)
+      reserve[`${direction}GlobalTbvScale`] !== policy[`${direction}GlobalTbvScale`]
+      || !(Math.abs(reserve[`${direction}GlobalTbvMl`]
+        - reserve.sourceGlobalTbvMl * policy[`${direction}GlobalTbvScale`]) <= 1e-6)
       || (["left", "right"] as const).some((side) =>
-        result.reserve![side][direction].endpointDirection !== direction))
-    || [result.reserve.left.hypovolemic, result.reserve.left.hypervolemic,
-      result.reserve.right.hypovolemic, result.reserve.right.hypervolemic].some((row) =>
+        reserve[side][direction].endpointDirection !== direction))
+    || [reserve.left.hypovolemic, reserve.left.hypervolemic,
+      reserve.right.hypovolemic, reserve.right.hypervolemic].some((row) =>
       Object.entries(row).some(([key, value]) => key !== "endpointDirection"
         && (typeof value !== "number" || !Number.isFinite(value))))) {
     throw new Error("measured reserve is missing, failed, or incompatible with this finalist");
   }
-  const qualification = qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(result.reserve);
+  const qualification = qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(reserve);
   assertMainWireStandard70PreloadReservePassedV1(qualification);
   return qualification;
 }
@@ -124,14 +125,57 @@ export function designQualificationPathV1(index: number, mode: string) {
 export function validateDesignQualificationResultV1(raw: unknown, expected: {
   mode: string; sourceRequestPath: string; sourceEvaluationPath: string; executionCommit: string;
 }): boolean {
-  if (raw === null || typeof raw !== "object") throw new Error("missing qualification result");
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw new Error("missing qualification result");
   const result = raw as Record<string, unknown>;
   if (typeof result.qualified !== "boolean" || result.executionTier !== "full-invariant"
     || result.baselineAdopted !== false
+    || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(expected.mode)
     || Object.entries(expected).some(([key, value]) => result[key] !== value)) {
     throw new Error("qualification result shape or provenance mismatch");
   }
-  return result.qualified;
+  if (!result.qualified) return false;
+  const evaluation = result.evaluation as MainWireStandard70BaselineCalibrationAcceptedEvaluationV1 | undefined;
+  let feasible = false;
+  try { feasible = !!evaluation && scoreMainWireBaselineOperatingPointV1(evaluation).feasible; } catch { /* Malformed imported evidence. */ }
+  if (!evaluation || !feasible) throw new Error("qualification result requires a complete feasible evaluation");
+  if (expected.mode === "refined") {
+    assertMainWireBaselinePressureRateQualityV1(result.pressureRateQuality);
+    const quality = result.pressureRateQuality;
+    const exact = evaluation.exactResult;
+    const checkpoint = exact?.checkpoint;
+    const beat = checkpoint?.baseStandardCheckpointV2?.completedBeatMetrics;
+    if (!beat || exact.classification.status !== "period1-converged"
+      || quality.grids.fine.nominalDtSec !== evaluation.nominalDtSec
+      || quality.grids.fine.nominalDtSec !== exact.nominalDtSec
+      || quality.grids.fine.checkpointSha256 !== checkpoint.checkpointSha256
+      || canonicalJsonStringify(quality.grids.fine.modelIdentity) !== canonicalJsonStringify(checkpoint.modelIdentity)
+      || quality.checks.some((check) => {
+        const ventricle = check.checkId.startsWith("left-") ? "LV" : "RV";
+        const extremum = check.checkId.includes(".maximum-") ? "maximumMmHgPerSec" : "minimumMmHgPerSec";
+        const measurement = ventricle === "LV" ? exact.measurements?.leftVentricle : exact.measurements?.rightVentricle;
+        const actual = [...evaluation.objectiveChecks, ...evaluation.safetySentinelChecks]
+          .find(({ checkId }) => checkId === check.checkId)?.actual;
+        const reported = check.fine.reportedMmHgPerSec;
+        return reported !== beat.ventricularAbsolutePressureRateExtrema?.[ventricle]?.[extremum]
+          || reported !== (extremum === "maximumMmHgPerSec" ? measurement?.maximumDpDtMmHgPerSec : measurement?.minimumDpDtMmHgPerSec)
+          || reported !== actual;
+      })) {
+      throw new Error("qualification pressure-rate quality does not bind the refined evaluation");
+    }
+  }
+  if (expected.mode === "reserve") {
+    const reserve = result.reserve as MainWireIntegratedModelFormalPreloadReserveQualificationV2 | undefined;
+    const condition = result.conditionHemodynamicResearchInputs as { totalBloodVolumeMl?: number } | undefined;
+    if (result.reserveExecutionTier !== "full-invariant" || result.reserveStatus !== "passed" || result.reserveFailure !== null
+      || !reserve || reserve.status !== "passed"
+      || reserve.qualificationId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID
+      || !reserve.left || !reserve.right
+      || !validPreloadReserveSideV1(reserve.left) || !validPreloadReserveSideV1(reserve.right)) {
+      throw new Error("qualification result requires passed full-policy reserve evidence");
+    }
+    qualifyCurrentDesignReserveObservationV1(reserve, condition?.totalBloodVolumeMl ?? NaN);
+  }
+  return true;
 }
 
 /** Bounded occupancy without a batch barrier; returned order is input order. */

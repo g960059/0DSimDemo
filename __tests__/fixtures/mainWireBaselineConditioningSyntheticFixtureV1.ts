@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import standard70ValidationJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-baseline-validation.json";
 import normalReferenceEvidenceV1 from
@@ -230,7 +231,7 @@ function taskResultV1(
 
 function objectiveChecksV1():
   readonly MainWireIntegratedModelBaselineValidationCheckV1[] {
-  const ids = new Set(normalReferenceEvidenceV1.checkGroups.flatMap(
+  const ids = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(
     ({ checkIds }) => checkIds,
   ));
   return standard70ValidationJson.checks.filter(({ checkId }) =>

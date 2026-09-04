@@ -5,6 +5,8 @@ import {
   buildMainWireIntegratedModelBaselineValidationChecksV1,
   countMainWireIntegratedModelSignificantPressurePeaksV1,
   measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
+  validateAndOwnMainWireIntegratedModelBaselineTimingAndInletObservationV1,
+  type MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
   type MainWireIntegratedModelBaselineValidationCheckV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
@@ -125,6 +127,7 @@ export function measureMainWireIntegratedModelStandard70BaselineV1(
   base: MainWireIntegratedModelBaselineValidationMeasurementsV1,
   samples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[],
   completedBeat: MainWireIntegratedModelCompletedBeatMetricsV3,
+  rightTimingAndInletOverride?: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
 ): MainWireIntegratedModelStandard70BaselineMeasurementsV1 {
   const pulmonaryValve = completedBeat.valveForwardPressureGradients.PV;
   const rightPressureRate =
@@ -135,11 +138,12 @@ export function measureMainWireIntegratedModelStandard70BaselineV1(
   ) {
     throw new Error("Standard70 pulmonary-valve beat metrics are incomplete");
   }
-  const right =
-    measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
+  const right = rightTimingAndInletOverride === undefined
+    ? measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
       samples,
       "right",
-    );
+    )
+    : validateAndOwnMainWireIntegratedModelBaselineTimingAndInletObservationV1(rightTimingAndInletOverride);
   const pulmonaryRootMorphology =
     measureMainWireIntegratedModelPulmonaryRootMorphologyV1(samples);
   return Object.freeze({

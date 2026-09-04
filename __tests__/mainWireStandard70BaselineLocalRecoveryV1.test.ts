@@ -4,7 +4,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import standard70CheckpointJson from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
+import standard70ValidationJson from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-baseline-validation.json";
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from
+  "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+  type MainWireIntegratedModelStandard70RightHeartCheckV1 } from
+  "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
+import type { MainWireIntegratedModelBaselineValidationCheckV1 } from
+  "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import { designQualificationPathV1, validateDesignQualificationResultV1, qualifyMeasuredDesignReserveV1,
+  designReservePolicyV1,
   reserveCandidateIdentityV1, mapDesignInOrderV1, designRateInitializationV1, designEarlyRateInitializationV1,
   type DesignReserveResultV1 } from
   "@/tools/scientific/mainWireBaselineDesignExecutionV1";
@@ -23,10 +33,16 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+  qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1,
   type MainWireIntegratedModelFormalPreloadReserveMeasurementV2,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
   "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
+import { evaluateMainWireBaselinePressureRateQualityV1,
+  type MainWireBaselinePressureRateQualificationV1 } from
+  "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1 } from
+  "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 
 import {
   buildMainWireBaselineConditioningSyntheticArtifactsV1,
@@ -93,7 +109,7 @@ beforeEach(() => {
 describe("baseline reference and executable local recovery", () => {
   it("binds the prospective research bounds into the design policy", () => {
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.policyId)
-      .toBe("main-wire-baseline-operating-point-design-v4");
+      .toBe("main-wire-baseline-operating-point-design-v5");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterPolicyId)
       .toBe("main-wire-baseline-calibration-parameter-policy-v2");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterDomains.find(
@@ -282,6 +298,73 @@ describe("baseline reference and executable local recovery", () => {
 });
 
 describe("bounded baseline operating-point design", () => {
+  it("requires every one of the 28 objective and 13 sentinel checks before scoring feasibility", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    expect(good.objectiveChecks).toHaveLength(28);
+    expect(good.safetySentinelChecks).toHaveLength(13);
+    expect(new Set([...good.objectiveChecks, ...good.safetySentinelChecks].map(({ checkId }) => checkId)).size).toBe(41);
+    expect(new Set(good.objectiveChecks.map(({ checkId }) => checkId))).toEqual(new Set(
+      MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(({ checkIds }) => checkIds)));
+    expect(new Set(good.safetySentinelChecks.map(({ checkId }) => checkId))).toEqual(new Set(
+      MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1));
+    expect(scoreMainWireBaselineOperatingPointV1(good).feasible).toBe(true);
+    for (const partition of ["objectiveChecks", "safetySentinelChecks"] as const) {
+      for (const removed of good[partition]) {
+        const missing = { ...good, [partition]: good[partition].filter(({ checkId }) => checkId !== removed.checkId) };
+        expect(scoreMainWireBaselineOperatingPointV1(missing), removed.checkId).toMatchObject({
+          feasible: false, minimumMargin: -Infinity, pressureFlowTargetGap: Infinity,
+        });
+        expect(mainWireBaselineDesignQualificationPassedV1(missing, true, "passed"), removed.checkId).toBe(false);
+        expect(scoreMainWireBaselineReserveAwareV1(missing, reserveFixtureV1()).minimumMargin, removed.checkId).toBe(-Infinity);
+      }
+    }
+  });
+
+  it("rejects duplicate, unknown, malformed, or misplaced checks despite passed summary labels", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const objectives = good.objectiveChecks;
+    const sentinels = good.safetySentinelChecks;
+    for (const changed of [
+      { objectiveChecks: objectives.filter(({ checkId }) => ["aortic-pressure.maximum", "systemic-forward-flow.cardiac-index"].includes(checkId)),
+        safetySentinelChecks: [] },
+      { objectiveChecks: [objectives[0], objectives[0], ...objectives.slice(2)] },
+      { safetySentinelChecks: [sentinels[0], sentinels[0], ...sentinels.slice(2)] },
+      { objectiveChecks: [...objectives, objectives[0]] },
+      { objectiveChecks: [{ ...objectives[0], checkId: "unregistered-check" }, ...objectives.slice(1)] },
+      { objectiveChecks: null }, { safetySentinelChecks: undefined },
+      { objectiveChecks: [null, ...objectives.slice(1)] },
+      // Full unique inventory and unchanged 28/13 sizes still cannot excuse a
+      // same-count swap that places a right-heart guard in the scoring subset.
+      { objectiveChecks: [sentinels[0], ...objectives.slice(1)],
+        safetySentinelChecks: [objectives[0], ...sentinels.slice(1)] },
+      { objectiveChecks: [...objectives, sentinels[0]], safetySentinelChecks: sentinels.slice(1) },
+    ]) {
+      const corrupted = { ...good, ...changed } as unknown as MainWireStandard70BaselineCalibrationAcceptedEvaluationV1;
+      expect(scoreMainWireBaselineOperatingPointV1(corrupted)).toMatchObject({ feasible: false, minimumMargin: -Infinity });
+      expect(mainWireBaselineDesignQualificationPassedV1(corrupted, true, "passed")).toBe(false);
+    }
+    const reordered = { ...good, objectiveChecks: [...objectives].reverse(), safetySentinelChecks: [...sentinels].reverse() };
+    expect(scoreMainWireBaselineOperatingPointV1(reordered).feasible).toBe(true);
+    expect(scoreMainWireBaselineOperatingPointV1(reordered).minimumMargin)
+      .toBe(scoreMainWireBaselineOperatingPointV1(good).minimumMargin);
+  });
+
+  it("keeps complete, valid pressure-rate reference warnings nonblocking in either partition", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const warned = { ...good,
+      referenceWarningCheckIds: ["left-ventricle.maximum-dpdt", "right-ventricle.maximum-dpdt"],
+      objectiveChecks: good.objectiveChecks.map((check) => check.checkId === "left-ventricle.maximum-dpdt"
+        ? { ...check, actual: check.minimum / 2, status: "failed" as const } : check),
+      safetySentinelChecks: good.safetySentinelChecks.map((check) => check.checkId === "right-ventricle.maximum-dpdt"
+        ? { ...check, actual: check.minimum / 2, status: "failed" as const } : check),
+    };
+    expect(scoreMainWireBaselineOperatingPointV1(warned)).toEqual(scoreMainWireBaselineOperatingPointV1(good));
+    expect(mainWireBaselineDesignQualificationPassedV1(warned, true, "passed")).toBe(true);
+  });
+
   it("changes only declared coordinates on the release lattice and keeps HR fixed", () => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const neighbors = mainWireBaselineDesignNeighborsV1(anchor, anchor, 1);
@@ -441,8 +524,10 @@ describe("bounded baseline operating-point design", () => {
       { ...result, sourceEvaluationExecutionTier: "unknown" as "full-invariant" }]) {
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/missing, failed, or incompatible/);
     }
+    expect(designReservePolicyV1.endDiastolicDefinition).toBe("inlet-valve-closure");
     for (const override of [{ protocolId: "other" },
       { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID }, { sourceGlobalTbvMl: 5000 },
+      { endDiastolicDefinition: undefined }, { endDiastolicDefinition: "maximum-volume" },
       { hypovolemicGlobalTbvScale: 0.9 }, { hypervolemicGlobalTbvScale: 1.1 },
       { hypovolemicGlobalTbvMl: 4450 }, { hypervolemicGlobalTbvMl: NaN }]) {
       const invalid = { ...result, reserve: { ...result.reserve!, ...override } } as DesignReserveResultV1;
@@ -457,6 +542,11 @@ describe("bounded baseline operating-point design", () => {
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/incompatible/);
     }
     expect(() => qualifyMeasuredDesignReserveV1(result, { ...expected, sourceGlobalTbvMl: NaN })).toThrow(/incompatible/);
+    const { endDiastolicDefinition: _, ...historicalReserve } = reserveFixtureV1();
+    Object.freeze(historicalReserve);
+    expect(() => qualifyMeasuredDesignReserveV1({ ...result,
+      reserve: historicalReserve as MainWireIntegratedModelFormalPreloadReserveMeasurementV2 }, expected)).toThrow(/incompatible/);
+    expect(historicalReserve).not.toHaveProperty("endDiastolicDefinition");
     const failed = reserveFixtureV1();
     failed.left.hypervolemic = { ...failed.left.hypervolemic, directionalCardiacOutputChangeFraction01: 0.025 };
     expect(() => qualifyMeasuredDesignReserveV1({ ...result, reserve: failed }, expected)).toThrow(/Standard70/);
@@ -571,7 +661,12 @@ describe("bounded baseline operating-point design", () => {
       await writeFile(reservePath, JSON.stringify(measured), { flag: "wx" });
       const expected = { mode: "reserve", sourceRequestPath: "7.request.json",
         sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
-      const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant" };
+      const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+      const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant",
+        evaluation: await acceptedV1({ ...anchor, nominalDtSec: 0.002 }),
+        reserveExecutionTier: "full-invariant", reserveStatus: "passed", reserveFailure: null,
+        conditionHemodynamicResearchInputs: anchor.hemodynamicResearchInputs,
+        reserve: qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(measured.reserve) };
       const path = join(directory, designQualificationPathV1(7, "reserve"));
       expect(path).not.toBe(reservePath);
       await writeFile(path, JSON.stringify(result), { flag: "wx" });
@@ -584,6 +679,93 @@ describe("bounded baseline operating-point design", () => {
         expect(() => validateDesignQualificationResultV1(malformed, expected)).toThrow(/shape or provenance/);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+
+  it.each(["cold", "hr60", "hr70", "afterload"])("requires complete feasible evidence for cached qualified %s", async (mode) => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const evaluation = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const expected = { mode, sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
+    const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant", evaluation };
+    expect(validateDesignQualificationResultV1(result, expected)).toBe(true);
+    expect(() => validateDesignQualificationResultV1({ ...result, mode: "unknown" }, { ...expected, mode: "unknown" }))
+      .toThrow(/shape or provenance/);
+    for (const invalid of [undefined, null, {}, { ...evaluation, status: "numerical-unresolved" },
+      { ...evaluation, objectiveChecks: evaluation.objectiveChecks.slice(1) },
+      { ...evaluation, safetySentinelChecks: [] }, { ...evaluation, constructionGateStatus: "failed" }]) {
+      expect(() => validateDesignQualificationResultV1({ ...result, evaluation: invalid }, expected)).toThrow(/feasible evaluation/);
+    }
+    expect(validateDesignQualificationResultV1({ ...result, qualified: false, evaluation: undefined }, expected)).toBe(false);
+  });
+
+  it("binds cached refined quality to the fine evaluation's dt, checkpoint, and all four extrema", async () => {
+    const { evaluation, pressureRateQuality } = await refinedQualificationFixtureV1();
+    const expected = { mode: "refined", sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
+    const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant", evaluation, pressureRateQuality };
+    expect(validateDesignQualificationResultV1(JSON.parse(JSON.stringify(result)), expected)).toBe(true);
+    const exact = evaluation.exactResult;
+    const beat = exact.checkpoint.baseStandardCheckpointV2.completedBeatMetrics!;
+    for (const override of [
+      { pressureRateQuality: undefined }, { pressureRateQuality: { ...pressureRateQuality, checks: [] } },
+      { pressureRateQuality: { ...pressureRateQuality, status: "failed" } },
+      { pressureRateQuality: { ...pressureRateQuality, grids: { ...pressureRateQuality.grids,
+        fine: { ...pressureRateQuality.grids.fine, checkpointSha256: "9".repeat(64) } } } },
+      { evaluation: { ...evaluation, nominalDtSec: 0.002 } },
+      { evaluation: { ...evaluation, exactResult: { ...exact, nominalDtSec: 0.002 } } },
+      { evaluation: { ...evaluation, exactResult: { ...exact, checkpoint: { ...exact.checkpoint, checkpointSha256: "9".repeat(64) } } } },
+      { evaluation: { ...evaluation, exactResult: { ...exact, checkpoint: { ...exact.checkpoint,
+        modelIdentity: { ...exact.checkpoint.modelIdentity, ventricularMaterialParameterHash: "another-model" } } } } },
+      { evaluation: { ...evaluation, exactResult: null } },
+    ]) expect(() => validateDesignQualificationResultV1({ ...result, ...override }, expected)).toThrow();
+    for (const check of pressureRateQuality.checks) {
+      const ventricle = check.checkId.startsWith("left-") ? "LV" : "RV";
+      const chamber = ventricle === "LV" ? "leftVentricle" : "rightVentricle";
+      const isMaximum = check.checkId.includes(".maximum-");
+      const field = isMaximum ? "maximumMmHgPerSec" : "minimumMmHgPerSec";
+      const measurementField = isMaximum ? "maximumDpDtMmHgPerSec" : "minimumDpDtMmHgPerSec";
+      const changed = check.fine.reportedMmHgPerSec! + 1;
+      const observations = (rows: typeof evaluation.objectiveChecks | typeof evaluation.safetySentinelChecks) =>
+        rows.map((row) => row.checkId === check.checkId ? { ...row, actual: changed } : row);
+      for (const mismatched of [
+        { ...evaluation, objectiveChecks: observations(evaluation.objectiveChecks), safetySentinelChecks: observations(evaluation.safetySentinelChecks) },
+        { ...evaluation, exactResult: { ...exact, measurements: { ...exact.measurements,
+          [chamber]: { ...exact.measurements[chamber], [measurementField]: changed } } } },
+        { ...evaluation, exactResult: { ...exact, checkpoint: { ...exact.checkpoint,
+          baseStandardCheckpointV2: { ...exact.checkpoint.baseStandardCheckpointV2, completedBeatMetrics: { ...beat,
+            ventricularAbsolutePressureRateExtrema: { ...beat.ventricularAbsolutePressureRateExtrema,
+              [ventricle]: { ...beat.ventricularAbsolutePressureRateExtrema[ventricle], [field]: changed } } } } } } },
+      ]) expect(() => validateDesignQualificationResultV1({ ...result, evaluation: mismatched }, expected)).toThrow(/does not bind/);
+    }
+  });
+
+  it("rechecks cached reserve settlement, observation definition and full physiological policy", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const evaluation = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const reserve = qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(reserveFixtureV1());
+    const expected = { mode: "reserve", sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
+    const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant", evaluation,
+      reserveExecutionTier: "full-invariant", reserveStatus: "passed", reserveFailure: null,
+      conditionHemodynamicResearchInputs: anchor.hemodynamicResearchInputs, reserve };
+    expect(validateDesignQualificationResultV1(result, expected)).toBe(true);
+    for (const override of [
+      { reserve: undefined }, { reserveStatus: "not-run" }, { reserveFailure: "unresolved" }, { reserveExecutionTier: "hot-path-lean" },
+      { conditionHemodynamicResearchInputs: undefined },
+      { conditionHemodynamicResearchInputs: { ...anchor.hemodynamicResearchInputs, totalBloodVolumeMl: 5000 } },
+      { reserve: { ...reserve, qualificationId: "old" } }, { reserve: { ...reserve, status: "failed" } },
+      { reserve: { ...reserve, endDiastolicDefinition: undefined } }, { reserve: { ...reserve, protocolId: "old" } },
+      { reserve: { ...reserve, hypervolemicGlobalTbvScale: 1.1 } },
+      { reserve: { ...reserve, hypervolemicGlobalTbvMl: reserve.hypervolemicGlobalTbvMl + 1 } },
+      { reserve: { ...reserve, settlement: { ...reserve.settlement, center: undefined } } },
+      { reserve: { ...reserve, settlement: { ...reserve.settlement,
+        hypervolemic: { ...reserve.settlement.hypervolemic, maximumRecentRedistributedVolumeMl: 0.051 } } } },
+      { reserve: { ...reserve, right: { ...reserve.right, hypervolemic: { ...reserve.right.hypervolemic,
+        endpointCardiacOutputLPerMin: NaN } } } },
+      { reserve: { ...reserve, right: { ...reserve.right, hypervolemic: { ...reserve.right.hypervolemic,
+        directionalCardiacOutputChangeLPerMin: 0.4 } } } },
+      // Arithmetic and the base policy pass; Standard70's preserved 3% floor does not.
+      { reserve: { ...reserve, right: { ...reserve.right, hypervolemic: { ...reserve.right.hypervolemic,
+        endpointCardiacOutputLPerMin: 5.1, directionalCardiacOutputChangeLPerMin: 0.1,
+        directionalCardiacOutputChangeFraction01: 0.02, cardiacOutputSlopeLPerMinPerMmHg: 0.025 } } } },
+    ]) expect(() => validateDesignQualificationResultV1({ ...result, ...override }, expected)).toThrow();
   });
 
   it("keeps bounded queue indices and results independent of completion order", async () => {
@@ -624,11 +806,48 @@ function reserveFixtureV1() {
     maximumRecentRedistributedVolumeMl: 0.03, maximumRecentNormalizedOutputDelta: 0.02,
     maximumRecentNormalizedLandmarkDelta: 0.4, measurementDurationSec: 30 };
   return { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
+    endDiastolicDefinition: "inlet-valve-closure",
     sourceGlobalTbvMl: 4900, hypovolemicGlobalTbvMl: 4900 * 0.88, hypervolemicGlobalTbvMl: 4900 * 1.12,
     hypovolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale,
     hypervolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale,
     left: structuredClone(side), right: structuredClone(side),
     settlement: { center: evidence, hypovolemic: evidence, hypervolemic: evidence } } satisfies MainWireIntegratedModelFormalPreloadReserveMeasurementV2;
+}
+
+async function refinedQualificationFixtureV1() {
+  const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+  const accepted = await acceptedV1({ ...anchor, nominalDtSec: 0.001 });
+  const rates = [0, 900, 1500, 900, 0, -900, -1500, -900, 0];
+  const qualification = (dt: number, steps: number[], hash: string): MainWireBaselinePressureRateQualificationV1 => {
+    let pressure = 10;
+    const terminalTrace = [0, ...steps].map((rate, index) => {
+      pressure += rate * dt;
+      return { acceptedTimeSec: index * dt, acceptedDtSec: dt, absolutePressureMmHg: { LV: pressure, RV: pressure / 3 } };
+    });
+    return { nominalDtSec: dt, classification: { status: "period1-converged" }, terminalTrace,
+      checkpoint: { modelIdentity: MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1, checkpointSha256: hash,
+        baseStandardCheckpointV2: { completedBeatMetrics: { startTimeSec: 0, endTimeSec: steps.length * dt,
+          durationSec: steps.length * dt, ventricularAbsolutePressureRateExtrema: {
+            LV: { maximumMmHgPerSec: 1500, minimumMmHgPerSec: -1500 }, RV: { maximumMmHgPerSec: 500, minimumMmHgPerSec: -500 },
+          } } } } };
+  };
+  const coarse = qualification(0.002, rates, "c".repeat(64));
+  const fine = qualification(0.001, rates.flatMap((rate) => [rate, rate]), "f".repeat(64));
+  const pressureRateQuality = evaluateMainWireBaselinePressureRateQualityV1({
+    coarse: { qualification: coarse, candidateIdentitySha256: "a".repeat(64) },
+    fine: { qualification: fine, candidateIdentitySha256: "a".repeat(64) },
+  });
+  const observedChecks = [...accepted.objectiveChecks, ...accepted.safetySentinelChecks].map((check) => ({ ...check,
+    actual: pressureRateQuality.checks.find(({ checkId }) => checkId === check.checkId)?.fine.reportedMmHgPerSec ?? check.actual,
+  }));
+  const exactResult = { ...accepted.exactResult, ...fine, measurements: {
+    leftVentricle: { maximumDpDtMmHgPerSec: 1500, minimumDpDtMmHgPerSec: -1500 },
+    rightVentricle: { maximumDpDtMmHgPerSec: 500, minimumDpDtMmHgPerSec: -500 },
+  } } as MainWireStandard70BaselineCalibrationAcceptedEvaluationV1["exactResult"];
+  const evaluation = { ...accepted, exactResult,
+    objectiveChecks: observedChecks.slice(0, 28) as typeof accepted.objectiveChecks,
+    safetySentinelChecks: observedChecks.slice(28) as typeof accepted.safetySentinelChecks };
+  return { evaluation, pressureRateQuality };
 }
 
 // The exact evaluator is covered independently; this fixture exercises only
@@ -640,12 +859,24 @@ async function acceptedV1(input: MainWireStandard70BaselineCalibrationEvaluation
     transformMainWireBaselineCalibrationParameterV1(parameterId,
       readMainWireBaselineCalibrationParameterV1(candidate, parameterId))
       - transformMainWireBaselineCalibrationParameterV1(parameterId, centerValue));
-  const objectiveChecks = source.basis.rows.map((row, index) => ({
+  const modeledChecks = source.basis.rows.map((row, index) => ({
     ...source.centerObservations[index]!, status: "passed" as const,
     actual: source.centerObservations[index]!.actual
       + row.halfStepNormalizedDerivatives.reduce((sum, derivative, col) =>
         sum + derivative * offsets[col]!, 0) * (row.maximum - row.minimum),
   }));
+  const objectiveIds = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(({ checkIds }) => checkIds));
+  const sentinelIds = new Set<string>(MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1);
+  // Retain the local response model's ordering, then fill its unmodeled checks
+  // with passing midpoints. This is complete synthetic evidence, not a replay
+  // or reinterpretation of the historical published measurements.
+  const additionalChecks = standard70ValidationJson.checks
+    .filter(({ checkId }) => !modeledChecks.some((check) => check.checkId === checkId))
+    .map((check) => ({ ...check, status: "passed" as const, actual: (check.minimum + check.maximum) / 2 }));
+  const objectiveChecks = [...modeledChecks,
+    ...additionalChecks.filter(({ checkId }) => objectiveIds.has(checkId))] as MainWireIntegratedModelBaselineValidationCheckV1[];
+  const safetySentinelChecks = additionalChecks.filter(({ checkId }) => sentinelIds.has(checkId)) as
+    MainWireIntegratedModelStandard70RightHeartCheckV1[];
   return {
     evaluatorId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
     status: "accepted",
@@ -658,7 +889,8 @@ async function acceptedV1(input: MainWireStandard70BaselineCalibrationEvaluation
     nominalDtSec: input.nominalDtSec!, wallTimeMs: 1,
     constructionGateStatus: "passed", objectiveGateStatus: "passed", safetySentinelStatus: "passed",
     failedConstructionCheckIds: [], failedObjectiveCheckIds: [], failedSafetySentinelCheckIds: [],
-    objectiveChecks, safetySentinelChecks: [],
+    referenceWarningCheckIds: [],
+    objectiveChecks, safetySentinelChecks,
     exactResult: {
       nominalDtSec: input.nominalDtSec, initializationKind: "cold", completedCycleCount: 3,
       classification: { status: "period1-converged" }, checkpoint: { checkpointSha256: "a".repeat(64) },

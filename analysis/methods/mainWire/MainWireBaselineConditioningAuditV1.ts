@@ -1,5 +1,7 @@
-import normalReferenceEvidenceV1 from
-  "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
+import {
+  MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1,
+  mainWireBaselineCheckBlocksV1,
+} from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { canonicalJsonStringify } from "@/engine/integrity";
 import type {
   MainWireIntegratedModelStandard70CheckpointV1,
@@ -582,7 +584,7 @@ export function assertMainWireBaselineConditioningTaskResultV1(
         && result.task.conditionId === "rest-hr60")
       ? "standard70-exact-checkpoint"
       : "standard70-parameter-continuation";
-  const expectedCheckIds = normalReferenceEvidenceV1.checkGroups.flatMap(
+  const expectedCheckIds = MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(
     ({ checkIds }) => checkIds,
   );
   const checkIds = result.checks.map(({ checkId }) => checkId);
@@ -634,7 +636,7 @@ export function assertMainWireBaselineConditioningTaskResultV1(
     }
   }
   const expectedFailedObjective = result.checks
-    .filter(({ status }) => status === "failed")
+    .filter(mainWireBaselineCheckBlocksV1)
     .map(({ checkId }) => checkId);
   const safetyIds = new Set<string>(
     MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
@@ -943,7 +945,7 @@ export function buildMainWireBaselineConditioningAdmittedMatrixV1(
     throw new Error("conditioning spectrum coordinate IDs are duplicated");
   }
   const groupByCheckId = new Map<string, string>();
-  for (const group of normalReferenceEvidenceV1.checkGroups) {
+  for (const group of MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1) {
     for (const checkId of group.checkIds) groupByCheckId.set(checkId, group.groupId);
   }
   const sensitivityByKey = new Map<

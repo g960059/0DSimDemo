@@ -41,6 +41,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_HEMODYNAMIC_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_MECHANISM_INPUTS_V1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1";
 
 const indexedCheckIds = Object.freeze([
   "left-ventricle.edv-index",
@@ -63,12 +66,14 @@ const pressureCheckIds = Object.freeze([
 ] as const);
 
 describe("baseline construction and calibration gates", () => {
-  it("binds every construction gate to explicit evidence roles and a revisioned policy digest", async () => {
+  it("binds all 41 Standard70 checks to measured evidence, evaluation roles and the unchanged numerical policy digest", async () => {
     const sourceIds = normalReferenceEvidenceV1.sources.map(({ sourceId }) =>
       sourceId);
     expect(new Set(sourceIds).size).toBe(sourceIds.length);
     for (const source of normalReferenceEvidenceV1.sources) {
       expect(source.verification).toBe("primary-source-metadata-checked");
+      expect(source.title.trim()).not.toBe("");
+      expect(new URL(source.url).protocol).toBe("https:");
       expect(
         ("doi" in source.identifiers && source.identifiers.doi.length > 0)
           || ("pmid" in source.identifiers && source.identifiers.pmid.length > 0),
@@ -94,23 +99,78 @@ describe("baseline construction and calibration gates", () => {
       }
     }
 
-    const currentCheckIds = buildMainWireIntegratedModelBaselineValidationChecksV1(
+    const objectiveCheckIds = buildMainWireIntegratedModelBaselineValidationChecksV1(
       normalMeasurementsV1(),
       true,
     ).map(({ checkId }) => checkId);
+    const currentCheckIds = [
+      ...objectiveCheckIds,
+      ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
+    ];
     const coveredCheckIds = normalReferenceEvidenceV1.checkGroups.flatMap(
       ({ checkIds }) => checkIds,
     );
+    expect(currentCheckIds).toHaveLength(41);
     expect(new Set(coveredCheckIds).size).toBe(coveredCheckIds.length);
     expect([...coveredCheckIds].sort()).toEqual([...currentCheckIds].sort());
+    expect(normalReferenceEvidenceV1.evaluationPolicyId)
+      .toBe("main-wire-standard70-baseline-evaluation-roles-v1");
+    expect(normalReferenceEvidenceV1.observationMethodId)
+      .toBe("main-wire-baseline-observation-v2");
+    expect(normalReferenceEvidenceV1.sourceComparisonTiming)
+      .toBe("retrospective-provenance-audit-not-original-cutoff-derivation");
+    const evaluationRoles = [
+      "numerical-quality",
+      "physiological-target",
+      "construction-guard",
+      "reference-warning",
+    ];
     for (const group of normalReferenceEvidenceV1.checkGroups) {
       expect(group.evidenceRole).toBe("construction");
+      expect(evaluationRoles).toContain(group.evaluationRole);
+      expect(["objective", "right-heart-sentinel"])
+        .toContain(group.analysisPartition);
       expect(group.measurementMeaning.trim()).not.toBe("");
+      expect(group.observationLimitations.trim()).not.toBe("");
+      expect(group.evidenceGap.trim()).not.toBe("");
       expect(group.changeReason.trim()).not.toBe("");
       for (const evidenceId of group.contextEvidenceIds) {
         expect(evidenceIds).toContain(evidenceId);
       }
+      for (const comparison of group.sourceComparisons) {
+        expect(sourceIds).toContain(comparison.sourceId);
+        expect(comparison.locator.trim()).not.toBe("");
+        expect(comparison.targetPopulation.trim()).not.toBe("");
+        expect(comparison.observationMeaning.trim()).not.toBe("");
+        expect(comparison.comparisonToChosenBounds.trim()).not.toBe("");
+        if (comparison.sourceRange !== null) {
+          expect(comparison.sourceRange.trim()).not.toBe("");
+        }
+      }
     }
+    const coveredPartition = (partition: string) => normalReferenceEvidenceV1
+      .checkGroups.filter(({ analysisPartition }) => analysisPartition === partition)
+      .flatMap(({ checkIds }) => checkIds).sort();
+    expect(coveredPartition("objective")).toEqual([...objectiveCheckIds].sort());
+    expect(coveredPartition("right-heart-sentinel")).toEqual(
+      [...MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1].sort(),
+    );
+    const checksWithRole = (role: string) => normalReferenceEvidenceV1.checkGroups
+      .filter(({ evaluationRole }) => evaluationRole === role)
+      .flatMap(({ checkIds }) => checkIds).sort();
+    expect(checksWithRole("reference-warning")).toEqual([
+      "left-ventricle.maximum-dpdt",
+      "left-ventricle.minimum-dpdt",
+      "right-ventricle.maximum-dpdt",
+      "right-ventricle.minimum-dpdt",
+    ]);
+    expect(checksWithRole("numerical-quality")).toEqual(["settlement.period1"]);
+    expect(checksWithRole("construction-guard")).toEqual(
+      currentCheckIds.filter((checkId) =>
+        checkId.startsWith("waveform.") || checkId.endsWith("-gradient"))
+        .sort(),
+    );
+    expect(checksWithRole("physiological-target")).toHaveLength(24);
 
     expect(normalReferenceEvidenceV1.claimScope).toEqual({
       currentBaselineEvidenceRole: "construction",

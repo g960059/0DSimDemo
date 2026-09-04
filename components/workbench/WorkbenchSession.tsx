@@ -564,6 +564,9 @@ export const WorkbenchSession = ({
           }),
           Object.freeze({
             itemId: "lv-dpdt",
+            status: baselineValidation.checks.some((check) =>
+              ["left-ventricle.maximum-dpdt", "left-ventricle.minimum-dpdt"].includes(check.checkId)
+              && check.status === "failed") ? "warning" as const : "reference" as const,
             label: "LV ±dP/dt",
             value: `+${Math.round(
               baselineValidation.measurements.leftVentricle
@@ -628,6 +631,9 @@ export const WorkbenchSession = ({
                 }),
                 Object.freeze({
                   itemId: "rv-dpdt",
+                  status: baselineValidation.checks.some((check) =>
+                    ["right-ventricle.maximum-dpdt", "right-ventricle.minimum-dpdt"].includes(check.checkId)
+                    && check.status === "failed") ? "warning" as const : "reference" as const,
                   label: "RV ±dP/dt",
                   value: `+${Math.round(
                     standard70Measurements.rightVentricle
@@ -637,7 +643,7 @@ export const WorkbenchSession = ({
                       .minimumDpDtMmHgPerSec,
                   )}`,
                   detail: t(
-                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    "workbench.editor.simulationInfo.baselineRvDpDtDetail",
                     { range: "+300–1000 / −700–−150 mmHg/s" },
                   ),
                 }),
