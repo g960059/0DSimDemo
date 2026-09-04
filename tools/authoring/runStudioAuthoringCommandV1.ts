@@ -47,6 +47,8 @@ import {
 import {
   LocalTrustedAuthoringRuntimeLoaderV1,
 } from "./LocalTrustedAuthoringRuntimeLoaderV1";
+import { resolveRegisteredModelLaunchCheckpointV1 } from
+  "@/studio/registry/RegisteredModelLaunchBaselineV1";
 
 let commandContextV1: Readonly<{
   commandId: string | null;
@@ -220,6 +222,8 @@ function createAuthoringModelPortV1(
     return Object.freeze({
       contract: modelSurface.contract,
       defaultFixture: release.defaultFixture,
+      defaultCheckpoint: resolveRegisteredModelLaunchCheckpointV1(
+        release.ticket.modelId, release.defaultFixture),
       periodicPvaSupported:
         modelSurface.analysis.periodicPvaDerivation !== null,
       runtime: await runtimes.load(release.ticket),

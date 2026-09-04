@@ -89,12 +89,31 @@ vi.mock("@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvalua
     )>(),
     evaluateMainWireStandard70BaselineCalibrationCandidateV1: vi.fn(),
   }));
+vi.mock("@/analysis/registry/MainWireFittingReferenceRegistryV1", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/analysis/registry/MainWireFittingReferenceRegistryV1")>(),
+  resolveMainWireFittingReferenceV1: vi.fn(),
+}));
 
 const evaluate = vi.mocked(evaluateMainWireStandard70BaselineCalibrationCandidateV1);
+const resolveReference = vi.mocked(resolveMainWireFittingReferenceV1);
+let realResolveReference: typeof resolveMainWireFittingReferenceV1;
+let syntheticReference: ReturnType<typeof resolveMainWireFittingReferenceV1>;
 let request: MainWireStandard70BaselineLocalRecoveryRequestV1;
 let source: MainWireStandard70BaselineLocalProposalSourceV1;
 
 beforeAll(async () => {
+  const registry = await vi.importActual<typeof import("@/analysis/registry/MainWireFittingReferenceRegistryV1")>(
+    "@/analysis/registry/MainWireFittingReferenceRegistryV1");
+  realResolveReference = registry.resolveMainWireFittingReferenceV1;
+  const reference = realResolveReference("baseline");
+  // This synthetic derivative study and its published checkpoint are anchored
+  // to immutable HR60/TBV4900 Standard70 construction inputs, not today's launch
+  // selection. Current launch-registry behavior has separate integration tests.
+  syntheticReference = Object.freeze({ ...reference, selectedConstruction: Object.freeze({
+    ...reference.selectedConstruction, baselineId: "synthetic-standard70-conditioning-rest-hr60-v1",
+    candidateInputs: { ...buildMainWireBaselineConditioningCenterCandidateV1("rest-hr60"),
+      ventricularContractilityScale: 1 as const },
+  }) });
   const artifacts = await buildMainWireBaselineConditioningSyntheticArtifactsV1(1.02);
   request = {
     referenceId: "baseline",
@@ -108,6 +127,8 @@ beforeAll(async () => {
   source = await buildMainWireStandard70BaselineLocalProposalSourceV1(request.sourceArtifacts);
 });
 beforeEach(() => {
+  resolveReference.mockReset();
+  resolveReference.mockImplementation((id) => id === "baseline" ? syntheticReference : realResolveReference(id));
   evaluate.mockReset();
   evaluate.mockImplementation(acceptedV1);
 });
@@ -158,7 +179,7 @@ describe("baseline reference and executable local recovery", () => {
       (row) => row.hemodynamicResearchInputs.arterialStiffness <= 2.2)).toBe(true);
   });
 
-  it("registers the baseline target policy separately from selected parameters", () => {
+  it("keeps the synthetic historical reference separate from current launch parameters", () => {
     const reference = resolveMainWireFittingReferenceV1("baseline");
     expect(reference.label).toBe("baseline");
     expect(reference.target).toMatchObject({
@@ -168,6 +189,20 @@ describe("baseline reference and executable local recovery", () => {
       buildMainWireBaselineConditioningCenterCandidateV1("rest-hr60"),
     );
     expect(() => resolveMainWireFittingReferenceV1("hfref")).toThrow(/unregistered/);
+  });
+
+  it("rejects historical conditioning artifacts when the actual launch reference has a different center", async () => {
+    const reference = realResolveReference("baseline");
+    const candidate = reference.selectedConstruction.candidateInputs;
+    expect(candidate).not.toEqual(syntheticReference.selectedConstruction.candidateInputs);
+    resolveReference.mockReturnValueOnce(reference);
+    await expect(runMainWireStandard70BaselineLocalRecoveryV1({ ...request,
+      syntheticTruthValues: [
+        readMainWireBaselineCalibrationParameterV1(candidate, source.coordinates[0]!.parameterId),
+        readMainWireBaselineCalibrationParameterV1(candidate, source.coordinates[1]!.parameterId),
+      ],
+    })).rejects.toThrow("local recovery reference and source center differ");
+    expect(evaluate).not.toHaveBeenCalled();
   });
 
   it("owns the source, runs a cold target and only the projected candidate, then compares", async () => {

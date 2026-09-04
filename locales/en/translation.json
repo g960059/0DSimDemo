@@ -305,7 +305,7 @@
         "validationTitle": "Verification and validity",
         "validationDescription": "Current automated checks cover finite numerical values, blood-volume conservation, and event consistency. They do not establish physiological or clinical validity.",
         "baselineValidationTitle": "Mathematical model baseline verification",
-        "baselineValidationSummary": "Period-1 convergence confirmed when minting the model ID ({{cycles}} cycles)",
+        "baselineValidationSummary": "Baseline period-1 convergence confirmed ({{cycles}} cycles)",
         "baselineLvp": "LVP waveform",
         "baselineRvp": "RVP waveform",
         "baselineSingleRounded": "Single, rounded peak",

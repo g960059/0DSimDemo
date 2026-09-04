@@ -19,8 +19,8 @@ import {
   validateMainWireIntegratedStudioStandard70BaselineValidationV1,
   type MainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
-import algebraicPulmonaryRootValidationJsonV1 from
-  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-baseline-validation.json";
+import launchBaselineJsonV1 from
+  "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
 
 const ROUNDED_EJECTION_BASELINE_VALIDATION_V1 =
   validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
@@ -32,7 +32,7 @@ const QUALIFIED_BASELINE_VALIDATION_V1 =
   );
 const ALGEBRAIC_PULMONARY_ROOT_BASELINE_VALIDATION_V1 =
   validateMainWireIntegratedStudioStandard70BaselineValidationV1(
-    algebraicPulmonaryRootValidationJsonV1,
+    launchBaselineJsonV1.validationReport,
   );
 
 /** Client-side presentation lookup; qualification remains release/mint owned. */

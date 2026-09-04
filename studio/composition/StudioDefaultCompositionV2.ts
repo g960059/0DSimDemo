@@ -1,4 +1,8 @@
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
+import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
+import { REGISTERED_STANDARD70_LAUNCH_BASELINE_V1,
+  resolveRegisteredModelLaunchCheckpointV1 } from
+  "@/studio/registry/RegisteredModelLaunchBaselineV1";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -87,6 +91,7 @@ export type StudioClientCompositionV2 = Readonly<{
     modelId: string;
     stage: "dev" | "stable" | "retired";
     defaultFixture: StudioJsonValueV2;
+    defaultCheckpoint?: ScenarioCheckpointV2;
     fixtureProjection: ExactModelFixtureProjectionV1;
     workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   }>;
@@ -496,7 +501,7 @@ Promise<StudioClientCompositionV2> {
       artifactUrl: localAlgebraicPulmonaryRootArtifactUrlV1(),
     });
     return composeStudioClientCompositionV2(Object.freeze({
-      defaultFixture: algebraicPulmonaryRootClientDescriptorV1.defaultFixture,
+      defaultFixture: REGISTERED_STANDARD70_LAUNCH_BASELINE_V1.capture.fixture,
       stage: "dev" as const,
       ticket: workerReleaseTicket,
       surfaceStage: "dev" as const,
@@ -766,6 +771,8 @@ function composeStudioClientCompositionV2(
       modelId: release.ticket.modelId,
       stage: release.stage,
       defaultFixture: release.defaultFixture,
+      defaultCheckpoint: resolveRegisteredModelLaunchCheckpointV1(
+        release.ticket.modelId, release.defaultFixture),
       fixtureProjection: resolveRegisteredExactModelFixtureProjectionV1(
         {
           modelId: release.ticket.modelId,

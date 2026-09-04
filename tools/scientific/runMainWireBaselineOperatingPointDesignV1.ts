@@ -32,12 +32,12 @@ import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 } from
   "@/domain/model/MainWireStandardIdentityV1";
 import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
-import checkpoint from
-  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
+import launchBaseline from "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+const checkpoint = launchBaseline.qualificationCheckpoint;
 
 const { values } = parseArgs({ options: { output: { type: "string" },
   worker: { type: "string" }, parallelism: { type: "string", default: "8" },
-  "heart-rate": { type: "string", default: "60" },
+  "heart-rate": { type: "string", default: String(launchBaseline.candidateInputs.hemodynamicResearchInputs.heartRateBpm) },
   "integrity-tier": { type: "string", default: "hot-path-lean" },
   "reserve-worker": { type: "string" },
   "maximum-evaluations": { type: "string", default: String(policy.maximumEvaluations) },
@@ -205,7 +205,7 @@ if (values.worker) {
       scoreMainWireBaselineOperatingPointV1(entry.rateEvaluation));
     process.stderr.write(`[reserve] ${entry.index}: ${JSON.stringify(entry.score)}\n`);
   }
-  let best = await evaluate(seed, heartRateBpm !== 60 && !values["seed-evaluation"]
+  let best = await evaluate(seed, heartRateBpm !== reference.selectedConstruction.candidateInputs.hemodynamicResearchInputs.heartRateBpm && !values["seed-evaluation"]
     ? { kind: "cold" } : { kind: "standard70-exact-checkpoint", checkpoint: seedCheckpoint });
   if (!Number.isFinite(scoreMainWireBaselineOperatingPointV1(best.evaluation).minimumMargin)) {
     throw new Error("initial candidate did not reconfirm numerical, event and safety gates");

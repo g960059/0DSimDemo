@@ -1229,6 +1229,8 @@ export const WorkbenchSession = ({
                 scenarioId: initialScenarioId,
                 label: baselineLabel,
                 fixture: composition.exactModel.defaultFixture,
+                ...(composition.exactModel.defaultCheckpoint === undefined
+                  ? {} : { checkpoint: composition.exactModel.defaultCheckpoint }),
               }),
             ]
           : initialContent.scenarios.map((scenario) =>

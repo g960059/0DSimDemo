@@ -305,7 +305,7 @@
         "validationTitle": "検証と妥当性",
         "validationDescription": "現在の自動チェックは、数値の有限性、血液量の保存、イベント整合性などを確認します。これは生理学的・臨床的な妥当性を保証するものではありません。",
         "baselineValidationTitle": "数理モデルのbaseline検証",
-        "baselineValidationSummary": "Model ID発行時にperiod-1収束を確認（{{cycles}}周期）",
+        "baselineValidationSummary": "baselineのperiod-1収束を確認（{{cycles}}周期）",
         "baselineLvp": "LVP波形",
         "baselineRvp": "RVP波形",
         "baselineSingleRounded": "単峰・丸みあり",

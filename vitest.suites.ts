@@ -211,6 +211,8 @@ export const canonicalScientificTests = [
   "__tests__/mainWireBaselinePressureRateQualityV1.test.ts",
   "__tests__/mainWireStandard70TimingAndInletWindowV1.test.ts",
   "__tests__/mainWireBaselineColdConsistencyV1.test.ts",
+  "__tests__/registeredModelLaunchBaselineV1.test.ts",
+  "__tests__/mainWireBaselineLaunchSelectionV1.test.ts",
   "__tests__/mainWireFixedToneSettlementV2.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
