@@ -248,6 +248,10 @@ describe("bounded baseline operating-point design", () => {
       { parameterId: "myocardium.common-ventricular-active-tension-scale", value: 1.235 },
     ]);
     expect(() => mainWireBaselineDesignSeedV1(anchor, offLattice)).toThrow(/release lattice/);
+    const hr70 = { ...anchor, hemodynamicResearchInputs: { ...anchor.hemodynamicResearchInputs, heartRateBpm: 70 } };
+    expect(mainWireBaselineDesignNeighborsV1(hr70, hr70, 1).every((point) =>
+      point.hemodynamicResearchInputs.heartRateBpm === 70)).toBe(true);
+    expect(() => mainWireBaselineDesignNeighborsV1(hr70, anchor, 1)).toThrow(/one allowed HR/);
   });
 
   it("does not trade a failed safety gate for a better pressure/flow score", async () => {
@@ -282,6 +286,21 @@ describe("bounded baseline operating-point design", () => {
     expect(mainWireBaselineDesignBetterV1(nearer, outside)).toBe(true);
     expect(mainWireBaselineDesignBetterV1(nearer, score)).toBe(false);
     expect(mainWireBaselineDesignBetterV1({ ...outside, minimumMargin: -Infinity }, outside)).toBe(false);
+    const continuous = { ...good, constructionGateStatus: "failed" as const,
+      objectiveGateStatus: "failed" as const,
+      failedConstructionCheckIds: ["systemic-forward-flow.cardiac-index" as const],
+      failedObjectiveCheckIds: ["systemic-forward-flow.cardiac-index" as const],
+      objectiveChecks: good.objectiveChecks.map((check) => check.checkId === "systemic-forward-flow.cardiac-index"
+        ? { ...check, actual: check.minimum - 0.01 * (check.maximum - check.minimum), status: "failed" as const } : check) };
+    const continuousScore = scoreMainWireBaselineOperatingPointV1(continuous);
+    expect(continuousScore.feasible).toBe(false);
+    expect(continuousScore.minimumMargin).toBeCloseTo(-0.01, 12);
+    expect(scoreMainWireBaselineOperatingPointV1({ ...continuous,
+      objectiveChecks: [...continuous.objectiveChecks, { checkId: "settlement.period1",
+        minimum: 1, maximum: 1, actual: 0, unit: "bool", status: "failed" }] }).minimumMargin)
+      .toBe(-Infinity);
+    expect(scoreMainWireBaselineOperatingPointV1({ ...continuous, safetySentinelStatus: "failed" }).minimumMargin)
+      .toBe(-Infinity);
   });
 });
 
