@@ -16,6 +16,7 @@ import type { MainWireIntegratedModelBaselineValidationCheckV1 } from
 import { designQualificationPathV1, validateDesignQualificationResultV1, qualifyMeasuredDesignReserveV1,
   designReservePolicyV1,
   reserveCandidateIdentityV1, mapDesignInOrderV1, designRateInitializationV1, designEarlyRateInitializationV1,
+  designFinalRateInitializationV1,
   type DesignReserveResultV1 } from
   "@/tools/scientific/mainWireBaselineDesignExecutionV1";
 import {
@@ -64,6 +65,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireStandard70BaselineLocalRecoveryV1";
 import {
   buildMainWireStandard70BaselineCalibrationRequestIdentityV1,
+  buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
   evaluateMainWireStandard70BaselineCalibrationCandidateV1,
   MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
   type MainWireStandard70BaselineCalibrationAcceptedEvaluationV1,
@@ -113,7 +115,7 @@ beforeEach(() => {
 describe("baseline reference and executable local recovery", () => {
   it("binds the prospective research bounds into the design policy", () => {
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.policyId)
-      .toBe("main-wire-baseline-operating-point-design-v6");
+      .toBe("main-wire-baseline-operating-point-design-v7");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterPolicyId)
       .toBe("main-wire-baseline-calibration-parameter-policy-v2");
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.parameterDomains.find(
@@ -126,7 +128,10 @@ describe("baseline reference and executable local recovery", () => {
       fallback: "same-clock-official-checkpoint-otherwise-cold",
     });
     expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.rateConditionInitialization)
-      .toBe("same-clock-official-checkpoint-otherwise-cold");
+      .toBe("bound-same-candidate-rate-screen-checkpoint-otherwise-same-clock-official-otherwise-cold");
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.afterloadCondition).toBe("not-required");
+    expect(MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.finalQualificationRequired)
+      .not.toContain("load-and-rate-envelope");
   });
 
   it("adds lattice-bounded storage-compensated directions without replacing axial proposals", () => {
@@ -511,7 +516,7 @@ describe("bounded baseline operating-point design", () => {
     }
   });
 
-  it("reuses only full measured reserve bound to the candidate, checkpoint, and policy", async () => {
+  it("reuses complete measured reserve in either admitted tier, bound to candidate, checkpoint, and policy", async () => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const expected = { sourceCheckpointSha256: "a".repeat(64),
       candidateIdentitySha256: await reserveCandidateIdentityV1(anchor, 0.002), reservePolicyIdentity: "b".repeat(64),
@@ -520,11 +525,12 @@ describe("bounded baseline operating-point design", () => {
       sourceEvaluationExecutionTier: "hot-path-lean",
       reserve: reserveFixtureV1(), failure: null, wallTimeMs: 1 };
     expect(qualifyMeasuredDesignReserveV1(result, expected).status).toBe("passed");
+    expect(qualifyMeasuredDesignReserveV1({ ...result, executionTier: "hot-path-lean" }, expected).status).toBe("passed");
     for (const key of ["sourceCheckpointSha256", "candidateIdentitySha256", "reservePolicyIdentity"] as const) {
       expect(() => qualifyMeasuredDesignReserveV1({ ...result, [key]: "f".repeat(64) }, expected)).toThrow(/incompatible/);
     }
     for (const invalid of [{ ...result, reserve: null }, { ...result, failure: "unresolved" },
-      { ...result, executionTier: "hot-path-lean" as "full-invariant" },
+      { ...result, executionTier: "unknown" as "full-invariant" },
       { ...result, sourceEvaluationExecutionTier: "unknown" as "full-invariant" }]) {
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/missing, failed, or incompatible/);
     }
@@ -679,19 +685,53 @@ describe("bounded baseline operating-point design", () => {
       expect(JSON.parse(await readFile(reservePath, "utf8"))).toEqual({ reserve: measured.reserve });
       for (const malformed of [measured, { ...result, qualified: "true" }, { ...result, mode: "cold" },
         { ...result, sourceRequestPath: "another-request" }, { ...result, executionCommit: "another-commit" },
-        { ...result, executionTier: "hot-path-lean" }, { ...result, baselineAdopted: true }]) {
+        { ...result, executionTier: "unknown" }, { ...result, baselineAdopted: true }]) {
         expect(() => validateDesignQualificationResultV1(malformed, expected)).toThrow(/shape or provenance/);
       }
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
 
-  it.each(["hr60", "hr70", "afterload"])("requires complete feasible evidence for cached qualified %s", async (mode) => {
+  it("reconfirms only an exactly bound same-candidate rate screen", async () => {
+    const inputs = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const request = { ...inputs, nominalDtSec: 0.002, initialization: { kind: "cold" as const } };
+    const policy = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+    const evaluation = { ...await acceptedV1(request),
+      constructionPolicyIdentitySha256: policy.constructionPolicyIdentitySha256,
+      requestIdentitySha256: await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+        ...inputs, nominalDtSec: 0.002, initialization: { kind: "cold" },
+        constructionPolicyIdentitySha256: policy.constructionPolicyIdentitySha256,
+      }) };
+    await expect(designFinalRateInitializationV1(inputs, 0.002, request, evaluation)).resolves.toEqual({
+      kind: "standard70-exact-checkpoint", checkpoint: evaluation.exactResult.checkpoint,
+    });
+    for (const changed of [
+      { ...request, hemodynamicResearchInputs: { ...inputs.hemodynamicResearchInputs, heartRateBpm: 70 } },
+      { ...request, hemodynamicResearchInputs: { ...inputs.hemodynamicResearchInputs, totalBloodVolumeMl: 4950 } },
+      { ...request, ventricularContractilityScale: 1.01 },
+      { ...request, nominalDtSec: 0.001 },
+      { ...request, initialization: { kind: "standard70-exact-checkpoint" as const,
+        checkpoint: standard70CheckpointJson as unknown as Parameters<typeof designRateInitializationV1>[2] } },
+    ]) await expect(designFinalRateInitializationV1(inputs, 0.002, changed, evaluation)).rejects.toThrow(/bound same-candidate/);
+    for (const changed of [
+      { ...evaluation, requestIdentitySha256: "f".repeat(64) },
+      { ...evaluation, constructionPolicyIdentitySha256: "f".repeat(64) },
+      { ...evaluation, nominalDtSec: 0.001 },
+      { ...evaluation, constructionGateStatus: "failed" as const },
+      { ...evaluation, objectiveChecks: [] },
+    ]) await expect(designFinalRateInitializationV1(inputs, 0.002, request, changed)).rejects.toThrow(/bound same-candidate/);
+  });
+
+  it.each(["hr60", "hr70"])("requires complete feasible evidence for cached qualified %s", async (mode) => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const evaluation = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
     const expected = { mode, sourceRequestPath: "7.request.json", sourceEvaluationPath: "7.result.json", executionCommit: "commit" };
     const result = { ...expected, qualified: true, baselineAdopted: false, executionTier: "full-invariant", evaluation };
+    expect(() => validateDesignQualificationResultV1({ ...result, executionTier: "hot-path-lean" }, expected))
+      .toThrow(/shape or provenance/);
     expect(validateDesignQualificationResultV1(result, expected)).toBe(true);
     expect(() => validateDesignQualificationResultV1({ ...result, mode: "unknown" }, { ...expected, mode: "unknown" }))
+      .toThrow(/shape or provenance/);
+    expect(() => validateDesignQualificationResultV1({ ...result, mode: "afterload" }, { ...expected, mode: "afterload" }))
       .toThrow(/shape or provenance/);
     for (const invalid of [undefined, null, {}, { ...evaluation, status: "numerical-unresolved" },
       { ...evaluation, objectiveChecks: evaluation.objectiveChecks.slice(1) },
@@ -778,6 +818,8 @@ describe("bounded baseline operating-point design", () => {
       reserveExecutionTier: "full-invariant", reserveStatus: "passed", reserveFailure: null,
       conditionHemodynamicResearchInputs: anchor.hemodynamicResearchInputs, reserve };
     expect(validateDesignQualificationResultV1(result, expected)).toBe(true);
+    expect(validateDesignQualificationResultV1({ ...result,
+      executionTier: "hot-path-lean", reserveExecutionTier: "hot-path-lean" }, expected)).toBe(true);
     for (const override of [
       { reserve: undefined }, { reserveStatus: "not-run" }, { reserveFailure: "unresolved" }, { reserveExecutionTier: "hot-path-lean" },
       { conditionHemodynamicResearchInputs: undefined },

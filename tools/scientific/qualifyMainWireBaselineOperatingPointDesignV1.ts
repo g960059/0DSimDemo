@@ -17,7 +17,7 @@ import { assertMainWireStandard70PreloadReservePassedV1 } from
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
-import { designRateInitializationV1 } from "./mainWireBaselineDesignExecutionV1";
+import { designRateInitializationV1, designFinalRateInitializationV1 } from "./mainWireBaselineDesignExecutionV1";
 import { evaluateMainWireBaselinePressureRateQualityV1 } from
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
 import { evaluateMainWireBaselineColdConsistencyV1 } from
@@ -34,10 +34,15 @@ import checkpoint from
 const { values } = parseArgs({ options: { request: { type: "string" },
   "integrity-tier": { type: "string", default: "full-invariant" },
   "rate-initialization": { type: "string", default: "cold" },
+  "rate-source-request": { type: "string" }, "rate-source-evaluation": { type: "string" },
   evaluation: { type: "string" }, mode: { type: "string" }, output: { type: "string" } } });
 if (!values.request || !values.evaluation || !values.output
-  || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(values.mode ?? "")) {
-  throw new Error("--request FILE --evaluation FILE --mode cold|refined|reserve|hr60|hr70|afterload --output NEW_FILE");
+  || !["cold", "refined", "reserve", "hr60", "hr70"].includes(values.mode ?? "")) {
+  throw new Error("--request FILE --evaluation FILE --mode cold|refined|reserve|hr60|hr70 --output NEW_FILE");
+}
+if (Boolean(values["rate-source-request"]) !== Boolean(values["rate-source-evaluation"])
+  || (values["rate-source-request"] && !["hr60", "hr70"].includes(values.mode!))) {
+  throw new Error("rate source request and evaluation must be paired and used only for an HR condition");
 }
 if (!["cold", "same-clock-checkpoint"].includes(values["rate-initialization"]!)) {
   throw new Error("--rate-initialization must be cold|same-clock-checkpoint");
@@ -47,7 +52,7 @@ if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim())
 }
 selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
 const executionTier = hotPathIntegrityTierV1();
-const reserveExecutionTier = "full-invariant" as const;
+const reserveExecutionTier = executionTier;
 const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const request = JSON.parse(await readFile(values.request, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationRequestV1;
 const previous = JSON.parse(await readFile(values.evaluation, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
@@ -79,24 +84,24 @@ let reserveFailure: string | null = null;
 const hemodynamics = { ...request.hemodynamicResearchInputs,
   ...(values.mode === "hr60" ? { heartRateBpm: 60 } : {}),
   ...(values.mode === "hr70" ? { heartRateBpm: 70 } : {}),
-  ...(values.mode === "afterload" ? { systemicResistance: request.hemodynamicResearchInputs.systemicResistance * 1.1 } : {}),
 };
+const rateInitialization = values["rate-source-request"] && values["rate-source-evaluation"]
+  ? await designFinalRateInitializationV1({ hemodynamicResearchInputs: hemodynamics,
+    mechanismResearchInputs: request.mechanismResearchInputs,
+    ventricularContractilityScale: request.ventricularContractilityScale }, sourceDtSec,
+    JSON.parse(await readFile(values["rate-source-request"], "utf8")),
+    JSON.parse(await readFile(values["rate-source-evaluation"], "utf8"))) : undefined;
 const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
   ...request, hemodynamicResearchInputs: hemodynamics,
   nominalDtSec: values.mode === "refined" ? sourceDtSec / 2 : sourceDtSec,
   // Never relabel the finalist's different pacing clock. A compatible official
   // source can screen this rate; the selected baseline still needs its own cold run.
-  initialization: ["hr60", "hr70"].includes(values.mode!) && values["rate-initialization"] === "same-clock-checkpoint"
+  initialization: rateInitialization ?? (["hr60", "hr70"].includes(values.mode!) && values["rate-initialization"] === "same-clock-checkpoint"
     ? designRateInitializationV1(hemodynamics.heartRateBpm,
       resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs,
       checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1)
     : ["cold", "hr60", "hr70"].includes(values.mode!) ? { kind: "cold" }
-    : values.mode === "afterload"
-      ? { kind: "standard70-parameter-continuation", sourceCheckpoint: previous.exactResult.checkpoint,
-        sourceHemodynamicResearchInputs: request.hemodynamicResearchInputs,
-        sourceMechanismResearchInputs: request.mechanismResearchInputs,
-        sourceVentricularContractilityScale: request.ventricularContractilityScale }
-      : { kind: "standard70-exact-checkpoint", checkpoint: previous.exactResult.checkpoint },
+    : { kind: "standard70-exact-checkpoint", checkpoint: previous.exactResult.checkpoint }),
 });
 if (values.mode === "reserve" && evaluation.status === "accepted"
   && scoreMainWireBaselineOperatingPointV1(evaluation).feasible) {
@@ -135,7 +140,10 @@ const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values
   && (values.mode !== "refined" || pressureRateQuality?.status === "passed")
   && (values.mode !== "cold" || coldConsistency?.status === "passed");
 await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, mode: values.mode, qualified,
-  rateInitializationPolicy: values["rate-initialization"], conditionHemodynamicResearchInputs: hemodynamics,
+  rateInitializationPolicy: rateInitialization ? "bound-same-candidate-rate-screen-checkpoint" : values["rate-initialization"],
+  rateSourceRequestPath: values["rate-source-request"] ?? null,
+  rateSourceEvaluationPath: values["rate-source-evaluation"] ?? null,
+  conditionHemodynamicResearchInputs: hemodynamics,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
   wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve, pressureRateQuality, coldConsistency,
   baselineAdopted: false }, null, 2), { flag: "wx" });

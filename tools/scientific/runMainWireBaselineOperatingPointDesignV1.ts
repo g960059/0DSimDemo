@@ -63,11 +63,10 @@ if (values.worker) {
     const startedAt = performance.now();
     const result: ReserveResult = { reserve: null, failure: null, wallTimeMs: 0,
       sourceEvaluationExecutionTier: evaluation.executionTier!,
-      executionTier: "full-invariant", sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
+      executionTier, sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
       candidateIdentitySha256: await reserveCandidateIdentityV1(input as MainWireBaselineCalibrationCandidateInputsV1, evaluation.nominalDtSec),
       reservePolicyIdentity: await sha256CanonicalJsonHex(designReservePolicyV1) };
     try {
-      selectHotPathIntegrityTierV1("full-invariant");
       const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
         evaluation.exactResult.checkpoint, input.hemodynamicResearchInputs,
         input.ventricularContractilityScale, undefined, input.mechanismResearchInputs);
@@ -295,17 +294,21 @@ if (values.worker) {
         });
         // This is already full formal-settlement construction evidence. Do not
         // spend another full protocol rerunning it or call reuse independent confirmation.
-        await writeFile(path, JSON.stringify({ ...expected, qualified: true, executionTier: "full-invariant",
+        await writeFile(path, JSON.stringify({ ...expected, qualified: true, executionTier: finalist.reserve.executionTier,
           sourceEvaluationExecutionTier: finalist.reserve.sourceEvaluationExecutionTier,
           evaluation: finalist.evaluation, conditionHemodynamicResearchInputs: finalist.inputs.hemodynamicResearchInputs,
-          reserveExecutionTier: "full-invariant", reserveStatus: "passed", reserveFailure: null,
+          reserveExecutionTier: finalist.reserve.executionTier, reserveStatus: "passed", reserveFailure: null,
           reusedMeasuredReserve: true, sourceReservePath: `${finalist.index}.reserve.json`, reserve,
           baselineAdopted: false }), { flag: "wx" });
       } else {
         await runChild("tools/scientific/qualifyMainWireBaselineOperatingPointDesignV1.ts", [
           "--request", expected.sourceRequestPath, "--evaluation", expected.sourceEvaluationPath,
           "--mode", mode, "--output", path, "--integrity-tier", "full-invariant",
-          "--rate-initialization", "same-clock-checkpoint"], true);
+          "--rate-initialization", "same-clock-checkpoint",
+          ...(["hr60", "hr70"].includes(mode) ? [
+            "--rate-source-request", resolve(output, `${finalist.index}.rate-request.json`),
+            "--rate-source-evaluation", resolve(output, `${finalist.index}.rate-result.json`),
+          ] : [])], true);
       }
       const result = JSON.parse(await readFile(path, "utf8"));
       const qualified = validateDesignQualificationResultV1(result, expected,
@@ -320,7 +323,7 @@ if (values.worker) {
     }
     const modes = [await qualify("refined")];
     if (modes[0]!.qualified) {
-      const remaining = ["reserve", heartRateBpm === 60 ? "hr70" : "hr60", "afterload"];
+      const remaining = ["reserve", heartRateBpm === 60 ? "hr70" : "hr60"];
       for (let i = 0; i < remaining.length; i += parallelism) {
         modes.push(...await Promise.all(remaining.slice(i, i + parallelism).map(qualify)));
       }
@@ -328,7 +331,7 @@ if (values.worker) {
       // Cold remains mandatory for every successful overall qualification.
       if (modes.every((row) => row.qualified)) modes.push(await qualify("cold"));
     }
-    const qualified = modes.length === 5 && modes.every((row) => row.qualified);
+    const qualified = modes.length === 4 && modes.every((row) => row.qualified);
     qualificationResults.push({ index: finalist.index, modes, qualified });
     if (qualified) break;
   }

@@ -1,4 +1,5 @@
 import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
+import { HOT_PATH_INTEGRITY_TIERS_V1, type HotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID,
@@ -22,6 +23,10 @@ import type { MainWireStandard70BaselineCalibrationAcceptedEvaluationV1,
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { scoreMainWireBaselineOperatingPointV1 } from
   "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
+import { buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
+  buildMainWireStandard70BaselineCalibrationRequestIdentityV1, initializationIdentityV1,
+  type MainWireStandard70BaselineCalibrationEvaluationRequestV1 } from
+  "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import { assertMainWireBaselinePressureRateQualityV1 } from
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
 import { assertMainWireBaselineColdConsistencyV1, type MainWireBaselineColdConsistencySourceV1 } from
@@ -43,7 +48,7 @@ export async function reserveCandidateIdentityV1(inputs: MainWireBaselineCalibra
 
 export type DesignReserveResultV1 = {
   reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV2 | null;
-  failure: string | null; wallTimeMs: number; executionTier: "full-invariant";
+  failure: string | null; wallTimeMs: number; executionTier: HotPathIntegrityTierV1;
   sourceCheckpointSha256: string; candidateIdentitySha256: string; reservePolicyIdentity: string;
   sourceEvaluationExecutionTier: "full-invariant" | "hot-path-lean";
 };
@@ -53,7 +58,7 @@ export function qualifyMeasuredDesignReserveV1(result: DesignReserveResultV1, ex
   sourceGlobalTbvMl: number;
 }) {
   const { sourceGlobalTbvMl, ...identities } = expected;
-  if (!result.reserve || result.failure !== null || result.executionTier !== "full-invariant"
+  if (!result.reserve || result.failure !== null || !HOT_PATH_INTEGRITY_TIERS_V1.includes(result.executionTier)
     || !["full-invariant", "hot-path-lean"].includes(result.sourceEvaluationExecutionTier)
     || (Object.keys(identities) as (keyof typeof identities)[]).some((key) => result[key] !== identities[key])) {
     throw new Error("measured reserve is missing, failed, or incompatible with this finalist");
@@ -124,14 +129,42 @@ export function designQualificationPathV1(index: number, mode: string) {
   return `${index}.qualification-${mode}.json`;
 }
 
+/** Reconfirm an already measured condition; never relabel another candidate or clock. */
+export async function designFinalRateInitializationV1(
+  target: MainWireBaselineCalibrationCandidateInputsV1, nominalDtSec: number,
+  request: MainWireStandard70BaselineCalibrationEvaluationRequestV1,
+  evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
+): Promise<MainWireIntegratedModelStandard70CandidateInitializationV1> {
+  const policy = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+  const inputs = { hemodynamicResearchInputs: request.hemodynamicResearchInputs,
+    mechanismResearchInputs: request.mechanismResearchInputs,
+    ventricularContractilityScale: request.ventricularContractilityScale };
+  if (canonicalJsonStringify(inputs) !== canonicalJsonStringify(target)
+    || (request.nominalDtSec ?? 0.002) !== nominalDtSec
+    || evaluation.status !== "accepted" || evaluation.nominalDtSec !== nominalDtSec
+    || !scoreMainWireBaselineOperatingPointV1(evaluation).feasible
+    || evaluation.exactResult.classification.status !== "period1-converged"
+    || evaluation.constructionPolicyIdentitySha256 !== policy.constructionPolicyIdentitySha256
+    || evaluation.requestIdentitySha256 !== await buildMainWireStandard70BaselineCalibrationRequestIdentityV1({
+      ...target, nominalDtSec, constructionPolicyIdentitySha256: policy.constructionPolicyIdentitySha256,
+      initialization: initializationIdentityV1(request.initialization ?? { kind: "cold" }),
+    })) {
+    throw new Error("final rate warm start requires the bound same-candidate, same-clock, current-policy screen");
+  }
+  return { kind: "standard70-exact-checkpoint", checkpoint: evaluation.exactResult.checkpoint };
+}
+
 export function validateDesignQualificationResultV1(raw: unknown, expected: {
   mode: string; sourceRequestPath: string; sourceEvaluationPath: string; executionCommit: string;
 }, source?: MainWireBaselineColdConsistencySourceV1): boolean {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) throw new Error("missing qualification result");
   const result = raw as Record<string, unknown>;
-  if (typeof result.qualified !== "boolean" || result.executionTier !== "full-invariant"
+  if (typeof result.qualified !== "boolean"
+    || !(expected.mode === "reserve"
+      ? HOT_PATH_INTEGRITY_TIERS_V1.includes(result.executionTier as HotPathIntegrityTierV1)
+      : result.executionTier === "full-invariant")
     || result.baselineAdopted !== false
-    || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(expected.mode)
+    || !["cold", "refined", "reserve", "hr60", "hr70"].includes(expected.mode)
     || Object.entries(expected).some(([key, value]) => result[key] !== value)) {
     throw new Error("qualification result shape or provenance mismatch");
   }
@@ -175,7 +208,9 @@ export function validateDesignQualificationResultV1(raw: unknown, expected: {
   if (expected.mode === "reserve") {
     const reserve = result.reserve as MainWireIntegratedModelFormalPreloadReserveQualificationV2 | undefined;
     const condition = result.conditionHemodynamicResearchInputs as { totalBloodVolumeMl?: number } | undefined;
-    if (result.reserveExecutionTier !== "full-invariant" || result.reserveStatus !== "passed" || result.reserveFailure !== null
+    if (!HOT_PATH_INTEGRITY_TIERS_V1.includes(result.reserveExecutionTier as HotPathIntegrityTierV1)
+      || result.reserveExecutionTier !== result.executionTier
+      || result.reserveStatus !== "passed" || result.reserveFailure !== null
       || !reserve || reserve.status !== "passed"
       || reserve.qualificationId !== MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID
       || !reserve.left || !reserve.right

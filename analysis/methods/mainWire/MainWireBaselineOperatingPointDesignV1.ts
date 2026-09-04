@@ -31,7 +31,7 @@ import { vascularPvLawFromNodeV1 } from "@/engine/core/circulationGraphKernelV1"
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
-  policyId: "main-wire-baseline-operating-point-design-v6",
+  policyId: "main-wire-baseline-operating-point-design-v7",
   evaluationMethodId: MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID,
   coldConsistency: { methodId: MAIN_WIRE_BASELINE_COLD_CONSISTENCY_V1_ID, policy: MAIN_WIRE_BASELINE_COLD_CONSISTENCY_POLICY_V1 },
   parameterPolicyId: MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
@@ -55,9 +55,11 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   pressureFlowTargetMinimumCorridorMargin: 0.2,
   rationale: "One preload owner and common ventricular material scales. Pulsatile pressure/flow and settled, fixed-control multi-preload pressure-volume responses support conditional arterial/passive design coordinates. No parameter uniqueness or practical-rank admission is inferred. Rest scores are optimistic bounds used only to avoid reserve evaluations that cannot improve the incumbent.",
   locked: ["heart-rate", "venous-tone", "calcium-source", "Land-kinetics", "valve-areas"],
-  finalQualificationRequired: ["cold", "same-dt-cold-warm-operating-point-agreement", "refined-dt", "bidirectional-preload-reserve", "load-and-rate-envelope"],
-  rateConditionInitialization: "same-clock-official-checkpoint-otherwise-cold",
-  qualificationOrder: "refined-then-reserve-load-rate-then-selected-baseline-cold",
+  finalQualificationRequired: ["cold", "same-dt-cold-warm-operating-point-agreement", "refined-dt", "bidirectional-preload-reserve", "allowed-heart-rate-envelope"],
+  afterloadCondition: "not-required",
+  rateConditionInitialization: "bound-same-candidate-rate-screen-checkpoint-otherwise-same-clock-official-otherwise-cold",
+  qualificationOrder: "refined-then-reserve-rate-then-selected-baseline-cold",
+  reserveExecution: "admitted-hot-path-tier-with-unchanged-fixed-tone-reservoir-closure-and-complete-beat-evidence",
   earlyConditionScreen: "other-allowed-heart-rate-before-expensive-reserve",
   earlyRateInitialization: {
     seed: "same-clock-official-checkpoint-otherwise-cold",
