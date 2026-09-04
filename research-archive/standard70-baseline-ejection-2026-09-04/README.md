@@ -82,3 +82,20 @@ passed (5 other cases in that file were not selected); suite registration6
 tests passed. Broader regression results and subsequent production extraction
 checks are recorded separately in the PR. A successful source test is not an
 independent physiological validation.
+
+## Follow-up archives
+
+The two frozen current-reference synthetic recovery studies are retained in
+`data/research-archives/standard70-current-reference-recovery-v1-v2.tar.gz`
+with an adjacent per-file manifest. Their original source commits and reports
+remain authoritative: v1 was unresolved; v2 corrected axis-stall paired moves
+and same-grid target comparison, passing four local smoke jobs in398.5 s.
+Three jobs matched outputs without recovering the generating parameter pair.
+Neither a general fitter nor parameter uniqueness is certified. Detailed
+outcomes and scope are recorded in commits `66c8ea41` and `4391b52b`; use the
+recorded execution commits when reproducing, not the later merged archive HEAD.
+
+The neighboring `standard70-baseline-browser-2026-09-05` archive retains
+production-extraction browser observations and the right-heart audit's missing
+cross-condition evidence. Neither follow-up changes the selected physiology or
+adds a new clinical-normality gate.
