@@ -32,7 +32,7 @@ import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 } from
   "@/domain/model/MainWireStandardIdentityV1";
 import type { MainWireIntegratedModelStandard70CheckpointV1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
-import launchBaseline from "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
 const checkpoint = launchBaseline.qualificationCheckpoint;
 
 const { values } = parseArgs({ options: { output: { type: "string" },

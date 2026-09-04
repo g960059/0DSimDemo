@@ -8,7 +8,7 @@ import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 } from
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
   "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 import launchBaseline from
-  "@/studio/integrations/mainWireIntegratedV3/standard70-launch-baseline.json";
+  "@/data/model-baselines/standard70-launch-baseline.json";
 import {
   MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1_ID,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationStagePolicyV1";
