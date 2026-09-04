@@ -38,6 +38,10 @@ const { values } = parseArgs({ options: { design: { type: "string" }, output: { 
 if (!values.design || !values.output) throw new Error("--design JSON --output NEW_DIRECTORY [--parallelism 1..8]");
 selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
 const executionTier = hotPathIntegrityTierV1();
+// Candidate integration has exact full/lean replay equivalence. The typed
+// structural-analysis path has not established that equivalence; keep its
+// settled preload measurements under full validation in either CLI tier.
+const reserveExecutionTier = "full-invariant" as const;
 const contrasts = JSON.parse(await readFile(values.design, "utf8")) as Contrast[];
 const parallelism = Number(values.parallelism);
 const heartRateBpm = Number(values["heart-rate"]);
@@ -85,15 +89,17 @@ if (values.worker !== undefined) {
   // event, discrete morphology and right-heart safety failures cannot start a protocol.
   if (evaluation.status === "accepted" && Number.isFinite(scoreMainWireBaselineOperatingPointV1(evaluation).minimumMargin)) {
     try {
+      selectHotPathIntegrityTierV1(reserveExecutionTier);
       const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
         evaluation.exactResult.checkpoint, inputs.hemodynamicResearchInputs,
         inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs,
       );
       reserve = await measureMainWireIntegratedModelFormalPreloadReserveV1(session, inputs.hemodynamicResearchInputs);
     } catch (error) { reserveFailure = error instanceof Error ? error.message : String(error); }
+    finally { selectHotPathIntegrityTierV1(executionTier); }
   }
   await writeFile(resolve(output, `${contrast.id}.result.json`), JSON.stringify({ contrast, inputs, evaluation, reserve,
-    reserveFailure, executionTier, wallTimeMs: performance.now() - startedAt, baselineAdopted: false }), { flag: "wx" });
+    reserveFailure, executionTier, reserveExecutionTier, wallTimeMs: performance.now() - startedAt, baselineAdopted: false }), { flag: "wx" });
 } else {
   if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw new Error("contrast requires a clean committed worktree");
   await mkdir(output);
@@ -101,7 +107,7 @@ if (values.worker !== undefined) {
   const reservePolicy = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
     standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
   const reservePolicyIdentity = await sha256CanonicalJsonHex(reservePolicy);
-  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, executionTier, contrasts, heartRateBpm,
+  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, executionTier, reserveExecutionTier, contrasts, heartRateBpm,
     reservePolicy, reservePolicyIdentity,
     reference, checkpointSha256: checkpoint.checkpointSha256, nominalDtSec: 0.002, parallelism,
     claim: "exploratory fixed-control preload responses; no isolated-contractility identification or baseline adoption" };
@@ -141,7 +147,7 @@ if (values.worker !== undefined) {
     }));
     rows.push(...batch);
   }
-  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, executionTier, protocolIdentity, reservePolicyIdentity,
+  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, protocolIdentity, reservePolicyIdentity,
     wallTimeMs: performance.now() - startedAt, rows, finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   process.stdout.write(`${output}/result.json\n`);
 }

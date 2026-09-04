@@ -28,6 +28,7 @@ if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim())
 }
 selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
 const executionTier = hotPathIntegrityTierV1();
+const reserveExecutionTier = "full-invariant" as const;
 const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const request = JSON.parse(await readFile(values.request, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationRequestV1;
 const previous = JSON.parse(await readFile(values.evaluation, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
@@ -61,6 +62,7 @@ const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV
 if (values.mode === "reserve" && evaluation.status === "accepted"
   && scoreMainWireBaselineOperatingPointV1(evaluation).feasible) {
   try {
+    selectHotPathIntegrityTierV1(reserveExecutionTier);
     const session = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.restoreStandard70ExactCheckpoint(
       evaluation.exactResult.checkpoint, request.hemodynamicResearchInputs,
       request.ventricularContractilityScale, undefined, request.mechanismResearchInputs,
@@ -71,10 +73,10 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
   } catch (error) {
     reserveStatus = "failed";
     reserveFailure = error instanceof Error ? error.message : String(error);
-  }
+  } finally { selectHotPathIntegrityTierV1(executionTier); }
 }
 const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus);
-await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, mode: values.mode, qualified,
+await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, mode: values.mode, qualified,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
   wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve,
   baselineAdopted: false }, null, 2), { flag: "wx" });
