@@ -534,6 +534,12 @@ export type MainWireIntegratedModelFormalPreloadReserveQualificationV1 =
     right: MainWireIntegratedModelFormalPreloadReserveSideV1;
   }>;
 
+/** Settled responses, including sub-floor responses; not an admission claim. */
+export type MainWireIntegratedModelFormalPreloadReserveMeasurementV1 = Omit<
+  MainWireIntegratedModelFormalPreloadReserveQualificationV1,
+  "qualificationId" | "status"
+>;
+
 /**
  * Fast, ephemeral fixed-tone preload-response preview.
  *
@@ -732,10 +738,10 @@ export async function runMainWireIntegratedModelFormalPressureVolumeProtocolV3(
  * low-/high-preload endpoints. It reuses the formal fixed-tone protocol's
  * source settlement, complete-beat P1 closure, and hot-start continuation.
  */
-export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
   sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
-): Promise<MainWireIntegratedModelFormalPreloadReserveQualificationV1> {
+): Promise<MainWireIntegratedModelFormalPreloadReserveMeasurementV1> {
   const sourceGlobalTbvMl =
     sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   if (
@@ -808,6 +814,34 @@ export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
       "hypervolemic",
     ),
   });
+
+  return Object.freeze({
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    sourceGlobalTbvMl,
+    hypovolemicGlobalTbvMl: sourceGlobalTbvMl * policy.hypovolemicGlobalTbvScale,
+    hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
+    hypervolemicGlobalTbvMl: sourceGlobalTbvMl * policy.hypervolemicGlobalTbvScale,
+    hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
+    left,
+    right,
+  });
+}
+
+export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+): Promise<MainWireIntegratedModelFormalPreloadReserveQualificationV1> {
+  return qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(
+    await measureMainWireIntegratedModelFormalPreloadReserveV1(
+      sourceSession, hemodynamicResearchInputs,
+    ),
+  );
+}
+
+export function qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(
+  measurement: MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
+): MainWireIntegratedModelFormalPreloadReserveQualificationV1 {
+  const { left, right } = measurement;
   const failed = (["left", "right"] as const).flatMap((side) =>
     (["hypovolemic", "hypervolemic"] as const).flatMap((direction) => {
       const measured = (side === "left" ? left : right)[direction];
@@ -835,20 +869,10 @@ export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
   }
 
   return Object.freeze({
+    ...measurement,
     qualificationId:
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID,
-    protocolId:
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
     status: "passed" as const,
-    sourceGlobalTbvMl,
-    hypovolemicGlobalTbvMl:
-      sourceGlobalTbvMl * policy.hypovolemicGlobalTbvScale,
-    hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
-    hypervolemicGlobalTbvMl:
-      sourceGlobalTbvMl * policy.hypervolemicGlobalTbvScale,
-    hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
-    left,
-    right,
   });
 }
 

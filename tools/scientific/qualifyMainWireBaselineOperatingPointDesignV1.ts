@@ -18,8 +18,8 @@ import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
 const { values } = parseArgs({ options: { request: { type: "string" },
   evaluation: { type: "string" }, mode: { type: "string" }, output: { type: "string" } } });
 if (!values.request || !values.evaluation || !values.output
-  || !["cold", "refined", "reserve", "hr70", "afterload"].includes(values.mode ?? "")) {
-  throw new Error("--request FILE --evaluation FILE --mode cold|refined|reserve|hr70|afterload --output NEW_FILE");
+  || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(values.mode ?? "")) {
+  throw new Error("--request FILE --evaluation FILE --mode cold|refined|reserve|hr60|hr70|afterload --output NEW_FILE");
 }
 if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
   throw new Error("qualification requires a clean committed worktree");
@@ -37,6 +37,7 @@ let reserve: unknown = null;
 let reserveStatus: "not-run" | "passed" | "failed" = "not-run";
 let reserveFailure: string | null = null;
 const hemodynamics = { ...request.hemodynamicResearchInputs,
+  ...(values.mode === "hr60" ? { heartRateBpm: 60 } : {}),
   ...(values.mode === "hr70" ? { heartRateBpm: 70 } : {}),
   ...(values.mode === "afterload" ? { systemicResistance: request.hemodynamicResearchInputs.systemicResistance * 1.1 } : {}),
 };
@@ -44,8 +45,8 @@ const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV
   ...request, hemodynamicResearchInputs: hemodynamics,
   nominalDtSec: values.mode === "refined" ? 0.001 : 0.002,
   // Different pacing periods do not share the same exact cycle boundary.
-  // Qualify the discrete HR70 condition cold; never relabel the HR60 clock.
-  initialization: values.mode === "cold" || values.mode === "hr70" ? { kind: "cold" }
+  // Qualify a discrete rate condition cold; never relabel a different clock.
+  initialization: ["cold", "hr60", "hr70"].includes(values.mode!) ? { kind: "cold" }
     : values.mode === "afterload"
       ? { kind: "standard70-parameter-continuation", sourceCheckpoint: previous.exactResult.checkpoint,
         sourceHemodynamicResearchInputs: request.hemodynamicResearchInputs,

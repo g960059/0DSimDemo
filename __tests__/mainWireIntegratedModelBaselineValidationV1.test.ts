@@ -19,6 +19,8 @@ import {
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+  qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1,
   type MainWireIntegratedModelFormalPreloadReserveDirectionalResponseV1,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
@@ -229,6 +231,34 @@ describe("baseline construction and calibration gates", () => {
     ).filter(({ status }) => status === "failed");
 
     expect(failed.map(({ checkId }) => checkId)).toEqual(indexedCheckIds);
+  });
+
+  it("retains sub-floor settled responses without silently qualifying them", () => {
+    const policy = MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1;
+    const side = { hypovolemic: directionalResponseV1("hypovolemic"),
+      hypervolemic: directionalResponseV1("hypervolemic") };
+    const measurement = {
+      protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+      sourceGlobalTbvMl: 5000, hypovolemicGlobalTbvMl: 4400, hypervolemicGlobalTbvMl: 5600,
+      hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
+      hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
+      left: side, right: side,
+    };
+    expect(measurement).not.toHaveProperty("status");
+    expect(qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(measurement))
+      .toMatchObject({ ...measurement, status: "passed" });
+    const rejected = { ...measurement, left: { ...side, hypervolemic: {
+      ...side.hypervolemic, directionalCardiacOutputChangeLPerMin: -0.1,
+    } } };
+    expect(() => qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(rejected))
+      .toThrow(/left\/hypervolemic/);
+    expect(rejected.left.hypervolemic.directionalCardiacOutputChangeLPerMin).toBe(-0.1);
+    expect(rejected).not.toHaveProperty("status");
+    const invalid = { ...measurement, right: { ...side, hypovolemic: {
+      ...side.hypovolemic, directionalEndDiastolicTransmuralPressureChangeMmHg: NaN,
+    } } };
+    expect(() => qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(invalid))
+      .toThrow(/right\/hypovolemic/);
   });
 
   it("requires flow, filling pressure, EDV, and ED transmural reserve in both directions", () => {
