@@ -260,4 +260,3 @@ function validateCurrentAssessmentV1(report: MainWireIntegratedStudioStandard70B
   }
   assertCurrentChecksV1(report.checks);
 }
-
