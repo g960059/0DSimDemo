@@ -25,6 +25,11 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPOVOLEMIC_PARTITION_V3,
   type MainWireIntegratedModelResponsiveStarlingPartitionV3,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import {
+  MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2,
+  MainWireFixedToneVolumeClosureV2,
+  type MainWireFixedToneSettlementEvidenceV2,
+} from "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 
 export {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_HYPERVOLEMIC_PARTITION_V3,
@@ -58,6 +63,9 @@ export const MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PE
 
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID =
   "main-wire-integrated-model-fixed-tone-settled-hot-start-pv-family-v1" as const;
+
+export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID =
+  "main-wire-integrated-model-fixed-tone-reservoir-settled-preload-reserve-v2" as const;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID =
   "main-wire-integrated-model-formal-fixed-tone-preload-reserve-qualification-v1" as const;
@@ -464,6 +472,7 @@ function formalPressureVolumeSamplePairV3(
 type AcceptedBranchV3 = Readonly<{
   status: "accepted";
   branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
+  settlementEvidence?: MainWireFixedToneSettlementEvidenceV2;
   observation: MainWireIntegratedModelObservationV3;
   pair: StarlingPairV3;
 }>;
@@ -539,6 +548,14 @@ export type MainWireIntegratedModelFormalPreloadReserveMeasurementV1 = Omit<
   MainWireIntegratedModelFormalPreloadReserveQualificationV1,
   "qualificationId" | "status"
 >;
+
+/** Prospective fitting measurement; the production Surface remains pinned to V1. */
+export type MainWireIntegratedModelFormalPreloadReserveMeasurementV2 = Omit<
+  MainWireIntegratedModelFormalPreloadReserveMeasurementV1, "protocolId"
+> & Readonly<{
+  protocolId: typeof MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID;
+  settlement: Readonly<Record<"center" | "hypovolemic" | "hypervolemic", MainWireFixedToneSettlementEvidenceV2>>;
+}>;
 
 /**
  * Fast, ephemeral fixed-tone preload-response preview.
@@ -742,6 +759,27 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
   sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
 ): Promise<MainWireIntegratedModelFormalPreloadReserveMeasurementV1> {
+  const { settlement: _settlement, ...measurement } = await measureFormalPreloadReserve(
+    sourceSession, hemodynamicResearchInputs, false,
+  );
+  return Object.freeze({ protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID, ...measurement });
+}
+
+export async function measureMainWireIntegratedModelFormalPreloadReserveV2(
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+): Promise<MainWireIntegratedModelFormalPreloadReserveMeasurementV2> {
+  const measurement = await measureFormalPreloadReserve(sourceSession, hemodynamicResearchInputs, true);
+  if (measurement.settlement === undefined) throw new Error("missing V2 reservoir settlement evidence");
+  return Object.freeze({ ...measurement, settlement: measurement.settlement,
+    protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_PROTOCOL_V2_ID });
+}
+
+async function measureFormalPreloadReserve(
+  sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
+  hemodynamicResearchInputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
+  reservoirClosure: boolean,
+) {
   const sourceGlobalTbvMl =
     sourceSession.currentAcceptedState().coronary.fixedGlobalTotalBloodVolumeMl;
   if (
@@ -753,6 +791,7 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
   const settledSource = settleFormalPressureVolumeSourceV3(
     sourceSession,
     sourceGlobalTbvMl,
+    reservoirClosure,
   );
   if (settledSource.status === "rejected") {
     throw new Error(
@@ -763,6 +802,7 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
     settledSource.branch,
     sourceGlobalTbvMl,
     "operating-anchor",
+    reservoirClosure,
   );
   if (center.status === "rejected" || !formalPairQualifiedV3(center.pair)) {
     throw new Error(
@@ -783,12 +823,14 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
     policy.hypovolemicGlobalTbvScale,
     sourceGlobalTbvMl,
     "hypovolemic",
+    reservoirClosure,
   );
   const hypervolemic = await formalPreloadReserveEndpointV1(
     initialBoundary,
     policy.hypervolemicGlobalTbvScale,
     sourceGlobalTbvMl,
     "hypervolemic",
+    reservoirClosure,
   );
   const left = Object.freeze({
     hypovolemic: formalPreloadReserveDirectionalResponseV1(
@@ -816,7 +858,6 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
   });
 
   return Object.freeze({
-    protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
     sourceGlobalTbvMl,
     hypovolemicGlobalTbvMl: sourceGlobalTbvMl * policy.hypovolemicGlobalTbvScale,
     hypovolemicGlobalTbvScale: policy.hypovolemicGlobalTbvScale,
@@ -824,6 +865,9 @@ export async function measureMainWireIntegratedModelFormalPreloadReserveV1(
     hypervolemicGlobalTbvScale: policy.hypervolemicGlobalTbvScale,
     left,
     right,
+    settlement: reservoirClosure && center.settlementEvidence && hypovolemic.settlementEvidence && hypervolemic.settlementEvidence
+      ? { center: center.settlementEvidence, hypovolemic: hypovolemic.settlementEvidence,
+        hypervolemic: hypervolemic.settlementEvidence } : undefined,
   });
 }
 
@@ -838,9 +882,10 @@ export async function qualifyMainWireIntegratedModelFormalPreloadReserveV1(
   );
 }
 
-export function qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(
-  measurement: MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
-): MainWireIntegratedModelFormalPreloadReserveQualificationV1 {
+export function qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1<T extends
+  MainWireIntegratedModelFormalPreloadReserveMeasurementV1 | MainWireIntegratedModelFormalPreloadReserveMeasurementV2>(
+  measurement: T,
+): T & Pick<MainWireIntegratedModelFormalPreloadReserveQualificationV1, "qualificationId" | "status"> {
   const { left, right } = measurement;
   const failed = (["left", "right"] as const).flatMap((side) =>
     (["hypovolemic", "hypervolemic"] as const).flatMap((direction) => {
@@ -868,12 +913,13 @@ export function qualifyMainWireIntegratedModelFormalPreloadReserveMeasurementV1(
     );
   }
 
-  return Object.freeze({
-    ...measurement,
+  const qualified = Object.assign({}, measurement, {
     qualificationId:
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_QUALIFICATION_V1_ID,
     status: "passed" as const,
   });
+  Object.freeze(qualified);
+  return qualified;
 }
 
 async function formalPreloadReserveEndpointV1(
@@ -881,6 +927,7 @@ async function formalPreloadReserveEndpointV1(
   requestedScale: number,
   sourceGlobalTbvMl: number,
   endpointDirection: "hypovolemic" | "hypervolemic",
+  reservoirClosure = false,
 ): Promise<FormalCoverageBoundaryV3> {
   let retained: FormalCoverageBoundaryV3 | null = null;
   const advanced = await advanceFormalCoverageTowardScaleV3(
@@ -890,6 +937,8 @@ async function formalPreloadReserveEndpointV1(
     (boundary) => {
       retained = boundary;
     },
+    undefined,
+    reservoirClosure,
   );
   const endpoint = retained as FormalCoverageBoundaryV3 | null;
   if (
@@ -1004,6 +1053,7 @@ function formalExpectedPointCountV3(
 function settleFormalPressureVolumeSourceV3(
   sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   sourceGlobalTbvMl: number,
+  reservoirClosure = false,
 ):
   | Readonly<{
       status: "settled";
@@ -1018,15 +1068,20 @@ function settleFormalPressureVolumeSourceV3(
   }
   const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
   const beats: MainWireIntegratedModelCompletedBeatMetricsV3[] = [];
+  const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+  if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
+  const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec
+    : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
   let lastCompletedBeatId: string | null =
     branch.observe().completedBeatMetrics?.endAtrialCaptureId ?? null;
   for (
     let ordinal = 1;
-    ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3;
+    ordinal <= (reservoirClosure ? maximumDurationSec / FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3
+      : MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3);
     ordinal += 1
   ) {
     const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
-    if (acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3)
+    if (acceptedTimeSec - originTimeSec >= maximumDurationSec)
       break;
     const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
       branch,
@@ -1034,6 +1089,7 @@ function settleFormalPressureVolumeSourceV3(
     );
     if (attemptedAdvance.status === "rejected") return attemptedAdvance;
     const advance = attemptedAdvance.advance;
+    if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, advance.observation);
     const acceptedTbvMl =
       advance.observation.acceptedState.coronary.fixedGlobalTotalBloodVolumeMl;
     if (
@@ -1055,6 +1111,8 @@ function settleFormalPressureVolumeSourceV3(
     if (
       beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 &&
       period1ConvergedV3(beats, formalBeatPairClosureScoreV3)
+      && (!volumeClosure || (volumeClosure.converged()
+        && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta))
     ) {
       return Object.freeze({ status: "settled" as const, branch });
     }
@@ -1064,7 +1122,8 @@ function settleFormalPressureVolumeSourceV3(
     ) {
       return rejectedV3("active-controller source reached a period-2 boundary");
     }
-    if (beats.length >= FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3) break;
+    if (beats.length >= (reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumCompleteBeatCount
+      : FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3)) break;
   }
   return rejectedV3(
     "active-controller source did not establish complete-beat period-1 closure",
@@ -1082,6 +1141,7 @@ type FormalCoverageBoundaryV3 = Readonly<{
   branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   scale: number;
   pair: StarlingPairV3;
+  settlementEvidence?: MainWireFixedToneSettlementEvidenceV2;
 }>;
 
 type FormalCoverageAdvanceV3 = Readonly<{
@@ -1304,6 +1364,7 @@ async function advanceFormalCoverageTowardScaleV3(
   sourceGlobalTbvMl: number,
   accept: (boundary: FormalCoverageBoundaryV3) => void,
   stopAfterAccepted: (pair: StarlingPairV3) => boolean = () => false,
+  reservoirClosure = false,
 ): Promise<FormalCoverageAdvanceV3> {
   const boundary = initialBoundary;
   let continuationBranch = initialBoundary.branch;
@@ -1352,6 +1413,7 @@ async function advanceFormalCoverageTowardScaleV3(
       continuationBranch,
       sourceGlobalTbvMl * requestedScale,
       "continuation",
+      reservoirClosure,
     );
     if (
       measured.status === "accepted" &&
@@ -1361,6 +1423,7 @@ async function advanceFormalCoverageTowardScaleV3(
         branch: measured.branch,
         scale: requestedScale,
         pair: measured.pair,
+        ...(measured.settlementEvidence ? { settlementEvidence: measured.settlementEvidence } : {}),
       });
       accept(acceptedBoundary);
       if (stopAfterAccepted(measured.pair)) {
@@ -1721,6 +1784,7 @@ async function measureFormalPressureVolumeBranchV3(
   sourceSession: MainWireIntegratedModelStructuralAnalysisSessionV3,
   targetGlobalTbvMl: number,
   role: MainWireIntegratedModelStarlingPointV3["role"],
+  reservoirClosure = false,
 ): Promise<MeasuredBranchV3> {
   let branch: MainWireIntegratedModelStructuralAnalysisSessionV3;
   try {
@@ -1734,6 +1798,13 @@ async function measureFormalPressureVolumeBranchV3(
       );
     const originTimeSec = branch.currentAcceptedState().acceptedTimeSec;
     const beats: MainWireIntegratedModelCompletedBeatMetricsV3[] = [];
+    const volumeClosure = reservoirClosure ? new MainWireFixedToneVolumeClosureV2() : null;
+    if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, branch.observe());
+    const maximumDurationSec = reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumMeasurementDurationSec
+      : MAXIMUM_MEASUREMENT_DURATION_SEC_V3;
+    const frozenWindow = branch.currentAcceptedState().coronary.coronaryAutoregulationBinding.windowPolicy;
+    const deadlineSec = Math.min(originTimeSec + maximumDurationSec,
+      frozenWindow.originAcceptedTimeSec + frozenWindow.durationSec - 1e-8);
     const pressureVolumeBeats: CompletedPressureVolumeBeatPairV3[] = [];
     const pressureVolumeLoopCollector =
       new FormalFixedTbvPressureVolumeLoopCollectorV3();
@@ -1742,13 +1813,14 @@ async function measureFormalPressureVolumeBranchV3(
     let locallyConverged = false;
     for (
       let ordinal = 1;
-      ordinal <= MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3;
+      ordinal <= (reservoirClosure ? maximumDurationSec / FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3
+        : MAXIMUM_FORMAL_PRESENTATION_ADVANCES_PER_POINT_V3);
       ordinal += 1
     ) {
       const acceptedTimeSec = branch.currentAcceptedState().acceptedTimeSec;
       if (
-        acceptedTimeSec - originTimeSec >=
-        MAXIMUM_MEASUREMENT_DURATION_SEC_V3
+        reservoirClosure ? acceptedTimeSec + FORMAL_PROTOCOL_SAMPLE_DT_SEC_V3 > deadlineSec
+          : acceptedTimeSec - originTimeSec >= MAXIMUM_MEASUREMENT_DURATION_SEC_V3
       )
         break;
       const attemptedAdvance = attemptStructuralAnalysisAdvanceV3(
@@ -1757,6 +1829,7 @@ async function measureFormalPressureVolumeBranchV3(
       );
       if (attemptedAdvance.status === "rejected") return attemptedAdvance;
       const advance = attemptedAdvance.advance;
+      if (volumeClosure) recordFixedToneReservoirVolumesV2(volumeClosure, advance.observation);
       const acceptedTbvMl =
         advance.observation.acceptedState.coronary
           .fixedGlobalTotalBloodVolumeMl;
@@ -1781,7 +1854,14 @@ async function measureFormalPressureVolumeBranchV3(
       }
       lastCompletedBeatId = completed.endAtrialCaptureId;
       beats.push(completed);
-      if (locallyConverged) {
+      if (volumeClosure) {
+        locallyConverged = volumeClosure.converged()
+          && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta;
+        if (locallyConverged && pressureVolumeBeats.length > 0) break;
+        if (period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
+          return rejectedV3("fixed-tone PVA branch reached a period-2 boundary");
+        }
+      } else if (locallyConverged) {
         // An exact checkpoint intentionally omits the analysis-only completed
         // beat readback.  In that case the formal phase collector must first
         // discard a partial cycle and can lag the closure gate by one beat.
@@ -1803,7 +1883,8 @@ async function measureFormalPressureVolumeBranchV3(
         }
       }
       const maximumBeatCount =
-        role === "operating-anchor"
+        reservoirClosure ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumCompleteBeatCount
+        : role === "operating-anchor"
           ? CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3
           : FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3;
       if (
@@ -1823,7 +1904,8 @@ async function measureFormalPressureVolumeBranchV3(
       );
       return rejectedV3(
         `fixed-tone PVA branch did not establish strict period-1 closure ` +
-          `(beats=${beats.length}, previous=${previousScore}, latest=${latestScore})`,
+          `(beats=${beats.length}, previous=${previousScore}, latest=${latestScore}`
+          + (volumeClosure ? `, redistributedVolumeMl=${volumeClosure.maximumRecentRedistributedVolumeMl()}` : "") + ")",
       );
     }
     const pressureVolumeBeat = pressureVolumeBeats.at(-1);
@@ -1859,6 +1941,13 @@ async function measureFormalPressureVolumeBranchV3(
       status: "accepted" as const,
       branch,
       observation: branch.observe(),
+      ...(volumeClosure ? { settlementEvidence: {
+        policyId: MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.policyId,
+        completedBeatCount: beats.length,
+        maximumRecentRedistributedVolumeMl: volumeClosure.maximumRecentRedistributedVolumeMl(),
+        maximumRecentNormalizedOutputDelta: fixedToneRecentOutputScoreV2(beats),
+        measurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec,
+      } } : {}),
       pair: Object.freeze({
         right: Object.freeze({
           ...common,
@@ -2052,6 +2141,25 @@ type BeatPairClosureScoreV3 = (
   left: MainWireIntegratedModelCompletedBeatMetricsV3,
   right: MainWireIntegratedModelCompletedBeatMetricsV3,
 ) => number;
+
+function recordFixedToneReservoirVolumesV2(
+  collector: MainWireFixedToneVolumeClosureV2,
+  observation: MainWireIntegratedModelObservationV3,
+): void {
+  const state = observation.acceptedState;
+  collector.accept({ timeSec: state.acceptedTimeSec, volumesMl: {
+    ...state.coronary.circulation.nodeVolumesMl,
+    ...Object.fromEntries(Object.entries(state.coronary.coronary.volumeMlByNode)
+      .map(([key, value]) => [`coronary.${key}`, value])),
+  } }, observation.completedBeatMetrics?.endTimeSec ?? null);
+}
+
+function fixedToneRecentOutputScoreV2(beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[]): number {
+  const count = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.consecutiveComparisonCount;
+  if (beats.length < count + 1) return Number.POSITIVE_INFINITY;
+  const suffix = beats.slice(-(count + 1));
+  return Math.max(...suffix.slice(1).map((beat, index) => formalBeatPairClosureScoreV3(suffix[index]!, beat)));
+}
 
 function period1ConvergedV3(
   beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],

@@ -6,8 +6,11 @@ import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import {
   measureMainWireIntegratedModelFormalPreloadReserveV1,
+  measureMainWireIntegratedModelFormalPreloadReserveV2,
   type MainWireIntegratedModelStructuralAnalysisSessionV3 as Session,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
+import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
+  "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 import type { evaluateMainWireStandard70BaselineCalibrationCandidateV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 import type { resolveMainWireFittingReferenceV1 } from
@@ -171,10 +174,12 @@ function extendHighEndpoint(branch: Session, cycles: number, heartRateBpm: numbe
 const { values } = parseArgs({ options: {
   evaluation: { type: "string" }, request: { type: "string" }, output: { type: "string" },
   "extra-cycles": { type: "string", default: "20" },
+  settlement: { type: "string", default: "v1" },
 } });
 if (!values.evaluation || !values.output) throw new Error("--evaluation RESULT_JSON [--request REQUEST_JSON] --output NEW_DIRECTORY");
 if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw new Error("audit requires a clean committed worktree");
 const extraCycles = Number(values["extra-cycles"]);
+if (!["v1", "v2"].includes(values.settlement!)) throw new Error("settlement must be v1 or v2");
 if (!Number.isInteger(extraCycles) || extraCycles < 1 || extraCycles > 25) throw new Error("extra cycles must be 1..25");
 const raw = JSON.parse(await readFile(values.evaluation, "utf8")) as Evaluation & { evaluation?: Evaluation; inputs?: Inputs };
 const evaluation = raw.evaluation ?? raw;
@@ -188,12 +193,14 @@ const protocol = {
   auditId: "main-wire-standard70-preload-settlement-audit-v1",
   executionCommit: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim(),
   executionTier: "full-invariant", extraCycles,
+  settlement: values.settlement,
+  settlementPolicy: values.settlement === "v2" ? MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 : null,
   sourceEvaluation: resolve(values.evaluation), sourceRequest: values.request ? resolve(values.request) : null,
   checkpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
   hemodynamicResearchInputs: inputs.hemodynamicResearchInputs,
   mechanismResearchInputs: inputs.mechanismResearchInputs,
   ventricularContractilityScale: inputs.ventricularContractilityScale,
-  claim: "diagnostic only; unchanged formal stop policy followed by fixed-tone extension; no baseline adoption",
+  claim: "diagnostic only; declared formal stop policy followed by fixed-tone extension; no baseline adoption",
 };
 await writeFile(resolve(output, "protocol.json"), JSON.stringify({ ...protocol, identity: await sha256CanonicalJsonHex(protocol) }, null, 2), { flag: "wx" });
 const startMs = performance.now();
@@ -202,7 +209,9 @@ const source = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.re
   inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs,
 );
 const branches: ObservedBranch[] = [];
-const reserve = await measureMainWireIntegratedModelFormalPreloadReserveV1(
+const measure = values.settlement === "v2" ? measureMainWireIntegratedModelFormalPreloadReserveV2
+  : measureMainWireIntegratedModelFormalPreloadReserveV1;
+const reserve = await measure(
   new ObservedBranch(source, branches, null), inputs.hemodynamicResearchInputs,
 );
 const originalBranches = branches.map((branch) => ({ id: branch.id, parentId: branch.parentId,
