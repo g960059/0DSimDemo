@@ -20,7 +20,7 @@ import {
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
-  policyId: "main-wire-baseline-operating-point-design-v1",
+  policyId: "main-wire-baseline-operating-point-design-v2",
   referenceId: "baseline",
   allowedHeartRatesBpm: [60, 70] as const,
   coordinates: Object.freeze([
@@ -32,7 +32,10 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   ] satisfies readonly { parameterId: MainWireBaselineCalibrationParameterIdV1; step: number; radius: number }[]),
   maximumEvaluations: 49,
   nominalDtSec: 0.002,
-  objective: "feasibility-then-worst-rest-and-bidirectional-reserve-margin-then-pressure-flow-margin",
+  objective: "feasibility-then-pressure-flow-target-gap-then-worst-rest-and-reserve-margin",
+  // An explicit design preference within the existing corridors, not a new
+  // clinical gate: SBP 100..130 and CI 2.8..3.7 with the current reference.
+  pressureFlowTargetMinimumCorridorMargin: 0.2,
   rationale: "One preload owner and common ventricular material scales. Pulsatile pressure/flow and settled, fixed-control multi-preload pressure-volume responses support conditional arterial/passive design coordinates. No parameter uniqueness or practical-rank admission is inferred. Rest scores are optimistic bounds used only to avoid reserve evaluations that cannot improve the incumbent.",
   locked: ["heart-rate", "venous-tone", "calcium-source", "Land-kinetics", "valve-areas"],
   finalQualificationRequired: ["cold", "refined-dt", "bidirectional-preload-reserve", "load-and-rate-envelope"],
@@ -44,6 +47,7 @@ export type DesignScoreV1 = Readonly<{
   feasible: boolean;
   minimumMargin: number;
   pressureFlowMargin: number;
+  pressureFlowTargetGap: number;
   activeConstraints: readonly string[];
 }>;
 
@@ -51,7 +55,7 @@ export function scoreMainWireBaselineOperatingPointV1(
   evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
 ): DesignScoreV1 {
   const failed = { feasible: false, minimumMargin: -Infinity,
-    pressureFlowMargin: -Infinity, activeConstraints: [] } as const;
+    pressureFlowMargin: -Infinity, pressureFlowTargetGap: Infinity, activeConstraints: [] } as const;
   if (evaluation.status !== "accepted") return failed;
   if (evaluation.safetySentinelStatus !== "passed"
     || evaluation.failedSafetySentinelCheckIds.length > 0
@@ -79,6 +83,8 @@ export function scoreMainWireBaselineOperatingPointV1(
       .every((check) => check.status === "passed" && check.actual >= check.minimum && check.actual <= check.maximum);
   return { feasible, minimumMargin,
     pressureFlowMargin: Math.min(...pressureFlow as number[]),
+    pressureFlowTargetGap: Math.hypot(...(pressureFlow as number[]).map((margin) => Math.max(0,
+      MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.pressureFlowTargetMinimumCorridorMargin - margin))),
     activeConstraints: margins.filter((row) => row.margin <= minimumMargin + 0.01)
       .map((row) => row.id) };
 }
@@ -89,6 +95,9 @@ export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: Desig
   // solver failure. It can guide feasibility restoration, never final adoption.
   if (!Number.isFinite(left.minimumMargin)) return false;
   if (!Number.isFinite(right.minimumMargin)) return true;
+  if (left.feasible && Math.abs(left.pressureFlowTargetGap - right.pressureFlowTargetGap) > 0.001) {
+    return left.pressureFlowTargetGap < right.pressureFlowTargetGap;
+  }
   // Changes below 0.1% of a corridor are not a reason to chase a numerical edge.
   if (Math.abs(left.minimumMargin - right.minimumMargin) > 0.001) {
     return left.minimumMargin > right.minimumMargin;

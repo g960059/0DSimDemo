@@ -186,6 +186,10 @@ if (values.worker) {
   let stepScale = initialStepScale as 1 | 0.5 | 0.25;
   let stopReason = "evaluation-budget";
   while (count < maximumEvaluations) {
+    if (best.score.feasible && best.score.pressureFlowTargetGap <= 0.001) {
+      stopReason = "declared-pressure-flow-target-reached";
+      break;
+    }
     const proposals: MainWireBaselineCalibrationCandidateInputsV1[] = [];
     for (const candidate of mainWireBaselineDesignNeighborsV1(anchor, best.inputs, stepScale)) {
       const key = await sha256CanonicalJsonHex(candidate);
@@ -223,7 +227,8 @@ if (values.worker) {
   // Bounded one-command handoff: never call a nominal candidate qualified just
   // because it won the search. Fine dt is the first, cheap-to-reject finalist gate.
   const finalists = [...history].filter((row) => row.score.feasible)
-    .sort((a, b) => b.score.minimumMargin - a.score.minimumMargin
+    .sort((a, b) => a.score.pressureFlowTargetGap - b.score.pressureFlowTargetGap
+      || b.score.minimumMargin - a.score.minimumMargin
       || b.score.pressureFlowMargin - a.score.pressureFlowMargin || a.index - b.index)
     .slice(0, maximumFinalists);
   const qualificationResults: { index: number; modes: { mode: string; qualified: boolean; resultPath: string }[];

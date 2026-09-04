@@ -303,6 +303,10 @@ describe("bounded baseline operating-point design", () => {
       .toBe(true);
     expect(mainWireBaselineDesignBetterV1({ ...score, minimumMargin: score.minimumMargin + 0.00001 }, score))
       .toBe(false);
+    expect(mainWireBaselineDesignBetterV1({ ...score, minimumMargin: 0.001,
+      pressureFlowTargetGap: score.pressureFlowTargetGap - 0.01 }, score)).toBe(true);
+    expect(mainWireBaselineDesignBetterV1({ ...score, minimumMargin: score.minimumMargin + 0.1,
+      pressureFlowTargetGap: score.pressureFlowTargetGap + 0.01 }, score)).toBe(false);
     const outside = { ...score, feasible: false, minimumMargin: -0.1 };
     const nearer = { ...outside, minimumMargin: -0.05 };
     expect(mainWireBaselineDesignBetterV1(nearer, outside)).toBe(true);

@@ -9,7 +9,11 @@ import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 as Standard70S
 import { MainWireIntegratedTypedAuthoritySessionV1 } from "@/engine/vnext/MainWireIntegratedTypedAuthoritySessionV1";
 import { createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1 } from
   "@/engine/myocardium/experiments/MainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1";
-import type { MainWireIntegratedModelStandard70CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
+import { restoreMainWireIntegratedModelStandard70V1, type MainWireIntegratedModelStandard70CheckpointV1 } from
+  "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
+import { createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3 } from
+  "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import type { MainWireIntegratedModelRuntimeV3 } from "@/engine/myocardium/MainWireIntegratedModelRuntimeV3";
 import type { MainWireFiveWallLandTriSegReadbackV1 } from
   "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import type { MainWireNormalAdultWallMaterialReadbackV1 } from
@@ -26,6 +30,15 @@ import type { MainWireStandard70BaselineCalibrationEvaluationV1 as Evaluation } 
 type State = ReturnType<Standard70Session["currentAcceptedState"]>;
 type Runtime = ReturnType<typeof createMainWireIntegratedModelAlgebraicPulmonaryRootFixtureV1>;
 type Observation = ReturnType<Standard70Session["observe"]>;
+// Decode through the exact model, then retain the analysis fork's immutable
+// frozen-control manifest. A live Standard70 restore intentionally uses the
+// live-controller manifest and cannot restore this different analysis regime.
+class RestoredAnalysisFork extends MainWireIntegratedTypedAuthoritySessionV1 {
+  constructor(runtime: Runtime, restored: Awaited<ReturnType<typeof restoreMainWireIntegratedModelStandard70V1>>) {
+    super(runtime as unknown as MainWireIntegratedModelRuntimeV3, restored.acceptedState,
+      "fixed-tbv-protocol-fork", null, restored, undefined, null, restored.acceptedState);
+  }
+}
 const walls = ["LVFW", "SEP", "RVFW"] as const;
 const systemicArteries = ["Ao", "SA", "Art"] as const;
 const graph = buildNonCoronaryCirculationGraphV1();
@@ -129,8 +142,12 @@ const source = await Standard70Session.restoreStandard70ExactCheckpoint(evaluati
   inputs.hemodynamicResearchInputs, inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs);
 const rest = collect(source, runtime);
 await writeFile(resolve(output, "rest.json"), JSON.stringify(rest), { flag: "wx" });
-const highSession = await Standard70Session.restoreStandard70ExactCheckpoint(audit.endCheckpoint,
-  inputs.hemodynamicResearchInputs, inputs.ventricularContractilityScale, undefined, inputs.mechanismResearchInputs);
+const restored = await restoreMainWireIntegratedModelStandard70V1({
+  base: { ...createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(runtime),
+    mechanismResearchInputs: inputs.mechanismResearchInputs },
+  algebraicPulmonaryRootAssemblyId: runtime.algebraicPulmonaryRootAssemblyId,
+}, audit.endCheckpoint);
+const highSession = new RestoredAnalysisFork(runtime, restored);
 if (await sha256CanonicalJsonHex(highSession.currentAcceptedState()) !== await sha256CanonicalJsonHex(audit.endState)) {
   throw new Error("audit state and exact-owned checkpoint differ");
 }
