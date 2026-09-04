@@ -301,6 +301,7 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     ) return;
     const lanes = requireGroupLanesV3(this.#lanes());
     const startedAtMs = this.#nowMs();
+    const capacityEligibleAtStart = this.#capacityMeasurementEligible();
     const operation = Promise.all(lanes.map(async (lane) => {
       const frames = await lane.advance(this.#batchSteps);
       validateGroupLaneAdvanceV3(
@@ -317,7 +318,11 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
         throw new Error("Workbench group clock moved backwards");
       }
       this.#recordGroupCompletion(groupWallMs, lanes.length);
-      this.#updateCapacityEstimate(groupWallMs, completedAtMs);
+      this.#updateCapacityEstimate(
+        groupWallMs,
+        completedAtMs,
+        capacityEligibleAtStart,
+      );
       this.#pendingPresentation.push({
         laneFrames: Object.freeze(laneFrames),
         offset: 0,
@@ -369,12 +374,19 @@ export class WorkbenchGroupTimeConductorV3<TFrame> {
     );
   }
 
-  #updateCapacityEstimate(groupWallMs: number, completedAtMs: number): void {
+  #updateCapacityEstimate(
+    groupWallMs: number,
+    completedAtMs: number,
+    capacityEligibleAtStart: boolean,
+  ): void {
     // A zero-duration synthetic clock is valid in unit tests but carries no
     // throughput information.
     if (groupWallMs <= 0) return;
     const measuredCapacity = this.#batchModelDurationMs() / groupWallMs;
-    const eligible = this.#capacityMeasurementEligible();
+    // The first foreground batch finishing after analysis may still have
+    // started under contention. Do not use that tail as clean calibration.
+    const eligible = capacityEligibleAtStart
+      && this.#capacityMeasurementEligible();
     if (this.#performance.enabled) {
       this.#performance.recordValue(
         "scheduler.group.capacity-sample-eligible",

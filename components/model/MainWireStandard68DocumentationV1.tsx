@@ -15,6 +15,7 @@ import type { Locale } from "@/localeRouting";
 import type {
   MainWireStandard68DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 const COPY = Object.freeze({
   ja: Object.freeze({
@@ -57,6 +58,10 @@ const COPY = Object.freeze({
     analysisTitle: "Surfaceとanalysis",
     analysisBody:
       "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。ESPVRはpreload低下側からbaselineまでを用い、EDPVRとStarlingは高容量側を含む双方向familyを保持します。これらの分岐計算はexact stateやcheckpointを変更しません。",
+    analysisPhaseLimit:
+      "ESPVRを評価する共通時刻は、各作動点の収縮後期から選択します。作動点と評価範囲に依存するため、TBVだけの変更でも曲線はずれ得ます。その差だけを収縮力の変化とは解釈できません。",
+    measuredHighLoadBody:
+      "高容量側は同じ選択時刻で得た計算上の実測点をTBV順に結びます。外挿や単調性の強制は行わず、PE/PVAの計算境界には使用しません。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、圧・AV/LV/RVP・timing・形態・indexed size/functionの${checks}項目を記録しています。この記録の評価方針における必須gateと、双方向preload reserve gateを通過しています。`,
@@ -119,6 +124,10 @@ const COPY = Object.freeze({
     analysisTitle: "Surface and analysis",
     analysisBody:
       "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. ESPVR uses the preload-reduction limb through baseline, while EDPVR and Starling retain the bidirectional family. Their branch computations do not mutate exact state or checkpoints.",
+    analysisPhaseLimit:
+      "The common ESPVR sampling time is selected within late systole for each operating state. It depends on that state and the scoring volume range, so changing TBV alone can shift the curve; that difference alone does not establish altered contractility.",
+    measuredHighLoadBody:
+      "Higher-load points are sampled from simulated beats at the same selected time and joined in TBV order, without extrapolation or forced monotonicity. They do not define the PE/PVA boundary.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles, recording ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function checks. Mandatory gates under the recorded assessment policy and the bidirectional preload-reserve gate passed.`,
@@ -226,6 +235,11 @@ export function MainWireStandard68DocumentationV1({
 
         <Section icon={Activity} title={text.analysisTitle}>
           <p className="max-w-3xl text-sm leading-7 text-wb-muted">{text.analysisBody}</p>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-wb-muted">
+            {text.analysisPhaseLimit}
+            {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
+              ? ` ${text.measuredHighLoadBody}` : ""}
+          </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <FactCard
               title={text.baselineTitle}

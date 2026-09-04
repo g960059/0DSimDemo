@@ -126,9 +126,10 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
       .map(({ totalBloodVolumeMl }) => totalBloodVolumeMl / 5_600)
       .sort((left, right) => left - right);
     expect(highScales[0]).toBeCloseTo(1, 12);
-    expect(highScales[1]).toBeCloseTo(1.12, 12);
+    expect(highScales[1]).toBeCloseTo(1.06, 12);
+    expect(highScales[2]).toBeCloseTo(1.12, 12);
     expect(highScales.at(-1)).toBeGreaterThanOrEqual(1.5);
-    expect(highScales.length).toBeLessThanOrEqual(6);
+    expect(highScales.length).toBeLessThanOrEqual(8);
     expect(
       highScales
         .slice(1)
@@ -168,7 +169,7 @@ describe("Standard Main Wire formal PVA adaptive chain", () => {
     ).toBe(true);
     for (const point of continuationPoints) {
       expect(point.completedBeatCount).toBeGreaterThanOrEqual(3);
-      expect(point.completedBeatCount).toBeLessThanOrEqual(12);
+      expect(point.completedBeatCount).toBeLessThanOrEqual(16);
       expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
     }
     expect(lowHost.currentFrame(runtimeSessionId, scenarioId)).toEqual(source);

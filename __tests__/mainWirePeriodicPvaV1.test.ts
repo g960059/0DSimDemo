@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   MainWireIntegratedModelPressureVolumeLoopPointV3,
@@ -10,8 +10,10 @@ import type {
 import {
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
+  buildMainWirePeriodicPvaMethodV10,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
@@ -25,6 +27,8 @@ import { MAIN_WIRE_INTEGRATED_MODEL_DEFAULT_HEMODYNAMIC_RESEARCH_INPUTS_V3 } fro
 import {
   PressureVolumeLoopCanvasV3,
   retainWorkbenchPvRelationDrawingV3,
+  workbenchPvMeasuredHighLoadPointsV1,
+  drawWorkbenchPvHighLoadIsochroneV1,
 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
@@ -36,6 +40,59 @@ import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1 } from
   "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
 describe("settled hot-start PVA V1", () => {
+  it("adds measured high-load common-time display without changing V9 numerical ownership", () => {
+    const locus = formalLocusV1(settledPointsV1());
+    const previous = buildMainWirePeriodicPvaMethodV9(locus, "LV");
+    const next = buildMainWirePeriodicPvaMethodV10(locus, "LV");
+    if (previous.status !== "available" || next.status !== "available") throw new Error("expected PVA");
+    expect(next.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID);
+    for (const key of ["anchor", "strokeWork", "edpvr", "potentialEnergy", "pva"] as const) {
+      expect(JSON.stringify(next[key])).toBe(JSON.stringify(previous[key]));
+    }
+    const { highLoadIsochroneDisplay: high, ...numericalEspvr } = next.espvr;
+    expect(JSON.stringify(numericalEspvr)).toBe(JSON.stringify(previous.espvr));
+    expect(high).toMatchObject({ use: "measured-load-continuation-not-pva-owner",
+      interpolation: "tbv-ordered-polyline", displayExtrapolation: "none",
+      timeSinceAtrialCaptureSec: previous.espvr.selectedTimeSinceAtrialCaptureSec });
+    expect(high?.points.map((point) => point.totalBloodVolumeMl)).toEqual([5600, 5600 * 1.08, 5600 * 1.16]);
+    expect(high?.points[0]?.volumeMl).toBe(next.anchor.endSystolicVolumeMl);
+    expect(high?.points.at(-1)?.volumeMl).toBeGreaterThan(next.espvr.measuredVolumeRangeMl[1]);
+    expect(previous.espvr).not.toHaveProperty("highLoadIsochroneDisplay");
+  });
+
+  it("preserves an observed folded high-load locus in load order, outside the PVA owner", () => {
+    const folded = settledPointsV1().map((point) => point.totalBloodVolumeMl <= 5600 ? point : {
+      ...point, ventricularPressureVolumeLoop: point.ventricularPressureVolumeLoop.map((sample) => ({
+        ...sample, volumeMl: sample.volumeMl - (point.totalBloodVolumeMl > 6100 ? 15 : 0),
+      })),
+    });
+    const previous = buildMainWirePeriodicPvaMethodV9(formalLocusV1(folded), "LV");
+    const next = buildMainWirePeriodicPvaMethodV10(formalLocusV1(folded), "LV");
+    if (previous.status !== "available" || next.status !== "available") throw new Error("expected PVA");
+    const points = next.espvr.highLoadIsochroneDisplay!.points;
+    expect(points[2]!.totalBloodVolumeMl).toBeGreaterThan(points[1]!.totalBloodVolumeMl);
+    expect(points[2]!.volumeMl).toBeLessThan(points[1]!.volumeMl);
+    expect(workbenchPvMeasuredHighLoadPointsV1(next.espvr)).toBe(points);
+    const context = Object.fromEntries(["save", "restore", "setLineDash", "beginPath", "moveTo", "lineTo", "stroke", "arc", "fill"]
+      .map((method) => [method, vi.fn()])) as unknown as CanvasRenderingContext2D;
+    drawWorkbenchPvHighLoadIsochroneV1(context, next.espvr, (x) => x, (y) => y, "#d9822b", 1);
+    expect(context.moveTo).toHaveBeenCalledWith(points[0]!.volumeMl, points[0]!.pressureMmHg);
+    expect(context.lineTo).toHaveBeenNthCalledWith(1, points[1]!.volumeMl, points[1]!.pressureMmHg);
+    expect(context.lineTo).toHaveBeenNthCalledWith(2, points[2]!.volumeMl, points[2]!.pressureMmHg);
+    expect(context.arc).toHaveBeenCalledTimes(2);
+    expect(next.potentialEnergy).toEqual(previous.potentialEnergy);
+    expect(next.pva).toEqual(previous.pva);
+    expect(next.espvr.fitPoints).toEqual(previous.espvr.fitPoints);
+  });
+
+  it("does not invent high-load observations when a common-time loop is unavailable", () => {
+    const missing = settledPointsV1().map((point) => point.totalBloodVolumeMl > 6100
+      ? { ...point, ventricularPressureVolumeLoop: [] } : point);
+    const result = buildMainWirePeriodicPvaMethodV10(formalLocusV1(missing), "LV");
+    if (result.status !== "available") throw new Error(result.reason);
+    expect(result.espvr.highLoadIsochroneDisplay).toBeNull();
+  });
+
   it("keeps hypervolemic loads in EDPVR but ends the V9 ESPVR at the operating anchor", () => {
     const points = settledPointsV1();
     const result = buildMainWirePeriodicPvaMethodV9(

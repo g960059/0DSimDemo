@@ -9,15 +9,19 @@ import {
 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 export const MAIN_WIRE_PERIODIC_PVA_V1_ID =
   "main-wire-integrated-model-settled-hot-start-pva-v1" as const;
+export { interpolateLoopAtTimeV1 as sampleMainWirePeriodicPvaLoopAtTimeV1 };
 /** Published method identity. Semantic changes require a new ID and builder. */
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID =
   "suga-pva-anchor-local-late-systolic-area-max-common-isochrone-nonlinear-espvr-exponential-edpvr-settled-preload-family-v8" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID =
   "suga-pva-preload-reduction-through-anchor-area-max-common-isochrone-nonlinear-espvr-bidirectional-exponential-edpvr-v9" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID =
+  "suga-pva-preload-reduction-owner-with-measured-high-load-common-isochrone-display-v10" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -72,6 +76,18 @@ export type MainWireIntegratedModelPeriodicPvaEspvrV1 = Readonly<{
   interpolation: "piecewise-linear" | "shape-preserving-cubic-hermite";
   continuity: "C0" | "C1";
   displayExtrapolation: "none";
+  /** Higher loads sampled at the selected clock, not a new PE/PVA boundary.
+   * Preserve TBV ordering: a folded measured locus is not a single-valued P(V).
+   * Null means a complete common-time continuation could not be observed. */
+  highLoadIsochroneDisplay?: Readonly<{
+    use: "measured-load-continuation-not-pva-owner";
+    interpolation: "tbv-ordered-polyline";
+    displayExtrapolation: "none";
+    timeSinceAtrialCaptureSec: number;
+    points: readonly (MainWireIntegratedModelPeriodicPvaCurvePointV1 & Readonly<{
+      totalBloodVolumeMl: number;
+    }>)[];
+  }> | null;
   pressureEnvelopeDiagnostic: Readonly<{
     method: "phase-wise-maximum-pressure-envelope";
     use: "optional-display-and-single-phase-adequacy-diagnostic-not-pva-owner";
@@ -254,6 +270,18 @@ export function buildMainWirePeriodicPvaMethodV9(
   });
 }
 
+/** V9 numerical owner, with observed higher-load continuation kept visible. */
+export function buildMainWirePeriodicPvaMethodV10(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  return buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
+    systolicLoadDomain: "preload-reduction-through-anchor",
+    showMeasuredHighLoadIsochrone: true,
+  });
+}
+
 function buildMainWirePeriodicPvaByPolicyV1(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
@@ -262,6 +290,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
     systolicLoadDomain:
       | "all-settled-loads"
       | "preload-reduction-through-anchor";
+    showMeasuredHighLoadIsochrone?: boolean;
   }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
@@ -493,6 +522,11 @@ function buildMainWirePeriodicPvaByPolicyV1(
           ? ("C1" as const)
           : ("C0" as const),
       displayExtrapolation: "none" as const,
+      ...(method.showMeasuredHighLoadIsochrone ? {
+        highLoadIsochroneDisplay: measuredHighLoadIsochroneDisplayV1(
+          relationPoints, anchor, areaMaxIsochrone.selected.timeSinceAtrialCaptureSec,
+        ),
+      } : {}),
       pressureEnvelopeDiagnostic: areaMaxIsochrone.pressureEnvelope,
     });
   const edpvrProjection: MainWireIntegratedModelPeriodicPvaEdpvrV1 =
@@ -658,6 +692,32 @@ function buildMainWirePeriodicPvaByPolicyV1(
       "coronary-tone-held-at-source-during-preload-reduction",
       "not-clinical-validation",
     ] as const),
+  });
+}
+
+function measuredHighLoadIsochroneDisplayV1(
+  points: readonly MainWireIntegratedModelStarlingPointV3[],
+  anchor: MainWireIntegratedModelStarlingPointV3,
+  timeSinceAtrialCaptureSec: number,
+): MainWireIntegratedModelPeriodicPvaEspvrV1["highLoadIsochroneDisplay"] {
+  const toleranceMl = Math.max(1e-6, Math.abs(anchor.totalBloodVolumeMl) * 1e-12);
+  const higher = points.filter(({ totalBloodVolumeMl }) =>
+    totalBloodVolumeMl > anchor.totalBloodVolumeMl + toleranceMl,
+  ).sort((left, right) => left.totalBloodVolumeMl - right.totalBloodVolumeMl);
+  if (higher.length === 0) return null;
+  const projected = [anchor, ...higher].map((point) => {
+    const observed = interpolateLoopAtTimeV1(point.ventricularPressureVolumeLoop,
+      point.acceptedBeatDurationSec, timeSinceAtrialCaptureSec);
+    return observed === null ? null : Object.freeze({ ...observed,
+      totalBloodVolumeMl: point.totalBloodVolumeMl });
+  });
+  if (projected.some((point) => point === null)) return null;
+  return Object.freeze({
+    use: "measured-load-continuation-not-pva-owner" as const,
+    interpolation: "tbv-ordered-polyline" as const,
+    displayExtrapolation: "none" as const,
+    timeSinceAtrialCaptureSec,
+    points: Object.freeze(projected as NonNullable<typeof projected[number]>[]),
   });
 }
 

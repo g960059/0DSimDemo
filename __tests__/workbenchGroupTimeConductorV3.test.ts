@@ -189,6 +189,39 @@ describe("WorkbenchGroupTimeConductorV3", () => {
     await conductor.pause();
   });
 
+  it("excludes a contended batch even when analysis finishes before its reply", async () => {
+    const clock = new GroupClockV3();
+    const performance = new WorkbenchPerformanceDiagnosticsV3({
+      enabled: true,
+      nowMs: clock.now,
+    });
+    let eligible = false;
+    const conductor = new WorkbenchGroupTimeConductorV3({
+      lanes: () => [laneV3("baseline", 0, async (stepCount) => {
+        clock.elapse(64);
+        eligible = true;
+        return framesV3("baseline", 0, stepCount);
+      })],
+      onFrames: vi.fn(),
+      onError: vi.fn(),
+      capacityMeasurementEligible: () => eligible,
+      nowMs: clock.now,
+      schedule: clock.schedule,
+      cancel: clock.cancel,
+      presentationIntervalMs: 0,
+      performanceRecorder: performance,
+    });
+    conductor.play();
+    await clock.runNextTimer();
+    expect(performance.snapshot().counters[
+      "scheduler.group.capacity-samples-rejected"
+    ]).toBe(1);
+    expect(performance.snapshot().counters[
+      "scheduler.group.capacity-samples-accepted"
+    ]).toBeUndefined();
+    await conductor.pause();
+  });
+
   it("promotes a provisional low ceiling after stable foreground evidence", async () => {
     const clock = new GroupClockV3();
     const performance = new WorkbenchPerformanceDiagnosticsV3({

@@ -909,7 +909,11 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
   advanceStructuralAnalysisToPresentationTimeV1(
     targetTimeSec: number,
   ): MainWireIntegratedModelPresentationAdvanceV3 {
-    const initial = this.currentAcceptedState();
+    this.assertSessionUsableV1();
+    // Only clocks are needed between admitted numerical ticks. Materializing
+    // the entire accepted-state snapshot here would erase much of the lean
+    // projection path's benefit in every preload-family branch.
+    const initial = this.currentAcceptedClock();
     if (targetTimeSec === initial.acceptedTimeSec) {
       return Object.freeze({
         status: "already-at-target" as const,
@@ -928,8 +932,8 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
     let internalAcceptedSubstepCount = 0;
     let boundaryClippedSubstepCount = 0;
     const substeps: MainWireIntegratedModelSubstepRecordV3[] = [];
-    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
-      const current = this.currentAcceptedState();
+    while (this.currentAcceptedClock().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedClock();
       const ordinalTargetTimeSec = initial.acceptedTimeSec
         + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
       const nextTargetTimeSec = Math.min(
@@ -957,7 +961,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
       substeps.push(...advance.substeps);
       ordinal += 1;
     }
-    const accepted = this.currentAcceptedState();
+    const accepted = this.currentAcceptedClock();
     return Object.freeze({
       status: "advanced" as const,
       presentationTimeSec: targetTimeSec,

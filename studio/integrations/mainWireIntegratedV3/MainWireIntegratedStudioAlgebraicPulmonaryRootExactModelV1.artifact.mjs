@@ -17898,7 +17898,7 @@ function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl)
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
 const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
-const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 16;
 const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
@@ -17914,6 +17914,7 @@ const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_HIGH_PREVIEW_SCALE_STEP_V3 = 0.06;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 5e-3;
 const FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 = 0.16;
 const FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3 = 0.2;
@@ -18371,6 +18372,14 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     );
     append(nextBoundary.pair);
   };
+  const preview = await advanceFormalCoverageTowardScaleV3(
+    boundary2,
+    1 + FORMAL_HIGH_PREVIEW_SCALE_STEP_V3,
+    sourceGlobalTbvMl,
+    accept
+  );
+  if (preview.status !== "reached") return;
+  boundary2 = preview.boundary;
   let desiredScaleStep = FORMAL_HIGH_INITIAL_SCALE_STEP_V3;
   while (boundary2.scale < MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 - 1e-12 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
     const priorScale = boundary2.scale;
@@ -18380,7 +18389,7 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
     const requestedScale = Math.min(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3,
-      boundary2.scale + desiredScaleStep
+      samples.length === 2 ? 1 + FORMAL_HIGH_INITIAL_SCALE_STEP_V3 : boundary2.scale + desiredScaleStep
     );
     const advanced = await advanceFormalCoverageTowardScaleV3(
       boundary2,
@@ -18394,7 +18403,9 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypervolemic",
-      recentAcceptedScaleStepV3(samples),
+      // The nearby preview must not halve the broad frontier's starting
+      // resolution after the preserved +12% core point.
+      samples.length === 3 ? FORMAL_HIGH_INITIAL_SCALE_STEP_V3 : recentAcceptedScaleStepV3(samples),
       samples
     );
     if (advanced.status !== "reached") {
@@ -50609,7 +50620,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * observation without placing derived results in exact state.
    */
   advanceStructuralAnalysisToPresentationTimeV1(targetTimeSec) {
-    const initial = this.currentAcceptedState();
+    this.assertSessionUsableV1();
+    const initial = this.currentAcceptedClock();
     if (targetTimeSec === initial.acceptedTimeSec) {
       return Object.freeze({
         status: "already-at-target",
@@ -50627,8 +50639,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     let internalAcceptedSubstepCount = 0;
     let boundaryClippedSubstepCount = 0;
     const substeps = [];
-    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
-      const current = this.currentAcceptedState();
+    while (this.currentAcceptedClock().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedClock();
       const ordinalTargetTimeSec = initial.acceptedTimeSec + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
       const nextTargetTimeSec = Math.min(
         targetTimeSec,
@@ -50653,7 +50665,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       substeps.push(...advance.substeps);
       ordinal += 1;
     }
-    const accepted = this.currentAcceptedState();
+    const accepted = this.currentAcceptedClock();
     return Object.freeze({
       status: "advanced",
       presentationTimeSec: targetTimeSec,

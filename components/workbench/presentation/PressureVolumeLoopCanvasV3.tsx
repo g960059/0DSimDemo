@@ -575,9 +575,9 @@ export function PressureVolumeLoopCanvasV3(
   ) => {
     const theme = readPvCanvasThemeV3(containerRef.current);
     const plot = pvPlotRectV3(width, height);
-    // Upper domains remain loop-owned. The lower volume domain is extended
-    // separately to finite extrapolated intercepts so the V0 geometry remains
-    // visible without inflating the current upper bounds.
+    // Bounds include observed loops and measured higher-load continuation.
+    // Finite extrapolated intercepts extend only the lower volume bound so
+    // the V0 geometry stays visible without inventing upper-domain coverage.
     const domainPoints: WorkbenchPvRelationPointV3[] = [
       ...visibleRenderedTraces.flatMap(({ completedBeat, liveSegment }) => [
         ...completedBeat,
@@ -585,6 +585,9 @@ export function PressureVolumeLoopCanvasV3(
       ]),
       ...visibleRenderedTraces.flatMap(({ history }) =>
         history.flatMap(({ completedBeat }) => completedBeat)),
+      ...visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
+        !periodicPvaSupported || periodicPvaDrawing === null ? []
+          : workbenchPvMeasuredHighLoadPointsV1(periodicPvaDrawing.espvr)),
     ];
     volumeDomainStateRef.current = nextStableNumericDomainStateV3(
       volumeDomainStateRef.current,
@@ -761,7 +764,7 @@ export function PressureVolumeLoopCanvasV3(
   const relationStatusBase = !periodicPvaSupported
     ? null
     : drawablePva.length > 0
-      ? `Settled-source bidirectional preload family · anchor-local area-max common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
+      ? `ESPVR / EDPVR from settled preload changes. ESPVR timing is selected for each operating state: changing blood volume alone can shift this curve without a change in contractility.${drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.espvr.highLoadIsochroneDisplay != null) ? " Higher-load points are measured at that same selected time, not used for PE/PVA." : ""}${showPressureEnvelope ? " Upper pressure envelope overlay shown." : ""}`
       : "Settled-source preload-reduction analysis selected · relation not yet available";
   const relationStatus = relationStatusBase !== null && retainedPvaDrawingCount > 0
     ? `${relationStatusBase} · previous valid relation retained while the update settles`
@@ -817,6 +820,10 @@ export function PressureVolumeLoopCanvasV3(
       data-pva-result-count={availablePva.length}
       data-pva-drawing-count={drawablePva.length}
       data-pva-retained-drawing-count={retainedPvaDrawingCount}
+      data-pva-measured-high-load-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
+        sum + Math.max(0, workbenchPvMeasuredHighLoadPointsV1(periodicPvaDrawing.espvr).length - 1), 0)}
+      data-pva-selected-times-sec={drawablePva.map(({ periodicPvaDrawing }) =>
+        periodicPvaDrawing.espvr.selectedTimeSinceAtrialCaptureSec).join(",")}
     >
       <WorkbenchChartLegendV3
         hiddenSelections={hiddenLegendSelections}
@@ -839,6 +846,7 @@ export function PressureVolumeLoopCanvasV3(
           ref={canvasRef}
           className="block h-full w-full"
           role="img"
+          title={relationStatus ?? undefined}
           aria-label={`${chamberAriaLabel} live pressure-volume loops from model-emitted cycles${
             relationStatus === null ? "" : `. ${relationStatus}`
           }`}
@@ -1202,6 +1210,7 @@ function drawPeriodicPvaV1(
     dash: Object.freeze([]),
     alpha: relationAlpha * 0.62,
   });
+  drawWorkbenchPvHighLoadIsochroneV1(context, pva.espvr, x, y, color, relationAlpha);
   const edpvrEndVolumeMl = Math.min(
     volumeDomain[1],
     pva.edpvr.zeroPressureVolumeMl
@@ -1269,6 +1278,31 @@ function drawPeriodicPvaV1(
       relationAlpha * 0.42,
       false,
     );
+  }
+}
+
+/** Shared by viewport and drawing so measured high loads cannot be clipped
+ * merely because only the operating beat supplied the old axis limits. */
+export function workbenchPvMeasuredHighLoadPointsV1(espvr: MainWireIntegratedModelPeriodicPvaEspvrV1) {
+  return espvr.highLoadIsochroneDisplay?.points ?? [];
+}
+
+export function drawWorkbenchPvHighLoadIsochroneV1(
+  context: CanvasRenderingContext2D,
+  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1,
+  x: (volumeMl: number) => number,
+  y: (pressureMmHg: number) => number,
+  color: string,
+  relationAlpha: number,
+): void {
+  const points = workbenchPvMeasuredHighLoadPointsV1(espvr);
+  // These are ordered measured loads, not a globally monotone pressure law.
+  drawPvCurveV3(context, points, x, y, {
+    color, width: 1, dash: Object.freeze([]), alpha: relationAlpha * 0.48,
+  });
+  for (const point of points.slice(1)) {
+    drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
+      color, 1.7, relationAlpha * 0.5, true);
   }
 }
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
@@ -40,7 +40,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
   createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
-import algebraicPulmonaryRootSurfaceV1 from
+import algebraicPulmonaryRootSurfaceV2, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as algebraicPulmonaryRootSurfaceV1 } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import qualifiedBaselineSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
@@ -52,11 +52,53 @@ import {
 import {
   validateMainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
+  "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
+import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
+import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
+  "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 
 const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
+  it("repins measured high-load analysis in a new Surface series without changing exact exposure or controls", () => {
+    expect(algebraicPulmonaryRootSurfaceV2.predecessorSurfaceReleaseId).toBeNull();
+    expect(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV1.surfaceSeriesId);
+    expect(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV1.exposedExactOutputIds);
+    for (const key of ["graphCatalog", "controlCatalog", "knobCatalog", "protocolCatalog"] as const) {
+      expect(algebraicPulmonaryRootSurfaceV2[key]).toEqual(algebraicPulmonaryRootSurfaceV1[key]);
+    }
+    expect(algebraicPulmonaryRootSurfaceV2.derivedOutputCatalog.every((output) =>
+      output.derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID)).toBe(true);
+  });
+  it("advances structural ticks without full-state polling and preserves exact continuation", async () => {
+    const candidate = launchBaseline.candidateInputs;
+    const restore = () => MainWireIntegratedModelStandard70TypedAuthoritySessionV1
+      .restoreStandard70ExactCheckpoint(launchBaseline.capture.checkpoint.payload,
+        candidate.hemodynamicResearchInputs, 1, undefined,
+        validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(candidate.mechanismResearchInputs));
+    const [lean, reference] = await Promise.all([restore(), restore()]);
+    const origin = lean.currentAcceptedState().acceptedTimeSec;
+    const snapshot = vi.spyOn(lean, "currentAcceptedState");
+    const result = lean.advanceStructuralAnalysisToPresentationTimeV1(origin + 1);
+    expect(result.status).toBe("advanced");
+    expect(snapshot).not.toHaveBeenCalled();
+    snapshot.mockRestore();
+    // The historical analysis path requested these exact two-millisecond
+    // targets. Keep bitwise accepted state and algorithmic history, not merely
+    // a tolerance-based agreement of the displayed waveforms.
+    for (let ordinal = 1; ordinal <= 500; ordinal += 1) {
+      expect(reference.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        origin + ordinal * 0.002, [],
+      ).advance.status).toBe("advanced");
+    }
+    expect(lean.snapshotAcceptedStateBytes()).toEqual(reference.snapshotAcceptedStateBytes());
+    expect(await lean.checkpointStandard70Exact()).toEqual(await reference.checkpointStandard70Exact());
+    expect(lean.observe()).toEqual(reference.observe());
+  }, 120_000);
+
   it("changes only the pulmonary root and inherits the complete latest Surface", () => {
     const release =
       createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1();

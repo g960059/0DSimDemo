@@ -219,7 +219,10 @@ export function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
 const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
-const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+// Continue the valid target instead of repeatedly discarding twelve beats and
+// restarting via smaller bridges. This is a compute budget, not a relaxed
+// period-1 tolerance; every retained point still passes two comparisons ≤1.
+const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 16;
 const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
@@ -235,6 +238,7 @@ const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_HIGH_PREVIEW_SCALE_STEP_V3 = 0.06;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 0.005;
 const FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 = 0.16;
 const FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3 = 0.2;
@@ -685,11 +689,11 @@ export function runMainWireIntegratedModelResponsiveStarlingProtocolV3(
  * The live Scenario is never advanced. A persistent analysis Worker first
  * settles an isolated copy at the Scenario TBV with the active coronary
  * controller. It then freezes the controller state at that settled endpoint
- * and admits each load after three to twelve complete beats satisfy the
+ * and admits each load after three to sixteen complete beats satisfy the
  * declared flow/pressure/volume and ventricular landmark closure gates. The
  * number of beats is selected by measured period-1 closure rather than TBV
  * direction: any well-hot-started point may finish at three beats, while a
- * slowly converging point may use the twelve-beat safety budget. The
+ * slowly converging point may use the sixteen-beat safety budget. The
  * low-volume bootstrap publishes progressive PVA previews while a second
  * persistent Worker runs the high-volume frontier from the same captured
  * Scenario source. Both frontiers adapt their next TBV step from retained
@@ -1392,6 +1396,17 @@ async function runFormalHypervolemicStarlingChainV3(
     );
     append(nextBoundary.pair);
   };
+  // Establish measured high-side support before the broader frontier. A
+  // nearby settled point also gives the first +12% target a better hot start
+  // than an unreported one-beat bridge; all closure gates remain identical.
+  const preview = await advanceFormalCoverageTowardScaleV3(
+    boundary,
+    1 + FORMAL_HIGH_PREVIEW_SCALE_STEP_V3,
+    sourceGlobalTbvMl,
+    accept,
+  );
+  if (preview.status !== "reached") return;
+  boundary = preview.boundary;
   let desiredScaleStep = FORMAL_HIGH_INITIAL_SCALE_STEP_V3;
   while (
     boundary.scale <
@@ -1410,7 +1425,9 @@ async function runFormalHypervolemicStarlingChainV3(
     }
     const requestedScale = Math.min(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3,
-      boundary.scale + desiredScaleStep,
+      samples.length === 2
+        ? 1 + FORMAL_HIGH_INITIAL_SCALE_STEP_V3
+        : boundary.scale + desiredScaleStep,
     );
     const advanced = await advanceFormalCoverageTowardScaleV3(
       boundary,
@@ -1424,7 +1441,11 @@ async function runFormalHypervolemicStarlingChainV3(
     }
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypervolemic",
-      recentAcceptedScaleStepV3(samples),
+      // The nearby preview must not halve the broad frontier's starting
+      // resolution after the preserved +12% core point.
+      samples.length === 3
+        ? FORMAL_HIGH_INITIAL_SCALE_STEP_V3
+        : recentAcceptedScaleStepV3(samples),
       samples,
     );
     if (advanced.status !== "reached") {

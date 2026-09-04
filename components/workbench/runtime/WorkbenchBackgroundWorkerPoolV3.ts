@@ -380,8 +380,12 @@ export class WorkbenchBackgroundWorkerPoolV3
   #effectiveMaxSize(
     priority: WorkbenchBackgroundJobPriorityV3 = "analysis",
   ): number {
+    // Give an active foreground its short, uncontended initial calibration.
+    // A paused/hidden Workbench has no live lanes and cannot supply those
+    // samples, so its analysis must not wait for calibration to finish.
     if (
-      this.#foregroundPlaybackState?.calibrating === true
+      this.#liveScenarioCount > 0
+      && this.#foregroundPlaybackState?.calibrating === true
       && (priority === "analysis" || priority === "prewarm")
     ) return 0;
     const spareLogicalCores =
