@@ -4,6 +4,7 @@ import {
   mainWireBaselineDesignBetterV1,
   mainWireBaselineDesignNeighborsV1,
   mainWireBaselineDesignQualificationPassedV1,
+  mainWireBaselineDesignSeedV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 
 import {
@@ -242,6 +243,11 @@ describe("bounded baseline operating-point design", () => {
     expect(() => mainWireBaselineDesignNeighborsV1(anchor, upperActive, 1)).not.toThrow();
     expect(mainWireBaselineDesignNeighborsV1(anchor, upperActive, 1).every((point) =>
       point.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall.LVFW <= 1.33)).toBe(true);
+    expect(mainWireBaselineDesignSeedV1(anchor, anchor)).toEqual(anchor);
+    const offLattice = applyMainWireBaselineCalibrationParametersV1(anchor, [
+      { parameterId: "myocardium.common-ventricular-active-tension-scale", value: 1.235 },
+    ]);
+    expect(() => mainWireBaselineDesignSeedV1(anchor, offLattice)).toThrow(/release lattice/);
   });
 
   it("does not trade a failed safety gate for a better pressure/flow score", async () => {

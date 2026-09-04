@@ -11,10 +11,9 @@ import { evaluateMainWireStandard70BaselineCalibrationCandidateV1,
 import { MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 as policy,
   scoreMainWireBaselineOperatingPointV1, mainWireBaselineDesignBetterV1,
   mainWireBaselineDesignNeighborsV1,
+  mainWireBaselineDesignSeedV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
-import { applyMainWireBaselineCalibrationParametersV1,
-  readMainWireBaselineCalibrationParameterV1,
-  type MainWireBaselineCalibrationCandidateInputsV1 } from
+import type { MainWireBaselineCalibrationCandidateInputsV1 } from
   "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 } from
   "@/domain/model/MainWireStandardIdentityV1";
@@ -61,14 +60,9 @@ if (values.worker) {
   }
   if (values["seed-request"] && values["seed-evaluation"]) {
     const request = JSON.parse(await readFile(values["seed-request"], "utf8")) as MainWireBaselineCalibrationCandidateInputsV1;
-    seed = applyMainWireBaselineCalibrationParametersV1(anchor, policy.coordinates.map((coordinate) => {
-      const value = readMainWireBaselineCalibrationParameterV1(request, coordinate.parameterId);
-      if (Math.abs(value - readMainWireBaselineCalibrationParameterV1(anchor, coordinate.parameterId)) > coordinate.radius + 1e-8) {
-        throw new Error("seed exceeds the fixed design radius");
-      }
-      return { parameterId: coordinate.parameterId, value };
-    }));
-    const source = JSON.parse(await readFile(values["seed-evaluation"], "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
+    seed = mainWireBaselineDesignSeedV1(anchor, request);
+    const rawSource = JSON.parse(await readFile(values["seed-evaluation"], "utf8"));
+    const source = (rawSource.evaluation ?? rawSource) as MainWireStandard70BaselineCalibrationEvaluationV1;
     if (source.status !== "accepted") throw new Error("seed requires an exact candidate checkpoint");
     // The prior observations are never scored or trusted. Exact restore binds
     // all frozen inputs, then independently re-establishes periodic closure.

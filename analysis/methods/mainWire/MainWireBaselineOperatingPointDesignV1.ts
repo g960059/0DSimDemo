@@ -2,6 +2,7 @@ import {
   applyMainWireBaselineCalibrationParametersV1,
   readMainWireBaselineCalibrationParameterV1,
   mainWireBaselineCalibrationParameterV1,
+  mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1,
   type MainWireBaselineCalibrationCandidateInputsV1,
   type MainWireBaselineCalibrationParameterIdV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
@@ -90,6 +91,23 @@ export function mainWireBaselineDesignQualificationPassedV1(
 ): boolean {
   return scoreMainWireBaselineOperatingPointV1(evaluation).feasible
     && (!reserveRequired || reserveStatus === "passed");
+}
+
+export function mainWireBaselineDesignSeedV1(
+  anchor: MainWireBaselineCalibrationCandidateInputsV1,
+  requested: MainWireBaselineCalibrationCandidateInputsV1,
+): MainWireBaselineCalibrationCandidateInputsV1 {
+  return applyMainWireBaselineCalibrationParametersV1(anchor,
+    MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1.coordinates.map((coordinate) => {
+      const value = readMainWireBaselineCalibrationParameterV1(requested, coordinate.parameterId);
+      if (!mainWireBaselineCalibrationParameterIsOnReleaseLatticeV1(coordinate.parameterId, value)) {
+        throw new Error("design seed is outside the release lattice or parameter domain");
+      }
+      if (Math.abs(value - readMainWireBaselineCalibrationParameterV1(anchor, coordinate.parameterId)) > coordinate.radius + 1e-8) {
+        throw new Error("design seed exceeds the fixed design radius");
+      }
+      return { parameterId: coordinate.parameterId, value };
+    }));
 }
 
 export function mainWireBaselineDesignNeighborsV1(
