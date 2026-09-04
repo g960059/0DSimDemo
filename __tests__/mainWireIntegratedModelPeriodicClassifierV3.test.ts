@@ -73,6 +73,60 @@ describe("integrated Main V3 periodic classifier", () => {
       classifyMainWireIntegratedModelPeriodicityV3(mixedProtocol, OPTIONS),
     ).toThrow(/different protocols/);
   });
+
+  it.each([3, 5].flatMap((consecutiveCycles) => [
+    "late-p1", "late-p2", "not-converged",
+    "bad-protocol", "bad-p2-link", "bad-reference-scale",
+  ].map((scenario) => ({ consecutiveCycles, scenario }))))(
+    "preserves classification and rejection with bounded history: $consecutiveCycles/$scenario",
+    ({ consecutiveCycles, scenario }) => {
+      const options = { ...OPTIONS, consecutiveCycles };
+      const full: MainWireIntegratedModelPeriodicCycleObservationV3[] = [];
+      const bounded: MainWireIntegratedModelPeriodicCycleObservationV3[] = [];
+      const outcome = (series: readonly MainWireIntegratedModelPeriodicCycleObservationV3[]) => {
+        try {
+          return ["result", classifyMainWireIntegratedModelPeriodicityV3(series, options)] as const;
+        } catch (error) {
+          return ["error", error instanceof Error ? error.message : String(error)] as const;
+        }
+      };
+      let terminalStatus = "not-converged";
+      let terminalCycle = 0;
+      for (let cycle = 1; cycle <= 40; cycle += 1) {
+        const late = cycle > 35;
+        let observation = observationSeries(cycle, cycle,
+          late && scenario === "late-p1" ? 0 : late && scenario === "late-p2" ? 0.01 : 0.1,
+          late && scenario === "late-p2" ? 0 : 0.1,
+        )[0]!;
+        if (cycle === 12 && scenario === "bad-protocol") {
+          observation = { ...observation, protocolIdentityHash: "b".repeat(64) };
+        } else if (cycle === 12 && scenario === "bad-p2-link") {
+          const period2 = observation.period2!;
+          observation = { ...observation, period2: { ...period2, provenance: {
+            ...period2.provenance, referenceRevision: period2.provenance.referenceRevision + 1,
+          } } };
+        } else if (cycle === 12 && scenario === "bad-reference-scale") {
+          observation = { ...observation, period1: {
+            ...observation.period1, referenceScaleSetId: "fixture-drift",
+          } };
+        }
+        full.push(observation);
+        bounded.push(observation);
+        const expected = outcome(full);
+        expect(outcome(bounded)).toEqual(expected);
+        // Match the candidate runner: trim only after validating this prefix.
+        if (bounded.length > consecutiveCycles) bounded.shift();
+        terminalCycle = cycle;
+        terminalStatus = expected[0] === "error" ? "rejected" : expected[1].status;
+        if (terminalStatus !== "not-converged") break;
+      }
+      expect(terminalStatus).toBe(scenario.startsWith("bad-") ? "rejected"
+        : scenario === "late-p1" ? "period1-converged"
+        : scenario === "late-p2" ? "period2-suspect" : "not-converged");
+      expect(terminalCycle).toBe(scenario.startsWith("bad-") ? 12
+        : scenario === "not-converged" ? 40 : 35 + consecutiveCycles);
+    },
+  );
 });
 
 function observationSeries(
