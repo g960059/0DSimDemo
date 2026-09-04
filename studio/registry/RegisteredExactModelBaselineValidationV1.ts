@@ -27,6 +27,7 @@ import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
+import { MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 
 const ROUNDED_EJECTION_BASELINE_VALIDATION_V1 =
   validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
@@ -65,4 +66,24 @@ export function resolveRegisteredExactModelBaselineValidationV1(
   }
   return fixture === studioCanonicalJsonStringify(descriptor.defaultFixture)
     ? ORIGINAL_ALGEBRAIC_PULMONARY_ROOT_BASELINE_VALIDATION_V1 : null;
+}
+
+/** The report's admitted policy, not the current app policy, owns its meaning. */
+export function registeredBaselinePressureRatePresentationV1(
+  report: NonNullable<ReturnType<typeof resolveRegisteredExactModelBaselineValidationV1>>,
+  side: "left" | "right",
+) {
+  const referenceOnly = "assessment" in report
+    && report.assessment?.policyId === MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID;
+  const failed = report.checks.some((check) =>
+    [`${side}-ventricle.maximum-dpdt`, `${side}-ventricle.minimum-dpdt`].includes(check.checkId)
+    && check.status === "failed");
+  return Object.freeze({
+    status: referenceOnly ? (failed ? "warning" as const : "reference" as const) : undefined,
+    detailKey: side === "left"
+      ? referenceOnly ? "workbench.editor.simulationInfo.baselineLvDpDtDetail" as const
+        : "workbench.editor.simulationInfo.baselineHistoricalLvDpDtDetail" as const
+      : referenceOnly ? "workbench.editor.simulationInfo.baselineRvDpDtDetail" as const
+        : "workbench.editor.simulationInfo.baselineHistoricalRvDpDtDetail" as const,
+  });
 }

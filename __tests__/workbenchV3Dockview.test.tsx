@@ -90,6 +90,16 @@ import {
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import {
+  registeredBaselinePressureRatePresentationV1,
+  resolveRegisteredExactModelBaselineValidationV1,
+} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+} from "@/domain/model/MainWireStandardIdentityV1";
+import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
+import originalStandard70Descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+import {
   DEFAULT_WORKBENCH_SCENARIO_MANAGER_STRINGS_V3,
   WorkbenchScenarioManagerV3,
   suggestWorkbenchScenarioIdV3,
@@ -815,6 +825,33 @@ describe("V3 Dockview Workbench", () => {
     expect(markup).toContain("max-w-[65%]");
     expect(markup).toContain("text-amber-400");
     expect(markup).toContain("Reference warning, not numerical failure");
+  });
+
+  it.each([
+    [MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1, undefined],
+    [MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1, undefined],
+    [selectedLaunchBaseline.modelId, originalStandard70Descriptor.defaultFixture],
+  ])("preserves the admitted historical pressure-rate presentation for %s", (modelId, fixture) => {
+    const report = resolveRegisteredExactModelBaselineValidationV1(modelId, fixture);
+    expect(report).not.toBeNull();
+    for (const side of ["left", "right"] as const) {
+      const presentation = registeredBaselinePressureRatePresentationV1(report!, side);
+      expect(presentation.status).toBeUndefined();
+      expect(presentation.detailKey).toContain("baselineHistorical");
+    }
+  });
+
+  it("uses reference and warning presentation only for the selected reference-policy assessment", () => {
+    const report = resolveRegisteredExactModelBaselineValidationV1(
+      selectedLaunchBaseline.modelId, selectedLaunchBaseline.capture.fixture,
+    );
+    expect(report).not.toBeNull();
+    expect(registeredBaselinePressureRatePresentationV1(report!, "left")).toEqual({
+      status: "warning", detailKey: "workbench.editor.simulationInfo.baselineLvDpDtDetail",
+    });
+    expect(registeredBaselinePressureRatePresentationV1(report!, "right")).toEqual({
+      status: "reference", detailKey: "workbench.editor.simulationInfo.baselineRvDpDtDetail",
+    });
   });
 
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {

@@ -319,6 +319,8 @@
         "baselinePulmonaryPressureDetail": "completed beatのPAP max/min、mean RAP（CVP）、mean LAP（PCWP* surrogate）。必須範囲：{{range}}。*wedge catheter自体はモデル化していません。",
         "baselineLvDpDtDetail": "左室内圧の計算ステップ間変化率。参考範囲：{{range}}。暫定設計値であり、範囲外だけでは不適切とは判定しません。HR・負荷・時間刻みに依存します。",
         "baselineRvDpDtDetail": "右室内圧の計算ステップ間変化率。参考範囲：{{range}}。暫定設計値であり、範囲外だけでは不適切とは判定しません。TR Dopplerによる推定値とは異なります。",
+        "baselineHistoricalLvDpDtDetail": "左室内圧の計算ステップ間変化率。このbaselineの旧検証で用いた必須範囲：{{range}}。当時の構築判断を示し、普遍的な臨床正常範囲ではありません。",
+        "baselineHistoricalRvDpDtDetail": "右室内圧の計算ステップ間変化率。このbaselineの旧検証で用いた必須範囲：{{range}}。当時の構築判断を示し、普遍的な臨床正常範囲やTR Doppler推定値ではありません。",
         "baselineIctIrtDetail": "波形解析による必須範囲：{{range}}",
         "baselinePreloadReserve": "前負荷予備能",
         "baselineBidirectionalPassed": "低・高容量側とも合格",

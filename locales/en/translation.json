@@ -319,6 +319,8 @@
         "baselinePulmonaryPressureDetail": "Completed-beat PAP maximum/minimum, mean RAP (CVP), and mean LAP (PCWP* surrogate). Required range: {{range}}. *A wedged catheter is not modeled.",
         "baselineLvDpDtDetail": "Accepted-step intracavitary LVP rate. Reference corridor: {{range}}. These provisional construction bounds do not independently establish physiological invalidity; the result depends on heart rate, load, and time step.",
         "baselineRvDpDtDetail": "Accepted-step intracavitary RVP rate. Reference corridor: {{range}}. These provisional construction bounds do not independently establish physiological invalidity and are not equivalent to TR Doppler estimates.",
+        "baselineHistoricalLvDpDtDetail": "Accepted-step intracavitary LVP rate. Required corridor in this historical baseline assessment: {{range}}. This preserves the original construction decision, not a universal clinical normal range.",
+        "baselineHistoricalRvDpDtDetail": "Accepted-step intracavitary RVP rate. Required corridor in this historical baseline assessment: {{range}}. This preserves the original construction decision, not a universal clinical normal range or TR Doppler estimate.",
         "baselineIctIrtDetail": "Required waveform-analysis range: {{range}}",
         "baselinePreloadReserve": "Preload reserve",
         "baselineBidirectionalPassed": "Passed at low and high volume",
