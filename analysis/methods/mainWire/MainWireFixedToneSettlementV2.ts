@@ -4,6 +4,9 @@ export const MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 = Object.freeze({
   consecutiveComparisonCount: 3,
   maximumRedistributedVolumePerBeatMl: 0.05,
   maximumNormalizedOutputDelta: 0.1,
+  // Instantaneous ED/ES pressure readouts retain the admitted 2-ms sampling
+  // tolerance. Their discretization floor is not a slow-reservoir transient.
+  maximumNormalizedLandmarkDelta: 1,
   maximumCompleteBeatCount: 50,
   maximumMeasurementDurationSec: 54,
   maximumObservationGapSec: 0.010001,
@@ -14,6 +17,7 @@ export type MainWireFixedToneSettlementEvidenceV2 = Readonly<{
   completedBeatCount: number;
   maximumRecentRedistributedVolumeMl: number;
   maximumRecentNormalizedOutputDelta: number;
+  maximumRecentNormalizedLandmarkDelta: number;
   measurementDurationSec: number;
 }>;
 

@@ -1112,7 +1112,9 @@ function settleFormalPressureVolumeSourceV3(
       beats.length >= MINIMUM_COMPLETE_BEAT_COUNT_V3 &&
       period1ConvergedV3(beats, formalBeatPairClosureScoreV3)
       && (!volumeClosure || (volumeClosure.converged()
-        && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta))
+        && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta
+        && fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3)
+          <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta))
     ) {
       return Object.freeze({ status: "settled" as const, branch });
     }
@@ -1857,7 +1859,9 @@ async function measureFormalPressureVolumeBranchV3(
       beats.push(completed);
       if (volumeClosure) {
         locallyConverged = volumeClosure.converged()
-          && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta;
+          && fixedToneRecentOutputScoreV2(beats) <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedOutputDelta
+          && fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3)
+            <= MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.maximumNormalizedLandmarkDelta;
         if (locallyConverged && pressureVolumeBeats.length > 0) break;
         if (period2DetectedV3(beats, formalBeatPairClosureScoreV3)) {
           return rejectedV3("fixed-tone PVA branch reached a period-2 boundary");
@@ -1947,6 +1951,7 @@ async function measureFormalPressureVolumeBranchV3(
         completedBeatCount: beats.length,
         maximumRecentRedistributedVolumeMl: volumeClosure.maximumRecentRedistributedVolumeMl(),
         maximumRecentNormalizedOutputDelta: fixedToneRecentOutputScoreV2(beats),
+        maximumRecentNormalizedLandmarkDelta: fixedToneRecentOutputScoreV2(beats, formalBeatPairClosureScoreV3),
         measurementDurationSec: branch.currentAcceptedState().acceptedTimeSec - originTimeSec,
       } } : {}),
       pair: Object.freeze({
@@ -2155,11 +2160,12 @@ function recordFixedToneReservoirVolumesV2(
   } }, observation.completedBeatMetrics?.endTimeSec ?? null);
 }
 
-function fixedToneRecentOutputScoreV2(beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[]): number {
+function fixedToneRecentOutputScoreV2(beats: readonly MainWireIntegratedModelCompletedBeatMetricsV3[],
+  score: BeatPairClosureScoreV3 = beatPairClosureScoreV3): number {
   const count = MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2.consecutiveComparisonCount;
   if (beats.length < count + 1) return Number.POSITIVE_INFINITY;
   const suffix = beats.slice(-(count + 1));
-  return Math.max(...suffix.slice(1).map((beat, index) => formalBeatPairClosureScoreV3(suffix[index]!, beat)));
+  return Math.max(...suffix.slice(1).map((beat, index) => score(suffix[index]!, beat)));
 }
 
 function period1ConvergedV3(

@@ -54,6 +54,8 @@ function snapshot(observation: Observation) {
       meanAoMmHg: beat.meanAorticPressureMmHg,
       lvEd: beat.leftVentricularPressureVolumeLandmarks.endDiastolic,
       rvEd: beat.rightVentricularPressureVolumeLandmarks.endDiastolic,
+      lvEs: beat.leftVentricularPressureVolumeLandmarks.endSystolic,
+      rvEs: beat.rightVentricularPressureVolumeLandmarks.endSystolic,
     },
   };
 }
