@@ -1,3 +1,7 @@
+import {
+  MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
+  MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1,
+} from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import {
@@ -170,15 +174,10 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 17;
+    revision: 18;
     changeReason: string;
   }>;
 }>;
-
-const currentPolicyRevision = normalReferenceEvidenceV1.policyRevisions.at(-1);
-if (currentPolicyRevision === undefined) {
-  throw new Error("baseline conditioning requires a construction-policy revision");
-}
 
 export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
   MainWireBaselineConditioningStudySourceV1 = Object.freeze({
@@ -199,7 +198,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
         MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1,
     }),
     evidenceRegistryId: normalReferenceEvidenceV1.registryId,
-    constructionPolicyRevisionId: currentPolicyRevision.revisionId,
+    constructionPolicyRevisionId: MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
     parameterPolicyId:
       MAIN_WIRE_BASELINE_CALIBRATION_PARAMETER_POLICY_V1_ID,
     primaryCoordinateIds: Object.freeze([
@@ -263,7 +262,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       ),
     ]),
     observationGroupIds: Object.freeze(
-      normalReferenceEvidenceV1.checkGroups.map(({ groupId }) => groupId),
+      MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.map(({ groupId }) => groupId),
     ),
     positiveControls: Object.freeze([
       Object.freeze({
@@ -392,9 +391,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 17 as const,
+      revision: 18 as const,
       changeReason:
-        "Bind the active conditioning study to the Standard70 exact model, baseline, evaluator, and mandatory right-heart safety sentinels.",
+        "Bind newly generated conditioning evidence to the V2 evaluator and evidence-qualified gate roles; retain reference-warning measurements without recasting historical policy records.",
     }),
   });
 
@@ -566,7 +565,7 @@ export function lintMainWireBaselineConditioningStudyV1(
       ));
     }
   }
-  const evidenceGroupIds = new Set(normalReferenceEvidenceV1.checkGroups
+  const evidenceGroupIds = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1
     .map(({ groupId }) => groupId));
   for (const [index, groupId] of source.observationGroupIds.entries()) {
     if (!evidenceGroupIds.has(groupId)) {
@@ -577,7 +576,7 @@ export function lintMainWireBaselineConditioningStudyV1(
       ));
     }
   }
-  const observedCheckIds = new Set(normalReferenceEvidenceV1.checkGroups
+  const observedCheckIds = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1
     .filter(({ groupId }) => source.observationGroupIds.includes(groupId))
     .flatMap(({ checkIds }) => checkIds));
   const conditionById = new Map(source.conditions.map((condition) =>
@@ -693,11 +692,11 @@ export function lintMainWireBaselineConditioningStudyV1(
       ));
     }
   }
-  if (source.constructionPolicyRevisionId !== currentPolicyRevision.revisionId) {
+  if (source.constructionPolicyRevisionId !== MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID) {
     issues.push(issueV1(
       "policy-revision-stale",
       "constructionPolicyRevisionId",
-      "study does not bind the current construction policy revision",
+      "study does not bind the current evidence-qualified evaluation policy",
     ));
   }
   if (

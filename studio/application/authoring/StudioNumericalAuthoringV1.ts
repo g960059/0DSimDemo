@@ -93,6 +93,7 @@ export type StudioAuthoringExactModelPinV1 = Readonly<{
 export type StudioAuthoringResolvedNumericalModelV1 = Readonly<{
   contract: ModelContractV2;
   defaultFixture: StudioJsonObjectV2;
+  defaultCheckpoint?: ScenarioCaptureV2["checkpoint"];
   periodicPvaSupported: boolean;
   runtime: ResolvedExactModelRuntimeV2;
   surfaceReleaseId: string;
@@ -458,7 +459,7 @@ async function prepareExperimentCaptureV1(
     return Object.freeze({
       spec: scenario,
       fixture: source?.capture.fixture ?? resolved.defaultFixture,
-      checkpoint: source?.capture.checkpoint,
+      checkpoint: source === null ? resolved.defaultCheckpoint : source.capture.checkpoint,
     });
   });
   const surface = models.prepareSurface({

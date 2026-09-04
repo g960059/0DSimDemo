@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
@@ -85,11 +86,11 @@ export async function compileMainWireBaselineCalibrationStagePolicyV1():
   Promise<CompiledMainWireBaselineCalibrationStagePolicyV1> {
   const study = await compileMainWireBaselineConditioningStudyV1();
   const policy = MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1;
-  const evidenceGroupIds = normalReferenceEvidenceV1.checkGroups.map(
+  const evidenceGroupIds = MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.map(
     ({ groupId }) => groupId,
   );
   const observationInventory = Object.freeze(
-    normalReferenceEvidenceV1.checkGroups.map(({ groupId, checkIds }) =>
+    MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.map(({ groupId, checkIds }) =>
       Object.freeze({
         groupId,
         checkIds: Object.freeze([...checkIds]),

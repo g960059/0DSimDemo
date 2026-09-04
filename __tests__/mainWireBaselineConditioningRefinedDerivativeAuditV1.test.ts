@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { describe, expect, it } from "vitest";
 
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
@@ -142,7 +143,7 @@ describe("direct refined-dt conditioning derivatives", () => {
       qualificationGatesRemoved: false,
       rightHeartOrPulmonaryFitClaimed: false,
     }));
-    const observationInventory = normalReferenceEvidenceV1.checkGroups.map(
+    const observationInventory = MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.map(
       ({ groupId, checkIds }) => ({ groupId, checkIds }),
     );
     expect(stageAudit.stagePolicy.observationInventoryIdentitySha256).toBe(

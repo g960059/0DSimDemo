@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import {
@@ -774,14 +775,14 @@ function checksForGroupsV1(
   groupIds: readonly string[],
 ): readonly Readonly<{ groupId: string; checkId: string }>[] {
   const selected = new Set(groupIds);
-  return Object.freeze(normalReferenceEvidenceV1.checkGroups
+  return Object.freeze(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1
     .filter(({ groupId }) => selected.has(groupId))
     .flatMap(({ groupId, checkIds }) => checkIds.map((checkId) =>
       Object.freeze({ groupId, checkId }))));
 }
 
 function groupByCheckIdV1(): ReadonlyMap<string, string> {
-  return new Map(normalReferenceEvidenceV1.checkGroups.flatMap(
+  return new Map(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(
     ({ groupId, checkIds }) => checkIds.map((checkId) =>
       [checkId, groupId] as const),
   ));

@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { describe, expect, it } from "vitest";
 
 import settledBaselineCheckpointJson from
@@ -22,6 +23,7 @@ import {
   buildMainWireBaselineConditioningAuditV1,
   buildMainWireBaselineConditioningSpectrumV1,
   buildMainWireBaselineConditioningTasksV1,
+  assertMainWireBaselineConditioningTaskResultV1,
   evaluateMainWireBaselineConditioningTaskV1,
   resolveMainWireBaselineConditioningTaskV1,
   verifyMainWireBaselineConditioningAuditV1,
@@ -30,7 +32,12 @@ import {
 } from "@/analysis/methods/mainWire/MainWireBaselineConditioningAuditV1";
 import {
   MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1,
+  compileMainWireBaselineConditioningStudyV1,
+  lintMainWireBaselineConditioningStudyV1,
 } from "@/analysis/policies/mainWire/MainWireBaselineConditioningStudyV1";
+import {
+  buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1,
+} from "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
 
 const coordinates = [
   "hemodynamics.total-blood-volume-ml",
@@ -38,6 +45,54 @@ const coordinates = [
 ] as const;
 
 describe("baseline conditioning spectrum", () => {
+  it("binds new study evidence to evaluation roles without relabelling a historical numerical policy", async () => {
+    const study = MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1;
+    const currentPolicy = await buildMainWireStandard70BaselineCalibrationConstructionPolicyIdentityV1();
+    expect(study.constructionPolicyRevisionId)
+      .toBe(normalReferenceEvidenceV1.evaluationPolicyId);
+    expect(study.constructionPolicyRevisionId)
+      .toBe(currentPolicy.constructionPolicyRevisionId);
+    expect(study.protocolRevision.revision).toBe(18);
+    const historicalPolicy = normalReferenceEvidenceV1.policyRevisions.at(-1)!;
+    const stale = { ...study, constructionPolicyRevisionId: historicalPolicy.revisionId };
+    expect(lintMainWireBaselineConditioningStudyV1(stale)).toContainEqual({
+      code: "policy-revision-stale",
+      path: "constructionPolicyRevisionId",
+      message: expect.any(String),
+    });
+    await expect(compileMainWireBaselineConditioningStudyV1(stale)).rejects.toThrow();
+    expect(stale.constructionPolicyRevisionId).toBe(historicalPolicy.revisionId);
+  });
+
+  it("retains finite pressure-rate reference warnings without failing conditioning admission", async () => {
+    const audit = await syntheticCompletedAuditV1();
+    const source = audit.evaluations[0]!;
+    const warningValues = {
+      "left-ventricle.maximum-dpdt": 2502,
+      "left-ventricle.minimum-dpdt": -1864,
+    };
+    const result = {
+      ...source,
+      checks: source.checks.map((check) => check.checkId in warningValues
+        ? { ...check, actual: warningValues[check.checkId as keyof typeof warningValues],
+          status: "failed" as const }
+        : check),
+    };
+    expect(() => assertMainWireBaselineConditioningTaskResultV1(result)).not.toThrow();
+    expect(result.checks.filter(({ status }) => status === "failed")).toHaveLength(2);
+    expect(result.failedObjectiveCheckIds).toEqual([]);
+    for (const actual of [NaN, Infinity, 0, -1]) {
+      const invalid = { ...result, checks: result.checks.map((check) =>
+        check.checkId === "left-ventricle.maximum-dpdt" ? { ...check, actual } : check) };
+      expect(() => assertMainWireBaselineConditioningTaskResultV1(invalid)).toThrow();
+    }
+    const wronglyRejected = { ...result, constructionGateStatus: "failed",
+      objectiveGateStatus: "failed", failedConstructionCheckIds: Object.keys(warningValues),
+      failedObjectiveCheckIds: Object.keys(warningValues) };
+    expect(() => assertMainWireBaselineConditioningTaskResultV1(wronglyRejected))
+      .toThrow(/gates are inconsistent/);
+  });
+
   it("uses observed step-halving perturbation as a practical rank tolerance", () => {
     const spectrum = buildMainWireBaselineConditioningSpectrumV1([
       sensitivityV1("aortic-valve.mean-gradient", coordinates[0], 3, 3),
@@ -248,7 +303,7 @@ describe("baseline conditioning spectrum", () => {
 });
 
 async function syntheticCompletedAuditV1() {
-  const objectiveIds = new Set(normalReferenceEvidenceV1.checkGroups.flatMap(
+  const objectiveIds = new Set(MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(
     ({ checkIds }) => checkIds,
   ));
   const objectiveChecks = standard70ValidationJson.checks.filter(({ checkId }) =>
