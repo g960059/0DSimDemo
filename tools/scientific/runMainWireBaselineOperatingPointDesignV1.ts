@@ -57,6 +57,7 @@ if (values.worker) {
     }
     const startedAt = performance.now();
     const result: ReserveResult = { reserve: null, failure: null, wallTimeMs: 0,
+      sourceEvaluationExecutionTier: executionTier,
       executionTier: "full-invariant", sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
       candidateIdentitySha256: await reserveCandidateIdentityV1(input as MainWireBaselineCalibrationCandidateInputsV1, evaluation.nominalDtSec),
       reservePolicyIdentity: await sha256CanonicalJsonHex(designReservePolicyV1) };
@@ -241,10 +242,12 @@ if (values.worker) {
           sourceCheckpointSha256: finalist.evaluation.exactResult.checkpoint.checkpointSha256,
           candidateIdentitySha256: await reserveCandidateIdentityV1(finalist.inputs, finalist.evaluation.nominalDtSec),
           reservePolicyIdentity,
+          sourceGlobalTbvMl: finalist.inputs.hemodynamicResearchInputs.totalBloodVolumeMl,
         });
         // This is already full formal-settlement construction evidence. Do not
         // spend another full protocol rerunning it or call reuse independent confirmation.
         await writeFile(path, JSON.stringify({ ...expected, qualified: true, executionTier: "full-invariant",
+          sourceEvaluationExecutionTier: finalist.reserve.sourceEvaluationExecutionTier,
           reusedMeasuredReserve: true, sourceReservePath: `${finalist.index}.reserve.json`, reserve,
           baselineAdopted: false }), { flag: "wx" });
       } else {
@@ -252,9 +255,12 @@ if (values.worker) {
           "--request", expected.sourceRequestPath, "--evaluation", expected.sourceEvaluationPath,
           "--mode", mode, "--output", path, "--integrity-tier", "full-invariant"], true);
       }
-      const qualified = validateDesignQualificationResultV1(JSON.parse(await readFile(path, "utf8")), expected);
+      const result = JSON.parse(await readFile(path, "utf8"));
+      const qualified = validateDesignQualificationResultV1(result, expected);
       process.stderr.write(`[qualification] ${finalist.index}/${mode}: ${qualified}\n`);
-      return { mode, qualified, resultPath: relativePath };
+      return { mode, qualified, resultPath: relativePath,
+        evaluationStatus: result.evaluation?.status ?? null,
+        reusedMeasuredReserve: result.reusedMeasuredReserve === true };
     }
     const modes = [await qualify("refined")];
     if (modes[0]!.qualified) {

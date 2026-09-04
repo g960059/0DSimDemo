@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { designQualificationPathV1, validateDesignQualificationResultV1, qualifyMeasuredDesignReserveV1,
-  reserveCandidateIdentityV1, mapDesignInOrderV1, type DesignReserveResultV1 } from
+  reserveCandidateIdentityV1, mapDesignInOrderV1, designRateInitializationV1, type DesignReserveResultV1 } from
   "@/tools/scientific/mainWireBaselineDesignExecutionV1";
 import {
   scoreMainWireBaselineOperatingPointV1,
@@ -367,17 +367,27 @@ describe("bounded baseline operating-point design", () => {
   it("reuses only full measured reserve bound to the candidate, checkpoint, and policy", async () => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const expected = { sourceCheckpointSha256: "a".repeat(64),
-      candidateIdentitySha256: await reserveCandidateIdentityV1(anchor, 0.002), reservePolicyIdentity: "b".repeat(64) };
+      candidateIdentitySha256: await reserveCandidateIdentityV1(anchor, 0.002), reservePolicyIdentity: "b".repeat(64),
+      sourceGlobalTbvMl: anchor.hemodynamicResearchInputs.totalBloodVolumeMl };
     const result: DesignReserveResultV1 = { ...expected, executionTier: "full-invariant",
+      sourceEvaluationExecutionTier: "hot-path-lean",
       reserve: reserveFixtureV1(), failure: null, wallTimeMs: 1 };
     expect(qualifyMeasuredDesignReserveV1(result, expected).status).toBe("passed");
-    for (const key of Object.keys(expected) as (keyof typeof expected)[]) {
+    for (const key of ["sourceCheckpointSha256", "candidateIdentitySha256", "reservePolicyIdentity"] as const) {
       expect(() => qualifyMeasuredDesignReserveV1({ ...result, [key]: "f".repeat(64) }, expected)).toThrow(/incompatible/);
     }
     for (const invalid of [{ ...result, reserve: null }, { ...result, failure: "unresolved" },
-      { ...result, executionTier: "hot-path-lean" as "full-invariant" }]) {
+      { ...result, executionTier: "hot-path-lean" as "full-invariant" },
+      { ...result, sourceEvaluationExecutionTier: "unknown" as "full-invariant" }]) {
       expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/missing, failed, or incompatible/);
     }
+    for (const override of [{ protocolId: "other" }, { sourceGlobalTbvMl: 5000 },
+      { hypovolemicGlobalTbvScale: 0.9 }, { hypervolemicGlobalTbvScale: 1.1 },
+      { hypovolemicGlobalTbvMl: 4450 }, { hypervolemicGlobalTbvMl: NaN }]) {
+      const invalid = { ...result, reserve: { ...result.reserve!, ...override } } as DesignReserveResultV1;
+      expect(() => qualifyMeasuredDesignReserveV1(invalid, expected)).toThrow(/incompatible/);
+    }
+    expect(() => qualifyMeasuredDesignReserveV1(result, { ...expected, sourceGlobalTbvMl: NaN })).toThrow(/incompatible/);
     const failed = reserveFixtureV1();
     failed.left.hypervolemic = { ...failed.left.hypervolemic, directionalCardiacOutputChangeFraction01: 0.025 };
     expect(() => qualifyMeasuredDesignReserveV1({ ...result, reserve: failed }, expected)).toThrow(/Standard70/);
@@ -386,6 +396,19 @@ describe("bounded baseline operating-point design", () => {
     expect(await reserveCandidateIdentityV1(anchor, 0.001)).not.toBe(expected.candidateIdentitySha256);
     expect(await reserveCandidateIdentityV1({ ...anchor, hemodynamicResearchInputs: {
       ...anchor.hemodynamicResearchInputs, totalBloodVolumeMl: 4950 } }, 0.002)).not.toBe(expected.candidateIdentitySha256);
+  });
+
+  it("uses the official same-rate checkpoint without relabelling a different clock", () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    // Only initialization routing is under test; exact restore validates the actual checkpoint.
+    const checkpoint = {} as Parameters<typeof designRateInitializationV1>[2];
+    expect(designRateInitializationV1(60, anchor, checkpoint)).toEqual({
+      kind: "standard70-parameter-continuation", sourceCheckpoint: checkpoint,
+      sourceHemodynamicResearchInputs: anchor.hemodynamicResearchInputs,
+      sourceMechanismResearchInputs: anchor.mechanismResearchInputs,
+      sourceVentricularContractilityScale: anchor.ventricularContractilityScale,
+    });
+    expect(designRateInitializationV1(70, anchor, checkpoint)).toEqual({ kind: "cold" });
   });
 
   it("completes a finalist artifact handoff without overwriting its search reserve", async () => {
@@ -446,7 +469,7 @@ function reserveFixtureV1() {
     endpointFillingPressureMmHg: 12, endpointCardiacOutputLPerMin: 5.3,
     endpointEndDiastolicVolumeMl: 154, endpointEndDiastolicTransmuralPressureMmHg: 10 } };
   return { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
-    sourceGlobalTbvMl: 5000, hypovolemicGlobalTbvMl: 4400, hypervolemicGlobalTbvMl: 5600,
+    sourceGlobalTbvMl: 4900, hypovolemicGlobalTbvMl: 4900 * 0.88, hypervolemicGlobalTbvMl: 4900 * 1.12,
     hypovolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale,
     hypervolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale,
     left: structuredClone(side), right: structuredClone(side) } satisfies MainWireIntegratedModelFormalPreloadReserveMeasurementV1;

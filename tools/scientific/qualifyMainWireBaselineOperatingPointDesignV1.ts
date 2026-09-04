@@ -15,13 +15,23 @@ import { assertMainWireStandard70PreloadReservePassedV1 } from
   "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
+import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { designRateInitializationV1 } from "./mainWireBaselineDesignExecutionV1";
+import type { MainWireIntegratedModelStandard70CheckpointV1 } from
+  "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
+import checkpoint from
+  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-settled-baseline-checkpoint.json";
 
 const { values } = parseArgs({ options: { request: { type: "string" },
   "integrity-tier": { type: "string", default: "full-invariant" },
+  "rate-initialization": { type: "string", default: "cold" },
   evaluation: { type: "string" }, mode: { type: "string" }, output: { type: "string" } } });
 if (!values.request || !values.evaluation || !values.output
   || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(values.mode ?? "")) {
   throw new Error("--request FILE --evaluation FILE --mode cold|refined|reserve|hr60|hr70|afterload --output NEW_FILE");
+}
+if (!["cold", "same-clock-checkpoint"].includes(values["rate-initialization"]!)) {
+  throw new Error("--rate-initialization must be cold|same-clock-checkpoint");
 }
 if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
   throw new Error("qualification requires a clean committed worktree");
@@ -49,9 +59,13 @@ const hemodynamics = { ...request.hemodynamicResearchInputs,
 const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1({
   ...request, hemodynamicResearchInputs: hemodynamics,
   nominalDtSec: values.mode === "refined" ? 0.001 : 0.002,
-  // Different pacing periods do not share the same exact cycle boundary.
-  // Qualify a discrete rate condition cold; never relabel a different clock.
-  initialization: ["cold", "hr60", "hr70"].includes(values.mode!) ? { kind: "cold" }
+  // Never relabel the finalist's different pacing clock. A compatible official
+  // source can screen this rate; the selected baseline still needs its own cold run.
+  initialization: ["hr60", "hr70"].includes(values.mode!) && values["rate-initialization"] === "same-clock-checkpoint"
+    ? designRateInitializationV1(hemodynamics.heartRateBpm,
+      resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs,
+      checkpoint as unknown as MainWireIntegratedModelStandard70CheckpointV1)
+    : ["cold", "hr60", "hr70"].includes(values.mode!) ? { kind: "cold" }
     : values.mode === "afterload"
       ? { kind: "standard70-parameter-continuation", sourceCheckpoint: previous.exactResult.checkpoint,
         sourceHemodynamicResearchInputs: request.hemodynamicResearchInputs,
@@ -77,6 +91,7 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
 }
 const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus);
 await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, reserveExecutionTier, mode: values.mode, qualified,
+  rateInitializationPolicy: values["rate-initialization"], conditionHemodynamicResearchInputs: hemodynamics,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
   wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve,
   baselineAdopted: false }, null, 2), { flag: "wx" });
