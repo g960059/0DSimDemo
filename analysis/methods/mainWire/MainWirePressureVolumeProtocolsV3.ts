@@ -1126,7 +1126,8 @@ function settleFormalPressureVolumeSourceV3(
       : FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3)) break;
   }
   return rejectedV3(
-    "active-controller source did not establish complete-beat period-1 closure",
+    "active-controller source did not establish complete-beat period-1 closure"
+      + (volumeClosure ? ` (beats=${beats.length}, redistributedVolumeMl=${volumeClosure.maximumRecentRedistributedVolumeMl()}, outputScore=${fixedToneRecentOutputScoreV2(beats)})` : ""),
   );
 }
 

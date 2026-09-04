@@ -9,7 +9,7 @@ import {
   measureMainWireIntegratedModelFormalPreloadReserveV2,
   type MainWireIntegratedModelStructuralAnalysisSessionV3 as Session,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
-import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from
+import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2, MainWireFixedToneVolumeClosureV2 } from
   "@/analysis/methods/mainWire/MainWireFixedToneSettlementV2";
 import type { evaluateMainWireStandard70BaselineCalibrationCandidateV1 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineCalibrationEvaluatorV1";
@@ -64,6 +64,7 @@ class ObservedBranch implements Session {
   readonly originTimeSec: number;
   readonly tbvMl: number;
   readonly beats: ReturnType<typeof snapshot>[] = [];
+  readonly volumeClosure = new MainWireFixedToneVolumeClosureV2();
   private lastBeatId: string | null;
   constructor(readonly delegate: Session, readonly branches: ObservedBranch[], readonly parentId: number | null) {
     this.id = branches.length;
@@ -81,6 +82,11 @@ class ObservedBranch implements Session {
   private record(advance: Advance): Advance {
     if (advance.status !== "failed") {
       const beat = advance.observation.completedBeatMetrics;
+      const state = advance.observation.acceptedState;
+      this.volumeClosure.accept({ timeSec: state.acceptedTimeSec,
+        volumesMl: { ...state.coronary.circulation.nodeVolumesMl,
+          ...Object.fromEntries(Object.entries(state.coronary.coronary.volumeMlByNode)
+            .map(([key, value]) => [`coronary.${key}`, value])) } }, beat?.endTimeSec ?? null);
       if (beat !== null && beat.endAtrialCaptureId !== this.lastBeatId) {
         this.beats.push(snapshot(advance.observation));
         this.lastBeatId = beat.endAtrialCaptureId;
@@ -211,9 +217,17 @@ const source = await MainWireIntegratedModelStandard70TypedAuthoritySessionV1.re
 const branches: ObservedBranch[] = [];
 const measure = values.settlement === "v2" ? measureMainWireIntegratedModelFormalPreloadReserveV2
   : measureMainWireIntegratedModelFormalPreloadReserveV1;
-const reserve = await measure(
-  new ObservedBranch(source, branches, null), inputs.hemodynamicResearchInputs,
-);
+let reserve: Awaited<ReturnType<typeof measure>>;
+try {
+  reserve = await measure(new ObservedBranch(source, branches, null), inputs.hemodynamicResearchInputs);
+} catch (error) {
+  await writeFile(resolve(output, "failure.json"), JSON.stringify({ protocol,
+    message: error instanceof Error ? error.message : String(error),
+    branches: branches.map((branch) => ({ id: branch.id, tbvMl: branch.tbvMl, beats: branch.beats,
+      redistributedVolumeMl: branch.volumeClosure.maximumRecentRedistributedVolumeMl(),
+      state: branch.currentAcceptedState() })), baselineAdopted: false }), { flag: "wx" });
+  throw error;
+}
 const originalBranches = branches.map((branch) => ({ id: branch.id, parentId: branch.parentId,
   tbvMl: branch.tbvMl, originTimeSec: branch.originTimeSec,
   endTimeSec: branch.currentAcceptedState().acceptedTimeSec, beats: branch.beats,
