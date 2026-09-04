@@ -1,4 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  scoreMainWireBaselineOperatingPointV1,
+  mainWireBaselineDesignBetterV1,
+  mainWireBaselineDesignNeighborsV1,
+} from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
 
 import {
   buildMainWireBaselineConditioningSyntheticArtifactsV1,
@@ -207,6 +212,50 @@ describe("baseline reference and executable local recovery", () => {
     });
     await expect(runMainWireStandard70BaselineLocalRecoveryV1(request))
       .rejects.toThrow(/observation differs/);
+  });
+});
+
+describe("bounded baseline operating-point design", () => {
+  it("changes only declared coordinates on the release lattice and keeps HR fixed", () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const neighbors = mainWireBaselineDesignNeighborsV1(anchor, anchor, 1);
+    expect(neighbors).toHaveLength(8);
+    for (const point of neighbors) {
+      expect(point.hemodynamicResearchInputs.heartRateBpm).toBe(60);
+      expect(point.hemodynamicResearchInputs.venousTone).toBe(anchor.hemodynamicResearchInputs.venousTone);
+      expect(point.hemodynamicResearchInputs.arterialStiffness).toBe(anchor.hemodynamicResearchInputs.arterialStiffness);
+      expect(point.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall)
+        .toEqual(anchor.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall);
+      expect(point.hemodynamicResearchInputs.totalBloodVolumeMl % 50).toBe(0);
+    }
+    const edge = applyMainWireBaselineCalibrationParametersV1(anchor, [
+      { parameterId: "hemodynamics.total-blood-volume-ml", value: 5200 },
+    ]);
+    expect(mainWireBaselineDesignNeighborsV1(anchor, edge, 1).every((point) =>
+      point.hemodynamicResearchInputs.totalBloodVolumeMl <= 5200)).toBe(true);
+    expect(mainWireBaselineDesignNeighborsV1(anchor, anchor, 0.25).every((point) =>
+      point.hemodynamicResearchInputs.totalBloodVolumeMl % 50 === 0)).toBe(true);
+  });
+
+  it("does not trade a failed safety gate for a better pressure/flow score", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    // This synthetic fixture exercises the ordering, not model physiology.
+    const score = scoreMainWireBaselineOperatingPointV1(good);
+    expect(score.feasible).toBe(true);
+    for (const property of ["constructionGateStatus", "objectiveGateStatus", "safetySentinelStatus"] as const) {
+      const rejected = scoreMainWireBaselineOperatingPointV1({ ...good, [property]: "failed" });
+      expect(rejected.feasible).toBe(false);
+      expect(mainWireBaselineDesignBetterV1(rejected, score)).toBe(false);
+      expect(mainWireBaselineDesignBetterV1(score, rejected)).toBe(true);
+    }
+    const malformed = { ...good, objectiveChecks: good.objectiveChecks.map((check, index) =>
+      index === 0 ? { ...check, actual: NaN } : check) };
+    expect(scoreMainWireBaselineOperatingPointV1(malformed).feasible).toBe(false);
+    expect(mainWireBaselineDesignBetterV1({ ...score, minimumMargin: score.minimumMargin + 0.01 }, score))
+      .toBe(true);
+    expect(mainWireBaselineDesignBetterV1({ ...score, minimumMargin: score.minimumMargin + 0.00001 }, score))
+      .toBe(false);
   });
 });
 
