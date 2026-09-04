@@ -13,7 +13,7 @@ await mkdir(output);
 await writeFile(resolve(output, "request.json"), await readFile(values.request), { flag: "wx" });
 const order = ["full-invariant", "hot-path-lean", "hot-path-lean", "full-invariant"];
 await writeFile(resolve(output, "protocol.json"), JSON.stringify({ executionCommit, order,
-  comparison: "deep equality of entire evaluation excluding wallTimeMs", performanceIsMachineLocalAndNonGating: true }, null, 2), { flag: "wx" });
+  comparison: "deep equality of entire evaluation excluding wallTimeMs and separately asserted executionTier", performanceIsMachineLocalAndNonGating: true }, null, 2), { flag: "wx" });
 let reference;
 const runs = [];
 for (const [index, tier] of order.entries()) {
@@ -35,7 +35,8 @@ for (const [index, tier] of order.entries()) {
   const wallTimeMs = performance.now() - startedAt;
   const evaluation = JSON.parse(await readFile(resultPath, "utf8"));
   assert.equal(evaluation.status, "accepted");
-  const { wallTimeMs: evaluationWallTimeMs, ...science } = evaluation;
+  const { wallTimeMs: evaluationWallTimeMs, executionTier, ...science } = evaluation;
+  assert.equal(executionTier, tier, "worker result must record its actual requested execution tier");
   reference ??= science;
   assert.deepEqual(science, reference, `execution tier changed scientific evidence in run ${index}`);
   runs.push({ index, tier, wallTimeMs, evaluationWallTimeMs, scientificEvidenceExactlyEqual: true });

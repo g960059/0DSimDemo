@@ -36,6 +36,8 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
   rationale: "One preload owner and common ventricular material scales. Pulsatile pressure/flow and settled, fixed-control multi-preload pressure-volume responses support conditional arterial/passive design coordinates. No parameter uniqueness or practical-rank admission is inferred. Rest scores are optimistic bounds used only to avoid reserve evaluations that cannot improve the incumbent.",
   locked: ["heart-rate", "venous-tone", "calcium-source", "Land-kinetics", "valve-areas"],
   finalQualificationRequired: ["cold", "refined-dt", "bidirectional-preload-reserve", "load-and-rate-envelope"],
+  rateConditionInitialization: "same-clock-official-checkpoint-otherwise-cold",
+  qualificationOrder: "refined-then-reserve-load-rate-then-selected-baseline-cold",
 });
 
 export type DesignScoreV1 = Readonly<{

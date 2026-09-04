@@ -50,14 +50,16 @@ if (values.worker) {
   const input = JSON.parse(await readFile(values.worker, "utf8")) as
     MainWireStandard70BaselineCalibrationEvaluationRequestV1;
   if (values["reserve-worker"]) {
-    const evaluation = JSON.parse(await readFile(values["reserve-worker"], "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
+    const evaluation = JSON.parse(await readFile(values["reserve-worker"], "utf8")) as
+      MainWireStandard70BaselineCalibrationEvaluationV1 & { executionTier?: HotPathIntegrityTierV1 };
     if (evaluation.status !== "accepted" || !Number.isFinite(scoreMainWireBaselineOperatingPointV1(evaluation).minimumMargin)
+      || !["full-invariant", "hot-path-lean"].includes(evaluation.executionTier ?? "")
       || !input.hemodynamicResearchInputs || !input.mechanismResearchInputs || input.ventricularContractilityScale === undefined) {
       throw new Error("reserve worker requires an exact, event- and safety-qualified candidate with explicit inputs");
     }
     const startedAt = performance.now();
     const result: ReserveResult = { reserve: null, failure: null, wallTimeMs: 0,
-      sourceEvaluationExecutionTier: executionTier,
+      sourceEvaluationExecutionTier: evaluation.executionTier!,
       executionTier: "full-invariant", sourceCheckpointSha256: evaluation.exactResult.checkpoint.checkpointSha256,
       candidateIdentitySha256: await reserveCandidateIdentityV1(input as MainWireBaselineCalibrationCandidateInputsV1, evaluation.nominalDtSec),
       reservePolicyIdentity: await sha256CanonicalJsonHex(designReservePolicyV1) };
@@ -73,7 +75,7 @@ if (values.worker) {
     await writeFile(output, JSON.stringify(result), { flag: "wx" });
   } else {
     const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1(input);
-    await writeFile(output, JSON.stringify(evaluation), { flag: "wx" });
+    await writeFile(output, JSON.stringify({ ...evaluation, executionTier }), { flag: "wx" });
   }
 } else {
   if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
@@ -253,21 +255,26 @@ if (values.worker) {
       } else {
         await runChild("tools/scientific/qualifyMainWireBaselineOperatingPointDesignV1.ts", [
           "--request", expected.sourceRequestPath, "--evaluation", expected.sourceEvaluationPath,
-          "--mode", mode, "--output", path, "--integrity-tier", "full-invariant"], true);
+          "--mode", mode, "--output", path, "--integrity-tier", "full-invariant",
+          "--rate-initialization", "same-clock-checkpoint"], true);
       }
       const result = JSON.parse(await readFile(path, "utf8"));
       const qualified = validateDesignQualificationResultV1(result, expected);
       process.stderr.write(`[qualification] ${finalist.index}/${mode}: ${qualified}\n`);
       return { mode, qualified, resultPath: relativePath,
         evaluationStatus: result.evaluation?.status ?? null,
+        initializationKind: result.evaluation?.initializationKind ?? null,
         reusedMeasuredReserve: result.reusedMeasuredReserve === true };
     }
     const modes = [await qualify("refined")];
     if (modes[0]!.qualified) {
-      const remaining = ["cold", "reserve", heartRateBpm === 60 ? "hr70" : "hr60", "afterload"];
+      const remaining = ["reserve", heartRateBpm === 60 ? "hr70" : "hr60", "afterload"];
       for (let i = 0; i < remaining.length; i += parallelism) {
         modes.push(...await Promise.all(remaining.slice(i, i + parallelism).map(qualify)));
       }
+      // Avoid spending a baseline cold replay on an already rejected finalist.
+      // Cold remains mandatory for every successful overall qualification.
+      if (modes.every((row) => row.qualified)) modes.push(await qualify("cold"));
     }
     const qualified = modes.length === 5 && modes.every((row) => row.qualified);
     qualificationResults.push({ index: finalist.index, modes, qualified });

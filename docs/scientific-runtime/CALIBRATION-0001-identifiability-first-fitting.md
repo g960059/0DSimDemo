@@ -183,6 +183,11 @@ identity and checkpoint compatibility are proven; they do not replace cold
 qualification. Performance work requires a measured research-lane bottleneck
 and must not weaken these contracts.
 
+An explicitly declared rate-condition diagnostic may continue from an actual
+same-rate source; it must not relabel a different pacing clock. This does not
+establish rate-condition initial-state independence or replace the selected
+baseline's mandatory cold qualification. Preserve known cold failures.
+
 Condition-center checkpoints may be reused from a local content-addressed
 cache whose key binds the resolved study, exact model, evaluator, periodic
 policy, condition, target candidate, and time step. A cache hit is structurally
