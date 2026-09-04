@@ -352,6 +352,10 @@ export async function evaluateMainWireIntegratedModelStandard70CandidateV1(
       observations,
       classifierOptions,
     );
+    // Each immutable report and its boundary chain has now been validated.
+    // Retain the classifier's suffix plus its predecessor for the next call;
+    // rewalking every historical closure report adds no new evidence.
+    if (observations.length > classifierOptions.consecutiveCycles) observations.shift();
     completedCycleCount = cycleIndex;
     terminalTrace = run.traceSamples;
     boundaries.push(accepted);

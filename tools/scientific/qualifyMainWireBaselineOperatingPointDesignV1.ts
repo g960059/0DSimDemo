@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
+import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1, type HotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import {
   evaluateMainWireStandard70BaselineCalibrationCandidateV1,
   type MainWireStandard70BaselineCalibrationEvaluationV1,
@@ -16,6 +17,7 @@ import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 
 const { values } = parseArgs({ options: { request: { type: "string" },
+  "integrity-tier": { type: "string", default: "full-invariant" },
   evaluation: { type: "string" }, mode: { type: "string" }, output: { type: "string" } } });
 if (!values.request || !values.evaluation || !values.output
   || !["cold", "refined", "reserve", "hr60", "hr70", "afterload"].includes(values.mode ?? "")) {
@@ -24,6 +26,8 @@ if (!values.request || !values.evaluation || !values.output
 if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) {
   throw new Error("qualification requires a clean committed worktree");
 }
+selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
+const executionTier = hotPathIntegrityTierV1();
 const executionCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
 const request = JSON.parse(await readFile(values.request, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationRequestV1;
 const previous = JSON.parse(await readFile(values.evaluation, "utf8")) as MainWireStandard70BaselineCalibrationEvaluationV1;
@@ -70,7 +74,7 @@ if (values.mode === "reserve" && evaluation.status === "accepted"
   }
 }
 const qualified = mainWireBaselineDesignQualificationPassedV1(evaluation, values.mode === "reserve", reserveStatus);
-await writeFile(values.output, JSON.stringify({ executionCommit, mode: values.mode, qualified,
+await writeFile(values.output, JSON.stringify({ executionCommit, executionTier, mode: values.mode, qualified,
   sourceRequestPath: values.request, sourceEvaluationPath: values.evaluation,
   wallTimeMs: performance.now() - startedAt, evaluation, reserveStatus, reserveFailure, reserve,
   baselineAdopted: false }, null, 2), { flag: "wx" });

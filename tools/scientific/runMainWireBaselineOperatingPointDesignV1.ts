@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1, type HotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import { evaluateMainWireStandard70BaselineCalibrationCandidateV1,
   type MainWireStandard70BaselineCalibrationEvaluationV1,
@@ -25,10 +26,14 @@ import checkpoint from
 const { values } = parseArgs({ options: { output: { type: "string" },
   worker: { type: "string" }, parallelism: { type: "string", default: "8" },
   "heart-rate": { type: "string", default: "60" },
+  "integrity-tier": { type: "string", default: "hot-path-lean" },
   "seed-request": { type: "string" }, "seed-evaluation": { type: "string" } } });
 if (!values.output) throw new Error("--output NEW_DIRECTORY is required");
+selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
+const executionTier = hotPathIntegrityTierV1();
 const output = resolve(values.output);
 if (values.worker) {
+  process.stderr.write(`[execution-tier] ${executionTier}\n`);
   const input = JSON.parse(await readFile(values.worker, "utf8")) as
     MainWireStandard70BaselineCalibrationEvaluationRequestV1;
   const evaluation = await evaluateMainWireStandard70BaselineCalibrationCandidateV1(input);
@@ -70,7 +75,7 @@ if (values.worker) {
   }
   const policyIdentity = await sha256CanonicalJsonHex(policy);
   await writeFile(resolve(output, "protocol.json"), JSON.stringify({
-    executionCommit, policy, policyIdentity, reference, parallelism, heartRateBpm, seed,
+    executionCommit, executionTier, policy, policyIdentity, reference, parallelism, heartRateBpm, seed,
     seedCheckpointSha256: seedCheckpoint.checkpointSha256,
     claim: "bounded exploratory construction; not identifiability or final qualification",
   }, null, 2), { flag: "wx" });
@@ -89,7 +94,7 @@ if (values.worker) {
     await new Promise<void>((done, fail) => {
       const child = spawn(process.execPath, ["node_modules/vite-node/vite-node.mjs", "--script",
         "tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts", "--worker", requestPath,
-        "--output", resultPath], { stdio: ["ignore", "ignore", "pipe"] });
+        "--output", resultPath, "--integrity-tier", executionTier], { stdio: ["ignore", "ignore", "pipe"] });
       let stderr = "";
       child.stderr.on("data", (data) => { stderr += String(data); });
       child.on("error", fail);
@@ -148,7 +153,7 @@ if (values.worker) {
     failed: evaluation.status === "accepted" ? evaluation.failedConstructionCheckIds : evaluation.message,
   }));
   await writeFile(resolve(output, "result.json"), JSON.stringify({
-    executionCommit, policyIdentity, wallTimeMs: performance.now() - startedAt,
+    executionCommit, executionTier, policyIdentity, wallTimeMs: performance.now() - startedAt,
     summedEvaluationWallTimeMs: history.reduce((sum, x) => sum + x.evaluation.wallTimeMs, 0),
     stopReason, evaluationCount: count, bestIndex: best.index, candidates: summarized,
     finalQualificationExecuted: false, baselineAdopted: false,

@@ -21,14 +21,16 @@ for (const [index, tier] of order.entries()) {
   const startedAt = performance.now();
   await new Promise((done, fail) => {
     const child = spawn(process.execPath, ["node_modules/vite-node/vite-node.mjs", "--script",
-      "tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts", "--worker", resolve(output, "request.json"), "--output", resultPath], {
+      "tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts", "--worker", resolve(output, "request.json"),
+      "--output", resultPath, "--integrity-tier", tier], {
       env: { ...process.env, CIRCLEHEART_HOT_PATH_INTEGRITY: tier, VITE_CIRCLEHEART_HOT_PATH_INTEGRITY: tier },
       stdio: ["ignore", "ignore", "pipe"],
     });
     let stderr = "";
     child.stderr.on("data", (data) => { stderr += String(data); });
     child.on("error", fail);
-    child.on("exit", (code) => code === 0 ? done() : fail(new Error(stderr)));
+    child.on("exit", (code) => code === 0 && stderr.includes(`[execution-tier] ${tier}\n`)
+      ? done() : fail(new Error(`tier execution failed: ${stderr}`)));
   });
   const wallTimeMs = performance.now() - startedAt;
   const evaluation = JSON.parse(await readFile(resultPath, "utf8"));

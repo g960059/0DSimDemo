@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1, type HotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
 import {
   applyMainWireBaselineCalibrationParametersV1,
@@ -32,8 +33,11 @@ import checkpointJson from
 // branches reuse the existing fixed-control, independently settled protocol.
 type Contrast = { id: string; updates: { parameterId: MainWireBaselineCalibrationParameterIdV1; value: number }[] };
 const { values } = parseArgs({ options: { design: { type: "string" }, output: { type: "string" },
-  parallelism: { type: "string", default: "6" }, "heart-rate": { type: "string", default: "60" }, worker: { type: "string" } } });
+  parallelism: { type: "string", default: "6" }, "heart-rate": { type: "string", default: "60" },
+  "integrity-tier": { type: "string", default: "hot-path-lean" }, worker: { type: "string" } } });
 if (!values.design || !values.output) throw new Error("--design JSON --output NEW_DIRECTORY [--parallelism 1..8]");
+selectHotPathIntegrityTierV1(values["integrity-tier"] as HotPathIntegrityTierV1);
+const executionTier = hotPathIntegrityTierV1();
 const contrasts = JSON.parse(await readFile(values.design, "utf8")) as Contrast[];
 const parallelism = Number(values.parallelism);
 const heartRateBpm = Number(values["heart-rate"]);
@@ -89,7 +93,7 @@ if (values.worker !== undefined) {
     } catch (error) { reserveFailure = error instanceof Error ? error.message : String(error); }
   }
   await writeFile(resolve(output, `${contrast.id}.result.json`), JSON.stringify({ contrast, inputs, evaluation, reserve,
-    reserveFailure, wallTimeMs: performance.now() - startedAt, baselineAdopted: false }), { flag: "wx" });
+    reserveFailure, executionTier, wallTimeMs: performance.now() - startedAt, baselineAdopted: false }), { flag: "wx" });
 } else {
   if (execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim()) throw new Error("contrast requires a clean committed worktree");
   await mkdir(output);
@@ -97,7 +101,7 @@ if (values.worker !== undefined) {
   const reservePolicy = { base: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
     standard70: MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 };
   const reservePolicyIdentity = await sha256CanonicalJsonHex(reservePolicy);
-  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, contrasts, heartRateBpm,
+  const protocol = { studyId: "main-wire-standard70-preload-contrast-v1", executionCommit, executionTier, contrasts, heartRateBpm,
     reservePolicy, reservePolicyIdentity,
     reference, checkpointSha256: checkpoint.checkpointSha256, nominalDtSec: 0.002, parallelism,
     claim: "exploratory fixed-control preload responses; no isolated-contractility identification or baseline adoption" };
@@ -111,7 +115,8 @@ if (values.worker !== undefined) {
       await new Promise<void>((done, fail) => {
         const child = spawn(process.execPath, ["node_modules/vite-node/vite-node.mjs", "--script",
           "tools/scientific/runMainWireBaselinePreloadContrastV1.ts", "--design", resolve(output, "design.json"),
-          "--output", output, "--heart-rate", String(heartRateBpm), "--worker", contrast.id], { stdio: ["ignore", "ignore", "pipe"] });
+          "--output", output, "--heart-rate", String(heartRateBpm), "--integrity-tier", executionTier,
+          "--worker", contrast.id], { stdio: ["ignore", "ignore", "pipe"] });
         let stderr = "";
         child.stderr.on("data", (data) => { stderr += String(data); });
         child.on("error", fail);
@@ -136,7 +141,7 @@ if (values.worker !== undefined) {
     }));
     rows.push(...batch);
   }
-  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, protocolIdentity, reservePolicyIdentity,
+  await writeFile(resolve(output, "result.json"), JSON.stringify({ executionCommit, executionTier, protocolIdentity, reservePolicyIdentity,
     wallTimeMs: performance.now() - startedAt, rows, finalQualificationExecuted: false, baselineAdopted: false }, null, 2), { flag: "wx" });
   process.stdout.write(`${output}/result.json\n`);
 }
