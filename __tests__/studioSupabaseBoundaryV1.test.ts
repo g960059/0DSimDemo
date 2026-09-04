@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ExperimentContentV2 } from "@/studio/contracts/v2/content";
@@ -32,11 +33,104 @@ import standardSurfaceReleaseV1 from
 import {
   uploadImmutableExactModelArtifactV1,
 } from "@/tools/registry/ImmutableExactModelArtifactStorageV1";
+import {
+  parseMainWireModelPublishArgumentsV3,
+  prepareMainWireModelPublicationV1,
+} from "@/tools/registry/publishMainWireIntegratedStudioModelV3";
+import {
+  loadModelSurfacePublicationManifestV1,
+  parseModelSurfacePublishArgumentsV1,
+} from "@/tools/registry/publishModelSurfaceReleaseV1";
+import currentClient from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+import currentSurface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
 const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
+  it("binds publication to the current exact model, fixture, lock, artifact and Surface", () => {
+    const fetchV1 = vi.fn();
+    vi.stubGlobal("fetch", fetchV1);
+    const directory = "studio/integrations/mainWireIntegratedV3/";
+    const input = {
+      artifact: readFileSync(directory
+        + "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs"),
+      lockJson: readFileSync(directory
+        + "algebraic-pulmonary-root-standard70-registry-admission-lock.json", "utf8"),
+      expectedModelId: currentClient.manifest.modelId,
+    };
+    const prepared = prepareMainWireModelPublicationV1(input);
+    expect(prepared.manifest).toEqual(currentClient.manifest);
+    expect(prepared.defaultFixture).toEqual(currentClient.defaultFixture);
+    expect(prepared.artifactSha256).toBe(prepared.lock.artifactSha256);
+    expect(() => prepareMainWireModelPublicationV1({
+      ...input, expectedModelId: standardClientDescriptorV1.manifest.modelId,
+    })).toThrow(/modelId differ/);
+    expect(() => prepareMainWireModelPublicationV1({
+      ...input,
+      lockJson: JSON.stringify({ ...JSON.parse(input.lockJson), modelId: "wrong" }),
+    })).toThrow(/modelId differ/);
+    expect(() => prepareMainWireModelPublicationV1({
+      ...input, artifact: new Uint8Array([1, 2, 3]),
+    })).toThrow(/digest differ/);
+    expect(() => prepareMainWireModelPublicationV1({
+      ...input, lockJson: "null",
+    })).toThrow(/lock is invalid/);
+    expect(fetchV1).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit current model and supports a credential-free dry run", () => {
+    const args = ["--project-ref", "a".repeat(20), "--stage", "stable",
+      "--model-id", currentClient.manifest.modelId];
+    expect(parseMainWireModelPublishArgumentsV3([...args, "--dry-run"]))
+      .toEqual({ projectRef: "a".repeat(20), stage: "stable",
+        modelId: currentClient.manifest.modelId, dryRun: true });
+    expect(parseMainWireModelPublishArgumentsV3(args).dryRun).toBe(false);
+    expect(() => parseMainWireModelPublishArgumentsV3(args.slice(0, 4)))
+      .toThrow(/explicit current/);
+    expect(() => parseMainWireModelPublishArgumentsV3([
+      ...args.slice(0, 5), standardClientDescriptorV1.manifest.modelId,
+    ])).toThrow(/explicit current/);
+    for (const extra of [["--dry-run", "--dry-run"], ["--stage", "dev"], ["--unknown"]]) {
+      expect(() => parseMainWireModelPublishArgumentsV3([...args, ...extra]))
+        .toThrow(/Usage/);
+    }
+  });
+
+  it("publishes the committed TypeScript Surface without a duplicate JSON manifest", async () => {
+    const fetchV1 = vi.fn();
+    vi.stubGlobal("fetch", fetchV1);
+    const directory = "studio/integrations/mainWireIntegratedV3/";
+    expect(await loadModelSurfacePublicationManifestV1(directory
+      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts"))
+      .toEqual(currentSurface);
+    expect(await loadModelSurfacePublicationManifestV1(directory
+      + "model-surface-workbench-analysis-v1.json")).toEqual(standardSurfaceReleaseV1);
+    await expect(loadModelSurfacePublicationManifestV1("../outside.json"))
+      .rejects.toThrow(/inside the repository/);
+    await expect(loadModelSurfacePublicationManifestV1("AGENTS.md"))
+      .rejects.toThrow(/JSON or TypeScript/);
+    await expect(loadModelSurfacePublicationManifestV1("package.json"))
+      .rejects.toThrow();
+    expect(fetchV1).not.toHaveBeenCalled();
+  });
+
+  it("parses the Surface dry run without accepting duplicate or unknown switches", () => {
+    const args = ["--project-ref", "a".repeat(20), "--manifest", "surface.ts"];
+    expect(parseModelSurfacePublishArgumentsV1([...args, "--dry-run"]))
+      .toEqual({ projectRef: "a".repeat(20), manifestPath: "surface.ts",
+        stage: "dev", dryRun: true });
+    expect(parseModelSurfacePublishArgumentsV1(args).dryRun).toBe(false);
+    for (const extra of [["--dry-run", "--dry-run"], ["--manifest", "other.ts"], ["--unknown"]]) {
+      expect(() => parseModelSurfacePublishArgumentsV1([...args, ...extra]))
+        .toThrow(/Usage/);
+    }
+    expect(() => parseModelSurfacePublishArgumentsV1([...args, "--stage", "retired"]))
+      .toThrow(/retired/);
+  });
+
   it("accepts only a complete public browser configuration", () => {
     expect(readStudioSupabaseConfigurationV1({})).toBeNull();
     expect(() => readStudioSupabaseConfigurationV1({
