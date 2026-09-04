@@ -114,6 +114,9 @@ describe("Studio Supabase boundary V1", () => {
       .rejects.toThrow(/JSON or TypeScript/);
     await expect(loadModelSurfacePublicationManifestV1("package.json"))
       .rejects.toThrow();
+    await expect(loadModelSurfacePublicationManifestV1(
+      "tools/registry/generateMainWireIntegratedStudioStandard70BaselineV1.ts",
+    )).rejects.toThrow(/Only the current Model Surface/);
     expect(fetchV1).not.toHaveBeenCalled();
   });
 
