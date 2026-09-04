@@ -5,14 +5,9 @@ const defaultRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
   "../studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json",
   import.meta.url,
 ), "utf8")) as Readonly<{ modelId: string }>;
-const standardModelLabRegistryAdmissionLock = JSON.parse(readFileSync(new URL(
-  "../studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
-  import.meta.url,
-), "utf8")) as Readonly<{ modelId: string }>;
 
 const DEFAULT_EXACT_MODEL_ID =
   defaultRegistryAdmissionLock.modelId;
-const MODEL_LAB_EXACT_MODEL_ID = standardModelLabRegistryAdmissionLock.modelId;
 const UUID_RESOURCE_ID =
   "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const EXPERIMENT_RESOURCE_ID =
@@ -54,7 +49,7 @@ test.beforeEach(async ({ page }, testInfo) => {
   await expect(root).toBeVisible();
   await expect(root).toHaveAttribute(
     "data-model-id",
-    modelLab ? MODEL_LAB_EXACT_MODEL_ID : DEFAULT_EXACT_MODEL_ID,
+    DEFAULT_EXACT_MODEL_ID,
   );
   await expect(
     page.getByTestId("workbench-simulation-info-trigger-v3"),

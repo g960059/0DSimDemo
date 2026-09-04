@@ -31,7 +31,7 @@ import {
   workbenchPeriodicPvaOutputValueV3,
 } from "@/components/workbench/WorkbenchItemPresentation";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
-import { loadStudioLocalStandardModelLabClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
+import { loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1 } from
   "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 
@@ -714,7 +714,7 @@ describe("settled hot-start PVA V1", () => {
 
   it("keeps live SW separate while materializing PE, PVA, and estimated MVO2", async () => {
     const { contract } = (
-      await loadStudioLocalStandardModelLabClientCompositionV1()
+      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1()
     ).modelSurface;
     const analysisOutputIds = Object.values(
       MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,

@@ -40,10 +40,6 @@ import {
 import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs?raw";
 import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
-import mainWireIntegratedStudioSelectedAorticOutflowClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1.client.json";
-import mainWireIntegratedStudioAlgebraicProximalRootsClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicProximalRootsExactModelV1.client.json";
-import mainWireIntegratedStudioRoundedEjectionClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionExactModelV1.client.json";
-import mainWireIntegratedStudioQualifiedBaselineClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineExactModelV1.client.json";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
@@ -53,7 +49,6 @@ import {
   createCircleHeartExactModelReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
@@ -61,20 +56,15 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioModelIdentityV1";
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
+import { mainWireIntegratedStudioFixtureProjectionV3 } from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioFixtureControlProjectionV3";
 import { resolveExactModelControlValueV1 } from
   "@/studio/application/model/ExactModelControlValuesV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   buildMainWirePeriodicPvaMethodV8,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
@@ -82,17 +72,8 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
-import mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v1.json";
-import mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
-import mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
-import mainWireIntegratedStudioRoundedEjectionSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
-import mainWireIntegratedStudioQualifiedBaselineSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
-import mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/selected-aortic-outflow-standard66-registry-admission-lock.json";
-import mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-proximal-roots-standard67-registry-admission-lock.json";
-import mainWireIntegratedStudioRoundedEjectionRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/rounded-ejection-standard68-registry-admission-lock.json";
-import mainWireIntegratedStudioQualifiedBaselineRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-registry-admission-lock.json";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json";
 import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/WorkbenchSurfaceV3";
 import { materializeStudioSimulationPresentationFramesV2 } from "@/studio/workers/StudioSimulationPresentationBatchV2";
@@ -110,15 +91,8 @@ afterEach(() => {
 });
 
 describe("Standard Main Wire Integrated Studio exact model", () => {
-  it("resolves controls only for registered exact model and fixture pairs", () => {
-    const projection = resolveRegisteredExactModelFixtureProjectionV1(
-      {
-        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-        fixtureSchemaId:
-          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
-            .fixtureSchemaId,
-      },
-    );
+  it("projects all shared controls and registers only the current model", () => {
+    const projection = mainWireIntegratedStudioFixtureProjectionV3;
     const controls = createCircleHeartExactModelReleaseV1()
       .manifest.primitiveControlCatalog;
 
@@ -174,77 +148,37 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       projection,
     )).toThrow(/cannot project registered control/);
 
-    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
-      {
-        modelId: "model/retired",
-        fixtureSchemaId:
-          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
-            .fixtureSchemaId,
-      },
-    )).toThrow(/No exact fixture projection is registered/);
-    expect(() => resolveRegisteredExactModelFixtureProjectionV1(
-      {
-        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-        fixtureSchemaId: "fixture/retired-v1",
-      },
-    )).toThrow(/No exact fixture projection is registered/);
-
-    const selectedProjection = resolveRegisteredExactModelFixtureProjectionV1({
-      modelId:
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-      fixtureSchemaId:
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
-    });
-    const selectedFixture = {
-      ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1,
-      hemodynamicResearchInputs: {
-        ...MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_DEFAULT_FIXTURE_V1
-          .hemodynamicResearchInputs,
-        heartRateBpm: 72,
-      },
-    };
-    expect(selectedProjection.controlValue(
-      selectedFixture,
-      "rhythm.heart-rate-bpm",
-    )).toEqual({ status: "value", value: 72 });
-    expect(selectedProjection.controlValue(
-      selectedFixture,
-      "hemodynamics.systemic-resistance",
-    )).toEqual({ status: "unsupported" });
-
-    const standard70Projection = resolveRegisteredExactModelFixtureProjectionV1({
-      modelId:
-        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-      fixtureSchemaId:
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
-    });
-    expect(standard70Projection.controlValue(
-      mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1.defaultFixture,
+    const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
+    expect(resolveRegisteredExactModelFixtureProjectionV1({
+      modelId: current.manifest.modelId,
+      fixtureSchemaId: current.manifest.fixtureSchema.fixtureSchemaId,
+    })).toBe(projection);
+    expect(projection.controlValue(
+      current.defaultFixture,
       "hemodynamics.systemic-resistance",
     )).toEqual({ status: "value", value: 0.99 });
-
-    for (const crossPair of [
-      {
-        modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
-        fixtureSchemaId:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1,
-      },
-      {
-        modelId:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-        fixtureSchemaId:
-          mainWireIntegratedStudioStandardClientV1.manifest.fixtureSchema
-            .fixtureSchemaId,
-      },
-      {
-        modelId:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
-        fixtureSchemaId: "fixture/unknown-selected-v1",
-      },
-    ]) {
-      expect(() => resolveRegisteredExactModelFixtureProjectionV1(crossPair))
-        .toThrow(/No exact fixture projection is registered/);
+    for (const control of current.manifest.primitiveControlCatalog) {
+      expect(projection.controlValue(current.defaultFixture, control.controlId))
+        .toEqual({ status: "value", value: control.defaultValue });
     }
+
+    for (const modelId of [
+      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+      MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+      MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+      "model/unknown",
+    ]) {
+      expect(() => resolveRegisteredExactModelFixtureProjectionV1({
+        modelId,
+        fixtureSchemaId: current.manifest.fixtureSchema.fixtureSchemaId,
+      })).toThrow(/No exact fixture projection is registered/);
+    }
+    expect(() => resolveRegisteredExactModelFixtureProjectionV1({
+      modelId: current.manifest.modelId,
+      fixtureSchemaId: "fixture/unknown",
+    })).toThrow(/No exact fixture projection is registered/);
   });
 
   it("keeps the exact current frame identical to the accepted batch boundary", async () => {
@@ -556,345 +490,196 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     ).toThrow(/modelMetricCatalog|keys must be exactly/);
   });
 
-  it("uses Standard70 by default while preserving exact Standard65-69 local pairs", async () => {
+  it("loads the current local model for default, Model Lab, and pinned content", async () => {
     vi.resetModules();
     vi.doMock(
       "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
-      () => ({
+      async (importOriginal) => ({
+        ...await importOriginal<
+          typeof import("@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1")
+        >(),
         studioSupabaseModelReleaseResolverV1: () => null,
         invalidateStudioSupabaseModelReleaseResolverCacheV1: () => undefined,
       }),
     );
-    vi.doMock("@/studio/contracts/v2/release", async () => {
-      const actual = await vi.importActual<
-        typeof import("@/studio/contracts/v2/release")
-      >("@/studio/contracts/v2/release");
-      return {
-        ...actual,
-        // Vitest resolves import.meta.url as file:. Browser builds resolve the
-        // same committed asset over HTTP(S); this test owns fallback identity.
-        validateStudioModelWorkerReleaseTicketV2: (value: unknown) => value,
-      };
-    });
 
     try {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
-      expect(
-        composition
-          .localStandardArtifactRevisionUrlV1(
-            new URL("http://127.0.0.1:4176/standard-exact-model.artifact.mjs"),
-          )
-          .searchParams.get("revision"),
-      ).toBe(mainWireIntegratedStudioStandardRegistryLockV1.artifactRevisionId);
-      expect(
-        composition
-          .localSelectedAorticOutflowArtifactRevisionUrlV1(
-            new URL(
-              "http://127.0.0.1:4176/selected-standard66.artifact.mjs",
-            ),
-          )
-          .searchParams.get("revision"),
-      ).toBe(
-        mainWireIntegratedStudioSelectedAorticOutflowRegistryLockV1
-          .artifactRevisionId,
+      const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
+      const surface = mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1;
+      const revisioned = composition.localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
+        new URL("http://127.0.0.1:4176/standard70.artifact.mjs?keep=1"),
       );
-      expect(
-        composition
-          .localAlgebraicProximalRootsArtifactRevisionUrlV1(
-            new URL(
-              "http://127.0.0.1:4176/algebraic-roots-standard67.artifact.mjs",
-            ),
-          )
-          .searchParams.get("revision"),
-      ).toBe(
-        mainWireIntegratedStudioAlgebraicProximalRootsRegistryLockV1
-          .artifactRevisionId,
+      expect(revisioned.searchParams.get("revision")).toBe(
+        mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
       );
-      expect(
-        composition
-          .localRoundedEjectionArtifactRevisionUrlV1(
-            new URL(
-              "http://127.0.0.1:4176/rounded-ejection-standard68.artifact.mjs",
-            ),
-          )
-          .searchParams.get("revision"),
-      ).toBe(
-        mainWireIntegratedStudioRoundedEjectionRegistryLockV1
-          .artifactRevisionId,
-      );
-      expect(
-        composition
-          .localQualifiedBaselineArtifactRevisionUrlV1(
-            new URL(
-              "http://127.0.0.1:4176/qualified-baseline-standard69.artifact.mjs",
-            ),
-          )
-          .searchParams.get("revision"),
-      ).toBe(
-        mainWireIntegratedStudioQualifiedBaselineRegistryLockV1
-          .artifactRevisionId,
-      );
-      expect(
-        composition
-          .localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
-            new URL(
-              "http://127.0.0.1:4176/algebraic-pulmonary-root-standard70.artifact.mjs",
-            ),
-          )
-          .searchParams.get("revision"),
-      ).toBe(
-        mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1
-          .artifactRevisionId,
-      );
-      expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(
-        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-      );
-      await expect(
-        composition.loadStudioDefaultClientCompositionV2(),
-      ).resolves.toMatchObject({
+      expect(revisioned.searchParams.get("keep")).toBe("1");
+      expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(current.manifest.modelId);
+      const local = await composition.loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      expect(local).toMatchObject({
         exactModel: {
-          modelId:
-            mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1.manifest
-              .modelId,
+          modelId: current.manifest.modelId,
+          defaultFixture: current.defaultFixture,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
+            artifactRevisionId:
+              mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
           },
         },
         modelSurface: {
           identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1
-                .surfaceSeriesId,
+            surfaceReleaseId: surface.surfaceReleaseId,
+            surfaceSeriesId: surface.surfaceSeriesId,
           },
         },
       });
-      await expect(
-        composition.loadStudioLocalStandardModelLabClientCompositionV1(),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-            .surfaceSeriesId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
-              .modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-                .surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioRoundedEjectionClientV1.manifest.modelId,
-          mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceSeriesId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioRoundedEjectionClientV1.manifest.modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioRoundedEjectionSurfaceV1.surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-            .surfaceSeriesId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-              .modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-                .surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioSnapshotClientCompositionV2(
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId: mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioSnapshotClientCompositionV2(
-          mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-            .surfaceSeriesId,
-          mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-            .surfaceReleaseId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioAlgebraicProximalRootsClientV1.manifest
-              .modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioAlgebraicProximalRootsSurfaceV1
-                .surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioSnapshotClientCompositionV2(
-          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-            .surfaceSeriesId,
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-            .surfaceReleaseId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-              .modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-                .surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioSnapshotClientCompositionV2(
-          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
-            .surfaceSeriesId,
-          mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
-            .surfaceReleaseId,
-        ),
-      ).resolves.toMatchObject({
-        exactModel: {
-          modelId:
-            mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-              .modelId,
-        },
-        modelSurface: {
-          identity: {
-            surfaceReleaseId:
-              mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
-                .surfaceReleaseId,
-            surfaceSeriesId:
-              mainWireIntegratedStudioSelectedAorticOutflowRetainedSurfaceV1
-                .surfaceSeriesId,
-          },
-        },
-      });
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioSelectedAorticOutflowClientV1.manifest
-            .modelId,
-          mainWireIntegratedStudioStandardSurfaceV1.surfaceSeriesId,
-        ),
-      ).rejects.toThrow(/cannot resolve the requested exact model/);
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          mainWireIntegratedStudioStandardClientV1.manifest.modelId,
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-            .surfaceSeriesId,
-        ),
-      ).rejects.toThrow(/cannot resolve the requested exact model/);
-      await expect(
-        composition.loadStudioExperimentClientCompositionV2(
-          "model/pre-standard",
-          mainWireIntegratedStudioSelectedAorticOutflowSurfaceV1
-            .surfaceSeriesId,
-        ),
-      ).rejects.toThrow(/cannot resolve the requested exact model/);
-    } finally {
-      vi.doUnmock(
-        "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
+      await expect(composition.loadStudioDefaultClientCompositionV2())
+        .resolves.toBe(local);
+      const experiment = composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
       );
-      vi.doUnmock("@/studio/contracts/v2/release");
+      expect(composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
+      )).toBe(experiment);
+      await expect(experiment).resolves.toBe(local);
+      const snapshot = composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId, surface.surfaceReleaseId,
+      );
+      expect(composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId, surface.surfaceReleaseId,
+      )).toBe(snapshot);
+      await expect(snapshot).resolves.toBe(local);
+      expect(local.modelSurface.contract.controlCatalog).toHaveLength(52);
+      expect(local.modelSurface.contract.graphCatalog).toEqual(
+        surface.graphCatalog.map(({ requiredCapabilities: _required, ...graph }) => graph),
+      );
+      expect(local.modelSurface.contract.outputCatalog.map(({ outputId }) => outputId))
+        .toEqual(expect.arrayContaining(surface.derivedOutputCatalog.map(({ outputId }) => outputId)));
+      expect(local.modelSurface.analysis.periodicPvaDerivation?.methodId)
+        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID);
+
+      for (const modelId of [
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+        "model/unknown",
+      ]) {
+        for (const pending of [
+          composition.loadStudioExperimentClientCompositionV2(modelId, surface.surfaceSeriesId),
+          composition.loadStudioSnapshotClientCompositionV2(
+            modelId, surface.surfaceSeriesId, surface.surfaceReleaseId,
+          ),
+        ]) {
+          await expect(pending).rejects.toMatchObject({
+            name: "StudioExactModelUnavailableErrorV1",
+            reason: "not-registered-or-loadable",
+            modelId,
+          });
+        }
+      }
+      await expect(composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, "surface/wrong-series",
+      )).rejects.toThrow(/cannot resolve the requested exact model/);
+      await expect(composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId, "surface/wrong-release",
+      )).rejects.toThrow(/cannot resolve the requested exact model/);
+      // A cached snapshot must still reject a different series.
+      await expect(composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, "surface/wrong-series", surface.surfaceReleaseId,
+      )).rejects.toThrow(/Surface/);
+      composition.invalidateStudioClientCompositionCachesV2();
+      expect(composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
+      )).not.toBe(experiment);
+      await expect(composition.loadStudioDefaultClientCompositionV2()).resolves.toBe(local);
+    } finally {
+      vi.doUnmock("@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1");
+      vi.resetModules();
+    }
+  });
+
+  it("rejects retired remote bundles and preserves supported remote Surface pins", async () => {
+    vi.resetModules();
+    const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
+    const surface = mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1;
+    const release = {
+      defaultFixture: current.defaultFixture,
+      stage: "stable",
+      surfaceStage: "stable",
+      activeBundleVersion: 7,
+      ticket: {
+        schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
+        modelId: current.manifest.modelId,
+        artifactRevisionId:
+          mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
+        manifest: current.manifest,
+        surfaceRelease: { ...surface, surfaceReleaseId: "surface/current/additive-v2" },
+        moduleAbi: "circleheart-exact-model-esm-v1",
+        artifactUrl: "https://registry.example/standard70.mjs",
+      },
+    };
+    const resolveActiveBundle = vi.fn().mockResolvedValue(release);
+    const resolveExactModel = vi.fn().mockResolvedValue(release);
+    vi.doMock(
+      "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1",
+      async (importOriginal) => ({
+        ...await importOriginal<
+          typeof import("@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1")
+        >(),
+        studioSupabaseModelReleaseResolverV1: () => ({
+          resolveActiveBundle, resolveExactModel,
+        }),
+        invalidateStudioSupabaseModelReleaseResolverCacheV1: () => undefined,
+      }),
+    );
+    try {
+      const composition =
+        await import("@/studio/composition/StudioDefaultCompositionV2");
+      await expect(composition.loadStudioDefaultClientCompositionV2())
+        .resolves.toMatchObject({ activeBundleVersion: 7 });
+      await expect(composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
+      )).resolves.toMatchObject({
+        modelSurface: { identity: { surfaceReleaseId: "surface/current/additive-v2" } },
+      });
+      expect(resolveExactModel).toHaveBeenLastCalledWith(current.manifest.modelId, {
+        kind: "series", surfaceSeriesId: surface.surfaceSeriesId,
+      });
+      await expect(composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId, "surface/current/additive-v2",
+      )).resolves.toMatchObject({
+        modelSurface: { identity: { surfaceReleaseId: "surface/current/additive-v2" } },
+      });
+      expect(resolveExactModel).toHaveBeenLastCalledWith(current.manifest.modelId, {
+        kind: "release",
+        surfaceSeriesId: surface.surfaceSeriesId,
+        surfaceReleaseId: "surface/current/additive-v2",
+      });
+      resolveExactModel.mockClear();
+      await expect(composition.loadStudioExperimentClientCompositionV2(
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1, surface.surfaceSeriesId,
+      )).rejects.toMatchObject({ name: "StudioExactModelUnavailableErrorV1" });
+      expect(resolveExactModel).not.toHaveBeenCalled();
+
+      const retired = { ...release, ticket: {
+        ...release.ticket, modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+      } };
+      resolveActiveBundle.mockResolvedValueOnce(retired);
+      composition.invalidateStudioClientCompositionCachesV2();
+      await expect(composition.loadStudioDefaultClientCompositionV2())
+        .rejects.toMatchObject({ name: "StudioExactModelUnavailableErrorV1" });
+      // Rejection must not poison the cache or silently substitute a local model.
+      await expect(composition.loadStudioDefaultClientCompositionV2())
+        .resolves.toMatchObject({ activeBundleVersion: 7 });
+      resolveExactModel.mockResolvedValueOnce(retired);
+      await expect(composition.loadStudioExperimentClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
+      )).rejects.toMatchObject({ name: "StudioExactModelUnavailableErrorV1" });
+    } finally {
+      vi.doUnmock("@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1");
       vi.resetModules();
     }
   });

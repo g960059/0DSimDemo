@@ -96,16 +96,12 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
-} from "@/domain/model/MainWireStandardIdentityV1";
-import {
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
-  loadStudioLocalStandardModelLabClientCompositionV1,
+  loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   type StudioClientCompositionV2,
 } from "@/studio/composition/StudioDefaultCompositionV2";
@@ -768,13 +764,7 @@ export const WorkbenchSession = ({
               "workbench.editor.simulationInfo.baselineBidirectionalPassed",
             ),
             detail: t(
-              baselineValidation.modelId
-                  === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
-                ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard70"
-                : baselineValidation.modelId
-                    === MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1
-                  ? "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard69"
-                  : "workbench.editor.simulationInfo.baselinePreloadReserveDetail",
+              "workbench.editor.simulationInfo.baselinePreloadReserveDetailStandard70",
               {
                 low: Math.round(
                   (1 - baselineValidation.preloadReserve
@@ -1048,7 +1038,7 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalStandardModelLabClientCompositionV1()
+                ? await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
       } catch (error) {
         if (
