@@ -5,7 +5,13 @@ import {
   mainWireBaselineDesignNeighborsV1,
   mainWireBaselineDesignQualificationPassedV1,
   mainWireBaselineDesignSeedV1,
+  scoreMainWireBaselineReserveAwareV1,
 } from "@/analysis/methods/mainWire/MainWireBaselineOperatingPointDesignV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1,
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+  type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
+} from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 
 import {
   buildMainWireBaselineConditioningSyntheticArtifactsV1,
@@ -221,15 +227,22 @@ describe("bounded baseline operating-point design", () => {
   it("changes only declared coordinates on the release lattice and keeps HR fixed", () => {
     const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
     const neighbors = mainWireBaselineDesignNeighborsV1(anchor, anchor, 1);
-    expect(neighbors).toHaveLength(8);
+    expect(neighbors).toHaveLength(10);
     for (const point of neighbors) {
       expect(point.hemodynamicResearchInputs.heartRateBpm).toBe(60);
       expect(point.hemodynamicResearchInputs.venousTone).toBe(anchor.hemodynamicResearchInputs.venousTone);
-      expect(point.hemodynamicResearchInputs.arterialStiffness).toBe(anchor.hemodynamicResearchInputs.arterialStiffness);
-      expect(point.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall)
-        .toEqual(anchor.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall);
+      expect(point.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.LA)
+        .toBe(anchor.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.LA);
+      expect(point.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.RA)
+        .toBe(anchor.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.RA);
+      expect(point.mechanismResearchInputs.chamberMechanics.calciumDecayTimeScaleByWall)
+        .toEqual(anchor.mechanismResearchInputs.chamberMechanics.calciumDecayTimeScaleByWall);
       expect(point.hemodynamicResearchInputs.totalBloodVolumeMl % 50).toBe(0);
     }
+    expect(neighbors.some((point) => point.hemodynamicResearchInputs.arterialStiffness
+      !== anchor.hemodynamicResearchInputs.arterialStiffness)).toBe(true);
+    expect(neighbors.some((point) => point.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.LVFW
+      !== anchor.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.LVFW)).toBe(true);
     const edge = applyMainWireBaselineCalibrationParametersV1(anchor, [
       { parameterId: "hemodynamics.total-blood-volume-ml", value: 5200 },
     ]);
@@ -302,7 +315,69 @@ describe("bounded baseline operating-point design", () => {
     expect(scoreMainWireBaselineOperatingPointV1({ ...continuous, safetySentinelStatus: "failed" }).minimumMargin)
       .toBe(-Infinity);
   });
+
+  it("scores settled reserve failures continuously but never qualifies missing reserve", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const measurement = reserveFixtureV1();
+    const rest = scoreMainWireBaselineOperatingPointV1(good);
+    const combined = scoreMainWireBaselineReserveAwareV1(good, measurement);
+    expect(combined.feasible).toBe(true);
+    expect(combined.minimumMargin).toBeLessThanOrEqual(rest.minimumMargin);
+    expect(scoreMainWireBaselineReserveAwareV1(good, null).minimumMargin).toBe(-Infinity);
+    const failed = structuredClone(measurement);
+    failed.left.hypervolemic = { ...failed.left.hypervolemic,
+      directionalCardiacOutputChangeFraction01: 0.02 };
+    const lostReserve = scoreMainWireBaselineReserveAwareV1(good, failed);
+    expect(lostReserve.feasible).toBe(false);
+    expect(lostReserve.minimumMargin).toBeCloseTo(-1 / 3, 12);
+    expect(lostReserve.activeConstraints).toContain("preload-reserve.left.hypervolemic.directionalCardiacOutputChangeFraction01");
+    expect(mainWireBaselineDesignBetterV1(lostReserve, combined)).toBe(false);
+    failed.left.hypervolemic = { ...failed.left.hypervolemic, endpointCardiacOutputLPerMin: NaN };
+    expect(scoreMainWireBaselineReserveAwareV1(good, failed).minimumMargin).toBe(-Infinity);
+  });
+
+  it("uses rest-only scores as optimistic bounds, including around the comparison tolerance", async () => {
+    const anchor = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+    const good = await acceptedV1({ ...anchor, nominalDtSec: 0.002 });
+    const rest = scoreMainWireBaselineOperatingPointV1(good);
+    for (const fraction of [0.02, 0.02999, 0.03, 0.03001, 0.03003, 0.04, 0.2]) {
+      const reserve = reserveFixtureV1();
+      reserve.left.hypervolemic = { ...reserve.left.hypervolemic,
+        directionalCardiacOutputChangeFraction01: fraction };
+      const combined = scoreMainWireBaselineReserveAwareV1(good, reserve);
+      for (const offset of [-0.002, -0.001, -0.0009, 0, 0.0009, 0.001, 0.002]) {
+        for (const feasible of [false, true]) {
+          const incumbent = { ...rest, feasible, minimumMargin: rest.minimumMargin + offset,
+            pressureFlowMargin: rest.pressureFlowMargin - 0.01 };
+          if (!mainWireBaselineDesignBetterV1(rest, incumbent)) {
+            expect(mainWireBaselineDesignBetterV1(combined, incumbent)).toBe(false);
+          }
+        }
+      }
+    }
+  });
 });
+
+function reserveFixtureV1() {
+  const response = { endpointDirection: "hypovolemic" as const,
+    baselineFillingPressureMmHg: 8, endpointFillingPressureMmHg: 4, directionalFillingPressureChangeMmHg: 4,
+    baselineCardiacOutputLPerMin: 5, endpointCardiacOutputLPerMin: 4.7,
+    directionalCardiacOutputChangeLPerMin: 0.3, directionalCardiacOutputChangeFraction01: 0.06,
+    cardiacOutputSlopeLPerMinPerMmHg: 0.075, baselineEndDiastolicVolumeMl: 140,
+    endpointEndDiastolicVolumeMl: 126, directionalEndDiastolicVolumeChangeMl: 14,
+    directionalEndDiastolicVolumeChangeFraction01: 0.1, baselineEndDiastolicTransmuralPressureMmHg: 8,
+    endpointEndDiastolicTransmuralPressureMmHg: 6, directionalEndDiastolicTransmuralPressureChangeMmHg: 2,
+    endDiastolicVolumeResponseMlPerMmHg: 7 };
+  const side = { hypovolemic: response, hypervolemic: { ...response, endpointDirection: "hypervolemic" as const,
+    endpointFillingPressureMmHg: 12, endpointCardiacOutputLPerMin: 5.3,
+    endpointEndDiastolicVolumeMl: 154, endpointEndDiastolicTransmuralPressureMmHg: 10 } };
+  return { protocolId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_PROTOCOL_V3_ID,
+    sourceGlobalTbvMl: 5000, hypovolemicGlobalTbvMl: 4400, hypervolemicGlobalTbvMl: 5600,
+    hypovolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypovolemicGlobalTbvScale,
+    hypervolemicGlobalTbvScale: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1.hypervolemicGlobalTbvScale,
+    left: structuredClone(side), right: structuredClone(side) } satisfies MainWireIntegratedModelFormalPreloadReserveMeasurementV1;
+}
 
 // The exact evaluator is covered independently; this fixture exercises only
 // runner wiring, stop boundaries and provenance without expensive trajectories.

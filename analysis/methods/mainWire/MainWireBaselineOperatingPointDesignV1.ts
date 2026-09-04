@@ -9,6 +9,14 @@ import {
 import type {
   MainWireStandard70BaselineCalibrationEvaluationV1,
 } from "./MainWireStandard70BaselineCalibrationEvaluatorV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 as reserveBase,
+  type MainWireIntegratedModelFormalPreloadReserveMeasurementV1,
+} from "./MainWirePressureVolumeProtocolsV3";
+import {
+  MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 as reserveFloors,
+  mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
+} from "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
 
 /** A bounded construction search, not a parameter-identification claim. */
 export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
@@ -19,12 +27,14 @@ export const MAIN_WIRE_BASELINE_OPERATING_POINT_DESIGN_V1 = Object.freeze({
     { parameterId: "hemodynamics.total-blood-volume-ml", step: 100, radius: 300 },
     { parameterId: "myocardium.common-ventricular-active-tension-scale", step: 0.04, radius: 0.12 },
     { parameterId: "hemodynamics.systemic-resistance", step: 0.04, radius: 0.16 },
+    { parameterId: "hemodynamics.arterial-stiffness", step: 0.08, radius: 0.32 },
+    { parameterId: "myocardium.common-ventricular-passive-stiffness-scale", step: 0.08, radius: 0.24 },
   ] satisfies readonly { parameterId: MainWireBaselineCalibrationParameterIdV1; step: number; radius: number }[]),
   maximumEvaluations: 49,
   nominalDtSec: 0.002,
-  objective: "feasibility-then-worst-rest-corridor-margin-then-pressure-flow-margin",
-  rationale: "One preload owner and one common ventricular amplitude; systemic resistance is a conditional design coordinate with matched pressure/flow observations and fixed arterial stiffness. No parameter uniqueness or practical-rank admission is inferred from this search.",
-  locked: ["heart-rate", "venous-tone", "arterial-stiffness", "passive-stiffness", "calcium-source", "Land-kinetics", "valve-areas"],
+  objective: "feasibility-then-worst-rest-and-bidirectional-reserve-margin-then-pressure-flow-margin",
+  rationale: "One preload owner and common ventricular material scales. Pulsatile pressure/flow and settled, fixed-control multi-preload pressure-volume responses support conditional arterial/passive design coordinates. No parameter uniqueness or practical-rank admission is inferred. Rest scores are optimistic bounds used only to avoid reserve evaluations that cannot improve the incumbent.",
+  locked: ["heart-rate", "venous-tone", "calcium-source", "Land-kinetics", "valve-areas"],
   finalQualificationRequired: ["cold", "refined-dt", "bidirectional-preload-reserve", "load-and-rate-envelope"],
 });
 
@@ -84,6 +94,47 @@ export function mainWireBaselineDesignBetterV1(left: DesignScoreV1, right: Desig
   return left.pressureFlowMargin > right.pressureFlowMargin + 0.001;
 }
 
+/** The same reserve gates used for minting, not a substitute fluid-response target. */
+export function scoreMainWireBaselineReserveAwareV1(
+  evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
+  reserve: MainWireIntegratedModelFormalPreloadReserveMeasurementV1 | null,
+): DesignScoreV1 {
+  const rest = scoreMainWireBaselineOperatingPointV1(evaluation);
+  const unresolved = { ...rest, feasible: false, minimumMargin: -Infinity,
+    activeConstraints: ["preload-reserve.unresolved"] };
+  if (!reserve || !Number.isFinite(rest.minimumMargin)) return unresolved;
+  const margins = (["left", "right"] as const).flatMap((side) =>
+    (["hypovolemic", "hypervolemic"] as const).flatMap((direction) => {
+      const response = reserve[side][direction];
+      const floors = {
+        directionalFillingPressureChangeMmHg: reserveBase.minimumDirectionalFillingPressureChangeMmHg,
+        directionalCardiacOutputChangeLPerMin: reserveBase.minimumDirectionalCardiacOutputChangeLPerMin,
+        directionalCardiacOutputChangeFraction01: reserveFloors.minimumDirectionalCardiacOutputChangeFraction01,
+        cardiacOutputSlopeLPerMinPerMmHg: reserveFloors.minimumCardiacOutputSlopeLPerMinPerMmHg,
+        directionalEndDiastolicVolumeChangeMl: reserveBase.minimumDirectionalEndDiastolicVolumeChangeMl,
+        directionalEndDiastolicVolumeChangeFraction01: reserveFloors.minimumDirectionalEndDiastolicVolumeChangeFraction01,
+        directionalEndDiastolicTransmuralPressureChangeMmHg: reserveBase.minimumDirectionalEndDiastolicTransmuralPressureChangeMmHg,
+      };
+      return Object.entries(floors).map(([field, floor]) => ({
+        id: `preload-reserve.${side}.${direction}.${field}`,
+        // One-sided engineering floors: zero at the gate, +1 at twice the
+        // floor. No population variance or upper clinical limit is invented.
+        margin: (response[field as keyof typeof floors] - floor) / floor,
+      }));
+    }));
+  const responses = [reserve.left.hypovolemic, reserve.left.hypervolemic,
+    reserve.right.hypovolemic, reserve.right.hypervolemic];
+  if (responses.some((response) => Object.values(response)
+    .some((value) => typeof value === "number" && !Number.isFinite(value)))) return unresolved;
+  const minimumMargin = Math.min(rest.minimumMargin, ...margins.map((row) => row.margin));
+  return { ...rest, feasible: rest.feasible
+    && responses.every(mainWireStandard70PreloadReserveDirectionalResponsePassedV1), minimumMargin,
+    activeConstraints: [
+      ...(rest.minimumMargin <= minimumMargin + 0.01 ? rest.activeConstraints : []),
+      ...margins.filter((row) => row.margin <= minimumMargin + 0.01).map((row) => row.id),
+    ] };
+}
+
 export function mainWireBaselineDesignQualificationPassedV1(
   evaluation: MainWireStandard70BaselineCalibrationEvaluationV1,
   reserveRequired: boolean,
@@ -120,8 +171,8 @@ export function mainWireBaselineDesignNeighborsV1(
     || current.hemodynamicResearchInputs.heartRateBpm !== anchor.hemodynamicResearchInputs.heartRateBpm) {
     throw new Error("operating-point design fixes one allowed HR per run");
   }
-  const directions = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0],
-    [0, 0, 1], [0, 0, -1], [1, 1, 1], [-1, -1, -1]];
+  const directions = policy.coordinates.flatMap((_, axis) => [1, -1].map((sign) =>
+    policy.coordinates.map((__, i) => i === axis ? sign : 0)));
   return directions.flatMap((direction) => {
     const updates = policy.coordinates.map((coordinate, i) => {
       const value = readMainWireBaselineCalibrationParameterV1(current, coordinate.parameterId)

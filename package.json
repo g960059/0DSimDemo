@@ -69,6 +69,7 @@
     "audit:scientific:main-wire-baseline-conditioning-stage-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --stage-audit",
     "audit:scientific:main-wire-baseline-conditioning-resolution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningResolutionAuditV1.ts",
     "recover:scientific:main-wire-baseline-local-v1": "vite-node --script tools/scientific/runMainWireStandard70BaselineLocalRecoveryV1.ts",
+    "fit:baseline": "vite-node --script tools/scientific/runMainWireBaselineOperatingPointDesignV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",
     "characterize:coronary:v3-reduced-pressure-step-numerical": "vite-node --script tools/scientific/runCoronaryV3ReducedPressureStepNumericalCharacterizationV1.ts --output artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json",
