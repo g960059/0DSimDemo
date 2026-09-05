@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
+import cycleSurface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import currentSurface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
@@ -208,15 +210,19 @@ export async function loadModelSurfacePublicationManifestV1(
   }
   // Never evaluate a user-selected module: a tracked generator or CLI can
   // write files or publish remotely even during --dry-run. Only the reviewed,
-  // statically imported current Surface is an admitted TypeScript manifest.
-  if (extension === ".ts" && manifestPath !== path.join(repositoryRoot,
-    "studio/integrations/mainWireIntegratedV3/"
-      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts")) {
+  // statically imported Surface releases are admitted TypeScript manifests.
+  const knownSurfaces = new Map<string, ModelSurfaceReleaseManifestV1>(([
+    ["MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts", currentSurface],
+    ["MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2.ts", cycleSurface],
+  ] as const).map(([file, surface]) => [path.join(repositoryRoot,
+    "studio/integrations/mainWireIntegratedV3", file), surface]));
+  const knownSurface = knownSurfaces.get(manifestPath);
+  if (extension === ".ts" && knownSurface === undefined) {
     throw new Error("Only the current Model Surface TypeScript module is publishable");
   }
   const parsed: unknown = extension === ".json"
     ? JSON.parse(readFileSync(manifestPath, "utf8"))
-    : currentSurface;
+    : knownSurface;
   assertModelSurfaceReleaseManifestV1(parsed);
   return parsed;
 }

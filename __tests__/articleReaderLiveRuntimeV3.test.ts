@@ -22,6 +22,9 @@ import type {
 import {
   WorkbenchScenarioPresentationSampleStoreV3,
 } from "@/components/workbench/presentation/WorkbenchPresentationSampleStoreV3";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
 import type {
   WorkbenchParallelScenarioSeedV3,
 } from "@/components/workbench/runtime/WorkbenchParallelScenarioRuntimeV3";
@@ -220,6 +223,46 @@ describe("ArticleReaderLiveRuntimeV3", () => {
 
     expect(controller.sampleStore.getScenarioSnapshot("scenario/one"))
       .toEqual([]);
+  });
+
+  it("retains analysis dependencies outside presentation buffers and restarts them at a control epoch", async () => {
+    const snapshot = snapshotV3();
+    const harness = runtimeHarnessV3(snapshot);
+    const analysisSampleStore = new AcceptedScalarAnalysisWindowStoreV1({
+      expectedFrameIntervalSec: 0.002,
+      requiredExactOutputIds: ["pressure"],
+    });
+    const controller = new ArticleReaderLiveRuntimeV3(snapshot, {
+      createRuntime: harness.createRuntime,
+      presentationOutputIds: new Set<string>(),
+      analysisSampleStore,
+    });
+    await controller.start();
+
+    expect(controller.sampleStore.getScenarioSnapshot("scenario/one"))
+      .toEqual([]);
+    expect(analysisSampleStore.getScenarioSamples("scenario/one"))
+      .toHaveLength(1);
+    harness.dependencies?.onFrames([
+      frameV3("scenario/one", 1.002, 11),
+    ]);
+    expect(analysisSampleStore.getScenarioSamples("scenario/one")).toEqual([
+      expect.objectContaining({ inputEpoch: 0, acceptedTimeSec: 1 }),
+      expect.objectContaining({ inputEpoch: 0, acceptedTimeSec: 1.002 }),
+    ]);
+
+    await controller.applyControl({
+      controlInstanceId: "pane/control\u001fcontrol/svr",
+      controlId: "control/svr",
+      scenarioIds: ["scenario/one"],
+      value: 44,
+    });
+    expect(analysisSampleStore.getScenarioSamples("scenario/one")).toEqual([
+      expect.objectContaining({
+        inputEpoch: 1,
+        values: { pressure: 44 },
+      }),
+    ]);
   });
 
   it("transfers each short analysis-source pause without using global UI pause", async () => {

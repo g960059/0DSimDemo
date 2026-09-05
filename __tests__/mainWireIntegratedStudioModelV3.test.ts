@@ -73,6 +73,7 @@ import {
   resolveMainWireAnalysisMethodsForSurfaceV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import mainWireIntegratedStudioStandardSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/model-surface-workbench-analysis-v1.json";
+import cycleSurfaceV2 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import mainWireIntegratedStudioStandardRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1 from "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json";
@@ -508,7 +509,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
       const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
-      const surface = mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1;
+      const surface = cycleSurfaceV2;
       const revisioned = composition.localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
         new URL("http://127.0.0.1:4176/standard70.artifact.mjs?keep=1"),
       );
@@ -551,6 +552,18 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         current.manifest.modelId, surface.surfaceSeriesId, surface.surfaceReleaseId,
       )).toBe(snapshot);
       await expect(snapshot).resolves.toBe(local);
+      const pinnedV1 = await composition.loadStudioSnapshotClientCompositionV2(
+        current.manifest.modelId, surface.surfaceSeriesId,
+        mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.surfaceReleaseId,
+      );
+      expect(pinnedV1.modelSurface.identity.surfaceReleaseId)
+        .toBe(mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.surfaceReleaseId);
+      expect(pinnedV1.modelSurface.analysis.cardiacCycleDerivation).toBeNull();
+      expect(local.modelSurface.analysis.cardiacCycleDerivation).not.toBeNull();
+      expect(pinnedV1.modelSurface.analysis.periodicPvaDerivation?.methodId)
+        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID);
+      expect(pinnedV1.exactModel.defaultCheckpoint).toEqual(local.exactModel.defaultCheckpoint);
+      expect(local.exactModel.workerReleaseTicket.manifest).toEqual(current.manifest);
       expect(local.modelSurface.contract.controlCatalog).toHaveLength(52);
       expect(local.modelSurface.contract.graphCatalog).toEqual(
         surface.graphCatalog.map(({ requiredCapabilities: _required, ...graph }) => graph),

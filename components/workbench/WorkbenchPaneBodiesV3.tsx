@@ -16,6 +16,9 @@ import {
 } from "@/components/workbench/WorkbenchItemPresentation";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
+  MainWireCardiacCycleMetricsV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import type {
   ExperimentSurfaceControlPaneV2,
   ExperimentSurfaceOutputPaneV2,
 } from "@/studio/contracts/v2/content";
@@ -53,6 +56,7 @@ export function RuntimeStatusV3({
 }
 
 export function OutputPaneBodyV3({
+  cardiacCycleMetrics,
   contract,
   frame,
   locale,
@@ -65,6 +69,7 @@ export function OutputPaneBodyV3({
   showBinding,
   scenarioLabel,
 }: Readonly<{
+  cardiacCycleMetrics?: MainWireCardiacCycleMetricsV1;
   contract: ModelContractV2;
   frame: StudioSimulationFrameV2 | null;
   locale: "en" | "ja";
@@ -87,6 +92,7 @@ export function OutputPaneBodyV3({
       ? t("workbench.live.paneBindingActive", { scenario: scenarioLabel })
       : t("workbench.live.paneBindingFixed", { scenarios: scenarioLabel });
   const selected = materializeWorkbenchOutputPresentationItemsV3({
+    cardiacCycleMetrics,
     contract,
     frame,
     locale,

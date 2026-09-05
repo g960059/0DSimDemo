@@ -10,7 +10,15 @@ import type {
 } from "@/studio/contracts/v2/simulation";
 import type {
   MainWirePeriodicPvaDerivationV1,
+  MainWireCardiacCycleDerivationV1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  requireMainWireCardiacCyclePresentationIntervalSecV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
 import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
@@ -26,8 +34,10 @@ import {
 export type UseArticleReaderLiveRuntimeResultV3 = Readonly<{
   state: ArticleReaderLiveRuntimeStateV3;
   sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  cardiacCycleSampleStore: AcceptedScalarAnalysisWindowStoreV1 | null;
   fixtureProjection: ExactModelFixtureProjectionV1;
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
+  cardiacCycleDerivation: MainWireCardiacCycleDerivationV1 | null;
   play(): void;
   pause(): Promise<void>;
   setPlaybackRate(rate: number): void;
@@ -55,6 +65,7 @@ export function useArticleReaderLiveRuntimeV3(
     releaseTicket: StudioModelWorkerReleaseTicketV2;
     fixtureProjection: ExactModelFixtureProjectionV1;
     periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
+    cardiacCycleDerivation: MainWireCardiacCycleDerivationV1 | null;
     resolveAnalysisExecutionPlan?:
       StudioSimulationAnalysisExecutionPlanResolverV2;
   }>,
@@ -82,6 +93,25 @@ export function useArticleReaderLiveRuntimeV3(
     () => new WorkbenchScenarioPresentationSampleStoreV3(),
     [presentationOutputKey, snapshot.snapshotId, visibleScopeKey],
   );
+  const cardiacCycleSampleStore = React.useMemo(
+    () => exactModel.cardiacCycleDerivation === null
+      ? null
+      : new AcceptedScalarAnalysisWindowStoreV1({
+          expectedFrameIntervalSec:
+            requireMainWireCardiacCyclePresentationIntervalSecV1(
+              exactModel.releaseTicket.manifest.runtime,
+            ),
+          requiredExactOutputIds:
+            MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+        }),
+    [
+      exactModel.cardiacCycleDerivation,
+      exactModel.releaseTicket,
+      presentationOutputKey,
+      snapshot.snapshotId,
+      visibleScopeKey,
+    ],
+  );
   const controllerRef = React.useRef<ArticleReaderLiveRuntimeV3 | null>(null);
   const [state, setState] = React.useState<ArticleReaderLiveRuntimeStateV3>(() =>
     initialStateV3(
@@ -101,6 +131,9 @@ export function useArticleReaderLiveRuntimeV3(
         ? {}
         : { presentationOutputIds }),
       sampleStore,
+      ...(cardiacCycleSampleStore === null
+        ? {}
+        : { analysisSampleStore: cardiacCycleSampleStore }),
       releaseTicket: exactModel.releaseTicket,
       ...(exactModel?.resolveAnalysisExecutionPlan === undefined
         ? {}
@@ -135,6 +168,7 @@ export function useArticleReaderLiveRuntimeV3(
   }, [
     initialActiveScenarioId,
     sampleStore,
+    cardiacCycleSampleStore,
     snapshot,
     structuralAnalysisKey,
     presentationOutputKey,
@@ -179,8 +213,10 @@ export function useArticleReaderLiveRuntimeV3(
   return React.useMemo(() => Object.freeze({
     state,
     sampleStore,
+    cardiacCycleSampleStore,
     fixtureProjection: exactModel.fixtureProjection,
     periodicPvaDerivation: exactModel.periodicPvaDerivation,
+    cardiacCycleDerivation: exactModel.cardiacCycleDerivation,
     applyControl,
     play,
     pause,
@@ -190,11 +226,13 @@ export function useArticleReaderLiveRuntimeV3(
   }), [
     applyControl,
     exactModel.fixtureProjection,
+    exactModel.cardiacCycleDerivation,
     exactModel.periodicPvaDerivation,
     pause,
     play,
     requestAnalysis,
     sampleStore,
+    cardiacCycleSampleStore,
     selectScenario,
     setPlaybackRate,
     state,

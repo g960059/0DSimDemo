@@ -43,6 +43,8 @@ import {
 } from "@/tools/registry/publishModelSurfaceReleaseV1";
 import currentClient from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+import cycleSurface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import currentSurface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
@@ -106,6 +108,9 @@ describe("Studio Supabase boundary V1", () => {
     expect(await loadModelSurfacePublicationManifestV1(directory
       + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts"))
       .toEqual(currentSurface);
+    expect(await loadModelSurfacePublicationManifestV1(directory
+      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2.ts"))
+      .toEqual(cycleSurface);
     expect(await loadModelSurfacePublicationManifestV1(directory
       + "model-surface-workbench-analysis-v1.json")).toEqual(standardSurfaceReleaseV1);
     await expect(loadModelSurfacePublicationManifestV1("../outside.json"))

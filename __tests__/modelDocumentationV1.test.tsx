@@ -13,6 +13,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import { modelDocumentationHref } from "@/homeLinks";
+import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import {
@@ -36,6 +37,18 @@ describe("model documentation V1", () => {
       modelId: "model/selected:aortic",
       surfaceReleaseId: "surface/release:1",
     })).toBe("/ja/models/model%2Fselected%3Aaortic?surface=surface%2Frelease%3A1");
+  });
+
+  it("resolves facts for the additive Surface without rewriting the previous pin", () => {
+    for (const release of [surface, cycleSurface]) {
+      const identity = resolveRegisteredModelDocumentationV1(MODEL_ID, release.surfaceReleaseId)!;
+      const facts = resolveMainWireStandard70DocumentationFactsV1(identity);
+      expect(facts?.identity).toEqual(identity);
+      expect(facts?.surface.formalPressureVolumeAnalysisExposed).toBe(true);
+      expect(renderDocumentationRoute(modelDocumentationHref({
+        locale: "ja", modelId: MODEL_ID, surfaceReleaseId: release.surfaceReleaseId,
+      }))).not.toContain('data-testid="model-documentation-unavailable-v1"');
+    }
   });
 
   it("resolves only the current exact model and immutable Surface pair", () => {

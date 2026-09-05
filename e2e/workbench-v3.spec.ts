@@ -96,6 +96,35 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
+test("@desktop @model-lab Standard70 cycle outputs render from retained analysis samples", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await openPaneSettings(page, "Outputs");
+  const settings = page.getByRole("dialog", { name: "Pane設定" });
+  await settings.locator(".workbench-pane-add-item").click();
+  const drawer = settings.getByTestId("pane-settings-context-drawer-v3");
+  const labels = ["等容性収縮時間 (ICT)", "等容性弛緩時間 (IVRT)", "左室Tei類似指数",
+    "LV dP/dt max（10 ms）", "LV dP/dt min（10 ms）",
+    "RV dP/dt max（10 ms）", "RV dP/dt min（10 ms）"];
+  for (const label of labels) {
+    await drawer.getByRole("searchbox").fill(label);
+    await drawer.getByRole("button", { name: `項目を追加: ${label}`, exact: true }).click();
+  }
+  await drawer.getByRole("button", { name: "パネルを閉じる" }).click();
+  await settings.getByRole("button", { name: "完了", exact: true }).click();
+  for (const label of labels) {
+    const item = page.locator(".workbench-output-item").filter({
+      has: page.locator(".workbench-output-label", { hasText: label }),
+    });
+    await expect(item).toHaveAttribute("data-output-availability", "available");
+    await expect(item).toHaveAttribute("data-output-quality", "accepted-derived");
+    await expect(item.locator(".workbench-output-value")).not.toContainText("—");
+  }
+  const before = await acceptedRevision(page);
+  await expect.poll(() => acceptedRevision(page)).toBeGreaterThan(before + 20);
+  expect(errors).toEqual([]);
+});
+
 test("@desktop production Standard70 inherits the complete analysis Surface", async ({
   page,
 }) => {
