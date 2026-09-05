@@ -96,7 +96,7 @@ test("@desktop selector stays ID-less until the first explicit Save", async ({
   await expect(page.getByRole("button", { name: /書き出/ })).toHaveCount(0);
 });
 
-test("@desktop Standard70 cycle outputs render from retained analysis samples", async ({ page }) => {
+test("@desktop @model-lab Standard70 cycle outputs render from retained analysis samples", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await openPaneSettings(page, "Outputs");
