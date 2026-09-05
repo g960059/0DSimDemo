@@ -49,12 +49,17 @@ import {
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
 import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import algebraicPulmonaryRootStandard70SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+
+import { MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1 } from
+  "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import { AcceptedScalarAnalysisWindowStoreV1 } from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
 
 const NOOP = () => {};
 
@@ -205,6 +210,7 @@ function runtimeCompositionV3(): StudioClientCompositionV2 {
       analysis: Object.freeze({
         capabilities: Object.freeze([]),
         periodicPvaDerivation: null,
+        cardiacCycleDerivation: null,
         resolveExecutionPlan: () => null,
       }),
     }),
@@ -377,6 +383,8 @@ function readerRuntimeStubV3(
       }),
     }),
     periodicPvaDerivation: null,
+    cardiacCycleDerivation: null,
+    cardiacCycleSampleStore: null,
     play: NOOP,
     pause: async () => undefined,
     setPlaybackRate: NOOP,
@@ -1056,6 +1064,42 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).toContain(">AoP<");
     expect(html).toContain('aria-label="AoPの説明"');
     expect(html).toContain('data-testid="workbench-item-description-trigger-v3"');
+  });
+
+  it("renders flow-event timing from analysis samples and clears it at a new epoch", () => {
+    const method = MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1.runtime.derivation;
+    const outputId = MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1.leftVentricularIsovolumicContractionTimeMs;
+    const store = new AcceptedScalarAnalysisWindowStoreV1({
+      expectedFrameIntervalSec: 0.002, requiredExactOutputIds: method.requiredExactOutputIds,
+    });
+    const frames = Array.from({ length: 1_006 }, (_, index) => {
+      const time = index * 0.002;
+      const phase = Math.round((time % 1) * 1e6) / 1e6;
+      const values = [phase, phase < 0.18 ? 100 * (0.18 - phase) : Math.max(0, phase - 0.58),
+        Math.max(0, Math.min(phase - 0.2, 0.5 - phase)),
+        80 + Math.sin(2 * Math.PI * phase), 20 + Math.sin(2 * Math.PI * phase)];
+      return { modelId: "model/reader-test", runtimeSessionId: "reader-cycle-test",
+        scenarioId: "scenario/comparison", inputEpoch: 0, acceptedRevision: index, acceptedTimeSec: time,
+        outputs: Object.fromEntries(method.requiredExactOutputIds.map((id, position) => [id, {
+          outputId: id, value: values[position], availability: "available" as const,
+          quality: "authoritative-state" as const,
+        }])),
+      };
+    });
+    store.appendFrames(frames);
+    const briefing = { ...briefingV3(), outputs: [{ sourcePaneId: "pane/outputs", outputId,
+      scenarioId: "scenario/comparison", label: "ICT", order: 0 }] };
+    const contract = { ...contractV3(), outputCatalog: MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1.outputs.map((output) => ({ ...output, significantDigits: 3 })) };
+    const runtime = { ...readerRuntimeStubV3(), cardiacCycleSampleStore: store,
+      cardiacCycleDerivation: method };
+    // The visual store has no exact or derived output values.
+    const render = () => renderToStaticMarkup(<ArticleReaderOutputsV3
+      briefing={briefing} contract={contract} runtime={runtime} />);
+    expect(render()).toContain(">ICT<");
+    expect(render()).toContain(">20.0<");
+    store.appendFrames([{ ...frames.at(-1)!, inputEpoch: 1 }]);
+    expect(render()).not.toContain(">20.0<");
+    expect(render()).toContain("—");
   });
 
   it("requests the shared settled relation analysis for output-only PVA briefings", () => {

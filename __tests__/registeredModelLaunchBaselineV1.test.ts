@@ -10,6 +10,7 @@ import { loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
   loadStudioDefaultClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from
   "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
+import cycleSurface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import { materializeExactModelControlValuesV1 } from "@/studio/application/model/ExactModelControlValuesV1";
 import descriptor from
@@ -112,6 +113,7 @@ describe("selected Standard70 launch baseline", () => {
       { ...input, ticket: { ...ticket, modelId: "unrelated" } },
       { ...input, ticket: { ...ticket, manifest: { ...ticket.manifest, modelId: "unrelated" } } },
       { ...input, ticket: { ...ticket, surfaceRelease: { ...surface, displayName: "unreviewed" } } },
+      { ...input, ticket: { ...ticket, surfaceRelease: { ...cycleSurface, derivedOutputCatalog: surface.derivedOutputCatalog } } },
       { ...input, defaultFixture: changedFixture },
     ];
     for (const value of cases) {

@@ -12,6 +12,7 @@ import {
 import {
   assertExactModelKernelManifestV3,
   assertModelSurfaceReleaseManifestV1,
+  type ModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   StudioExactModelUnavailableErrorV1,
@@ -42,6 +43,8 @@ import algebraicPulmonaryRootClientDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import algebraicPulmonaryRootSurfaceReleaseV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import algebraicPulmonaryRootSurfaceReleaseV2 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import algebraicPulmonaryRootRegistryAdmissionLockV1 from
   "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json";
 
@@ -74,8 +77,13 @@ const browserSnapshotCompositionPromisesV2 = new Map<
   string,
   Promise<StudioClientCompositionV2>
 >();
-let browserLocalAlgebraicPulmonaryRootCompositionPromiseV1:
-  Promise<StudioClientCompositionV2> | undefined;
+const browserLocalCompositionPromisesV1 = new Map<
+  string, Promise<StudioClientCompositionV2>
+>();
+const localSurfacesV1 = [
+  algebraicPulmonaryRootSurfaceReleaseV2,
+  algebraicPulmonaryRootSurfaceReleaseV1,
+] as const;
 
 /**
  * Development inventory refreshes must observe active-bundle and lifecycle
@@ -102,15 +110,13 @@ async function createRegistryClientCompositionV2(
     if (modelId === undefined) {
       return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
     }
+    const localSurface = surfacePin === undefined ? undefined
+      : localSurfacesV1.find((surface) => localSurfacePinMatchesV1(surface, surfacePin));
     if (
       modelId === algebraicPulmonaryRootClientDescriptorV1.manifest.modelId
-      && surfacePin !== undefined
-      && localSurfacePinMatchesV1(
-        algebraicPulmonaryRootSurfaceReleaseV1,
-        surfacePin,
-      )
+      && localSurface !== undefined
     ) {
-      return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
+      return loadLocalCompositionV1(localSurface);
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
@@ -125,9 +131,13 @@ async function createRegistryClientCompositionV2(
 /** Local default Workbench composition for the Standard70 successor. */
 export function loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1():
 Promise<StudioClientCompositionV2> {
-  if (browserLocalAlgebraicPulmonaryRootCompositionPromiseV1 !== undefined) {
-    return browserLocalAlgebraicPulmonaryRootCompositionPromiseV1;
-  }
+  return loadLocalCompositionV1(algebraicPulmonaryRootSurfaceReleaseV2);
+}
+
+function loadLocalCompositionV1(surface: ModelSurfaceReleaseManifestV1):
+Promise<StudioClientCompositionV2> {
+  const cached = browserLocalCompositionPromisesV1.get(surface.surfaceReleaseId);
+  if (cached !== undefined) return cached;
   const pending = Promise.resolve().then(() => {
     if (
       algebraicPulmonaryRootClientDescriptorV1.schemaId
@@ -139,7 +149,7 @@ Promise<StudioClientCompositionV2> {
       algebraicPulmonaryRootClientDescriptorV1.manifest,
     );
     assertModelSurfaceReleaseManifestV1(
-      algebraicPulmonaryRootSurfaceReleaseV1,
+      surface,
     );
     const workerReleaseTicket = validateStudioModelWorkerReleaseTicketV2({
       schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
@@ -147,7 +157,7 @@ Promise<StudioClientCompositionV2> {
       artifactRevisionId:
         algebraicPulmonaryRootRegistryAdmissionLockV1.artifactRevisionId,
       manifest: algebraicPulmonaryRootClientDescriptorV1.manifest,
-      surfaceRelease: algebraicPulmonaryRootSurfaceReleaseV1,
+      surfaceRelease: surface,
       moduleAbi: "circleheart-exact-model-esm-v1",
       artifactUrl: localAlgebraicPulmonaryRootArtifactUrlV1(),
     });
@@ -158,10 +168,10 @@ Promise<StudioClientCompositionV2> {
       surfaceStage: "dev" as const,
     }));
   });
-  browserLocalAlgebraicPulmonaryRootCompositionPromiseV1 = pending;
+  browserLocalCompositionPromisesV1.set(surface.surfaceReleaseId, pending);
   void pending.catch(() => {
-    if (browserLocalAlgebraicPulmonaryRootCompositionPromiseV1 === pending) {
-      browserLocalAlgebraicPulmonaryRootCompositionPromiseV1 = undefined;
+    if (browserLocalCompositionPromisesV1.get(surface.surfaceReleaseId) === pending) {
+      browserLocalCompositionPromisesV1.delete(surface.surfaceReleaseId);
     }
   });
   return pending;

@@ -14,6 +14,12 @@ import {
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import {
+  MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1,
+  MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+  buildMainWireCardiacCycleMetricsV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
 } from "@/studio/contracts/v2/simulation";
@@ -47,16 +53,52 @@ export type MainWirePeriodicPvaDerivationV1 = Readonly<{
   build: typeof buildMainWirePeriodicPvaMethodV8;
 }>;
 
-type MainWireAnalysisDerivationRuntimeV1 = Readonly<{
-  kind: "periodic-pva";
-  derivation: MainWirePeriodicPvaDerivationV1;
+export type MainWireCardiacCycleDerivationV1 = Readonly<{
+  methodId: typeof MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID;
+  requiredExactOutputIds:
+    typeof MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1;
+  build: typeof buildMainWireCardiacCycleMetricsV1;
 }>;
+
+type MainWireAnalysisDerivationRuntimeV1 =
+  | Readonly<{
+      kind: "periodic-pva";
+      derivation: MainWirePeriodicPvaDerivationV1;
+    }>
+  | Readonly<{
+      kind: "cardiac-cycle";
+      derivation: MainWireCardiacCycleDerivationV1;
+    }>;
 
 export type ResolvedMainWireAnalysisMethodsV1 = Readonly<{
   capabilities: readonly string[];
   periodicPvaDerivation: MainWirePeriodicPvaDerivationV1 | null;
+  cardiacCycleDerivation: MainWireCardiacCycleDerivationV1 | null;
   resolveExecutionPlan: StudioSimulationAnalysisExecutionPlanResolverV2;
 }>;
+
+export const MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1 = Object.freeze({
+  derivationId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  outputs: Object.freeze(Object.entries(MAIN_WIRE_CARDIAC_CYCLE_OUTPUT_IDS_V1)
+    .map(([name, outputId]) => Object.freeze({
+      outputId,
+      kind: "metric" as const,
+      unit: name.includes("PressureRate") ? "mmHg/s"
+        : name.endsWith("TimeMs") ? "ms" : "1",
+      shape: "scalar" as const,
+      scope: "beat" as const,
+      dependencies: MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+    }))),
+  requiredAnalysisIds: Object.freeze([]),
+  runtime: Object.freeze({
+    kind: "cardiac-cycle" as const,
+    derivation: Object.freeze({
+      methodId: MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+      requiredExactOutputIds: MAIN_WIRE_CARDIAC_CYCLE_REQUIRED_EXACT_OUTPUT_IDS_V1,
+      build: buildMainWireCardiacCycleMetricsV1,
+    }),
+  }),
+}) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
 
 const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1 = Object.freeze({
   derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
@@ -149,6 +191,7 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
     derivations: Object.freeze([
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9,
+      MAIN_WIRE_CARDIAC_CYCLE_DERIVATION_V1,
     ]),
     resolveExecutionPlan:
       resolveMainWireStructuralAnalysisExecutionPlanV1,
@@ -171,11 +214,19 @@ export function resolveMainWireAnalysisMethodsForSurfaceV1(
     );
   }
   const periodicPvaRuntime = periodicPvaRuntimes[0];
+  const cardiacCycleRuntime = resolved.derivations.find(
+    ({ derivationId }) =>
+      derivationId === MAIN_WIRE_CARDIAC_CYCLE_METRICS_METHOD_V1_ID,
+  )?.runtime;
   return Object.freeze({
     capabilities: resolved.capabilities,
     periodicPvaDerivation:
       periodicPvaRuntime?.kind === "periodic-pva"
         ? periodicPvaRuntime.derivation
+        : null,
+    cardiacCycleDerivation:
+      cardiacCycleRuntime?.kind === "cardiac-cycle"
+        ? cardiacCycleRuntime.derivation
         : null,
     resolveExecutionPlan: resolved.resolveExecutionPlan,
   });

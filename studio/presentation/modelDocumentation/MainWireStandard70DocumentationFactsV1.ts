@@ -17,6 +17,8 @@ import algebraicPulmonaryRootDescriptorV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import algebraicPulmonaryRootSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import algebraicPulmonaryRootSurfaceV2 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 import {
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
@@ -81,8 +83,9 @@ export function resolveMainWireStandard70DocumentationFactsV1(
   try {
     const manifest = algebraicPulmonaryRootDescriptorV1.manifest as unknown as
       ExactModelKernelManifestV3;
-    const surface = algebraicPulmonaryRootSurfaceV1 as unknown as
-      ModelSurfaceReleaseManifestV1;
+    const surface = [algebraicPulmonaryRootSurfaceV1, algebraicPulmonaryRootSurfaceV2]
+      .find((candidate) => candidate.surfaceReleaseId === identity.surfaceReleaseId);
+    if (surface === undefined) return null;
     assertExactModelKernelManifestV3(manifest);
     assertModelSurfaceReleaseManifestV1(surface);
     if (

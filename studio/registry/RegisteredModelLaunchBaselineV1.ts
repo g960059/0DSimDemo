@@ -14,6 +14,8 @@ import launchJson from
   "@/data/model-baselines/standard70-launch-baseline.json";
 import surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import cycleSurface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 
 // Keep the reviewed construction independent of the imported capture/evidence.
 // A new selection must deliberately update this pin as well as its evidence;
@@ -155,7 +157,7 @@ export function resolveRegisteredModelLaunchDefaultsV1<TFixture extends StudioJs
     studioCanonicalJsonStringify(left) === studioCanonicalJsonStringify(right);
   if (input.ticket.modelId !== launch.modelId
     || !equal(input.ticket.manifest, descriptor.manifest)
-    || !equal(input.ticket.surfaceRelease, surface)
+    || ![surface, cycleSurface].some((reviewed) => equal(input.ticket.surfaceRelease, reviewed))
     || (!equal(input.defaultFixture, descriptor.defaultFixture)
       && !equal(input.defaultFixture, launch.capture.fixture))) {
     return Object.freeze({ defaultFixture: input.defaultFixture });

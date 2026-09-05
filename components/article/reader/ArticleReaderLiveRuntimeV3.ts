@@ -29,6 +29,10 @@ import {
   workbenchPerformanceDiagnosticsEnabledV3,
   workbenchPerformanceNowV3,
 } from "@/components/workbench/runtime/WorkbenchPerformanceDiagnosticsV3";
+import {
+  AcceptedScalarAnalysisWindowStoreV1,
+  exactOutputSelectionWithAnalysisV1,
+} from "@/analysis/runtime/AcceptedScalarAnalysisWindowV1";
 
 export type ArticleReaderLiveRuntimeStateV3 = Readonly<{
   status:
@@ -93,6 +97,7 @@ type ArticleReaderLiveRuntimeCommonDependenciesV3 = Readonly<{
   visibleScenarioIds?: readonly string[];
   structuralAnalyses?: readonly ArticleReaderStructuralAnalysisRequestV3[];
   sampleStore?: WorkbenchScenarioPresentationSampleStoreV3;
+  analysisSampleStore?: AcceptedScalarAnalysisWindowStoreV1;
   backgroundWorkerPool?: WorkbenchBackgroundWorkerPoolPortV3;
   resolveAnalysisExecutionPlan?:
     StudioSimulationAnalysisExecutionPlanResolverV2;
@@ -123,6 +128,7 @@ export type ArticleReaderLiveRuntimeDependenciesV3 =
  */
 export class ArticleReaderLiveRuntimeV3 {
   readonly sampleStore: WorkbenchScenarioPresentationSampleStoreV3;
+  readonly analysisSampleStore: AcceptedScalarAnalysisWindowStoreV1 | null;
   readonly #snapshot: ExperimentSnapshotV2;
   readonly #scenarioIds: readonly string[];
   readonly #createRuntime: NonNullable<
@@ -132,6 +138,7 @@ export class ArticleReaderLiveRuntimeV3 {
   readonly #listeners = new Set<() => void>();
   readonly #structuralHistoryDepthByAnalysisId: ReadonlyMap<string, number>;
   readonly #presentationOutputIds: ReadonlySet<string> | undefined;
+  readonly #exactStreamOutputIds: ReadonlySet<string> | undefined;
   #state: ArticleReaderLiveRuntimeStateV3;
   #runtime: ArticleReaderParallelRuntimeV3 | null = null;
   #startPromise: Promise<void> | null = null;
@@ -164,6 +171,13 @@ export class ArticleReaderLiveRuntimeV3 {
         dependencies.structuralAnalyses ?? [],
       );
     this.#presentationOutputIds = dependencies.presentationOutputIds;
+    this.analysisSampleStore = dependencies.analysisSampleStore ?? null;
+    this.#exactStreamOutputIds = this.analysisSampleStore === null
+      ? this.#presentationOutputIds
+      : exactOutputSelectionWithAnalysisV1(
+          this.#presentationOutputIds ?? new Set<string>(),
+          this.analysisSampleStore.requiredExactOutputIds,
+        );
     this.sampleStore = dependencies.sampleStore
       ?? new WorkbenchScenarioPresentationSampleStoreV3();
     if (dependencies.createRuntime === undefined) {
@@ -179,7 +193,7 @@ export class ArticleReaderLiveRuntimeV3 {
           releaseTicket: dependencies.releaseTicket,
           backgroundWorkerPool,
           presentationOutputIds: () =>
-            this.#presentationOutputIds ?? Object.freeze([]),
+            this.#exactStreamOutputIds ?? Object.freeze([]),
           resolveAnalysisExecutionPlan:
             dependencies.resolveAnalysisExecutionPlan ?? (() => null),
         });
@@ -232,6 +246,7 @@ export class ArticleReaderLiveRuntimeV3 {
               this.sampleStore,
               this.#presentationOutputIds,
             );
+            this.analysisSampleStore?.appendFrames(frames);
           } catch (error) {
             this.#fail(errorAsErrorV3(error), runtime);
           }
@@ -269,6 +284,9 @@ export class ArticleReaderLiveRuntimeV3 {
         scenarios.map(({ scenarioId }) => runtime.latestFrame(scenarioId)),
         this.sampleStore,
         this.#presentationOutputIds,
+      );
+      this.analysisSampleStore?.appendFrames(
+        scenarios.map(({ scenarioId }) => runtime.latestFrame(scenarioId)),
       );
       if (this.#shouldPlayV3()) {
         runtime.playAll();
@@ -597,6 +615,10 @@ export class ArticleReaderLiveRuntimeV3 {
         this.sampleStore,
         this.#presentationOutputIds,
       );
+      for (const scenarioId of input.scenarioIds) {
+        this.analysisSampleStore?.resetScenario(scenarioId);
+      }
+      this.analysisSampleStore?.appendFrames(frames);
       const acceptedScenarios = await Promise.all(
         input.scenarioIds.map((scenarioId) =>
           runtime.captureScenario(scenarioId)),

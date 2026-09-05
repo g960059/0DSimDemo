@@ -9,6 +9,11 @@ import {
 } from "@/components/workbench/WorkbenchSurfaceV3";
 import type { MainWirePeriodicPvaV1 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
+  type MainWireCardiacCycleMetricsV1,
+  type MainWireCardiacCycleOutputIdV1,
+} from "@/analysis/methods/mainWire/MainWireCardiacCycleMetricsV1";
+import {
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
@@ -31,6 +36,9 @@ import {
 
 const WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
   MAIN_WIRE_PERIODIC_PVA_ANALYSIS_OUTPUT_IDS_V1,
+);
+const WORKBENCH_CARDIAC_CYCLE_ANALYSIS_OUTPUT_ID_SET_V1 = new Set<string>(
+  MAIN_WIRE_CARDIAC_CYCLE_ANALYSIS_OUTPUT_IDS_V1,
 );
 
 export function resolveWorkbenchPaneItemLabelV3(
@@ -192,6 +200,24 @@ export function workbenchPeriodicPvaOutputValueV3(
   });
 }
 
+export function workbenchCardiacCycleOutputValueV1(
+  metrics: MainWireCardiacCycleMetricsV1 | undefined,
+  outputId: string,
+): StudioSimulationOutputValueV2 | undefined {
+  if (!WORKBENCH_CARDIAC_CYCLE_ANALYSIS_OUTPUT_ID_SET_V1.has(outputId)) {
+    return undefined;
+  }
+  const value = metrics?.values[outputId as MainWireCardiacCycleOutputIdV1]
+    ?? null;
+  return Object.freeze({
+    outputId,
+    value,
+    availability:
+      value === null ? "not-evaluated-at-accepted-state" : "available",
+    quality: value === null ? "not-assessed" : "accepted-derived",
+  });
+}
+
 export function materializeWorkbenchOutputPresentationItemsV3(
   input: Readonly<{
     contract: ModelContractV2;
@@ -199,6 +225,7 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     locale: "en" | "ja";
     notAssessedNotice: string;
     pane: ExperimentSurfaceOutputPaneV2;
+    cardiacCycleMetrics?: MainWireCardiacCycleMetricsV1;
     periodicPva?: MainWirePeriodicPvaV1;
     periodicPvaAnalysisError?: string;
   }>,
@@ -305,6 +332,10 @@ export function materializeWorkbenchOutputPresentationItemsV3(
     if (definition === undefined) continue;
     const outputValue =
       workbenchPeriodicPvaOutputValueV3(input.periodicPva, item.outputId)
+      ?? workbenchCardiacCycleOutputValueV1(
+        input.cardiacCycleMetrics,
+        item.outputId,
+      )
       ?? input.frame?.outputs[item.outputId];
     const pvaNotice = WORKBENCH_PERIODIC_PVA_ANALYSIS_OUTPUT_ID_SET_V1.has(
       item.outputId,

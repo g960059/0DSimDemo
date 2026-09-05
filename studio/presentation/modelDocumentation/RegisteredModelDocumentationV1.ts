@@ -7,6 +7,8 @@ import {
 } from "@/studio/contracts/v2/modelSurface";
 import algebraicPulmonaryRootStandard70SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import algebraicPulmonaryRootStandard70SurfaceV2 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV2";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   kind: "main-wire-algebraic-pulmonary-root-standard70";
@@ -22,30 +24,28 @@ export type RegisteredModelDisclosureV1 = Readonly<{
   limitationsTranslationKey: "modelLimitations.items" | "modelLimitations.standard70Items";
 }>;
 
-const STANDARD70_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
-  kind: "main-wire-algebraic-pulmonary-root-standard70" as const,
-  modelId: MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-  surfaceReleaseId: algebraicPulmonaryRootStandard70SurfaceV1.surfaceReleaseId,
-  surfaceSeriesId: algebraicPulmonaryRootStandard70SurfaceV1.surfaceSeriesId,
-});
-
 /** Documentation requires the exact model and immutable Surface release pair. */
 export function resolveRegisteredModelDocumentationV1(
   modelId: string | undefined,
   surfaceReleaseId: string | null | undefined,
 ): RegisteredModelDocumentationIdentityV1 | null {
-  const identity = STANDARD70_DOCUMENTATION_IDENTITY_V1;
-  const surface = algebraicPulmonaryRootStandard70SurfaceV1;
+  const surface = [algebraicPulmonaryRootStandard70SurfaceV1,
+    algebraicPulmonaryRootStandard70SurfaceV2]
+    .find((candidate) => candidate.surfaceReleaseId === surfaceReleaseId);
   if (
-    modelId !== identity.modelId
-    || surfaceReleaseId !== identity.surfaceReleaseId
+    modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
+    || surface === undefined
     || surface.schemaId !== STUDIO_MODEL_SURFACE_RELEASE_V1_SCHEMA_ID
     || surface.modelFamilyId !== MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3
-    || surface.surfaceSeriesId !== identity.surfaceSeriesId
   ) {
     return null;
   }
-  return identity;
+  return Object.freeze({
+    kind: "main-wire-algebraic-pulmonary-root-standard70" as const,
+    modelId,
+    surfaceReleaseId: surface.surfaceReleaseId,
+    surfaceSeriesId: surface.surfaceSeriesId,
+  });
 }
 
 /** One presentation resolver shared by Workbench and Article Reader. */
