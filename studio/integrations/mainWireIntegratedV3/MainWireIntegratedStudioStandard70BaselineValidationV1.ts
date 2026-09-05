@@ -35,7 +35,7 @@ import {
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD70_BASELINE_VALIDATION_V1_SCHEMA_ID =
   "circleheart.main-wire.algebraic-pulmonary-root-baseline-validation.v1" as const;
 
-const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1 =
+export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_INITIALIZATION_KINDS_V1 =
   Object.freeze([
     "cold",
     "standard68-construction-continuation",
@@ -175,7 +175,7 @@ export function validateMainWireIntegratedStudioStandard70BaselineValidationV1(
   return input as MainWireIntegratedStudioStandard70BaselineValidationV1;
 }
 
-function validRightHeartMeasurementsV1(
+export function validRightHeartMeasurementsV1(
   measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1,
 ): boolean {
   const morphology = measurements.pulmonaryRootMorphology;
@@ -229,7 +229,7 @@ function validFiniteRecordV1(
     && expectedKeys.every((key) => Number.isFinite(record[key]));
 }
 
-function validCanonicalStandard70ChecksV1(
+export function validCanonicalStandard70ChecksV1(
   measurements: MainWireIntegratedModelStandard70BaselineMeasurementsV1,
   checks: readonly MainWireIntegratedModelStandard70BaselineCheckV1[],
 ): boolean {

@@ -1,4 +1,7 @@
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
+import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
+import { resolveRegisteredModelLaunchDefaultsV1 } from
+  "@/studio/registry/RegisteredModelLaunchBaselineV1";
 import type {
   StudioModelWorkerReleaseTicketV2,
 } from "@/studio/contracts/v2/release";
@@ -51,6 +54,7 @@ export type StudioClientCompositionV2 = Readonly<{
     modelId: string;
     stage: "dev" | "stable" | "retired";
     defaultFixture: StudioJsonValueV2;
+    defaultCheckpoint?: ScenarioCheckpointV2;
     fixtureProjection: ExactModelFixtureProjectionV1;
     workerReleaseTicket: StudioModelWorkerReleaseTicketV2;
   }>;
@@ -296,11 +300,12 @@ function composeStudioClientCompositionV2(
   if (modelSurface.contract.modelId !== release.ticket.modelId) {
     throw new Error("Client exact model and Model Surface identities differ");
   }
+  const launchDefaults = resolveRegisteredModelLaunchDefaultsV1(release);
   return Object.freeze({
     exactModel: Object.freeze({
       modelId: release.ticket.modelId,
       stage: release.stage,
-      defaultFixture: release.defaultFixture,
+      ...launchDefaults,
       fixtureProjection: resolveRegisteredExactModelFixtureProjectionV1(
         {
           modelId: release.ticket.modelId,

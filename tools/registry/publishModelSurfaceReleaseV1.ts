@@ -1,7 +1,11 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
+import currentSurface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
 import type {
   ModelSurfaceReleaseManifestV1,
@@ -18,12 +22,36 @@ const repositoryRoot = path.resolve(
   "../..",
 );
 
-await main();
+if (
+  process.argv[1] !== undefined
+  && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
+  await main();
+}
 
 async function main(): Promise<void> {
   const options = parseArgumentsV1(process.argv.slice(2));
-  const manifestPath = resolveCommittedManifestPathV1(options.manifestPath);
-  const manifest = parseManifestV1(readFileSync(manifestPath, "utf8"));
+  if (execFileSync("git", ["status", "--porcelain"], {
+    cwd: repositoryRoot, encoding: "utf8",
+  }).trim().length > 0) {
+    throw new Error("Commit the complete Surface worktree before publishing");
+  }
+  const manifest = await loadModelSurfacePublicationManifestV1(options.manifestPath);
+  if (manifest.predecessorSurfaceReleaseId === null) {
+    assertModelSurfaceReleaseLineageV1(manifest);
+  }
+  if (options.dryRun) {
+    process.stdout.write(JSON.stringify({
+      surfaceReleaseId: manifest.surfaceReleaseId,
+      surfaceSeriesId: manifest.surfaceSeriesId,
+      manifestSha256: createHash("sha256")
+        .update(studioCanonicalJsonStringify(manifest)).digest("hex"),
+      stage: options.stage,
+      writesPerformed: false,
+      remotePredecessorChecked: false,
+    }) + "\n");
+    return;
+  }
   const sourceCommit = execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: repositoryRoot,
     encoding: "utf8",
@@ -84,14 +112,21 @@ type PublishOptionsV1 = Readonly<{
   projectRef: string;
   manifestPath: string;
   stage: StudioReleaseStageV1;
+  dryRun: boolean;
 }>;
 
 export function parseModelSurfacePublishArgumentsV1(
   args: readonly string[],
 ): PublishOptionsV1 {
   const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 2) {
+  let dryRun = false;
+  for (let index = 0; index < args.length;) {
     const key = args[index];
+    if (key === "--dry-run" && !dryRun) {
+      dryRun = true;
+      index += 1;
+      continue;
+    }
     const value = args[index + 1];
     if (
       key === undefined
@@ -102,6 +137,7 @@ export function parseModelSurfacePublishArgumentsV1(
       throw usageErrorV1();
     }
     values.set(key, value);
+    index += 2;
   }
   const projectRef = values.get("--project-ref");
   const manifestPath = values.get("--manifest");
@@ -122,6 +158,7 @@ export function parseModelSurfacePublishArgumentsV1(
     projectRef,
     manifestPath,
     stage: stageValue,
+    dryRun,
   });
 }
 
@@ -131,8 +168,8 @@ function parseArgumentsV1(args: readonly string[]): PublishOptionsV1 {
 
 function usageErrorV1(): Error {
   return new Error(
-    "Usage: --project-ref <ref> --manifest <repo-relative.json> "
-      + "[--stage dev|stable]",
+    "Usage: --project-ref <ref> --manifest <repo-relative.json|.ts> "
+      + "[--stage dev|stable] [--dry-run]",
   );
 }
 
@@ -161,8 +198,25 @@ function resolveCommittedManifestPathV1(inputPath: string): string {
   return absolutePath;
 }
 
-function parseManifestV1(raw: string): ModelSurfaceReleaseManifestV1 {
-  const parsed: unknown = JSON.parse(raw);
+export async function loadModelSurfacePublicationManifestV1(
+  inputPath: string,
+): Promise<ModelSurfaceReleaseManifestV1> {
+  const manifestPath = resolveCommittedManifestPathV1(inputPath);
+  const extension = path.extname(manifestPath);
+  if (extension !== ".json" && extension !== ".ts") {
+    throw new Error("Model Surface publication requires a JSON or TypeScript manifest");
+  }
+  // Never evaluate a user-selected module: a tracked generator or CLI can
+  // write files or publish remotely even during --dry-run. Only the reviewed,
+  // statically imported current Surface is an admitted TypeScript manifest.
+  if (extension === ".ts" && manifestPath !== path.join(repositoryRoot,
+    "studio/integrations/mainWireIntegratedV3/"
+      + "MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1.ts")) {
+    throw new Error("Only the current Model Surface TypeScript module is publishable");
+  }
+  const parsed: unknown = extension === ".json"
+    ? JSON.parse(readFileSync(manifestPath, "utf8"))
+    : currentSurface;
   assertModelSurfaceReleaseManifestV1(parsed);
   return parsed;
 }

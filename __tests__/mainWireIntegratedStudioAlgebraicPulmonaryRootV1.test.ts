@@ -84,14 +84,18 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
     ]);
   });
 
-  it("starts at the settled qualified baseline with every left and right gate passed", async () => {
+  it("preserves the artifact's original settled baseline separately from the selected launch baseline", async () => {
     const release =
       createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1();
     const validation =
       MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
-    expect(resolveRegisteredExactModelBaselineValidationV1(
+    const selectedValidation = resolveRegisteredExactModelBaselineValidationV1(
       MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-    )).toEqual(validation);
+    );
+    // Without a fixture, model ID alone cannot select the newer baseline report.
+    expect(selectedValidation).toBeNull();
+    // New-session selection changes outside the immutable exact artifact.
+    // Its launch capture/report binding is covered by registeredModelLaunchBaselineV1.
     expect(validation.checks).toHaveLength(41);
     expect(validation.checks.every(({ status }) => status === "passed"))
       .toBe(true);

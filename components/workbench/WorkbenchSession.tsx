@@ -1,4 +1,5 @@
 import React from "react";
+import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   ArrowLeft,
   Check,
@@ -96,6 +97,7 @@ import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
 import {
+  registeredBaselinePressureRatePresentationV1,
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 import {
@@ -436,6 +438,7 @@ export const WorkbenchSession = ({
     React.useRef<ExactModelFixtureProjectionV1 | null>(null);
   const surfaceSeriesIdRef = React.useRef<string | undefined>(undefined);
   const surfaceReleaseIdRef = React.useRef<string | undefined>(undefined);
+  const initialBaselineFixtureRef = React.useRef<StudioJsonValueV2 | null>(null);
   const translationRef = React.useRef(t);
   const analysisByKeyRef = React.useRef<
     Readonly<Record<string, StudioSimulationAnalysisV2>>
@@ -494,7 +497,11 @@ export const WorkbenchSession = ({
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
   const baselineValidation =
-    resolveRegisteredExactModelBaselineValidationV1(contract?.modelId);
+    resolveRegisteredExactModelBaselineValidationV1(contract?.modelId, initialBaselineFixtureRef.current);
+  const baselineLeftPressureRatePresentation = baselineValidation === null ? null
+    : registeredBaselinePressureRatePresentationV1(baselineValidation, "left");
+  const baselineRightPressureRatePresentation = baselineValidation === null ? null
+    : registeredBaselinePressureRatePresentationV1(baselineValidation, "right");
   const standard70Measurements = baselineValidation !== null
       && "pulmonaryValve" in baselineValidation.measurements
     ? baselineValidation.measurements
@@ -560,6 +567,7 @@ export const WorkbenchSession = ({
           }),
           Object.freeze({
             itemId: "lv-dpdt",
+            status: baselineLeftPressureRatePresentation!.status,
             label: "LV ±dP/dt",
             value: `+${Math.round(
               baselineValidation.measurements.leftVentricle
@@ -569,7 +577,7 @@ export const WorkbenchSession = ({
                 .minimumDpDtMmHgPerSec,
             )}`,
             detail: t(
-              "workbench.editor.simulationInfo.baselineLvDpDtDetail",
+              baselineLeftPressureRatePresentation!.detailKey,
               { range: "+1200–2500 / −1400–−700 mmHg/s" },
             ),
           }),
@@ -624,6 +632,7 @@ export const WorkbenchSession = ({
                 }),
                 Object.freeze({
                   itemId: "rv-dpdt",
+                  status: baselineRightPressureRatePresentation!.status,
                   label: "RV ±dP/dt",
                   value: `+${Math.round(
                     standard70Measurements.rightVentricle
@@ -633,7 +642,7 @@ export const WorkbenchSession = ({
                       .minimumDpDtMmHgPerSec,
                   )}`,
                   detail: t(
-                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    baselineRightPressureRatePresentation!.detailKey,
                     { range: "+300–1000 / −700–−150 mmHg/s" },
                   ),
                 }),
@@ -1095,6 +1104,10 @@ export const WorkbenchSession = ({
       const storedScenario = initialContent?.scenarios.find(
         ({ scenarioId }) => scenarioId === initialScenarioId,
       );
+      // Show evidence for the actual starting fixture, never relabel a saved
+      // scenario with the selected baseline's report merely by model ID.
+      initialBaselineFixtureRef.current = storedScenario?.capture.fixture
+        ?? composition.exactModel.defaultFixture;
       const pendingSurface = pendingSurfaceAfterRuntimeRestartRef.current;
       const pendingFeedback = pendingFeedbackAfterRuntimeRestartRef.current;
       const candidateSurface =
@@ -1213,6 +1226,8 @@ export const WorkbenchSession = ({
                 scenarioId: initialScenarioId,
                 label: baselineLabel,
                 fixture: composition.exactModel.defaultFixture,
+                ...(composition.exactModel.defaultCheckpoint === undefined
+                  ? {} : { checkpoint: composition.exactModel.defaultCheckpoint }),
               }),
             ]
           : initialContent.scenarios.map((scenario) =>

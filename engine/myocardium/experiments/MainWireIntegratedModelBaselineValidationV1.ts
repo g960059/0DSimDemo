@@ -218,6 +218,7 @@ type PressureMorphologyV1 = MainWireIntegratedModelPressureMorphologyV1;
 
 export function measureMainWireIntegratedModelBaselineValidationV1(
   samples: readonly Sample[],
+  leftTimingAndInletOverride?: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
 ): MainWireIntegratedModelBaselineValidationMeasurementsV1 {
   if (samples.length < 12) {
     throw new Error("baseline validation requires a complete accepted-step cycle");
@@ -239,11 +240,12 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
   const gradients = aorticSamples.map((sample) =>
     sample.absolutePressureMmHg.LV - sample.absolutePressureMmHg.Ao);
   const pressureRate = pressureRateExtremaV1(samples, "LV");
-  const leftTimingAndInletFlow =
-    measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
+  const leftTimingAndInletFlow = leftTimingAndInletOverride === undefined
+    ? measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1(
       samples,
       "left",
-    );
+    )
+    : validateAndOwnMainWireIntegratedModelBaselineTimingAndInletObservationV1(leftTimingAndInletOverride);
   const cardiacSizeAndFunction = cardiacSizeAndFunctionFromTraceV1(
     samples,
     cycleLengthSec,
@@ -254,10 +256,10 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
     LVP: pressureMorphologyV1(samples, aorticEpisode, "LV"),
     RVP: pressureMorphologyV1(samples, pulmonaryEpisode, "RV"),
     aorticValve: Object.freeze({
-      ejectionTimeSec: aorticSamples.reduce(
+      ejectionTimeSec: leftTimingAndInletOverride === undefined ? aorticSamples.reduce(
         (sum, sample) => sum + sample.acceptedDtSec,
         0,
-      ),
+      ) : leftTimingAndInletFlow.ejectionTimeSec,
       meanGradientMmHg: timeWeightedMeanV1(aorticSamples, gradients),
       peakGradientMmHg: Math.max(...gradients),
     }),
@@ -273,6 +275,32 @@ export function measureMainWireIntegratedModelBaselineValidationV1(
     }),
     hemodynamicPressure,
     cardiacSizeAndFunction,
+  });
+}
+
+/** Validate an explicit analysis observation without falling back to a different
+ * extractor. This output is derived evidence, never an exact-state parameter. */
+export function validateAndOwnMainWireIntegratedModelBaselineTimingAndInletObservationV1(
+  input: MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
+): MainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1 {
+  if (input === null || typeof input !== "object" || input.inletFlow == null || input.timing == null) {
+    throw new Error("baseline timing/inlet override is unavailable");
+  }
+  const { ejectionTimeSec, inletFlow, timing } = input;
+  const close = (left: number, right: number) => Math.abs(left - right)
+    <= 128 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right));
+  if (![ejectionTimeSec, inletFlow.peakEMlPerSec, inletFlow.peakAMlPerSec, inletFlow.peakEToA,
+    timing.ictSec, timing.irtSec, timing.teiIndex].every(Number.isFinite)
+    || !(ejectionTimeSec > 0) || !(inletFlow.peakEMlPerSec > 0) || !(inletFlow.peakAMlPerSec > 0)
+    || timing.ictSec < 0 || timing.irtSec < 0
+    || !close(inletFlow.peakEToA, inletFlow.peakEMlPerSec / inletFlow.peakAMlPerSec)
+    || !close(timing.teiIndex, (timing.ictSec + timing.irtSec) / ejectionTimeSec)) {
+    throw new Error("baseline timing/inlet override must have finite coherent phase durations and positive peaks");
+  }
+  return Object.freeze({ ejectionTimeSec,
+    inletFlow: Object.freeze({ peakEMlPerSec: inletFlow.peakEMlPerSec,
+      peakAMlPerSec: inletFlow.peakAMlPerSec, peakEToA: inletFlow.peakEToA }),
+    timing: Object.freeze({ ictSec: timing.ictSec, irtSec: timing.irtSec, teiIndex: timing.teiIndex }),
   });
 }
 

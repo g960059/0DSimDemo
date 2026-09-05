@@ -49,9 +49,9 @@ const COPY = Object.freeze({
       "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。ESPVRはpreload低下側からbaselineまでを用い、EDPVRとStarlingは高容量側を含む双方向familyを保持します。これらの分岐計算はexact stateやcheckpointを変更しません。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
-      `${cycles}周期でperiod-1 settlementを確認し、${checks}項目の圧・AV/LV/RVP・timing・形態・indexed size/function gateと、双方向preload reserve gateを通過しています。`,
+      `${cycles}周期でperiod-1 settlementを確認し、圧・AV/LV/RVP・timing・形態・indexed size/functionの${checks}項目を記録しています。この記録の評価方針における必須gateと、双方向preload reserve gateを通過しています。`,
     baselinePolicy:
-      "Standard70は同じ双方向preload reserve floorに加え、PVのraw pressure gradient/ET、RV ±dP/dt、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの単峰性とPV閉鎖後PAP reboundをconstruction sentinelとして必須化しています。これらは臨床診断閾値ではありません。",
+      "Standard70はPVのraw pressure gradient/ET、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの形態も検査します。旧baseline記録では左右の±dP/dtにも狭い必須範囲を用いましたが、新しい評価では参考警告とし、時間刻み依存性と単発スパイクを別の数値品質検査に分けています。旧記録は再ラベルしません。これらは臨床診断閾値ではありません。",
     controlTitle: "control semantics",
     controlBody:
       "Heart rateなど通常のcontrol変更はaccepted stateとmodel clockを起点に、新しいfixture epochへatomic warm startします。TBV変更はdetached preflightされ、bounded continuationが必要な場合は後続のaccepted boundaryをatomic commitすることがあります。いずれも自律神経反射を再現するものではありません。",
@@ -99,9 +99,9 @@ const COPY = Object.freeze({
       "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. ESPVR uses the preload-reduction limb through baseline, while EDPVR and Starling retain the bidirectional family. Their branch computations do not mutate exact state or checkpoints.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
-      `Period-1 settlement was established over ${cycles} cycles; all ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function gates plus the bidirectional preload-reserve gate passed.`,
+      `Period-1 settlement was established over ${cycles} cycles, recording ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function checks. Mandatory gates under the recorded assessment policy and the bidirectional preload-reserve gate passed.`,
     baselinePolicy:
-      "Standard70 retains those bidirectional preload-reserve floors and adds PV raw pressure gradient/ET, RV ±dP/dt, TV E/A, right-sided ICT/IRT/Tei, PAP/PV-flow unimodality, and post-PV-closure PAP rebound as required construction sentinels. These are not clinical diagnostic thresholds.",
+      "Standard70 also examines PV raw pressure gradient/ET, TV E/A, right-sided ICT/IRT/Tei, and PAP/PV-flow morphology. Historical baseline evidence used narrow mandatory LV/RV ±dP/dt ranges; current assessments retain these as reference warnings and separately screen time-step sensitivity and isolated spikes. Historical reports are not relabelled. These are not clinical diagnostic thresholds.",
     controlTitle: "Control semantics",
     controlBody:
       "Heart rate and ordinary controls atomically warm-start a new fixture epoch from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",

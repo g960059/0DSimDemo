@@ -181,7 +181,10 @@ export function resolveMainWireStandard70DocumentationFactsV1(
       return null;
     }
 
-    const baseline = resolveRegisteredExactModelBaselineValidationV1(identity.modelId);
+    const baseline = resolveRegisteredExactModelBaselineValidationV1(
+      identity.modelId,
+      algebraicPulmonaryRootDescriptorV1.defaultFixture,
+    );
     if (baseline === null || baseline.checks.some(({ status }) => status !== "passed")) {
       return null;
     }

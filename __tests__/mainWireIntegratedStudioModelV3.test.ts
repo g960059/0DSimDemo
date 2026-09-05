@@ -41,6 +41,7 @@ import mainWireIntegratedStudioStandardArtifactV1 from "@/studio/integrations/ma
 import generatedExecutionPlanV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedExecutionPlanV1.generated.json";
 import mainWireIntegratedStudioStandardClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.client.json";
 import mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1 from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_CONTROL_IDS_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
@@ -520,7 +521,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       expect(local).toMatchObject({
         exactModel: {
           modelId: current.manifest.modelId,
-          defaultFixture: current.defaultFixture,
+          defaultFixture: selectedLaunchBaseline.capture.fixture,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
             artifactRevisionId:

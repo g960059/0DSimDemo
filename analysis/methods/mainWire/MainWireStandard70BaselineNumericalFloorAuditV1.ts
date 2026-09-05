@@ -1,3 +1,4 @@
+import { MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import {
@@ -128,8 +129,7 @@ export function assertMainWireStandard70BaselineNumericalFloorAuditV1(
     target.exactModelIdentitySha256,
     "Standard70 numerical-floor exact-model identity",
   );
-  const expectedPolicyRevision = normalReferenceEvidenceV1.policyRevisions.at(-1)
-    ?.revisionId;
+  const expectedPolicyRevision = normalReferenceEvidenceV1.evaluationPolicyId;
   if (
     expectedPolicyRevision === undefined
     || target.constructionPolicyRevisionId !== expectedPolicyRevision
@@ -518,7 +518,7 @@ function syntheticUnresolvedV1(
 
 function objectiveCheckIdsV1():
   readonly MainWireIntegratedModelBaselineValidationCheckIdV1[] {
-  return normalReferenceEvidenceV1.checkGroups.flatMap(({ checkIds }) =>
+  return MAIN_WIRE_BASELINE_OBJECTIVE_EVIDENCE_GROUPS_V1.flatMap(({ checkIds }) =>
     checkIds) as MainWireIntegratedModelBaselineValidationCheckIdV1[];
 }
 

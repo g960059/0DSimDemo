@@ -5,11 +5,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
   createCircleHeartExactModelReleaseV1,
-} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1";
+} from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
+import clientDescriptor from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+import surface from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
+import { resolveRegisteredAnalysisMethodsV1 } from
+  "@/analysis/registry/RegisteredAnalysisMethodsV1";
 import {
   assertStudioReleaseStageV1,
+  composeStandardModelContractV1,
   type StudioReleaseStageV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
@@ -22,33 +30,46 @@ const repositoryRoot = path.resolve(
 );
 const artifactPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioExactModelV1.artifact.mjs",
+  "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs",
 );
 const lockPath = path.join(
   repositoryRoot,
-  "studio/integrations/mainWireIntegratedV3/standard-registry-admission-lock.json",
+  "studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json",
 );
 
-await main();
+if (
+  process.argv[1] !== undefined
+  && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
+) {
+  await main();
+}
 
 async function main(): Promise<void> {
   const options = parsePublishArgumentsV3(process.argv.slice(2));
   assertReleaseFilesCommitted();
 
-  const exactRelease = createCircleHeartExactModelReleaseV1();
   const artifact = readFileSync(artifactPath);
-  const artifactSha256 = sha256(artifact);
-  const lock = parseLock(readFileSync(lockPath, "utf8"));
-  if (lock.modelId !== exactRelease.manifest.modelId) {
-    throw new Error("Registry lock and exact manifest modelId differ");
-  }
-  if (lock.artifactSha256 !== artifactSha256) {
-    throw new Error("Registry lock and exact artifact digest differ");
+  const { manifest, defaultFixture, lock, artifactSha256 } =
+    prepareMainWireModelPublicationV1({
+      artifact,
+      lockJson: readFileSync(lockPath, "utf8"),
+      expectedModelId: options.modelId,
+    });
+  if (options.dryRun) {
+    process.stdout.write(JSON.stringify({
+      modelId: manifest.modelId,
+      artifactRevisionId: lock.artifactRevisionId,
+      artifactSha256,
+      surfaceReleaseId: surface.surfaceReleaseId,
+      stage: options.stage,
+      writesPerformed: false,
+    }) + "\n");
+    return;
   }
 
   const secret = projectServiceRoleJwt(options.projectRef);
   const baseUrl = `https://${options.projectRef}.supabase.co`;
-  const objectName = `${exactRelease.manifest.modelId}/`
+  const objectName = `${manifest.modelId}/`
     + `${lock.artifactRevisionId}/main-wire-integrated-standard-v1.mjs`;
   const artifactRegistryPath = `model-releases/${objectName}`;
   await uploadImmutableExactModelArtifactV1({
@@ -64,34 +85,35 @@ async function main(): Promise<void> {
     encoding: "utf8",
   }).trim();
   await rpc(baseUrl, secret, "register_model_release_v3", {
-    p_model_id: exactRelease.manifest.modelId,
-    p_model_family_id: exactRelease.manifest.modelFamilyId,
-    p_display_name: "Main Wire V3",
-    p_manifest: exactRelease.manifest,
+    p_model_id: manifest.modelId,
+    p_model_family_id: manifest.modelFamilyId,
+    p_display_name: surface.displayName,
+    p_manifest: manifest,
     p_artifact_revision_id: lock.artifactRevisionId,
     p_artifact_path: artifactRegistryPath,
     p_artifact_sha256: artifactSha256,
     p_source_commit: sourceCommit,
-    p_default_fixture:
-      MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_DEFAULT_FIXTURE_V1,
+    p_default_fixture: defaultFixture,
     p_expected_artifact_revision_id:
       lock.predecessorArtifactRevisionId,
     p_equivalence_report_sha256: lock.equivalenceReportSha256,
   });
   if (options.stage === "stable") {
     await rpc(baseUrl, secret, "set_model_release_stage_v1", {
-      p_model_id: exactRelease.manifest.modelId,
+      p_model_id: manifest.modelId,
       p_stage: options.stage,
     });
   }
   process.stdout.write(
-    `Published Standard exact model ${exactRelease.manifest.modelId} to `
+    `Published Standard exact model ${manifest.modelId} to `
       + `${options.projectRef} as ${options.stage}\n`,
   );
 }
 
 type PublishOptionsV3 = Readonly<{
   projectRef: string;
+  modelId: string;
+  dryRun: boolean;
   stage: Exclude<StudioReleaseStageV1, "retired">;
 }>;
 
@@ -99,21 +121,32 @@ export function parseMainWireModelPublishArgumentsV3(
   args: readonly string[],
 ): PublishOptionsV3 {
   const values = new Map<string, string>();
-  for (let index = 0; index < args.length; index += 2) {
+  let dryRun = false;
+  for (let index = 0; index < args.length;) {
     const key = args[index];
+    if (key === "--dry-run" && !dryRun) {
+      dryRun = true;
+      index += 1;
+      continue;
+    }
     const value = args[index + 1];
     if (
       key === undefined
       || value === undefined
-      || !["--project-ref", "--stage"].includes(key)
+      || !["--project-ref", "--stage", "--model-id"].includes(key)
       || values.has(key)
     ) {
       throw modelPublishUsageErrorV3();
     }
     values.set(key, value);
+    index += 2;
   }
   const projectRef = values.get("--project-ref");
   const stage = values.get("--stage");
+  const modelId = values.get("--model-id");
+  if (modelId !== clientDescriptor.manifest.modelId) {
+    throw new Error("Publish requires the explicit current --model-id");
+  }
   if (projectRef === undefined || !/^[a-z0-9]{20}$/.test(projectRef)) {
     throw modelPublishUsageErrorV3();
   }
@@ -122,7 +155,7 @@ export function parseMainWireModelPublishArgumentsV3(
   if (stage === "retired") {
     throw new Error("A new exact model cannot be published directly as retired");
   }
-  return Object.freeze({ projectRef, stage });
+  return Object.freeze({ projectRef, modelId, stage, dryRun });
 }
 
 function parsePublishArgumentsV3(args: readonly string[]): PublishOptionsV3 {
@@ -132,8 +165,38 @@ function parsePublishArgumentsV3(args: readonly string[]): PublishOptionsV3 {
 function modelPublishUsageErrorV3(): Error {
   return new Error(
     "Usage: --project-ref <20-character Supabase project ref> "
-      + "--stage <dev|stable>",
+      + "--model-id <current-exact-model-id> --stage <dev|stable> [--dry-run]",
   );
+}
+
+/** Validate the complete local identity binding before obtaining credentials. */
+export function prepareMainWireModelPublicationV1(input: Readonly<{
+  artifact: Uint8Array;
+  lockJson: string;
+  expectedModelId: string;
+}>) {
+  const { manifest } = createCircleHeartExactModelReleaseV1();
+  const defaultFixture = MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1;
+  const lock = parseLock(input.lockJson);
+  const artifactSha256 = sha256(input.artifact);
+  if (input.expectedModelId !== manifest.modelId || lock.modelId !== manifest.modelId) {
+    throw new Error("Requested model, registry lock, and exact manifest modelId differ");
+  }
+  if (lock.artifactSha256 !== artifactSha256) {
+    throw new Error("Registry lock and exact artifact digest differ");
+  }
+  if (
+    studioCanonicalJsonStringify(manifest)
+      !== studioCanonicalJsonStringify(clientDescriptor.manifest)
+    || studioCanonicalJsonStringify(defaultFixture)
+      !== studioCanonicalJsonStringify(clientDescriptor.defaultFixture)
+  ) {
+    throw new Error("Published exact release and browser descriptor differ");
+  }
+  composeStandardModelContractV1(
+    manifest, surface, resolveRegisteredAnalysisMethodsV1(surface).capabilities,
+  );
+  return Object.freeze({ manifest, defaultFixture, lock, artifactSha256 });
 }
 
 function assertReleaseFilesCommitted(): void {
@@ -214,7 +277,8 @@ function parseLock(raw: string): Readonly<{
 }> {
   const value = JSON.parse(raw) as Record<string, unknown>;
   if (
-    value.schemaId
+    value === null || typeof value !== "object" || Array.isArray(value)
+    || value.schemaId
       !== "circleheart-standard-exact-model-registry-admission-lock-v2"
     || typeof value.modelId !== "string"
     || typeof value.artifactRevisionId !== "string"
