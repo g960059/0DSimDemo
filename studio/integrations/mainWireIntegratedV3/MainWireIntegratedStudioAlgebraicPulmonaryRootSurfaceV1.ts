@@ -9,7 +9,7 @@ import {
 import qualifiedBaselineStandard69SurfaceV1 from
   "./MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID } from
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID } from
   "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 /**
@@ -64,27 +64,27 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 =
 
 assertModelSurfaceReleaseLineageV1(MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2);
 
-/** Same exact model, controls, and numerical policy; distinguish the default
- * end-ejection load-response display from the selectable PVA boundary. */
-export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V3 =
+/** Same exact model, controls, and numerical policy. The full-load pressure
+ * envelope replaces the unreleased closure-locus display, not the PVA owner. */
+export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V4 =
   Object.freeze({
     ...MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2,
     surfaceReleaseId:
-      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.end-ejection-workbench-v1",
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.pressure-envelope-workbench-v1",
     surfaceSeriesId:
-      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.end-ejection-workbench",
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.pressure-envelope-workbench",
     predecessorSurfaceReleaseId: null,
     derivedOutputCatalog: Object.freeze(
       MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2.derivedOutputCatalog.map((output) =>
         output.derivationId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID ? output : Object.freeze({
           ...output,
-          derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID,
+          derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
           requiredCapabilities: Object.freeze(output.requiredCapabilities.map((capability) =>
             capability === derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID)
-              ? derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID) : capability)),
+              ? derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID) : capability)),
         })),
     ),
   }) satisfies ModelSurfaceReleaseManifestV1;
 
-assertModelSurfaceReleaseLineageV1(MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V3);
-export default MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V3;
+assertModelSurfaceReleaseLineageV1(MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V4);
+export default MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V4;

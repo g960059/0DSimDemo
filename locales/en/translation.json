@@ -408,7 +408,7 @@
       "noConfigurableSeries": "This graph owns its structural axes and has no configurable series.",
       "series": "Graph series",
       "pressureEnvelopeOverlay": "Envelope",
-      "pressureEnvelopeOverlayHint": "Maximum pressure observed at each volume in this simulated load family. Different volumes can select different times. This is not a physiological pressure limit or the PVA boundary.",
+      "pressureEnvelopeOverlayHint": "Overlay the normal pressure envelope for comparison. It interpolates this simulated load family; it is neither the PVA integration boundary nor a physiological pressure limit.",
       "pvaBoundaryView": "PVA",
       "pvaBoundaryViewHint": "Show the common-time PVA boundary instead of ESPVR. SW and PE are illustrated separately when available; these are not measurements of stored elastic energy.",
       "windowSec": "Waveform window",

@@ -17,14 +17,14 @@ export const MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID =
   "suga-pva-preload-reduction-through-anchor-area-max-common-isochrone-nonlinear-espvr-bidirectional-exponential-edpvr-v9" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID =
   "suga-pva-preload-reduction-owner-with-measured-high-load-common-isochrone-display-v10" as const;
-export const MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID =
-  "suga-pva-common-isochrone-owner-with-separate-end-ejection-load-response-display-v11" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID =
+  "suga-pva-common-isochrone-owner-with-full-load-pressure-envelope-display-v12" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -161,20 +161,24 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
   estimatedMvo2: MainWireIntegratedModelLvMvo2EstimateV1 | null;
 }>;
 
-/** Operational ESPVR approximation, not Emax or the energy boundary. Each
- * point belongs to its own settled beat and semilunar closure event. A fold
- * remains a fold; excluded observations break the line instead of being
- * bridged. No anchor, selected isochrone, fitted V0, or pressure envelope
- * enters this relation. */
-export type MainWireEndEjectionLoadRelationV1 = Readonly<{
-  method: "settled-semilunar-closure-load-response-v1";
+/** Upper pressure envelope of the retained, protocol-conditioned PV family,
+ * not Emax, an isovolumic capability law, or the PE/PVA integration boundary.
+ * The display ends at the observed minimum-volume range: outside it, the
+ * family may contain only early-ejection/filling states, not systolic support. */
+export type MainWireSystolicPressureEnvelopeV1 = Readonly<{
+  method: "settled-full-load-phasewise-pressure-envelope-v1";
   pressureBasis: "transmural";
-  interpolation: "tbv-ordered-polyline";
+  interpolation: "linear-time-and-adjacent-load-parametric-surface";
+  volumeDomain: "observed-minimum-volume-range";
   displayExtrapolation: "none";
   completionStatus: "progressive" | "complete";
+  sourcePointCount: number;
   excludedPointCount: number;
   segments: readonly (readonly (MainWireIntegratedModelPeriodicPvaCurvePointV1 &
-    Readonly<{ totalBloodVolumeMl: number }>)[])[];
+    Readonly<{
+      timeSinceAtrialCaptureSec: number;
+      sourceTotalBloodVolumeRangeMl: readonly [number, number];
+    }>)[])[];
 }>;
 
 export type MainWirePvaAreaDisplayV1 = Readonly<{
@@ -239,9 +243,9 @@ export type MainWirePeriodicPvaV1 = (
       ];
     }>
 ) & Readonly<{
-  /** V11 display analysis is independently available even if PVA is not. */
+  /** V12 display analysis is independently available even if PVA is not. */
   loadRelations?: Readonly<{
-    systolic: MainWireEndEjectionLoadRelationV1 | null;
+    systolic: MainWireSystolicPressureEnvelopeV1 | null;
     edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1 | null;
   }>;
   areaDisplay?: MainWirePvaAreaDisplayV1;
@@ -323,62 +327,172 @@ export function buildMainWirePeriodicPvaMethodV10(
 
 /** V10 numerical policy, separate load-response and energy presentations.
  * Reuses the same settled family; no new sweep or exact-model change. */
-export function buildMainWirePeriodicPvaMethodV11(
+export function buildMainWirePeriodicPvaMethodV12(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
 ): MainWirePeriodicPvaV1 {
   const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
-    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID,
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
     systolicLoadDomain: "preload-reduction-through-anchor",
     showMeasuredHighLoadIsochrone: true,
     includeAreaDisplay: true,
   });
   const admittedEdpvr = pva.status === "available" ? pva.edpvr : pva.preview?.edpvr;
   return Object.freeze({ ...pva, loadRelations: Object.freeze({
-    systolic: buildMainWireEndEjectionLoadRelationV1(locus),
+    systolic: buildMainWireSystolicPressureEnvelopeV1(locus),
     // EDPVR admission must not depend on the systolic phase/PVA admission.
     edpvr: admittedEdpvr ?? independentEdpvrProjectionV1(locus),
   }) });
 }
 
-export function buildMainWireEndEjectionLoadRelationV1(
+export function buildMainWireSystolicPressureEnvelopeV1(
   locus: MainWireIntegratedModelStarlingLocusV3,
-): MainWireEndEjectionLoadRelationV1 | null {
+): MainWireSystolicPressureEnvelopeV1 | null {
   if (locus.status !== "measured-fixed-tbv-protocol") return null;
   const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
-  type Point = MainWireEndEjectionLoadRelationV1["segments"][number][number];
-  const segments: Point[][] = [];
-  let segment: Point[] = [];
+  type Point = MainWireSystolicPressureEnvelopeV1["segments"][number][number];
+  const runs: MainWireIntegratedModelStarlingPointV3[][] = [];
+  let run: MainWireIntegratedModelStarlingPointV3[] = [];
   let excludedPointCount = 0;
   for (const [index, point] of ordered.entries()) {
     const { totalBloodVolumeMl, ventricularPressureVolumeLandmarks: landmarks } = point;
-    const end = landmarks.endSystolic;
     if (!point.settled || !point.curveEligible || point.quality !== "locally-converged"
       || !point.finiteAndFixedTbvPassed || landmarks.pressureBasis !== "transmural"
-      || end.event !== "semilunar-valve-closure"
-      || ![totalBloodVolumeMl, end.volumeMl, end.pressureMmHg].every(Number.isFinite)
-      || !(totalBloodVolumeMl > 0) || !(end.volumeMl > 0)
+      || !Number.isFinite(totalBloodVolumeMl) || !(totalBloodVolumeMl > 0)
+      || point.ventricularPressureVolumeLoop.some(({ volumeMl }) => !(volumeMl > 0))
+      || interpolateLoopAtTimeV1(point.ventricularPressureVolumeLoop, point.acceptedBeatDurationSec, 0) === null
       || ordered[index - 1]?.totalBloodVolumeMl === totalBloodVolumeMl
       || ordered[index + 1]?.totalBloodVolumeMl === totalBloodVolumeMl) {
-      if (segment.length > 0) segments.push(segment);
-      segment = [];
+      if (run.length > 1) runs.push(run);
+      run = [];
       excludedPointCount += 1;
       continue;
     }
-    segment.push(Object.freeze({ totalBloodVolumeMl, volumeMl: end.volumeMl,
-      pressureMmHg: end.pressureMmHg }));
+    run.push(point);
   }
-  if (segment.length > 0) segments.push(segment);
+  if (run.length > 1) runs.push(run);
+  if (runs.length === 0) return null;
+
+  // Adjacent TBV branches only; never sort a folded isochrone by V and join
+  // unrelated loads. Every cell is linear in time along each retained path
+  // and linear in load at a common atrial-capture clock.
+  type Cell = Readonly<{
+    start: readonly [MainWireIntegratedModelPeriodicPvaCurvePointV1, MainWireIntegratedModelPeriodicPvaCurvePointV1];
+    end: readonly [MainWireIntegratedModelPeriodicPvaCurvePointV1, MainWireIntegratedModelPeriodicPvaCurvePointV1];
+    timeRange: readonly [number, number];
+    tbvRange: readonly [number, number];
+  }>;
+  const cells: Cell[] = [];
+  const ranges = runs.map((points) => {
+    const minima = points.map((point) => Math.min(...point.ventricularPressureVolumeLoop.map(({ volumeMl }) => volumeMl)));
+    for (let i = 1; i < points.length; i += 1) {
+      const pair = [points[i - 1]!, points[i]!] as const;
+      const endTime = Math.min(...pair.map((point) => point.acceptedBeatDurationSec!)) * (1 - 1e-12);
+      const times = [...new Set([0, endTime, ...pair.flatMap((point) =>
+        point.ventricularPressureVolumeLoop.map(({ phase01 }) => phase01! * point.acceptedBeatDurationSec!)
+          .filter((time) => time > 0 && time < endTime))])].sort((a, b) => a - b);
+      const samples = times.map((time) => pair.map((point) =>
+        interpolateLoopAtTimeV1(point.ventricularPressureVolumeLoop, point.acceptedBeatDurationSec, time)!));
+      for (let t = 1; t < times.length; t += 1) {
+        cells.push({ start: [samples[t - 1]![0]!, samples[t - 1]![1]!],
+          end: [samples[t]![0]!, samples[t]![1]!], timeRange: [times[t - 1]!, times[t]!],
+          tbvRange: [pair[0].totalBloodVolumeMl, pair[1].totalBloodVolumeMl] });
+      }
+    }
+    return [Math.min(...minima), Math.max(...minima)] as [number, number];
+  }).filter(([lo, hi]) => hi > lo).sort((a, b) => a[0] - b[0]);
+  // Preserve unsupported gaps; do not draw across an excluded load.
+  const coverage: [number, number][] = [];
+  for (const [lo, hi] of ranges) {
+    const last = coverage.at(-1);
+    if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
+    else coverage.push([lo, hi]);
+  }
+  const segments: Point[][] = [];
+  for (const [lo, hi] of coverage) {
+    let segment: Point[] = [];
+    for (let i = 0; i <= CURVE_SAMPLE_COUNT_V1; i += 1) {
+      const volumeMl = lo + (hi - lo) * i / CURVE_SAMPLE_COUNT_V1;
+      let winner: Point | null = null;
+      for (const cell of cells) {
+        const peak = maximumPressureInLoadTimeCellV1(cell.start, cell.end, volumeMl);
+        if (peak && (!winner || peak.pressureMmHg > winner.pressureMmHg)) {
+          winner = Object.freeze({ volumeMl, pressureMmHg: peak.pressureMmHg,
+            timeSinceAtrialCaptureSec: cell.timeRange[0] + peak.timeFraction * (cell.timeRange[1] - cell.timeRange[0]),
+            sourceTotalBloodVolumeRangeMl: Object.freeze(cell.tbvRange) });
+        }
+      }
+      if (winner) segment.push(winner);
+      else {
+        if (segment.length > 1) segments.push(segment);
+        segment = [];
+      }
+    }
+    if (segment.length > 1) segments.push(segment);
+  }
   if (segments.length === 0) return null;
   return Object.freeze({
-    method: "settled-semilunar-closure-load-response-v1" as const,
+    method: "settled-full-load-phasewise-pressure-envelope-v1" as const,
     pressureBasis: "transmural" as const,
-    interpolation: "tbv-ordered-polyline" as const,
+    interpolation: "linear-time-and-adjacent-load-parametric-surface" as const,
+    volumeDomain: "observed-minimum-volume-range" as const,
     displayExtrapolation: "none" as const,
     completionStatus: locus.completedPointCount >= locus.totalPointCount ? "complete" : "progressive",
+    sourcePointCount: runs.reduce((sum, points) => sum + points.length, 0),
     excludedPointCount,
     segments: Object.freeze(segments.map((points) => Object.freeze(points))),
   });
+}
+
+/** At fixed V, pressure inside a bilinear load/time cell is quadratic/linear
+ * in time. Its maximum is at a boundary, a V-crossing, or a derivative root.
+ * Checking these avoids a second arbitrary time grid and missed narrow peaks.
+ * This is exact for the retained piecewise-linear paths, not for the ODE. */
+function maximumPressureInLoadTimeCellV1(
+  start: readonly [MainWireIntegratedModelPeriodicPvaCurvePointV1, MainWireIntegratedModelPeriodicPvaCurvePointV1],
+  end: readonly [MainWireIntegratedModelPeriodicPvaCurvePointV1, MainWireIntegratedModelPeriodicPvaCurvePointV1],
+  volumeMl: number,
+): Readonly<{ pressureMmHg: number; timeFraction: number }> | null {
+  const [a, b] = start, [c, d] = end;
+  const tolerance = 1e-9 * Math.max(1, Math.abs(volumeMl));
+  if (volumeMl < Math.min(a.volumeMl, b.volumeMl, c.volumeMl, d.volumeMl) - tolerance
+    || volumeMl > Math.max(a.volumeMl, b.volumeMl, c.volumeMl, d.volumeMl) + tolerance) return null;
+  const av = c.volumeMl - a.volumeMl, bv = d.volumeMl - b.volumeMl;
+  const ap = c.pressureMmHg - a.pressureMmHg, bp = d.pressureMmHg - b.pressureMmHg;
+  const d0 = b.volumeMl - a.volumeMl, d1 = bv - av;
+  const p0 = b.pressureMmHg - a.pressureMmHg, p1 = bp - ap;
+  const offset = volumeMl - a.volumeMl;
+  const n0 = a.pressureMmHg * d0 + offset * p0;
+  const n1 = a.pressureMmHg * d1 + ap * d0 + offset * p1 - av * p0;
+  const n2 = ap * d1 - av * p1;
+  const times = [0, 1,
+    ...quadraticRootsV1(n2 * d1, 2 * n2 * d0, n1 * d0 - n0 * d1)];
+  if (av !== 0) times.push((volumeMl - a.volumeMl) / av);
+  if (bv !== 0) times.push((volumeMl - b.volumeMl) / bv);
+  let winner: { pressureMmHg: number; timeFraction: number } | null = null;
+  for (const timeFraction of times) {
+    if (!Number.isFinite(timeFraction) || timeFraction < 0 || timeFraction > 1) continue;
+    const va = a.volumeMl + av * timeFraction, vb = b.volumeMl + bv * timeFraction;
+    if (volumeMl < Math.min(va, vb) - tolerance || volumeMl > Math.max(va, vb) + tolerance) continue;
+    const pa = a.pressureMmHg + ap * timeFraction, pb = b.pressureMmHg + bp * timeFraction;
+    const pressureMmHg = Math.abs(vb - va) <= tolerance ? Math.max(pa, pb)
+      : pa + Math.max(0, Math.min(1, (volumeMl - va) / (vb - va))) * (pb - pa);
+    if (Number.isFinite(pressureMmHg) && (!winner || pressureMmHg > winner.pressureMmHg)) {
+      winner = { pressureMmHg, timeFraction };
+    }
+  }
+  return winner;
+}
+
+function quadraticRootsV1(a: number, b: number, c: number): readonly number[] {
+  const scale = Math.max(Math.abs(a), Math.abs(b), Math.abs(c));
+  if (scale === 0) return [];
+  a /= scale; b /= scale; c /= scale;
+  if (Math.abs(a) < 1e-14) return Math.abs(b) < 1e-14 ? [] : [-c / b];
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return [];
+  const q = -0.5 * (b + (b < 0 ? -1 : 1) * Math.sqrt(discriminant));
+  return q === 0 ? [-b / (2 * a)] : [q / a, c / q];
 }
 
 function independentEdpvrProjectionV1(

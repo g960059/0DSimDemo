@@ -9,7 +9,7 @@ import type {
   MainWireIntegratedModelPeriodicPvaEdpvrV1,
   MainWireIntegratedModelPeriodicPvaEspvrV1,
   MainWirePeriodicPvaV1,
-  MainWireEndEjectionLoadRelationV1,
+  MainWireSystolicPressureEnvelopeV1,
   MainWirePvaAreaDisplayV1,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
@@ -591,7 +591,7 @@ export function PressureVolumeLoopCanvasV3(
         history.flatMap(({ completedBeat }) => completedBeat)),
       ...visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
         !periodicPvaSupported || periodicPvaDrawing === null ? []
-          : workbenchPvDisplayedRelationPointsV1(periodicPvaDrawing)),
+          : workbenchPvDisplayedRelationPointsV1(periodicPvaDrawing, showPressureEnvelope)),
     ];
     volumeDomainStateRef.current = nextStableNumericDomainStateV3(
       volumeDomainStateRef.current,
@@ -767,12 +767,15 @@ export function PressureVolumeLoopCanvasV3(
   ).length;
   const loadResponseDisplay = !showPvaBoundary && visibleRenderedTraces.some(
     ({ periodicPva }) => periodicPva?.loadRelations !== undefined);
+  const envelopeVisible = drawablePva.some(({ periodicPvaDrawing }) =>
+    periodicPvaDrawing.loadRelation !== null
+      || (showPressureEnvelope && periodicPvaDrawing.pressureEnvelope !== null));
   const relationStatusBase = !periodicPvaSupported
     ? null
     : drawablePva.length > 0
       ? `${loadResponseDisplay
-        ? "ESPVR approximated by semilunar-valve closure points across settled preload changes, including higher loads. Each point has its own timing and load history; this is not maximum elastance or the PVA boundary. EDPVR uses maximum-volume filling points."
-        : "PVA boundary: a common-time curve selected for this operating state. Changing TBV alone can shift it without changing contractility."}${drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null) ? " SW (solid fill) and PE (hatched) are separate illustrations, not a single area union or measurements of stored elastic energy." : ""}${showPressureEnvelope ? " Observed pressure envelope overlay shown; not a physiological pressure limit." : ""}`
+        ? "ESPVR: the pressure envelope of this settled load family, including higher loads, within its observed end-systolic volume range. Different volumes can select different times. This is not maximum elastance or the PVA boundary, and can still depend on load history. EDPVR uses maximum-volume filling points."
+        : "PVA boundary: a common-time curve selected for this operating state. Changing TBV alone can shift it without changing contractility."}${drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null) ? " SW (solid fill) and PE (hatched) are separate illustrations, not a single area union or measurements of stored elastic energy." : ""}${showPressureEnvelope && !loadResponseDisplay && envelopeVisible ? " Pressure envelope overlaid for comparison; not used for PVA." : ""}`
       : "Settled-source preload-reduction analysis selected · relation not yet available";
   const relationStatus = relationStatusBase !== null && retainedPvaDrawingCount > 0
     ? `${relationStatusBase} · previous valid relation retained while the update settles`
@@ -811,17 +814,17 @@ export function PressureVolumeLoopCanvasV3(
       data-cycle-source="model-emitted-cycle-phase"
       data-pv-relation-model={
         periodicPvaSupported
-          ? loadResponseDisplay ? "settled-tbv-ordered-end-ejection-locus" : "all-settled-shape-preserving-locus"
+          ? loadResponseDisplay ? "settled-full-load-phasewise-pressure-envelope" : "all-settled-shape-preserving-locus"
           : undefined
       }
       data-pv-pressure-envelope-visible={
-        showPressureEnvelope ? "true" : "false"
+        envelopeVisible ? "true" : "false"
       }
       data-pv-pva-boundary-visible={showPvaBoundary ? "true" : "false"}
       data-pv-relation-semantics={
         periodicPvaSupported
           ? loadResponseDisplay
-            ? "end-ejection-load-response-exponential-edpvr"
+            ? "full-load-pressure-envelope-exponential-edpvr"
             : "area-max-common-isochrone-espvr-exponential-edpvr"
           : undefined
       }
@@ -835,8 +838,8 @@ export function PressureVolumeLoopCanvasV3(
       data-pva-retained-drawing-count={retainedPvaDrawingCount}
       data-pva-measured-high-load-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
         sum + Math.max(0, (periodicPvaDrawing.espvr === null ? 0 : workbenchPvMeasuredHighLoadPointsV1(periodicPvaDrawing.espvr).length) - 1), 0)}
-      data-pv-end-ejection-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
-        sum + (periodicPvaDrawing.loadRelation?.segments.flat().length ?? 0), 0)}
+      data-pv-envelope-source-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
+        sum + (periodicPvaDrawing.loadRelation?.sourcePointCount ?? 0), 0)}
       data-pv-energy-area-count={drawablePva.filter(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null).length}
       data-pva-selected-times-sec={availablePva.map(({ periodicPva }) =>
         periodicPva.espvr.selectedTimeSinceAtrialCaptureSec).join(",")}
@@ -1087,9 +1090,9 @@ function pvLegendSelectionKeyV3(
 type PeriodicPvaDrawingV1 = Readonly<{
   espvr: MainWireIntegratedModelPeriodicPvaEspvrV1 | null;
   edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1 | null;
-  loadRelation: MainWireEndEjectionLoadRelationV1 | null;
+  loadRelation: MainWireSystolicPressureEnvelopeV1 | null;
   areaDisplay: MainWirePvaAreaDisplayV1 | null;
-  pressureEnvelope: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[] | null;
+  pressureEnvelope: readonly (readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[])[] | null;
   preview: boolean;
   retainedFromPriorUpdate: boolean;
 }>;
@@ -1188,7 +1191,7 @@ function periodicPvaDrawingV1(
     const { systolic, edpvr } = pva.loadRelations;
     if (systolic === null && edpvr === null) return null;
     return Object.freeze({ espvr: null, edpvr, loadRelation: systolic, areaDisplay: null,
-      pressureEnvelope: (pva.status === "available" ? pva.espvr : pva.preview?.espvr)?.pressureEnvelopeDiagnostic.curve ?? null,
+      pressureEnvelope: null,
       preview: systolic?.completionStatus === "progressive", retainedFromPriorUpdate: false });
   }
   if (pva?.status === "available") {
@@ -1197,7 +1200,8 @@ function periodicPvaDrawingV1(
       edpvr: pva.edpvr,
       loadRelation: null,
       areaDisplay: showPvaBoundary ? pva.areaDisplay ?? null : null,
-      pressureEnvelope: pva.espvr.pressureEnvelopeDiagnostic.curve,
+      pressureEnvelope: pva.loadRelations === undefined ? [pva.espvr.pressureEnvelopeDiagnostic.curve]
+        : pva.loadRelations.systolic?.segments ?? null,
       preview: false,
       retainedFromPriorUpdate: false,
     });
@@ -1213,7 +1217,8 @@ function periodicPvaDrawingV1(
     edpvr: pva.preview.edpvr,
     loadRelation: null,
     areaDisplay: null,
-    pressureEnvelope: pva.preview.espvr.pressureEnvelopeDiagnostic.curve,
+    pressureEnvelope: pva.loadRelations === undefined ? [pva.preview.espvr.pressureEnvelopeDiagnostic.curve]
+      : pva.loadRelations.systolic?.segments ?? null,
     preview: true,
     retainedFromPriorUpdate: false,
   });
@@ -1234,9 +1239,9 @@ function drawPeriodicPvaV1(
   const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
   if (pva.areaDisplay !== null) drawWorkbenchPvaAreasV1(context, pva.areaDisplay, x, y, color, relationAlpha);
   if (showPressureEnvelope && pva.pressureEnvelope !== null) {
-    drawPvCurveV3(
+    for (const segment of pva.pressureEnvelope) drawPvCurveV3(
       context,
-      pva.pressureEnvelope,
+      segment,
       x,
       y,
       {
@@ -1250,8 +1255,6 @@ function drawPeriodicPvaV1(
   if (pva.loadRelation !== null) {
     for (const segment of pva.loadRelation.segments) {
       drawPvCurveV3(context, segment, x, y, { color, width: 1.25, dash: [], alpha: relationAlpha * 0.62 });
-      for (const point of segment) drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
-        color, 1.7, relationAlpha * 0.5, true);
     }
   } else if (pva.espvr !== null) {
     drawPvCurveV3(context, pva.espvr.curve, x, y, {
@@ -1322,9 +1325,10 @@ function drawPeriodicPvaV1(
   }
 }
 
-function workbenchPvDisplayedRelationPointsV1(drawing: PeriodicPvaDrawingV1): readonly WorkbenchPvRelationPointV3[] {
+function workbenchPvDisplayedRelationPointsV1(drawing: PeriodicPvaDrawingV1, showPressureEnvelope: boolean): readonly WorkbenchPvRelationPointV3[] {
   return [
     ...(drawing.loadRelation?.segments.flat() ?? []),
+    ...(showPressureEnvelope ? drawing.pressureEnvelope?.flat() ?? [] : []),
     ...(drawing.espvr === null ? [] : workbenchPvMeasuredHighLoadPointsV1(drawing.espvr)),
     ...(drawing.areaDisplay?.potentialEnergyStrip.flatMap((point) => [
       { volumeMl: point.volumeMl, pressureMmHg: point.upperPressureMmHg },

@@ -40,7 +40,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
   createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
-import algebraicPulmonaryRootSurfaceV3, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as algebraicPulmonaryRootSurfaceV1,
+import algebraicPulmonaryRootSurfaceV4, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as algebraicPulmonaryRootSurfaceV1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as algebraicPulmonaryRootSurfaceV2 } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import qualifiedBaselineSurfaceV1 from
@@ -53,7 +53,7 @@ import {
 import {
   validateMainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
-import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
@@ -65,12 +65,12 @@ const PV_ET =
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
   it("inherits the entire compatible Surface when separating load-response and energy display", () => {
-    expect(algebraicPulmonaryRootSurfaceV3.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId);
-    expect(algebraicPulmonaryRootSurfaceV3.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds);
+    expect(algebraicPulmonaryRootSurfaceV4.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId);
+    expect(algebraicPulmonaryRootSurfaceV4.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds);
     for (const key of ["graphCatalog", "controlCatalog", "knobCatalog", "protocolCatalog"] as const) {
-      expect(algebraicPulmonaryRootSurfaceV3[key]).toEqual(algebraicPulmonaryRootSurfaceV2[key]);
+      expect(algebraicPulmonaryRootSurfaceV4[key]).toEqual(algebraicPulmonaryRootSurfaceV2[key]);
     }
-    expect(algebraicPulmonaryRootSurfaceV3.derivedOutputCatalog.every((output) => output.derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID)).toBe(true);
+    expect(algebraicPulmonaryRootSurfaceV4.derivedOutputCatalog.every((output) => output.derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID)).toBe(true);
   });
   it("repins measured high-load analysis in a new Surface series without changing exact exposure or controls", () => {
     expect(algebraicPulmonaryRootSurfaceV2.predecessorSurfaceReleaseId).toBeNull();

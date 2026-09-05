@@ -202,7 +202,7 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     generalSection: "General",
     pressureEnvelopeOverlay: "Envelope",
     pressureEnvelopeOverlayHint:
-      "Maximum pressure observed at each volume in this simulated load family. Different volumes can select different times. This is not a physiological pressure limit or the PVA boundary.",
+      "Overlay the normal pressure envelope for comparison. It interpolates this simulated load family; it is neither the PVA integration boundary nor a physiological pressure limit.",
     pvaBoundaryView: "PVA",
     pvaBoundaryViewHint:
       "Show the common-time PVA boundary instead of ESPVR. SW and PE are illustrated separately when available; these are not measurements of stored elastic energy.",
@@ -784,7 +784,7 @@ function GraphPaneEditorV3({
                 <span className="text-xs font-medium">{strings.pvaBoundaryView}</span>
                 <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">{strings.pvaBoundaryViewHint}</span>
               </button>
-              <button
+              {pane.showPvaBoundary && <button
                 type="button"
                 aria-pressed={
                   pane.showPressureEnvelope ??
@@ -832,7 +832,7 @@ function GraphPaneEditorV3({
                 <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">
                   {strings.pressureEnvelopeOverlayHint}
                 </span>
-              </button>
+              </button>}
             </>
             )}
         </section>
