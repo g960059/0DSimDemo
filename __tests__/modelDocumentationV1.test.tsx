@@ -3,62 +3,31 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { ModelDocumentationPage } from
-  "@/components/model/ModelDocumentationPage";
-import { MainWireStandard66DocumentationV1 } from
-  "@/components/model/MainWireStandard66DocumentationV1";
-import {
-  MAIN_WIRE_AORTIC_RECOVERED_ROOT_PROFILE_V1,
-} from "@/engine/valves/MainWireAorticRecoveredRootProfileV1";
+import { ModelDocumentationPage } from "@/components/model/ModelDocumentationPage";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import { modelDocumentationHref } from "@/homeLinks";
-import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
-import algebraicProximalRootsStandard67SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-algebraic-proximal-roots-standard67-v1.json";
-import roundedEjectionStandard68SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioRoundedEjectionSurfaceV1";
-import qualifiedBaselineStandard69SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
-import algebraicPulmonaryRootStandard70SurfaceV1 from
+import surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import {
-  resolveMainWireStandard66DocumentationFactsV1,
-} from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
-import {
-  resolveMainWireStandard68DocumentationFactsV1,
-} from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
+  resolveMainWireStandard70DocumentationFactsV1,
+} from "@/studio/presentation/modelDocumentation/MainWireStandard70DocumentationFactsV1";
 import {
   resolveRegisteredModelDisclosureV1,
   resolveRegisteredModelDocumentationV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
+import {
+  resolveRegisteredExactModelBaselineValidationV1,
+} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 
-const MODEL_ID =
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1;
-const SURFACE_RELEASE_ID =
-  selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId;
-const STANDARD67_MODEL_ID =
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1;
-const STANDARD67_SURFACE_RELEASE_ID =
-  algebraicProximalRootsStandard67SurfaceV1.surfaceReleaseId;
-const STANDARD68_MODEL_ID =
-  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1;
-const STANDARD68_SURFACE_RELEASE_ID =
-  roundedEjectionStandard68SurfaceV1.surfaceReleaseId;
-const STANDARD69_MODEL_ID =
-  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1;
-const STANDARD69_SURFACE_RELEASE_ID =
-  qualifiedBaselineStandard69SurfaceV1.surfaceReleaseId;
-const STANDARD70_MODEL_ID =
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1;
-const STANDARD70_SURFACE_RELEASE_ID =
-  algebraicPulmonaryRootStandard70SurfaceV1.surfaceReleaseId;
+const MODEL_ID = MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1;
+const SURFACE_RELEASE_ID = surface.surfaceReleaseId;
 
 describe("model documentation V1", () => {
   it("builds a locale-scoped URL from the exact model and Surface release", () => {
@@ -66,171 +35,73 @@ describe("model documentation V1", () => {
       locale: "ja",
       modelId: "model/selected:aortic",
       surfaceReleaseId: "surface/release:1",
-    })).toBe(
-      "/ja/models/model%2Fselected%3Aaortic?surface=surface%2Frelease%3A1",
-    );
+    })).toBe("/ja/models/model%2Fselected%3Aaortic?surface=surface%2Frelease%3A1");
   });
 
-  it("resolves only the registered exact model and immutable Surface pair", () => {
-    const resolved = resolveRegisteredModelDocumentationV1(
-      MODEL_ID,
-      SURFACE_RELEASE_ID,
-    );
-    expect(resolved).toEqual({
-      kind: "main-wire-selected-aortic-outflow-standard66",
-      modelId: MODEL_ID,
-      surfaceReleaseId: SURFACE_RELEASE_ID,
-      surfaceSeriesId:
-        selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
-    });
-    expect(resolveRegisteredModelDocumentationV1(
-      `${MODEL_ID}.other`,
-      SURFACE_RELEASE_ID,
-    )).toBeNull();
-    expect(resolveRegisteredModelDocumentationV1(
-      MODEL_ID,
-      `${SURFACE_RELEASE_ID}.other`,
-    )).toBeNull();
+  it("resolves only the current exact model and immutable Surface pair", () => {
+    expect(resolveRegisteredModelDocumentationV1(MODEL_ID, SURFACE_RELEASE_ID))
+      .toEqual({
+        kind: "main-wire-algebraic-pulmonary-root-standard70",
+        modelId: MODEL_ID,
+        surfaceReleaseId: SURFACE_RELEASE_ID,
+        surfaceSeriesId: surface.surfaceSeriesId,
+      });
+    expect(resolveRegisteredModelDocumentationV1("model/unknown", SURFACE_RELEASE_ID))
+      .toBeNull();
+    expect(resolveRegisteredModelDocumentationV1(MODEL_ID, "surface/unknown"))
+      .toBeNull();
     expect(resolveRegisteredModelDocumentationV1(MODEL_ID, null)).toBeNull();
-
-    expect(resolveRegisteredModelDisclosureV1(
-      MODEL_ID,
-      SURFACE_RELEASE_ID,
-    )).toMatchObject({
-      badgeLabel: "MW 66",
-      shortLabel: "Main Wire Standard 66",
-      limitationsTranslationKey: "modelLimitations.standard66Items",
-    });
-    expect(resolveRegisteredModelDisclosureV1(
-      MODEL_ID,
-      `${SURFACE_RELEASE_ID}.other`,
-    )).toEqual({
-      documentation: null,
-      badgeLabel: "MW V3",
-      shortLabel: null,
-      limitationsTranslationKey: "modelLimitations.items",
-    });
+    expect(resolveRegisteredModelDisclosureV1(MODEL_ID, SURFACE_RELEASE_ID))
+      .toMatchObject({
+        badgeLabel: "MW 70",
+        shortLabel: "Main Wire Standard 70",
+        limitationsTranslationKey: "modelLimitations.standard70Items",
+      });
+    expect(resolveRegisteredModelDisclosureV1(MODEL_ID, "surface/unknown"))
+      .toEqual({
+        documentation: null,
+        badgeLabel: "MW V3",
+        shortLabel: null,
+        limitationsTranslationKey: "modelLimitations.items",
+      });
   });
 
-  it("derives fixed aortic facts from exact owners and labels from the Surface", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      MODEL_ID,
-      SURFACE_RELEASE_ID,
-    );
-    expect(identity).not.toBeNull();
-    const facts = resolveMainWireStandard66DocumentationFactsV1(identity!);
-    expect(facts).not.toBeNull();
-
-    const profile = MAIN_WIRE_AORTIC_RECOVERED_ROOT_PROFILE_V1;
-    expect(facts?.aortic).toMatchObject({
-      referenceMaximumForwardEoaCm2:
-        profile.referenceMaximumForwardEoaCm2,
-      ascendingAorticDiameterCm: profile.ascendingAorticDiameterCm,
-      ascendingAorticAreaCm2: profile.ascendingAorticAreaCm2,
-      characteristicImpedanceResistanceMmHgSecPerMl:
-        profile.characteristicImpedanceResistanceMmHgSecPerMl,
-      residualDownstreamResistanceMmHgSecPerMl:
-        profile.residualDownstreamResistanceMmHgSecPerMl,
-      sourceTopologyResistanceMmHgSecPerMl:
-        profile.sourceTopologyResistanceMmHgSecPerMl,
-    });
-    expect(facts?.stations).toEqual({
-      aopOutputId:
-        "hemodynamics.pressure.absolute.aortic-proximal-constitutive-port",
-      abpOutputId: "hemodynamics.pressure.absolute.SA",
-      rawAoNodeOutputId: "hemodynamics.pressure.absolute.Ao",
-      localHydraulicGradientOutputId:
-        "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV",
-      venaContractaGradientOutputId:
-        "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV",
-    });
-    expect(facts?.runtime).toMatchObject({
-      heartRateControlId: "rhythm.heart-rate-bpm",
-      heartRateChangeSemantics: "cold-restart",
-      fixtureChangeSemantics:
-        "atomic-cold-restart-at-zero-clock-new-fixture-epoch",
-    });
-    expect(facts?.surface).toEqual({
-      rawPressureVolumeLoop: true,
-      formalPressureVolumeAnalysisExposed: true,
-      structuralReturnAnalysisExposed: true,
-    });
+  it.each([
+    MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
+    MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+    MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
+    MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
+    MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
+  ])("does not substitute current documentation or baseline evidence for retired %s", (modelId) => {
+    expect(resolveRegisteredModelDocumentationV1(modelId, SURFACE_RELEASE_ID)).toBeNull();
+    expect(resolveRegisteredModelDisclosureV1(modelId, SURFACE_RELEASE_ID).documentation)
+      .toBeNull();
+    expect(resolveRegisteredExactModelBaselineValidationV1(modelId)).toBeNull();
+    expect(renderDocumentationRoute(modelDocumentationHref({
+      locale: "ja", modelId, surfaceReleaseId: SURFACE_RELEASE_ID,
+    }))).toContain('data-testid="model-documentation-unavailable-v1"');
   });
 
-  it("binds Standard67 documentation to its algebraic-root exact identity", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      STANDARD67_MODEL_ID,
-      STANDARD67_SURFACE_RELEASE_ID,
-    );
-    expect(identity).toEqual({
-      kind: "main-wire-algebraic-proximal-roots-standard67",
-      modelId: STANDARD67_MODEL_ID,
-      surfaceReleaseId: STANDARD67_SURFACE_RELEASE_ID,
-      surfaceSeriesId:
-        algebraicProximalRootsStandard67SurfaceV1.surfaceSeriesId,
-    });
-    expect(resolveRegisteredModelDisclosureV1(
-      STANDARD67_MODEL_ID,
-      STANDARD67_SURFACE_RELEASE_ID,
-    )).toMatchObject({
-      badgeLabel: "MW 67",
-      shortLabel: "Main Wire Standard 67",
-      limitationsTranslationKey: "modelLimitations.standard67Items",
-    });
-
-    const facts = resolveMainWireStandard66DocumentationFactsV1(identity!);
+  it("derives current stations, dynamics, controls, analyses, and baseline evidence", () => {
+    const identity = resolveRegisteredModelDocumentationV1(MODEL_ID, SURFACE_RELEASE_ID)!;
+    const facts = resolveMainWireStandard70DocumentationFactsV1(identity);
     expect(facts).toMatchObject({
-      generation: 67,
-      proximalArterialRoots: {
-        aorticRootEdgeId: "Ao_SA",
-        pulmonaryRootEdgeId: "PA_PArt",
-        flowLaw: "same-candidate-algebraic-linear-quadratic",
-        inertanceMmHgSec2PerMl: 0,
-        acceptedRootFlowRecordRole:
-          "exact-accepted-algebraic-flow-readback-not-continuation-memory",
-      },
-    });
-    expect(resolveRegisteredModelDocumentationV1(
-      STANDARD67_MODEL_ID,
-      SURFACE_RELEASE_ID,
-    )).toBeNull();
-  });
-
-  it("binds Standard68 documentation to its rounded-ejection Surface", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      STANDARD68_MODEL_ID,
-      STANDARD68_SURFACE_RELEASE_ID,
-    );
-    expect(identity).toEqual({
-      kind: "main-wire-rounded-ejection-standard68",
-      modelId: STANDARD68_MODEL_ID,
-      surfaceReleaseId: STANDARD68_SURFACE_RELEASE_ID,
-      surfaceSeriesId: roundedEjectionStandard68SurfaceV1.surfaceSeriesId,
-    });
-    expect(resolveRegisteredModelDisclosureV1(
-      STANDARD68_MODEL_ID,
-      STANDARD68_SURFACE_RELEASE_ID,
-    )).toMatchObject({
-      badgeLabel: "MW 68",
-      shortLabel: "Main Wire Standard 68",
-      limitationsTranslationKey: "modelLimitations.standard68Items",
-    });
-
-    const facts = resolveMainWireStandard68DocumentationFactsV1(identity!);
-    expect(facts).toMatchObject({
-      generation: 68,
+      generation: 70,
       stations: {
+        aopOutputId: "hemodynamics.pressure.absolute.Ao",
+        abpOutputId: "hemodynamics.pressure.absolute.SA",
         aopRole: "source-aortic-root-compliance-node",
         localPressureRecoveryModeled: false,
       },
       dynamics: {
-        aorticOutflowCirculationProfileId:
-          "main-wire-source-aortic-outflow-topology-v3",
+        aorticOutflowCirculationProfileId: "main-wire-source-aortic-outflow-topology-v3",
         proximalArterialRootMomentum: "source-inertance",
+        pulmonaryArterialRootMomentum: "algebraic-no-inertance",
         newContinuousStateAdded: false,
         valveOpeningStateAdded: false,
       },
       runtime: {
+        heartRateControlId: "rhythm.heart-rate-bpm",
         heartRateChangeSemantics: "accepted-state-warm-start",
         fixtureChangeSemantics:
           "atomic-accepted-state-warm-start-bounded-tbv-continuation-new-fixture-epoch",
@@ -239,167 +110,46 @@ describe("model documentation V1", () => {
         rawPressureVolumeLoop: true,
         formalPressureVolumeAnalysisExposed: true,
         structuralReturnAnalysisExposed: true,
+        espvrLoadDomain: "preload-reduction-through-operating-anchor",
       },
+      baseline: { passedCheckCount: 41 },
     });
+    expect(resolveMainWireStandard70DocumentationFactsV1({
+      ...identity, modelId: "model/unknown",
+    })).toBeNull();
+    expect(resolveMainWireStandard70DocumentationFactsV1({
+      ...identity, surfaceReleaseId: "surface/unknown",
+    })).toBeNull();
+    expect(resolveMainWireStandard70DocumentationFactsV1({
+      ...identity, surfaceSeriesId: "series/unknown",
+    })).toBeNull();
   });
 
-  it("binds Standard69 documentation to the fully inherited qualified-baseline Surface", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      STANDARD69_MODEL_ID,
-      STANDARD69_SURFACE_RELEASE_ID,
-    );
-    expect(identity).toEqual({
-      kind: "main-wire-qualified-baseline-standard69",
-      modelId: STANDARD69_MODEL_ID,
-      surfaceReleaseId: STANDARD69_SURFACE_RELEASE_ID,
-      surfaceSeriesId: qualifiedBaselineStandard69SurfaceV1.surfaceSeriesId,
-    });
-    expect(resolveRegisteredModelDisclosureV1(
-      STANDARD69_MODEL_ID,
-      STANDARD69_SURFACE_RELEASE_ID,
-    )).toMatchObject({
-      badgeLabel: "MW 69",
-      shortLabel: "Main Wire Standard 69",
-      limitationsTranslationKey: "modelLimitations.standard68Items",
-    });
-    expect(resolveMainWireStandard68DocumentationFactsV1(identity!))
-      .toMatchObject({ generation: 69 });
-  });
-
-  it("renders the station, measurement, wave, raw-PV, restart, and validation boundaries in both locales", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      MODEL_ID,
-      SURFACE_RELEASE_ID,
-    )!;
-    const facts = resolveMainWireStandard66DocumentationFactsV1(identity)!;
-
-    const ja = renderToStaticMarkup(
-      <MemoryRouter initialEntries={["/ja"]}>
-        <MainWireStandard66DocumentationV1 facts={facts} locale="ja" />
-      </MemoryRouter>,
-    );
-    expect(ja).toContain("局所static pressure recovery");
-    expect(ja).toContain("特定距離のcatheter tip");
-    expect(ja).toContain("進行波");
-    expect(ja).toContain("raw orbit");
-    expect(ja).toContain("atomic cold restart");
-    expect(ja).toContain("臨床的validation");
-    expect(ja).toContain(MODEL_ID);
-    expect(ja).toContain(SURFACE_RELEASE_ID);
-
-    const en = renderToStaticMarkup(
-      <MemoryRouter initialEntries={["/en"]}>
-        <MainWireStandard66DocumentationV1 facts={facts} locale="en" />
-      </MemoryRouter>,
-    );
-    expect(en).toContain("after the valve law accounts for local static recovery");
-    expect(en).toContain("catheter tip at a specified distance");
-    expect(en).toContain("travelling wave");
-    expect(en).toContain("raw PV orbit");
-    expect(en).toContain("atomically replaces the accepted clock");
-    expect(en).toContain("not physiological or clinical validation");
-    expect(en).toContain(
-      "hemodynamics.pressure-gradient.valve.local-hydraulic.AoV",
-    );
-    expect(en).toContain(
-      "hemodynamics.pressure-gradient.valve.vena-contracta-bernoulli.AoV",
-    );
-    expect(en).not.toContain("Pprox =");
-    expect(en).not.toContain("ΔPlocal");
-  });
-
-  it("routes the registered pair and refuses to substitute a different Surface", () => {
-    const validUrl = modelDocumentationHref({
-      locale: "ja",
-      modelId: MODEL_ID,
-      surfaceReleaseId: SURFACE_RELEASE_ID,
-    });
-    const valid = renderDocumentationRoute(validUrl);
-    expect(valid).toContain('data-testid="standard66-model-documentation-v1"');
-    expect(valid).toContain("Main Wire Standard 66");
-
-    const invalid = renderDocumentationRoute(
-      `/ja/models/${encodeURIComponent(MODEL_ID)}?surface=other-surface`,
-    );
-    expect(invalid).toContain('data-testid="model-documentation-unavailable-v1"');
-    expect(invalid).toContain("別のSurfaceの説明を代用することはありません");
-  });
-
-  it("renders Standard67 root semantics without substituting Standard66 copy", () => {
-    const validUrl = modelDocumentationHref({
-      locale: "ja",
-      modelId: STANDARD67_MODEL_ID,
-      surfaceReleaseId: STANDARD67_SURFACE_RELEASE_ID,
-    });
-    const valid = renderDocumentationRoute(validUrl);
-    expect(valid).toContain('data-testid="standard67-model-documentation-v1"');
-    expect(valid).toContain("Main Wire Standard 67");
-    expect(valid).toContain("Ao–SAとPA–PArt");
-    expect(valid).toContain("momentum memory");
-    expect(valid).toContain(STANDARD67_MODEL_ID);
-    expect(valid).not.toContain("Standard 67そのものの臨床validation evidenceではありません。Standard 66");
-  });
-
-  it("renders Standard68 rounded-ejection and warm-start boundaries", () => {
-    const validUrl = modelDocumentationHref({
-      locale: "ja",
-      modelId: STANDARD68_MODEL_ID,
-      surfaceReleaseId: STANDARD68_SURFACE_RELEASE_ID,
-    });
-    const valid = renderDocumentationRoute(validUrl);
-    expect(valid).toContain('data-testid="standard68-model-documentation-v1"');
-    expect(valid).toContain("Main Wire Standard 68");
-    expect(valid).toContain("rounded-ejection assembly");
-    expect(valid).toContain("atomic warm start");
-    expect(valid).toContain(STANDARD68_MODEL_ID);
-    expect(valid).not.toContain("新しいexact trajectoryを開始します");
-  });
-
-  it("renders Standard69 as the separately qualified baseline successor", () => {
+  it.each(["ja", "en"] as const)("renders the complete current explanation in %s", (locale) => {
     const valid = renderDocumentationRoute(modelDocumentationHref({
-      locale: "ja",
-      modelId: STANDARD69_MODEL_ID,
-      surfaceReleaseId: STANDARD69_SURFACE_RELEASE_ID,
-    }));
-    expect(valid).toContain('data-testid="standard69-model-documentation-v1"');
-    expect(valid).toContain("Main Wire Standard 69");
-    expect(valid).toContain("Standard 68の数式構成を保ち");
-    expect(valid).toContain(STANDARD69_MODEL_ID);
-  });
-
-  it("renders Standard70 with the asymmetric pulmonary-root limitation", () => {
-    const identity = resolveRegisteredModelDocumentationV1(
-      STANDARD70_MODEL_ID,
-      STANDARD70_SURFACE_RELEASE_ID,
-    );
-    expect(identity).toMatchObject({
-      kind: "main-wire-algebraic-pulmonary-root-standard70",
-      modelId: STANDARD70_MODEL_ID,
-    });
-    expect(resolveRegisteredModelDisclosureV1(
-      STANDARD70_MODEL_ID,
-      STANDARD70_SURFACE_RELEASE_ID,
-    )).toMatchObject({
-      badgeLabel: "MW 70",
-      limitationsTranslationKey: "modelLimitations.standard70Items",
-    });
-    expect(resolveMainWireStandard68DocumentationFactsV1(identity!))
-      .toMatchObject({
-        generation: 70,
-        dynamics: {
-          proximalArterialRootMomentum: "source-inertance",
-          pulmonaryArterialRootMomentum: "algebraic-no-inertance",
-        },
-      });
-    const valid = renderDocumentationRoute(modelDocumentationHref({
-      locale: "ja",
-      modelId: STANDARD70_MODEL_ID,
-      surfaceReleaseId: STANDARD70_SURFACE_RELEASE_ID,
+      locale, modelId: MODEL_ID, surfaceReleaseId: SURFACE_RELEASE_ID,
     }));
     expect(valid).toContain('data-testid="standard70-model-documentation-v1"');
     expect(valid).toContain("Main Wire Standard 70");
-    expect(valid).toContain("PA–PArt間のみ");
-    expect(valid).toContain(STANDARD70_MODEL_ID);
+    expect(valid).toContain(MODEL_ID);
+    expect(valid).toContain(SURFACE_RELEASE_ID);
+    expect(valid).toContain("ESPVR");
+    expect(valid).toContain("EDPVR");
+    expect(valid).toContain("PVA/PE");
+    expect(valid).toContain("Starling");
+    expect(valid).toContain("PA–PArt");
+    expect(valid).toContain(locale === "ja" ? "atomic warm start" : "atomically warm-start");
+    expect(valid).toContain(locale === "ja" ? "pressure recoveryを適用していない" : "no local pressure-recovery correction");
+    expect(valid).toContain(locale === "ja" ? "臨床的妥当性は未確立" : "not clinically validated");
+    expect(valid).toContain(locale === "ja" ? "進行波" : "travelling waves");
+  });
+
+  it("refuses to substitute documentation for a different Surface", () => {
+    const invalid = renderDocumentationRoute(modelDocumentationHref({
+      locale: "ja", modelId: MODEL_ID, surfaceReleaseId: "surface/unknown",
+    }));
+    expect(invalid).toContain('data-testid="model-documentation-unavailable-v1"');
+    expect(invalid).toContain("別のSurfaceの説明を代用することはありません");
   });
 });
 

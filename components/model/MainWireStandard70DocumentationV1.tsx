@@ -13,26 +13,18 @@ import { Link } from "react-router-dom";
 import { homeHref } from "@/homeLinks";
 import type { Locale } from "@/localeRouting";
 import type {
-  MainWireStandard68DocumentationFactsV1,
-} from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
+  MainWireStandard70DocumentationFactsV1,
+} from "@/studio/presentation/modelDocumentation/MainWireStandard70DocumentationFactsV1";
 
 const COPY = Object.freeze({
   ja: Object.freeze({
     back: "ホームへ戻る",
     eyebrow: "MODEL DOCUMENTATION",
-    title: "Main Wire Standard 68",
-    subtitle: "rounded-ejection baselineを備えた統合0D循環動態モデル",
-    qualifiedTitle: "Main Wire Standard 69",
-    qualifiedSubtitle: "検証済みbaselineを備えた統合0D循環動態モデル",
-    pulmonaryRootTitle: "Main Wire Standard 70",
-    pulmonaryRootSubtitle:
+    title: "Main Wire Standard 70",
+    subtitle:
       "代数的肺動脈rootを備えた統合0D循環動態モデル",
     status: "研究・教育用モデル · 臨床的妥当性は未確立",
     lead:
-      "このページはStandard 68のexact model、現在のModel Surface、versioned analysisを分けて説明します。baseline gateは数理・生理的な品質管理であり、患者個別の診断や治療判断を保証するものではありません。",
-    qualifiedLead:
-      "このページはStandard 69のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 69はStandard 68の数式構成を保ち、独立したbaseline fittingとmint gateを通過した既定作動点を持ちます。これは患者個別の診断や治療判断を保証するものではありません。",
-    pulmonaryRootLead:
       "このページはStandard 70のexact model、現在のModel Surface、versioned analysisを分けて説明します。Standard 70はStandard 69を基礎に、PA–PArt間だけをsourceの損失係数を保つ代数的flow lawへ変更し、右心・肺動脈を含むbaseline gateを通過しています。現在の二次損失係数は0で、名目上は線形抵抗です。これは患者個別の診断や治療判断を保証するものではありません。",
     scopeTitle: "モデルの範囲",
     scopeBody:
@@ -49,20 +41,16 @@ const COPY = Object.freeze({
     dynamicsTitle: "exact dynamics",
     dynamicsItems: Object.freeze([
       "心室active/passive materialはversioned rounded-ejection profileです。",
-      "近位体・肺動脈はsourceのmomentum/compliance topologyを保持します。Standard 67の代数的rootは継承しません。",
+      "近位体動脈はsource momentum/compliance topologyを保ちます。PA–PArt間のみ局所inertanceを持たない代数的flow lawとし、線形抵抗・source二次損失係数・PA/PArt complianceは保持します。source二次損失係数は現在0です。",
       "新しいcontinuous state、AV opening state、局所pressure-recovery correctionは追加していません。",
     ]),
-    pulmonaryRootDynamicsItem:
-      "近位体動脈はsource momentum/compliance topologyを保ちます。PA–PArt間のみ局所inertanceを持たない代数的flow lawとし、線形抵抗・source二次損失係数・PA/PArt complianceは保持します。source二次損失係数は現在0です。",
     analysisTitle: "Surfaceとanalysis",
     analysisBody:
       "現在のModel Surfaceはraw exact PV orbitに加え、versioned ESPVR、EDPVR、PVA/PE、Guyton / Starling analysisをpinします。ESPVRはpreload低下側からbaselineまでを用い、EDPVRとStarlingは高容量側を含む双方向familyを保持します。これらの分岐計算はexact stateやcheckpointを変更しません。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、圧・AV/LV/RVP・timing・形態・indexed size/functionの${checks}項目を記録しています。この記録の評価方針における必須gateと、双方向preload reserve gateを通過しています。`,
-    qualifiedBaselinePolicy:
-      "Standard69の追加floorは、各方向・両心室でCO変化率3%以上、CO/充満圧勾配0.02 L/min/mmHg以上、EDV変化率3%以上です。探索結果の確認後に固定したconstruction用退行防止基準であり、独立した生理学的検証ではありません。",
-    pulmonaryRootBaselinePolicy:
+    baselinePolicy:
       "Standard70はPVのraw pressure gradient/ET、TV E/A、右室ICT/IRT/Tei、PAP/PV flowの形態も検査します。旧baseline記録では左右の±dP/dtにも狭い必須範囲を用いましたが、新しい評価では参考警告とし、時間刻み依存性と単発スパイクを別の数値品質検査に分けています。旧記録は再ラベルしません。これらは臨床診断閾値ではありません。",
     controlTitle: "control semantics",
     controlBody:
@@ -82,19 +70,11 @@ const COPY = Object.freeze({
   en: Object.freeze({
     back: "Back to home",
     eyebrow: "MODEL DOCUMENTATION",
-    title: "Main Wire Standard 68",
-    subtitle: "Integrated 0D haemodynamic model with a rounded-ejection baseline",
-    qualifiedTitle: "Main Wire Standard 69",
-    qualifiedSubtitle: "Integrated 0D haemodynamic model with a qualified baseline",
-    pulmonaryRootTitle: "Main Wire Standard 70",
-    pulmonaryRootSubtitle:
+    title: "Main Wire Standard 70",
+    subtitle:
       "Integrated 0D haemodynamic model with an algebraic pulmonary root",
     status: "Research and education model · not clinically validated",
     lead:
-      "This page separates the Standard 68 exact model, its current Model Surface, and versioned analyses. Baseline gates are mathematical and physiological quality controls, not patient-specific diagnostic or treatment validation.",
-    qualifiedLead:
-      "This page separates the Standard 69 exact model, its current Model Surface, and versioned analyses. Standard 69 retains the Standard 68 equations and adds a separately fitted, mint-qualified default operating point. This does not establish patient-specific diagnostic or treatment validity.",
-    pulmonaryRootLead:
       "This page separates the Standard 70 exact model, its current Model Surface, and versioned analyses. Standard 70 changes only PA–PArt to an algebraic flow law retaining the source loss coefficients, and passes baseline gates that include the right heart and pulmonary artery. The current quadratic coefficient is zero, so the nominal relation is linear. This does not establish patient-specific diagnostic or treatment validity.",
     scopeTitle: "Model scope",
     scopeBody:
@@ -111,20 +91,16 @@ const COPY = Object.freeze({
     dynamicsTitle: "Exact dynamics",
     dynamicsItems: Object.freeze([
       "Ventricular active/passive material uses a versioned rounded-ejection profile.",
-      "The proximal systemic and pulmonary arteries retain the source momentum/compliance topology; the Standard 67 algebraic roots are not inherited.",
+      "The proximal systemic artery retains the source momentum/compliance topology. Only PA–PArt uses an algebraic flow law without local inertance; linear resistance, the source quadratic-loss coefficient, and PA/PArt compliance remain. The source quadratic coefficient is currently zero.",
       "No new continuous state, AV opening state, or local pressure-recovery correction is added.",
     ]),
-    pulmonaryRootDynamicsItem:
-      "The proximal systemic artery retains the source momentum/compliance topology. Only PA–PArt uses an algebraic flow law without local inertance; linear resistance, the source quadratic-loss coefficient, and PA/PArt compliance remain. The source quadratic coefficient is currently zero.",
     analysisTitle: "Surface and analysis",
     analysisBody:
       "The current Model Surface pins versioned ESPVR, EDPVR, PVA/PE, and Guyton / Starling analyses alongside the raw exact PV orbit. ESPVR uses the preload-reduction limb through baseline, while EDPVR and Starling retain the bidirectional family. Their branch computations do not mutate exact state or checkpoints.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles, recording ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function checks. Mandatory gates under the recorded assessment policy and the bidirectional preload-reserve gate passed.`,
-    qualifiedBaselinePolicy:
-      "Standard69 adds floors of 3% CO change, 0.02 L/min/mmHg CO/filling-pressure slope, and 3% EDV change in each direction for both ventricles. They were frozen after exploratory result inspection as construction non-regression floors, not independent physiological validation.",
-    pulmonaryRootBaselinePolicy:
+    baselinePolicy:
       "Standard70 also examines PV raw pressure gradient/ET, TV E/A, right-sided ICT/IRT/Tei, and PAP/PV-flow morphology. Historical baseline evidence used narrow mandatory LV/RV ±dP/dt ranges; current assessments retain these as reference warnings and separately screen time-step sensitivity and isolated spikes. Historical reports are not relabelled. These are not clinical diagnostic thresholds.",
     controlTitle: "Control semantics",
     controlBody:
@@ -143,46 +119,19 @@ const COPY = Object.freeze({
   }),
 } as const);
 
-export function MainWireStandard68DocumentationV1({
+export function MainWireStandard70DocumentationV1({
   facts,
   locale,
 }: Readonly<{
-  facts: MainWireStandard68DocumentationFactsV1;
+  facts: MainWireStandard70DocumentationFactsV1;
   locale: Locale;
 }>) {
   const text = COPY[locale];
-  const qualified = facts.generation === 69;
-  const pulmonaryRoot = facts.generation === 70;
-  const title = pulmonaryRoot
-    ? text.pulmonaryRootTitle
-    : qualified
-      ? text.qualifiedTitle
-      : text.title;
-  const subtitle = pulmonaryRoot
-    ? text.pulmonaryRootSubtitle
-    : qualified
-      ? text.qualifiedSubtitle
-      : text.subtitle;
-  const lead = pulmonaryRoot
-    ? text.pulmonaryRootLead
-    : qualified
-      ? text.qualifiedLead
-      : text.lead;
-  const dynamicsItems = pulmonaryRoot
-    ? Object.freeze([
-        text.dynamicsItems[0],
-        text.pulmonaryRootDynamicsItem,
-        text.dynamicsItems[2],
-      ])
-    : text.dynamicsItems;
+  const { title, subtitle, lead, dynamicsItems } = text;
   return (
     <div
       className="h-full overflow-y-auto bg-wb-app text-wb-text"
-      data-testid={pulmonaryRoot
-        ? "standard70-model-documentation-v1"
-        : qualified
-          ? "standard69-model-documentation-v1"
-          : "standard68-model-documentation-v1"}
+      data-testid="standard70-model-documentation-v1"
     >
       <main className="mx-auto w-full max-w-5xl px-5 pb-24 pt-10 sm:px-8 sm:pt-14">
         <Link
@@ -232,11 +181,7 @@ export function MainWireStandard68DocumentationV1({
               body={text.baselineBody(
                 facts.baseline.completedCycleCount,
                 facts.baseline.passedCheckCount,
-              ) + (pulmonaryRoot
-                ? ` ${text.pulmonaryRootBaselinePolicy}`
-                : qualified
-                  ? ` ${text.qualifiedBaselinePolicy}`
-                  : "")}
+              ) + ` ${text.baselinePolicy}`}
             />
             <FactCard title={text.controlTitle} body={text.controlBody} identity={facts.runtime.heartRateControlId} />
           </div>

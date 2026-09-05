@@ -93,10 +93,6 @@ import {
   registeredBaselinePressureRatePresentationV1,
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1,
-  MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
-} from "@/domain/model/MainWireStandardIdentityV1";
 import selectedLaunchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
 import originalStandard70Descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import {
@@ -134,7 +130,7 @@ import {
 } from "@/components/workbench/WorkbenchAreaLayoutV3";
 import {
   loadStudioDefaultClientCompositionV2,
-  loadStudioLocalStandardModelLabClientCompositionV1,
+  loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { modelLimitationsAcknowledgementKey } from "@/components/ModelLimitations";
 import {
@@ -828,8 +824,6 @@ describe("V3 Dockview Workbench", () => {
   });
 
   it.each([
-    [MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_MODEL_ID_V1, undefined],
-    [MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1, undefined],
     [selectedLaunchBaseline.modelId, originalStandard70Descriptor.defaultFixture],
   ])("preserves the admitted historical pressure-rate presentation for %s", (modelId, fixture) => {
     const report = resolveRegisteredExactModelBaselineValidationV1(modelId, fixture);
@@ -1338,7 +1332,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("selects every analysis-backed pane that retains visual history", async () => {
     const composition =
-      await loadStudioLocalStandardModelLabClientCompositionV1();
+      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const structural = composition.modelSurface.contract.graphCatalog.find(
       ({ renderer }) => renderer === "structural-return",
@@ -2031,7 +2025,7 @@ describe("V3 Dockview Workbench", () => {
 
   it("constructs four unit-safe graph families with one circulation per structural pane", async () => {
     const composition =
-      await loadStudioLocalStandardModelLabClientCompositionV1();
+      await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
     const original = createDefaultExperimentSurfaceV3(composition.modelSurface.contract);
     const constructorGraphIds = [
       ...new Set(WORKBENCH_GRAPH_PANE_OPTIONS_V3.map(({ graphId }) => graphId)),

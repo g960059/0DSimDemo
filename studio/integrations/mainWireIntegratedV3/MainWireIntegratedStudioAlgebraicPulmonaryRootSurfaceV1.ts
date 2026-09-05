@@ -5,17 +5,17 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70OutputRegistryV1";
-import qualifiedBaselineStandard69SurfaceV1 from
-  "./MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
+import {
+  MAIN_WIRE_INTEGRATED_STUDIO_WORKBENCH_SURFACE_CATALOGS_V1,
+} from "./MainWireIntegratedStudioWorkbenchSurfaceV1";
 
 /**
- * Standard70 inherits the complete latest compatible Standard69 Surface and
+ * Standard70 inherits the complete compatible Workbench catalogs and
  * adds only its newly exact pulmonary-valve forward-flow duration. Numerical
  * and qualification semantics remain owned by the exact release. Exposing an
  * output unavailable from earlier exact releases starts a new Surface series.
  */
-const inheritedSurface = qualifiedBaselineStandard69SurfaceV1 as unknown as
-  ModelSurfaceReleaseManifestV1;
+const inheritedSurface = MAIN_WIRE_INTEGRATED_STUDIO_WORKBENCH_SURFACE_CATALOGS_V1;
 
 export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 =
   Object.freeze({

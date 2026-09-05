@@ -24,7 +24,7 @@ import {
 import {
   loadStudioDefaultClientCompositionV2,
   loadStudioExperimentClientCompositionV2,
-  loadStudioLocalStandardModelLabClientCompositionV1,
+  loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
   loadStudioSnapshotClientCompositionV2,
   invalidateStudioClientCompositionCachesV2,
   type StudioClientCompositionV2,
@@ -622,7 +622,7 @@ async function loadDevModelsV3(
     }),
     Object.freeze({
       source: "model-lab",
-      promise: loadStudioLocalStandardModelLabClientCompositionV1(),
+      promise: loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1(),
     }),
   ]);
   const settledLaunches = await Promise.allSettled(
