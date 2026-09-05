@@ -151,10 +151,13 @@ export type ExperimentSurfaceGraphPaneV2 = Readonly<{
   pressureVolumeAnalysisMode?: ExperimentSurfacePressureVolumeAnalysisModeV2;
   /**
    * Optional upper projection of the sampled pressure-time-volume family.
-   * The overlay is diagnostic only; the fixed-core common isochrone remains
-   * the nonlinear PE/PVA owner. Required only for `pressure-volume` panes.
+   * Diagnostic only, never the nonlinear PE/PVA owner. PV panes only.
    */
   showPressureEnvelope?: boolean;
+  /** Opt-in energy view instead of the Surface's default ESPVR display.
+   * Shows the PVA boundary and separate SW/PE illustrations where supported.
+   * Must be omitted for raw-only and non-PV panes. */
+  showPvaBoundary?: boolean;
   /**
    * Author-selected circulation side for a structural Guyton/Starling pane.
    * Required for `structural-return`; every other renderer must omit it.

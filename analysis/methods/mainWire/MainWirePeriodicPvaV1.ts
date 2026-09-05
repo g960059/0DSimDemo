@@ -17,11 +17,14 @@ export const MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID =
   "suga-pva-preload-reduction-through-anchor-area-max-common-isochrone-nonlinear-espvr-bidirectional-exponential-edpvr-v9" as const;
 export const MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID =
   "suga-pva-preload-reduction-owner-with-measured-high-load-common-isochrone-display-v10" as const;
+export const MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID =
+  "suga-pva-common-isochrone-owner-with-separate-end-ejection-load-response-display-v11" as const;
 
 export type MainWirePeriodicPvaMethodIdV1 =
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID
   | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
-  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID;
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
+  | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID;
 
 const MMHG_ML_TO_JOULE_V1 = 1.33322e-4;
 const MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 = 3;
@@ -158,7 +161,35 @@ export type MainWireIntegratedModelPeriodicPvaPreviewV1 = Readonly<{
   estimatedMvo2: MainWireIntegratedModelLvMvo2EstimateV1 | null;
 }>;
 
-export type MainWirePeriodicPvaV1 =
+/** Operational ESPVR approximation, not Emax or the energy boundary. Each
+ * point belongs to its own settled beat and semilunar closure event. A fold
+ * remains a fold; excluded observations break the line instead of being
+ * bridged. No anchor, selected isochrone, fitted V0, or pressure envelope
+ * enters this relation. */
+export type MainWireEndEjectionLoadRelationV1 = Readonly<{
+  method: "settled-semilunar-closure-load-response-v1";
+  pressureBasis: "transmural";
+  interpolation: "tbv-ordered-polyline";
+  displayExtrapolation: "none";
+  completionStatus: "progressive" | "complete";
+  excludedPointCount: number;
+  segments: readonly (readonly (MainWireIntegratedModelPeriodicPvaCurvePointV1 &
+    Readonly<{ totalBloodVolumeMl: number }>)[])[];
+}>;
+
+export type MainWirePvaAreaDisplayV1 = Readonly<{
+  use: "separate-sw-and-pe-illustration-not-a-union-or-stored-energy-measurement";
+  /** Sampled illustration only; accepted-step path work still owns SW. */
+  strokeWorkLoop: readonly MainWireIntegratedModelPressureVolumeLoopPointV3[];
+  /** Uses the numerical PE owner's quadrature nodes, including its local tail. */
+  potentialEnergyStrip: readonly Readonly<{
+    volumeMl: number;
+    upperPressureMmHg: number;
+    lowerPressureMmHg: number;
+  }>[];
+}>;
+
+export type MainWirePeriodicPvaV1 = (
   | Readonly<{
       analysisId: typeof MAIN_WIRE_PERIODIC_PVA_V1_ID;
       methodId: MainWirePeriodicPvaMethodIdV1;
@@ -206,7 +237,15 @@ export type MainWirePeriodicPvaV1 =
         "coronary-tone-held-at-source-during-preload-reduction",
         "not-clinical-validation",
       ];
-    }>;
+    }>
+) & Readonly<{
+  /** V11 display analysis is independently available even if PVA is not. */
+  loadRelations?: Readonly<{
+    systolic: MainWireEndEjectionLoadRelationV1 | null;
+    edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1 | null;
+  }>;
+  areaDisplay?: MainWirePvaAreaDisplayV1;
+}>;
 
 type SystolicPressureLawV1 = Readonly<{
   kind: "piecewise-linear" | "shape-preserving-cubic-hermite";
@@ -282,6 +321,96 @@ export function buildMainWirePeriodicPvaMethodV10(
   });
 }
 
+/** V10 numerical policy, separate load-response and energy presentations.
+ * Reuses the same settled family; no new sweep or exact-model change. */
+export function buildMainWirePeriodicPvaMethodV11(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+  ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
+): MainWirePeriodicPvaV1 {
+  const pva = buildMainWirePeriodicPvaByPolicyV1(locus, ventricleId, {
+    methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID,
+    systolicLoadDomain: "preload-reduction-through-anchor",
+    showMeasuredHighLoadIsochrone: true,
+    includeAreaDisplay: true,
+  });
+  const admittedEdpvr = pva.status === "available" ? pva.edpvr : pva.preview?.edpvr;
+  return Object.freeze({ ...pva, loadRelations: Object.freeze({
+    systolic: buildMainWireEndEjectionLoadRelationV1(locus),
+    // EDPVR admission must not depend on the systolic phase/PVA admission.
+    edpvr: admittedEdpvr ?? independentEdpvrProjectionV1(locus),
+  }) });
+}
+
+export function buildMainWireEndEjectionLoadRelationV1(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+): MainWireEndEjectionLoadRelationV1 | null {
+  if (locus.status !== "measured-fixed-tbv-protocol") return null;
+  const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
+  type Point = MainWireEndEjectionLoadRelationV1["segments"][number][number];
+  const segments: Point[][] = [];
+  let segment: Point[] = [];
+  let excludedPointCount = 0;
+  for (const [index, point] of ordered.entries()) {
+    const { totalBloodVolumeMl, ventricularPressureVolumeLandmarks: landmarks } = point;
+    const end = landmarks.endSystolic;
+    if (!point.settled || !point.curveEligible || point.quality !== "locally-converged"
+      || !point.finiteAndFixedTbvPassed || landmarks.pressureBasis !== "transmural"
+      || end.event !== "semilunar-valve-closure"
+      || ![totalBloodVolumeMl, end.volumeMl, end.pressureMmHg].every(Number.isFinite)
+      || !(totalBloodVolumeMl > 0) || !(end.volumeMl > 0)
+      || ordered[index - 1]?.totalBloodVolumeMl === totalBloodVolumeMl
+      || ordered[index + 1]?.totalBloodVolumeMl === totalBloodVolumeMl) {
+      if (segment.length > 0) segments.push(segment);
+      segment = [];
+      excludedPointCount += 1;
+      continue;
+    }
+    segment.push(Object.freeze({ totalBloodVolumeMl, volumeMl: end.volumeMl,
+      pressureMmHg: end.pressureMmHg }));
+  }
+  if (segment.length > 0) segments.push(segment);
+  if (segments.length === 0) return null;
+  return Object.freeze({
+    method: "settled-semilunar-closure-load-response-v1" as const,
+    pressureBasis: "transmural" as const,
+    interpolation: "tbv-ordered-polyline" as const,
+    displayExtrapolation: "none" as const,
+    completionStatus: locus.completedPointCount >= locus.totalPointCount ? "complete" : "progressive",
+    excludedPointCount,
+    segments: Object.freeze(segments.map((points) => Object.freeze(points))),
+  });
+}
+
+function independentEdpvrProjectionV1(
+  locus: MainWireIntegratedModelStarlingLocusV3,
+): MainWireIntegratedModelPeriodicPvaEdpvrV1 | null {
+  if (locus.status !== "measured-fixed-tbv-protocol") return null;
+  const points = [...locus.points].sort((a, b) => b.totalBloodVolumeMl - a.totalBloodVolumeMl)
+    .filter((point) => point.settled && point.curveEligible)
+    .map((point) => point.ventricularPressureVolumeLandmarks.endDiastolic)
+    .filter(({ volumeMl, pressureMmHg }) => Number.isFinite(volumeMl)
+      && Number.isFinite(pressureMmHg) && pressureMmHg > 0.05);
+  const range = finiteRangeV1(points.map(({ volumeMl }) => volumeMl));
+  if (points.length < MINIMUM_RELATION_PREVIEW_POINT_COUNT_V1 || range === null) return null;
+  const fit = exponentialFitV1(points);
+  return fit === null ? null : projectEdpvrV1(fit, points, range);
+}
+
+function projectEdpvrV1(
+  fit: ExponentialFitV1,
+  points: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[],
+  range: readonly [number, number],
+): MainWireIntegratedModelPeriodicPvaEdpvrV1 {
+  return Object.freeze({
+    method: "density-weighted-exponential-maximum-volume-fit" as const,
+    scaleMmHg: fit.scale, exponentPerMl: fit.exponent, zeroPressureVolumeMl: fit.volumeOffset,
+    rSquared: fit.rSquared, measuredVolumeRangeMl: range,
+    fitPoints: Object.freeze(points.map((point) => Object.freeze({ ...point }))),
+    parameterBoundaryHit: fit.parameterBoundaryHit,
+    curve: sampleCurveV1(fit.volumeOffset, range[1], (volumeMl) => nonnegativeExponentialPressureV1(fit, volumeMl)),
+  });
+}
+
 function buildMainWirePeriodicPvaByPolicyV1(
   locus: MainWireIntegratedModelStarlingLocusV3,
   ventricleId: MainWireIntegratedModelPeriodicPvaVentricleV1,
@@ -291,6 +420,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
       | "all-settled-loads"
       | "preload-reduction-through-anchor";
     showMeasuredHighLoadIsochrone?: boolean;
+    includeAreaDisplay?: boolean;
   }>,
 ): MainWirePeriodicPvaV1 {
   const familyProgress: PeriodicPvaProgressV1 = Object.freeze({
@@ -530,21 +660,7 @@ function buildMainWirePeriodicPvaByPolicyV1(
       pressureEnvelopeDiagnostic: areaMaxIsochrone.pressureEnvelope,
     });
   const edpvrProjection: MainWireIntegratedModelPeriodicPvaEdpvrV1 =
-    Object.freeze({
-      method: "density-weighted-exponential-maximum-volume-fit" as const,
-      scaleMmHg: edpvr.scale,
-      exponentPerMl: edpvr.exponent,
-      zeroPressureVolumeMl: edpvr.volumeOffset,
-      rSquared: edpvr.rSquared,
-      measuredVolumeRangeMl: diastolicRange,
-      fitPoints: Object.freeze(
-        diastolic.map((point) => Object.freeze({ ...point })),
-      ),
-      parameterBoundaryHit: edpvr.parameterBoundaryHit,
-      curve: sampleCurveV1(edpvr.volumeOffset, diastolicRange[1], (volumeMl) =>
-        nonnegativeExponentialPressureV1(edpvr, volumeMl),
-      ),
-    });
+    projectEdpvrV1(edpvr, diastolic, diastolicRange);
   const anchorProjection: PeriodicPvaAnchorV1 = Object.freeze({
     totalBloodVolumeMl: anchor.totalBloodVolumeMl,
     endDiastolicVolumeMl: anchorEndDiastolic.volumeMl,
@@ -681,6 +797,20 @@ function buildMainWirePeriodicPvaByPolicyV1(
     potentialEnergy,
     pva,
     estimatedMvo2,
+    ...(method.includeAreaDisplay ? { areaDisplay: Object.freeze({
+      use: "separate-sw-and-pe-illustration-not-a-union-or-stored-energy-measurement" as const,
+      strokeWorkLoop: anchor.ventricularPressureVolumeLoop,
+      potentialEnergyStrip: Object.freeze(Array.from(
+        { length: PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1 + 1 }, (_, index) => {
+          const volumeMl = index === PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1
+            ? anchorEndSystolic.volumeMl
+            : peLeftIntersectionVolumeMl + index * ((anchorEndSystolic.volumeMl - peLeftIntersectionVolumeMl)
+              / PRESSURE_AREA_INTEGRATION_INTERVAL_COUNT_V1);
+          return Object.freeze({ volumeMl,
+            upperPressureMmHg: systolicBoundaryPressureMmHg(volumeMl),
+            lowerPressureMmHg: nonnegativeExponentialPressureV1(edpvr, volumeMl) });
+        })),
+    }) } : {}),
     limitations: Object.freeze([
       "settled-preload-reduction-family-not-transient-venous-occlusion",
       "maximum-volume-used-as-end-diastolic-proxy",

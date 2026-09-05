@@ -1572,6 +1572,7 @@ describe("V3 Dockview Workbench", () => {
               ...pane,
               pressureVolumeAnalysisMode: "formal-periodic" as const,
               showPressureEnvelope: true,
+              showPvaBoundary: true,
             }
           : pane,
       ),
@@ -1587,6 +1588,7 @@ describe("V3 Dockview Workbench", () => {
     )!;
     expect(canonicalRawPv.pressureVolumeAnalysisMode).toBe("raw-exact-orbit");
     expect("showPressureEnvelope" in canonicalRawPv).toBe(false);
+    expect("showPvaBoundary" in canonicalRawPv).toBe(false);
     expect(
       reconcileWorkbenchPressureVolumeCapabilityV3(
         canonicalRawSurface,

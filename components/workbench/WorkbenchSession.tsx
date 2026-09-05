@@ -3825,6 +3825,8 @@ export const WorkbenchSession = ({
             pressureEnvelopeOverlayHint: t(
               "workbench.editor.pressureEnvelopeOverlayHint",
             ),
+            pvaBoundaryView: t("workbench.editor.pvaBoundaryView"),
+            pvaBoundaryViewHint: t("workbench.editor.pvaBoundaryViewHint"),
             fixedBinding: t("workbench.editor.fixedBinding"),
             fixedBindingHint: t("workbench.editor.fixedBindingHint"),
             outputFixedBindingHint: t(

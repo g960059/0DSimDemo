@@ -11,7 +11,8 @@ import { loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
   loadStudioSnapshotClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from
   "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
-import surface, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as historicalSurface } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import surface, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as historicalSurface,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as measuredLoadSurface } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import { materializeExactModelControlValuesV1 } from "@/studio/application/model/ExactModelControlValuesV1";
 import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
@@ -79,7 +80,7 @@ describe("selected Standard70 launch baseline", () => {
     invalidateStudioClientCompositionCachesV2();
     const current = await loadStudioDefaultClientCompositionV2();
     expect(current.modelSurface.identity.surfaceSeriesId).toBe(surface.surfaceSeriesId);
-    for (const pinned of [historicalSurface, surface]) {
+    for (const pinned of [historicalSurface, measuredLoadSurface, surface]) {
       const experiment = await loadStudioExperimentClientCompositionV2(
         launch.modelId, pinned.surfaceSeriesId,
       );

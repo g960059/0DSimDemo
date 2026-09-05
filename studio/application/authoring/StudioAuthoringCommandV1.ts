@@ -468,6 +468,7 @@ export function describeStudioAuthoringProtocolV1(): Readonly<{
       enum: ["raw-exact-orbit", "responsive-preview", "formal-periodic"],
     },
     showPressureEnvelope: { type: "boolean" },
+    showPvaBoundary: { type: "boolean" },
     structuralSide: { enum: ["left", "right"] },
     traceColors: { type: "array", items: object([
       "automaticColorHex", "scenarioId", "seriesId",

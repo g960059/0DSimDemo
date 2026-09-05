@@ -79,6 +79,8 @@ import algebraicPulmonaryRootClientDescriptorV1 from
 import algebraicPulmonaryRootSurfaceReleaseV1, {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as
     retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as
+    retainedAlgebraicPulmonaryRootSurfaceReleaseV2,
 } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import algebraicPulmonaryRootRegistryAdmissionLockV1 from
@@ -226,17 +228,12 @@ async function createRegistryClientCompositionV2(
     ) {
       return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
     }
-    if (
-      modelId === algebraicPulmonaryRootClientDescriptorV1.manifest.modelId
-      && surfacePin !== undefined
-      && localSurfacePinMatchesV1(
-        retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
-        surfacePin,
-      )
-    ) {
-      return loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
-        retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
-      );
+    if (modelId === algebraicPulmonaryRootClientDescriptorV1.manifest.modelId && surfacePin !== undefined) {
+      const retained = [retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
+        retainedAlgebraicPulmonaryRootSurfaceReleaseV2].find((surface) => localSurfacePinMatchesV1(surface, surfacePin));
+      if (retained !== undefined) {
+        return loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(retained);
+      }
     }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",

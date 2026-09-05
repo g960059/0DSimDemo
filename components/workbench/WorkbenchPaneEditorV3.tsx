@@ -126,6 +126,8 @@ export type WorkbenchPaneEditorStringsV3 = Readonly<{
   generalSection: string;
   pressureEnvelopeOverlay: string;
   pressureEnvelopeOverlayHint: string;
+  pvaBoundaryView: string;
+  pvaBoundaryViewHint: string;
   label: string;
   itemsSection: string;
   moveDown: string;
@@ -200,7 +202,10 @@ export const DEFAULT_WORKBENCH_PANE_EDITOR_STRINGS_V3: WorkbenchPaneEditorString
     generalSection: "General",
     pressureEnvelopeOverlay: "Envelope",
     pressureEnvelopeOverlayHint:
-      "A reference curve joining the maximum pressure found at each volume. It shows the ventricle's upper pressure capability and is not used to calculate PVA.",
+      "Maximum pressure observed at each volume in this simulated load family. Different volumes can select different times. This is not a physiological pressure limit or the PVA boundary.",
+    pvaBoundaryView: "PVA",
+    pvaBoundaryViewHint:
+      "Show the common-time PVA boundary instead of ESPVR. SW and PE are illustrated separately when available; these are not measurements of stored elastic energy.",
     label: "Label",
     itemsSection: "Items",
     moveDown: "Move down",
@@ -767,6 +772,18 @@ function GraphPaneEditorV3({
           {graph?.renderer === "pressure-volume" &&
             periodicPvaSupported &&
             pane.pressureVolumeAnalysisMode !== "raw-exact-orbit" && (
+            <>
+              <button
+                type="button"
+                aria-pressed={pane.showPvaBoundary ?? false}
+                className={`block w-full rounded-xl px-3 py-3 text-left transition-colors ${
+                  pane.showPvaBoundary ? "bg-wb-selected text-wb-text"
+                    : "bg-wb-soft/55 text-wb-muted hover:bg-wb-hover hover:text-wb-text"}`}
+                onClick={() => onChange({ ...pane, showPvaBoundary: !(pane.showPvaBoundary ?? false) })}
+              >
+                <span className="text-xs font-medium">{strings.pvaBoundaryView}</span>
+                <span className="mt-1 block text-[10px] leading-4 text-wb-subtle">{strings.pvaBoundaryViewHint}</span>
+              </button>
               <button
                 type="button"
                 aria-pressed={
@@ -816,6 +833,7 @@ function GraphPaneEditorV3({
                   {strings.pressureEnvelopeOverlayHint}
                 </span>
               </button>
+            </>
             )}
         </section>
       )}

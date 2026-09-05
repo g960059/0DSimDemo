@@ -21,6 +21,14 @@ const partition = process.argv[2] ?? "hypervolemic";
 if (partition !== "hypovolemic" && partition !== "hypervolemic") {
   throw new Error("partition must be hypovolemic or hypervolemic");
 }
+// Optional adapter controls allow bounded HR/TBV/inotropy audits from the same
+// verified launch. Syntax: partition report.json '[{"controlId":"…","value":60}]'
+// --include-analysis retains the family for offline derivation comparisons.
+const controls: readonly Readonly<{ controlId: string; value: number }>[] = JSON.parse(process.argv[4] ?? "[]");
+if (!Array.isArray(controls) || controls.some((control) => control === null
+  || typeof control.controlId !== "string" || !Number.isFinite(control.value))) {
+  throw new Error("controls must be a JSON array of controlId/finite value pairs");
+}
 selectHotPathIntegrityTierV1("hot-path-lean");
 let fullStateSnapshotCalls = 0;
 const snapshot = MainWireIntegratedTypedAuthoritySessionV1.prototype.currentAcceptedState;
@@ -75,6 +83,10 @@ await adapter.createSession({
   scenarios: [{ scenarioId: ids.scenarioId, fixture: launch.capture.fixture,
     checkpoint: launch.capture.checkpoint as ScenarioCheckpointV2 }],
 });
+for (const control of controls) {
+  await adapter.applyControl({ ...ids, ...control,
+    expectedInputEpoch: adapter.currentInputEpoch(ids) });
+}
 const source = adapter.currentFrame(ids);
 const progress: unknown[] = [];
 const startedAt = performance.now();
@@ -110,9 +122,10 @@ const sourcePaths = [
 ];
 const report = {
   schemaId: "main-wire-structural-analysis-benchmark-v1",
-  partition, modelId: source.modelId, launchBaselineId: launch.baselineId,
+  partition, controls, modelId: source.modelId, launchBaselineId: launch.baselineId,
   integrityTier: "hot-path-lean", sourceUnchanged, durationMs,
   fullStateSnapshotCalls, forks, progress,
+  ...(process.argv[5] === "--include-analysis" ? { analysis } : {}),
   payloadSha256: createHash("sha256").update(JSON.stringify(analysis.payload)).digest("hex"),
   sourceSha256: Object.fromEntries(sourcePaths.map((path) => [path,
     createHash("sha256").update(readFileSync(resolve(path))).digest("hex")])),

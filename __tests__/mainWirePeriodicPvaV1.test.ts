@@ -11,9 +11,12 @@ import {
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
+  buildMainWirePeriodicPvaMethodV11,
+  buildMainWireEndEjectionLoadRelationV1,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
@@ -29,6 +32,7 @@ import {
   retainWorkbenchPvRelationDrawingV3,
   workbenchPvMeasuredHighLoadPointsV1,
   drawWorkbenchPvHighLoadIsochroneV1,
+  drawWorkbenchPvaAreasV1,
 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
@@ -38,8 +42,214 @@ import { createDefaultExperimentSurfaceV3 } from "@/components/workbench/Workben
 import { loadStudioLocalStandardModelLabClientCompositionV1 } from "@/studio/composition/StudioDefaultCompositionV2";
 import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1 } from
   "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
+import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCanvasRuntimeV3";
 
 describe("settled hot-start PVA V1", () => {
+  it("draws the first closure point before an EDPVR fit exists, without dereferencing a missing intercept", () => {
+    const context = new Proxy({ measureText: () => ({ width: 20 }) }, {
+      get: (target, key) => key in target ? (target as any)[key] : vi.fn(),
+    }) as unknown as CanvasRenderingContext2D;
+    const hook = vi.spyOn(canvasRuntime, "useResponsiveCanvasFrameV3").mockImplementation((_root, _canvas, draw) => {
+      draw(context, 600, 400);
+    });
+    try {
+      const periodicPva = buildMainWirePeriodicPvaMethodV11(formalLocusV1(settledPointsV1([1]), 9), "LV");
+      expect(periodicPva.loadRelations?.edpvr).toBeNull();
+      const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
+        volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
+        cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva }];
+      expect(() => renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces }))).not.toThrow();
+    } finally { hook.mockRestore(); }
+  });
+  it.each(["LV", "RV"] as const)("separates %s display without changing any V10 numerical owner", (ventricle) => {
+    const locus = formalLocusV1(settledPointsV1());
+    const previous = buildMainWirePeriodicPvaMethodV10(locus, ventricle);
+    const next = buildMainWirePeriodicPvaMethodV11(locus, ventricle);
+    if (previous.status !== "available" || next.status !== "available") throw new Error("expected PVA");
+    expect(next.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID);
+    for (const key of ["anchor", "strokeWork", "espvr", "edpvr", "potentialEnergy", "pva", "source", "limitations"] as const) {
+      expect(JSON.stringify(next[key])).toBe(JSON.stringify(previous[key]));
+    }
+    // Only the derivation provenance changes in the literature projection.
+    expect(JSON.stringify(next.estimatedMvo2).replaceAll(MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID))
+      .toBe(JSON.stringify(previous.estimatedMvo2));
+    expect(next.loadRelations?.edpvr).toBe(next.edpvr);
+    expect(next.loadRelations?.systolic?.segments.flat()).toHaveLength(locus.points.length);
+    expect(previous).not.toHaveProperty("loadRelations");
+    expect(previous).not.toHaveProperty("areaDisplay");
+    const strip = next.areaDisplay!.potentialEnergyStrip;
+    let area = 0;
+    for (let i = 1; i < strip.length; i += 1) {
+      const a = strip[i - 1]!, b = strip[i]!;
+      area += 0.5 * (a.upperPressureMmHg - a.lowerPressureMmHg + b.upperPressureMmHg - b.lowerPressureMmHg)
+        * (b.volumeMl - a.volumeMl);
+    }
+    expect(area).toBeCloseTo(next.potentialEnergy.mmHgMl, 9);
+    expect(strip[0]!.volumeMl).toBe(next.potentialEnergy.leftIntersectionVolumeMl);
+    expect(strip.at(-1)!.volumeMl).toBe(next.anchor.endSystolicVolumeMl);
+    expect(next.areaDisplay!.strokeWorkLoop).toBe(locus.points.find((p) => p.role === "operating-anchor")!.ventricularPressureVolumeLoop);
+    const context = Object.fromEntries(["save", "restore", "setLineDash", "beginPath", "closePath", "moveTo", "lineTo", "stroke", "arc", "fill", "clip"]
+      .map((method) => [method, vi.fn()])) as unknown as CanvasRenderingContext2D;
+    drawWorkbenchPvaAreasV1(context, next.areaDisplay!, (v) => v, (p) => 120 - p, "#d9822b", 1);
+    expect(context.fill).toHaveBeenCalledTimes(1); // SW solid, PE separately hatched.
+    expect(context.clip).toHaveBeenCalledTimes(1);
+  });
+
+  it("is independent of anchor selection, point arrival order, and beat phase rescaling", () => {
+    const points = settledPointsV1();
+    const expected = buildMainWireEndEjectionLoadRelationV1(formalLocusV1(points));
+    const changed = points.map((p, index) => ({ ...p,
+      role: index === 4 ? "operating-anchor" as const : "continuation" as const,
+      acceptedBeatDurationSec: 1,
+      ventricularPressureVolumeLoop: p.ventricularPressureVolumeLoop.map((q) => ({ ...q, phase01: (q.phase01! + 0.1) % 1 })),
+    })).reverse();
+    expect(buildMainWireEndEjectionLoadRelationV1(formalLocusV1(changed))).toEqual(expected);
+    const partial = buildMainWireEndEjectionLoadRelationV1(formalLocusV1(points.slice(1), points.length))!;
+    expect(partial.completionStatus).toBe("progressive");
+    expect(partial.segments.flat()).toEqual(expected!.segments.flat().slice(0, -1));
+  });
+
+  it("matches an ideal Emax line only when closure occurs there, never substitutes peak pressure for closure", () => {
+    const points = settledPointsV1();
+    const relation = buildMainWireEndEjectionLoadRelationV1(formalLocusV1(points))!;
+    for (const point of relation.segments.flat()) expect(point.pressureMmHg).toBe(2 * (point.volumeMl - 20));
+    const laterClosure = points.map((p) => ({ ...p, ventricularPressureVolumeLandmarks: {
+      ...p.ventricularPressureVolumeLandmarks, endSystolic: {
+        ...p.ventricularPressureVolumeLandmarks.endSystolic,
+        pressureMmHg: p.ventricularPressureVolumeLandmarks.endSystolic.pressureMmHg * 0.85,
+      },
+    } }));
+    const later = buildMainWireEndEjectionLoadRelationV1(formalLocusV1(laterClosure))!;
+    for (const point of later.segments.flat()) expect(point.pressureMmHg).toBe(0.85 * 2 * (point.volumeMl - 20));
+    expect(later.method).toBe("settled-semilunar-closure-load-response-v1");
+  });
+
+  it("keeps high-load folds in TBV order, without extrapolation or a fitted pressure law", () => {
+    const points = settledPointsV1().map((p) => ({ ...p, ventricularPressureVolumeLandmarks: {
+      ...p.ventricularPressureVolumeLandmarks, endSystolic: {
+        ...p.ventricularPressureVolumeLandmarks.endSystolic,
+        volumeMl: p.ventricularPressureVolumeLandmarks.endSystolic.volumeMl - (p.totalBloodVolumeMl > 6100 ? 15 : 0),
+      },
+    } }));
+    const result = buildMainWireEndEjectionLoadRelationV1(formalLocusV1(points))!;
+    const retained = result.segments.flat();
+    expect(retained.at(-1)!.volumeMl).toBeLessThan(retained.at(-2)!.volumeMl);
+    expect(retained.map((p) => p.totalBloodVolumeMl)).toEqual(points.map((p) => p.totalBloodVolumeMl).sort((a, b) => a - b));
+    expect(result.displayExtrapolation).toBe("none");
+    expect(result.interpolation).toBe("tbv-ordered-polyline");
+  });
+
+  it("retains the nearby LV closure relations in the recorded 5050/4650 mL TBV-only comparison", () => {
+    // Accepted closure landmarks from the Standard70 browser family; source
+    // JSON SHA256 9ea5f2abe8e36633e49a677ddcbe067afc276fe916f89ab431b27e54c3c91542.
+    // A regression example, not a physiological invariance threshold. The
+    // physical comparison range is shared with the old isochrone diagnostic.
+    const families = [
+      [[2929,38.222380080682655,26.526322054639852],[3535,46.62577762958156,46.46254510968932],
+        [4040,53.11402939180866,62.35193979976162],[4545,60.18528691650062,78.1177080920279],
+        [5050,66.62366417210606,91.86265519595842],[5353,70.28602506764689,96.50520774051459],
+        [5656,69.8332416698014,97.75188981470605],[6474.1,69.67323673986749,102.32212313386945],
+        [7484.1,72.03143632431429,109.11898258980487]],
+      [[3360,44.49882425673433,40.84353144073625],[3790,49.890485634271,54.261782192238734],
+        [4220,55.6819286099107,68.208089760032],[4650,61.5021179340644,80.64714322054593],
+        [4929,64.90696760797105,87.42219264649667],[5208,68.43561257618747,94.15521624573954],
+        [5961.3,69.47861579188117,99.18879256949333],[6891.3,70.27273356023254,105.82716809282418]],
+    ];
+    const template = settledPointsV1([1])[0]!;
+    const relations = families.map((rows) => buildMainWireEndEjectionLoadRelationV1(formalLocusV1(rows.map(([tbv, v, p]) => ({
+      ...template, totalBloodVolumeMl: tbv!, ventricularPressureVolumeLandmarks: {
+        ...template.ventricularPressureVolumeLandmarks,
+        endSystolic: { volumeMl: v!, pressureMmHg: p!, event: "semilunar-valve-closure" as const },
+      },
+    }))))!.segments.flat());
+    const interpolate = (points: typeof relations[number], v: number) => {
+      const i = points.findIndex((point) => point.volumeMl >= v);
+      if (i <= 0) throw new Error("comparison must remain inside the common measured increasing-volume limb");
+      const a = points[i - 1]!, b = points[i]!;
+      return a.pressureMmHg + (b.pressureMmHg - a.pressureMmHg) * (v - a.volumeMl) / (b.volumeMl - a.volumeMl);
+    };
+    const gaps = Array.from({ length: 101 }, (_, i) => {
+      const v = 46.4058613 + i / 100 * (64.1119097 - 46.4058613);
+      return interpolate(relations[0]!, v) - interpolate(relations[1]!, v);
+    });
+    expect(Math.sqrt(gaps.reduce((sum, gap) => sum + gap * gap, 0) / gaps.length)).toBeCloseTo(0.28029449, 6);
+    expect(relations[0]).toHaveLength(9); // High-load folds are not removed to improve the score.
+    expect(relations[0]![6]!.volumeMl).toBeLessThan(relations[0]![5]!.volumeMl);
+  });
+
+  it.each(["missing-closure", "nonfinite", "duplicate-load", "unsettled"])("breaks the display at %s observations instead of silently bridging them", (problem) => {
+    const source = formalLocusV1(settledPointsV1());
+    if (source.status !== "measured-fixed-tbv-protocol") throw new Error("expected formal");
+    const changed = structuredClone(source);
+    const p = changed.points[4]! as any;
+    if (problem === "missing-closure") p.ventricularPressureVolumeLandmarks.endSystolic.event = "minimum-volume-fallback";
+    if (problem === "nonfinite") p.ventricularPressureVolumeLandmarks.endSystolic.pressureMmHg = NaN;
+    if (problem === "duplicate-load") p.totalBloodVolumeMl = changed.points[3]!.totalBloodVolumeMl;
+    if (problem === "unsettled") p.settled = false;
+    const result = buildMainWireEndEjectionLoadRelationV1(changed)!;
+    expect(result.excludedPointCount).toBe(problem === "duplicate-load" ? 2 : 1);
+    expect(result.segments).toHaveLength(2);
+    expect(result.segments.flat()).toHaveLength(source.points.length - result.excludedPointCount);
+  });
+
+  it("does not hide measured load relations when PVA timing is unavailable, and does not relabel them as its energy boundary", () => {
+    const points = settledPointsV1().map((p) => ({ ...p, ventricularPressureVolumeLoop: [] }));
+    const result = buildMainWirePeriodicPvaMethodV11(formalLocusV1(points), "RV");
+    expect(result.status).toBe("unavailable");
+    expect(result.loadRelations?.systolic?.segments.flat()).toHaveLength(points.length);
+    expect(result.loadRelations?.edpvr?.fitPoints).toHaveLength(points.length);
+    expect(result.areaDisplay).toBeUndefined();
+    const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "RV", chamberLabel: "RV",
+      samples: [], volumeOutputId: "RV.volume", pressureOutputId: "RV.pressure", pressureBasis: "transmural" as const,
+      cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: result }];
+    const normal = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces }));
+    expect(normal).toContain('data-pv-end-ejection-point-count="9"');
+    expect(normal).toContain('data-pv-relation-semantics="end-ejection-load-response-exponential-edpvr"');
+    expect(normal).toContain('data-pva-result-count="0"');
+    const energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
+    expect(energy).toContain('data-pv-end-ejection-point-count="0"');
+    expect(energy).toContain('data-pva-drawing-count="0"');
+    expect(energy).toContain('data-pv-energy-area-count="0"');
+  });
+
+  it("switches to the energy boundary without displaying both systolic definitions at once", () => {
+    const result = buildMainWirePeriodicPvaMethodV11(formalLocusV1(settledPointsV1()), "LV");
+    const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV",
+      samples: [], volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
+      cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: result }];
+    const normal = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces }));
+    const energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
+    expect(normal).toContain('data-pv-end-ejection-point-count="9"');
+    expect(normal).toContain('data-pv-energy-area-count="0"');
+    expect(energy).toContain('data-pv-end-ejection-point-count="0"');
+    expect(energy).toContain('data-pv-energy-area-count="1"');
+    expect(energy).toContain('data-pva-result-count="1"');
+  });
+
+  it("keeps a valid measured isochrone visible but exposes the reason when its PE tail is not admitted", () => {
+    const available = buildMainWirePeriodicPvaMethodV11(formalLocusV1(settledPointsV1()), "LV");
+    if (available.status !== "available") throw new Error(available.reason);
+    const unavailable = {
+      analysisId: available.analysisId, methodId: available.methodId, ventricleId: available.ventricleId,
+      pressureBasis: available.pressureBasis, status: "unavailable" as const, progress: available.progress,
+      reason: "No positive finite low-volume tangent", loadRelations: available.loadRelations,
+      preview: { stage: "relations" as const, pointCount: 9, anchor: available.anchor,
+        strokeWork: available.strokeWork, espvr: available.espvr, edpvr: available.edpvr,
+        potentialEnergy: null, pva: null, estimatedMvo2: null },
+    };
+    const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
+      volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
+      cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: unavailable }];
+    const energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
+    expect(energy).toContain('data-pva-drawing-count="1"');
+    expect(energy).toContain('data-pva-result-count="0"');
+    expect(energy).toContain('data-pv-energy-area-count="0"');
+    expect(energy).toContain('data-testid="workbench-pva-analysis-error"');
+    const normal = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces }));
+    expect(normal).toContain('data-pv-end-ejection-point-count="9"');
+    expect(normal).not.toContain('data-testid="workbench-pva-analysis-error"');
+  });
+
   it("adds measured high-load common-time display without changing V9 numerical ownership", () => {
     const locus = formalLocusV1(settledPointsV1());
     const previous = buildMainWirePeriodicPvaMethodV9(locus, "LV");

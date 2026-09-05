@@ -15,7 +15,7 @@ import type { Locale } from "@/localeRouting";
 import type {
   MainWireStandard68DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
-import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 const COPY = Object.freeze({
   ja: Object.freeze({
@@ -62,6 +62,10 @@ const COPY = Object.freeze({
       "ESPVRを評価する共通時刻は、各作動点の収縮後期から選択します。作動点と評価範囲に依存するため、TBVだけの変更でも曲線はずれ得ます。その差だけを収縮力の変化とは解釈できません。",
     measuredHighLoadBody:
       "高容量側は同じ選択時刻で得た計算上の実測点をTBV順に結びます。外挿や単調性の強制は行わず、PE/PVAの計算境界には使用しません。",
+    loadResponseBody:
+      "通常表示のESPVRは、各負荷で定常化した拍の半月弁閉鎖時の経壁圧と容積をTBV順に結ぶ駆出終末の近似関係です。各点の時刻・心筋内部状態は異なり、最大elastance曲線でも、負荷に完全に独立な収縮力指標でもありません。高容量側の折り返しは保持し、観測域外は外挿せず、弁閉鎖を検出できない点は別の時点で代用しません。EDPVRは同じ負荷群の最大容積時点による指数関数近似です。追加のsweepは行いません。",
+    energyViewBody:
+      "pane設定のPVAを選ぶと、通常のESPVR近似の代わりにPVA計算で採用した同時刻境界を表示します。時刻はanchor ESV付近の狭い容積範囲で能動圧面積を最大化して選択するため、TBVだけでも変化します。SWは受理された計算ステップの経壁圧–容積仕事、PEはその境界と非負EDPVRの間の幾何学的面積、PVAはSW+PEです。低容量側の未観測域には既存の端点接線近似を用います。SWの塗りは保持されたループの標本、PEの斜線は計算に用いる積分点です。両者を別々に示し、重複した領域の和集合をPVAとは扱いません。同時刻であっても同一のLand/SLS内部状態を意味せず、PEを回収可能な弾性エネルギー、PVAをATP消費の直接測定とは解釈できません。MVO2は文献係数による推定です。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、圧・AV/LV/RVP・timing・形態・indexed size/functionの${checks}項目を記録しています。この記録の評価方針における必須gateと、双方向preload reserve gateを通過しています。`,
@@ -128,6 +132,10 @@ const COPY = Object.freeze({
       "The common ESPVR sampling time is selected within late systole for each operating state. It depends on that state and the scoring volume range, so changing TBV alone can shift the curve; that difference alone does not establish altered contractility.",
     measuredHighLoadBody:
       "Higher-load points are sampled from simulated beats at the same selected time and joined in TBV order, without extrapolation or forced monotonicity. They do not define the PE/PVA boundary.",
+    loadResponseBody:
+      "The default ESPVR is an end-ejection approximation joining transmural pressure–volume points at semilunar closure in each settled load, ordered by TBV. Points have different times and myocardial states: this is neither a maximum-elastance curve nor a fully load-independent contractility measure. Higher-load folds are preserved, unobserved volumes are not extrapolated, and missing closure events are not replaced by another landmark. EDPVR fits an exponential to maximum-volume filling points from the same family. No additional sweep is run.",
+    energyViewBody:
+      "Selecting PVA in pane settings replaces the default ESPVR approximation with the common-time boundary adopted by the PVA calculation. Timing maximizes active-pressure area over a small anchor-ESV neighborhood and can change with TBV alone. SW uses accepted-step transmural path work; PE is geometric area between this boundary and nonnegative EDPVR, including the existing local tangent for the unresolved low-volume tail; PVA = SW + PE. The SW fill illustrates the retained sampled loop; the PE hatch uses the owner's quadrature nodes. They are separate illustrations, not an area union when overlapping. A common clock does not imply a common Land/SLS state. PE is not a measurement of recoverable elastic energy, nor PVA a direct measurement of ATP use; MVO2 remains a literature-coefficient estimate.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles, recording ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function checks. Mandatory gates under the recorded assessment policy and the bidirectional preload-reserve gate passed.`,
@@ -234,12 +242,22 @@ export function MainWireStandard68DocumentationV1({
         </Section>
 
         <Section icon={Activity} title={text.analysisTitle}>
-          <p className="max-w-3xl text-sm leading-7 text-wb-muted">{text.analysisBody}</p>
+          <p className="max-w-3xl text-sm leading-7 text-wb-muted">{
+            facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID
+              ? text.loadResponseBody : text.analysisBody}</p>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-wb-muted">
-            {text.analysisPhaseLimit}
+            {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID
+              ? text.energyViewBody : text.analysisPhaseLimit}
             {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
               ? ` ${text.measuredHighLoadBody}` : ""}
           </p>
+          {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V11_ID && (
+            <p className="mt-3 text-xs leading-6 text-wb-muted">
+              <a className="underline" href="https://pubmed.ncbi.nlm.nih.gov/7218521/">Suga 1981: end ejection ≠ end systole</a>
+              {" · "}<a className="underline" href="https://pubmed.ncbi.nlm.nih.gov/426086/">Suga 1979: PVA and oxygen consumption</a>
+              {" · "}<a className="underline" href="https://pubmed.ncbi.nlm.nih.gov/22879535/">Han 2012: energetics limitations</a>
+            </p>
+          )}
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <FactCard
               title={text.baselineTitle}
