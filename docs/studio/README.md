@@ -20,6 +20,8 @@ Read only the contract relevant to the task:
   delivery trust boundaries.
 - [009](DESIGN-STUDIO-009-model-definition-execution-plan.md): build-time
   model compilation and Worker-local plan binding.
+- [010](DESIGN-STUDIO-010-model-documentation-archives.md): reusable authoring,
+  frozen model explanations, offline reading, and source retirement.
 
 New Sessions resolve one active exact-model/Surface bundle. The Surface pins
 its analysis methods. Saved Experiments and Snapshots retain their explicit
