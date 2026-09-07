@@ -14,6 +14,7 @@ import {
   buildMainWirePeriodicPvaMethodV13,
   buildMainWireSystolicPressureEnvelopeV1,
   buildMainWireDiastolicLoadRelationV1,
+  mainWirePvaLowVolumeTangentPressureV1,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
@@ -50,6 +51,23 @@ import currentStandard70Surface from
 import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCanvasRuntimeV3";
 
 describe("settled hot-start PVA V1", () => {
+  it("keeps the analytic tangent root exact without clipping real pressure differences", () => {
+    // RV baseline from the information-spaced low-load sweep. The affine
+    // expression alone evaluates to +2.22e-16 mmHg at its own known root.
+    const extension = {
+      measuredStartVolumeMl: 29.45630621636632,
+      measuredStartPressureMmHg: 0.8997857804533416,
+      slopeMmHgPerMl: 0.16209420877467579,
+      zeroPressureVolumeMl: 23.905301111032067,
+    };
+    const pressure = (v: number) => mainWirePvaLowVolumeTangentPressureV1(extension, v);
+    expect(pressure(extension.zeroPressureVolumeMl)).toBe(0);
+    expect(pressure(extension.zeroPressureVolumeMl - 1e-9)).toBeLessThan(0);
+    expect(pressure(extension.zeroPressureVolumeMl + 1e-9)).toBeGreaterThan(0);
+    expect(pressure(extension.measuredStartVolumeMl)).toBe(extension.measuredStartPressureMmHg);
+    expect(pressure(25)).toBe(extension.measuredStartPressureMmHg
+      + extension.slopeMmHgPerMl * (25 - extension.measuredStartVolumeMl));
+  });
   it.each([
     "suga-pva-common-isochrone-owner-with-separate-end-ejection-load-response-display-v11",
     "suga-pva-common-isochrone-owner-with-full-load-pressure-envelope-display-v12",

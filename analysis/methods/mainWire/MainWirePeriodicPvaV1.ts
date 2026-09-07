@@ -1690,6 +1690,19 @@ function lowVolumeTangentExtensionV1(
   });
 }
 
+export function mainWirePvaLowVolumeTangentPressureV1(
+  extension: LowVolumeTangentExtensionV1,
+  volumeMl: number,
+): number {
+  // Preserve the analytic root: affine cancellation can otherwise leave a tiny
+  // positive pressure and falsely reject the left PE intersection.
+  if (volumeMl === extension.zeroPressureVolumeMl) return 0;
+  return (
+    extension.measuredStartPressureMmHg +
+    extension.slopeMmHgPerMl * (volumeMl - extension.measuredStartVolumeMl)
+  );
+}
+
 function nonlinearPvaBoundaryPressureV1(
   law: SystolicPressureLawV1,
   extension: LowVolumeTangentExtensionV1,
@@ -1697,10 +1710,7 @@ function nonlinearPvaBoundaryPressureV1(
 ): number {
   if (!Number.isFinite(volumeMl)) return Number.NaN;
   if (volumeMl < extension.measuredStartVolumeMl) {
-    return (
-      extension.measuredStartPressureMmHg +
-      extension.slopeMmHgPerMl * (volumeMl - extension.measuredStartVolumeMl)
-    );
+    return mainWirePvaLowVolumeTangentPressureV1(extension, volumeMl);
   }
   return systolicPressureV1(law, volumeMl);
 }
