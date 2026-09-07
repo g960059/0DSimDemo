@@ -16,6 +16,13 @@ require an explicit compatibility decision and regression coverage.
 
 One human maintainer develops this repository with AI agents.
 
+Keep research candidates mutable and content-hash tracked until a durable
+replay contract is fixed (including dev registration). After fixation, preserve
+exact identity semantics. Select validation by change impact, not by mint;
+reuse evidence only with compatible inputs, numerics, measurements, and policy.
+Use the external 1/2 review gate for changed scientific judgments, not repeated
+mechanical release steps. See DESIGN-STUDIO-006 for the release boundary.
+
 Before the first release there are no external users. Retire obsolete model
 identities, code, and tests instead of preserving legacy compatibility; keep
 dependencies and regression coverage required by the current model and Surface.
