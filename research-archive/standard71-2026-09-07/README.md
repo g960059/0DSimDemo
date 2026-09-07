@@ -46,6 +46,20 @@ The initial test-launch attempt with only `--maxWorkers=3` failed before tests
 because of the Vitest minimum/maximum worker conflict; the recorded scoped run
 uses `--minWorkers=1 --maxWorkers=3`.
 
+Follow-up: the existing base checkpoint explicitly omits the coupled Newton
+predictor's accepted history. The warm source has depth four while restore has
+depth zero. A control with empty histories on both sides continues bit-identically
+under lean execution in the same five-step probe. [Readback](continuation-followup.json).
+This narrows the issue to the checkpoint/continuation-test contract, not a reason
+to refit physiology. No numerical code or assertion was changed. The decision
+between the intended restart semantics and a history-preserving checkpoint must
+be explicit before calling this a bit-exact continuation guarantee.
+
+The first minimal reader extraction is [PR #614](https://github.com/g960059/0DSimDemo/pull/614).
+Its 35 scoped tests, production build, offline export and three production-browser
+tests passed on current main without Standard71 implementation or authoring code.
+It includes no research evidence bundle and does not promote an executable.
+
 ## Reading order and investigation map
 
 Reports are copied verbatim below for direct GitHub reading. Relative links to

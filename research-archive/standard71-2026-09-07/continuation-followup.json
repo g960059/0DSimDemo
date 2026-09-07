@@ -1,0 +1,125 @@
+{
+  "schemaId": "standard71-archival-continuation-followup-v1",
+  "sourceRevision": "450cc4df",
+  "numericalCodeChanged": false,
+  "testAssertionChanged": false,
+  "experiments": [
+    {
+      "path": "artifacts/physiology-evaluation-2026-09-07/checkpoint-predictor-hot-path-lean.json",
+      "sha256": "763f22f24cdc8f4dcabbee1d7e5094caa90258048d33616debde0a9ff408692d",
+      "tier": "hot-path-lean",
+      "coldSeedControl": false,
+      "initialDifferenceCount": 0,
+      "predictorAtRestore": {
+        "source": {
+          "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+          "hasAcceptedPair": true,
+          "historyDepth": 4,
+          "expectedBaseRevision": 5,
+          "expectedBaseAcceptedTimeSec": 0.01,
+          "predictionCount": 3,
+          "contextFallbackCount": 1,
+          "dampedPredictionCount": 0,
+          "resetCount": 1
+        },
+        "restored": {
+          "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+          "hasAcceptedPair": false,
+          "historyDepth": 0,
+          "expectedBaseRevision": null,
+          "expectedBaseAcceptedTimeSec": null,
+          "predictionCount": 0,
+          "contextFallbackCount": 0,
+          "dampedPredictionCount": 0,
+          "resetCount": 0
+        }
+      },
+      "steps": [
+        {
+          "time": 0.012,
+          "differenceCount": 5,
+          "maximumNumericDifference": 9.094947017729282e-13
+        },
+        {
+          "time": 0.014,
+          "differenceCount": 70,
+          "maximumNumericDifference": 1.1823431123048067e-11
+        },
+        {
+          "time": 0.016,
+          "differenceCount": 85,
+          "maximumNumericDifference": 4.703792910731863e-11
+        },
+        {
+          "time": 0.018000000000000002,
+          "differenceCount": 89,
+          "maximumNumericDifference": 4.2518877307884395e-11
+        },
+        {
+          "time": 0.02,
+          "differenceCount": 87,
+          "maximumNumericDifference": 3.9051428757375106e-11
+        }
+      ]
+    },
+    {
+      "path": "artifacts/physiology-evaluation-2026-09-07/checkpoint-predictor-hot-path-lean-cold-seed.json",
+      "sha256": "e3ae15244fe47e86158b4aa379847de19f0b22c4eb5b33ba24e5078f6550af6e",
+      "tier": "hot-path-lean",
+      "coldSeedControl": true,
+      "initialDifferenceCount": 0,
+      "predictorAtRestore": {
+        "source": {
+          "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+          "hasAcceptedPair": false,
+          "historyDepth": 0,
+          "expectedBaseRevision": null,
+          "expectedBaseAcceptedTimeSec": null,
+          "predictionCount": 0,
+          "contextFallbackCount": 0,
+          "dampedPredictionCount": 0,
+          "resetCount": 5
+        },
+        "restored": {
+          "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+          "hasAcceptedPair": false,
+          "historyDepth": 0,
+          "expectedBaseRevision": null,
+          "expectedBaseAcceptedTimeSec": null,
+          "predictionCount": 0,
+          "contextFallbackCount": 0,
+          "dampedPredictionCount": 0,
+          "resetCount": 0
+        }
+      },
+      "steps": [
+        {
+          "time": 0.012,
+          "differenceCount": 0,
+          "maximumNumericDifference": 0
+        },
+        {
+          "time": 0.014,
+          "differenceCount": 0,
+          "maximumNumericDifference": 0
+        },
+        {
+          "time": 0.016,
+          "differenceCount": 0,
+          "maximumNumericDifference": 0
+        },
+        {
+          "time": 0.018000000000000002,
+          "differenceCount": 0,
+          "maximumNumericDifference": 0
+        },
+        {
+          "time": 0.02,
+          "differenceCount": 0,
+          "maximumNumericDifference": 0
+        }
+      ]
+    }
+  ],
+  "interpretation": "The existing base checkpoint deliberately omits predictor history. A warm source retains four accepted history states; restore has none. With empty histories on both sides, the same lean continuation comparison is bit-identical in this bounded probe. This identifies a checkpoint/test-contract mismatch to resolve, not a physiological refitting target."
+}
