@@ -12,11 +12,11 @@ import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
-  buildMainWirePeriodicPvaMethodV12,
+  buildMainWirePeriodicPvaMethodV13,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   StudioSimulationAnalysisExecutionPlanResolverV2,
@@ -156,14 +156,14 @@ const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V10 = Object.freeze({
   }),
 }) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
 
-const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V12 = Object.freeze({
+const MAIN_WIRE_PERIODIC_PVA_DERIVATION_V13 = Object.freeze({
   ...MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
-  derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
+  derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
   runtime: Object.freeze({
     kind: "periodic-pva" as const,
     derivation: Object.freeze({
-      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
-      build: buildMainWirePeriodicPvaMethodV12,
+      methodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+      build: buildMainWirePeriodicPvaMethodV13,
     }),
   }),
 }) satisfies AnalysisDerivationRegistrationV1<MainWireAnalysisDerivationRuntimeV1>;
@@ -178,7 +178,7 @@ export const MAIN_WIRE_ANALYSIS_METHOD_REGISTRY_V1 =
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V1,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V9,
       MAIN_WIRE_PERIODIC_PVA_DERIVATION_V10,
-      MAIN_WIRE_PERIODIC_PVA_DERIVATION_V12,
+      MAIN_WIRE_PERIODIC_PVA_DERIVATION_V13,
     ]),
     resolveExecutionPlan:
       resolveMainWireStructuralAnalysisExecutionPlanV1,

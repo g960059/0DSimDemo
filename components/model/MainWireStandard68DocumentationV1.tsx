@@ -15,7 +15,7 @@ import type { Locale } from "@/localeRouting";
 import type {
   MainWireStandard68DocumentationFactsV1,
 } from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
-import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 const COPY = Object.freeze({
   ja: Object.freeze({
@@ -63,9 +63,9 @@ const COPY = Object.freeze({
     measuredHighLoadBody:
       "高容量側は同じ選択時刻で得た計算上の実測点をTBV順に結びます。外挿や単調性の強制は行わず、PE/PVAの計算境界には使用しません。",
     loadResponseBody:
-      "通常表示のESPVRは、低容量側・高容量側を含む定常化済みの負荷群から得た経壁圧の包絡線です。共通の心房興奮時刻で隣り合うTBV条件を結び、保存された拍内経路を時間方向に線形補間したPV面について、各容積で圧が最大となる時刻・枝を選びます。容積順に負荷を並べ替えたり、弁閉鎖点を結んだりはしません。区間内の最大値も評価するため、別の粗い時刻グリッドを設けません。表示域は負荷群で観測された最小心室容積の範囲に限定し、域外を収縮能力として外挿しません。欠測・未収束の負荷は補間で橋渡ししません。これはEmax曲線でも、等容性収縮能力でも、負荷に完全に独立な収縮力指標でもなく、収縮履歴・循環の相互作用・sweepの範囲に依存し得ます。EDPVRは同じ負荷群の最大容積時点による指数関数近似です。追加のsweepは行いません。",
+      "通常表示のESPVRは、低容量側・高容量側を含む定常化済みの負荷群から得た経壁圧の包絡線です。共通の心房興奮時刻で隣り合うTBV条件を結び、保存された拍内経路を時間方向に線形補間したPV面について、各容積で圧が最大となる時刻・枝を選びます。容積順に負荷を並べ替えたり、弁閉鎖点を結んだりはしません。表示域は負荷群で観測された最小心室容積の範囲に限定します。これはEmax曲線でも、等容性収縮能力でも、負荷に完全に独立な収縮力指標でもありません。EDPVRは同じ負荷群の最大容積時点の経壁圧・容積を、小さい点とTBV順の破線で示します。折り返しを除去せず、指数近似や外挿を通常表示には用いません。点は収束許容誤差内の数値測定であり、完全弛緩した受動特性とは限りません。下包絡線も吸引・弛緩途中の状態を混ぜるため、受動特性として代用しません。両表示とも欠測・未収束の負荷は橋渡ししません。Starlingも同じ負荷群の点を使い、支持された区間内だけを補間します。Guytonは別の構造的還流近似で、測定点列ではありません。追加のsweepは行いません。",
     energyViewBody:
-      "pane設定のPVAを選ぶと、通常のESPVR近似の代わりにPVA計算で採用した同時刻境界を表示します。時刻はanchor ESV付近の狭い容積範囲で能動圧面積を最大化して選択するため、TBVだけでも変化します。SWは受理された計算ステップの経壁圧–容積仕事、PEはその境界と非負EDPVRの間の幾何学的面積、PVAはSW+PEです。低容量側の未観測域には既存の端点接線近似を用います。SWの塗りは保持されたループの標本、PEの斜線は計算に用いる積分点です。両者を別々に示し、重複した領域の和集合をPVAとは扱いません。同時刻であっても同一のLand/SLS内部状態を意味せず、PEを回収可能な弾性エネルギー、PVAをATP消費の直接測定とは解釈できません。MVO2は文献係数による推定です。",
+      "pane設定のPVAを選ぶと、数値計算で採用した同時刻の収縮期境界と指数近似EDPVRを表示します。通常表示の拡張末期点列や下包絡線を積分するわけではありません。指数近似の線は測定容積範囲内だけに表示します。時刻はanchor ESV付近の能動圧面積で選択され、TBVだけでも変化します。SWは受理ステップの経壁圧–容積仕事、PEはその境界と非負EDPVRの間の幾何学的面積、PVAはSW+PEです。SWの塗りは保存ループの標本、PEの斜線は未観測の低容積側を含む既存の計算上の構成です。両者の和集合をPVAとは扱いません。同時刻でも同一のLand/SLS内部状態を意味せず、PEを回収可能な弾性エネルギー、PVAをATP消費の直接測定とは解釈できません。EDPVRの近似・ゼロ圧切片の不確かさもPE/PVAの限界として残ります。MVO2は文献係数による推定です。",
     baselineTitle: "baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `${cycles}周期でperiod-1 settlementを確認し、圧・AV/LV/RVP・timing・形態・indexed size/functionの${checks}項目を記録しています。この記録の評価方針における必須gateと、双方向preload reserve gateを通過しています。`,
@@ -133,9 +133,9 @@ const COPY = Object.freeze({
     measuredHighLoadBody:
       "Higher-load points are sampled from simulated beats at the same selected time and joined in TBV order, without extrapolation or forced monotonicity. They do not define the PE/PVA boundary.",
     loadResponseBody:
-      "The default ESPVR is the transmural pressure envelope of the settled family, including both lower and higher loads. Adjacent TBV branches are interpolated at a common atrial-capture clock, with linear interpolation along retained beat paths. At each volume, the maximum pressure over time and supported branches is selected, including extrema inside time intervals, without a separate coarse time grid. Loads are not sorted by ventricular volume and closure landmarks are not joined. Display is limited to the family's observed minimum-volume range; other volumes are not extrapolated as systolic capability. Missing or unsettled loads are not bridged. This is neither Emax, isovolumic capability, nor a fully load-independent contractility measure: contraction history, circulatory coupling and sweep coverage can still change it. EDPVR fits an exponential to maximum-volume filling points from the same family. No additional sweep is run.",
+      "The default ESPVR is the transmural pressure envelope of the settled low/high-load family. Adjacent TBV branches share an atrial-capture clock and retained paths are interpolated linearly in time. At each supported volume, the maximum pressure over time and branches is selected. Loads are not sorted by ventricular volume and closure landmarks are not joined. Display stops at the family's observed minimum-volume range. This is neither Emax, isovolumic capability, nor a fully load-independent contractility measure. EDPVR shows maximum-volume transmural pressure/volume points from that family, with small markers and a dashed connection in TBV order. Folds remain; the normal view uses neither a global exponential fit nor extrapolation. These numerical measurements satisfy convergence tolerances but need not represent fully relaxed passive properties. A lower envelope mixes suction and incomplete relaxation and is not substituted as a passive law. Missing/unsettled loads are not bridged. Starling uses the same measured loads and interpolates only supported intervals. Guyton is a separate structural return approximation, not a measured load locus. No additional sweep is run.",
     energyViewBody:
-      "Selecting PVA in pane settings replaces the default ESPVR approximation with the common-time boundary adopted by the PVA calculation. Timing maximizes active-pressure area over a small anchor-ESV neighborhood and can change with TBV alone. SW uses accepted-step transmural path work; PE is geometric area between this boundary and nonnegative EDPVR, including the existing local tangent for the unresolved low-volume tail; PVA = SW + PE. The SW fill illustrates the retained sampled loop; the PE hatch uses the owner's quadrature nodes. They are separate illustrations, not an area union when overlapping. A common clock does not imply a common Land/SLS state. PE is not a measurement of recoverable elastic energy, nor PVA a direct measurement of ATP use; MVO2 remains a literature-coefficient estimate.",
+      "Selecting PVA replaces the auxiliary relations with the numerical owner's common-time systolic boundary and exponential EDPVR fit; it does not integrate the displayed maximum-volume polyline or a lower envelope. The fitted EDPVR line stops at its measured volume range. Timing maximizes active-pressure area near the anchor ESV and can change with TBV alone. SW uses accepted-step transmural path work; PE is geometric area between this boundary and nonnegative EDPVR, including the existing low-volume construction; PVA = SW + PE. The SW fill illustrates the retained sampled loop; the PE hatch uses the owner's quadrature nodes, including any unmeasured tail. They are separate illustrations, not an area union when overlapping. A common clock does not imply a common Land/SLS state. PE is not measured recoverable elastic energy, nor PVA direct ATP use; MVO2 remains a literature-coefficient estimate. Uncertainty in the ED fit and its zero-pressure intercept also limits PE/PVA interpretation.",
     baselineTitle: "Baseline mint qualification",
     baselineBody: (cycles: number, checks: number) =>
       `Period-1 settlement was established over ${cycles} cycles, recording ${checks} pressure, AV/LV/RVP, timing, morphology, and indexed size/function checks. Mandatory gates under the recorded assessment policy and the bidirectional preload-reserve gate passed.`,
@@ -243,15 +243,15 @@ export function MainWireStandard68DocumentationV1({
 
         <Section icon={Activity} title={text.analysisTitle}>
           <p className="max-w-3xl text-sm leading-7 text-wb-muted">{
-            facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID
+            facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID
               ? text.loadResponseBody : text.analysisBody}</p>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-wb-muted">
-            {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID
+            {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID
               ? text.energyViewBody : text.analysisPhaseLimit}
             {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
               ? ` ${text.measuredHighLoadBody}` : ""}
           </p>
-          {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID && (
+          {facts.surface.periodicPvaMethodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID && (
             <p className="mt-3 text-xs leading-6 text-wb-muted">
               <a className="underline" href="https://pubmed.ncbi.nlm.nih.gov/7218521/">Suga 1981: end ejection ≠ end systole</a>
               {" · "}<a className="underline" href="https://pubmed.ncbi.nlm.nih.gov/426086/">Suga 1979: PVA and oxygen consumption</a>

@@ -1,5 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { LoaderCircle } from "lucide-react";
+import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
 
 import type {
   MainWireIntegratedModelGuytonSideV3,
@@ -11,7 +13,12 @@ import {
   readWorkbenchCanvasThemeVariablesV3,
   useResponsiveCanvasFrameV3,
 } from "./WorkbenchCanvasRuntimeV3";
-import { workbenchHistoryAlphaV3 } from "./WorkbenchChartTraceStyleV3";
+import {
+  WorkbenchChartLegendV3, buildWorkbenchTraceLegendModelV3,
+  workbenchHistoryAlphaV3, workbenchLegendTraceAlphaV3, workbenchLegendTraceHiddenV3,
+  workbenchLegendSelectionMatchesTraceV3,
+  workbenchTraceLegendKeyV3, type WorkbenchChartLegendSelectionV3,
+} from "./WorkbenchChartTraceStyleV3";
 
 export type GuytonStarlingPlotDomainV3 = Readonly<{
   pressureMinimumMmHg: number;
@@ -294,6 +301,7 @@ export function GuytonStarlingComparisonCanvasV3({
     throw new Error("Guyton / Starling comparison requires one Scenario");
   }
   const firstTrace = traces[0]!;
+  const { i18n } = useTranslation();
   const side = firstTrace.orientation.side;
   if (traces.some(({ orientation }) => orientation.side !== side)) {
     throw new Error(
@@ -302,6 +310,18 @@ export function GuytonStarlingComparisonCanvasV3({
   }
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const [hoveredSelection, setSelection] = React.useState<WorkbenchChartLegendSelectionV3 | null>(null);
+  const [hiddenSelections, setHiddenSelections] = React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
+  const descriptor = (trace: GuytonStarlingComparisonTraceV3) => ({
+    traceKey: workbenchTraceLegendKeyV3(trace.scenarioId, side),
+    scenarioId: trace.scenarioId, scenarioLabel: trace.scenarioLabel,
+    itemId: side, itemLabel: "Guyton / Starling", color: trace.color,
+    itemDescription: workbenchLoadRelationDescriptionV1("starling", i18n.resolvedLanguage ?? i18n.language),
+  });
+  const legend = buildWorkbenchTraceLegendModelV3(traces.map(descriptor));
+  const visibleTraces = traces.filter((trace) => !workbenchLegendTraceHiddenV3(hiddenSelections, descriptor(trace)));
+  const selection = visibleTraces.some((trace) =>
+    workbenchLegendSelectionMatchesTraceV3(hoveredSelection, descriptor(trace))) ? hoveredSelection : null;
   const domain = React.useMemo(
     () => guytonStarlingComparisonPlotDomainV3(traces),
     [traces],
@@ -342,7 +362,8 @@ export function GuytonStarlingComparisonCanvasV3({
         plot.bottom - plot.top,
       );
       context.clip();
-      traces.forEach(({ color, historyOrientations = [] }) => {
+      visibleTraces.forEach((trace) => {
+        const { color, historyOrientations = [] } = trace;
         historyOrientations.forEach((historical, historyIndex) => {
           drawOrientationV3(
             context,
@@ -352,12 +373,16 @@ export function GuytonStarlingComparisonCanvasV3({
             plot,
             color,
             theme.background,
-            guytonHistoryAlphaV3(historyIndex, historyOrientations.length),
+            guytonHistoryAlphaV3(historyIndex, historyOrientations.length)
+              * workbenchLegendTraceAlphaV3(selection, descriptor(trace)),
             2.5,
           );
         });
       });
-      traces.forEach(({ color, orientation, orientationAlpha = 1 }) => {
+      [...visibleTraces].sort((a, b) =>
+        workbenchLegendTraceAlphaV3(selection, descriptor(a)) - workbenchLegendTraceAlphaV3(selection, descriptor(b)))
+        .forEach((trace) => {
+        const { color, orientation, orientationAlpha = 1 } = trace;
         drawOrientationV3(
           context,
           orientation,
@@ -366,13 +391,13 @@ export function GuytonStarlingComparisonCanvasV3({
           plot,
           color,
           theme.background,
-          orientationAlpha,
+          orientationAlpha * workbenchLegendTraceAlphaV3(selection, descriptor(trace)),
           3,
         );
       });
       context.restore();
     },
-    [domain, side, traces],
+    [domain, side, traces, selection, hiddenSelections],
   );
   useResponsiveCanvasFrameV3(
     containerRef,
@@ -388,8 +413,7 @@ export function GuytonStarlingComparisonCanvasV3({
   const pendingTraces = traces.filter(({ pending }) => pending === true);
   return (
     <div
-      ref={containerRef}
-      className={`relative min-h-56 h-full w-full overflow-hidden ${className ?? ""}`}
+      className={`flex min-h-56 h-full w-full flex-col overflow-hidden ${className ?? ""}`}
       data-chart-kind="guyton-starling-structural-orientation-v3"
       data-circulation-side={side}
       data-structural-semantics={firstTrace.orientation.semantics}
@@ -405,33 +429,35 @@ export function GuytonStarlingComparisonCanvasV3({
       data-starling-hypovolemic-point-count={singleProgress?.hypovolemic}
       data-starling-hypervolemic-point-count={singleProgress?.hypervolemic}
       data-pending-scenario-count={pendingTraces.length}
+      data-visible-scenario-count={visibleTraces.length}
+      data-starling-display-extrapolation="none"
       data-pressure-minimum-mmhg={domain.pressureMinimumMmHg}
       data-pressure-maximum-mmhg={domain.pressureMaximumMmHg}
       data-flow-minimum-l-per-min={domain.flowMinimumLPerMin}
       data-flow-maximum-l-per-min={domain.flowMaximumLPerMin}
     >
+      <WorkbenchChartLegendV3 model={legend} selection={selection} hiddenSelections={hiddenSelections}
+        onHoverSelection={setSelection} onToggleSelection={() => undefined}
+        onToggleVisibility={(candidate) => setHiddenSelections((current) =>
+          current.some((item) => JSON.stringify(item) === JSON.stringify(candidate))
+            ? current.filter((item) => JSON.stringify(item) !== JSON.stringify(candidate))
+            : [...current, candidate])} />
+      <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden">
       <canvas
         ref={canvasRef}
         className="block h-full w-full"
         role="img"
         aria-label={`${sideLabel}; ${traces.length} Scenario comparison`}
       />
-      {traces.length > 1 && (
+      {pendingTraces.length > 0 && traces.length > 1 && (
         <div
-          className="pointer-events-none absolute left-12 top-2 flex max-w-[calc(100%-4rem)] flex-wrap gap-x-3 gap-y-1 text-[10px] text-wb-muted"
-          data-chart-legend="scenario-only"
+          className="pointer-events-none absolute right-2 top-2 flex gap-2 text-[10px] text-wb-muted"
         >
-          {traces.map((trace) => (
+          {pendingTraces.map((trace) => (
             <span
               key={trace.scenarioId}
               className="inline-flex items-center gap-1 whitespace-nowrap"
             >
-              <span
-                aria-hidden="true"
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: trace.color }}
-              />
-              {trace.scenarioLabel}
               {trace.pending === true && (
                 <span
                   className="pointer-events-auto inline-flex text-wb-accent"
@@ -483,6 +509,7 @@ export function GuytonStarlingComparisonCanvasV3({
           </span>
         ))}
       </div>
+      </div>
     </div>
   );
 }
@@ -517,13 +544,13 @@ function drawOrientationV3(
     x,
     y,
     color,
-    [],
-    alpha,
+    [5, 3],
+    alpha * 0.58,
   );
   if (orientation.starlingLocus.status !== "requires-protocol") {
-    drawCurveV3(
+    for (const segment of starlingCurveSegmentsV3(orientation.starlingLocus.points)) drawCurveV3(
       context,
-      starlingCurvePointsV3(orientation.starlingLocus.points),
+      segment,
       x,
       y,
       color,
@@ -649,41 +676,62 @@ type StarlingRenderablePointV3 = Readonly<{
   fillingPressureMmHg: number;
   cardiacOutputLPerMin: number;
   curveEligible?: boolean;
+  totalBloodVolumeMl?: number;
 }>;
 
+/** Preserve load order and unsupported gaps. PCHIP is only a within-support
+ * guide on strictly monotone pressure runs; duplicate pressures remain a
+ * vertical segment, never an averaged observation or an invented extra dot. */
+export function starlingCurveSegmentsV3(
+  points: readonly StarlingRenderablePointV3[],
+): readonly (readonly PlotPointV3[])[] {
+  const ordered = points.every((p) => Number.isFinite(p.totalBloodVolumeMl))
+    ? [...points].sort((a, b) => a.totalBloodVolumeMl! - b.totalBloodVolumeMl!) : points;
+  const result: (readonly PlotPointV3[])[] = [];
+  let run: StarlingRenderablePointV3[] = [];
+  let direction = 0;
+  const flush = () => {
+    if (run.length) result.push(interpolateStarlingRunV3(run));
+    run = []; direction = 0;
+  };
+  for (const [index, point] of ordered.entries()) {
+    const duplicateLoad = Number.isFinite(point.totalBloodVolumeMl)
+      && (ordered[index - 1]?.totalBloodVolumeMl === point.totalBloodVolumeMl
+        || ordered[index + 1]?.totalBloodVolumeMl === point.totalBloodVolumeMl);
+    if (point.curveEligible === false || duplicateLoad
+      || !Number.isFinite(point.fillingPressureMmHg) || !Number.isFinite(point.cardiacOutputLPerMin)) {
+      flush(); continue;
+    }
+    const previous = run.at(-1);
+    if (previous) {
+      const sign = Math.sign(point.fillingPressureMmHg - previous.fillingPressureMmHg);
+      if (sign === 0) {
+        flush();
+        result.push([previous, point].map((p) => ({pressureMmHg:p.fillingPressureMmHg, flowLPerMin:p.cardiacOutputLPerMin})));
+      } else if (direction && sign !== direction) {
+        flush(); run = [previous];
+      }
+      direction = sign;
+    }
+    run.push(point);
+  }
+  flush();
+  return result;
+}
+
 /**
- * Shape-preserving PCHIP through measured points only. It never extrapolates,
- * never connects a rejected boundary point, and preserves local extrema when
- * the model response is not monotone.
+ * PCHIP inside one validated strictly monotone pressure run. Never average
+ * duplicate observations; the caller preserves them as vertical segments.
  */
-export function starlingCurvePointsV3(
+function interpolateStarlingRunV3(
   points: readonly StarlingRenderablePointV3[],
 ): readonly PlotPointV3[] {
-  const ordered = points
-    .filter(
-      (point) =>
-        point.curveEligible !== false &&
-        Number.isFinite(point.fillingPressureMmHg) &&
-        Number.isFinite(point.cardiacOutputLPerMin),
-    )
+  const unique = points
     .map((point) => ({
       pressureMmHg: point.fillingPressureMmHg,
       flowLPerMin: point.cardiacOutputLPerMin,
     }))
     .sort((left, right) => left.pressureMmHg - right.pressureMmHg);
-  const unique: PlotPointV3[] = [];
-  for (const point of ordered) {
-    const previous = unique.at(-1);
-    if (
-      previous !== undefined &&
-      Math.abs(previous.pressureMmHg - point.pressureMmHg) < 1e-9
-    ) {
-      unique[unique.length - 1] = Object.freeze({
-        pressureMmHg: 0.5 * (previous.pressureMmHg + point.pressureMmHg),
-        flowLPerMin: 0.5 * (previous.flowLPerMin + point.flowLPerMin),
-      });
-    } else unique.push(Object.freeze(point));
-  }
   if (unique.length < 3) return Object.freeze(unique);
 
   const interval = unique

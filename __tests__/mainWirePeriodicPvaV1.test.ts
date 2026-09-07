@@ -11,12 +11,13 @@ import {
   buildMainWirePeriodicPvaMethodV8,
   buildMainWirePeriodicPvaMethodV9,
   buildMainWirePeriodicPvaMethodV10,
-  buildMainWirePeriodicPvaMethodV12,
+  buildMainWirePeriodicPvaMethodV13,
   buildMainWireSystolicPressureEnvelopeV1,
+  buildMainWireDiastolicLoadRelationV1,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
   MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import { evaluateMainWireIntegratedModelLvMvo2EstimateV1 } from "@/analysis/methods/mainWire/MainWireMvo2ReferenceV1";
 import {
@@ -33,6 +34,7 @@ import {
   workbenchPvMeasuredHighLoadPointsV1,
   drawWorkbenchPvHighLoadIsochroneV1,
   drawWorkbenchPvaAreasV1,
+  drawWorkbenchDiastolicLoadRelationV1,
 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
@@ -47,15 +49,17 @@ import currentStandard70Surface from
 import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCanvasRuntimeV3";
 
 describe("settled hot-start PVA V1", () => {
-  it("rejects the retired, unpublished closure derivation rather than silently reinterpreting it", () => {
-    const retiredId = "suga-pva-common-isochrone-owner-with-separate-end-ejection-load-response-display-v11";
+  it.each([
+    "suga-pva-common-isochrone-owner-with-separate-end-ejection-load-response-display-v11",
+    "suga-pva-common-isochrone-owner-with-full-load-pressure-envelope-display-v12",
+  ])("rejects the retired, unpublished derivation %s rather than silently reinterpreting it", (retiredId) => {
     const retired = { ...currentStandard70Surface, derivedOutputCatalog: currentStandard70Surface.derivedOutputCatalog.map((output) => ({
       ...output, derivationId: retiredId, requiredCapabilities: output.requiredCapabilities.map((capability) =>
-        capability.replace(MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID, retiredId)),
+        capability.replace(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID, retiredId)),
     })) };
     expect(() => resolveMainWireAnalysisMethodsForSurfaceV1(retired)).toThrow(/Client does not support analysis derivation/);
     expect(resolveMainWireAnalysisMethodsForSurfaceV1(currentStandard70Surface).periodicPvaDerivation?.methodId)
-      .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID);
+      .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID);
   });
   it("draws the first two-load envelope before an EDPVR fit exists, without dereferencing a missing intercept", () => {
     const context = new Proxy({ measureText: () => ({ width: 20 }) }, {
@@ -65,8 +69,8 @@ describe("settled hot-start PVA V1", () => {
       draw(context, 600, 400);
     });
     try {
-      const periodicPva = buildMainWirePeriodicPvaMethodV12(formalLocusV1(settledPointsV1([1, 1.08]), 9), "LV");
-      expect(periodicPva.loadRelations?.edpvr).toBeNull();
+      const periodicPva = buildMainWirePeriodicPvaMethodV13(formalLocusV1(settledPointsV1([1, 1.08]), 9), "LV");
+      expect(periodicPva.loadRelations?.diastolic?.sourcePointCount).toBe(2);
       expect(periodicPva.loadRelations?.systolic?.sourcePointCount).toBe(2);
       const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
         volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
@@ -77,16 +81,19 @@ describe("settled hot-start PVA V1", () => {
   it.each(["LV", "RV"] as const)("separates %s display without changing any V10 numerical owner", (ventricle) => {
     const locus = formalLocusV1(settledPointsV1());
     const previous = buildMainWirePeriodicPvaMethodV10(locus, ventricle);
-    const next = buildMainWirePeriodicPvaMethodV12(locus, ventricle);
+    const next = buildMainWirePeriodicPvaMethodV13(locus, ventricle);
     if (previous.status !== "available" || next.status !== "available") throw new Error("expected PVA");
-    expect(next.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID);
+    expect(next.methodId).toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID);
     for (const key of ["anchor", "strokeWork", "espvr", "edpvr", "potentialEnergy", "pva", "source", "limitations"] as const) {
       expect(JSON.stringify(next[key])).toBe(JSON.stringify(previous[key]));
     }
     // Only the derivation provenance changes in the literature projection.
-    expect(JSON.stringify(next.estimatedMvo2).replaceAll(MAIN_WIRE_PERIODIC_PVA_METHOD_V12_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID))
+    expect(JSON.stringify(next.estimatedMvo2).replaceAll(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID))
       .toBe(JSON.stringify(previous.estimatedMvo2));
-    expect(next.loadRelations?.edpvr).toBe(next.edpvr);
+    expect(next.loadRelations?.diastolic?.segments.flat().map(({volumeMl, pressureMmHg}) => ({volumeMl, pressureMmHg})))
+      .toEqual([...locus.points].sort((a,b) => a.totalBloodVolumeMl-b.totalBloodVolumeMl)
+        .map((p) => ({volumeMl:p.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl,
+          pressureMmHg:p.ventricularPressureVolumeLandmarks.endDiastolic.pressureMmHg})));
     expect(next.loadRelations?.systolic?.sourcePointCount).toBe(locus.points.length);
     expect(previous).not.toHaveProperty("loadRelations");
     expect(previous).not.toHaveProperty("areaDisplay");
@@ -106,6 +113,43 @@ describe("settled hot-start PVA V1", () => {
     drawWorkbenchPvaAreasV1(context, next.areaDisplay!, (v) => v, (p) => 120 - p, "#d9822b", 1);
     expect(context.fill).toHaveBeenCalledTimes(1); // SW solid, PE separately hatched.
     expect(context.clip).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves the observed high-load diastolic fold, singleton previews, and negative pressures without fitting", () => {
+    const source = settledPointsV1([1, 1.08, 1.16]);
+    const coordinates = [[148.95244286, 20.95739991], [147.20279761, 22.79901673], [146.18417039, 26.44282295]];
+    const points = source.map((p, i) => ({...p, ventricularPressureVolumeLandmarks:{...p.ventricularPressureVolumeLandmarks,
+      endDiastolic:{...p.ventricularPressureVolumeLandmarks.endDiastolic, volumeMl:coordinates[i]![0]!,pressureMmHg:coordinates[i]![1]!}}}));
+    const input = formalLocusV1(points);
+    const before = JSON.stringify(input);
+    const result = buildMainWireDiastolicLoadRelationV1(input)!;
+    expect(result.segments[0]!.map((p) => [p.volumeMl, p.pressureMmHg])).toEqual(coordinates);
+    expect(result.sourcePointCount).toBe(3);
+    expect(result.displayExtrapolation).toBe("none");
+    expect(JSON.stringify(input)).toBe(before);
+    const context = Object.fromEntries(["save","restore","setLineDash","beginPath","moveTo","lineTo","stroke","arc","fill"]
+      .map(method => [method,vi.fn()])) as unknown as CanvasRenderingContext2D;
+    drawWorkbenchDiastolicLoadRelationV1(context,result,v=>v,p=>p,"#d9822b",1);
+    expect(vi.mocked(context.moveTo).mock.calls).toEqual([coordinates[0]!]);
+    expect(vi.mocked(context.lineTo).mock.calls).toEqual(coordinates.slice(1));
+    expect(vi.mocked(context.arc).mock.calls.map(([v,p])=>[v,p])).toEqual(coordinates);
+    const first = {...points[0]!, ventricularPressureVolumeLandmarks:{...points[0]!.ventricularPressureVolumeLandmarks,
+      endDiastolic:{...points[0]!.ventricularPressureVolumeLandmarks.endDiastolic,pressureMmHg:-1}}};
+    const singleton = buildMainWireDiastolicLoadRelationV1(formalLocusV1([first], 9))!;
+    expect(singleton.segments[0]![0]!.pressureMmHg).toBe(-1);
+    expect(singleton.completionStatus).toBe("progressive");
+  });
+
+  it("does not bridge missing/unsettled or duplicate-TBV diastolic support", () => {
+    const points = settledPointsV1([1, 1.08, 1.16]);
+    const locus = formalLocusV1(points);
+    const result = buildMainWireDiastolicLoadRelationV1({...locus, points: locus.points.map((p,i) =>
+      i === 1 ? {...p, settled:false, curveEligible:false} : p)} as unknown as MainWireIntegratedModelStarlingLocusV3)!;
+    expect(result.segments.map((run)=>run.length)).toEqual([1,1]);
+    expect(result.excludedPointCount).toBe(1);
+    const duplicate = buildMainWireDiastolicLoadRelationV1(formalLocusV1([points[0]!,points[1]!,points[1]!,points[2]!]))!;
+    expect(duplicate.segments.map((run)=>run.length)).toEqual([1,1]);
+    expect(duplicate.excludedPointCount).toBe(2);
   });
 
   it("does not choose the envelope clock from the operating anchor or closure landmark", () => {
@@ -194,17 +238,17 @@ describe("settled hot-start PVA V1", () => {
 
   it("does not hide measured load relations when PVA timing is unavailable, and does not relabel them as its energy boundary", () => {
     const points = settledPointsV1().map((p) => ({ ...p, role: "continuation" as const }));
-    const result = buildMainWirePeriodicPvaMethodV12(formalLocusV1(points), "RV");
+    const result = buildMainWirePeriodicPvaMethodV13(formalLocusV1(points), "RV");
     expect(result.status).toBe("unavailable");
     expect(result.loadRelations?.systolic?.sourcePointCount).toBe(points.length);
-    expect(result.loadRelations?.edpvr?.fitPoints).toHaveLength(points.length);
+    expect(result.loadRelations?.diastolic?.sourcePointCount).toBe(points.length);
     expect(result.areaDisplay).toBeUndefined();
     const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "RV", chamberLabel: "RV",
       samples: [], volumeOutputId: "RV.volume", pressureOutputId: "RV.pressure", pressureBasis: "transmural" as const,
       cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: result }];
     const normal = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces }));
     expect(normal).toContain('data-pv-envelope-source-point-count="9"');
-    expect(normal).toContain('data-pv-relation-semantics="full-load-pressure-envelope-exponential-edpvr"');
+    expect(normal).toContain('data-pv-relation-semantics="full-load-pressure-envelope-measured-diastolic-locus"');
     expect(normal).toContain('data-pva-result-count="0"');
     const energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
     expect(energy).toContain('data-pv-envelope-source-point-count="0"');
@@ -213,7 +257,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("switches to the energy boundary without displaying both systolic definitions at once", () => {
-    const result = buildMainWirePeriodicPvaMethodV12(formalLocusV1(settledPointsV1()), "LV");
+    const result = buildMainWirePeriodicPvaMethodV13(formalLocusV1(settledPointsV1()), "LV");
     const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV",
       samples: [], volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
       cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: result }];
@@ -227,7 +271,7 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps a valid measured isochrone visible but exposes the reason when its PE tail is not admitted", () => {
-    const available = buildMainWirePeriodicPvaMethodV12(formalLocusV1(settledPointsV1()), "LV");
+    const available = buildMainWirePeriodicPvaMethodV13(formalLocusV1(settledPointsV1()), "LV");
     if (available.status !== "available") throw new Error(available.reason);
     const unavailable = {
       analysisId: available.analysisId, methodId: available.methodId, ventricleId: available.ventricleId,
