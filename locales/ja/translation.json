@@ -309,9 +309,15 @@
         "baselineLvp": "LVP波形",
         "baselineRvp": "RVP波形",
         "baselineSingleRounded": "単峰・丸みあり",
+        "baselineSinglePeak": "単峰",
+        "baselineMorphologyReferenceDetail": "有意ピーク {{peaks}}。中央部の圧変化比 {{roundness}}、ピーク位置 {{peakPhase}}。形状の参考値で、確立した正常域やPV loopの曲率ではありません。記録間隔の影響を受けます。振動は別の必須項目で確認します。",
         "baselineAvGradient": "AV mean / peak PG",
         "baselineMorphologyDetail": "有意ピーク {{peaks}}、丸み指標 {{roundness}}（必須範囲 0.08–0.35）",
-        "baselineRangeDetail": "必須範囲：{{range}}",
+        "baselineRangeDetail": "baseline採用時の目標・制約：{{range}}。一般的な正常範囲を保証するものではありません。",
+        "baselineMethodReferenceDetail": "参考範囲：{{range}}。モデルの弁イベント・体積流量による値は、Doppler/TDIの測定値と同一ではありません。範囲外だけでは棄却しません。",
+        "baselineTauDetail": "左室内圧のWeiss法。>48 msは臨床上の参考目安で、正常の合否判定ではありません。R² {{r2}}。Glantz法 {{glantz}} ms、推定漸近圧 {{asymptote}} mmHg：仮定による差を併記しており、同じ閾値は適用しません。",
+        "baselineTauNotAssessed": "この保存済みbaselineにはτの評価記録がありません。正常と判定した意味ではありません。",
+        "baselineTauSensitivityUnavailable": "当てはまり不良／算出不能",
         "baselineIndexedVolumesDetail": "BSA 1.9 m²でindex化した弁閉鎖時のEDVI/ESVI。必須範囲：{{range}}。画像モダリティとの完全な同等性は主張しません。",
         "baselineIndexedFlowDetail": "native aortic forward flowをBSA 1.9 m²でindex化。必須範囲：{{range}}。",
         "baselineAvGradientDetail": "exact hydraulic gradientの必須範囲：{{range}}",
@@ -727,6 +733,11 @@
       "formal PVA/ESPVR/EDPVRとGuyton / Starlingはversioned analysisです。非収束点を除外するpreviewを含み、独立した生理学的・臨床的validationではありません。",
       "通常のcontrol変更はaccepted stateとmodel clockを起点にwarm startします。TBV変更はdetached preflightされ、bounded continuationが必要な場合は後続のaccepted boundaryをatomic commitすることがあります。いずれも自律神経反射を再現するものではありません。",
       "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
+    ],
+    "standard71Items": [
+      "0Dモデルの代表圧です。局所ジェット、圧波の伝播・反射、特定のカテーテルやカフの測定位置は再現しません。",
+      "AoP/PAPはAo/PA node圧です。ZcQの表示上の加算や局所pressure recovery補正はなく、Dopplerの最大ジェット勾配とは交換できません。",
+      "baselineは局所採択候補です。数値・構造検査に適合しても、参考警告が残り、臨床的正常性や患者予測は保証しません。"
     ],
     "standard70Items": [
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",

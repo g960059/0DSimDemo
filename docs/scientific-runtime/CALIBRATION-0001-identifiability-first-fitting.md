@@ -100,7 +100,7 @@ phenotype, condition-specific nuisance, discrete model form, or numerical.
 Numerical parameters are never fitted to physiology. Known interventions stay
 fixed.
 
-For the initial baseline design:
+For routine baseline or case fitting within a chosen model form:
 
 - calcium-source and Land kinetic-family parameters are source-locked;
 - heart rate is an enumerated 60 or 70 bpm condition, not a continuous fitted
@@ -118,6 +118,21 @@ passive stiffness, and active tension versus calcium amplitude or viable
 fraction are declared before execution. A flat direction yields a supported
 combination or an unresolved set, not precise individual estimates created by
 bounds.
+
+Reference-model design is a separate study: calcium, active/passive material,
+and geometry may be reconsidered jointly, including simpler constitutive
+families. Source parameters are priors conditional on their original assembly,
+not immutable truths of a different coupled model. Compare component behavior
+before expensive closed-loop qualification, and preserve compatible Surface and
+analysis behavior when changing the exact identity.
+
+A reference must support its declared nearby interventions, not sit at the
+arithmetic midpoint of an arbitrary parameter box. Search bounds, physical
+admissibility, evidence-supported priors, and measured response reserve are
+distinct. Recentring a knob or expanding a search box does not create reserve;
+one-sided healthy boundaries need not be artificially centred. Judge the
+reference and its neighborhood together, without adding stress protocols or
+normality claims unsupported by the study's intended use.
 
 ## Observations, uncertainty, and objective
 

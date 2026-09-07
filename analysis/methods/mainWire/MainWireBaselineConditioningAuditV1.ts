@@ -9,8 +9,9 @@ import type {
 import {
   validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3,
 } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import type {
-  MainWireIntegratedModelBaselineValidationCheckIdV1,
+import {
+  mainWireBaselineRangeIncludesWithRoundoffV1,
+  type MainWireIntegratedModelBaselineValidationCheckIdV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_CHECK_IDS_V1,
@@ -613,8 +614,7 @@ export function assertMainWireBaselineConditioningTaskResultV1(
     );
   }
   for (const check of result.checks) {
-    const expectedStatus = check.actual >= check.minimum
-        && check.actual <= check.maximum
+    const expectedStatus = mainWireBaselineRangeIncludesWithRoundoffV1(check.actual, check.minimum, check.maximum)
       ? "passed"
       : "failed";
     const statusIsEncodedByBounds =

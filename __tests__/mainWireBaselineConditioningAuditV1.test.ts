@@ -52,7 +52,7 @@ describe("baseline conditioning spectrum", () => {
       .toBe(normalReferenceEvidenceV1.evaluationPolicyId);
     expect(study.constructionPolicyRevisionId)
       .toBe(currentPolicy.constructionPolicyRevisionId);
-    expect(study.protocolRevision.revision).toBe(18);
+    expect(study.protocolRevision.revision).toBe(19);
     const historicalPolicy = normalReferenceEvidenceV1.policyRevisions.at(-1)!;
     const stale = { ...study, constructionPolicyRevisionId: historicalPolicy.revisionId };
     expect(lintMainWireBaselineConditioningStudyV1(stale)).toContainEqual({
@@ -277,13 +277,14 @@ describe("baseline conditioning spectrum", () => {
     const roundnessCheckId = "waveform.LVP.rounded-not-plateau";
     phaseOnlyRoundnessFailure[roundnessIndex] = {
       ...phaseOnlyRoundnessFailure[roundnessIndex],
-      constructionGateStatus: "failed",
-      objectiveGateStatus: "failed",
-      failedConstructionCheckIds: [roundnessCheckId],
-      failedObjectiveCheckIds: [roundnessCheckId],
+      constructionGateStatus: "passed",
+      objectiveGateStatus: "passed",
+      failedConstructionCheckIds: [],
+      failedObjectiveCheckIds: [],
       checks: phaseOnlyRoundnessFailure[roundnessIndex].checks.map((check) =>
         check.checkId === roundnessCheckId
-          ? { ...check, status: "failed" }
+          ? { ...check, status: "failed", actual: .80083, minimum: .2, maximum: .8,
+            unit: "ejection-peak-phase-fraction" }
           : check),
     };
     const phaseOnlyArtifact = await buildMainWireBaselineConditioningAuditV1({

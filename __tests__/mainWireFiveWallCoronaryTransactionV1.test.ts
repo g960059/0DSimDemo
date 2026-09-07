@@ -136,7 +136,7 @@ describe("main-wire five-wall + coronary atomic transaction V1", () => {
     const ladImp = stepped.intramyocardialPressureMmHgByTerritoryLayer.LAD;
     expect(ladImp.subendocardial).toBeGreaterThan(ladImp.subepicardial);
     expect(stepped.coronaryMechanicsCoupling.source.activeStress)
-      .toBe("same-candidate-land-active-kirchhoff-stress-only");
+      .toBe("same-candidate-active-kirchhoff-stress-only");
     // This deliberately systolic test drive produces a short signed inlet
     // reversal rather than being rectified by the coronary transaction.
     expect(stepped.coronaryTrial.diagnostics.hydraulics.totalInletFlowMlPerSec)

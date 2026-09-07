@@ -1,12 +1,11 @@
 import type { MainWireIntegratedModelStepSuccessV3 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
-import type { MainWireNormalAdultFiveWallMechanicsStateV1 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_COUNT_V1,
   MAIN_WIRE_FIVE_WALL_ACCEPTED_NUMERICAL_READBACK_LAYOUT_V1,
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 
 type SuccessfulStep =
-  MainWireIntegratedModelStepSuccessV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  MainWireIntegratedModelStepSuccessV3<unknown>;
 
 export const MAIN_WIRE_INTEGRATED_MODEL_BEAT_METRICS_V3_ID =
   "main-wire-integrated-model-accepted-step-beat-metrics-v4" as const;

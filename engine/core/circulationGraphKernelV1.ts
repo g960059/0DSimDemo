@@ -64,6 +64,13 @@ export function buildAuthoritativeCirculationGraphV1(): AuthoritativeCirculation
 export type VascularPvRuntimeParameterViewV1 = {
   readonly venousTone: number;
   readonly arterialStiffness: number;
+  /** Exact research construction: scales Ao/SA/Art volume-law amplitude only.
+   * A value of one preserves the source law; pulmonary arteries are unchanged. */
+  readonly systemicArterialComplianceResearchScale?: number;
+  /** Prespecified PA/PArt amplitude contrasts, not a public fitting range. */
+  readonly pulmonaryArterialComplianceResearchScale?: 0.75 | 1 | 1.5;
+  /** Research-only causal probe of the existing Ao_SA momentum term. */
+  readonly aorticRootInertanceResearchScale?: number;
   readonly selectedAorticOutflowProfile?:
     MainWireSelectedAorticOutflowCirculationProfileV1;
   readonly algebraicProximalArterialRootsProfile?:
@@ -94,6 +101,23 @@ export function vascularPvLawFromNodeV1(
 ): VascularPvLaw {
   const Vu = effectiveUnstressedVolumeFromNodeV1(node, params);
   if (node.kind === "arterial") {
+    const systemicScale = params.systemicArterialComplianceResearchScale ?? 1;
+    const pulmonaryScale = params.pulmonaryArterialComplianceResearchScale === undefined
+      ? 1 : params.pulmonaryArterialComplianceResearchScale;
+    if (![0.75, 1, 1.5].includes(pulmonaryScale)) {
+      throw new Error("pulmonary compliance research admits only 0.75, 1 or 1.5");
+    }
+    if (params.pulmonaryArterialComplianceResearchScale !== undefined
+      && params.selectedAorticOutflowProfile !== undefined) {
+      throw new Error("pulmonary compliance research has no selected-aortic-profile compatibility decision");
+    }
+    if (!Number.isFinite(systemicScale) || systemicScale <= 0) {
+      throw new Error("systemic arterial compliance research scale must be positive and finite");
+    }
+    if (params.systemicArterialComplianceResearchScale !== undefined
+      && params.selectedAorticOutflowProfile !== undefined) {
+      throw new Error("systemic compliance research has no selected-aortic-profile compatibility decision");
+    }
     const stiffnessMultiplier =
       selectedSystemicArterialStiffnessMultiplierV1(node, params);
     if (stiffnessMultiplier !== undefined) {
@@ -112,7 +136,9 @@ export function vascularPvLawFromNodeV1(
       kind: "arterial",
       Vu,
       P0: node.P0 ?? 50,
-      VsEff: Math.max((node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25), 1),
+      VsEff: Math.max((node.Vs ?? 100) / Math.max(params.arterialStiffness, 0.25), 1)
+        * (node.name === "Ao" || node.name === "SA" || node.name === "Art" ? systemicScale
+          : node.name === "PA" || node.name === "PArt" ? pulmonaryScale : 1),
     };
   }
   if (node.kind === "linear") {

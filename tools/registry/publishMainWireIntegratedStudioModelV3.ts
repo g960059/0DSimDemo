@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertRegisteredFittingReferenceEvidenceReadyV1 } from "./assertFittingReferenceEvidenceV1";
 
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_DEFAULT_FIXTURE_V1,
@@ -46,6 +47,7 @@ if (
 
 async function main(): Promise<void> {
   const options = parsePublishArgumentsV3(process.argv.slice(2));
+  if (options.stage === "stable") assertRegisteredFittingReferenceEvidenceReadyV1("baseline");
   assertReleaseFilesCommitted();
 
   const artifact = readFileSync(artifactPath);

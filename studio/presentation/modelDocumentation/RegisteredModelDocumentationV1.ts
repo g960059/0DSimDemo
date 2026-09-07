@@ -19,6 +19,7 @@ import qualifiedBaselineStandard69SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
 import algebraicPulmonaryRootStandard70SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import { SAVED_MODEL_DOCUMENT_CATALOG_V1, resolveSavedModelDocumentIndexV1 } from "./SavedModelDocumentCatalogV1";
 
 export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   kind:
@@ -26,7 +27,8 @@ export type RegisteredModelDocumentationIdentityV1 = Readonly<{
     | "main-wire-algebraic-proximal-roots-standard67"
     | "main-wire-rounded-ejection-standard68"
     | "main-wire-qualified-baseline-standard69"
-    | "main-wire-algebraic-pulmonary-root-standard70";
+    | "main-wire-algebraic-pulmonary-root-standard70"
+    | "saved-model-document";
   modelId: string;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
@@ -41,7 +43,8 @@ export type RegisteredModelDisclosureV1 = Readonly<{
     | "modelLimitations.standard66Items"
     | "modelLimitations.standard67Items"
     | "modelLimitations.standard68Items"
-    | "modelLimitations.standard70Items";
+    | "modelLimitations.standard70Items"
+    | "modelLimitations.standard71Items";
 }>;
 
 const STANDARD66_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
@@ -88,6 +91,19 @@ const STANDARD70_DOCUMENTATION_IDENTITY_V1 = Object.freeze({
     algebraicPulmonaryRootStandard70SurfaceV1.surfaceSeriesId,
 });
 
+/** Availability of documentation is not admission of a runnable model. */
+export const REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 = Object.freeze([
+  ...SAVED_MODEL_DOCUMENT_CATALOG_V1.map(entry => ({ label: entry.label,
+    identity: { kind: "saved-model-document" as const, modelId: entry.document.identity.modelId,
+      surfaceReleaseId: entry.document.identity.surfaceReleaseId, surfaceSeriesId: entry.document.identity.surfaceSeriesId },
+    candidate: entry.document.identity.releaseStatus === "local-candidate-not-registered" })),
+  { label: "Standard 70", identity: STANDARD70_DOCUMENTATION_IDENTITY_V1, candidate: false },
+  { label: "Standard 69", identity: STANDARD69_DOCUMENTATION_IDENTITY_V1, candidate: false },
+  { label: "Standard 68", identity: STANDARD68_DOCUMENTATION_IDENTITY_V1, candidate: false },
+  { label: "Standard 67", identity: STANDARD67_DOCUMENTATION_IDENTITY_V1, candidate: false },
+  { label: "Standard 66", identity: STANDARD66_DOCUMENTATION_IDENTITY_V1, candidate: false },
+]);
+
 /**
  * Client-local availability registry for model documentation.
  *
@@ -100,6 +116,9 @@ export function resolveRegisteredModelDocumentationV1(
   surfaceReleaseId: string | null | undefined,
 ): RegisteredModelDocumentationIdentityV1 | null {
   let identity: RegisteredModelDocumentationIdentityV1 | null = null;
+  const saved = resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId);
+  if (saved) return { kind: "saved-model-document", modelId: saved.identity.modelId,
+    surfaceReleaseId: saved.identity.surfaceReleaseId, surfaceSeriesId: saved.identity.surfaceSeriesId };
   if (
     modelId === STANDARD66_DOCUMENTATION_IDENTITY_V1.modelId
     && surfaceReleaseId
@@ -170,6 +189,12 @@ export function resolveRegisteredModelDisclosureV1(
       shortLabel: null,
       limitationsTranslationKey: "modelLimitations.items" as const,
     });
+  }
+  if (documentation.kind === "saved-model-document") {
+    const entry = SAVED_MODEL_DOCUMENT_CATALOG_V1.find(e => e.document.identity.modelId === modelId
+      && e.document.identity.surfaceReleaseId === surfaceReleaseId)!;
+    return Object.freeze({ documentation, badgeLabel: entry.badgeLabel, shortLabel: entry.document.identity.title,
+      limitationsTranslationKey: entry.limitationsTranslationKey });
   }
   if (documentation.kind === "main-wire-rounded-ejection-standard68") {
     return Object.freeze({

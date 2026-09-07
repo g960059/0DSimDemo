@@ -64,6 +64,14 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
   rollbackOnFailure: true as const,
 });
 
+const POPULATION_MOMENT_TRISEG_RESEARCH_CLAIM_V1 = Object.freeze({
+  ...MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
+  wallTopology: "Land-atria-and-population-moment-ventricles-plus-equilibrium-passive-and-SLS" as const,
+  trialMaterialLinearization: "analytic-consistent-mixed-Land-BE-and-frozen-detachment-moment-step" as const,
+});
+type FiveWallMaterialClaimV1 = typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+  | typeof POPULATION_MOMENT_TRISEG_RESEARCH_CLAIM_V1;
+
 export const MAIN_WIRE_FIVE_WALL_IDS_V1 = Object.freeze([
   "LA",
   "LVFW",
@@ -130,7 +138,8 @@ export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   parameterSetId: string;
   parameterIdentityHash: string;
   topology:
-    "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
+    | "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
+    | "population-moment-research-plus-equilibrium-passive-plus-parallel-one-state-SLS";
   stateCodec: WholeHeartMechanicsStateCodecV1<TWallState>;
   /**
    * A trusted kernel may consume the provider-owned accepted wall state
@@ -247,7 +256,7 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   }>;
   wallMaterialReadbackByWall:
     MainWireFiveWallRecordV1<WholeHeartMechanicsSerializableValueV1 | null>;
-  claim: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM;
+  claim: FiveWallMaterialClaimV1;
 }>;
 
 export type MainWireFiveWallLandTriSegEvaluationCountersV1 = Readonly<{
@@ -495,6 +504,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
   const parameterIdentityInputsAreImmutable =
     providerParameterIdentityInputsAreImmutableV1(params, solver);
   const stateCodec = createStateCodec(params.materialByWall);
+  const materialClaim = materialClaimForKernels(params.materialByWall);
 
   const initializeCold: MainWireFiveWallLandTriSegProviderV1<TWallState>["initializeCold"] =
     (input) => {
@@ -543,6 +553,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             "cold",
             coldConsistencyIterations,
             Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
+            materialClaim,
           );
         }
         lastCoordinateUpdate = maximumDifference(seed, solved.scaledUnknowns);
@@ -585,6 +596,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           "cold",
           coldConsistencyIterations,
           Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
+          materialClaim,
         );
       }
       return failedProviderEvaluation(
@@ -594,6 +606,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         "cold",
         coldConsistencyIterations,
         Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
+        materialClaim,
       );
     };
 
@@ -633,6 +646,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           "trial",
           null,
           null,
+          materialClaim,
         );
       }
       return successfulProviderEvaluation(
@@ -1780,6 +1794,7 @@ function successfulProviderEvaluation<TWallState>(
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
     consistentTangent?.ventricularCoronaryBoundaryTangent,
+    materialClaimForKernels(params.materialByWall),
   );
   const diagnostics: WholeHeartMechanicsDiagnosticsV1 = Object.freeze({
     converged: true,
@@ -1810,6 +1825,7 @@ function failedProviderEvaluation<TWallState>(
   solveMode: "cold" | "trial",
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
+  materialClaim: FiveWallMaterialClaimV1,
 ): WholeHeartMechanicsProviderEvaluationV1<
   MainWireFiveWallLandTriSegStateV1<TWallState>
 > {
@@ -1833,7 +1849,7 @@ function failedProviderEvaluation<TWallState>(
       fallback?.fiberKirchhoffStressPaByWall ?? null,
     lastMaximumMaterialResidualNorm:
       fallback?.maximumMaterialResidualNorm ?? null,
-    claim: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
+    claim: materialClaim,
   });
   return Object.freeze({
     materialState: rollbackState,
@@ -1857,6 +1873,7 @@ function buildReadback<TWallState>(
   coldConsistencyScaledCoordinateUpdate: number | null,
   ventricularCoronaryBoundaryTangent:
     MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | undefined,
+  materialClaim: FiveWallMaterialClaimV1,
 ): MainWireFiveWallLandTriSegReadbackV1 {
   const candidate = solved.candidate;
   return Object.freeze({
@@ -1902,7 +1919,7 @@ function buildReadback<TWallState>(
     }),
     wallMaterialReadbackByWall: fiveWallRecord((wallId) =>
       candidate.materialByWall[wallId].readback),
-    claim: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
+    claim: materialClaim,
   });
 }
 
@@ -2059,6 +2076,15 @@ function cloneState<TWallState>(
   });
 }
 
+function materialClaimForKernels<TWallState>(
+  walls: MainWireFiveWallRecordV1<MainWireFiveWallLandSlsMaterialKernelV1<TWallState>>,
+): FiveWallMaterialClaimV1 {
+  const changed = (["LVFW", "SEP", "RVFW"] as const).filter(w =>
+    walls[w].topology === "population-moment-research-plus-equilibrium-passive-plus-parallel-one-state-SLS");
+  if (changed.length !== 0 && changed.length !== 3) throw new Error("moment research requires an explicit common ventricular material");
+  return changed.length === 0 ? MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM : POPULATION_MOMENT_TRISEG_RESEARCH_CLAIM_V1;
+}
+
 function providerParameterIdentityHash<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
@@ -2067,6 +2093,8 @@ function providerParameterIdentityHash<TWallState>(
     providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     parameterSetId: params.parameterSetId,
+    ...(materialClaimForKernels(params.materialByWall) === MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      ? {} : { materialTopology: POPULATION_MOMENT_TRISEG_RESEARCH_CLAIM_V1.wallTopology }),
     materialIdentityByWall: fiveWallRecord((wallId) => ({
       modelId: params.materialByWall[wallId].modelId,
       parameterSetId: params.materialByWall[wallId].parameterSetId,
@@ -2136,10 +2164,11 @@ function validateParams<TWallState>(
       material.parameterIdentityHash,
       `${wallId}.material.parameterIdentityHash`,
     );
-    if (
-      material.topology
-        !== "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
-    ) throw new Error(`${wallId} material does not satisfy the Land/SLS topology contract`);
+    if (material.topology !== "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS"
+      && (!(wallId === "LVFW" || wallId === "SEP" || wallId === "RVFW")
+        || material.topology !== "population-moment-research-plus-equilibrium-passive-plus-parallel-one-state-SLS")) {
+      throw new Error(`${wallId} material does not satisfy a declared five-wall topology contract`);
+    }
     for (const method of ["clone", "encode", "decode"] as const) {
       if (typeof material.stateCodec[method] !== "function") {
         throw new Error(`${wallId}.material.stateCodec.${method} must be a function`);

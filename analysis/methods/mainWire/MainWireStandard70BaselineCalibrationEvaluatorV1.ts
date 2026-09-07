@@ -1,6 +1,7 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
 import { observeMainWireStandard70QualificationV2, observeMainWireStandard70TimingAndInletV2 } from "./MainWireStandard70BaselineAssessmentV2";
+import { assertMainWireRelaxationTauMeasuredV1, type MainWireRelaxationTauV1 } from "./MainWireRelaxationTauV1";
 import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID } from "./MainWireBaselineObservationV2";
 import {
   MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID,
@@ -50,7 +51,7 @@ import {
 } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 export const MAIN_WIRE_STANDARD70_BASELINE_CALIBRATION_EVALUATOR_V1_ID =
-  "main-wire-standard70-baseline-calibration-evaluator-v3" as const;
+  "main-wire-standard70-baseline-calibration-evaluator-v4" as const;
 
 export type MainWireStandard70BaselineCalibrationEvaluationRequestV1 =
   Readonly<{
@@ -99,6 +100,7 @@ export type MainWireStandard70BaselineCalibrationAcceptedEvaluationV1 =
     safetySentinelStatus: "passed" | "failed";
     /** Measured out-of-reference values, retained without automatic rejection. */
     referenceWarningCheckIds: readonly string[];
+    relaxationTau: MainWireRelaxationTauV1;
     failedConstructionCheckIds: readonly (
       | MainWireIntegratedModelBaselineValidationCheckIdV1
       | MainWireIntegratedModelStandard70RightHeartCheckIdV1
@@ -410,8 +412,12 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
   }
 
   let partition: ReturnType<typeof partitionChecksV1>;
+  let relaxationTau: MainWireRelaxationTauV1;
   try {
-    exactResult = observeMainWireStandard70QualificationV2(exactResult);
+    const observed = observeMainWireStandard70QualificationV2(exactResult);
+    relaxationTau = observed.relaxationTau;
+    assertMainWireRelaxationTauMeasuredV1(relaxationTau);
+    exactResult = observed;
     partition = partitionChecksV1(exactResult.checks);
   } catch (error) {
     return failureV1(
@@ -461,6 +467,7 @@ export async function evaluateMainWireStandard70BaselineCalibrationCandidateV1(
       ? "passed" as const
       : "failed" as const,
     failedConstructionCheckIds,
+    relaxationTau,
     referenceWarningCheckIds: Object.freeze(exactResult.checks
       .filter(mainWireBaselineCheckWarnsV1).map(({ checkId }) => checkId)),
     failedObjectiveCheckIds: Object.freeze(failedObjectiveCheckIds),

@@ -272,6 +272,13 @@ async function acceptedV1(input: MainWireStandard70BaselineCalibrationEvaluation
     constructionGateStatus: "passed", objectiveGateStatus: "passed", safetySentinelStatus: "passed",
     failedConstructionCheckIds: [], failedObjectiveCheckIds: [], failedSafetySentinelCheckIds: [],
     referenceWarningCheckIds: [],
+    relaxationTau: { methodId: "main-wire-lv-relaxation-tau-v1", status: "measured", issue: null,
+      window: { startTimeSec: .4, endTimeSec: .45, durationSec: .05, sampleCount: 26, nextEdpMmHg: 10,
+        pressureDropMmHg: 50, maximumStepSec: .002 },
+      weiss: { tauMs: 35, asymptoteMmHg: 0, rSquared: 1, pressureRmseMmHg: 0, normalizedPressureRmse: 0 },
+      glantz: null, sensitivityStatus: "unavailable", referenceStatus: "not-above-prolongation-reference",
+      relaxationTrace: { maximumDipAndRecoveryMmHg: 0, maximumRiseFromRunningMinimumMmHg: 0, excursions: [] },
+      endpointSensitivity: { shortenedWindowTauMs: 35, relativeDifference: 0 } },
     objectiveChecks, safetySentinelChecks: [],
     exactResult: {
       nominalDtSec: input.nominalDtSec, initializationKind: "cold", completedCycleCount: 3,

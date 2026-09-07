@@ -174,7 +174,7 @@ export type MainWireBaselineConditioningStudySourceV1 = Readonly<{
     uniqueParameterVectorClaimed: false;
   }>;
   protocolRevision: Readonly<{
-    revision: 18;
+    revision: 19;
     changeReason: string;
   }>;
 }>;
@@ -320,9 +320,7 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       safetyCheckIds: Object.freeze([
         "settlement.period1",
         "waveform.LVP.single-peak-no-ringing",
-        "waveform.LVP.rounded-not-plateau",
         "waveform.RVP.single-peak-no-ringing",
-        "waveform.RVP.rounded-not-plateau",
       ] as const),
       primaryInteriorGroupIds: Object.freeze([
         "ventricular-pressure-morphology",
@@ -391,9 +389,9 @@ export const MAIN_WIRE_BASELINE_CONDITIONING_STUDY_SOURCE_V1:
       uniqueParameterVectorClaimed: false as const,
     }),
     protocolRevision: Object.freeze({
-      revision: 18 as const,
+      revision: 19 as const,
       changeReason:
-        "Bind newly generated conditioning evidence to the V2 evaluator and evidence-qualified gate roles; retain reference-warning measurements without recasting historical policy records.",
+        "Separate unvalidated ventricular contour corridors from mandatory ringing guards under evaluation roles V2; preserve all observations and historical reports without fitting the advisory contour to a target centre.",
     }),
   });
 

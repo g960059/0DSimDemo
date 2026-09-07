@@ -309,9 +309,15 @@
         "baselineLvp": "LVP waveform",
         "baselineRvp": "RVP waveform",
         "baselineSingleRounded": "Single, rounded peak",
+        "baselineSinglePeak": "Single peak",
+        "baselineMorphologyReferenceDetail": "{{peaks}} significant peak. Central pressure range {{roundness}}; peak position {{peakPhase}}. These contour summaries are references, not validated normal limits or PV-loop curvature. Sampling affects them; ringing remains a separate required check.",
         "baselineAvGradient": "AV mean / peak PG",
         "baselineMorphologyDetail": "{{peaks}} significant peak; roundness index {{roundness}} (required 0.08–0.35)",
-        "baselineRangeDetail": "Required range: {{range}}",
+        "baselineRangeDetail": "Baseline admission target/constraint: {{range}}. Not a guarantee of a universal normal range.",
+        "baselineMethodReferenceDetail": "Reference corridor: {{range}}. Model valve-event timings and volumetric flow are not Doppler/TDI measurements. A corridor deviation alone is not rejection.",
+        "baselineTauDetail": "Intracavitary LV Weiss fit. >48 ms is clinical context, not a normality gate. R² {{r2}}. Glantz {{glantz}} ms, extrapolated asymptote {{asymptote}} mmHg: method sensitivity is retained and the same cutoff is not applied.",
+        "baselineTauNotAssessed": "This saved baseline has no tau assessment. This does not mean relaxation was judged normal.",
+        "baselineTauSensitivityUnavailable": "poor fit / unavailable",
         "baselineIndexedVolumesDetail": "Valve-closure EDVI/ESVI indexed to BSA 1.9 m². Required range: {{range}}. Exact equivalence to an imaging modality is not claimed.",
         "baselineIndexedFlowDetail": "Native aortic forward flow indexed to BSA 1.9 m². Required range: {{range}}.",
         "baselineAvGradientDetail": "Required exact hydraulic-gradient range: {{range}}",
@@ -727,6 +733,11 @@
       "Formal PVA/ESPVR/EDPVR and Guyton / Starling are versioned analyses. They include previews that exclude nonconverged points and are not independent physiological or clinical validation.",
       "Ordinary controls warm-start from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
+    ],
+    "standard71Items": [
+      "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
+      "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
+      "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
     ],
     "standard70Items": [
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",

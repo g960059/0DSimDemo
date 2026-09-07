@@ -69,7 +69,7 @@ export const fastTests = [
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
   "__tests__/modelLimitations.test.ts",
-  "__tests__/modelDocumentationV1.test.tsx",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
@@ -137,7 +137,7 @@ export const prSmokeTests = [
   "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
-  "__tests__/modelDocumentationV1.test.tsx",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
@@ -162,6 +162,10 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  // Current-source mathematical/document creation checks retire with that source;
+  // archive readability/integrity remain in the fast and PR suites above.
+  "__tests__/modelDocumentationV1.test.tsx",
+  "__tests__/fittingGateProvenanceV1.test.ts",
   "__tests__/mainWireIntegratedStudioAlgebraicPulmonaryRootV1.test.ts",
   "__tests__/mainWireIntegratedStudioPublishedHemodynamicDomainsV1.test.ts",
   "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
@@ -206,6 +210,22 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/activationHuxleyResearchV1.test.ts",
+  "__tests__/mainWireBaselineReferenceResearchV1.test.ts",
+  "__tests__/mainWireStandard71ExactConstructionV1.test.ts",
+  "__tests__/mainWireStandard71StudioBindingV1.test.ts",
+  "__tests__/mainWireSemilunarResistanceResearchV1.test.ts",
+  "__tests__/landFastWeakBridgeResearchV1.test.ts",
+  "__tests__/landPopulationMomentResearchV1.test.ts",
+  "__tests__/landPopulationMomentTangentResearchV1.test.ts",
+  "__tests__/populationMomentWallResearchV1.test.ts",
+  "__tests__/mainWirePopulationMomentResearchV1.test.ts",
+  "__tests__/mainWireEjectionShapeDiagnosticsV1.test.ts",
+  "__tests__/mainWireRelaxationTauV1.test.ts",
+  "__tests__/mainWireBaselinePressureFlowReadbackV1.test.ts",
+  "__tests__/mainWirePreloadReserveResearchScreenV2.test.ts",
+  "__tests__/mainWireRestingReferenceComparisonV1.test.ts",
+  "__tests__/mainWireProspectiveBaselineAdmissionV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",

@@ -642,6 +642,47 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       .toBeLessThan(1e-9);
   });
 
+  it.each([0, .5, 1])("uses the research Ao_SA inertance in the actual momentum balance (%s)", scale => {
+    const runtime = { ...RUNTIME, vascular: { ...RUNTIME.vascular,
+      aorticRootInertanceResearchScale: scale } };
+    const initial = createInitialNonCoronaryCirculationStateV1({ timeSec: 0,
+      runtime, ...coldSeedOwner(runtime) });
+    const dtSec = .001;
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial, dtSec, runtime,
+      evaluateCandidateMechanics: elasticMechanicsCallback(initial),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    const graph = buildNonCoronaryCirculationGraphV1();
+    for (const name of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
+      const edge = graph.edges[graph.edgeIndex.get(name)!];
+      const losses = baseNonValveEdgeLossV1(edge, runtime.losses);
+      const q = trial.candidateDynamicEdgeFlowsMlPerSec[name];
+      const delta = trial.nodeAbsolutePressuresMmHg[edge.up as keyof typeof trial.nodeAbsolutePressuresMmHg]
+        - trial.nodeAbsolutePressuresMmHg[edge.down as keyof typeof trial.nodeAbsolutePressuresMmHg];
+      const l = (edge.L ?? 0) * (name === "Ao_SA" ? scale : 1);
+      expect(Math.abs(l * (q - initial.dynamicEdgeFlowsMlPerSec[name]) / dtSec
+        + losses.resistanceMmHgSecPerMl * q
+        + losses.quadraticLossMmHgSec2PerMl2 * q * Math.abs(q) - delta)).toBeLessThan(1e-9);
+    }
+  });
+
+  it.each([-1, NaN, Infinity])("rejects invalid aortic inertance research scales (%s)", scale => {
+    const runtime = { ...RUNTIME, vascular: { ...RUNTIME.vascular,
+      aorticRootInertanceResearchScale: scale } };
+    expect(() => createInitialNonCoronaryCirculationStateV1({ timeSec: 0,
+      runtime, ...coldSeedOwner(RUNTIME) })).toThrow(/aorticRootInertanceResearchScale/);
+  });
+
+  it("rejects competing research and selected aortic root owners", () => {
+    const runtime = { ...RUNTIME, vascular: { ...RUNTIME.vascular,
+      aorticRootInertanceResearchScale: 1,
+      selectedAorticOutflowProfile: MAIN_WIRE_SELECTED_AORTIC_OUTFLOW_CIRCULATION_PROFILE_V1 } };
+    expect(() => createInitialNonCoronaryCirculationStateV1({ timeSec: 0,
+      runtime, ...coldSeedOwner(RUNTIME) })).toThrow(/another aortic root owner/);
+  });
+
   it("keeps omitted and explicitly undefined selected profiles exactly equivalent", () => {
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,

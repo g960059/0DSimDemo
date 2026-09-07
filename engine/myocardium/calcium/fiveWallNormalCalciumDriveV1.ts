@@ -91,10 +91,10 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1 = Object.freeze({
   }),
   ventricularTimingSource: Object.freeze({
     doi: "10.1016/j.yjmcc.2017.03.008" as const,
-    context: "Land-Coppini-intact-human-twitch-output" as const,
-    reportedTimeToPeakMs: 171,
-    reportedRelaxationTime50Ms: 122,
-    reportedRelaxationTime90Ms: 281,
+    context: "Land-2017-section-3.5-final-model-twitch-at-1Hz-not-organ-IRT" as const,
+    reportedTimeToPeakMs: 175,
+    reportedRelaxationTime50Ms: 121,
+    reportedRelaxationTime95Ms: 281,
   }),
   reconstruction:
     "two-exponential-component-metric-construction-not-measured-calcium-trace" as const,

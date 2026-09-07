@@ -1,15 +1,62 @@
 {
   "schemaVersion": 1,
   "registryId": "main-wire-normal-reference-evidence-v1",
-  "evaluationPolicyId": "main-wire-standard70-baseline-evaluation-roles-v1",
+  "evaluationPolicyId": "main-wire-standard70-baseline-evaluation-roles-v3",
   "observationMethodId": "main-wire-baseline-observation-v2",
   "sourceComparisonTiming": "retrospective-provenance-audit-not-original-cutoff-derivation",
+  "operatingTargetInterpretation": "Retained ET, pressures, indexed size, EF, CI and SVI are predeclared resting-baseline design targets. Failure means the intended operating point was not met, not physiological impossibility. Their source-specific observation limitations remain binding; no cross-modality universal normality is claimed.",
+  "referenceSubjectInterpretation": "BSA 1.9 m2 and sex-neutral synthetic anatomy do not identify age, sex or ethnicity. Conserved cavity blood volume is conceptually closer to anatomical segmentation excluding myocardial tissue from the blood pool than to smooth-contour volume that includes that tissue. This is an operator comparison, not a validated imaging-equivalence claim or permission to select the cohort that passes a candidate.",
+  "supplementalChecks": [{
+    "checkId": "left-ventricle.relaxation-tau",
+    "observationMethodId": "main-wire-lv-relaxation-tau-v1",
+    "evaluationRole": "reference-warning",
+    "measurementMeaning": "Intracavitary LV Weiss zero-asymptote time-weighted log-pressure fit, from minimum dP/dt interval midpoint after AVC to next EDP + 5 mmHg before MVO; Glantz derivative-pressure free-asymptote sensitivity fit reported separately.",
+    "requiredObservation": "Prospective v3 baseline assessment must contain an interpretable tau observation; unavailable or poor fit is unresolved analysis, not normality and not a disease diagnosis.",
+    "referenceSourceIds": ["nagueh-2025-lv-diastolic-function", "hirota-1980-lv-relaxation"],
+    "referenceUpperMs": 48,
+    "boundRationale": "ASE 2025 section 2/Table 1 calls >48 ms prolonged. Contextual warning only, no arbitrary normal lower bound and no transfer of that threshold to Glantz. Hirota reports 33 +/- 8 ms in 18 selected controls, using P0 / peak negative dP/dt, not this fitted observer; that cohort is not a normal interval.",
+    "qualityRationale": "Minimum window support and regression/residual limits are explicit provisional numerical fit-usability settings, not empirically established physiological limits. Both fits and the extrapolated Glantz pressure asymptote remain visible; neither may be selected for being closer to a target."
+  }],
   "claimScope": {
     "currentBaselineEvidenceRole": "construction",
     "finalConfirmationStatus": "unavailable",
     "reason": "Standard68/69 gates, Standard69 preload-reserve floors, and candidate outputs were inspected during model construction; no lineage-disjoint final evidence set has been frozen."
   },
   "sources": [
+    {
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "title": "Establishing reference values for central blood pressure and its amplification in a general healthy population and according to cardiovascular risk factors",
+      "year": 2014,
+      "identifiers": { "doi": "10.1093/eurheartj/ehu293" },
+      "verification": "primary-full-text-methods-and-results-checked",
+      "verificationScope": "Methods, Standardizing methodologies, and Tables 1-2 checked on 2026-09-07. Cuff-calibrated noninvasive cSBP differs from invasive intra-aortic pressure; Table 2 gives P10/P90, not 95% normal limits. Does not verify retained Ao-node bounds.",
+      "url": "https://academic.oup.com/eurheartj/article/35/44/3122/2293191"
+    },
+    {
+      "sourceId": "van-oort-1988-pulmonary-doppler",
+      "title": "Reference values for pulsed Doppler signals from the blood flow velocity on both sides of the pulmonary valve",
+      "year": 1988,
+      "identifiers": { "doi": "10.1093/oxfordjournals.eurheartj.a062515", "pmid": "3383877" },
+      "verification": "primary-abstract-population-and-method-checked-not-full-text",
+      "verificationScope": "215 healthy subjects aged 1-65; pulmonary artery and RVOT Doppler measurements. Adult ejection-time limits not verified; acceleration time or LV timing is not substituted.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3383877/"
+    },
+    {
+      "sourceId": "murgo-1980-human-aortic-waveforms",
+      "title": "Aortic input impedance in normal man: relationship to pressure wave forms",
+      "year": 1980,
+      "identifiers": { "doi": "10.1161/01.CIR.62.1.105", "pmid": "7379273" },
+      "verification": "author-institution-abstract-checked-not-full-text",
+      "url": "https://scholars.uthscsa.edu/es/publications/aortic-input-impedance-in-normal-man-relationship-to-pressure-wav/"
+    },
+    {
+      "sourceId": "kohli-2017-normalized-human-pv-loops",
+      "title": "The quest for load-independent left ventricular chamber properties: exploring the normalized pressure-volume loop",
+      "year": 2017,
+      "identifiers": { "doi": "10.14814/phy2.13160", "pmid": "28351966" },
+      "verification": "primary-full-text-methods-and-figures-4-5-checked",
+      "url": "https://physoc.onlinelibrary.wiley.com/doi/10.14814/phy2.13160"
+    },
     {
       "sourceId": "lang-2015-chamber-quantification",
       "title": "Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults: An Update from the American Society of Echocardiography and the European Association of Cardiovascular Imaging",
@@ -51,8 +98,26 @@
         "doi": "10.1186/1532-429X-14-51",
         "pmid": "22839436"
       },
-      "verification": "primary-source-metadata-checked",
+      "verification": "primary-full-text-methods-and-results-checked",
       "url": "https://link.springer.com/article/10.1186/1532-429X-14-51"
+    },
+    {
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "title": "Society for Cardiovascular Magnetic Resonance reference values (normal values) in cardiovascular magnetic resonance: 2025 update",
+      "year": 2025,
+      "identifiers": { "doi": "10.1016/j.jocmr.2025.101853", "pmcid": "PMC12159681" },
+      "verification": "primary-full-text-methods-and-results-checked",
+      "verificationScope": "Sections 2-4 and Tables 2, 3, 8, 9; anatomical versus smooth segmentation and pooled adult sex-specific intervals. No current gate endpoints are verified by this source comparison.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12159681/"
+    },
+    {
+      "sourceId": "raisi-estabragh-2024-hhc-anatomical-tables",
+      "title": "Cardiovascular Magnetic Resonance Reference Ranges From the Healthy Hearts Consortium: author-published anatomical segmentation tables",
+      "year": 2024,
+      "identifiers": { "doi": "10.1016/j.jcmg.2024.01.009", "pmid": "38613554" },
+      "verification": "author-published-tables-7-and-37-checked-not-full-article",
+      "verificationScope": "Full one-page source PDFs visually checked, including headers, age columns, units and N ranges. White men and women aged 40-49 are parallel illustrative comparisons, not the declared model subject or a new gate.",
+      "url": "https://healthy-hearts.org.uk/tables/"
     },
     {
       "sourceId": "barratt-boyes-wood-1958-healthy-hemodynamics",
@@ -104,7 +169,8 @@
         "doi": "10.1183/13993003.00879-2022",
         "pmid": "36028254"
       },
-      "verification": "primary-source-metadata-checked",
+      "verification": "primary-table-11-and-rhc-methods-checked",
+      "verificationScope": "Table 11 and section 5.1.12.1, European Heart Journal pp. 3646-3647. Passage verification does not establish the model operator mapping or support wider retained pressure bounds.",
       "url": "https://publications.ersnet.org/lookup/pmid/36028254"
     },
     {
@@ -258,20 +324,52 @@
       "groupId": "ventricular-pressure-morphology",
       "checkIds": [
         "waveform.LVP.single-peak-no-ringing",
+        "waveform.RVP.single-peak-no-ringing"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Algorithmic peak count, total variation and episode count of pressure during the associated semilunar-valve forward-flow episode.",
+      "changeReason": "Retain the artifact guards motivated by Standard65-to-68 ringing, separately from unvalidated contour reference corridors. This is a current-model construction requirement, not a claim that every healthy human trace has one peak.",
+      "analysisPartition": "objective",
+      "evaluationRole": "construction-guard",
+      "observationLimitations": "Prominence and variation depend on accepted sampling and the thresholded forward-flow episode. Real arterial reflection can produce a systolic shoulder or secondary rise; the current lumped model has no explicit propagation/reflection mechanism, so that observation does not explain its numerical or coupled-mode ringing.",
+      "evidenceGap": "No primary healthy-cohort distribution supports the exact peak-count or variation cutoffs. They remain transparent construction guards; no clinical normality follows from passing.",
+      "sourceComparisons": []
+    },
+    {
+      "groupId": "ventricular-pressure-contour-reference",
+      "checkIds": [
         "waveform.LVP.rounded-not-plateau",
-        "waveform.RVP.single-peak-no-ringing",
         "waveform.RVP.rounded-not-plateau"
       ],
       "evidenceRole": "construction",
       "thresholdBasis": "engineering-guess",
       "contextEvidenceIds": [],
-      "measurementMeaning": "Algorithmic peak, variation, and central-range summaries of pressure during the associated semilunar-valve forward-flow episode.",
-      "changeReason": "Reject obvious two-peak ringing and flat ejection plateaus observed during Standard65-to-68 construction.",
+      "measurementMeaning": "Central accepted-sample-index pressure range divided by full ejection pressure range, jointly with the first maximum's normalized sample index. The check reports peak index when that alone fails; it is not PV-loop curvature or a time-weighted shape measurement.",
+      "changeReason": "Demote the frozen central-range and peak-index corridors to descriptive warnings: no matched normal distribution supports the limits, and a single compound failure previously conflated late pressure peak with flatness. Numerical thresholds are not widened to admit a candidate.",
       "analysisPartition": "objective",
-      "evaluationRole": "construction-guard",
-      "observationLimitations": "Pressure-peak prominence, total variation, central pressure range and peak phase depend on the trace resolution and the selected semilunar forward-flow episode; they do not measure a clinical ventricular pressure contour classification.",
-      "evidenceGap": "No primary healthy-cohort distribution supports the exact peak-count, variation, central-range or peak-phase cutoffs. These remain construction choices made after observing earlier model artifacts.",
-      "sourceComparisons": []
+      "evaluationRole": "reference-warning",
+      "observationLimitations": "Sample-index phase is not elapsed-time phase on nonuniform accepted steps. Pressure versus time and pressure versus volume have different curvature because ejection flow varies. Resolution, pressure loading and the selected episode affect these summaries; RV and LV cannot be assigned the same physiological contour solely by analogy.",
+      "evidenceGap": "No matched healthy LV or RV reference interval was identified for centralRangeFraction 0.08-0.35 or peakPhase01 0.2-0.8. These values remain visible warnings, not independent scientific validation or permission to accept unexplained ringing.",
+      "sourceComparisons": [
+        {
+          "sourceId": "murgo-1980-human-aortic-waveforms",
+          "locator": "Author-institution abstract; ascending aortic pressure waveform groups",
+          "targetPopulation": "18 elective catheterization patients in whom no heart disease was found; not a population reference sample.",
+          "observationMeaning": "Simultaneous ascending aortic pressure and flow; early versus late systolic pressure, not the model's ventricular central-range or peak-index fractions.",
+          "sourceRange": "Late greater than early in 7, nearly equal in 7, early greater than late in 4.",
+          "comparisonToChosenBounds": "Demonstrates aortic contour diversity and reflection-related interpretation, but supplies no numeric cutoff for LV/RV roundness and does not justify reflection-like oscillation in this model."
+        },
+        {
+          "sourceId": "kohli-2017-normalized-human-pv-loops",
+          "locator": "Methods; Tables 1 and 4; Figures 4-5, PDF pp. 6-7",
+          "targetPopulation": "13 catheterization subjects selected for normal LV function, sinus rhythm and valves; 9 had hypertension. This is not a strictly healthy normative cohort.",
+          "observationMeaning": "Simultaneous Millar conductance-catheter LV pressure/volume sampled at 250 Hz; observed inter- and intra-subject PV contours.",
+          "sourceRange": null,
+          "comparisonToChosenBounds": "The displayed contours vary, including a relatively flat upper limb (visual inference, not digitized statistics). No central-range, ejection peak-phase or PV-curvature normal interval was reported."
+        }
+      ]
     },
     {
       "groupId": "aortic-valve-gradient",
@@ -358,9 +456,9 @@
       "thresholdBasis": "engineering-guess",
       "contextEvidenceIds": [],
       "measurementMeaning": "Ratio of peak native mitral forward volume flow in early and atrial filling windows anchored to the observed atrial-capture event.",
-      "changeReason": "Provide a broad diastolic safety sentinel without claiming a clinical Doppler measurement.",
+      "changeReason": "Retain the recorded corridor as context only: native volumetric E/A is not Doppler velocity E/A. Positive resolved waves remain required; no numeric widening or candidate-specific target change.",
       "analysisPartition": "objective",
-      "evaluationRole": "physiological-target",
+      "evaluationRole": "reference-warning",
       "observationLimitations": "Volume-flow peaks are not leaflet-tip Doppler velocities; varying effective valve area can change their ratio. A complete post-capture inlet closure and identifiable E/A windows are required, and age, rhythm, HR and loading affect interpretation.",
       "evidenceGap": "The fixed corridor is provisional, not an age-specific Doppler normal interval. Better event anchoring does not remove the flow-versus-velocity observation mismatch.",
       "sourceComparisons": [
@@ -385,9 +483,9 @@
       "thresholdBasis": "engineering-guess",
       "contextEvidenceIds": [],
       "measurementMeaning": "ICT from exact MV closure to AoV zero-flow opening, IRT from exact AoV closure to MV zero-flow opening, and (ICT + IRT) divided by the matched aortic ejection duration.",
-      "changeReason": "Detect compensation that improves one ejection output by distorting coupled systolic-diastolic timing.",
+      "changeReason": "Demote method-mismatched ICT/IRT/Tei corridors to context; retain complete ordered hydraulic events, positivity and exact Tei arithmetic. ET remains an explicitly chosen baseline operating target, not proof of a population-normal timing pattern.",
       "analysisPartition": "objective",
-      "evaluationRole": "physiological-target",
+      "evaluationRole": "reference-warning",
       "observationLimitations": "Closure landmarks and trace-interpolated openings must describe one complete beat. Tei is algebraically linked to ICT, IRT and the separately checked ejection time, so these are not independent constraints.",
       "evidenceGap": "The intervals remain provisional hydraulic timing targets. Matching some published endpoints does not establish a measurement-equivalence study or historical source derivation.",
       "sourceComparisons": [
@@ -535,6 +633,24 @@
           "observationMeaning": "1.5 T SSFP CMR with LV papillary muscles included in mass; mean +/- 2 SD.",
           "sourceRange": "Men: EDVi 57-105, ESVi 14-38 mL/m2, EF 57-77%; women: 56-96, 14-34, 57-77%.",
           "comparisonToChosenBounds": "The chosen corridor is not a CMR normal interval and can exclude source-normal EDVi or EF while admitting much lower volumes."
+        },
+        {
+          "sourceId": "kawel-boehm-2025-scmr-reference-values",
+          "locator": "Sections 2-3; Table 2 (papillary muscles/trabeculations in mass)",
+          "targetPopulation": "Pooled healthy adult CMR cohorts, sex-specific and mixed ages; not an age-40-49 or single joint population interval.",
+          "observationMeaning": "Short-axis bSSFP anatomical cavity volumes; random-effects aggregation with reference-limit estimation. Myocardial tissue is excluded from the blood pool; imaging events and spatial segmentation are not reproduced by a 0D cavity.",
+          "sourceRange": "Men: EDVi 46-104, ESVi 11-41 mL/m2, EF 53-79%; women: 46-91, 11-34, 55-80%.",
+          "thresholdVerification": "context-only",
+          "comparisonToChosenBounds": "An updated, method-declared comparison, not support for the retained cross-modality endpoints or a demographic assignment to the synthetic model."
+        },
+        {
+          "sourceId": "raisi-estabragh-2024-hhc-anatomical-tables",
+          "locator": "Author website Table 37 (men) and Table 7 (women), 40-49-year column, LV rows",
+          "targetPopulation": "Illustrative same-study White adults aged 40-49; variable-dependent N 378-447 men and 458-518 women. Neither stratum is assigned to the model.",
+          "observationMeaning": "CMR anatomical segmentation, BSA-indexed volumes and EF; both ventricles can be compared in the same stratum without joining different modalities.",
+          "sourceRange": "Men: EDVi 51-102, ESVi 13-40 mL/m2, EF 53-77%; women: 49-88, 13-33, 56-78%.",
+          "thresholdVerification": "context-only",
+          "comparisonToChosenBounds": "Retain both comparisons rather than selecting the sex that admits the candidate; no new gate or joint-95-percent normality claim."
         }
       ]
     },
@@ -572,6 +688,24 @@
           "observationMeaning": "1.5 T SSFP CMR with RV trabeculations and papillary muscles in the cavity; mean +/- 2 SD.",
           "sourceRange": "Men: EDVi 61-121, ESVi 19-59 mL/m2, EF 52-72%; women: 48-112, 12-52, 51-71%.",
           "comparisonToChosenBounds": "Chosen volume bounds exclude substantial CMR-normal values; the 3D-echo corridor cannot be called a broad cross-modality RV normal interval."
+        },
+        {
+          "sourceId": "kawel-boehm-2025-scmr-reference-values",
+          "locator": "Sections 2 and 4; Table 8 (papillary muscles/trabeculations in mass), not smooth-segmentation Table 9",
+          "targetPopulation": "Pooled healthy adult CMR cohorts, sex-specific and mixed ages. Constituent cohorts differ from LV Table 2; marginal limits do not define a joint healthy subject.",
+          "observationMeaning": "Short-axis bSSFP anatomical RV cavity volume with myocardial tissue excluded from blood volume; event, geometric and segmentation correspondence to 0D remains approximate.",
+          "sourceRange": "Men: EDVi 49-117, ESVi 12-56 mL/m2, EF 44-77%; women: 47-99, 11-43, 49-77%.",
+          "thresholdVerification": "context-only",
+          "comparisonToChosenBounds": "This uses the anatomical RV counterpart of the LV comparison. Do not substitute age-specific smooth-contour RV rows or retroactively replace old check bounds."
+        },
+        {
+          "sourceId": "raisi-estabragh-2024-hhc-anatomical-tables",
+          "locator": "Author website Table 37 (men) and Table 7 (women), 40-49-year column, RV rows",
+          "targetPopulation": "Illustrative same-study White adults aged 40-49; variable-dependent N 378-447 men and 458-518 women. Neither stratum is assigned to the model.",
+          "observationMeaning": "CMR anatomical segmentation and BSA indexation, same subject strata and measurement convention as the LV comparison.",
+          "sourceRange": "Men: EDVi 61-118, ESVi 21-55 mL/m2, EF 44-71%; women: 53-97, 17-42, 49-73%.",
+          "thresholdVerification": "context-only",
+          "comparisonToChosenBounds": "Provides a coherent same-study alternative for future prospective design. BSA1.9 alone does not select either column, and the current upper EDVi bound is not verified by this study."
         }
       ]
     },
@@ -604,9 +738,12 @@
         },
         {
           "sourceId": "carlsson-2012-cmr-cardiac-output",
+          "coveredCheckIds": ["systemic-forward-flow.cardiac-index", "systemic-forward-flow.stroke-volume-index"],
+          "thresholdVerification": "context-only",
+          "thresholdRationale": "Methods and healthy-group results checked in full text on 2026-09-06. These are cohort summaries, not direct verification of the retained construction endpoints; passage verification alone must not qualify those endpoints.",
           "locator": "Methods; healthy-group results and age analysis",
           "targetPopulation": "144 healthy nonathletic adults, 68 women, ages 21-81 (mean 39 +/- 16) years; BMI <=30, no cardiovascular disease or medication.",
-          "observationMeaning": "Supine free-breathing ascending-aortic phase-contrast CMR; signed whole-cycle flow integrated for SV, Mosteller BSA.",
+          "observationMeaning": "Supine free-breathing ascending-aortic phase-contrast CMR at pulmonary-bifurcation level, distal to coronary origins; signed whole-cycle flow integrated for SV, Mosteller BSA. The paper attributes expected Qp/Qs around 1.04 to coronary flow of 3-5 percent, so absence of regurgitation alone does not equate this plane to native AoV output.",
           "sourceRange": "CI 3.2 +/- 0.5 L/min/m2; SVI 51 +/- 7 mL/m2 (mean +/- SD).",
           "comparisonToChosenBounds": "The chosen SVI interval is close to, but not identical to, a calculated mean +/- 2 SD interval of 37-65. Such a calculation is not a published universal normal cutoff."
         }
@@ -688,9 +825,9 @@
       "thresholdBasis": "engineering-guess",
       "contextEvidenceIds": [],
       "measurementMeaning": "Ratio of peak native tricuspid forward volume flow in early and atrial filling windows anchored to the observed atrial-capture event.",
-      "changeReason": "Record the existing Standard70 inflow-ratio corridor without claiming a clinical Doppler measurement.",
+      "changeReason": "Demote the native tricuspid flow-ratio corridor to context because Doppler velocity and respiratory averaging are different observations; resolved positive filling waves remain required.",
       "analysisPartition": "right-heart-sentinel",
-      "evaluationRole": "physiological-target",
+      "evaluationRole": "reference-warning",
       "observationLimitations": "Requires identifiable windows and an observed post-capture inlet closure. Volume-flow peaks do not equal Doppler velocities if effective valve area changes; respiration, HR, rhythm, age and loading remain relevant.",
       "evidenceGap": "The numerical corridor resembles a guideline Doppler interval but remains provisional for the native-flow observer; the source upper endpoint is exclusive whereas the frozen gate is inclusive.",
       "sourceComparisons": [
@@ -715,9 +852,9 @@
       "thresholdBasis": "engineering-guess",
       "contextEvidenceIds": [],
       "measurementMeaning": "ICT from exact TV closure to PV zero-flow opening, IRT from exact PV closure to TV zero-flow opening, and (ICT + IRT) divided by the matched pulmonary ejection duration.",
-      "changeReason": "Record the existing Standard70 event-timing corridors while retaining their construction origin and observation mismatch.",
+      "changeReason": "Demote the unsupported hydraulic right ICT/IRT/Tei numeric corridors to context. Ordered complete valve events and algebraic consistency remain mandatory; a short RV isovolumic phase is not automatically pathological.",
       "analysisPartition": "right-heart-sentinel",
-      "evaluationRole": "physiological-target",
+      "evaluationRole": "reference-warning",
       "observationLimitations": "One complete valve-event sequence is required. Tei is algebraically linked to ICT, IRT and the separately checked pulmonary ET; PW-Doppler, TDI and hydraulic timings are different observations.",
       "evidenceGap": "No primary source was identified for the chosen joint ICT/IRT/Tei corridors. The source below supplies method-specific context, not equivalent normal intervals; all three remain provisional physiological targets.",
       "sourceComparisons": [

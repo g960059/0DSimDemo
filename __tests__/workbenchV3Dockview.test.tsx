@@ -90,6 +90,7 @@ import {
 import { WorkbenchMobileStageDeckV3 } from "@/components/workbench/WorkbenchMobileStageDeckV3";
 import { WorkbenchSimulationInfoPanelV3 } from "@/components/workbench/WorkbenchSimulationInfoV3";
 import {
+  registeredBaselineMorphologyPresentationV1,
   registeredBaselinePressureRatePresentationV1,
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
@@ -852,6 +853,21 @@ describe("V3 Dockview Workbench", () => {
     expect(registeredBaselinePressureRatePresentationV1(report!, "right")).toEqual({
       status: "reference", detailKey: "workbench.editor.simulationInfo.baselineRvDpDtDetail",
     });
+  });
+
+  it("does not present a new-policy contour warning as a required rounded-waveform pass", () => {
+    const report = structuredClone(selectedLaunchBaseline.validationReport);
+    expect(registeredBaselineMorphologyPresentationV1(report as never, "LVP")).toEqual({
+      status: undefined, valueKey: "workbench.editor.simulationInfo.baselineSingleRounded",
+      detailKey: "workbench.editor.simulationInfo.baselineMorphologyDetail",
+    });
+    report.assessment.policyId = "main-wire-standard70-baseline-evaluation-roles-v2";
+    report.checks.find(c => c.checkId === "waveform.LVP.rounded-not-plateau")!.status = "failed";
+    expect(registeredBaselineMorphologyPresentationV1(report as never, "LVP")).toEqual({
+      status: "warning", valueKey: "workbench.editor.simulationInfo.baselineSinglePeak",
+      detailKey: "workbench.editor.simulationInfo.baselineMorphologyReferenceDetail",
+    });
+    expect(registeredBaselineMorphologyPresentationV1(report as never, "RVP").status).toBe("reference");
   });
 
   it("keeps pane binding quiet for one Scenario and content-sized for comparison", () => {

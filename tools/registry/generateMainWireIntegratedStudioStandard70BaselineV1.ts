@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertRegisteredFittingReferenceEvidenceReadyV1 } from "./assertFittingReferenceEvidenceV1";
 
 import {
   qualifyMainWireIntegratedModelFormalPreloadReserveV1,
@@ -39,6 +40,9 @@ const sourceCheckpoint = cloneAndFreezeStudioJson(
   standard69CheckpointJsonV1,
 ) as unknown as MainWireIntegratedModelStandard68CheckpointV1;
 
+// Do not spend time qualifying or overwrite the registered baseline when its
+// gate evidence is still a draft. This does not restrict research runs.
+assertRegisteredFittingReferenceEvidenceReadyV1("baseline");
 const startedAt = performance.now();
 const qualification =
   await qualifyMainWireIntegratedModelStandard70BaselineV1(sourceCheckpoint);

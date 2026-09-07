@@ -27,7 +27,18 @@ import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import { studioCanonicalJsonStringify } from "@/domain/json/CanonicalJson";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
-import { MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
+import { mainWireBaselineGateRoleUnderPolicyV1 } from "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
+
+export function registeredBaselineReferencePresentationV1(
+  report: NonNullable<ReturnType<typeof resolveRegisteredExactModelBaselineValidationV1>>, ids: readonly string[],
+) {
+  const advisory = "assessment" in report && report.assessment !== undefined
+    && ids.every(id => mainWireBaselineGateRoleUnderPolicyV1(id, report.assessment!.policyId) === "reference-warning");
+  return { status: !advisory ? undefined : report.checks.some(c => ids.includes(c.checkId) && c.status === "failed")
+    ? "warning" as const : "reference" as const,
+    detailKey: advisory ? "workbench.editor.simulationInfo.baselineMethodReferenceDetail" as const
+      : "workbench.editor.simulationInfo.baselineRangeDetail" as const };
+}
 
 const ROUNDED_EJECTION_BASELINE_VALIDATION_V1 =
   validateMainWireIntegratedStudioRoundedEjectionBaselineValidationV1(
@@ -74,7 +85,8 @@ export function registeredBaselinePressureRatePresentationV1(
   side: "left" | "right",
 ) {
   const referenceOnly = "assessment" in report
-    && report.assessment?.policyId === MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID;
+    && report.assessment !== undefined
+    && mainWireBaselineGateRoleUnderPolicyV1(`${side}-ventricle.maximum-dpdt`, report.assessment.policyId) === "reference-warning";
   const failed = report.checks.some((check) =>
     [`${side}-ventricle.maximum-dpdt`, `${side}-ventricle.minimum-dpdt`].includes(check.checkId)
     && check.status === "failed");
@@ -85,5 +97,24 @@ export function registeredBaselinePressureRatePresentationV1(
         : "workbench.editor.simulationInfo.baselineHistoricalLvDpDtDetail" as const
       : referenceOnly ? "workbench.editor.simulationInfo.baselineRvDpDtDetail" as const
         : "workbench.editor.simulationInfo.baselineHistoricalRvDpDtDetail" as const,
+  });
+}
+
+/** Ringing remains a construction guard; contour is advisory only in the
+ * report's newer policy. Do not show a contour warning as 'single and rounded'. */
+export function registeredBaselineMorphologyPresentationV1(
+  report: NonNullable<ReturnType<typeof resolveRegisteredExactModelBaselineValidationV1>>,
+  side: "LVP" | "RVP",
+) {
+  const id = `waveform.${side}.rounded-not-plateau`;
+  const referenceOnly = "assessment" in report && report.assessment !== undefined
+    && mainWireBaselineGateRoleUnderPolicyV1(id, report.assessment.policyId) === "reference-warning";
+  const failed = report.checks.some(check => check.checkId === id && check.status === "failed");
+  return Object.freeze({
+    status: referenceOnly ? failed ? "warning" as const : "reference" as const : undefined,
+    valueKey: referenceOnly ? "workbench.editor.simulationInfo.baselineSinglePeak" as const
+      : "workbench.editor.simulationInfo.baselineSingleRounded" as const,
+    detailKey: referenceOnly ? "workbench.editor.simulationInfo.baselineMorphologyReferenceDetail" as const
+      : "workbench.editor.simulationInfo.baselineMorphologyDetail" as const,
   });
 }

@@ -1041,14 +1041,28 @@ function morphologyRoundnessCheckV1(
   const policy =
     MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1
       .pressureMorphology;
-  const passed =
+  const centralRangePassed =
     measurement.centralRangeFraction >= policy.minimumCentralRangeFraction &&
-    measurement.centralRangeFraction <= policy.maximumCentralRangeFraction &&
+    measurement.centralRangeFraction <= policy.maximumCentralRangeFraction;
+  const peakPhasePassed =
     measurement.peakPhase01 >= policy.minimumPeakPhase01 &&
     measurement.peakPhase01 <= policy.maximumPeakPhase01;
+  // The compound guard must report the component that actually failed. A late
+  // peak is not a flat central plateau; reporting the passing central range
+  // makes a rejection appear to be "inside" its own bounds.
+  if (centralRangePassed && !peakPhasePassed) {
+    return Object.freeze({
+      checkId,
+      status: "failed" as const,
+      actual: measurement.peakPhase01,
+      minimum: policy.minimumPeakPhase01,
+      maximum: policy.maximumPeakPhase01,
+      unit: "ejection-peak-phase-fraction",
+    });
+  }
   return Object.freeze({
     checkId,
-    status: passed ? "passed" as const : "failed" as const,
+    status: centralRangePassed && peakPhasePassed ? "passed" as const : "failed" as const,
     actual: measurement.centralRangeFraction,
     minimum: policy.minimumCentralRangeFraction,
     maximum: policy.maximumCentralRangeFraction,
@@ -1087,10 +1101,19 @@ function boundedCheckV1(
   maximum: number,
   unit: string,
 ): MainWireIntegratedModelBaselineValidationCheckV1 {
-  const status = Number.isFinite(actual) && actual >= minimum && actual <= maximum
+  const status = mainWireBaselineRangeIncludesWithRoundoffV1(actual, minimum, maximum)
     ? "passed" as const
     : "failed" as const;
   return Object.freeze({ checkId, status, actual, minimum, maximum, unit });
+}
+
+/** Subtracting late accepted clocks can put an exact 240 ms duration a few
+ * hundred ULPs below 0.24. Keep the original measurement and bounds; this
+ * roundoff-only comparison is far below the millisecond discretization error. */
+export function mainWireBaselineRangeIncludesWithRoundoffV1(actual: number, minimum: number, maximum: number): boolean {
+  if (![actual, minimum, maximum].every(Number.isFinite) || minimum > maximum) return false;
+  const tolerance = 1024 * Number.EPSILON * Math.max(1, Math.abs(actual), Math.abs(minimum), Math.abs(maximum));
+  return actual >= minimum - tolerance && actual <= maximum + tolerance;
 }
 
 function requirePositiveFiniteV1(value: number, label: string): number {

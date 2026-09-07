@@ -20,6 +20,7 @@ import { sha256CanonicalJsonHex } from "@/engine/integrity";
 import { mainWireBaselineCheckBlocksV1 } from
   "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import { evaluateMainWireBaselinePressureRateQualityV1 } from "./MainWireBaselinePressureRateQualityV1";
+import { measureMainWireRelaxationTauV1, assertMainWireRelaxationTauMeasuredV1, assertMainWireRelaxationTraceReviewedV1 } from "./MainWireRelaxationTauV1";
 
 /** Prospective analysis seam: old extractors are never prerequisites for V2. */
 export const observeMainWireStandard70TimingAndInletV2: MainWireIntegratedModelStandard70TimingAndInletObserverV1 =
@@ -44,6 +45,8 @@ export async function qualifyMainWireStandard70BaselineAssessmentV2(
     }));
   const failed = qualification.checks.filter(mainWireBaselineCheckBlocksV1);
   if (failed.length) throw new Error(`Current baseline assessment rejected: ${failed.map(x => x.checkId).join(", ")}`);
+  assertMainWireRelaxationTauMeasuredV1(qualification.relaxationTau);
+  assertMainWireRelaxationTraceReviewedV1(qualification.relaxationTau);
   const fine = await evaluateMainWireIntegratedModelStandard70CandidateV1({ ...candidate,
     timingAndInletObserver: observeMainWireStandard70TimingAndInletV2,
     nominalDtSec: qualification.nominalDtSec / 2,
@@ -67,6 +70,8 @@ export function observeMainWireStandard70QualificationV2(
     samples: mainWireStandard70TimingAndInletObservationTraceV1(qualification), completedBeat,
   });
   const projected = projectTimingAndInletV2(observation);
+  const relaxationTau = measureMainWireRelaxationTauV1(
+    mainWireStandard70TimingAndInletObservationTraceV1(qualification), observation.left.events);
   const measurements = Object.freeze({
     ...qualification.measurements,
     aorticValve: Object.freeze({ ...qualification.measurements.aorticValve,
@@ -84,6 +89,7 @@ export function observeMainWireStandard70QualificationV2(
     checks: buildMainWireIntegratedModelStandard70BaselineChecksV1(
       measurements, qualification.classification.status === "period1-converged"),
     observation,
+    relaxationTau,
     sourceObservation: Object.freeze({
       measurements: qualification.measurements,
       checks: qualification.checks,

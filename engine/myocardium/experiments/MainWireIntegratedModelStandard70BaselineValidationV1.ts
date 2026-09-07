@@ -3,6 +3,7 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedModelBeatMetricsV3";
 import {
   buildMainWireIntegratedModelBaselineValidationChecksV1,
+  mainWireBaselineRangeIncludesWithRoundoffV1,
   countMainWireIntegratedModelSignificantPressurePeaksV1,
   measureMainWireIntegratedModelBaselineVentricularTimingAndInletFlowV1,
   validateAndOwnMainWireIntegratedModelBaselineTimingAndInletObservationV1,
@@ -356,9 +357,7 @@ function rightRangeCheckV1(
   return Object.freeze({
     checkId,
     status:
-      Number.isFinite(actual)
-        && actual >= range.minimum
-        && actual <= range.maximum
+      mainWireBaselineRangeIncludesWithRoundoffV1(actual, range.minimum, range.maximum)
         ? "passed" as const
         : "failed" as const,
     actual,

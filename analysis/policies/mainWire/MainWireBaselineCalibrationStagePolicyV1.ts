@@ -33,6 +33,7 @@ export const MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1 = Object.freeze({
   qualificationOnlyGroupIds: Object.freeze([
     "settlement",
     "ventricular-pressure-morphology",
+    "ventricular-pressure-contour-reference",
     "aortic-valve-gradient",
     "aortic-ejection-time",
     "left-ventricular-pressure-rate",
@@ -55,7 +56,7 @@ export const MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1 = Object.freeze({
     + "load and rate perturbations retain condition-specific directional "
     + "or safety roles rather than becoming fitted target centres.",
   gateRetention:
-    "all-source-gates-remain-mandatory-before-and-after-fit" as const,
+    "source-blocking-gates-and-reference-warnings-retained-before-and-after-fit" as const,
   envelopeGateEvaluation:
     "condition-specific-source-constraint-role" as const,
   reportedToleranceCompositions: Object.freeze([

@@ -32,6 +32,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_BASELINE_VALIDATION_POLICY_V1,
   buildMainWireIntegratedModelBaselineValidationChecksV1,
   countMainWireIntegratedModelSignificantPressurePeaksV1,
+  mainWireBaselineRangeIncludesWithRoundoffV1,
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import {
@@ -66,12 +67,42 @@ const pressureCheckIds = Object.freeze([
 ] as const);
 
 describe("baseline construction and calibration gates", () => {
+  it("reports a late ejection peak separately from a flat central pressure range without relaxing the guard", () => {
+    const measured = normalMeasurementsV1();
+    const check = (centralRangeFraction: number, peakPhase01: number) =>
+      buildMainWireIntegratedModelBaselineValidationChecksV1({ ...measured,
+        LVP: { ...measured.LVP, centralRangeFraction, peakPhase01 } }, true)
+        .find(c => c.checkId === "waveform.LVP.rounded-not-plateau")!;
+    expect(check(.23, .8).status).toBe("passed");
+    expect(check(.23, .8008298755186722)).toMatchObject({ status: "failed",
+      actual: .8008298755186722, minimum: .2, maximum: .8,
+      unit: "ejection-peak-phase-fraction" });
+    expect(check(.02, .5)).toMatchObject({ status: "failed",
+      actual: .02, minimum: .08, maximum: .35, unit: "fraction" });
+    expect(check(.02, .81).status).toBe("failed");
+  });
+  it("keeps boundary roundoff separate from real physiological or discretization deviations", () => {
+    expect(mainWireBaselineRangeIncludesWithRoundoffV1(0.23999999999995225, .24, .34)).toBe(true);
+    expect(mainWireBaselineRangeIncludesWithRoundoffV1(.24 - 1e-10, .24, .34)).toBe(false);
+    expect(mainWireBaselineRangeIncludesWithRoundoffV1(.239, .24, .34)).toBe(false);
+    expect(mainWireBaselineRangeIncludesWithRoundoffV1(.34 + 1e-10, .24, .34)).toBe(false);
+    expect(mainWireBaselineRangeIncludesWithRoundoffV1(Infinity, .24, .34)).toBe(false);
+    const measured = normalMeasurementsV1();
+    const exactBoundary = { ...measured, aorticValve: { ...measured.aorticValve,
+      ejectionTimeSec: 0.23999999999995225 } };
+    const check = buildMainWireIntegratedModelBaselineValidationChecksV1(exactBoundary, true)
+      .find(c => c.checkId === "aortic-valve.ejection-time")!;
+    expect(check.status).toBe("passed");
+    expect(check.actual).toBe(exactBoundary.aorticValve.ejectionTimeSec);
+    expect(check.minimum).toBe(.24);
+  });
   it("binds all 41 Standard70 checks to measured evidence, evaluation roles and the unchanged numerical policy digest", async () => {
     const sourceIds = normalReferenceEvidenceV1.sources.map(({ sourceId }) =>
       sourceId);
     expect(new Set(sourceIds).size).toBe(sourceIds.length);
     for (const source of normalReferenceEvidenceV1.sources) {
-      expect(source.verification).toBe("primary-source-metadata-checked");
+      expect(["primary-source-metadata-checked", "author-institution-abstract-checked-not-full-text",
+        "primary-full-text-methods-and-figures-4-5-checked", "primary-full-text-methods-and-results-checked"]).toContain(source.verification);
       expect(source.title.trim()).not.toBe("");
       expect(new URL(source.url).protocol).toBe("https:");
       expect(
@@ -114,7 +145,7 @@ describe("baseline construction and calibration gates", () => {
     expect(new Set(coveredCheckIds).size).toBe(coveredCheckIds.length);
     expect([...coveredCheckIds].sort()).toEqual([...currentCheckIds].sort());
     expect(normalReferenceEvidenceV1.evaluationPolicyId)
-      .toBe("main-wire-standard70-baseline-evaluation-roles-v1");
+      .toBe("main-wire-standard70-baseline-evaluation-roles-v3");
     expect(normalReferenceEvidenceV1.observationMethodId)
       .toBe("main-wire-baseline-observation-v2");
     expect(normalReferenceEvidenceV1.sourceComparisonTiming)
@@ -161,16 +192,27 @@ describe("baseline construction and calibration gates", () => {
     expect(checksWithRole("reference-warning")).toEqual([
       "left-ventricle.maximum-dpdt",
       "left-ventricle.minimum-dpdt",
+      "mitral-flow.peak-e-to-a",
+      "right-timing.ict",
+      "right-timing.irt",
+      "right-timing.tei-index",
       "right-ventricle.maximum-dpdt",
       "right-ventricle.minimum-dpdt",
+      "timing.ict",
+      "timing.irt",
+      "timing.tei-index",
+      "tricuspid-flow.peak-e-to-a",
+      "waveform.LVP.rounded-not-plateau",
+      "waveform.RVP.rounded-not-plateau",
     ]);
     expect(checksWithRole("numerical-quality")).toEqual(["settlement.period1"]);
     expect(checksWithRole("construction-guard")).toEqual(
       currentCheckIds.filter((checkId) =>
-        checkId.startsWith("waveform.") || checkId.endsWith("-gradient"))
+        (checkId.startsWith("waveform.") && !checkId.endsWith(".rounded-not-plateau"))
+        || checkId.endsWith("-gradient"))
         .sort(),
     );
-    expect(checksWithRole("physiological-target")).toHaveLength(24);
+    expect(checksWithRole("physiological-target")).toHaveLength(16);
 
     expect(normalReferenceEvidenceV1.claimScope).toEqual({
       currentBaselineEvidenceRole: "construction",

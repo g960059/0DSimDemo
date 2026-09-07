@@ -794,7 +794,7 @@ function scaledVentricularLandTrefForScale(
   );
 }
 
-function scaledWallLandTrefForScaleV1(
+export function scaledWallLandTrefForScaleV1(
   baseline: Land2017SourceParameterSet,
   identitySuffix: string,
   scale: number,

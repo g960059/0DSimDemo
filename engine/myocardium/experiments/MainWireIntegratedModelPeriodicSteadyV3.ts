@@ -1,4 +1,6 @@
 import { createMainWireCoronaryDiseaseInputV2 } from "@/engine/coronary/MainWireCoronaryDiseaseResearchInputsV2";
+import type { WholeHeartMechanicsProviderV1 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import type { MainWireFiveWallFreeCalciumDriveV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import { NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
@@ -403,6 +405,15 @@ type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<WallState>;
 export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
 >;
+
+/** Cycle scheduling and circulation checks do not inspect material state. */
+export type MainWireIntegratedModelCycleFixtureV3<TMaterialState> = Pick<
+  MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  "rhythm" | "profile" | "config" | "dynamicMechanicalSupport" | "cycleLengthSec"
+> & Readonly<{
+  coronaryStepInput: MainWireIntegratedModelStepInputV3["coronary"];
+  provider: WholeHeartMechanicsProviderV1<TMaterialState, MainWireFiveWallFreeCalciumDriveV1>;
+}>;
 
 type MainWireIntegratedModelCheckpointFixtureViewV3 = Readonly<
   Pick<
@@ -954,11 +965,11 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
   });
 }
 
-export type MainWireIntegratedModelRegularSinusAllOffCycleRunV3 = Readonly<{
+export type MainWireIntegratedModelRegularSinusAllOffCycleRunV3<TMaterialState = WallState> = Readonly<{
   startTimeSec: number;
   endTimeSec: number;
   acceptedStepCount: number;
-  terminalAcceptedState: AcceptedState;
+  terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<TMaterialState>;
   traceSamples: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
   coronaryAutoregulationWindow: MainWireIntegratedModelPeriodicSteadyCycleV3["coronaryAutoregulationWindow"];
   acceptedAtrialCaptureIds: readonly string[];
@@ -1253,13 +1264,13 @@ export function alignMainWireIntegratedModelRegularSinusAllOffCandidateV3(
  * already accepted coronary-window boundary. Unlike the cold-start experiment
  * loop, the boundary may occur at any absolute accepted time/window index.
  */
-export function runMainWireIntegratedModelRegularSinusAllOffCycleV3(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
-  initial: AcceptedState,
+export function runMainWireIntegratedModelRegularSinusAllOffCycleV3<TMaterialState>(
+  fixture: MainWireIntegratedModelCycleFixtureV3<TMaterialState>,
+  initial: MainWireIntegratedModelAcceptedStateV3<TMaterialState>,
   cycleIndex: number,
   nominalDtSec: number,
-  acceptedStepObserver?: (step: SuccessfulStep) => void,
-): MainWireIntegratedModelRegularSinusAllOffCycleRunV3 {
+  acceptedStepObserver?: (step: MainWireIntegratedModelStepSuccessV3<TMaterialState>) => void,
+): MainWireIntegratedModelRegularSinusAllOffCycleRunV3<TMaterialState> {
   assertPeriodicNominalDtSec(nominalDtSec);
   if (!Number.isSafeInteger(cycleIndex) || cycleIndex < 1) {
     throw new Error("V3 periodic cycle index must be a positive integer");
@@ -1557,7 +1568,7 @@ function traceSample(
   cycleStartTimeSec: number,
   cycleLengthSec: number,
   acceptedDtSec: number,
-  stepped: SuccessfulStep,
+  stepped: MainWireIntegratedModelStepSuccessV3<unknown>,
 ): MainWireIntegratedModelPeriodicTerminalTraceSampleV3 {
   const base = stepped.coronaryStep.baseStep;
   const circulation = base.circulationTrial;
@@ -1799,7 +1810,7 @@ function allOffBinding(deviceId: RotarySupportDeviceIdV1, digit: string) {
 }
 
 function stepInput(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  fixture: Pick<MainWireIntegratedModelCycleFixtureV3<unknown>, "coronaryStepInput" | "rhythm" | "dynamicMechanicalSupport">,
   candidateTimeSec: number,
 ): MainWireIntegratedModelStepInputV3 {
   return Object.freeze({
@@ -1954,7 +1965,7 @@ function assertAllOffConfig(config: MechanicalSupportConfigV1): void {
   }
 }
 
-function assertAllOffAcceptedQ(state: AcceptedState): void {
+function assertAllOffAcceptedQ(state: MainWireIntegratedModelAcceptedStateV3<unknown>): void {
   if (
     !Object.values(state.dynamicMechanicalSupport.acceptedFlowMlPerSec).every(
       (value) => value === 0,

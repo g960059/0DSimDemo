@@ -53,9 +53,7 @@ describe("fixed rounded-ejection construction V1", () => {
 
   it("has a single rounded LV ejection episode with normal raw LV-Ao gradient and timing", () => {
     const fixture = createMainWireIntegratedModelRoundedEjectionFixtureV1();
-    const cycleFixture = fixture as unknown as Parameters<
-      typeof runMainWireIntegratedModelRegularSinusAllOffCycleV3
-    >[0];
+    const cycleFixture = fixture;
     let accepted = fixture.cold.acceptedState;
     let trace: readonly Sample[] = [];
     for (let cycleIndex = 1; cycleIndex <= 12; cycleIndex += 1) {

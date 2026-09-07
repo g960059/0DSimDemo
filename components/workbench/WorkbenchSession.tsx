@@ -93,6 +93,7 @@ import {
   newExperimentHref,
 } from "@/homeLinks";
 import { isLocale } from "@/localeRouting";
+import { standard71BaselineInfoV1 } from "@/studio/presentation/modelDocumentation/MainWireBaselineDocumentationV1";
 import {
   resolveRegisteredModelDisclosureV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
@@ -101,7 +102,9 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_QUALIFIED_BASELINE_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import {
+  registeredBaselineMorphologyPresentationV1,
   registeredBaselinePressureRatePresentationV1,
+  registeredBaselineReferencePresentationV1,
   resolveRegisteredExactModelBaselineValidationV1,
 } from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 import {
@@ -506,11 +509,20 @@ export const WorkbenchSession = ({
     : registeredBaselinePressureRatePresentationV1(baselineValidation, "left");
   const baselineRightPressureRatePresentation = baselineValidation === null ? null
     : registeredBaselinePressureRatePresentationV1(baselineValidation, "right");
+  const baselineLeftMorphologyPresentation = baselineValidation === null ? null
+    : registeredBaselineMorphologyPresentationV1(baselineValidation, "LVP");
+  const baselineRightMorphologyPresentation = baselineValidation === null ? null
+    : registeredBaselineMorphologyPresentationV1(baselineValidation, "RVP");
+  const baselineTau = baselineValidation !== null && "assessment" in baselineValidation
+    ? baselineValidation.assessment?.relaxationTau : undefined;
+  const baselineReference = (ids: readonly string[]) => registeredBaselineReferencePresentationV1(baselineValidation!, ids);
   const standard70Measurements = baselineValidation !== null
       && "pulmonaryValve" in baselineValidation.measurements
     ? baselineValidation.measurements
     : null;
-  const baselineValidationPresentation = baselineValidation === null
+  const standard71BaselinePresentation = standard71BaselineInfoV1(contract?.modelId,
+    surfaceReleaseIdRef.current, initialBaselineFixtureRef.current, isLocale(locale) ? locale : "en");
+  const baselineValidationPresentation = standard71BaselinePresentation ?? (baselineValidation === null
     ? undefined
     : Object.freeze({
         summary: t(
@@ -520,29 +532,33 @@ export const WorkbenchSession = ({
         items: Object.freeze([
           Object.freeze({
             itemId: "lvp-morphology",
+            status: baselineLeftMorphologyPresentation!.status,
             label: t("workbench.editor.simulationInfo.baselineLvp"),
-            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            value: t(baselineLeftMorphologyPresentation!.valueKey),
             detail: t(
-              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              baselineLeftMorphologyPresentation!.detailKey,
               {
                 peaks:
                   baselineValidation.measurements.LVP.significantPeakCount,
                 roundness: baselineValidation.measurements.LVP
                   .centralRangeFraction.toFixed(3),
+                peakPhase: baselineValidation.measurements.LVP.peakPhase01.toFixed(3),
               },
             ),
           }),
           Object.freeze({
             itemId: "rvp-morphology",
+            status: baselineRightMorphologyPresentation!.status,
             label: t("workbench.editor.simulationInfo.baselineRvp"),
-            value: t("workbench.editor.simulationInfo.baselineSingleRounded"),
+            value: t(baselineRightMorphologyPresentation!.valueKey),
             detail: t(
-              "workbench.editor.simulationInfo.baselineMorphologyDetail",
+              baselineRightMorphologyPresentation!.detailKey,
               {
                 peaks:
                   baselineValidation.measurements.RVP.significantPeakCount,
                 roundness: baselineValidation.measurements.RVP
                   .centralRangeFraction.toFixed(3),
+                peakPhase: baselineValidation.measurements.RVP.peakPhase01.toFixed(3),
               },
             ),
           }),
@@ -586,17 +602,32 @@ export const WorkbenchSession = ({
             ),
           }),
           Object.freeze({
+            itemId: "lv-relaxation-tau",
+            status: baselineTau?.referenceStatus === "above-reference" ? "warning" as const : "reference" as const,
+            label: "LV τ (Weiss)",
+            value: baselineTau?.status === "measured" ? `${baselineTau.weiss!.tauMs.toFixed(1)} ms` : "—",
+            detail: baselineTau?.status === "measured"
+              ? t("workbench.editor.simulationInfo.baselineTauDetail", {
+                r2: baselineTau.weiss!.rSquared.toFixed(3),
+                glantz: baselineTau.sensitivityStatus === "measured" ? baselineTau.glantz!.tauMs.toFixed(1)
+                  : t("workbench.editor.simulationInfo.baselineTauSensitivityUnavailable"),
+                asymptote: baselineTau.sensitivityStatus === "measured" ? baselineTau.glantz!.asymptoteMmHg.toFixed(1) : "—",
+              }) : t("workbench.editor.simulationInfo.baselineTauNotAssessed"),
+          }),
+          Object.freeze({
             itemId: "mitral-ea",
+            status: baselineReference(["mitral-flow.peak-e-to-a"]).status,
             label: "Mitral E/A",
             value: baselineValidation.measurements.mitralFlow.peakEToA
               .toFixed(2),
             detail: t(
-              "workbench.editor.simulationInfo.baselineRangeDetail",
+              baselineReference(["mitral-flow.peak-e-to-a"]).detailKey,
               { range: "0.8–2.0" },
             ),
           }),
           Object.freeze({
             itemId: "ict-irt",
+            status: baselineReference(["timing.ict", "timing.irt"]).status,
             label: "LV ICT / IRT",
             value: `${Math.round(
               baselineValidation.measurements.timing.ictSec * 1_000,
@@ -604,16 +635,17 @@ export const WorkbenchSession = ({
               baselineValidation.measurements.timing.irtSec * 1_000,
             )} ms`,
             detail: t(
-              "workbench.editor.simulationInfo.baselineIctIrtDetail",
+              baselineReference(["timing.ict", "timing.irt"]).detailKey,
               { range: "ICT 20–70 / IRT 59–134 ms" },
             ),
           }),
           Object.freeze({
             itemId: "tei-index",
+            status: baselineReference(["timing.tei-index"]).status,
             label: "LV Tei index",
             value: baselineValidation.measurements.timing.teiIndex.toFixed(2),
             detail: t(
-              "workbench.editor.simulationInfo.baselineRangeDetail",
+              baselineReference(["timing.tei-index"]).detailKey,
               { range: "0.29–0.65" },
             ),
           }),
@@ -652,16 +684,18 @@ export const WorkbenchSession = ({
                 }),
                 Object.freeze({
                   itemId: "tricuspid-ea",
+                  status: baselineReference(["tricuspid-flow.peak-e-to-a"]).status,
                   label: "Tricuspid E/A",
                   value: standard70Measurements.tricuspidFlow.peakEToA
                     .toFixed(2),
                   detail: t(
-                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    baselineReference(["tricuspid-flow.peak-e-to-a"]).detailKey,
                     { range: "0.8–2.0" },
                   ),
                 }),
                 Object.freeze({
                   itemId: "right-ict-irt-tei",
+                  status: baselineReference(["right-timing.ict", "right-timing.irt", "right-timing.tei-index"]).status,
                   label: "RV ICT / IRT · Tei",
                   value: `${Math.round(
                     standard70Measurements.rightTiming.ictSec * 1_000,
@@ -670,7 +704,7 @@ export const WorkbenchSession = ({
                   )} ms · ${standard70Measurements.rightTiming.teiIndex
                     .toFixed(2)}`,
                   detail: t(
-                    "workbench.editor.simulationInfo.baselineRangeDetail",
+                    baselineReference(["right-timing.ict", "right-timing.irt", "right-timing.tei-index"]).detailKey,
                     { range: "ICT 20–90 / IRT 30–120 ms · Tei 0.25–0.65" },
                   ),
                 }),
@@ -831,7 +865,7 @@ export const WorkbenchSession = ({
             ),
           }),
         ]),
-      });
+      }));
 
   React.useEffect(() => {
     translationRef.current = t;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1,
   evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
@@ -16,6 +17,15 @@ import {
 } from "@/engine/myocardium/calcium/MainWireVentricularCalciumSourceFitAnchorV1";
 
 describe("five-wall normal prescribed calcium drive V1", () => {
+  it("distinguishes the paper's final 1Hz twitch RT95 from RT90 and organ relaxation", () => {
+    const source = FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1.ventricularTimingSource;
+    expect(source.doi).toBe("10.1016/j.yjmcc.2017.03.008");
+    expect(source.context).toBe("Land-2017-section-3.5-final-model-twitch-at-1Hz-not-organ-IRT");
+    expect(source.reportedTimeToPeakMs).toBe(175);
+    expect(source.reportedRelaxationTime50Ms).toBe(121);
+    expect(source.reportedRelaxationTime95Ms).toBe(281);
+    expect(source).not.toHaveProperty("reportedRelaxationTime90Ms");
+  });
   it("is periodic, finite, and exactly shared within each tissue class", () => {
     const first = evaluateFiveWallNormalCalciumDriveV1(0.137);
     const nextCycle = evaluateFiveWallNormalCalciumDriveV1(1.137);

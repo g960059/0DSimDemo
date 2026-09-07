@@ -36,6 +36,10 @@ import {
   type MainWireFourValveDiseaseResearchInputV1,
 } from "@/engine/valves/MainWireFourValveDiseaseResearchBracketsV1";
 import {
+  resolveMainWireSemilunarResistanceResearchParametersV1,
+  type MainWireSemilunarResistanceResearchV1,
+} from "@/engine/valves/MainWireSemilunarResistanceResearchV1";
+import {
   stepMainWireAorticRecoveredRootPortValveScalarsV1,
   type MainWireAorticRecoveredRootPortValveEvaluationV1,
 } from "@/engine/valves/MainWireAorticRecoveredRootPortValveV1";
@@ -244,6 +248,8 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   respiratory: RespiratoryPressureParameterViewV1;
   /** Explicit even for normal, so numeric identity and provenance cannot diverge. */
   valveResearchInput: MainWireFourValveDiseaseResearchInputV1;
+  /** Research construction only; never an override of the canonical valve prior. */
+  semilunarResistanceResearch?: MainWireSemilunarResistanceResearchV1;
 }>;
 
 /**
@@ -2672,6 +2678,10 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   const valveEvaluations = candidatePage.valveEvaluations;
   const valveStates = candidatePage.valveStates;
   const valveResearchInput = input.runtime.valveResearchInput;
+  const effectiveValveParameters = input.runtime.semilunarResistanceResearch === undefined
+    ? valveResearchInput.valves
+    : resolveMainWireSemilunarResistanceResearchParametersV1(
+      valveResearchInput, input.runtime.semilunarResistanceResearch);
   const flows = candidatePage.edgeFlowsMlPerSec;
   const dynamicFlows = candidatePage.dynamicEdgeFlowsMlPerSec;
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex += 1) {
@@ -2710,7 +2720,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
               input.dtSec,
               upstreamPressure,
               downstreamPressure,
-              valveResearchInput.valves[valveName],
+              effectiveValveParameters[valveName],
             );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
@@ -4522,6 +4532,14 @@ function validateRuntimeOnceV1(
 ): void {
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
+  const aorticInertanceScale = runtime.vascular.aorticRootInertanceResearchScale;
+  if (aorticInertanceScale !== undefined) {
+    requireNonnegative(aorticInertanceScale, "aorticRootInertanceResearchScale");
+    if (runtime.vascular.selectedAorticOutflowProfile !== undefined
+      || runtime.vascular.algebraicProximalArterialRootsProfile !== undefined) {
+      throw new Error("aortic root inertance research cannot override another aortic root owner");
+    }
+  }
   const selectedAorticOutflowProfile =
     runtime.vascular.selectedAorticOutflowProfile;
   if (selectedAorticOutflowProfile !== undefined) {
@@ -4587,6 +4605,13 @@ function validateRuntimeOnceV1(
   );
   if (valveIssues.length > 0) {
     throw new Error(`invalid valveResearchInput: ${valveIssues.join("; ")}`);
+  }
+  if (runtime.semilunarResistanceResearch !== undefined) {
+    if (selectedAorticOutflowProfile !== undefined) {
+      throw new Error('semilunar resistance research has no selected-aortic-profile compatibility decision');
+    }
+    resolveMainWireSemilunarResistanceResearchParametersV1(
+      runtime.valveResearchInput, runtime.semilunarResistanceResearch);
   }
 }
 
@@ -5076,6 +5101,11 @@ function nonCoronaryDynamicEdgeInertanceV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   areaRatio: number,
 ): number {
+  if (edgeName === "Ao_SA" && runtime.vascular.aorticRootInertanceResearchScale !== undefined) {
+    return (edge.L ?? 0) * runtime.vascular.aorticRootInertanceResearchScale / (
+      edge.useChiResistance ? Math.max(areaRatio, 1e-6) : 1
+    );
+  }
   const algebraicRoots = runtime.vascular
     .algebraicProximalArterialRootsProfile;
   if (

@@ -27,7 +27,7 @@ export type MainWireCoronaryMechanicsCouplingEvaluationV1 = Readonly<{
   commonPericardialExcessPressureMmHg: number;
   source: Readonly<{
     chamberPressure: "same-candidate-five-wall-transmural-pressure";
-    activeStress: "same-candidate-land-active-kirchhoff-stress-only";
+    activeStress: "same-candidate-active-kirchhoff-stress-only";
     passiveAndSlsStressIncludedInActiveStressTerm: false;
     epicardialExternalPressure:
       "common-intrathoracic-plus-common-pericardial-excess";
@@ -50,7 +50,8 @@ export type MainWireCoronaryNumericalMechanicsInputV1 = Readonly<{
 
 /**
  * Typed bridge from a ready main-wire Land/TriSeg cold or trial evaluation to
- * the coronary IMP law. It intentionally reads Land active stress only. Passive
+ * the coronary IMP law. It reads active stress only, including the explicitly
+ * identified research moment material. Passive
  * equilibrium and SLS overstress already contribute to chamber mechanics and
  * must not be counted a second time as an empirical vascular squeeze term.
  */
@@ -154,7 +155,7 @@ export function evaluateMainWireCoronaryNumericalMechanicsCouplingV1(
       chamberPressure:
         "same-candidate-five-wall-transmural-pressure" as const,
       activeStress:
-        "same-candidate-land-active-kirchhoff-stress-only" as const,
+        "same-candidate-active-kirchhoff-stress-only" as const,
       passiveAndSlsStressIncludedInActiveStressTerm: false as const,
       epicardialExternalPressure:
         "common-intrathoracic-plus-common-pericardial-excess" as const,
@@ -379,12 +380,13 @@ function landActiveStressPa(
   wallId: "LVFW" | "SEP" | "RVFW",
 ): number {
   const record = objectValue(value, `${wallId} material readback`);
-  if (record.adapterId !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID) {
+  const researchMoment = record.modelId === "population-moment-wall-research-v1";
+  if (!researchMoment && record.adapterId !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID) {
     throw new Error(`${wallId} coronary coupling requires normal-adult Land material readback`);
   }
   const stress = finiteValue(
     `${wallId}.landActiveKirchhoffStressPa`,
-    record.landActiveKirchhoffStressPa,
+    researchMoment ? record.activeKirchhoffStressPa : record.landActiveKirchhoffStressPa,
   );
   if (stress < 0) {
     throw new RangeError(`${wallId} Land active stress must be non-negative`);

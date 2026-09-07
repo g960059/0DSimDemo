@@ -40,6 +40,20 @@ function trial(
 }
 
 describe("main-wire coronary mechanics coupling", () => {
+  it("accepts only the declared research-moment readback and never uses total stress as active squeeze", () => {
+    const t = trial({ LVFW: 120000, SEP: 95000, RVFW: 42000 });
+    const readback = t.diagnostics.readback as { wallMaterialReadbackByWall: Record<string, unknown> };
+    const wall = { modelId: "population-moment-wall-research-v1", activeKirchhoffStressPa: 123,
+      totalKirchhoffStressPa: 999999, passiveKirchhoffStressPa: 999876, slsOverstressPa: 0 };
+    readback.wallMaterialReadbackByWall.LVFW = wall;
+    const input = { commonIntrathoracicPressureMmHg: 0, commonPericardialExcessPressureMmHg: 0 };
+    expect(evaluateMainWireCoronaryMechanicsCouplingV1(t, input).input.landActiveFiberStressPaByWall.LVFW).toBe(123);
+    wall.modelId = "unknown-material";
+    expect(() => evaluateMainWireCoronaryMechanicsCouplingV1(t, input)).toThrow(/readback/);
+    wall.modelId = "population-moment-wall-research-v1";
+    wall.activeKirchhoffStressPa = -1;
+    expect(() => evaluateMainWireCoronaryMechanicsCouplingV1(t, input)).toThrow(/non-negative/);
+  });
   it("uses same-candidate transmural pressure and Land active stress only", () => {
     const result = evaluateMainWireCoronaryMechanicsCouplingV1(
       trial({ LVFW: 120_000, SEP: 95_000, RVFW: 42_000 }),
@@ -59,7 +73,7 @@ describe("main-wire coronary mechanics coupling", () => {
     });
     expect(result.source).toEqual({
       chamberPressure: "same-candidate-five-wall-transmural-pressure",
-      activeStress: "same-candidate-land-active-kirchhoff-stress-only",
+      activeStress: "same-candidate-active-kirchhoff-stress-only",
       passiveAndSlsStressIncludedInActiveStressTerm: false,
       epicardialExternalPressure:
         "common-intrathoracic-plus-common-pericardial-excess",

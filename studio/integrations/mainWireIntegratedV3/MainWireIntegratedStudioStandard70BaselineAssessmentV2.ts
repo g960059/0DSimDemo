@@ -11,6 +11,8 @@ import { observeMainWireStandard70QualificationV2 } from
   "@/analysis/methods/mainWire/MainWireStandard70BaselineAssessmentV2";
 import { MAIN_WIRE_BASELINE_OBSERVATION_V2_ID } from
   "@/analysis/methods/mainWire/MainWireBaselineObservationV2";
+import { assertMainWireRelaxationTauMeasuredV1, assertMainWireRelaxationTraceReviewedV1, type MainWireRelaxationTauV1 } from
+  "@/analysis/methods/mainWire/MainWireRelaxationTauV1";
 import { assertMainWireBaselinePressureRateQualityV1,
   type MainWireBaselinePressureRateQualityV1 } from
   "@/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1";
@@ -20,7 +22,8 @@ import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import { canonicalJsonStringify } from "@/engine/integrity";
 import { MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID, assertMainWireBaselineCheckCoverageV1,
-  mainWireBaselineCheckBlocksV1, mainWireBaselineCheckWarnsV1 } from
+  mainWireBaselineCheckBlocksUnderPolicyV1, mainWireBaselineCheckWarnsUnderPolicyV1,
+  mainWireBaselineCheckWarnsV1 } from
   "@/analysis/policies/mainWire/MainWireBaselineGateRolesV1";
 import {
   MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1_ID,
@@ -75,6 +78,8 @@ export type MainWireIntegratedStudioStandard70BaselineAssessmentV2 = Omit<
     observationMethodId: typeof MAIN_WIRE_BASELINE_OBSERVATION_V2_ID;
     referenceWarningCheckIds: readonly string[];
     pressureRateQuality: MainWireBaselinePressureRateQualityV1;
+    /** Required by prospective policy v3, absent in historically admitted reports. */
+    relaxationTau?: MainWireRelaxationTauV1;
   }>;
 }>;
 
@@ -133,6 +138,7 @@ export function buildMainWireIntegratedStudioStandard70BaselineValidationV2(
       referenceWarningCheckIds: Object.freeze(qualification.checks
         .filter(mainWireBaselineCheckWarnsV1).map(({ checkId }) => checkId)),
       pressureRateQuality,
+      relaxationTau: qualification.relaxationTau,
     }),
   });
   validateCurrentAssessmentV1(report);
@@ -192,21 +198,25 @@ export function validateMainWireIntegratedStudioStandard70BaselineAssessmentV2(
   return input as MainWireIntegratedStudioStandard70BaselineAssessmentV2;
 }
 
-function assertCurrentChecksV1(checks: readonly MainWireIntegratedModelStandard70BaselineCheckV1[]): void {
+function assertCurrentChecksV1(checks: readonly MainWireIntegratedModelStandard70BaselineCheckV1[],
+  policyId = MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID): void {
   assertMainWireBaselineCheckCoverageV1(checks);
-  const failed = checks.filter(mainWireBaselineCheckBlocksV1);
+  const failed = checks.filter(check => mainWireBaselineCheckBlocksUnderPolicyV1(check, policyId));
   if (failed.length) throw new Error(`Standard70 baseline assessment rejected: ${failed.map((x) => `${x.checkId}=${x.actual}`).join("; ")}`);
 }
 
 function validateCurrentAssessmentV1(report: MainWireIntegratedStudioStandard70BaselineAssessmentV2): void {
   const reserve = report.preloadReserve;
   const assessment = report.assessment!;
+  if (assessment.policyId === MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID) {
+    assertMainWireRelaxationTauMeasuredV1(assessment.relaxationTau);
+    assertMainWireRelaxationTraceReviewedV1(assessment.relaxationTau!);
+  }
   assertMainWireBaselinePressureRateQualityV1(assessment.pressureRateQuality);
-  const expectedWarnings = report.checks.filter(mainWireBaselineCheckWarnsV1).map(({ checkId }) => checkId);
+  const expectedWarnings = report.checks.filter(check => mainWireBaselineCheckWarnsUnderPolicyV1(check, assessment.policyId)).map(({ checkId }) => checkId);
   const near = (a: number, b: number) => Number.isFinite(a) && Number.isFinite(b)
     && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-  if (assessment.policyId !== MAIN_WIRE_BASELINE_GATE_ROLES_V1_ID
-    || assessment.observationMethodId !== MAIN_WIRE_BASELINE_OBSERVATION_V2_ID
+  if (assessment.observationMethodId !== MAIN_WIRE_BASELINE_OBSERVATION_V2_ID
     || JSON.stringify(assessment.referenceWarningCheckIds) !== JSON.stringify(expectedWarnings)
     || !(report.nominalDtSec > 0) || !Number.isFinite(report.nominalDtSec)
     || !Number.isSafeInteger(report.completedCycleCount) || report.completedCycleCount < 3
@@ -258,5 +268,5 @@ function validateCurrentAssessmentV1(report: MainWireIntegratedStudioStandard70B
       (report.measurements.rightTiming.ictSec + report.measurements.rightTiming.irtSec) / report.measurements.pulmonaryValve.ejectionTimeSec)) {
     throw new Error("Standard70 current baseline assessment is invalid");
   }
-  assertCurrentChecksV1(report.checks);
+  assertCurrentChecksV1(report.checks, assessment.policyId);
 }

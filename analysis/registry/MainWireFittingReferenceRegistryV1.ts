@@ -1,5 +1,6 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
+import { MAIN_WIRE_BASELINE_GATE_PROVENANCE_V1 } from "./MainWireBaselineGateProvenanceV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
@@ -32,6 +33,8 @@ export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
   baseline: Object.freeze({
     referenceId: "baseline" as const,
     label: "baseline" as const,
+    gateProvenance: MAIN_WIRE_BASELINE_GATE_PROVENANCE_V1,
+    evidenceAdmissionRequired: true as const,
     target: Object.freeze({
       kind: "construction-corridors" as const,
       evidenceRegistryId: normalReferenceEvidenceV1.registryId,
