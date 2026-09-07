@@ -190,6 +190,13 @@ export type MainWireSystolicPressureEnvelopeV1 = Readonly<{
   completionStatus: "progressive" | "complete";
   sourcePointCount: number;
   excludedPointCount: number;
+  /** One marker at each admitted load's observed minimum V. Its pressure is
+   * evaluated on the envelope (including interpolation), not a raw landmark. */
+  loadSupportPoints: readonly (MainWireIntegratedModelPeriodicPvaCurvePointV1 & Readonly<{
+    minimumVolumeSourceTotalBloodVolumeMl: number;
+    timeSinceAtrialCaptureSec: number;
+    sourceTotalBloodVolumeRangeMl: readonly [number, number];
+  }>)[];
   segments: readonly (readonly (MainWireIntegratedModelPeriodicPvaCurvePointV1 &
     Readonly<{
       timeSinceAtrialCaptureSec: number;
@@ -462,20 +469,24 @@ export function buildMainWireSystolicPressureEnvelopeV1(
     if (last && lo <= last[1]) last[1] = Math.max(last[1], hi);
     else coverage.push([lo, hi]);
   }
+  const envelopeAtVolume = (volumeMl: number): Point | null => {
+    let winner: Point | null = null;
+    for (const cell of cells) {
+      const peak = maximumPressureInLoadTimeCellV1(cell.start, cell.end, volumeMl);
+      if (peak && (!winner || peak.pressureMmHg > winner.pressureMmHg)) {
+        winner = Object.freeze({ volumeMl, pressureMmHg: peak.pressureMmHg,
+          timeSinceAtrialCaptureSec: cell.timeRange[0] + peak.timeFraction * (cell.timeRange[1] - cell.timeRange[0]),
+          sourceTotalBloodVolumeRangeMl: Object.freeze(cell.tbvRange) });
+      }
+    }
+    return winner;
+  };
   const segments: Point[][] = [];
   for (const [lo, hi] of coverage) {
     let segment: Point[] = [];
     for (let i = 0; i <= CURVE_SAMPLE_COUNT_V1; i += 1) {
       const volumeMl = lo + (hi - lo) * i / CURVE_SAMPLE_COUNT_V1;
-      let winner: Point | null = null;
-      for (const cell of cells) {
-        const peak = maximumPressureInLoadTimeCellV1(cell.start, cell.end, volumeMl);
-        if (peak && (!winner || peak.pressureMmHg > winner.pressureMmHg)) {
-          winner = Object.freeze({ volumeMl, pressureMmHg: peak.pressureMmHg,
-            timeSinceAtrialCaptureSec: cell.timeRange[0] + peak.timeFraction * (cell.timeRange[1] - cell.timeRange[0]),
-            sourceTotalBloodVolumeRangeMl: Object.freeze(cell.tbvRange) });
-        }
-      }
+      const winner = envelopeAtVolume(volumeMl);
       if (winner) segment.push(winner);
       else {
         if (segment.length > 1) segments.push(segment);
@@ -485,6 +496,13 @@ export function buildMainWireSystolicPressureEnvelopeV1(
     if (segment.length > 1) segments.push(segment);
   }
   if (segments.length === 0) return null;
+  const loadSupportPoints = runs.flatMap((points) => points.flatMap((point) => {
+    const volumeMl = Math.min(...point.ventricularPressureVolumeLoop.map((sample) => sample.volumeMl));
+    if (!segments.some((segment) => volumeMl >= segment[0]!.volumeMl && volumeMl <= segment.at(-1)!.volumeMl)) return [];
+    const envelope = envelopeAtVolume(volumeMl);
+    return envelope ? [Object.freeze({ ...envelope,
+      minimumVolumeSourceTotalBloodVolumeMl: point.totalBloodVolumeMl })] : [];
+  }));
   return Object.freeze({
     method: "settled-full-load-phasewise-pressure-envelope-v1" as const,
     pressureBasis: "transmural" as const,
@@ -494,6 +512,7 @@ export function buildMainWireSystolicPressureEnvelopeV1(
     completionStatus: locus.completedPointCount >= locus.totalPointCount ? "complete" : "progressive",
     sourcePointCount: runs.reduce((sum, points) => sum + points.length, 0),
     excludedPointCount,
+    loadSupportPoints: Object.freeze(loadSupportPoints),
     segments: Object.freeze(segments.map((points) => Object.freeze(points))),
   });
 }

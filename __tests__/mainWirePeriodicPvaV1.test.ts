@@ -35,6 +35,7 @@ import {
   drawWorkbenchPvHighLoadIsochroneV1,
   drawWorkbenchPvaAreasV1,
   drawWorkbenchDiastolicLoadRelationV1,
+  drawWorkbenchSystolicLoadRelationV1,
 } from "@/components/workbench/presentation/PressureVolumeLoopCanvasV3";
 import {
   materializeWorkbenchOutputPresentationItemsV3,
@@ -129,9 +130,14 @@ describe("settled hot-start PVA V1", () => {
     expect(JSON.stringify(input)).toBe(before);
     const context = Object.fromEntries(["save","restore","setLineDash","beginPath","moveTo","lineTo","stroke","arc","fill"]
       .map(method => [method,vi.fn()])) as unknown as CanvasRenderingContext2D;
+    const fills: number[] = [], lines: number[] = [];
+    vi.mocked(context.fill).mockImplementation(() => { fills.push(context.globalAlpha); });
+    vi.mocked(context.stroke).mockImplementation(() => { lines.push(context.lineWidth); });
     drawWorkbenchDiastolicLoadRelationV1(context,result,v=>v,p=>p,"#d9822b",1,"#0b1720");
     expect(context.fill).toHaveBeenCalledTimes(3);
-    expect(context.setLineDash).toHaveBeenCalledWith([1, 3]);
+    expect(context.setLineDash).toHaveBeenCalledWith([4, 3]);
+    expect(fills).toEqual([0.55, 0.55, 0.55]);
+    expect(lines[0]).toBe(1.3);
     expect(context.strokeStyle).toBe("#0b1720");
     expect(vi.mocked(context.moveTo).mock.calls).toEqual([coordinates[0]!]);
     expect(vi.mocked(context.lineTo).mock.calls).toEqual(coordinates.slice(1));
@@ -180,6 +186,21 @@ describe("settled hot-start PVA V1", () => {
     expect(result.segments[0]!.at(-1)!.volumeMl).toBe(80);
     expect(result.volumeDomain).toBe("observed-minimum-volume-range");
     expect(result.displayExtrapolation).toBe("none");
+    expect(result.loadSupportPoints.map(({volumeMl, pressureMmHg}) => [volumeMl, pressureMmHg]))
+      .toEqual([[40, 40], [60, 80], [80, 120]]);
+    expect(result.loadSupportPoints.map((p) => p.minimumVolumeSourceTotalBloodVolumeMl))
+      .toEqual(points.map((p) => p.totalBloodVolumeMl));
+    const context = Object.fromEntries(["save","restore","setLineDash","beginPath","moveTo","lineTo","stroke","arc","fill"]
+      .map(method => [method,vi.fn()])) as unknown as CanvasRenderingContext2D;
+    const fills: number[] = [], lines: number[] = [];
+    vi.mocked(context.fill).mockImplementation(() => { fills.push(context.globalAlpha); });
+    vi.mocked(context.stroke).mockImplementation(() => { lines.push(context.lineWidth); });
+    drawWorkbenchSystolicLoadRelationV1(context,result,v=>v,p=>p,"#d9822b",1,"#0b1720");
+    expect(vi.mocked(context.arc).mock.calls.map(([v,p]) => [v,p])).toEqual([[40,40],[60,80],[80,120]]);
+    expect(fills).toEqual([0.55, 0.55, 0.55]); // Per load, not per interpolation vertex.
+    expect(context.setLineDash).toHaveBeenCalledWith([4, 3]);
+    expect(lines[0]).toBe(1.3);
+    expect(context.strokeStyle).toBe("#0b1720");
   });
 
   it("finds an interior load/time maximum rather than missing it on a coarse phase grid", () => {
@@ -199,6 +220,15 @@ describe("settled hot-start PVA V1", () => {
     const u = (-48 + Math.sqrt(2304 + 32 * (20 * v - 12))) / 16;
     expect(u).toBeGreaterThan(0); expect(u).toBeLessThan(1);
     expect(point.pressureMmHg).toBeCloseTo((v - u) * (4 + 8 * u) / (3 + u), 10);
+    // At the second load's minimum V, the envelope can peak between retained
+    // times and loads. Its dot is support provenance, not a raw ES landmark.
+    expect(result.loadSupportPoints).toHaveLength(2);
+    const support = result.loadSupportPoints[1]!;
+    expect(support.volumeMl).toBe(13);
+    expect(support.minimumVolumeSourceTotalBloodVolumeMl).toBe(points[1]!.totalBloodVolumeMl);
+    expect(support.sourceTotalBloodVolumeRangeMl).toEqual(points.map((p) => p.totalBloodVolumeMl));
+    expect(support.pressureMmHg).toBeGreaterThan(4);
+    expect(support.pressureMmHg).toBeCloseTo(result.segments[0]!.at(-1)!.pressureMmHg, 10);
     // Subdividing the same linear paths cannot move this maximum.
     const subdivided = points.map((p) => ({ ...p,
       ventricularPressureVolumeLoop: p.ventricularPressureVolumeLoop.flatMap((a, i, loop) => {
@@ -237,6 +267,11 @@ describe("settled hot-start PVA V1", () => {
     expect(result.segments).toHaveLength(2);
     expect(result.segments[0]!.at(-1)!.volumeMl).toBeLessThan(result.segments[1]![0]!.volumeMl);
     expect(result.sourcePointCount).toBe(source.points.length - result.excludedPointCount);
+    expect(result.loadSupportPoints).toHaveLength(result.sourcePointCount);
+    expect(result.loadSupportPoints.some((point) =>
+      point.minimumVolumeSourceTotalBloodVolumeMl === p.totalBloodVolumeMl)).toBe(false);
+    for (const point of result.loadSupportPoints) expect(result.segments.some((segment) =>
+      point.volumeMl >= segment[0]!.volumeMl && point.volumeMl <= segment.at(-1)!.volumeMl)).toBe(true);
   });
 
   it("does not hide measured load relations when PVA timing is unavailable, and does not relabel them as its energy boundary", () => {
