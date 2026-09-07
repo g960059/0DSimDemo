@@ -101,7 +101,31 @@ publication boundary are unchanged.
   index omission. None of the new policy/review files was reported. Those
   historical files were not rewritten or imported into the production branch.
 
-## Remaining
+## First remote CI and bounded harness repair
+
+Run34166864438 on ca98df0e passed build, retained70 integrity, DB policy tests,
+fast tests, browser smoke and the deterministic72 admission command. The72
+test job passed37/38 tests; its real update-path test exceeded Vitest's existing
+5s wall guard (7.184s on the shared Linux runner). This was not a failed
+numerical equality or scientific corridor. Generic deep assertions traversed
+the approximately2.5MB artifact byte by byte as object properties.
+
+The follow-up commit929cf610 replaces only those typed-array assertions with native
+`Buffer.equals`, still comparing every byte exactly, and does the same for
+each accepted-state byte array in the1000-tick uninterrupted/restore test.
+No step, equality condition, numerical tolerance or timeout budget is removed
+or relaxed. Locally the admission17-test body falls from4.265s to1.347s, and
+the long continuation test from23.976s to3.828s. The25 targeted tests pass in
+5.55s wall time. This is test-harness speed, not a simulation/fitting speed claim.
+The follow-up [CI run34167346649](https://github.com/g960059/0DSimDemo/actions/runs/34167346649)
+on929cf610 passed all9 jobs, including the required aggregate gate.72 admission
+completed in3m27s, retained70 integrity in27s, Workbench smoke in3m53s, and the
+existing fast/snapshot lane in4m5s. These durations include runner setup and
+are not controlled performance comparisons. The first failed run remains in
+history. The implementation worktree is clean; publication/defaults and main
+are unchanged.
+
+## Remaining integration
 
 72 remains an unactivated candidate. Finish its actual Workbench, fitting,
 baseline assessment disclosure and model-documentation wiring before changing
