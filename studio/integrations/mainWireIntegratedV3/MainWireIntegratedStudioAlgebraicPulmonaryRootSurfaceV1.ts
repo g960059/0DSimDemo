@@ -1,10 +1,14 @@
 import {
   assertModelSurfaceReleaseLineageV1,
+  derivationCapabilityV1,
   type ModelSurfaceReleaseManifestV1,
 } from "@/studio/contracts/v2/modelSurface";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1,
 } from "@/engine/myocardium/MainWireIntegratedModelStandard70OutputRegistryV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID } from
+  "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_WORKBENCH_SURFACE_CATALOGS_V1,
 } from "./MainWireIntegratedStudioWorkbenchSurfaceV1";
@@ -36,4 +40,51 @@ assertModelSurfaceReleaseLineageV1(
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1,
 );
 
-export default MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1;
+/** Preserve numerical exposure while pinning a new analysis payload. A changed
+ * derivation pin is not an additive same-series upgrade under the Surface ABI. */
+export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 =
+  Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1,
+    surfaceReleaseId:
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-load-workbench-v1",
+    surfaceSeriesId:
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-load-workbench",
+    predecessorSurfaceReleaseId: null,
+    derivedOutputCatalog: Object.freeze(
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1.derivedOutputCatalog.map((output) =>
+        output.derivationId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID ? output : Object.freeze({
+          ...output,
+          derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
+          requiredCapabilities: Object.freeze(output.requiredCapabilities.map((capability) =>
+            capability === derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID)
+              ? derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID) : capability)),
+        })),
+    ),
+  }) satisfies ModelSurfaceReleaseManifestV1;
+
+assertModelSurfaceReleaseLineageV1(MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2);
+
+/** Retire the unpublished extrapolated-EDPVR display. Inherit the complete
+ * compatible Surface; only the display derivation changes, not PE/PVA. */
+export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V5 =
+  Object.freeze({
+    ...MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2,
+    surfaceReleaseId:
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
+    surfaceSeriesId:
+      "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench",
+    predecessorSurfaceReleaseId: null,
+    derivedOutputCatalog: Object.freeze(
+      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2.derivedOutputCatalog.map((output) =>
+        output.derivationId !== MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID ? output : Object.freeze({
+          ...output,
+          derivationId: MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+          requiredCapabilities: Object.freeze(output.requiredCapabilities.map((capability) =>
+            capability === derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID)
+              ? derivationCapabilityV1(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID) : capability)),
+        })),
+    ),
+  }) satisfies ModelSurfaceReleaseManifestV1;
+
+assertModelSurfaceReleaseLineageV1(MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V5);
+export default MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V5;

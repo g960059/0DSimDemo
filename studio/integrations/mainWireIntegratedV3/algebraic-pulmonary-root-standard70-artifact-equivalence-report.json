@@ -1,8 +1,8 @@
 {
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70",
-  "predecessorArtifactRevisionId": "308205b499dcf60cb9a06e3384094ea111c8d2f631ec267a106345fef8cfb495",
-  "candidateArtifactRevisionId": "7a1b0593d4953eae876076a9abf60f5cb65ec9acc94fcaff894935b5af3d417f",
+  "predecessorArtifactRevisionId": "7a1b0593d4953eae876076a9abf60f5cb65ec9acc94fcaff894935b5af3d417f",
+  "candidateArtifactRevisionId": "c947d751eeacf7c625f10c8eb6c2001960d2553f01281f8bfacf9a2b541fbad7",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [

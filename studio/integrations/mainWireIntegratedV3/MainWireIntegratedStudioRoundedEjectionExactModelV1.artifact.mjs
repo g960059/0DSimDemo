@@ -9003,7 +9003,7 @@ function mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl)
 const MINIMUM_COMPLETE_BEAT_COUNT_V3 = 3;
 const STANDARD_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 5;
 const DEEP_HYPOVOLEMIC_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
-const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 12;
+const FORMAL_CONTINUATION_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 16;
 const FORMAL_SOURCE_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const CENTER_MAXIMUM_COMPLETE_BEAT_COUNT_V3 = 20;
 const MAXIMUM_MEASUREMENT_DURATION_SEC_V3 = 36;
@@ -9018,7 +9018,12 @@ const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_LOW_MINIMUM_INFORMATION_SCALE_STEP_V3 = 0.02;
+const FORMAL_LOW_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3 = 0.02;
+const FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3 = 3;
+const FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 = 4;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_HIGH_PREVIEW_SCALE_STEP_V3 = 0.06;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 5e-3;
 const FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 = 0.16;
 const FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3 = 0.2;
@@ -9394,10 +9399,10 @@ async function runFormalHypovolemicCoverageChainV3(centerBranch, centerPair, sou
   };
   const coreMinimumScale = mainWireIntegratedModelFormalPvaMinimumGlobalTbvMlV3(sourceGlobalTbvMl) / sourceGlobalTbvMl;
   for (let ordinal = 1; ordinal <= FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3; ordinal += 1) {
-    const requestedScale = 1 - (1 - coreMinimumScale) * ordinal / FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
+    const requestedScale2 = 1 - (1 - coreMinimumScale) * ordinal / FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3;
     const advanced = await advanceFormalCoverageTowardScaleV3(
       boundary2,
-      requestedScale,
+      requestedScale2,
       sourceGlobalTbvMl,
       accept
     );
@@ -9409,29 +9414,85 @@ async function runFormalHypovolemicCoverageChainV3(centerBranch, centerPair, sou
     }
   }
   if (starlingPairReachedLowFlowTargetV3(boundary2.pair)) return;
-  let desiredScaleStep = FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
-  while (boundary2.scale > MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 + 1e-12 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
+  let goalScale = Math.max(
+    MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3,
+    boundary2.scale - mainWireIntegratedModelFormalLowCoverageScaleStepV3(samples)
+  );
+  let requestedScale = goalScale;
+  let qualifiedEndpointCount = samples.length;
+  let boundaryRetries = 0;
+  const continuations = [];
+  while (boundary2.scale > MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 + 1e-12 && qualifiedEndpointCount < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
     const priorScale = boundary2.scale;
-    const requestedScale = Math.max(
-      MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3,
-      boundary2.scale - desiredScaleStep
-    );
     const advanced = await advanceFormalCoverageTowardScaleV3(
       boundary2,
       requestedScale,
       sourceGlobalTbvMl,
-      accept,
-      (pair) => starlingPairReachedLowFlowTargetV3(pair)
+      () => void 0,
+      (pair) => starlingPairReachedLowFlowTargetV3(pair),
+      false,
+      boundaryRetries > 0 ? FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 : MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3,
+      {
+        // Never reuse an overshooting branch: low-load continuation remains
+        // directional. Same-load holds replace the older state at that load.
+        continuation: continuations.filter((cursor) => cursor.scale >= requestedScale && cursor.scale <= boundary2.scale).at(-1),
+        retainContinuation: (cursor) => {
+          const existing = continuations.findIndex((point) => point.scale === cursor.scale);
+          if (existing >= 0) continuations[existing] = cursor;
+          else continuations.push(cursor);
+          continuations.sort((a, b) => b.scale - a.scale);
+        }
+      }
     );
     boundary2 = advanced.boundary;
-    if (!(boundary2.scale < priorScale - 1e-12)) return;
-    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
-      "hypovolemic",
-      recentAcceptedScaleStepV3(samples),
-      samples
-    );
-    if (advanced.status !== "reached") return;
+    if (advanced.status === "boundary") {
+      if (boundaryRetries >= FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3) break;
+      boundaryRetries += 1;
+      const smallerStep = (boundary2.scale - requestedScale) / 2;
+      if (smallerStep < FORMAL_PVA_MINIMUM_SCALE_STEP_V3) break;
+      requestedScale = boundary2.scale - smallerStep;
+      continue;
+    }
+    if (!(boundary2.scale < priorScale - 1e-12)) break;
+    qualifiedEndpointCount += 1;
+    boundaryRetries = 0;
+    continuations.length = 0;
+    const reachedGoal = boundary2.scale <= goalScale + 1e-12;
+    const informative = formalLowInformationChangeV3(samples.at(-1).pair, boundary2.pair) >= 0.75;
+    if (reachedGoal || informative || advanced.status === "stopped") {
+      accept(boundary2);
+      goalScale = Math.max(
+        MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3,
+        boundary2.scale - mainWireIntegratedModelFormalLowCoverageScaleStepV3(samples)
+      );
+    }
+    requestedScale = goalScale;
+    if (advanced.status !== "reached") break;
   }
+  if (boundary2.scale < samples.at(-1).scale - 1e-12) accept(boundary2);
+}
+const FORMAL_LOW_INFORMATION_RESOLUTION_V3 = [1, 0.75, 10, 15, 15, 3, 1, 0.75, 10, 15, 15, 3];
+function formalLowInformationChangeV3(before, after) {
+  const a = formalCoverageShapeVectorV3(before), b = formalCoverageShapeVectorV3(after);
+  return Math.max(...b.map((value, i) => Math.abs(value - a[i]) / FORMAL_LOW_INFORMATION_RESOLUTION_V3[i]));
+}
+function mainWireIntegratedModelFormalLowCoverageScaleStepV3(samples) {
+  if (samples.length < 2) return FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  const previous = samples.at(-2), current = samples.at(-1);
+  const change = formalLowInformationChangeV3(previous.pair, current.pair);
+  const previousStep = Math.abs(current.scale - previous.scale);
+  let step = change > 1e-9 ? previousStep / change : FORMAL_LOW_MAXIMUM_SCALE_STEP_V3;
+  const flow = (pair) => Math.max(pair.left.cardiacOutputLPerMin, pair.right.cardiacOutputLPerMin);
+  const flowDrop = flow(previous.pair) - flow(current.pair);
+  if (flowDrop > 0) {
+    const remaining = flow(current.pair) - 0.9 * MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3;
+    if (remaining > 0) step = Math.min(step, previousStep * remaining / flowDrop);
+  }
+  const curvature = formalCoverageChordErrorV3(samples);
+  return Math.max(FORMAL_LOW_MINIMUM_INFORMATION_SCALE_STEP_V3, Math.min(
+    FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3,
+    step * (curvature !== null && curvature >= FORMAL_CURVED_CHORD_ERROR_V3 ? 0.8 : 1)
+  ));
 }
 function adaptiveFormalCoverageScaleStepV3(direction, acceptedScaleStep, samples) {
   const pair = samples.at(-1).pair;
@@ -9448,14 +9509,14 @@ function adaptiveFormalCoverageScaleStepV3(direction, acceptedScaleStep, samples
   const chordError = formalCoverageChordErrorV3(samples);
   let multiplier = chordError === null ? easySettlement ? 1.2 : 1 : chordError <= FORMAL_SMOOTH_CHORD_ERROR_V3 ? easySettlement ? 1.35 : 1.15 : chordError >= FORMAL_CURVED_CHORD_ERROR_V3 ? FORMAL_CURVED_SCALE_STEP_MULTIPLIER_V3 : 1;
   if (difficultSettlement) multiplier = Math.min(multiplier, 1);
-  const highEsvGainMl = direction === "hypervolemic" ? formalCoverageMinimumEndSystolicVolumeGainV3(samples) : null;
+  const highEsvGainMl = formalCoverageMinimumEndSystolicVolumeGainV3(samples);
   if (highEsvGainMl !== null && highEsvGainMl < FORMAL_HIGH_ESV_SATURATION_GAIN_ML_V3) {
     multiplier = Math.max(
       multiplier,
       FORMAL_HIGH_ESV_SATURATION_STEP_MULTIPLIER_V3
     );
   }
-  const maximumScaleStep = direction === "hypovolemic" ? FORMAL_LOW_MAXIMUM_SCALE_STEP_V3 : FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3;
+  const maximumScaleStep = FORMAL_HIGH_MAXIMUM_SCALE_STEP_V3;
   return Math.min(
     maximumScaleStep,
     Math.max(FORMAL_PVA_MINIMUM_SCALE_STEP_V3, acceptedScaleStep * multiplier)
@@ -9476,6 +9537,14 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     );
     append(nextBoundary.pair);
   };
+  const preview = await advanceFormalCoverageTowardScaleV3(
+    boundary2,
+    1 + FORMAL_HIGH_PREVIEW_SCALE_STEP_V3,
+    sourceGlobalTbvMl,
+    accept
+  );
+  if (preview.status !== "reached") return;
+  boundary2 = preview.boundary;
   let desiredScaleStep = FORMAL_HIGH_INITIAL_SCALE_STEP_V3;
   while (boundary2.scale < MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3 - 1e-12 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3) {
     const priorScale = boundary2.scale;
@@ -9485,7 +9554,7 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
     const requestedScale = Math.min(
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MAXIMUM_TBV_SCALE_V3,
-      boundary2.scale + desiredScaleStep
+      samples.length === 2 ? 1 + FORMAL_HIGH_INITIAL_SCALE_STEP_V3 : boundary2.scale + desiredScaleStep
     );
     const advanced = await advanceFormalCoverageTowardScaleV3(
       boundary2,
@@ -9499,7 +9568,9 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypervolemic",
-      recentAcceptedScaleStepV3(samples),
+      // The nearby preview must not halve the broad frontier's starting
+      // resolution after the preserved +12% core point.
+      samples.length === 3 ? FORMAL_HIGH_INITIAL_SCALE_STEP_V3 : recentAcceptedScaleStepV3(samples),
       samples
     );
     if (advanced.status !== "reached") {
@@ -9507,22 +9578,32 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
   }
 }
-async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false, reservoirClosure = false) {
+async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false, reservoirClosure = false, maximumAttempts = MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3, lowCoverage) {
   const boundary2 = initialBoundary;
-  let continuationBranch = initialBoundary.branch;
-  let continuationScale = initialBoundary.scale;
-  let bridgeMaximumScaleStep = FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3;
+  let continuationBranch = lowCoverage?.continuation?.branch ?? initialBoundary.branch;
+  let continuationScale = lowCoverage?.continuation?.scale ?? initialBoundary.scale;
+  let bridgeMaximumScaleStep = lowCoverage ? FORMAL_LOW_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3 : FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3;
+  const heldScales = /* @__PURE__ */ new Set();
+  const holdContinuation = async () => {
+    if (!lowCoverage || heldScales.has(continuationScale)) return false;
+    heldScales.add(continuationScale);
+    const held = await advanceFormalHotStartBridgeV3(continuationBranch, sourceGlobalTbvMl * continuationScale);
+    if (held.status !== "accepted") return false;
+    continuationBranch = held.branch;
+    lowCoverage.retainContinuation({ branch: continuationBranch, scale: continuationScale });
+    return true;
+  };
   let forceBridgeBeforeTarget = false;
   let lastRejectedReason = "formal coverage target was not attempted";
-  for (let attempt = 0; attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3; attempt += 1) {
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     const remainingScale = requestedScale - continuationScale;
     const minimumScaleStep = Math.max(
       FORMAL_PVA_MINIMUM_SCALE_STEP_V3,
       MINIMUM_FORMAL_TBV_BRACKET_ML_V3 / sourceGlobalTbvMl
     );
-    if (Math.abs(remainingScale) <= 1e-12) break;
+    if (Math.abs(remainingScale) <= 1e-12 && !lowCoverage) break;
     if (forceBridgeBeforeTarget || Math.abs(remainingScale) > bridgeMaximumScaleStep + 1e-12) {
-      const bridgeScaleStep = forceBridgeBeforeTarget ? 0.5 * Math.abs(remainingScale) : Math.min(Math.abs(remainingScale), bridgeMaximumScaleStep);
+      const bridgeScaleStep = forceBridgeBeforeTarget ? Math.min(0.5 * Math.abs(remainingScale), lowCoverage ? bridgeMaximumScaleStep : Infinity) : Math.min(Math.abs(remainingScale), bridgeMaximumScaleStep);
       const bridgeScale = continuationScale + Math.sign(remainingScale) * bridgeScaleStep;
       const bridged = await advanceFormalHotStartBridgeV3(
         continuationBranch,
@@ -9531,11 +9612,13 @@ async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScal
       if (bridged.status === "accepted") {
         continuationBranch = bridged.branch;
         continuationScale = bridgeScale;
+        lowCoverage?.retainContinuation({ branch: continuationBranch, scale: continuationScale });
         forceBridgeBeforeTarget = false;
         continue;
       }
       lastRejectedReason = bridged.reason;
-      bridgeMaximumScaleStep *= 0.5;
+      if (await holdContinuation()) continue;
+      bridgeMaximumScaleStep = lowCoverage ? Math.min(bridgeMaximumScaleStep / 2, Math.abs(bridgeScaleStep) / 2) : bridgeMaximumScaleStep / 2;
       forceBridgeBeforeTarget = false;
       if (bridgeMaximumScaleStep < minimumScaleStep) break;
       continue;
@@ -9569,6 +9652,7 @@ async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScal
       });
     }
     lastRejectedReason = measured.status === "rejected" ? measured.reason : "formal coverage target did not retain a settled fixed-tone pair";
+    if (await holdContinuation()) continue;
     if (Math.abs(remainingScale) <= minimumScaleStep) break;
     forceBridgeBeforeTarget = true;
   }
@@ -49902,7 +49986,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
    * observation without placing derived results in exact state.
    */
   advanceStructuralAnalysisToPresentationTimeV1(targetTimeSec) {
-    const initial = this.currentAcceptedState();
+    this.assertSessionUsableV1();
+    const initial = this.currentAcceptedClock();
     if (targetTimeSec === initial.acceptedTimeSec) {
       return Object.freeze({
         status: "already-at-target",
@@ -49920,8 +50005,8 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
     let internalAcceptedSubstepCount = 0;
     let boundaryClippedSubstepCount = 0;
     const substeps = [];
-    while (this.currentAcceptedState().acceptedTimeSec < targetTimeSec) {
-      const current = this.currentAcceptedState();
+    while (this.currentAcceptedClock().acceptedTimeSec < targetTimeSec) {
+      const current = this.currentAcceptedClock();
       const ordinalTargetTimeSec = initial.acceptedTimeSec + ordinal * MAIN_WIRE_NUMERICAL_BASE_TICK_SEC_V1;
       const nextTargetTimeSec = Math.min(
         targetTimeSec,
@@ -49946,7 +50031,7 @@ class MainWireIntegratedTypedAuthoritySessionV1 {
       substeps.push(...advance.substeps);
       ordinal += 1;
     }
-    const accepted = this.currentAcceptedState();
+    const accepted = this.currentAcceptedClock();
     return Object.freeze({
       status: "advanced",
       presentationTimeSec: targetTimeSec,

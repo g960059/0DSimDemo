@@ -7,10 +7,12 @@ import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireF
 import { resolveRegisteredExactModelBaselineValidationV1 } from
   "@/studio/registry/RegisteredExactModelBaselineValidationV1";
 import { loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1,
-  loadStudioDefaultClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from
+  loadStudioDefaultClientCompositionV2, loadStudioExperimentClientCompositionV2,
+  loadStudioSnapshotClientCompositionV2, invalidateStudioClientCompositionCachesV2 } from
   "@/studio/composition/StudioDefaultCompositionV2";
 import * as releaseResolvers from "@/studio/infrastructure/model/StudioSupabaseModelReleaseResolverV1";
-import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+import surface, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as historicalSurface,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as measuredLoadSurface } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import { materializeExactModelControlValuesV1 } from "@/studio/application/model/ExactModelControlValuesV1";
 import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
@@ -72,6 +74,35 @@ describe("selected Standard70 launch baseline", () => {
     });
   });
 
+  it("reopens saved original-Surface content without repinning it while new sessions use V2", async () => {
+    vi.spyOn(releaseResolvers, "studioSupabaseModelReleaseResolverV1")
+      .mockReturnValue(null);
+    invalidateStudioClientCompositionCachesV2();
+    const current = await loadStudioDefaultClientCompositionV2();
+    expect(current.modelSurface.identity.surfaceSeriesId).toBe(surface.surfaceSeriesId);
+    for (const pinned of [historicalSurface, measuredLoadSurface, surface]) {
+      const experiment = await loadStudioExperimentClientCompositionV2(
+        launch.modelId, pinned.surfaceSeriesId,
+      );
+      const snapshot = await loadStudioSnapshotClientCompositionV2(
+        launch.modelId, pinned.surfaceSeriesId, pinned.surfaceReleaseId,
+      );
+      for (const composition of [experiment, snapshot]) {
+        expect(composition.modelSurface.identity.surfaceSeriesId)
+          .toBe(pinned.surfaceSeriesId);
+        expect(composition.modelSurface.identity.surfaceReleaseId)
+          .toBe(pinned.surfaceReleaseId);
+        expect(composition.exactModel.workerReleaseTicket.surfaceRelease).toEqual(pinned);
+        expect(composition.exactModel.defaultCheckpoint).toBe(launch.capture.checkpoint);
+      }
+    }
+    await expect(loadStudioSnapshotClientCompositionV2(
+      launch.modelId, historicalSurface.surfaceSeriesId, surface.surfaceReleaseId,
+    )).rejects.toThrow(/Surface/);
+    expect((await loadStudioDefaultClientCompositionV2()).modelSurface.identity)
+      .toEqual(current.modelSurface.identity);
+  });
+
   it("never pairs the selected checkpoint with an unrelated or stale remote launch fixture", () => {
     expect(resolveRegisteredModelLaunchCheckpointV1(launch.modelId, launch.capture.fixture)).toBe(launch.capture.checkpoint);
     expect(resolveRegisteredModelLaunchCheckpointV1("unrelated", launch.capture.fixture)).toBeUndefined();
@@ -106,6 +137,8 @@ describe("selected Standard70 launch baseline", () => {
     const ticket = local.exactModel.workerReleaseTicket;
     const input = { ticket, defaultFixture: descriptor.defaultFixture };
     expect(resolveRegisteredModelLaunchDefaultsV1(input).defaultCheckpoint).toBe(launch.capture.checkpoint);
+    expect(resolveRegisteredModelLaunchDefaultsV1({ ...input,
+      ticket: { ...ticket, surfaceRelease: historicalSurface } }).defaultCheckpoint).toBe(launch.capture.checkpoint);
     const changedFixture = { ...descriptor.defaultFixture,
       hemodynamicResearchInputs: { ...descriptor.defaultFixture.hemodynamicResearchInputs, totalBloodVolumeMl: 5001 } };
     const cases = [

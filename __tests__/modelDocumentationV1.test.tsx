@@ -13,6 +13,7 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import { modelDocumentationHref } from "@/homeLinks";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import {
@@ -110,7 +111,8 @@ describe("model documentation V1", () => {
         rawPressureVolumeLoop: true,
         formalPressureVolumeAnalysisExposed: true,
         structuralReturnAnalysisExposed: true,
-        espvrLoadDomain: "preload-reduction-through-operating-anchor",
+        periodicPvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+        pvaSystolicLoadDomain: "preload-reduction-through-operating-anchor",
       },
       baseline: { passedCheckCount: 41 },
     });
@@ -135,7 +137,7 @@ describe("model documentation V1", () => {
     expect(valid).toContain(SURFACE_RELEASE_ID);
     expect(valid).toContain("ESPVR");
     expect(valid).toContain("EDPVR");
-    expect(valid).toContain("PVA/PE");
+    expect(valid).toContain("PE/PVA");
     expect(valid).toContain("Starling");
     expect(valid).toContain("PA–PArt");
     expect(valid).toContain(locale === "ja" ? "atomic warm start" : "atomically warm-start");

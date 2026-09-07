@@ -14,7 +14,6 @@ import {
   createWorkbenchCanvasFrameSchedulerV3,
   extractLivePvTrajectoryV3,
   extractLastCompletePvBeatV3,
-  extendPvVolumeDomainToExtrapolatedInterceptsV3,
   firstSampleAtOrAfterV3,
   guytonZeroFlowPresentationMaximumV3,
   guytonStarlingPlotDomainV3,
@@ -33,7 +32,7 @@ import {
   reconcileWorkbenchGraphColorsV3,
   resolveWorkbenchAutomaticGraphColorV3,
   resolveWorkbenchGraphTraceStyleV3,
-  starlingCurvePointsV3,
+  starlingCurveSegmentsV3,
   starlingPresentationFocusV3,
   updateWorkbenchScenarioBaseColorV3,
   workbenchPerceptualColorDistanceV3,
@@ -144,8 +143,24 @@ describe("V3-neutral Workbench Canvas helpers", () => {
     expect(guytonStarlingPlotDomainV3(orientation, [history])).toEqual(focused);
   });
 
+  it("preserves missing support, vertical points, and reversed pressure limbs in TBV order", () => {
+    const points = [
+      {totalBloodVolumeMl:4000,fillingPressureMmHg:2,cardiacOutputLPerMin:3},
+      {totalBloodVolumeMl:4500,fillingPressureMmHg:4,cardiacOutputLPerMin:4},
+      {totalBloodVolumeMl:5000,fillingPressureMmHg:4,cardiacOutputLPerMin:5},
+      {totalBloodVolumeMl:5500,fillingPressureMmHg:3,cardiacOutputLPerMin:6},
+      {totalBloodVolumeMl:6000,fillingPressureMmHg:10,cardiacOutputLPerMin:8,curveEligible:false},
+      {totalBloodVolumeMl:6500,fillingPressureMmHg:12,cardiacOutputLPerMin:7},
+    ];
+    const result = starlingCurveSegmentsV3([...points].reverse());
+    expect(result).toContainEqual([{pressureMmHg:4,flowLPerMin:4},{pressureMmHg:4,flowLPerMin:5}]);
+    expect(result.some(run=>run.some(p=>p.pressureMmHg<12) && run.some(p=>p.pressureMmHg===12))).toBe(false);
+    expect(result.flat().some(p=>p.pressureMmHg===10)).toBe(false);
+    expect(result.at(-1)).toEqual([{pressureMmHg:12,flowLPerMin:7}]);
+  });
+
   it("interpolates eligible Starling points without extrapolating through a boundary", () => {
-    const curve = starlingCurvePointsV3([
+    const curve = starlingCurveSegmentsV3([
       {
         fillingPressureMmHg: -12,
         cardiacOutputLPerMin: 0,
@@ -173,10 +188,10 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       },
     ]);
 
-    expect(curve[0]).toEqual({ pressureMmHg: -2, flowLPerMin: 0.08 });
-    expect(curve.at(-1)).toEqual({ pressureMmHg: 5, flowLPerMin: 4.8 });
+    expect(curve.flat()[0]).toEqual({ pressureMmHg: -2, flowLPerMin: 0.08 });
+    expect(curve.flat().at(-1)).toEqual({ pressureMmHg: 5, flowLPerMin: 4.8 });
     expect(
-      curve.every(
+      curve.flat().every(
         ({ pressureMmHg, flowLPerMin }) =>
           pressureMmHg >= -2 &&
           pressureMmHg <= 5 &&
@@ -487,18 +502,6 @@ describe("V3-neutral Workbench Canvas helpers", () => {
       volumeMl: 78,
       pressureMmHg: 112,
     });
-  });
-
-  it("extends the PV volume lower bound without displaying negative volume", () => {
-    expect(
-      extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [-20, 5]),
-    ).toEqual([0, 190]);
-    expect(
-      extendPvVolumeDomainToExtrapolatedInterceptsV3([40, 190], [60]),
-    ).toEqual([40, 190]);
-    expect(
-      extendPvVolumeDomainToExtrapolatedInterceptsV3([-5, 190], []),
-    ).toEqual([0, 190]);
   });
 
   it("keeps monotonic Worker samples on the allocation-free fast path", () => {

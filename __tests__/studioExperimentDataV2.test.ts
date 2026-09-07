@@ -477,6 +477,7 @@ describe("Studio Experiment data V2", () => {
     pressureVolume.content.surface.graphPanes[0].pressureVolumeAnalysisMode =
       "responsive-preview";
     pressureVolume.content.surface.graphPanes[0].showPressureEnvelope = true;
+    pressureVolume.content.surface.graphPanes[0].showPvaBoundary = true;
     pressureVolume.content.surface.graphPanes[0].series = [{
       seriesId: "LV",
       label: "LV",
@@ -491,6 +492,10 @@ describe("Studio Experiment data V2", () => {
     )).toThrow(/must not configure a waveform window/);
 
     delete pressureVolume.content.surface.graphPanes[0].windowSec;
+    expect(validateExperimentV2(JSON.parse(JSON.stringify(pressureVolume))).content.surface.graphPanes[0]?.showPvaBoundary).toBe(true);
+    const invalidEnergyView = structuredClone(pressureVolume);
+    invalidEnergyView.content.surface.graphPanes[0].showPvaBoundary = "yes";
+    expect(() => validateExperimentV2(invalidEnergyView)).toThrow(/showPvaBoundary/);
     expect(
       validateExperimentV2(pressureVolume).content.surface.graphPanes[0]
         ?.showPressureEnvelope,
@@ -500,6 +505,10 @@ describe("Studio Experiment data V2", () => {
       pressureVolumeModel,
     )).not.toThrow();
 
+    const rawEnergyView = structuredClone(pressureVolume);
+    rawEnergyView.content.surface.graphPanes[0].pressureVolumeAnalysisMode = "raw-exact-orbit";
+    delete rawEnergyView.content.surface.graphPanes[0].showPressureEnvelope;
+    expect(() => assertExperimentContentMatchesModelV2(validateExperimentV2(rawEnergyView).content, pressureVolumeModel)).toThrow(/showPvaBoundary/);
     const missingAnalysisMode = structuredClone(pressureVolume);
     delete missingAnalysisMode.content.surface.graphPanes[0]
       .pressureVolumeAnalysisMode;
@@ -521,6 +530,7 @@ describe("Studio Experiment data V2", () => {
       .pressureVolumeAnalysisMode = "raw-exact-orbit";
     delete rawPressureVolume.content.surface.graphPanes[0]
       .showPressureEnvelope;
+    delete rawPressureVolume.content.surface.graphPanes[0].showPvaBoundary;
     expect(() => assertExperimentContentMatchesModelV2(
       validateExperimentV2(rawPressureVolume).content,
       pressureVolumeModel,

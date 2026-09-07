@@ -1,5 +1,7 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { CircleAlert } from "lucide-react";
+import { workbenchLoadRelationDescriptionV1 } from "./WorkbenchLoadRelationDescriptionV1";
 
 import type {
   PressureVolumePressureBasisV2,
@@ -9,6 +11,9 @@ import type {
   MainWireIntegratedModelPeriodicPvaEdpvrV1,
   MainWireIntegratedModelPeriodicPvaEspvrV1,
   MainWirePeriodicPvaV1,
+  MainWireSystolicPressureEnvelopeV1,
+  MainWireDiastolicLoadRelationV1,
+  MainWirePvaAreaDisplayV1,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 
 import {
@@ -28,7 +33,9 @@ import {
 import {
   WorkbenchChartLegendV3,
   buildWorkbenchTraceLegendModelV3,
+  drawWorkbenchMeasuredPointV3,
   workbenchHistoryAlphaV3,
+  workbenchLegendSelectionMatchesTraceV3,
   workbenchLegendTraceAlphaV3,
   workbenchLegendTraceHiddenV3,
   workbenchTraceLegendKeyV3,
@@ -410,6 +417,7 @@ type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   className?: string;
   periodicPvaSupported?: boolean;
   showPressureEnvelope?: boolean;
+  showPvaBoundary?: boolean;
 }>;
 
 export type PressureVolumeLoopCanvasPropsV3 =
@@ -441,9 +449,12 @@ export function PressureVolumeLoopCanvasV3(
   props: PressureVolumeLoopCanvasPropsV3,
 ) {
   const { className } = props;
+  const { i18n } = useTranslation();
+  const language = i18n.resolvedLanguage ?? i18n.language;
   const periodicPvaSupported = props.periodicPvaSupported ?? true;
   const showPressureEnvelope =
     periodicPvaSupported && (props.showPressureEnvelope ?? false);
+  const showPvaBoundary = periodicPvaSupported && (props.showPvaBoundary ?? false);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const volumeDomainStateRef = React.useRef<
@@ -456,7 +467,6 @@ export function PressureVolumeLoopCanvasV3(
     React.useState<WorkbenchChartLegendSelectionV3 | null>(null);
   const [hiddenLegendSelections, setHiddenLegendSelections] =
     React.useState<readonly WorkbenchChartLegendSelectionV3[]>([]);
-  const legendSelection = hoveredLegendSelection;
   const resolvedTraces = React.useMemo<readonly WorkbenchPressureVolumeTraceV3[]>(
     () => {
       if (props.traces !== undefined) return props.traces;
@@ -493,11 +503,14 @@ export function PressureVolumeLoopCanvasV3(
       scenarioLabel: trace.scenarioLabel,
       itemId: trace.chamberId,
       itemLabel: trace.chamberLabel,
+      ...(periodicPvaSupported && trace.periodicPva !== undefined ? { itemDescription:
+        workbenchLoadRelationDescriptionV1(showPvaBoundary ? "pva"
+          : trace.periodicPva.loadRelations !== undefined ? "pv" : "pv-isochrone", language) } : {}),
       color: trace.chamberColor,
     }))),
-    [traces],
+    [traces, periodicPvaSupported, showPvaBoundary, language],
   );
-  const periodicPvaDrawings = useRetainedPeriodicPvaDrawingsV1(traces);
+  const periodicPvaDrawings = useRetainedPeriodicPvaDrawingsV1(traces, showPvaBoundary);
   const renderedTraces = React.useMemo(() => traces.map((trace) => {
     const trajectory = revealPvTrajectoryAfterFirstCompleteCycleV3(
       extractLivePvTrajectoryV3(
@@ -530,11 +543,11 @@ export function PressureVolumeLoopCanvasV3(
       ),
       periodicPva: trace.periodicPva ?? null,
       periodicPvaDrawing: periodicPvaDrawings.get(
-        periodicPvaDrawingTraceKeyV1(trace),
+        periodicPvaDrawingTraceKeyV1(trace, showPvaBoundary),
       ) ?? null,
       history,
     });
-  }), [periodicPvaDrawings, traces]);
+  }), [periodicPvaDrawings, showPvaBoundary, traces]);
   const visibleRenderedTraces = React.useMemo(
     () => renderedTraces.filter(({ trace }) =>
       !workbenchLegendTraceHiddenV3(
@@ -543,6 +556,10 @@ export function PressureVolumeLoopCanvasV3(
       )),
     [hiddenLegendSelections, renderedTraces],
   );
+  // A hidden or removed trace must not dim every remaining visible scenario.
+  const legendSelection = visibleRenderedTraces.some(({ trace }) =>
+    workbenchLegendSelectionMatchesTraceV3(hoveredLegendSelection, pvLegendDescriptorV3(trace)))
+    ? hoveredLegendSelection : null;
   const domainIdentity = traces.map((trace) => [
     trace.scenarioId,
     trace.chamberId,
@@ -575,9 +592,8 @@ export function PressureVolumeLoopCanvasV3(
   ) => {
     const theme = readPvCanvasThemeV3(containerRef.current);
     const plot = pvPlotRectV3(width, height);
-    // Upper domains remain loop-owned. The lower volume domain is extended
-    // separately to finite extrapolated intercepts so the V0 geometry remains
-    // visible without inflating the current upper bounds.
+    // Measured support owns normal bounds. Only the explicit PVA view may
+    // add the owner's low-volume energy geometry, never an inferred EDPVR V0.
     const domainPoints: WorkbenchPvRelationPointV3[] = [
       ...visibleRenderedTraces.flatMap(({ completedBeat, liveSegment }) => [
         ...completedBeat,
@@ -585,6 +601,9 @@ export function PressureVolumeLoopCanvasV3(
       ]),
       ...visibleRenderedTraces.flatMap(({ history }) =>
         history.flatMap(({ completedBeat }) => completedBeat)),
+      ...visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
+        !periodicPvaSupported || periodicPvaDrawing === null ? []
+          : workbenchPvDisplayedRelationPointsV1(periodicPvaDrawing, showPressureEnvelope)),
     ];
     volumeDomainStateRef.current = nextStableNumericDomainStateV3(
       volumeDomainStateRef.current,
@@ -608,14 +627,9 @@ export function PressureVolumeLoopCanvasV3(
         commitKey: domainCommitKey,
       },
     );
-    const volumeDomain = extendPvVolumeDomainToExtrapolatedInterceptsV3(
-      volumeDomainStateRef.current.domain,
-      visibleRenderedTraces.flatMap(({ periodicPvaDrawing }) =>
-        !periodicPvaSupported || periodicPvaDrawing === null
-          ? []
-          : [periodicPvaDrawing.edpvr.zeroPressureVolumeMl],
-      ),
-    );
+    const volumeDomain: WorkbenchNumericDomainV3 = [
+      Math.max(0, volumeDomainStateRef.current.domain[0]), volumeDomainStateRef.current.domain[1],
+    ];
     const pressureDomain = pressureDomainStateRef.current.domain;
     drawPvAxesV3(
       context,
@@ -663,29 +677,28 @@ export function PressureVolumeLoopCanvasV3(
         });
       }
     }
+    // Focused scenarios are drawn last; coincident auxiliaries remain readable.
+    const drawingOrder = [...visibleRenderedTraces].sort((a, b) =>
+      workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(a.trace))
+      - workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(b.trace)));
+    // All auxiliary lines go behind all live loops, not over the previous scenario.
+    for (const { periodicPvaDrawing, trace } of drawingOrder) {
+      if (periodicPvaSupported && periodicPvaDrawing !== null) drawPeriodicPvaV1(
+        context, periodicPvaDrawing, x, y, trace.chamberColor,
+        0.92 * workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(trace)),
+        showPressureEnvelope,
+        theme.canvas,
+      );
+    }
     for (const {
       backBufferRemainder,
-      periodicPvaDrawing,
       liveSegment,
       trace,
-    } of visibleRenderedTraces) {
+    } of drawingOrder) {
       const traceAlpha = workbenchLegendTraceAlphaV3(
         legendSelection,
         pvLegendDescriptorV3(trace),
       );
-      if (periodicPvaSupported && periodicPvaDrawing !== null) {
-        drawPeriodicPvaV1(
-          context,
-          periodicPvaDrawing,
-          x,
-          y,
-          trace.chamberColor,
-          0.92 * traceAlpha,
-          volumeDomain,
-          pressureDomain,
-          showPressureEnvelope,
-        );
-      }
       drawPvCurveV3(context, backBufferRemainder, x, y, {
         color: trace.chamberColor,
         width: 1.5,
@@ -731,8 +744,8 @@ export function PressureVolumeLoopCanvasV3(
     legendSelection,
     periodicPvaSupported,
     pressureAxisTitle,
-      showPressureEnvelope,
-      visibleRenderedTraces,
+    showPressureEnvelope,
+    visibleRenderedTraces,
   ]);
 
   useResponsiveCanvasFrameV3(
@@ -758,10 +771,17 @@ export function PressureVolumeLoopCanvasV3(
     ({ periodicPvaDrawing }) =>
       periodicPvaDrawing.retainedFromPriorUpdate,
   ).length;
+  const loadResponseDisplay = !showPvaBoundary && visibleRenderedTraces.some(
+    ({ periodicPva }) => periodicPva?.loadRelations !== undefined);
+  const envelopeVisible = drawablePva.some(({ periodicPvaDrawing }) =>
+    periodicPvaDrawing.loadRelation !== null
+      || (showPressureEnvelope && periodicPvaDrawing.pressureEnvelope !== null));
   const relationStatusBase = !periodicPvaSupported
     ? null
     : drawablePva.length > 0
-      ? `Settled-source bidirectional preload family · anchor-local area-max common-isochrone nonlinear ESPVR / exponential EDPVR · nonlinear PVA boundary${showPressureEnvelope ? " · upper pressure envelope overlay" : ""}`
+      ? `${loadResponseDisplay
+        ? "ESPVR: pressure envelope of the settled TBV family, not maximum elastance. EDPVR: measured maximum-volume points connected in TBV order, not a passive constitutive law. No display extrapolation."
+        : "PVA boundary: a common-time curve selected for this operating state. Changing TBV alone can shift it without changing contractility."}${drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null) ? " SW (solid fill) and PE (hatched) are separate illustrations, not a single area union or measurements of stored elastic energy." : ""}${showPressureEnvelope && !loadResponseDisplay && envelopeVisible ? " Pressure envelope overlaid for comparison; not used for PVA." : ""}`
       : "Settled-source preload-reduction analysis selected · relation not yet available";
   const relationStatus = relationStatusBase !== null && retainedPvaDrawingCount > 0
     ? `${relationStatusBase} · previous valid relation retained while the update settles`
@@ -783,7 +803,9 @@ export function PressureVolumeLoopCanvasV3(
   const familyProgress = availablePva[0]?.periodicPva.source.familyProgress;
   const pvaAnalysisError = periodicPvaSupported
     ? visibleRenderedTraces
-        .map(({ trace }) => trace.periodicPvaAnalysisError)
+        .map(({ trace, periodicPva }) => trace.periodicPvaAnalysisError
+          ?? (showPvaBoundary && periodicPva?.status === "unavailable"
+            ? `${trace.scenarioLabel} · ${trace.chamberLabel}: ${periodicPva.reason}` : undefined))
         .find((message): message is string =>
           typeof message === "string" && message.length > 0)
     : undefined;
@@ -798,15 +820,18 @@ export function PressureVolumeLoopCanvasV3(
       data-cycle-source="model-emitted-cycle-phase"
       data-pv-relation-model={
         periodicPvaSupported
-          ? "all-settled-shape-preserving-locus"
+          ? loadResponseDisplay ? "settled-full-load-phasewise-pressure-envelope" : "all-settled-shape-preserving-locus"
           : undefined
       }
       data-pv-pressure-envelope-visible={
-        showPressureEnvelope ? "true" : "false"
+        envelopeVisible ? "true" : "false"
       }
+      data-pv-pva-boundary-visible={showPvaBoundary ? "true" : "false"}
       data-pv-relation-semantics={
         periodicPvaSupported
-          ? "area-max-common-isochrone-espvr-exponential-edpvr"
+          ? loadResponseDisplay
+            ? "full-load-pressure-envelope-measured-diastolic-locus"
+            : "area-max-common-isochrone-espvr-exponential-edpvr"
           : undefined
       }
       data-pv-loop-trace-count={visibleRenderedTraces.length}
@@ -817,6 +842,16 @@ export function PressureVolumeLoopCanvasV3(
       data-pva-result-count={availablePva.length}
       data-pva-drawing-count={drawablePva.length}
       data-pva-retained-drawing-count={retainedPvaDrawingCount}
+      data-pva-measured-high-load-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
+        sum + Math.max(0, (periodicPvaDrawing.espvr === null ? 0 : workbenchPvMeasuredHighLoadPointsV1(periodicPvaDrawing.espvr).length) - 1), 0)}
+      data-pv-envelope-source-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
+        sum + (periodicPvaDrawing.loadRelation?.sourcePointCount ?? 0), 0)}
+      data-pv-diastolic-source-point-count={drawablePva.reduce((sum, { periodicPvaDrawing }) =>
+        sum + (periodicPvaDrawing.diastolicRelation?.sourcePointCount ?? 0), 0)}
+      data-pv-display-extrapolation={showPvaBoundary ? "energy-construction-only" : "none"}
+      data-pv-energy-area-count={drawablePva.filter(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null).length}
+      data-pva-selected-times-sec={availablePva.map(({ periodicPva }) =>
+        periodicPva.espvr.selectedTimeSinceAtrialCaptureSec).join(",")}
     >
       <WorkbenchChartLegendV3
         hiddenSelections={hiddenLegendSelections}
@@ -843,6 +878,12 @@ export function PressureVolumeLoopCanvasV3(
             relationStatus === null ? "" : `. ${relationStatus}`
           }`}
         />
+        {showPvaBoundary && drawablePva.some(({ periodicPvaDrawing }) => periodicPvaDrawing.areaDisplay !== null) && (
+          <div className={`pointer-events-none absolute ${pvaAnalysisError ? "right-10" : "right-3"} ${pvaAnalysisPending ? "top-7" : "top-1"} flex items-center gap-2 text-[10px] text-wb-subtle`}
+            aria-label="PVA view: solid SW, hatched PE; separate illustrations">
+            <span>PVA</span><span>■ SW</span><span>▧ PE</span>
+          </div>
+        )}
         {pvaAnalysisPending && (
           <div
             className="pointer-events-none absolute right-2 top-2 inline-flex items-center gap-1.5 text-[10px] text-wb-subtle"
@@ -852,6 +893,7 @@ export function PressureVolumeLoopCanvasV3(
               aria-hidden="true"
               className="h-2.5 w-2.5 rounded-full border border-wb-subtle/35 border-t-wb-accent motion-safe:animate-spin"
             />
+            <span className="sr-only">
             {familyProgress !== undefined
               ? `PVA ready · Starling extension ${familyProgress.completedPointCount} settled points`
               : collectingPva?.preview?.stage === "pva"
@@ -861,6 +903,7 @@ export function PressureVolumeLoopCanvasV3(
                   : pvaProgress === undefined
                     ? "Settling source…"
                     : `PVA analysis ${pvaProgress.completedPointCount} settled points · minimum ${pvaProgress.totalPointCount}`}
+            </span>
           </div>
         )}
         {pvaAnalysisError !== undefined && (
@@ -987,26 +1030,6 @@ function pvLegendDescriptorV3(trace: WorkbenchPressureVolumeTraceV3) {
   });
 }
 
-export function extendPvVolumeDomainToExtrapolatedInterceptsV3(
-  loopOwnedDomain: WorkbenchNumericDomainV3,
-  interceptVolumesMl: readonly number[],
-): WorkbenchNumericDomainV3 {
-  const nonnegativeLoopDomain = Object.freeze([
-    Math.max(0, loopOwnedDomain[0]),
-    loopOwnedDomain[1],
-  ]) as WorkbenchNumericDomainV3;
-  const finite = interceptVolumesMl.filter(Number.isFinite);
-  if (finite.length === 0) return nonnegativeLoopDomain;
-  const minimumInterceptMl = Math.max(0, Math.min(...finite));
-  if (minimumInterceptMl >= nonnegativeLoopDomain[0])
-    return nonnegativeLoopDomain;
-  const loopSpanMl = loopOwnedDomain[1] - loopOwnedDomain[0];
-  return Object.freeze([
-    Math.max(0, minimumInterceptMl - Math.max(2, loopSpanMl * 0.03)),
-    loopOwnedDomain[1],
-  ]);
-}
-
 function pvPressureAxisTitleV3(
   traces: readonly WorkbenchPressureVolumeTraceV3[],
 ): string {
@@ -1055,8 +1078,12 @@ function pvLegendSelectionKeyV3(
 }
 
 type PeriodicPvaDrawingV1 = Readonly<{
-  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1;
-  edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1;
+  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1 | null;
+  edpvr: MainWireIntegratedModelPeriodicPvaEdpvrV1 | null;
+  loadRelation: MainWireSystolicPressureEnvelopeV1 | null;
+  diastolicRelation: MainWireDiastolicLoadRelationV1 | null;
+  areaDisplay: MainWirePvaAreaDisplayV1 | null;
+  pressureEnvelope: readonly (readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[])[] | null;
   preview: boolean;
   retainedFromPriorUpdate: boolean;
 }>;
@@ -1089,6 +1116,7 @@ export function retainWorkbenchPvRelationDrawingV3<TDrawing>(
 
 function periodicPvaDrawingTraceKeyV1(
   trace: WorkbenchPressureVolumeTraceV3,
+  showPvaBoundary: boolean,
 ): string {
   return [
     trace.scenarioId,
@@ -1096,6 +1124,7 @@ function periodicPvaDrawingTraceKeyV1(
     trace.volumeOutputId,
     trace.pressureOutputId,
     trace.pressureBasis,
+    showPvaBoundary ? "pva-boundary" : "default-relation",
   ].join("\u001f");
 }
 
@@ -1107,14 +1136,15 @@ function periodicPvaDrawingTraceKeyV1(
  */
 function useRetainedPeriodicPvaDrawingsV1(
   traces: readonly WorkbenchPressureVolumeTraceV3[],
+  showPvaBoundary: boolean,
 ): ReadonlyMap<string, PeriodicPvaDrawingV1> {
   const cacheRef = React.useRef<Map<string, PeriodicPvaDrawingV1>>(new Map());
   const drawings = new Map<string, PeriodicPvaDrawingV1>();
   const activeKeys = new Set<string>();
   for (const trace of traces) {
-    const key = periodicPvaDrawingTraceKeyV1(trace);
+    const key = periodicPvaDrawingTraceKeyV1(trace, showPvaBoundary);
     activeKeys.add(key);
-    const current = periodicPvaDrawingV1(trace.periodicPva);
+    const current = periodicPvaDrawingV1(trace.periodicPva, showPvaBoundary);
     if (current !== null) {
       cacheRef.current.set(key, current);
     }
@@ -1146,17 +1176,30 @@ function useRetainedPeriodicPvaDrawingsV1(
 
 function periodicPvaDrawingV1(
   pva: MainWirePeriodicPvaV1 | null | undefined,
+  showPvaBoundary: boolean,
 ): PeriodicPvaDrawingV1 | null {
+  if (!showPvaBoundary && pva?.loadRelations !== undefined) {
+    const { systolic, diastolic } = pva.loadRelations;
+    if (systolic === null && diastolic === null) return null;
+    return Object.freeze({ espvr: null, edpvr: null, loadRelation: systolic, diastolicRelation: diastolic, areaDisplay: null,
+      pressureEnvelope: null,
+      preview: systolic?.completionStatus === "progressive" || diastolic?.completionStatus === "progressive", retainedFromPriorUpdate: false });
+  }
   if (pva?.status === "available") {
     return Object.freeze({
       espvr: pva.espvr,
       edpvr: pva.edpvr,
+      loadRelation: null,
+      diastolicRelation: null,
+      areaDisplay: showPvaBoundary ? pva.areaDisplay ?? null : null,
+      pressureEnvelope: pva.loadRelations === undefined ? [pva.espvr.pressureEnvelopeDiagnostic.curve]
+        : pva.loadRelations.systolic?.segments ?? null,
       preview: false,
       retainedFromPriorUpdate: false,
     });
   }
   if (
-    pva?.status !== "collecting"
+    (pva?.status !== "collecting" && !(showPvaBoundary && pva?.status === "unavailable"))
     || pva.preview?.espvr === null
     || pva.preview?.espvr === undefined
     || pva.preview.edpvr === null
@@ -1164,6 +1207,11 @@ function periodicPvaDrawingV1(
   return Object.freeze({
     espvr: pva.preview.espvr,
     edpvr: pva.preview.edpvr,
+    loadRelation: null,
+    diastolicRelation: null,
+    areaDisplay: null,
+    pressureEnvelope: pva.loadRelations === undefined ? [pva.preview.espvr.pressureEnvelopeDiagnostic.curve]
+      : pva.loadRelations.systolic?.segments ?? null,
     preview: true,
     retainedFromPriorUpdate: false,
   });
@@ -1176,99 +1224,180 @@ function drawPeriodicPvaV1(
   y: (pressureMmHg: number) => number,
   color: string,
   alpha: number,
-  volumeDomain: WorkbenchNumericDomainV3,
-  pressureDomain: WorkbenchNumericDomainV3,
   showPressureEnvelope: boolean,
+  pointBorderColor: string,
 ): void {
   const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
-  const maximumVisiblePressureMmHg = Math.max(0, pressureDomain[1]);
-  if (showPressureEnvelope) {
-    drawPvCurveV3(
+  if (pva.areaDisplay !== null) drawWorkbenchPvaAreasV1(context, pva.areaDisplay, x, y, color, relationAlpha);
+  if (showPressureEnvelope && pva.pressureEnvelope !== null) {
+    for (const segment of pva.pressureEnvelope) drawPvCurveV3(
       context,
-      pva.espvr.pressureEnvelopeDiagnostic.curve,
+      segment,
       x,
       y,
       {
         color,
-        width: 0.85,
-        dash: Object.freeze([]),
+        width: 1.1,
+        dash: Object.freeze([4, 3]),
         alpha: relationAlpha * 0.34,
       },
     );
   }
-  drawPvCurveV3(context, pva.espvr.curve, x, y, {
-    color,
-    width: 1.25,
-    dash: Object.freeze([]),
-    alpha: relationAlpha * 0.62,
-  });
-  const edpvrEndVolumeMl = Math.min(
-    volumeDomain[1],
-    pva.edpvr.zeroPressureVolumeMl
-      + Math.log1p(maximumVisiblePressureMmHg / pva.edpvr.scaleMmHg)
-        / pva.edpvr.exponentPerMl,
-  );
+  if (pva.loadRelation !== null) {
+    drawWorkbenchSystolicLoadRelationV1(context, pva.loadRelation, x, y, color, relationAlpha, pointBorderColor);
+  } else if (pva.espvr !== null) {
+    drawPvCurveV3(context, pva.espvr.curve, x, y, {
+      color, width: 1.5, dash: [4, 3], alpha: relationAlpha * 0.62,
+    });
+    drawWorkbenchPvHighLoadIsochroneV1(context, pva.espvr, x, y, color, relationAlpha);
+    for (const point of pva.espvr.fitPoints) drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
+      color, 1.7, relationAlpha * 0.4, true);
+  }
+  if (pva.diastolicRelation !== null) {
+    drawWorkbenchDiastolicLoadRelationV1(context, pva.diastolicRelation, x, y, color, relationAlpha, pointBorderColor);
+  }
+  const edpvr = pva.edpvr;
+  if (edpvr === null) return;
   const edpvrPressure = (volumeMl: number) =>
-    volumeMl <= pva.edpvr.zeroPressureVolumeMl
+    volumeMl <= edpvr.zeroPressureVolumeMl
       ? 0
-      : pva.edpvr.scaleMmHg
+      : edpvr.scaleMmHg
         * Math.expm1(
-          pva.edpvr.exponentPerMl
-            * (volumeMl - pva.edpvr.zeroPressureVolumeMl),
+          edpvr.exponentPerMl
+            * (volumeMl - edpvr.zeroPressureVolumeMl),
         );
   drawPvCurveV3(
     context,
     sampleDisplayedPvaCurveV1(
-      Math.max(volumeDomain[0], pva.edpvr.zeroPressureVolumeMl),
-      edpvrEndVolumeMl,
+      edpvr.measuredVolumeRangeMl[0],
+      edpvr.measuredVolumeRangeMl[1],
       edpvrPressure,
     ),
     x,
     y,
     {
       color,
-      width: 1,
-      dash: Object.freeze([2, 4]),
-      alpha: relationAlpha * 0.3,
-    },
-  );
-  drawPvCurveV3(
-    context,
-    sampleDisplayedPvaCurveV1(
-      pva.edpvr.measuredVolumeRangeMl[0],
-      pva.edpvr.measuredVolumeRangeMl[1],
-      edpvrPressure,
-    ),
-    x,
-    y,
-    {
-      color,
-      width: 1.35,
+      width: 1.6,
       dash: Object.freeze([4, 3]),
       alpha: relationAlpha * 0.72,
     },
   );
-  for (const point of pva.espvr.fitPoints) {
-    drawPvRelationMarkerV3(
-      context,
-      x(point.volumeMl),
-      y(point.pressureMmHg),
-      color,
-      1.7,
-      relationAlpha * 0.5,
-      true,
-    );
+  for (const point of edpvr.fitPoints) {
+    drawWorkbenchMeasuredPointV3(context, x(point.volumeMl), y(point.pressureMmHg),
+      color, pointBorderColor, relationAlpha * 0.55, 2.5);
   }
-  for (const point of pva.edpvr.fitPoints) {
-    drawPvRelationMarkerV3(
-      context,
-      x(point.volumeMl),
-      y(point.pressureMmHg),
-      color,
-      1.6,
-      relationAlpha * 0.42,
-      false,
-    );
+}
+
+export function drawWorkbenchSystolicLoadRelationV1(
+  context: CanvasRenderingContext2D, relation: MainWireSystolicPressureEnvelopeV1,
+  x: (volumeMl: number) => number, y: (pressureMmHg: number) => number,
+  color: string, alpha: number, pointBorderColor: string,
+): void {
+  for (const segment of relation.segments) {
+    drawPvCurveV3(context, segment, x, y, { color, width: 1.3, dash: [4, 3], alpha: alpha * 0.48 });
+  }
+  // Sparse load support on the envelope, not its dense interpolation vertices.
+  for (const point of relation.loadSupportPoints) drawWorkbenchMeasuredPointV3(context,
+    x(point.volumeMl), y(point.pressureMmHg), color, pointBorderColor, alpha * 0.55, 2.5);
+}
+
+export function drawWorkbenchDiastolicLoadRelationV1(
+  context: CanvasRenderingContext2D, relation: MainWireDiastolicLoadRelationV1,
+  x: (volumeMl: number) => number, y: (pressureMmHg: number) => number,
+  color: string, alpha: number, pointBorderColor: string,
+): void {
+  for (const segment of relation.segments) {
+    drawPvCurveV3(context, segment, x, y, { color, width: 1.3, dash: [4, 3], alpha: alpha * 0.52 });
+    for (const point of segment) drawWorkbenchMeasuredPointV3(context,
+      x(point.volumeMl), y(point.pressureMmHg), color, pointBorderColor, alpha * 0.55, 2.5);
+  }
+}
+
+function workbenchPvDisplayedRelationPointsV1(drawing: PeriodicPvaDrawingV1, showPressureEnvelope: boolean): readonly WorkbenchPvRelationPointV3[] {
+  return [
+    ...(drawing.loadRelation?.segments.flat() ?? []),
+    ...(drawing.loadRelation?.loadSupportPoints ?? []),
+    ...(drawing.diastolicRelation?.segments.flat() ?? []),
+    ...(drawing.edpvr?.fitPoints ?? []),
+    ...(drawing.espvr?.curve ?? []),
+    ...(drawing.espvr?.fitPoints ?? []),
+    ...(showPressureEnvelope ? drawing.pressureEnvelope?.flat() ?? [] : []),
+    ...(drawing.espvr === null ? [] : workbenchPvMeasuredHighLoadPointsV1(drawing.espvr)),
+    ...(drawing.areaDisplay?.potentialEnergyStrip.flatMap((point) => [
+      { volumeMl: point.volumeMl, pressureMmHg: point.upperPressureMmHg },
+      { volumeMl: point.volumeMl, pressureMmHg: point.lowerPressureMmHg },
+    ]) ?? []),
+  ];
+}
+
+/** Distinct fills intentionally preserve overlaps. Their union is not PVA:
+ * the numerical owner defines PVA as accepted-step SW plus geometric PE. */
+export function drawWorkbenchPvaAreasV1(
+  context: CanvasRenderingContext2D, area: MainWirePvaAreaDisplayV1,
+  x: (volumeMl: number) => number, y: (pressureMmHg: number) => number,
+  color: string, alpha: number,
+): void {
+  const polygon = (points: readonly MainWireIntegratedModelPeriodicPvaCurvePointV1[]) => {
+    context.beginPath();
+    points.forEach((point, index) => index === 0
+      ? context.moveTo(x(point.volumeMl), y(point.pressureMmHg))
+      : context.lineTo(x(point.volumeMl), y(point.pressureMmHg)));
+    context.closePath();
+  };
+  context.save();
+  context.fillStyle = color;
+  context.globalAlpha = alpha * 0.08;
+  polygon(area.strokeWorkLoop);
+  context.fill();
+  const strip = area.potentialEnergyStrip;
+  if (strip.length > 1) {
+    const upper = strip.map((point) => ({ volumeMl: point.volumeMl, pressureMmHg: point.upperPressureMmHg }));
+    const lower = strip.map((point) => ({ volumeMl: point.volumeMl, pressureMmHg: point.lowerPressureMmHg }));
+    polygon([...upper, ...[...lower].reverse()]);
+    context.save();
+    context.clip();
+    context.globalAlpha = alpha * 0.28;
+    context.strokeStyle = color;
+    context.lineWidth = 0.65;
+    const left = x(strip[0]!.volumeMl), right = x(strip.at(-1)!.volumeMl);
+    const ys = [...upper, ...lower].map((point) => y(point.pressureMmHg));
+    const top = Math.min(...ys), bottom = Math.max(...ys), height = bottom - top;
+    context.beginPath();
+    for (let start = left - height; start < right; start += 7) {
+      context.moveTo(start, bottom); context.lineTo(start + height, top);
+    }
+    context.stroke();
+    context.restore();
+    drawPvCurveV3(context, upper, x, y, { color, width: 1, dash: [3, 3], alpha: alpha * 0.7 });
+    // Mark the adopted isochrone anchor, not the semilunar-closure landmark.
+    const end = upper.at(-1)!;
+    drawPvRelationMarkerV3(context, x(end.volumeMl), y(end.pressureMmHg), color, 2.8, alpha * 0.8, false);
+  }
+  context.restore();
+}
+
+/** Shared by viewport and drawing so measured high loads cannot be clipped
+ * merely because only the operating beat supplied the old axis limits. */
+export function workbenchPvMeasuredHighLoadPointsV1(espvr: MainWireIntegratedModelPeriodicPvaEspvrV1) {
+  return espvr.highLoadIsochroneDisplay?.points ?? [];
+}
+
+export function drawWorkbenchPvHighLoadIsochroneV1(
+  context: CanvasRenderingContext2D,
+  espvr: MainWireIntegratedModelPeriodicPvaEspvrV1,
+  x: (volumeMl: number) => number,
+  y: (pressureMmHg: number) => number,
+  color: string,
+  relationAlpha: number,
+): void {
+  const points = workbenchPvMeasuredHighLoadPointsV1(espvr);
+  // These are ordered measured loads, not a globally monotone pressure law.
+  drawPvCurveV3(context, points, x, y, {
+    color, width: 1.3, dash: Object.freeze([4, 3]), alpha: relationAlpha * 0.48,
+  });
+  for (const point of points.slice(1)) {
+    drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
+      color, 1.7, relationAlpha * 0.4, true);
   }
 }
 

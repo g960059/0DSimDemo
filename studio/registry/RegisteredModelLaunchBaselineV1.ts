@@ -12,7 +12,8 @@ import descriptor from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
 import launchJson from
   "@/data/model-baselines/standard70-launch-baseline.json";
-import surface from
+import surface, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as historicalSurface,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as measuredLoadSurface } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
 // Keep the reviewed construction independent of the imported capture/evidence.
@@ -155,7 +156,9 @@ export function resolveRegisteredModelLaunchDefaultsV1<TFixture extends StudioJs
     studioCanonicalJsonStringify(left) === studioCanonicalJsonStringify(right);
   if (input.ticket.modelId !== launch.modelId
     || !equal(input.ticket.manifest, descriptor.manifest)
-    || !equal(input.ticket.surfaceRelease, surface)
+    || (!equal(input.ticket.surfaceRelease, surface)
+      && !equal(input.ticket.surfaceRelease, historicalSurface)
+      && !equal(input.ticket.surfaceRelease, measuredLoadSurface))
     || (!equal(input.defaultFixture, descriptor.defaultFixture)
       && !equal(input.defaultFixture, launch.capture.fixture))) {
     return Object.freeze({ defaultFixture: input.defaultFixture });

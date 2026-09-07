@@ -65,7 +65,7 @@ import { resolveExactModelControlValueV1 } from
   "@/studio/application/model/ExactModelControlValuesV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V8_ID,
-  MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
   buildMainWirePeriodicPvaMethodV8,
 } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisExecutionV1";
 import {
@@ -558,7 +558,7 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       expect(local.modelSurface.contract.outputCatalog.map(({ outputId }) => outputId))
         .toEqual(expect.arrayContaining(surface.derivedOutputCatalog.map(({ outputId }) => outputId)));
       expect(local.modelSurface.analysis.periodicPvaDerivation?.methodId)
-        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID);
+        .toBe(MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID);
 
       for (const modelId of [
         MAIN_WIRE_INTEGRATED_STUDIO_STANDARD_MODEL_ID_V1,

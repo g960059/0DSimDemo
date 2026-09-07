@@ -1084,6 +1084,7 @@ function ArticleReaderLiveGraphV3({
           runtime={runtime}
           traces={traces}
           showPressureEnvelope={pane.showPressureEnvelope}
+          showPvaBoundary={pane.showPvaBoundary}
         />
       </ExperimentGraphPresentationV3>
     );
@@ -1200,6 +1201,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   analysisId,
   pressureVolumeAnalysisMode,
   showPressureEnvelope,
+  showPvaBoundary,
   runtime,
   traces,
 }: Readonly<{
@@ -1207,6 +1209,7 @@ function ArticleReaderPressureVolumeCanvasV3({
   pressureVolumeAnalysisMode:
     ExperimentSurfaceGraphPaneV2["pressureVolumeAnalysisMode"];
   showPressureEnvelope: ExperimentSurfaceGraphPaneV2["showPressureEnvelope"];
+  showPvaBoundary: ExperimentSurfaceGraphPaneV2["showPvaBoundary"];
   runtime: ArticleReaderRuntimeHookV3;
   traces: readonly WorkbenchPressureVolumeTraceV3[];
 }>) {
@@ -1304,6 +1307,7 @@ function ArticleReaderPressureVolumeCanvasV3({
       periodicPvaSupported={periodicPvaEnabled}
       traces={enrichedTraces}
       showPressureEnvelope={periodicPvaEnabled ? showPressureEnvelope : false}
+      showPvaBoundary={periodicPvaEnabled ? showPvaBoundary : false}
     />
   );
 }

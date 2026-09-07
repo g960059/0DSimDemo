@@ -892,7 +892,7 @@ describe("Article Reader V3 experiment anchor", () => {
       ),
     ).toHaveLength(1);
     expect(html).toContain('data-scenario-count="2"');
-    expect(html).toContain('data-chart-legend="scenario-only"');
+    expect(html).toContain('data-chart-legend="scenarios"');
     expect(html).toContain(
       'data-reader-structural-scenario-id="scenario/baseline"',
     );
@@ -935,7 +935,7 @@ describe("Article Reader V3 experiment anchor", () => {
     );
 
     expect(html).toContain('data-scenario-count="1"');
-    expect(html).not.toContain('data-chart-legend="scenario-only"');
+    expect(html).not.toContain('data-chart-legend="scenarios"');
   });
 
   it("keeps the last complete structural curve visible while its Scenario recalculates", () => {

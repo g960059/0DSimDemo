@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   mainWireStandard70PreloadReserveDirectionalResponsePassedV1,
@@ -40,7 +40,8 @@ import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1,
   createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1";
-import algebraicPulmonaryRootSurfaceV1 from
+import algebraicPulmonaryRootSurfaceV5, { MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as algebraicPulmonaryRootSurfaceV1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as algebraicPulmonaryRootSurfaceV2 } from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import qualifiedBaselineSurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioQualifiedBaselineSurfaceV1";
@@ -52,11 +53,123 @@ import {
 import {
   validateMainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
+import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
+import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
+  "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
+import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
+import { createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1 } from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from
+  "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import type { MainWireIntegratedModelStarlingLocusV3 } from
+  "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
+import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
+import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
+import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
+  "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 
 const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
+  it.each([5050, 4650])("keeps %i mL low-load measurements informative while numerical staging reaches qualified low flow", async (tbvMl) => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean"); // Match the admitted browser/analysis worker.
+    const adapter = createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1().executables.simulationAdapter;
+    const ids = { runtimeSessionId: `test/low-load-${tbvMl}`, scenarioId: "baseline" };
+    try {
+    await adapter.createSession({ runtimeSessionId: ids.runtimeSessionId, scenarios: [{
+      scenarioId: ids.scenarioId, fixture: launchBaseline.capture.fixture,
+      checkpoint: launchBaseline.capture.checkpoint as ScenarioCheckpointV2,
+    }] });
+      if (tbvMl !== 5050) await adapter.applyControl({ ...ids,
+        controlId: "hemodynamics.total-blood-volume-ml", value: tbvMl,
+        expectedInputEpoch: adapter.currentInputEpoch(ids),
+      });
+      const source = adapter.currentFrame(ids);
+      const result = await adapter.requestAnalysis({ ...ids,
+        analysisId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        expectedInputEpoch: source.inputEpoch, expectedAcceptedRevision: source.acceptedRevision,
+        expectedAcceptedTimeSec: source.acceptedTimeSec, analysisPartition: "hypovolemic",
+      });
+      const payload = result.payload as unknown as Record<"left" | "right", { starlingLocus: MainWireIntegratedModelStarlingLocusV3 }>;
+      for (const side of ["left", "right"] as const) {
+        const locus = payload[side].starlingLocus;
+        if (locus.status !== "measured-fixed-tbv-protocol") throw new Error("expected formal family");
+        const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
+        // Previous refined endpoints were 2853 / 2872 mL, CO about 1.2 L/min.
+        // Retain an actually measured low-flow endpoint, not extrapolation or
+        // an ever-denser cluster near the old numerical transition failure.
+        expect(ordered[0]!.totalBloodVolumeMl).toBeLessThan(2600);
+        expect(ordered[0]!.cardiacOutputLPerMin).toBeLessThanOrEqual(0.5);
+        expect(ordered[0]!.fillingPressureMmHg).toBeLessThan(side === "right" ? 0 : 0.35);
+        expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(40);
+        expect(ordered[1]!.totalBloodVolumeMl - ordered[0]!.totalBloodVolumeMl).toBeGreaterThan(150);
+        expect(ordered[1]!.cardiacOutputLPerMin - ordered[0]!.cardiacOutputLPerMin).toBeGreaterThan(0.3);
+        // Former low families retained 9/10 points, including 50–76 mL gaps.
+        // Successful internal bridges/staging must not become extra markers.
+        expect(ordered.length).toBeLessThanOrEqual(7);
+        for (let i = 1; i < ordered.length; i += 1) {
+          expect(ordered[i]!.totalBloodVolumeMl - ordered[i - 1]!.totalBloodVolumeMl).toBeGreaterThan(200);
+        }
+        for (const point of ordered) {
+          expect(point).toMatchObject({ settled: true, curveEligible: true,
+            quality: "locally-converged", finiteAndFixedTbvPassed: true });
+          expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
+          expect(point.completedBeatCount).toBeGreaterThanOrEqual(3);
+        }
+      }
+      expect(adapter.currentFrame(ids)).toEqual(source);
+    } finally {
+      adapter.disposeSession(ids.runtimeSessionId);
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  }, 120_000);
+
+  it("inherits the entire compatible Surface when separating load-response and energy display", () => {
+    expect(algebraicPulmonaryRootSurfaceV5.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId);
+    expect(algebraicPulmonaryRootSurfaceV5.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds);
+    for (const key of ["graphCatalog", "controlCatalog", "knobCatalog", "protocolCatalog"] as const) {
+      expect(algebraicPulmonaryRootSurfaceV5[key]).toEqual(algebraicPulmonaryRootSurfaceV2[key]);
+    }
+    expect(algebraicPulmonaryRootSurfaceV5.derivedOutputCatalog.every((output) => output.derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID)).toBe(true);
+  });
+  it("repins measured high-load analysis in a new Surface series without changing exact exposure or controls", () => {
+    expect(algebraicPulmonaryRootSurfaceV2.predecessorSurfaceReleaseId).toBeNull();
+    expect(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV1.surfaceSeriesId);
+    expect(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV1.exposedExactOutputIds);
+    for (const key of ["graphCatalog", "controlCatalog", "knobCatalog", "protocolCatalog"] as const) {
+      expect(algebraicPulmonaryRootSurfaceV2[key]).toEqual(algebraicPulmonaryRootSurfaceV1[key]);
+    }
+    expect(algebraicPulmonaryRootSurfaceV2.derivedOutputCatalog.every((output) =>
+      output.derivationId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID)).toBe(true);
+  });
+  it("advances structural ticks without full-state polling and preserves exact continuation", async () => {
+    const candidate = launchBaseline.candidateInputs;
+    const restore = () => MainWireIntegratedModelStandard70TypedAuthoritySessionV1
+      .restoreStandard70ExactCheckpoint(launchBaseline.capture.checkpoint.payload,
+        candidate.hemodynamicResearchInputs, 1, undefined,
+        validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(candidate.mechanismResearchInputs));
+    const [lean, reference] = await Promise.all([restore(), restore()]);
+    const origin = lean.currentAcceptedState().acceptedTimeSec;
+    const snapshot = vi.spyOn(lean, "currentAcceptedState");
+    const result = lean.advanceStructuralAnalysisToPresentationTimeV1(origin + 1);
+    expect(result.status).toBe("advanced");
+    expect(snapshot).not.toHaveBeenCalled();
+    snapshot.mockRestore();
+    // The historical analysis path requested these exact two-millisecond
+    // targets. Keep bitwise accepted state and algorithmic history, not merely
+    // a tolerance-based agreement of the displayed waveforms.
+    for (let ordinal = 1; ordinal <= 500; ordinal += 1) {
+      expect(reference.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        origin + ordinal * 0.002, [],
+      ).advance.status).toBe("advanced");
+    }
+    expect(lean.snapshotAcceptedStateBytes()).toEqual(reference.snapshotAcceptedStateBytes());
+    expect(await lean.checkpointStandard70Exact()).toEqual(await reference.checkpointStandard70Exact());
+    expect(lean.observe()).toEqual(reference.observe());
+  }, 120_000);
+
   it("changes only the pulmonary root and inherits the complete latest Surface", () => {
     const release =
       createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1();

@@ -25,6 +25,8 @@ import {
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
   MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID,
+  MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
 } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
 import type {
   RegisteredModelDocumentationIdentityV1,
@@ -58,8 +60,8 @@ export type MainWireStandard70DocumentationFactsV1 = Readonly<{
     rawPressureVolumeLoop: true;
     formalPressureVolumeAnalysisExposed: true;
     structuralReturnAnalysisExposed: true;
-    periodicPvaMethodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID;
-    espvrLoadDomain: "preload-reduction-through-operating-anchor";
+    periodicPvaMethodId: typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID;
+    pvaSystolicLoadDomain: "preload-reduction-through-operating-anchor";
   }>;
   baseline: Readonly<{
     completedCycleCount: number;
@@ -167,8 +169,9 @@ export function resolveMainWireStandard70DocumentationFactsV1(
       (graph) => graph.renderer === "structural-return",
     );
     const formalPressureVolumeAnalysisExposed =
-      methods.periodicPvaDerivation?.methodId ===
-        MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
+      (methods.periodicPvaDerivation?.methodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID
+        || methods.periodicPvaDerivation?.methodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID
+        || methods.periodicPvaDerivation?.methodId === MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID)
       && surface.derivedOutputCatalog.length > 0;
     if (
       !rawPressureVolumeLoop
@@ -216,8 +219,9 @@ export function resolveMainWireStandard70DocumentationFactsV1(
         rawPressureVolumeLoop: true as const,
         formalPressureVolumeAnalysisExposed: true as const,
         structuralReturnAnalysisExposed: true as const,
-        periodicPvaMethodId: MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID,
-        espvrLoadDomain:
+        periodicPvaMethodId: methods.periodicPvaDerivation!.methodId as
+          typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V9_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID | typeof MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID,
+        pvaSystolicLoadDomain:
           "preload-reduction-through-operating-anchor" as const,
       }),
       baseline: Object.freeze({

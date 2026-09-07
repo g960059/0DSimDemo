@@ -592,12 +592,13 @@ export function reconcileWorkbenchPressureVolumeCapabilityV3(
     if (
       graph?.renderer !== "pressure-volume" ||
       (pane.pressureVolumeAnalysisMode === "raw-exact-orbit" &&
-        pane.showPressureEnvelope === undefined)
+        pane.showPressureEnvelope === undefined && pane.showPvaBoundary === undefined)
     )
       return pane;
     changed = true;
     const {
       showPressureEnvelope: _showPressureEnvelope,
+      showPvaBoundary: _showPvaBoundary,
       ...withoutEnvelope
     } = pane;
     return Object.freeze({

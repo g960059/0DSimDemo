@@ -10,6 +10,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_STARLING_PROTOCOL_REQUIREMENT_V3,
   MAIN_WIRE_INTEGRATED_MODEL_STRUCTURAL_RETURN_SEMANTICS_V3,
   buildMainWireIntegratedModelGuytonStarlingOrientationV3,
+  type MainWireIntegratedModelStarlingPointV3,
 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import {
   MainWireIntegratedModelSessionV3,
@@ -18,10 +19,57 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_MODEL_RESPONSIVE_STARLING_LOW_FLOW_TARGET_L_PER_MIN_V3,
   mainWireIntegratedModelStarlingDescendingLimbV3,
+  mainWireIntegratedModelFormalLowCoverageScaleStepV3,
   runMainWireIntegratedModelResponsiveStarlingProtocolV3,
 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 
 describe("Main Wire Integrated V3 Guyton / Starling side analysis", () => {
+  const samplingPoint = (flow: number, edv = 100, fillingPressure = 5): MainWireIntegratedModelStarlingPointV3 => ({
+    cardiacOutputLPerMin: flow, fillingPressureMmHg: fillingPressure,
+    ventricularPressureVolumeLandmarks: {
+      endSystolic: { volumeMl: 50, pressureMmHg: 100 },
+      endDiastolic: { volumeMl: edv, pressureMmHg: 8 },
+    },
+  } as MainWireIntegratedModelStarlingPointV3);
+  const samplingLoad = (scale: number, left: MainWireIntegratedModelStarlingPointV3,
+    right = left) => ({ scale, pair: { left, right } });
+
+  it("spends low-load measurements on normalized flow, filling and PV responses in either ventricle", () => {
+    const point = samplingPoint(5);
+    const origin = samplingLoad(1, point);
+    const flowStep = mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      origin, samplingLoad(0.9, samplingPoint(4)),
+    ]);
+    expect(flowStep).toBeCloseTo(0.075, 10);
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      origin, samplingLoad(0.9, samplingPoint(3)),
+    ])).toBeCloseTo(flowStep / 2, 10);
+    // Output can stay unchanged while ventricular filling or size adds useful support.
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      origin, samplingLoad(0.9, point, samplingPoint(5, 80)),
+    ])).toBeCloseTo(flowStep, 10);
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      origin, samplingLoad(0.9, samplingPoint(5, 100, 3)),
+    ])).toBeCloseTo(0.05, 10);
+  });
+
+  it("refines a curved response and bounds flat and near-low-flow sampling requests", () => {
+    const previous = samplingLoad(0.9, samplingPoint(5));
+    const current = samplingLoad(0.8, samplingPoint(4));
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      samplingLoad(1, samplingPoint(6)), previous, current,
+    ])).toBeCloseTo(0.075, 10);
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      samplingLoad(1, samplingPoint(13)), previous, current,
+    ])).toBeCloseTo(0.06, 10);
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      samplingLoad(1, samplingPoint(5)), samplingLoad(0.9, samplingPoint(5)),
+    ])).toBe(0.12);
+    expect(mainWireIntegratedModelFormalLowCoverageScaleStepV3([
+      samplingLoad(0.7, samplingPoint(1.5)), samplingLoad(0.6, samplingPoint(0.6)),
+    ])).toBe(0.02);
+  });
+
   it("confirms a high-volume descending limb only after two sustained drops", () => {
     const points = [
       [8, 5.5],

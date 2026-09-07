@@ -174,8 +174,12 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
     pool.dispose();
   });
 
-  it("keeps calibration foreground-only and admits prewarm from measured headroom", async () => {
+  it("calibrates the live foreground first, then starts both analysis directions together", async () => {
     const events: string[] = [];
+    let releaseAnalysis!: () => void;
+    const analysisGate = new Promise<void>((resolve) => {
+      releaseAnalysis = resolve;
+    });
     const pool = new WorkbenchBackgroundWorkerPoolV3(
       { warmSize: 0, maxSize: 2 },
       () => ({ terminate: vi.fn() }) as unknown as
@@ -193,10 +197,12 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       events.push("started");
       return "done";
     });
-    const analysis = pool.schedule("analysis", async () => {
-      events.push("analysis");
-      return "analysis";
-    });
+    const analyses = ["low", "high"].map((direction) =>
+      pool.schedule("analysis", async () => {
+        events.push(direction);
+        await analysisGate;
+        return direction;
+      }));
     await Promise.resolve();
     expect(events).toEqual([]);
     expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
@@ -206,8 +212,13 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       maximumRate: 1,
       calibrating: false,
     });
-    await expect(analysis.promise).resolves.toBe("analysis");
-    expect(events).toEqual(["analysis"]);
+    await vi.waitFor(() => expect(events).toEqual(["low", "high"]));
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(false);
+
+    releaseAnalysis();
+    await expect(Promise.all(analyses.map(({ promise }) => promise)))
+      .resolves.toEqual(["low", "high"]);
+    expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
 
     pool.setForegroundPlaybackState({
       playbackRate: 1,
@@ -215,10 +226,38 @@ describe("WorkbenchBackgroundWorkerPoolV3", () => {
       calibrating: false,
     });
     await expect(handle.promise).resolves.toBe("done");
-    expect(events).toEqual(["analysis", "started"]);
+    expect(events).toEqual(["low", "high", "started"]);
     expect(pool.foregroundCapacityMeasurementEligible()).toBe(true);
     pool.dispose();
   });
+
+  it.each([false, true])(
+    "allows paused analysis and prewarm without calibration (initially live: %s)",
+    async (initiallyLive) => {
+      const pool = new WorkbenchBackgroundWorkerPoolV3(
+        { warmSize: 0, maxSize: 2 },
+        () => ({ terminate: vi.fn() }) as unknown as
+          StudioSimulationWorkerClientV2,
+        4,
+      );
+      pool.setForegroundPlaybackState({
+        playbackRate: 0.5,
+        maximumRate: null,
+        calibrating: true,
+      });
+      if (initiallyLive) pool.setLiveScenarioCount(1);
+      const pending = Promise.all([
+        pool.run("analysis", async () => "analysis"),
+        pool.run("prewarm", async () => "prewarm"),
+      ]);
+      if (initiallyLive) {
+        await Promise.resolve();
+        pool.setLiveScenarioCount(0);
+      }
+      await expect(pending).resolves.toEqual(["analysis", "prewarm"]);
+      pool.dispose();
+    },
+  );
 
   it("preempts speculative work when a live group begins calibration", async () => {
     const clients: ReturnType<typeof cancellableClientV3>[] = [];

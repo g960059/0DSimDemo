@@ -405,6 +405,10 @@ export function assertExperimentContentMatchesModelSurfaceCapabilitiesV2(
         "resolved Model Surface has no periodic PVA analysis; must not configure an analysis envelope",
       );
     }
+    if (pane.showPvaBoundary !== undefined) {
+      throw validationErrorV2(`${panePath}.showPvaBoundary`,
+        "resolved Model Surface has no periodic PVA analysis; must not configure an energy view");
+    }
   });
 }
 
@@ -488,6 +492,11 @@ function assertExperimentModelAndSurfaceMatchV2(
     const scopedScenarioIds = pane.scenarioScope.mode === "fixed"
       ? pane.scenarioScope.scenarioIds
       : content.scenarios.map(({ scenarioId }) => scenarioId);
+    if (pane.showPvaBoundary !== undefined && (graph.renderer !== "pressure-volume"
+      || pane.pressureVolumeAnalysisMode === "raw-exact-orbit")) {
+      throw validationErrorV2(`${panePath}.showPvaBoundary`,
+        "only analysis-enabled pressure-volume graphs may configure an energy view");
+    }
     if (graph.renderer === "structural-return") {
       if (pane.series.length !== 0) {
         throw validationErrorV2(
@@ -1266,6 +1275,7 @@ function assertExperimentSurfaceV2(
         "historyDepth",
         "pressureVolumeAnalysisMode",
         "showPressureEnvelope",
+        "showPvaBoundary",
         "structuralSide",
         "traceColors",
       ],
@@ -1331,6 +1341,9 @@ function assertExperimentSurfaceV2(
         `${panePath}.showPressureEnvelope`,
         "must be boolean",
       );
+    }
+    if (pane.showPvaBoundary !== undefined && typeof pane.showPvaBoundary !== "boolean") {
+      throw validationErrorV2(`${panePath}.showPvaBoundary`, "must be boolean");
     }
     if (
       pane.structuralSide !== undefined &&

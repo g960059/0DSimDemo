@@ -423,6 +423,7 @@ function SampledGraphPaneBodyV3({
           showPressureEnvelope={
             periodicPvaEnabled ? pane.showPressureEnvelope : false
           }
+          showPvaBoundary={periodicPvaEnabled ? pane.showPvaBoundary : false}
         />
       </ExperimentGraphPresentationV3>
     );
