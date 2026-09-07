@@ -55,9 +55,10 @@ describe("settled hot-start PVA V1", () => {
   it.each([1, 3])("accounts for an isolated envelope load beside rejected index %i", (rejectedIndex) => {
     const points = isovolumicEnvelopePointsV1([40, 50, 60, 70, 80], [30, 50, 70, 90, 110]);
     const source = formalLocusV1(points);
+    if (source.status !== "measured-fixed-tbv-protocol") throw new Error("expected measured family");
     const result = buildMainWireSystolicPressureEnvelopeV1({ ...source,
       points: source.points.map((point, index) => index === rejectedIndex
-        ? { ...point, curveEligible: false } : point),
+        ? { ...point, ventricularPressureVolumeLoop: [] } : point),
     })!;
     expect(result.sourcePointCount).toBe(3);
     expect(result.excludedPointCount).toBe(2); // One rejected load plus one qualified but isolated load.
