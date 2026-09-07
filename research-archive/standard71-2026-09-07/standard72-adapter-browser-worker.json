@@ -1,0 +1,1743 @@
+{
+  "schemaId": "main-wire-standard72-browser-worker-binding-v1",
+  "status": "passed",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+  "artifactSha256": "5210a42f1469072182ec6d7f18ee3ee54547a469e78af5479c812ca8ad0f45bb",
+  "artifactRevisionId": "33b55a8c50383451a374b4dedd1b83b9082193d4d7f6e7ec668600816e251e00",
+  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.workbench-v1",
+  "transport": "actual-module-worker-structured-clone-json-structured-clone",
+  "results": [
+    {
+      "browser": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "status": "passed",
+      "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+      "executionPlan": false,
+      "afterControl": false,
+      "capturedHistoryDepth": 4,
+      "comparedSteps": 1000,
+      "finalCheckpointEqual": true,
+      "structuredCloneAndJsonRoundtrip": true,
+      "snapshotAdmission": "passed",
+      "finalTimeSec": 48.302,
+      "finalCheckpointSha256": "51256817793d6a165bb23e8be9e59edf3c6e4b8929d629f59549194bc12b31b3",
+      "finalCompletedBeat": {
+        "diastolicAorticPressureMmHg": 77.52630822785508,
+        "durationSec": 0.8571428571428541,
+        "effectiveNativeLeftCardiacOutputLPerMin": 5.608662666084837,
+        "effectiveNativeRightCardiacOutputLPerMin": 5.608898144897971,
+        "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:111:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:55",
+        "endTimeSec": 47.86799999999995,
+        "extremaLeftVentricularEjectionFraction01": 0.5575375144011109,
+        "extremaLeftVentricularStrokeVolumeMl": 80.1237525908972,
+        "leftVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 10.937852515649059,
+            "volumeMl": 143.71006528047462
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 106.81047779549566,
+            "volumeMl": 63.586312689577426
+          },
+          "pressureBasis": "transmural"
+        },
+        "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 8097.660619558934,
+        "leftVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 10.920461162981319,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.118,
+            "transmuralPressureMmHg": 10.920461162981319,
+            "valveId": "MV",
+            "volumeMl": 143.71006528047462
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 106.81047779549566,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.464,
+            "transmuralPressureMmHg": 106.81047779549566,
+            "valveId": "AoV",
+            "volumeMl": 63.586312689577426
+          },
+          "eventDefinedEjectionFraction01": 0.5575375144011109,
+          "eventDefinedStrokeVolumeMl": 80.1237525908972,
+          "inletValveId": "MV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "AoV"
+        },
+        "maximumLeftVentricularVolumeMl": 143.71006528047462,
+        "meanAorticPressureMmHg": 93.59025303056025,
+        "meanLeftAtrialPressureMmHg": 8.402843743613815,
+        "meanPulmonaryArterialPressureMmHg": 17.89269932983297,
+        "meanRightAtrialPressureMmHg": 3.079513557625419,
+        "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
+        "minimumLeftVentricularVolumeMl": 63.586312689577426,
+        "nativeLeftCardiacOutputLPerMin": 5.608662666084837,
+        "nativeRightCardiacOutputLPerMin": 5.608898144897971,
+        "pressureSummaries": {
+          "Ao": {
+            "maximumMmHg": 111.29707331672103,
+            "minimumMmHg": 77.52630822785508,
+            "pulseMmHg": 33.77076508886594,
+            "timeWeightedMeanMmHg": 93.59025303056025
+          },
+          "LA": {
+            "maximumMmHg": 13.058885422548196,
+            "minimumMmHg": 6.334012175784828,
+            "pulseMmHg": 6.724873246763368,
+            "timeWeightedMeanMmHg": 8.402843743613815
+          },
+          "LV": {
+            "maximumMmHg": 113.6233148071356,
+            "minimumMmHg": 4.194307235693404,
+            "pulseMmHg": 109.4290075714422,
+            "timeWeightedMeanMmHg": 43.068086728591986
+          },
+          "PA": {
+            "maximumMmHg": 26.172081006973595,
+            "minimumMmHg": 12.05984824909777,
+            "pulseMmHg": 14.112232757875825,
+            "timeWeightedMeanMmHg": 17.89269932983297
+          },
+          "PVein": {
+            "maximumMmHg": 13.352205754299264,
+            "minimumMmHg": 9.741513477545734,
+            "pulseMmHg": 3.6106922767535305,
+            "timeWeightedMeanMmHg": 11.230846805600622
+          },
+          "RA": {
+            "maximumMmHg": 5.026299073865737,
+            "minimumMmHg": 1.5896059818841917,
+            "pulseMmHg": 3.436693091981546,
+            "timeWeightedMeanMmHg": 3.079513557625419
+          },
+          "RV": {
+            "maximumMmHg": 29.36492961905541,
+            "minimumMmHg": 0.9073639653232364,
+            "pulseMmHg": 28.457565653732175,
+            "timeWeightedMeanMmHg": 10.091083437052335
+          },
+          "SA": {
+            "maximumMmHg": 102.17088853708202,
+            "minimumMmHg": 76.65394416551075,
+            "pulseMmHg": 25.51694437157127,
+            "timeWeightedMeanMmHg": 89.18856192295519
+          },
+          "VC": {
+            "maximumMmHg": 6.893529961030486,
+            "minimumMmHg": 6.6062379663790916,
+            "pulseMmHg": 0.28729199465139477,
+            "timeWeightedMeanMmHg": 6.725470686174097
+          }
+        },
+        "pulmonaryOutputLPerMin": 5.608881971402061,
+        "pulmonaryVenousReturnLPerMin": 5.6092622717093485,
+        "pulseAorticPressureMmHg": 33.77076508886594,
+        "rightVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 2.323564992731925,
+            "volumeMl": 140.75863492312297
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 24.217373233121037,
+            "volumeMl": 60.63151854309744
+          },
+          "pressureBasis": "transmural"
+        },
+        "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2020.5282126439813,
+        "rightVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 2.4551747394340264,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.172000000000004,
+            "transmuralPressureMmHg": 2.4551747394340264,
+            "valveId": "TV",
+            "volumeMl": 140.75863492312297
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 24.217373233121037,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.46,
+            "transmuralPressureMmHg": 24.217373233121037,
+            "valveId": "PV",
+            "volumeMl": 60.63151854309744
+          },
+          "eventDefinedEjectionFraction01": 0.5692518716438811,
+          "eventDefinedStrokeVolumeMl": 80.12711638002553,
+          "inletValveId": "TV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "PV"
+        },
+        "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:109:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:54",
+        "startTimeSec": 47.0108571428571,
+        "systemicTissueOutputLPerMin": 5.460033026728407,
+        "systemicVenousReturnLPerMin": 5.608476644868361,
+        "systolicAorticPressureMmHg": 111.29707331672103,
+        "valveFlowVolumes": {
+          "AoV": {
+            "forwardVolumeMl": 80.12375237264024,
+            "netVolumeMl": 80.12375237264024,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "MV": {
+            "forwardVolumeMl": 80.11487239372208,
+            "netVolumeMl": 80.11487239372208,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "PV": {
+            "forwardVolumeMl": 80.12711635568502,
+            "netVolumeMl": 80.12711635568502,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "TV": {
+            "forwardVolumeMl": 80.1113163343401,
+            "netVolumeMl": 80.1113163343401,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          }
+        },
+        "valveForwardPressureGradients": {
+          "AoV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.2560000000000002,
+            "peakMmHg": 7.810183415723614,
+            "timeWeightedMeanMmHg": 4.233341959293511
+          },
+          "MV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.41714285714285637,
+            "peakMmHg": 5.384751021790263,
+            "timeWeightedMeanMmHg": 1.8542985738748377
+          },
+          "PV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.259999999999998,
+            "peakMmHg": 7.348246682549135,
+            "timeWeightedMeanMmHg": 4.402958614345128
+          },
+          "TV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.5071428571428598,
+            "peakMmHg": 2.331783809767715,
+            "timeWeightedMeanMmHg": 0.8908677585250939
+          }
+        },
+        "ventricularAbsolutePressureRateExtrema": {
+          "LV": {
+            "maximumMmHgPerSec": 2572.4030415430316,
+            "minimumMmHgPerSec": -1538.914598924054
+          },
+          "RV": {
+            "maximumMmHgPerSec": 584.2953358727689,
+            "minimumMmHgPerSec": -371.68052249251866
+          }
+        }
+      }
+    },
+    {
+      "browser": "chromium",
+      "browserVersion": "151.0.7922.34",
+      "status": "passed",
+      "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+      "executionPlan": true,
+      "afterControl": true,
+      "capturedHistoryDepth": 4,
+      "comparedSteps": 1000,
+      "finalCheckpointEqual": true,
+      "structuredCloneAndJsonRoundtrip": true,
+      "snapshotAdmission": "passed",
+      "finalTimeSec": 48.302,
+      "finalCheckpointSha256": "2f67fdb7defd54532ee6675463288945dcd5e8e6067c4b689d3bee35cd9ba902",
+      "finalCompletedBeat": {
+        "diastolicAorticPressureMmHg": 77.52868920526747,
+        "durationSec": 0.8571428571428541,
+        "effectiveNativeLeftCardiacOutputLPerMin": 5.6084069507823315,
+        "effectiveNativeRightCardiacOutputLPerMin": 5.622956141347344,
+        "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:111:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:55",
+        "endTimeSec": 47.86799999999995,
+        "extremaLeftVentricularEjectionFraction01": 0.5575261399384168,
+        "extremaLeftVentricularStrokeVolumeMl": 80.1200995034722,
+        "leftVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 10.94016776271043,
+            "volumeMl": 143.70644488942187
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 106.81512098525688,
+            "volumeMl": 63.58634538594968
+          },
+          "pressureBasis": "transmural"
+        },
+        "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 8096.947707650588,
+        "leftVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 10.922792448880825,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.118,
+            "transmuralPressureMmHg": 10.922792448880825,
+            "valveId": "MV",
+            "volumeMl": 143.70644488942187
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 106.81512098525688,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.464,
+            "transmuralPressureMmHg": 106.81512098525688,
+            "valveId": "AoV",
+            "volumeMl": 63.58634538594968
+          },
+          "eventDefinedEjectionFraction01": 0.5575261399384168,
+          "eventDefinedStrokeVolumeMl": 80.1200995034722,
+          "inletValveId": "MV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "AoV"
+        },
+        "maximumLeftVentricularVolumeMl": 143.70644488942187,
+        "meanAorticPressureMmHg": 93.59300727517135,
+        "meanLeftAtrialPressureMmHg": 8.40704667747834,
+        "meanPulmonaryArterialPressureMmHg": 17.91231166896762,
+        "meanRightAtrialPressureMmHg": 3.093113260523055,
+        "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
+        "minimumLeftVentricularVolumeMl": 63.58634538594968,
+        "nativeLeftCardiacOutputLPerMin": 5.6084069507823315,
+        "nativeRightCardiacOutputLPerMin": 5.622956141347344,
+        "pressureSummaries": {
+          "Ao": {
+            "maximumMmHg": 111.29915148051694,
+            "minimumMmHg": 77.52868920526747,
+            "pulseMmHg": 33.77046227524947,
+            "timeWeightedMeanMmHg": 93.59300727517135
+          },
+          "LA": {
+            "maximumMmHg": 13.06098644873982,
+            "minimumMmHg": 6.340864686204469,
+            "pulseMmHg": 6.720121762535351,
+            "timeWeightedMeanMmHg": 8.40704667747834
+          },
+          "LV": {
+            "maximumMmHg": 113.62510193391705,
+            "minimumMmHg": 4.196421774141483,
+            "pulseMmHg": 109.42868015977557,
+            "timeWeightedMeanMmHg": 43.07157259466803
+          },
+          "PA": {
+            "maximumMmHg": 26.207259036133856,
+            "minimumMmHg": 12.060683373982997,
+            "pulseMmHg": 14.146575662150859,
+            "timeWeightedMeanMmHg": 17.91231166896762
+          },
+          "PVein": {
+            "maximumMmHg": 13.365469041140562,
+            "minimumMmHg": 9.742257818332886,
+            "pulseMmHg": 3.623211222807676,
+            "timeWeightedMeanMmHg": 11.238067242856523
+          },
+          "RA": {
+            "maximumMmHg": 5.0390318437134765,
+            "minimumMmHg": 1.5971638874623848,
+            "pulseMmHg": 3.441867956251092,
+            "timeWeightedMeanMmHg": 3.093113260523055
+          },
+          "RV": {
+            "maximumMmHg": 29.406480439016768,
+            "minimumMmHg": 0.9120468843173859,
+            "pulseMmHg": 28.49443355469938,
+            "timeWeightedMeanMmHg": 10.115795864509229
+          },
+          "SA": {
+            "maximumMmHg": 102.17361943534888,
+            "minimumMmHg": 76.65637263895533,
+            "pulseMmHg": 25.51724679639355,
+            "timeWeightedMeanMmHg": 89.19161098560453
+          },
+          "VC": {
+            "maximumMmHg": 6.918614867929536,
+            "minimumMmHg": 6.632433101082348,
+            "pulseMmHg": 0.28618176684718843,
+            "timeWeightedMeanMmHg": 6.750810894835508
+          }
+        },
+        "pulmonaryOutputLPerMin": 5.621820571001703,
+        "pulmonaryVenousReturnLPerMin": 5.615247402403007,
+        "pulseAorticPressureMmHg": 33.77046227524947,
+        "rightVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 2.341353818935798,
+            "volumeMl": 141.0780153141598
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 24.278384956486093,
+            "volumeMl": 60.75007041425602
+          },
+          "pressureBasis": "transmural"
+        },
+        "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2027.8714640089552,
+        "rightVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 2.4740064434718763,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.172000000000004,
+            "transmuralPressureMmHg": 2.4740064434718763,
+            "valveId": "TV",
+            "volumeMl": 141.0780153141598
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 24.278384956486093,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.46,
+            "transmuralPressureMmHg": 24.278384956486093,
+            "valveId": "PV",
+            "volumeMl": 60.75007041425602
+          },
+          "eventDefinedEjectionFraction01": 0.5693866951631363,
+          "eventDefinedStrokeVolumeMl": 80.3279448999038,
+          "inletValveId": "TV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "PV"
+        },
+        "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:109:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:54",
+        "startTimeSec": 47.0108571428571,
+        "systemicTissueOutputLPerMin": 5.459346379450567,
+        "systemicVenousReturnLPerMin": 5.6261276763102375,
+        "systolicAorticPressureMmHg": 111.29915148051694,
+        "valveFlowVolumes": {
+          "AoV": {
+            "forwardVolumeMl": 80.12009929689016,
+            "netVolumeMl": 80.12009929689016,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "MV": {
+            "forwardVolumeMl": 80.14238767914706,
+            "netVolumeMl": 80.14238767914706,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "PV": {
+            "forwardVolumeMl": 80.32794487639035,
+            "netVolumeMl": 80.32794487639035,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "TV": {
+            "forwardVolumeMl": 80.36201568572919,
+            "netVolumeMl": 80.36201568572919,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          }
+        },
+        "valveForwardPressureGradients": {
+          "AoV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.2560000000000002,
+            "peakMmHg": 7.809014209837372,
+            "timeWeightedMeanMmHg": 4.232793388299044
+          },
+          "MV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.41714285714285637,
+            "peakMmHg": 5.38605875259839,
+            "timeWeightedMeanMmHg": 1.855111858734711
+          },
+          "PV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.259999999999998,
+            "peakMmHg": 7.36804415160346,
+            "timeWeightedMeanMmHg": 4.418600093919554
+          },
+          "TV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.5071428571428598,
+            "peakMmHg": 2.342333387709729,
+            "timeWeightedMeanMmHg": 0.8940935531712664
+          }
+        },
+        "ventricularAbsolutePressureRateExtrema": {
+          "LV": {
+            "maximumMmHgPerSec": 2570.947076214134,
+            "minimumMmHgPerSec": -1538.953317455823
+          },
+          "RV": {
+            "maximumMmHgPerSec": 584.411281065179,
+            "minimumMmHgPerSec": -372.2948003049493
+          }
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "browserVersion": "26.5",
+      "status": "passed",
+      "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+      "executionPlan": false,
+      "afterControl": false,
+      "capturedHistoryDepth": 4,
+      "comparedSteps": 1000,
+      "finalCheckpointEqual": true,
+      "structuredCloneAndJsonRoundtrip": true,
+      "snapshotAdmission": "passed",
+      "finalTimeSec": 48.302,
+      "finalCheckpointSha256": "1ae0e14c73cc3d6b82ee40283f537fbbc71541e3d3d1a7a5ef3a36b7ccdaead9",
+      "finalCompletedBeat": {
+        "diastolicAorticPressureMmHg": 77.5263082278552,
+        "durationSec": 0.8571428571428541,
+        "effectiveNativeLeftCardiacOutputLPerMin": 5.608662666084814,
+        "effectiveNativeRightCardiacOutputLPerMin": 5.608898144897987,
+        "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:111:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:55",
+        "endTimeSec": 47.86799999999995,
+        "extremaLeftVentricularEjectionFraction01": 0.5575375144011101,
+        "extremaLeftVentricularStrokeVolumeMl": 80.12375259089717,
+        "leftVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 10.937852515649121,
+            "volumeMl": 143.71006528047477
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 106.81047779549608,
+            "volumeMl": 63.586312689577596
+          },
+          "pressureBasis": "transmural"
+        },
+        "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 8097.660619558954,
+        "leftVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 10.920461162981386,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.118,
+            "transmuralPressureMmHg": 10.920461162981386,
+            "valveId": "MV",
+            "volumeMl": 143.71006528047477
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 106.81047779549608,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.464,
+            "transmuralPressureMmHg": 106.81047779549608,
+            "valveId": "AoV",
+            "volumeMl": 63.586312689577596
+          },
+          "eventDefinedEjectionFraction01": 0.5575375144011101,
+          "eventDefinedStrokeVolumeMl": 80.12375259089717,
+          "inletValveId": "MV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "AoV"
+        },
+        "maximumLeftVentricularVolumeMl": 143.71006528047477,
+        "meanAorticPressureMmHg": 93.59025303056052,
+        "meanLeftAtrialPressureMmHg": 8.40284374361385,
+        "meanPulmonaryArterialPressureMmHg": 17.89269932983303,
+        "meanRightAtrialPressureMmHg": 3.0795135576254196,
+        "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
+        "minimumLeftVentricularVolumeMl": 63.586312689577596,
+        "nativeLeftCardiacOutputLPerMin": 5.608662666084814,
+        "nativeRightCardiacOutputLPerMin": 5.608898144897987,
+        "pressureSummaries": {
+          "Ao": {
+            "maximumMmHg": 111.29707331672142,
+            "minimumMmHg": 77.5263082278552,
+            "pulseMmHg": 33.77076508886623,
+            "timeWeightedMeanMmHg": 93.59025303056052
+          },
+          "LA": {
+            "maximumMmHg": 13.058885422548245,
+            "minimumMmHg": 6.3340121757848555,
+            "pulseMmHg": 6.72487324676339,
+            "timeWeightedMeanMmHg": 8.40284374361385
+          },
+          "LV": {
+            "maximumMmHg": 113.62331480713607,
+            "minimumMmHg": 4.194307235693379,
+            "pulseMmHg": 109.4290075714427,
+            "timeWeightedMeanMmHg": 43.06808672859215
+          },
+          "PA": {
+            "maximumMmHg": 26.172081006973634,
+            "minimumMmHg": 12.059848249097804,
+            "pulseMmHg": 14.11223275787583,
+            "timeWeightedMeanMmHg": 17.89269932983303
+          },
+          "PVein": {
+            "maximumMmHg": 13.352205754299282,
+            "minimumMmHg": 9.741513477545755,
+            "pulseMmHg": 3.610692276753527,
+            "timeWeightedMeanMmHg": 11.230846805600647
+          },
+          "RA": {
+            "maximumMmHg": 5.02629907386573,
+            "minimumMmHg": 1.5896059818841914,
+            "pulseMmHg": 3.436693091981539,
+            "timeWeightedMeanMmHg": 3.0795135576254196
+          },
+          "RV": {
+            "maximumMmHg": 29.364929619055484,
+            "minimumMmHg": 0.9073639653232219,
+            "pulseMmHg": 28.457565653732264,
+            "timeWeightedMeanMmHg": 10.091083437052365
+          },
+          "SA": {
+            "maximumMmHg": 102.17088853708249,
+            "minimumMmHg": 76.65394416551081,
+            "pulseMmHg": 25.516944371571682,
+            "timeWeightedMeanMmHg": 89.18856192295544
+          },
+          "VC": {
+            "maximumMmHg": 6.893529961030486,
+            "minimumMmHg": 6.606237966379102,
+            "pulseMmHg": 0.2872919946513841,
+            "timeWeightedMeanMmHg": 6.7254706861740985
+          }
+        },
+        "pulmonaryOutputLPerMin": 5.608881971402064,
+        "pulmonaryVenousReturnLPerMin": 5.6092622717093406,
+        "pulseAorticPressureMmHg": 33.77076508886623,
+        "rightVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 2.323564992731959,
+            "volumeMl": 140.75863492312328
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 24.21737323312104,
+            "volumeMl": 60.63151854309759
+          },
+          "pressureBasis": "transmural"
+        },
+        "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2020.5282126439915,
+        "rightVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 2.4551747394340615,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.172000000000004,
+            "transmuralPressureMmHg": 2.4551747394340615,
+            "valveId": "TV",
+            "volumeMl": 140.75863492312328
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 24.21737323312104,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.46,
+            "transmuralPressureMmHg": 24.21737323312104,
+            "valveId": "PV",
+            "volumeMl": 60.63151854309759
+          },
+          "eventDefinedEjectionFraction01": 0.569251871643881,
+          "eventDefinedStrokeVolumeMl": 80.12711638002568,
+          "inletValveId": "TV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "PV"
+        },
+        "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:109:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:54",
+        "startTimeSec": 47.0108571428571,
+        "systemicTissueOutputLPerMin": 5.460033026728437,
+        "systemicVenousReturnLPerMin": 5.608476644868362,
+        "systolicAorticPressureMmHg": 111.29707331672142,
+        "valveFlowVolumes": {
+          "AoV": {
+            "forwardVolumeMl": 80.12375237263993,
+            "netVolumeMl": 80.12375237263993,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "MV": {
+            "forwardVolumeMl": 80.11487239372212,
+            "netVolumeMl": 80.11487239372212,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "PV": {
+            "forwardVolumeMl": 80.12711635568525,
+            "netVolumeMl": 80.12711635568525,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "TV": {
+            "forwardVolumeMl": 80.11131633434015,
+            "netVolumeMl": 80.11131633434015,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          }
+        },
+        "valveForwardPressureGradients": {
+          "AoV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.2560000000000002,
+            "peakMmHg": 7.810183415720985,
+            "timeWeightedMeanMmHg": 4.233341959293512
+          },
+          "MV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.41714285714285637,
+            "peakMmHg": 5.384751021790322,
+            "timeWeightedMeanMmHg": 1.8542985738748454
+          },
+          "PV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.259999999999998,
+            "peakMmHg": 7.348246682549117,
+            "timeWeightedMeanMmHg": 4.402958614345135
+          },
+          "TV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.5071428571428598,
+            "peakMmHg": 2.3317838097677126,
+            "timeWeightedMeanMmHg": 0.8908677585250946
+          }
+        },
+        "ventricularAbsolutePressureRateExtrema": {
+          "LV": {
+            "maximumMmHgPerSec": 2572.4030415430957,
+            "minimumMmHgPerSec": -1538.9145989242031
+          },
+          "RV": {
+            "maximumMmHgPerSec": 584.2953358727698,
+            "minimumMmHgPerSec": -371.6805224924929
+          }
+        }
+      }
+    },
+    {
+      "browser": "webkit",
+      "browserVersion": "26.5",
+      "status": "passed",
+      "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+      "executionPlan": true,
+      "afterControl": true,
+      "capturedHistoryDepth": 4,
+      "comparedSteps": 1000,
+      "finalCheckpointEqual": true,
+      "structuredCloneAndJsonRoundtrip": true,
+      "snapshotAdmission": "passed",
+      "finalTimeSec": 48.302,
+      "finalCheckpointSha256": "cde3856d669fbf53ad3952f069178236ff51610b020e16e7f50bf95282e54803",
+      "finalCompletedBeat": {
+        "diastolicAorticPressureMmHg": 77.52868920526747,
+        "durationSec": 0.8571428571428541,
+        "effectiveNativeLeftCardiacOutputLPerMin": 5.6084069507823955,
+        "effectiveNativeRightCardiacOutputLPerMin": 5.6229561413473625,
+        "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:111:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:55",
+        "endTimeSec": 47.86799999999995,
+        "extremaLeftVentricularEjectionFraction01": 0.5575261399384166,
+        "extremaLeftVentricularStrokeVolumeMl": 80.12009950347206,
+        "leftVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 10.94016776271037,
+            "volumeMl": 143.70644488942168
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 106.81512098525639,
+            "volumeMl": 63.58634538594961
+          },
+          "pressureBasis": "transmural"
+        },
+        "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 8096.947707650577,
+        "leftVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 10.922792448880804,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.118,
+            "transmuralPressureMmHg": 10.922792448880804,
+            "valveId": "MV",
+            "volumeMl": 143.70644488942168
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 106.81512098525639,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.464,
+            "transmuralPressureMmHg": 106.81512098525639,
+            "valveId": "AoV",
+            "volumeMl": 63.58634538594961
+          },
+          "eventDefinedEjectionFraction01": 0.5575261399384166,
+          "eventDefinedStrokeVolumeMl": 80.12009950347206,
+          "inletValveId": "MV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "AoV"
+        },
+        "maximumLeftVentricularVolumeMl": 143.70644488942168,
+        "meanAorticPressureMmHg": 93.59300727517136,
+        "meanLeftAtrialPressureMmHg": 8.407046677478311,
+        "meanPulmonaryArterialPressureMmHg": 17.912311668967607,
+        "meanRightAtrialPressureMmHg": 3.0931132605230607,
+        "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
+        "minimumLeftVentricularVolumeMl": 63.58634538594961,
+        "nativeLeftCardiacOutputLPerMin": 5.6084069507823955,
+        "nativeRightCardiacOutputLPerMin": 5.6229561413473625,
+        "pressureSummaries": {
+          "Ao": {
+            "maximumMmHg": 111.29915148051683,
+            "minimumMmHg": 77.52868920526747,
+            "pulseMmHg": 33.77046227524936,
+            "timeWeightedMeanMmHg": 93.59300727517136
+          },
+          "LA": {
+            "maximumMmHg": 13.06098644873975,
+            "minimumMmHg": 6.340864686204455,
+            "pulseMmHg": 6.720121762535294,
+            "timeWeightedMeanMmHg": 8.407046677478311
+          },
+          "LV": {
+            "maximumMmHg": 113.62510193391805,
+            "minimumMmHg": 4.19642177414149,
+            "pulseMmHg": 109.42868015977656,
+            "timeWeightedMeanMmHg": 43.07157259466803
+          },
+          "PA": {
+            "maximumMmHg": 26.20725903613389,
+            "minimumMmHg": 12.060683373982997,
+            "pulseMmHg": 14.146575662150894,
+            "timeWeightedMeanMmHg": 17.912311668967607
+          },
+          "PVein": {
+            "maximumMmHg": 13.365469041140523,
+            "minimumMmHg": 9.742257818332886,
+            "pulseMmHg": 3.6232112228076367,
+            "timeWeightedMeanMmHg": 11.238067242856502
+          },
+          "RA": {
+            "maximumMmHg": 5.039031843713479,
+            "minimumMmHg": 1.5971638874623846,
+            "pulseMmHg": 3.4418679562510945,
+            "timeWeightedMeanMmHg": 3.0931132605230607
+          },
+          "RV": {
+            "maximumMmHg": 29.406480439017095,
+            "minimumMmHg": 0.9120468843173943,
+            "pulseMmHg": 28.4944335546997,
+            "timeWeightedMeanMmHg": 10.11579586450924
+          },
+          "SA": {
+            "maximumMmHg": 102.17361943534895,
+            "minimumMmHg": 76.65637263895533,
+            "pulseMmHg": 25.51724679639362,
+            "timeWeightedMeanMmHg": 89.1916109856045
+          },
+          "VC": {
+            "maximumMmHg": 6.918614867929541,
+            "minimumMmHg": 6.63243310108235,
+            "pulseMmHg": 0.2861817668471911,
+            "timeWeightedMeanMmHg": 6.75081089483551
+          }
+        },
+        "pulmonaryOutputLPerMin": 5.621820571001709,
+        "pulmonaryVenousReturnLPerMin": 5.615247402403018,
+        "pulseAorticPressureMmHg": 33.77046227524936,
+        "rightVentricularPressureVolumeLandmarks": {
+          "endDiastolic": {
+            "event": "maximum-volume",
+            "pressureMmHg": 2.3413538189358185,
+            "volumeMl": 141.0780153141599
+          },
+          "endSystolic": {
+            "event": "semilunar-valve-closure",
+            "pressureMmHg": 24.278384956486008,
+            "volumeMl": 60.75007041425609
+          },
+          "pressureBasis": "transmural"
+        },
+        "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2027.8714640089574,
+        "rightVentricularValveEventMetrics": {
+          "endDiastolic": {
+            "absolutePressureMmHg": 2.4740064434718954,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.172000000000004,
+            "transmuralPressureMmHg": 2.4740064434718954,
+            "valveId": "TV",
+            "volumeMl": 141.0780153141599
+          },
+          "endSystolic": {
+            "absolutePressureMmHg": 24.278384956486008,
+            "event": "valve-closure-zero-flow-crossing",
+            "timeSec": 47.46,
+            "transmuralPressureMmHg": 24.278384956486008,
+            "valveId": "PV",
+            "volumeMl": 60.75007041425609
+          },
+          "eventDefinedEjectionFraction01": 0.569386695163136,
+          "eventDefinedStrokeVolumeMl": 80.3279448999038,
+          "inletValveId": "TV",
+          "pressureBasis": "absolute-and-transmural",
+          "semilunarValveId": "PV"
+        },
+        "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:109:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:54",
+        "startTimeSec": 47.0108571428571,
+        "systemicTissueOutputLPerMin": 5.459346379450573,
+        "systemicVenousReturnLPerMin": 5.626127676310237,
+        "systolicAorticPressureMmHg": 111.29915148051683,
+        "valveFlowVolumes": {
+          "AoV": {
+            "forwardVolumeMl": 80.12009929689108,
+            "netVolumeMl": 80.12009929689108,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "MV": {
+            "forwardVolumeMl": 80.1423876791469,
+            "netVolumeMl": 80.1423876791469,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "PV": {
+            "forwardVolumeMl": 80.32794487639062,
+            "netVolumeMl": 80.32794487639062,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          },
+          "TV": {
+            "forwardVolumeMl": 80.3620156857291,
+            "netVolumeMl": 80.3620156857291,
+            "reverseVolumeMl": 0,
+            "sameValveRegurgitantFraction": 0
+          }
+        },
+        "valveForwardPressureGradients": {
+          "AoV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.2560000000000002,
+            "peakMmHg": 7.809014209838466,
+            "timeWeightedMeanMmHg": 4.232793388299105
+          },
+          "MV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.41714285714285637,
+            "peakMmHg": 5.386058752598303,
+            "timeWeightedMeanMmHg": 1.8551118587347024
+          },
+          "PV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.259999999999998,
+            "peakMmHg": 7.368044151603584,
+            "timeWeightedMeanMmHg": 4.418600093919573
+          },
+          "TV": {
+            "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+            "forwardFlowDurationSec": 0.5071428571428598,
+            "peakMmHg": 2.3423333877097114,
+            "timeWeightedMeanMmHg": 0.8940935531712659
+          }
+        },
+        "ventricularAbsolutePressureRateExtrema": {
+          "LV": {
+            "maximumMmHgPerSec": 2570.947076214887,
+            "minimumMmHgPerSec": -1538.9533174560008
+          },
+          "RV": {
+            "maximumMmHgPerSec": 584.4112810654987,
+            "minimumMmHgPerSec": -372.2948003049511
+          }
+        }
+      }
+    }
+  ],
+  "continuationScope": "within-the-same-browser-engine-and-artifact",
+  "crossEngineBitEqualityClaimed": false,
+  "crossEngineReadback": [
+    {
+      "executionPlan": false,
+      "checkpointHashesEqual": false,
+      "completedBeatDifferences": [
+        {
+          "path": ".diastolicAorticPressureMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".effectiveNativeLeftCardiacOutputLPerMin",
+          "absoluteDifference": 2.3092638912203256e-14
+        },
+        {
+          "path": ".effectiveNativeRightCardiacOutputLPerMin",
+          "absoluteDifference": 1.5987211554602254e-14
+        },
+        {
+          "path": ".extremaLeftVentricularEjectionFraction01",
+          "absoluteDifference": 7.771561172376096e-16
+        },
+        {
+          "path": ".extremaLeftVentricularStrokeVolumeMl",
+          "absoluteDifference": 2.842170943040401e-14
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endDiastolic.pressureMmHg",
+          "absoluteDifference": 6.217248937900877e-14
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endDiastolic.volumeMl",
+          "absoluteDifference": 1.4210854715202004e-13
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg",
+          "absoluteDifference": 4.263256414560601e-13
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endSystolic.volumeMl",
+          "absoluteDifference": 1.7053025658242404e-13
+        },
+        {
+          "path": ".leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
+          "absoluteDifference": 2.000888343900442e-11
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.absolutePressureMmHg",
+          "absoluteDifference": 6.750155989720952e-14
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.transmuralPressureMmHg",
+          "absoluteDifference": 6.750155989720952e-14
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.volumeMl",
+          "absoluteDifference": 1.4210854715202004e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.absolutePressureMmHg",
+          "absoluteDifference": 4.263256414560601e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg",
+          "absoluteDifference": 4.263256414560601e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.volumeMl",
+          "absoluteDifference": 1.7053025658242404e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.eventDefinedEjectionFraction01",
+          "absoluteDifference": 7.771561172376096e-16
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.eventDefinedStrokeVolumeMl",
+          "absoluteDifference": 2.842170943040401e-14
+        },
+        {
+          "path": ".maximumLeftVentricularVolumeMl",
+          "absoluteDifference": 1.4210854715202004e-13
+        },
+        {
+          "path": ".meanAorticPressureMmHg",
+          "absoluteDifference": 2.7000623958883807e-13
+        },
+        {
+          "path": ".meanLeftAtrialPressureMmHg",
+          "absoluteDifference": 3.552713678800501e-14
+        },
+        {
+          "path": ".meanPulmonaryArterialPressureMmHg",
+          "absoluteDifference": 6.039613253960852e-14
+        },
+        {
+          "path": ".meanRightAtrialPressureMmHg",
+          "absoluteDifference": 4.440892098500626e-16
+        },
+        {
+          "path": ".minimumLeftVentricularVolumeMl",
+          "absoluteDifference": 1.7053025658242404e-13
+        },
+        {
+          "path": ".nativeLeftCardiacOutputLPerMin",
+          "absoluteDifference": 2.3092638912203256e-14
+        },
+        {
+          "path": ".nativeRightCardiacOutputLPerMin",
+          "absoluteDifference": 1.5987211554602254e-14
+        },
+        {
+          "path": ".pressureSummaries.Ao.maximumMmHg",
+          "absoluteDifference": 3.979039320256561e-13
+        },
+        {
+          "path": ".pressureSummaries.Ao.minimumMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".pressureSummaries.Ao.pulseMmHg",
+          "absoluteDifference": 2.8421709430404007e-13
+        },
+        {
+          "path": ".pressureSummaries.Ao.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.7000623958883807e-13
+        },
+        {
+          "path": ".pressureSummaries.LA.maximumMmHg",
+          "absoluteDifference": 4.973799150320701e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.minimumMmHg",
+          "absoluteDifference": 2.7533531010703882e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.pulseMmHg",
+          "absoluteDifference": 2.220446049250313e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.timeWeightedMeanMmHg",
+          "absoluteDifference": 3.552713678800501e-14
+        },
+        {
+          "path": ".pressureSummaries.LV.maximumMmHg",
+          "absoluteDifference": 4.689582056016661e-13
+        },
+        {
+          "path": ".pressureSummaries.LV.minimumMmHg",
+          "absoluteDifference": 2.4868995751603507e-14
+        },
+        {
+          "path": ".pressureSummaries.LV.pulseMmHg",
+          "absoluteDifference": 4.973799150320701e-13
+        },
+        {
+          "path": ".pressureSummaries.LV.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.6342482922482304e-13
+        },
+        {
+          "path": ".pressureSummaries.PA.maximumMmHg",
+          "absoluteDifference": 3.907985046680551e-14
+        },
+        {
+          "path": ".pressureSummaries.PA.minimumMmHg",
+          "absoluteDifference": 3.375077994860476e-14
+        },
+        {
+          "path": ".pressureSummaries.PA.pulseMmHg",
+          "absoluteDifference": 5.329070518200751e-15
+        },
+        {
+          "path": ".pressureSummaries.PA.timeWeightedMeanMmHg",
+          "absoluteDifference": 6.039613253960852e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.maximumMmHg",
+          "absoluteDifference": 1.7763568394002505e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.minimumMmHg",
+          "absoluteDifference": 2.1316282072803006e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.pulseMmHg",
+          "absoluteDifference": 3.552713678800501e-15
+        },
+        {
+          "path": ".pressureSummaries.PVein.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.4868995751603507e-14
+        },
+        {
+          "path": ".pressureSummaries.RA.maximumMmHg",
+          "absoluteDifference": 7.105427357601002e-15
+        },
+        {
+          "path": ".pressureSummaries.RA.minimumMmHg",
+          "absoluteDifference": 2.220446049250313e-16
+        },
+        {
+          "path": ".pressureSummaries.RA.pulseMmHg",
+          "absoluteDifference": 7.105427357601002e-15
+        },
+        {
+          "path": ".pressureSummaries.RA.timeWeightedMeanMmHg",
+          "absoluteDifference": 4.440892098500626e-16
+        },
+        {
+          "path": ".pressureSummaries.RV.maximumMmHg",
+          "absoluteDifference": 7.460698725481052e-14
+        },
+        {
+          "path": ".pressureSummaries.RV.minimumMmHg",
+          "absoluteDifference": 1.4432899320127035e-14
+        },
+        {
+          "path": ".pressureSummaries.RV.pulseMmHg",
+          "absoluteDifference": 8.881784197001252e-14
+        },
+        {
+          "path": ".pressureSummaries.RV.timeWeightedMeanMmHg",
+          "absoluteDifference": 3.019806626980426e-14
+        },
+        {
+          "path": ".pressureSummaries.SA.maximumMmHg",
+          "absoluteDifference": 4.689582056016661e-13
+        },
+        {
+          "path": ".pressureSummaries.SA.minimumMmHg",
+          "absoluteDifference": 5.684341886080802e-14
+        },
+        {
+          "path": ".pressureSummaries.SA.pulseMmHg",
+          "absoluteDifference": 4.121147867408581e-13
+        },
+        {
+          "path": ".pressureSummaries.SA.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.5579538487363607e-13
+        },
+        {
+          "path": ".pressureSummaries.VC.minimumMmHg",
+          "absoluteDifference": 1.0658141036401503e-14
+        },
+        {
+          "path": ".pressureSummaries.VC.pulseMmHg",
+          "absoluteDifference": 1.0658141036401503e-14
+        },
+        {
+          "path": ".pressureSummaries.VC.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.7763568394002505e-15
+        },
+        {
+          "path": ".pulmonaryOutputLPerMin",
+          "absoluteDifference": 2.6645352591003757e-15
+        },
+        {
+          "path": ".pulmonaryVenousReturnLPerMin",
+          "absoluteDifference": 7.993605777301127e-15
+        },
+        {
+          "path": ".pulseAorticPressureMmHg",
+          "absoluteDifference": 2.8421709430404007e-13
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endDiastolic.pressureMmHg",
+          "absoluteDifference": 3.419486915845482e-14
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endDiastolic.volumeMl",
+          "absoluteDifference": 3.126388037344441e-13
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg",
+          "absoluteDifference": 3.552713678800501e-15
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endSystolic.volumeMl",
+          "absoluteDifference": 1.4921397450962104e-13
+        },
+        {
+          "path": ".rightVentricularTransmuralPressureVolumePathWorkMmHgMl",
+          "absoluteDifference": 1.0231815394945443e-11
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.absolutePressureMmHg",
+          "absoluteDifference": 3.5083047578154947e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.transmuralPressureMmHg",
+          "absoluteDifference": 3.5083047578154947e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.volumeMl",
+          "absoluteDifference": 3.126388037344441e-13
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.absolutePressureMmHg",
+          "absoluteDifference": 3.552713678800501e-15
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg",
+          "absoluteDifference": 3.552713678800501e-15
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.volumeMl",
+          "absoluteDifference": 1.4921397450962104e-13
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.eventDefinedEjectionFraction01",
+          "absoluteDifference": 1.1102230246251565e-16
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.eventDefinedStrokeVolumeMl",
+          "absoluteDifference": 1.5631940186722204e-13
+        },
+        {
+          "path": ".systemicTissueOutputLPerMin",
+          "absoluteDifference": 3.019806626980426e-14
+        },
+        {
+          "path": ".systemicVenousReturnLPerMin",
+          "absoluteDifference": 8.881784197001252e-16
+        },
+        {
+          "path": ".systolicAorticPressureMmHg",
+          "absoluteDifference": 3.979039320256561e-13
+        },
+        {
+          "path": ".valveFlowVolumes.AoV.forwardVolumeMl",
+          "absoluteDifference": 3.126388037344441e-13
+        },
+        {
+          "path": ".valveFlowVolumes.AoV.netVolumeMl",
+          "absoluteDifference": 3.126388037344441e-13
+        },
+        {
+          "path": ".valveFlowVolumes.MV.forwardVolumeMl",
+          "absoluteDifference": 4.263256414560601e-14
+        },
+        {
+          "path": ".valveFlowVolumes.MV.netVolumeMl",
+          "absoluteDifference": 4.263256414560601e-14
+        },
+        {
+          "path": ".valveFlowVolumes.PV.forwardVolumeMl",
+          "absoluteDifference": 2.2737367544323206e-13
+        },
+        {
+          "path": ".valveFlowVolumes.PV.netVolumeMl",
+          "absoluteDifference": 2.2737367544323206e-13
+        },
+        {
+          "path": ".valveFlowVolumes.TV.forwardVolumeMl",
+          "absoluteDifference": 4.263256414560601e-14
+        },
+        {
+          "path": ".valveFlowVolumes.TV.netVolumeMl",
+          "absoluteDifference": 4.263256414560601e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.AoV.peakMmHg",
+          "absoluteDifference": 2.6290081223123707e-12
+        },
+        {
+          "path": ".valveForwardPressureGradients.AoV.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.7763568394002505e-15
+        },
+        {
+          "path": ".valveForwardPressureGradients.MV.peakMmHg",
+          "absoluteDifference": 5.861977570020827e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.MV.timeWeightedMeanMmHg",
+          "absoluteDifference": 7.771561172376096e-15
+        },
+        {
+          "path": ".valveForwardPressureGradients.PV.peakMmHg",
+          "absoluteDifference": 1.7763568394002505e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.PV.timeWeightedMeanMmHg",
+          "absoluteDifference": 7.105427357601002e-15
+        },
+        {
+          "path": ".valveForwardPressureGradients.TV.peakMmHg",
+          "absoluteDifference": 2.220446049250313e-15
+        },
+        {
+          "path": ".valveForwardPressureGradients.TV.timeWeightedMeanMmHg",
+          "absoluteDifference": 6.661338147750939e-16
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.LV.maximumMmHgPerSec",
+          "absoluteDifference": 6.411937647499144e-11
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.LV.minimumMmHgPerSec",
+          "absoluteDifference": 1.4915713109076023e-10
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.RV.maximumMmHgPerSec",
+          "absoluteDifference": 9.094947017729282e-13
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.RV.minimumMmHgPerSec",
+          "absoluteDifference": 2.575006874394603e-11
+        }
+      ]
+    },
+    {
+      "executionPlan": true,
+      "checkpointHashesEqual": false,
+      "completedBeatDifferences": [
+        {
+          "path": ".effectiveNativeLeftCardiacOutputLPerMin",
+          "absoluteDifference": 6.394884621840902e-14
+        },
+        {
+          "path": ".effectiveNativeRightCardiacOutputLPerMin",
+          "absoluteDifference": 1.865174681370263e-14
+        },
+        {
+          "path": ".extremaLeftVentricularEjectionFraction01",
+          "absoluteDifference": 2.220446049250313e-16
+        },
+        {
+          "path": ".extremaLeftVentricularStrokeVolumeMl",
+          "absoluteDifference": 1.4210854715202004e-13
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endDiastolic.pressureMmHg",
+          "absoluteDifference": 6.039613253960852e-14
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endDiastolic.volumeMl",
+          "absoluteDifference": 1.9895196601282805e-13
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg",
+          "absoluteDifference": 4.973799150320701e-13
+        },
+        {
+          "path": ".leftVentricularPressureVolumeLandmarks.endSystolic.volumeMl",
+          "absoluteDifference": 6.394884621840902e-14
+        },
+        {
+          "path": ".leftVentricularTransmuralPressureVolumePathWorkMmHgMl",
+          "absoluteDifference": 1.0913936421275139e-11
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.absolutePressureMmHg",
+          "absoluteDifference": 2.1316282072803006e-14
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.transmuralPressureMmHg",
+          "absoluteDifference": 2.1316282072803006e-14
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endDiastolic.volumeMl",
+          "absoluteDifference": 1.9895196601282805e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.absolutePressureMmHg",
+          "absoluteDifference": 4.973799150320701e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg",
+          "absoluteDifference": 4.973799150320701e-13
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.endSystolic.volumeMl",
+          "absoluteDifference": 6.394884621840902e-14
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.eventDefinedEjectionFraction01",
+          "absoluteDifference": 2.220446049250313e-16
+        },
+        {
+          "path": ".leftVentricularValveEventMetrics.eventDefinedStrokeVolumeMl",
+          "absoluteDifference": 1.4210854715202004e-13
+        },
+        {
+          "path": ".maximumLeftVentricularVolumeMl",
+          "absoluteDifference": 1.9895196601282805e-13
+        },
+        {
+          "path": ".meanAorticPressureMmHg",
+          "absoluteDifference": 1.4210854715202004e-14
+        },
+        {
+          "path": ".meanLeftAtrialPressureMmHg",
+          "absoluteDifference": 2.842170943040401e-14
+        },
+        {
+          "path": ".meanPulmonaryArterialPressureMmHg",
+          "absoluteDifference": 1.4210854715202004e-14
+        },
+        {
+          "path": ".meanRightAtrialPressureMmHg",
+          "absoluteDifference": 5.773159728050814e-15
+        },
+        {
+          "path": ".minimumLeftVentricularVolumeMl",
+          "absoluteDifference": 6.394884621840902e-14
+        },
+        {
+          "path": ".nativeLeftCardiacOutputLPerMin",
+          "absoluteDifference": 6.394884621840902e-14
+        },
+        {
+          "path": ".nativeRightCardiacOutputLPerMin",
+          "absoluteDifference": 1.865174681370263e-14
+        },
+        {
+          "path": ".pressureSummaries.Ao.maximumMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".pressureSummaries.Ao.pulseMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".pressureSummaries.Ao.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.4210854715202004e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.maximumMmHg",
+          "absoluteDifference": 7.105427357601002e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.minimumMmHg",
+          "absoluteDifference": 1.4210854715202004e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.pulseMmHg",
+          "absoluteDifference": 5.684341886080802e-14
+        },
+        {
+          "path": ".pressureSummaries.LA.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.842170943040401e-14
+        },
+        {
+          "path": ".pressureSummaries.LV.maximumMmHg",
+          "absoluteDifference": 9.947598300641403e-13
+        },
+        {
+          "path": ".pressureSummaries.LV.minimumMmHg",
+          "absoluteDifference": 7.105427357601002e-15
+        },
+        {
+          "path": ".pressureSummaries.LV.pulseMmHg",
+          "absoluteDifference": 9.947598300641403e-13
+        },
+        {
+          "path": ".pressureSummaries.PA.maximumMmHg",
+          "absoluteDifference": 3.552713678800501e-14
+        },
+        {
+          "path": ".pressureSummaries.PA.pulseMmHg",
+          "absoluteDifference": 3.552713678800501e-14
+        },
+        {
+          "path": ".pressureSummaries.PA.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.4210854715202004e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.maximumMmHg",
+          "absoluteDifference": 3.907985046680551e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.pulseMmHg",
+          "absoluteDifference": 3.907985046680551e-14
+        },
+        {
+          "path": ".pressureSummaries.PVein.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.1316282072803006e-14
+        },
+        {
+          "path": ".pressureSummaries.RA.maximumMmHg",
+          "absoluteDifference": 2.6645352591003757e-15
+        },
+        {
+          "path": ".pressureSummaries.RA.minimumMmHg",
+          "absoluteDifference": 2.220446049250313e-16
+        },
+        {
+          "path": ".pressureSummaries.RA.pulseMmHg",
+          "absoluteDifference": 2.6645352591003757e-15
+        },
+        {
+          "path": ".pressureSummaries.RA.timeWeightedMeanMmHg",
+          "absoluteDifference": 5.773159728050814e-15
+        },
+        {
+          "path": ".pressureSummaries.RV.maximumMmHg",
+          "absoluteDifference": 3.268496584496461e-13
+        },
+        {
+          "path": ".pressureSummaries.RV.minimumMmHg",
+          "absoluteDifference": 8.43769498715119e-15
+        },
+        {
+          "path": ".pressureSummaries.RV.pulseMmHg",
+          "absoluteDifference": 3.197442310920451e-13
+        },
+        {
+          "path": ".pressureSummaries.RV.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.0658141036401503e-14
+        },
+        {
+          "path": ".pressureSummaries.SA.maximumMmHg",
+          "absoluteDifference": 7.105427357601002e-14
+        },
+        {
+          "path": ".pressureSummaries.SA.pulseMmHg",
+          "absoluteDifference": 7.105427357601002e-14
+        },
+        {
+          "path": ".pressureSummaries.SA.timeWeightedMeanMmHg",
+          "absoluteDifference": 2.842170943040401e-14
+        },
+        {
+          "path": ".pressureSummaries.VC.maximumMmHg",
+          "absoluteDifference": 5.329070518200751e-15
+        },
+        {
+          "path": ".pressureSummaries.VC.minimumMmHg",
+          "absoluteDifference": 2.6645352591003757e-15
+        },
+        {
+          "path": ".pressureSummaries.VC.pulseMmHg",
+          "absoluteDifference": 2.6645352591003757e-15
+        },
+        {
+          "path": ".pressureSummaries.VC.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.7763568394002505e-15
+        },
+        {
+          "path": ".pulmonaryOutputLPerMin",
+          "absoluteDifference": 5.329070518200751e-15
+        },
+        {
+          "path": ".pulmonaryVenousReturnLPerMin",
+          "absoluteDifference": 1.0658141036401503e-14
+        },
+        {
+          "path": ".pulseAorticPressureMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endDiastolic.pressureMmHg",
+          "absoluteDifference": 2.042810365310288e-14
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endDiastolic.volumeMl",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".rightVentricularPressureVolumeLandmarks.endSystolic.volumeMl",
+          "absoluteDifference": 7.105427357601002e-14
+        },
+        {
+          "path": ".rightVentricularTransmuralPressureVolumePathWorkMmHgMl",
+          "absoluteDifference": 2.2737367544323206e-12
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.absolutePressureMmHg",
+          "absoluteDifference": 1.9095836023552692e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.transmuralPressureMmHg",
+          "absoluteDifference": 1.9095836023552692e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endDiastolic.volumeMl",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.absolutePressureMmHg",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.endSystolic.volumeMl",
+          "absoluteDifference": 7.105427357601002e-14
+        },
+        {
+          "path": ".rightVentricularValveEventMetrics.eventDefinedEjectionFraction01",
+          "absoluteDifference": 3.3306690738754696e-16
+        },
+        {
+          "path": ".systemicTissueOutputLPerMin",
+          "absoluteDifference": 6.217248937900877e-15
+        },
+        {
+          "path": ".systemicVenousReturnLPerMin",
+          "absoluteDifference": 8.881784197001252e-16
+        },
+        {
+          "path": ".systolicAorticPressureMmHg",
+          "absoluteDifference": 1.1368683772161603e-13
+        },
+        {
+          "path": ".valveFlowVolumes.AoV.forwardVolumeMl",
+          "absoluteDifference": 9.237055564881302e-13
+        },
+        {
+          "path": ".valveFlowVolumes.AoV.netVolumeMl",
+          "absoluteDifference": 9.237055564881302e-13
+        },
+        {
+          "path": ".valveFlowVolumes.MV.forwardVolumeMl",
+          "absoluteDifference": 1.5631940186722204e-13
+        },
+        {
+          "path": ".valveFlowVolumes.MV.netVolumeMl",
+          "absoluteDifference": 1.5631940186722204e-13
+        },
+        {
+          "path": ".valveFlowVolumes.PV.forwardVolumeMl",
+          "absoluteDifference": 2.7000623958883807e-13
+        },
+        {
+          "path": ".valveFlowVolumes.PV.netVolumeMl",
+          "absoluteDifference": 2.7000623958883807e-13
+        },
+        {
+          "path": ".valveFlowVolumes.TV.forwardVolumeMl",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".valveFlowVolumes.TV.netVolumeMl",
+          "absoluteDifference": 8.526512829121202e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.AoV.peakMmHg",
+          "absoluteDifference": 1.0942358130705543e-12
+        },
+        {
+          "path": ".valveForwardPressureGradients.AoV.timeWeightedMeanMmHg",
+          "absoluteDifference": 6.128431095930864e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.MV.peakMmHg",
+          "absoluteDifference": 8.704148513061227e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.MV.timeWeightedMeanMmHg",
+          "absoluteDifference": 8.659739592076221e-15
+        },
+        {
+          "path": ".valveForwardPressureGradients.PV.peakMmHg",
+          "absoluteDifference": 1.2434497875801753e-13
+        },
+        {
+          "path": ".valveForwardPressureGradients.PV.timeWeightedMeanMmHg",
+          "absoluteDifference": 1.865174681370263e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.TV.peakMmHg",
+          "absoluteDifference": 1.7763568394002505e-14
+        },
+        {
+          "path": ".valveForwardPressureGradients.TV.timeWeightedMeanMmHg",
+          "absoluteDifference": 4.440892098500626e-16
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.LV.maximumMmHgPerSec",
+          "absoluteDifference": 7.530616130679846e-10
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.LV.minimumMmHgPerSec",
+          "absoluteDifference": 1.7780621419660747e-10
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.RV.maximumMmHgPerSec",
+          "absoluteDifference": 3.196873876731843e-10
+        },
+        {
+          "path": ".ventricularAbsolutePressureRateExtrema.RV.minimumMmHgPerSec",
+          "absoluteDifference": 1.7621459846850485e-12
+        }
+      ]
+    }
+  ],
+  "workbenchUiVerified": false,
+  "registryAdmitted": false,
+  "published": false,
+  "wallTimeMs": 10914.952958
+}

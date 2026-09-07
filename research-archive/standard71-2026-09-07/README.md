@@ -64,6 +64,14 @@ construction. The stronger71 artifact check now reproduces the warm-restart
 failure; old passing reports and the frozen71 document remain unchanged.
 See the [decision, new tests and remaining admission work](continuation-resolution.md).
 
+The next bounded step is now qualified locally:72 uses that checkpoint through
+the actual Studio adapters, controls, capture and analysis paths, with fresh
+cold/launch evidence and a self-contained artifact. Chromium and WebKit each
+pass1000-step same-engine continuation after Worker/JSON transport. See the
+[adapter qualification, scope and next extraction boundary](standard72-adapter-binding.md)
+and its final reports. Registry admission, publication and the Workbench default
+remain unchanged; this is not approval to merge the research branch.
+
 The first minimal reader extraction is [PR #614](https://github.com/g960059/0DSimDemo/pull/614).
 Its 35 scoped tests, production build, offline export and three production-browser
 tests passed on current main without Standard71 implementation or authoring code.

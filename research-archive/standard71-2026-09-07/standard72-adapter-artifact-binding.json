@@ -1,0 +1,22 @@
+{
+  "schemaId": "main-wire-standard72-local-artifact-binding-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+  "status": "passed",
+  "artifactSha256": "5210a42f1469072182ec6d7f18ee3ee54547a469e78af5479c812ca8ad0f45bb",
+  "artifactRevisionId": "33b55a8c50383451a374b4dedd1b83b9082193d4d7f6e7ec668600816e251e00",
+  "artifactBytes": 2471942,
+  "launchCheckpointSha256": "a125d6aeaca4e1859adb847008afc83aa6de29715b6b23409006861b30932df2",
+  "deterministicDoubleBuild": true,
+  "sourceArtifactFrames": "exact",
+  "capturedContinuation": "exact",
+  "capturedPredictorDepth": 4,
+  "capturedContinuationSteps": 1000,
+  "postControlWarmupSteps": 8,
+  "snapshotAdmission": "passed",
+  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.workbench-v1",
+  "surfaceInheritedWithoutCatalogChanges": true,
+  "registryAdmitted": false,
+  "browserVerified": false,
+  "published": false,
+  "wallTimeMs": 4926.628625
+}
