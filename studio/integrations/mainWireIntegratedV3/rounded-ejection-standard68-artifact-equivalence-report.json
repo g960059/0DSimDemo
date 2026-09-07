@@ -2,7 +2,7 @@
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.rounded-ejection.standard-68",
   "predecessorArtifactRevisionId": "9e07c9fee5241ad3dbb5496371e45e950bb82a70e6f8969f46f39fd8ee34eb9a",
-  "candidateArtifactRevisionId": "d0d966a88704679866c7347f733d6cc0ea61f06acc55492e6eb29db8f6e1005f",
+  "candidateArtifactRevisionId": "c79d8f161397585f08d00bed147d19614aec9f3954d9a179b90e4adff7c9754d",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [

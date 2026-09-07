@@ -2,7 +2,7 @@
   "schemaId": "circleheart-exact-model-artifact-equivalence-report-v1",
   "modelId": "circleheart.main-wire-integrated-transaction-v3.qualified-baseline.standard-69",
   "predecessorArtifactRevisionId": "6f97614bee247917333b3fee9ecc35509c6451fb884fe322bc7434e1cbd67898",
-  "candidateArtifactRevisionId": "2abc9f093764cf89b321f9824b6735d7546f6da320585a74a92807bffe9b60a8",
+  "candidateArtifactRevisionId": "d4271c42b697d8f449fbb53c53be1060f7a3307c064b4ce7aa02688e4d64cf82",
   "corpusId": "main-wire-solver-replacement-corpus-v1",
   "equality": "byte-exact",
   "cases": [
