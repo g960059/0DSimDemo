@@ -1,0 +1,1269 @@
+{
+  "schemaId": "standard71-physical-restart-diagnostic-v1",
+  "adopted": false,
+  "clinicalValidationClaimed": false,
+  "numericalCodeChanged": false,
+  "results": [
+    {
+      "initial": "cold",
+      "checkpointSha256": "fa804afd91ba983562fcd82bf67ab5f4098a967313a42b731fd31c6148856427",
+      "acceptedTimeSec": 0.01,
+      "sourcePredictor": {
+        "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+        "hasAcceptedPair": true,
+        "historyDepth": 4,
+        "expectedBaseRevision": 5,
+        "expectedBaseAcceptedTimeSec": 0.01,
+        "predictionCount": 3,
+        "contextFallbackCount": 1,
+        "dampedPredictionCount": 0,
+        "resetCount": 1
+      },
+      "restoredPredictor": {
+        "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+        "hasAcceptedPair": false,
+        "historyDepth": 0,
+        "expectedBaseRevision": null,
+        "expectedBaseAcceptedTimeSec": null,
+        "predictionCount": 0,
+        "contextFallbackCount": 0,
+        "dampedPredictionCount": 0,
+        "resetCount": 0
+      },
+      "durationSec": 1,
+      "comparedPresentationSteps": 500,
+      "independentRestartsBitIdentical": true,
+      "stateDifferences": {
+        ".coronary.circulation.nodeVolumesMl.Art": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.5347723092418164e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.Cap": {
+          "differingSteps": 472,
+          "maximumAbsoluteDifference": 3.183231456205249e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.PVein": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.2846612662542611e-11
+        },
+        ".coronary.circulation.nodeVolumesMl.SV": {
+          "differingSteps": 439,
+          "maximumAbsoluteDifference": 5.002220859751105e-12
+        },
+        ".coronary.circulation.totalBloodVolumeMl": {
+          "differingSteps": 339,
+          "maximumAbsoluteDifference": 3.637978807091713e-12
+        },
+        ".coronary.circulation.dynamicEdgeFlowsMlPerSec.Ao_SA": {
+          "differingSteps": 443,
+          "maximumAbsoluteDifference": 1.0929568361461861e-10
+        },
+        ".coronary.circulation.dynamicEdgeFlowsMlPerSec.PA_PArt": {
+          "differingSteps": 491,
+          "maximumAbsoluteDifference": 3.637978807091713e-11
+        },
+        ".coronary.circulation.nodeVolumesMl.LA": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 3.943512183468556e-11
+        },
+        ".coronary.circulation.nodeVolumesMl.LV": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 4.703792910731863e-11
+        },
+        ".coronary.circulation.nodeVolumesMl.PA": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 2.0392576516314875e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.PArt": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 3.083755473198835e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.PCap": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.5579538487363607e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.PVen": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 7.389644451905042e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.RA": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 8.384404281969182e-13
+        },
+        ".coronary.circulation.nodeVolumesMl.RV": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.0747847884194925e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.SA": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 5.343281372915953e-12
+        },
+        ".coronary.circulation.valveStates.MV.leafletOpeningFraction01": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.325029058170003e-12
+        },
+        ".coronary.coronary.volumeMlByNode.CV": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.5543122344752192e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Art.subendocardial": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 6.628031457012185e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Ven.subendocardial": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.5726309143815342e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Ven.subepicardial": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 9.814371537686384e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Ven.subendocardial": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.0469403122215226e-13
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Ven.subendocardial": {
+          "differingSteps": 494,
+          "maximumAbsoluteDifference": 7.549516567451064e-15
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Ven.subepicardial": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 3.0253577421035516e-14
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LAD.subendocardial": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 2.3203661214665772e-14
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.RCA.subepicardial": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 1.5654144647214707e-14
+        },
+        ".coronary.mechanics.acceptedVolumesMl.LA": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 3.943512183468556e-11
+        },
+        ".coronary.mechanics.acceptedVolumesMl.LV": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 4.703792910731863e-11
+        },
+        ".coronary.mechanics.acceptedVolumesMl.RA": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 8.384404281969182e-13
+        },
+        ".coronary.mechanics.acceptedVolumesMl.RV": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.0747847884194925e-12
+        },
+        ".coronary.mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.4474099002681484e-17
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.0": {
+          "differingSteps": 274,
+          "maximumAbsoluteDifference": 2.2681856393091948e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.1": {
+          "differingSteps": 392,
+          "maximumAbsoluteDifference": 5.452860385446456e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.2": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 3.11223269378047e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.3": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 9.101053244364721e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.4": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.5013407184127914e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.5": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.3492874312580625e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.previousFiberLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.8006763574950355e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 3.0253577421035516e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.0": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 6.439293542825908e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.1": {
+          "differingSteps": 447,
+          "maximumAbsoluteDifference": 1.915134717478395e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.2": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 9.02333763264096e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.3": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 4.338196468722799e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.4": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 5.960093529822075e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.5": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 9.117845367612176e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain": {
+          "differingSteps": 493,
+          "maximumAbsoluteDifference": 8.205935930760688e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.slsState.viscousLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.983724378680108e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.0": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 4.85722573273506e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.1": {
+          "differingSteps": 348,
+          "maximumAbsoluteDifference": 1.0103029524088925e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.2": {
+          "differingSteps": 487,
+          "maximumAbsoluteDifference": 4.538036613155327e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.3": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 2.2690183065776637e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.4": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 1.1976530878143876e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.5": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.4841240175987878e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.previousFiberLogStrain": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 6.0923488476305465e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.0": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 1.532107773982716e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.2": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 2.0594637106796654e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.3": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 2.5326962749261384e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.4": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.760605550238381e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.5": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 2.692568390472161e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.previousFiberLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.4549806632023774e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.slsState.viscousLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.3314683517128287e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.0": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 5.612177389480166e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.1": {
+          "differingSteps": 438,
+          "maximumAbsoluteDifference": 1.724176357242868e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.2": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 7.788214517745473e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.3": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 2.7575164374127326e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.4": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 5.566727634409574e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.5": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 8.507777815580653e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 7.790990075307036e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.slsState.viscousLogStrain": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.653433028854124e-14
+        },
+        ".coronary.mechanics.materialStateFingerprint": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": null
+        },
+        ".coronary.circulation.nodeVolumesMl.Ao": {
+          "differingSteps": 488,
+          "maximumAbsoluteDifference": 2.6432189770275727e-12
+        },
+        ".coronary.circulation.nodeVolumesMl.VC": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.6484591469634324e-12
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.Art": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.7985612998927536e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Art.subepicardial": {
+          "differingSteps": 492,
+          "maximumAbsoluteDifference": 7.993605777301127e-15
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.Art": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.176836406102666e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Art.subendocardial": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 4.3520742565306136e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Art.subepicardial": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 5.10702591327572e-15
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Ven.subepicardial": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 5.98965321785272e-14
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.Art": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 6.217248937900877e-15
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Art.subendocardial": {
+          "differingSteps": 494,
+          "maximumAbsoluteDifference": 2.4424906541753444e-15
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.LAD": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 3.296918293926865e-12
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.LCx": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 3.296918293926865e-12
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.RCA": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 3.296918293926865e-12
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LAD.subepicardial": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 2.842170943040401e-14
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LCx.subendocardial": {
+          "differingSteps": 498,
+          "maximumAbsoluteDifference": 1.5654144647214707e-14
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.slsState.viscousLogStrain": {
+          "differingSteps": 497,
+          "maximumAbsoluteDifference": 1.2628786905111156e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.1": {
+          "differingSteps": 341,
+          "maximumAbsoluteDifference": 4.4297898682543746e-14
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Art.subepicardial": {
+          "differingSteps": 467,
+          "maximumAbsoluteDifference": 2.6645352591003757e-15
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LCx.subepicardial": {
+          "differingSteps": 496,
+          "maximumAbsoluteDifference": 1.7430501486614958e-14
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.RCA.subendocardial": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 1.6653345369377348e-14
+        },
+        ".coronary.mechanics.materialState.trisegCoordinates.junctionRadiusM": {
+          "differingSteps": 491,
+          "maximumAbsoluteDifference": 1.304512053934559e-15
+        },
+        ".coronary.circulation.valveStates.TV.leafletOpeningFraction01": {
+          "differingSteps": 487,
+          "maximumAbsoluteDifference": 1.423583473325607e-13
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.LVFW": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 4.313216450668733e-14
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.RVFW": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 9.756084828893563e-15
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.SEP": {
+          "differingSteps": 490,
+          "maximumAbsoluteDifference": 4.28129753871076e-14
+        },
+        ".coronary.circulation.valveStates.PV.leafletOpeningFraction01": {
+          "differingSteps": 416,
+          "maximumAbsoluteDifference": 1.9452495170213524e-13
+        },
+        ".coronary.circulation.valveStates.AoV.leafletOpeningFraction01": {
+          "differingSteps": 410,
+          "maximumAbsoluteDifference": 2.1581070264176105e-12
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LAD.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 2.220446049250313e-16
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LAD.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 8.881784197001252e-16
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LCx.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 4.440892098500626e-16
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LCx.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 8.881784197001252e-16
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.RCA.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 4.440892098500626e-16
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.RCA.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 6.661338147750939e-16
+        }
+      },
+      "completedBeatDifferences": {},
+      "maximumVolumeConservationErrorMl": 1.8189894035458565e-12
+    },
+    {
+      "initial": "settled",
+      "checkpointSha256": "cfbe399453bc2bbb661d0c9a2d86bc2cbe8b0e872c93791e62f33cd1952e459d",
+      "acceptedTimeSec": 46.296,
+      "sourcePredictor": {
+        "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+        "hasAcceptedPair": true,
+        "historyDepth": 4,
+        "expectedBaseRevision": 23388,
+        "expectedBaseAcceptedTimeSec": 46.296,
+        "predictionCount": 4,
+        "contextFallbackCount": 1,
+        "dampedPredictionCount": 0,
+        "resetCount": 0
+      },
+      "restoredPredictor": {
+        "predictorId": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+        "hasAcceptedPair": false,
+        "historyDepth": 0,
+        "expectedBaseRevision": null,
+        "expectedBaseAcceptedTimeSec": null,
+        "predictionCount": 0,
+        "contextFallbackCount": 0,
+        "dampedPredictionCount": 0,
+        "resetCount": 0
+      },
+      "durationSec": 1,
+      "comparedPresentationSteps": 500,
+      "independentRestartsBitIdentical": true,
+      "stateDifferences": {
+        ".coronary.circulation.dynamicEdgeFlowsMlPerSec.PA_PArt": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 3.382979230082128e-8
+        },
+        ".coronary.circulation.nodeVolumesMl.LA": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 8.605098855696269e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.PArt": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 7.548308644800272e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.PVein": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 6.50800302537391e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.PVen": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 4.750972948386334e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.RA": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 9.470596751270932e-9
+        },
+        ".coronary.circulation.nodeVolumesMl.RV": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 9.977497938962188e-9
+        },
+        ".coronary.circulation.nodeVolumesMl.SV": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.1254996934439987e-9
+        },
+        ".coronary.circulation.nodeVolumesMl.VC": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.4569325180200394e-9
+        },
+        ".coronary.circulation.totalBloodVolumeMl": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.4565240386873484e-11
+        },
+        ".coronary.circulation.valveStates.TV.leafletOpeningFraction01": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.2947436445773803e-9
+        },
+        ".coronary.coronary.volumeMlByNode.CV": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.155253835984695e-11
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.Art": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 2.615685446016869e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Art.subendocardial": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 8.886225089099753e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Art.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.43836070726411e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Ven.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.9478364194091e-12
+        },
+        ".coronary.coronary.volumeMlByNode.LAD.IM.Ven.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.613698312283532e-12
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.Art": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 1.6586731987899839e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Art.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 5.819233983572758e-13
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Art.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 8.076872504148014e-14
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Ven.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.9864665468105613e-12
+        },
+        ".coronary.coronary.volumeMlByNode.LCx.IM.Ven.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.654931829937368e-12
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.Art": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 1.3855583347321954e-13
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Art.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.0633494912658534e-13
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Art.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.1890488593735427e-13
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Ven.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 5.617728504603292e-12
+        },
+        ".coronary.coronary.volumeMlByNode.RCA.IM.Ven.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.236905105590381e-12
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.LAD": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.4212275800673524e-10
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.LCx": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.4212275800673524e-10
+        },
+        ".coronary.coronaryAutoregulation.perfusionPressureTimeIntegralMmHgSecByTerritory.RCA": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.4212275800673524e-10
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LAD.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.0468848010702914e-12
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LAD.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.1661118999059e-13
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LCx.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 6.318279233141766e-13
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.LCx.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.9562129693895258e-13
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.RCA.subendocardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 8.033851361943789e-13
+        },
+        ".coronary.coronaryAutoregulation.qmTimeIntegralMlByTerritoryLayer.RCA.subepicardial": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.387845559643665e-13
+        },
+        ".coronary.mechanics.acceptedVolumesMl.LA": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 8.605098855696269e-10
+        },
+        ".coronary.mechanics.acceptedVolumesMl.RA": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 9.470596751270932e-9
+        },
+        ".coronary.mechanics.acceptedVolumesMl.RV": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 9.977497938962188e-9
+        },
+        ".coronary.mechanics.materialState.trisegCoordinates.junctionRadiusM": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.2616604689627025e-13
+        },
+        ".coronary.mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.0546983208667426e-15
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.0": {
+          "differingSteps": 452,
+          "maximumAbsoluteDifference": 1.934991056273816e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.1": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.15050216417967e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.2": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.598024490512273e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.7620379861612605e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.4": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.061205373049546e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.landState.5": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 5.425743188069987e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.previousFiberLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.666711461709383e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.0759284008752275e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.0": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.1984081222115037e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.1": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 6.397771201704927e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.2": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.889494199465048e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.091518790438897e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.4": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 6.101908515683367e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.landState.5": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.1789139109374958e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.501673785320179e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.LVFW.slsState.viscousLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.0346168366481834e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.0": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.6469161024399455e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.1": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 5.1199267048218644e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.2": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.4181975866177652e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.0139430961508822e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.4": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.3836463358684057e-10
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.landState.5": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.650349688661848e-10
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.previousFiberLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 7.13611391115962e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RA.slsState.viscousLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.821087973283511e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.0": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 7.985556660372595e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.1": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.515909702793806e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.2": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.1264517096876148e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.162720085825299e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.4": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 7.676090622507625e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.landState.5": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.4871137654637323e-10
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.previousFiberLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.4075983434391759e-11
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.RVFW.slsState.viscousLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 3.4051095276765864e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.0": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.1406210137797643e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.1": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 6.405653785179766e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.2": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.9042601656925626e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.3": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 4.2273129441383617e-13
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.4": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 2.4397248002232252e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.landState.5": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 8.283929098240606e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.591268783407429e-12
+        },
+        ".coronary.mechanics.materialState.wallStateByWall.SEP.slsState.viscousLogStrain": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": 1.0464233646256815e-12
+        },
+        ".coronary.mechanics.materialStateFingerprint": {
+          "differingSteps": 500,
+          "maximumAbsoluteDifference": null
+        },
+        ".coronary.circulation.dynamicEdgeFlowsMlPerSec.Ao_SA": {
+          "differingSteps": 475,
+          "maximumAbsoluteDifference": 3.6866083519271342e-9
+        },
+        ".coronary.circulation.nodeVolumesMl.Ao": {
+          "differingSteps": 499,
+          "maximumAbsoluteDifference": 1.1210943284822861e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.PA": {
+          "differingSteps": 495,
+          "maximumAbsoluteDifference": 5.608029596260167e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.PCap": {
+          "differingSteps": 493,
+          "maximumAbsoluteDifference": 4.218918547849171e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.SA": {
+          "differingSteps": 483,
+          "maximumAbsoluteDifference": 1.6893864085432142e-10
+        },
+        ".coronary.circulation.valveStates.PV.leafletOpeningFraction01": {
+          "differingSteps": 477,
+          "maximumAbsoluteDifference": 3.068141123108159e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.Art": {
+          "differingSteps": 473,
+          "maximumAbsoluteDifference": 3.849009999612463e-11
+        },
+        ".coronary.circulation.nodeVolumesMl.LV": {
+          "differingSteps": 473,
+          "maximumAbsoluteDifference": 8.76696049090242e-10
+        },
+        ".coronary.circulation.valveStates.AoV.leafletOpeningFraction01": {
+          "differingSteps": 413,
+          "maximumAbsoluteDifference": 1.0069334255291551e-11
+        },
+        ".coronary.mechanics.acceptedVolumesMl.LV": {
+          "differingSteps": 473,
+          "maximumAbsoluteDifference": 8.76696049090242e-10
+        },
+        ".coronary.circulation.nodeVolumesMl.Cap": {
+          "differingSteps": 469,
+          "maximumAbsoluteDifference": 2.9103830456733704e-11
+        },
+        ".coronary.circulation.valveStates.MV.leafletOpeningFraction01": {
+          "differingSteps": 297,
+          "maximumAbsoluteDifference": 1.521949233307396e-11
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.LVFW": {
+          "differingSteps": 90,
+          "maximumAbsoluteDifference": 1.4812734372426917e-12
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.RVFW": {
+          "differingSteps": 90,
+          "maximumAbsoluteDifference": 4.946876241973541e-13
+        },
+        ".coronary.mvcReferenceState.reference.referenceFiberLogStrainByWall.SEP": {
+          "differingSteps": 90,
+          "maximumAbsoluteDifference": 1.588881803904485e-12
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LAD.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 5.728750807065808e-14
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LAD.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 3.574918139293004e-14
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LCx.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 5.728750807065808e-14
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.LCx.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 1.6431300764452317e-14
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.RCA.subendocardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 6.994405055138486e-14
+        },
+        ".coronary.coronary.toneResistanceScaleByTerritoryLayer.RCA.subepicardial": {
+          "differingSteps": 77,
+          "maximumAbsoluteDifference": 4.39648317751562e-14
+        }
+      },
+      "completedBeatDifferences": {
+        ".pressureSummaries.LA.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.1024073854932794e-11
+        },
+        ".pressureSummaries.LA.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 8.891554159617954e-11
+        },
+        ".pressureSummaries.LA.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 8.891554159617954e-11
+        },
+        ".pressureSummaries.LV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.821298832917819e-11
+        },
+        ".pressureSummaries.LV.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.945377440890297e-12
+        },
+        ".pressureSummaries.LV.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.928235349168972e-11
+        },
+        ".pressureSummaries.LV.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.4229507289419416e-11
+        },
+        ".pressureSummaries.RA.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.1285506690560396e-10
+        },
+        ".pressureSummaries.RA.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.857270141656045e-11
+        },
+        ".pressureSummaries.RA.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1993739335025566e-11
+        },
+        ".pressureSummaries.RA.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.657874003692996e-11
+        },
+        ".pressureSummaries.RV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.8118485317918385e-10
+        },
+        ".pressureSummaries.RV.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.693436833098531e-10
+        },
+        ".pressureSummaries.RV.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.301381721447342e-12
+        },
+        ".pressureSummaries.RV.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.766480626334669e-10
+        },
+        ".pressureSummaries.Ao.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1368683772161603e-13
+        },
+        ".pressureSummaries.Ao.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.083755473198835e-12
+        },
+        ".pressureSummaries.Ao.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.4158453015843406e-13
+        },
+        ".pressureSummaries.Ao.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.325340003357269e-12
+        },
+        ".pressureSummaries.SA.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.7053025658242404e-13
+        },
+        ".pressureSummaries.SA.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.7337242752546445e-12
+        },
+        ".pressureSummaries.SA.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.6342482922482304e-12
+        },
+        ".pressureSummaries.SA.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 9.947598300641403e-14
+        },
+        ".pressureSummaries.PA.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.806714860525972e-10
+        },
+        ".pressureSummaries.PA.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.855138513448765e-10
+        },
+        ".pressureSummaries.PA.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.5630165484690224e-11
+        },
+        ".pressureSummaries.PA.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.4988368586018623e-10
+        },
+        ".pressureSummaries.PVein.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 9.71454028331209e-11
+        },
+        ".pressureSummaries.PVein.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.899884694012144e-10
+        },
+        ".pressureSummaries.PVein.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.899884694012144e-10
+        },
+        ".pressureSummaries.VC.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.858868945551876e-11
+        },
+        ".pressureSummaries.VC.maximumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.370992705091339e-11
+        },
+        ".pressureSummaries.VC.minimumMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.8399506624718924e-11
+        },
+        ".pressureSummaries.VC.pulseMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.531042042619447e-11
+        },
+        ".meanAorticPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1368683772161603e-13
+        },
+        ".systolicAorticPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.083755473198835e-12
+        },
+        ".diastolicAorticPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.4158453015843406e-13
+        },
+        ".pulseAorticPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.325340003357269e-12
+        },
+        ".meanPulmonaryArterialPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.806714860525972e-10
+        },
+        ".meanLeftAtrialPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.1024073854932794e-11
+        },
+        ".meanRightAtrialPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.1285506690560396e-10
+        },
+        ".minimumLeftVentricularVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.8066438062523957e-12
+        },
+        ".leftVentricularPressureVolumeLandmarks.endSystolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.8066438062523957e-12
+        },
+        ".leftVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.6687985155149363e-11
+        },
+        ".rightVentricularPressureVolumeLandmarks.endDiastolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.3142165395693155e-9
+        },
+        ".rightVentricularPressureVolumeLandmarks.endDiastolic.pressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.5116041751639386e-10
+        },
+        ".rightVentricularPressureVolumeLandmarks.endSystolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.3755894201494812e-9
+        },
+        ".rightVentricularPressureVolumeLandmarks.endSystolic.pressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.494982412481477e-10
+        },
+        ".leftVentricularValveEventMetrics.endSystolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.8066438062523957e-12
+        },
+        ".leftVentricularValveEventMetrics.endSystolic.absolutePressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.6687985155149363e-11
+        },
+        ".leftVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.6687985155149363e-11
+        },
+        ".leftVentricularValveEventMetrics.eventDefinedStrokeVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.7995383788947947e-12
+        },
+        ".leftVentricularValveEventMetrics.eventDefinedEjectionFraction01": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.942890293094024e-14
+        },
+        ".rightVentricularValveEventMetrics.endDiastolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.3142165395693155e-9
+        },
+        ".rightVentricularValveEventMetrics.endDiastolic.absolutePressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.8083179398331595e-10
+        },
+        ".rightVentricularValveEventMetrics.endDiastolic.transmuralPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.8083179398331595e-10
+        },
+        ".rightVentricularValveEventMetrics.endSystolic.volumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.3755894201494812e-9
+        },
+        ".rightVentricularValveEventMetrics.endSystolic.absolutePressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.494982412481477e-10
+        },
+        ".rightVentricularValveEventMetrics.endSystolic.transmuralPressureMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.494982412481477e-10
+        },
+        ".rightVentricularValveEventMetrics.eventDefinedStrokeVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.938634224847192e-9
+        },
+        ".rightVentricularValveEventMetrics.eventDefinedEjectionFraction01": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.4308111906966587e-12
+        },
+        ".valveFlowVolumes.MV.forwardVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.6435388867394067e-10
+        },
+        ".valveFlowVolumes.MV.netVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.6435388867394067e-10
+        },
+        ".valveFlowVolumes.AoV.forwardVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.7053025658242404e-12
+        },
+        ".valveFlowVolumes.AoV.netVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.7053025658242404e-12
+        },
+        ".valveFlowVolumes.TV.forwardVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.0250019499835616e-8
+        },
+        ".valveFlowVolumes.TV.netVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.0250019499835616e-8
+        },
+        ".valveFlowVolumes.PV.forwardVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.9382363209151663e-9
+        },
+        ".valveFlowVolumes.PV.netVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.9382363209151663e-9
+        },
+        ".valveForwardPressureGradients.MV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.2025047624319996e-11
+        },
+        ".valveForwardPressureGradients.AoV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.2586377212974185e-12
+        },
+        ".valveForwardPressureGradients.AoV.peakMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 5.314859663485549e-12
+        },
+        ".valveForwardPressureGradients.TV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.3821432887084484e-10
+        },
+        ".valveForwardPressureGradients.TV.peakMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.197087039552571e-11
+        },
+        ".valveForwardPressureGradients.PV.timeWeightedMeanMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.8024604031552371e-10
+        },
+        ".valveForwardPressureGradients.PV.peakMmHg": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.558877554292849e-10
+        },
+        ".extremaLeftVentricularStrokeVolumeMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.7995383788947947e-12
+        },
+        ".extremaLeftVentricularEjectionFraction01": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.942890293094024e-14
+        },
+        ".leftVentricularTransmuralPressureVolumePathWorkMmHgMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.691173671744764e-9
+        },
+        ".rightVentricularTransmuralPressureVolumePathWorkMmHgMl": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.0884446055570152e-7
+        },
+        ".ventricularAbsolutePressureRateExtrema.LV.maximumMmHgPerSec": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 3.432614903431386e-8
+        },
+        ".ventricularAbsolutePressureRateExtrema.LV.minimumMmHgPerSec": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.842170943040401e-10
+        },
+        ".ventricularAbsolutePressureRateExtrema.RV.maximumMmHgPerSec": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1707925295922905e-8
+        },
+        ".ventricularAbsolutePressureRateExtrema.RV.minimumMmHgPerSec": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 7.16227077646181e-9
+        },
+        ".nativeLeftCardiacOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1901590823981678e-13
+        },
+        ".nativeRightCardiacOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.05675476649958e-10
+        },
+        ".effectiveNativeLeftCardiacOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.1901590823981678e-13
+        },
+        ".effectiveNativeRightCardiacOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.05675476649958e-10
+        },
+        ".systemicVenousReturnLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 2.3207569199712452e-10
+        },
+        ".pulmonaryVenousReturnLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 9.14921471917296e-11
+        },
+        ".systemicTissueOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 4.618527782440651e-14
+        },
+        ".pulmonaryOutputLPerMin": {
+          "differingSteps": 143,
+          "maximumAbsoluteDifference": 1.8991919148447778e-10
+        }
+      },
+      "maximumVolumeConservationErrorMl": 2.7284841053187847e-12
+    }
+  ]
+}

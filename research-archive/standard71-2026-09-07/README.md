@@ -53,10 +53,16 @@ under lean execution in the same five-step probe. [Readback](continuation-follow
 The updated [reproducer](checkpoint-continuation-audit.ts) accepts `AUDIT_TIER`
 and the optional `AUDIT_SEED=full-invariant` control, and writes fresh readbacks
 under `artifacts/physiology-evaluation-2026-09-07/` after the bundle is restored.
-This narrows the issue to the checkpoint/continuation-test contract, not a reason
-to refit physiology. No numerical code or assertion was changed. The decision
+This narrowed the issue to the checkpoint/continuation-test contract, not a reason
+to refit physiology. At that stage no numerical code or assertion was changed. The decision
 between the intended restart semantics and a history-preserving checkpoint must
 be explicit before calling this a bit-exact continuation guarantee.
+
+Subsequent resolution: the independently reviewed, unregistered72 core stores
+the predictor as numerical continuation state without changing the physical
+construction. The stronger71 artifact check now reproduces the warm-restart
+failure; old passing reports and the frozen71 document remain unchanged.
+See the [decision, new tests and remaining admission work](continuation-resolution.md).
 
 The first minimal reader extraction is [PR #614](https://github.com/g960059/0DSimDemo/pull/614).
 Its 35 scoped tests, production build, offline export and three production-browser
