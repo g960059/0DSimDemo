@@ -50,6 +50,9 @@ Follow-up: the existing base checkpoint explicitly omits the coupled Newton
 predictor's accepted history. The warm source has depth four while restore has
 depth zero. A control with empty histories on both sides continues bit-identically
 under lean execution in the same five-step probe. [Readback](continuation-followup.json).
+The updated [reproducer](checkpoint-continuation-audit.ts) accepts `AUDIT_TIER`
+and the optional `AUDIT_SEED=full-invariant` control, and writes fresh readbacks
+under `artifacts/physiology-evaluation-2026-09-07/` after the bundle is restored.
 This narrows the issue to the checkpoint/continuation-test contract, not a reason
 to refit physiology. No numerical code or assertion was changed. The decision
 between the intended restart semantics and a history-preserving checkpoint must
