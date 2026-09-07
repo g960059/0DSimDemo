@@ -72,7 +72,7 @@ const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
-  it.each([5050, 4650])("resumes %i mL low-load coverage after numerical backoff and reaches qualified low flow", async (tbvMl) => {
+  it.each([5050, 4650])("keeps %i mL low-load measurements informative while numerical staging reaches qualified low flow", async (tbvMl) => {
     const previousTier = hotPathIntegrityTierV1();
     selectHotPathIntegrityTierV1("hot-path-lean"); // Match the admitted browser/analysis worker.
     const adapter = createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1().executables.simulationAdapter;
@@ -106,7 +106,12 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
         expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(40);
         expect(ordered[1]!.totalBloodVolumeMl - ordered[0]!.totalBloodVolumeMl).toBeGreaterThan(150);
         expect(ordered[1]!.cardiacOutputLPerMin - ordered[0]!.cardiacOutputLPerMin).toBeGreaterThan(0.3);
-        expect(ordered.length).toBeLessThanOrEqual(12);
+        // Former low families retained 9/10 points, including 50–76 mL gaps.
+        // Successful internal bridges/staging must not become extra markers.
+        expect(ordered.length).toBeLessThanOrEqual(7);
+        for (let i = 1; i < ordered.length; i += 1) {
+          expect(ordered[i]!.totalBloodVolumeMl - ordered[i - 1]!.totalBloodVolumeMl).toBeGreaterThan(200);
+        }
         for (const point of ordered) {
           expect(point).toMatchObject({ settled: true, curveEligible: true,
             quality: "locally-converged", finiteAndFixedTbvPassed: true });
