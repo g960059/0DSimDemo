@@ -19,3 +19,6 @@ One human maintainer develops this repository with AI agents.
 Before the first release there are no external users. Retire obsolete model
 identities, code, and tests instead of preserving legacy compatibility; keep
 dependencies and regression coverage required by the current model and Surface.
+
+Reuse model-documentation modules when authoring; preserve self-contained
+documents and frozen assessments independently of retired implementation code.
