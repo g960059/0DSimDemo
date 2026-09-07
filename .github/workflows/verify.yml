@@ -73,7 +73,9 @@ jobs:
   standard68:
     name: Standard68 registry admission
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Dependency installation and the unchanged cold numerical gate can exceed
+    # 15 minutes on shared runners. This is a job guard, not a numerical limit.
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -98,7 +100,7 @@ jobs:
   standard69:
     name: Standard69 registry admission
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout

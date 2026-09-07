@@ -51,10 +51,10 @@ import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
-import selectedAorticOutflowStandard66SurfaceV1 from
-  "@/studio/integrations/mainWireIntegratedV3/model-surface-selected-aortic-outflow-standard66-v2.json";
+import algebraicPulmonaryRootStandard70SurfaceV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
 const NOOP = () => {};
 
@@ -829,28 +829,28 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain("min-w-0 px-4 pb-10");
   });
 
-  it("uses the pinned Standard66 disclosure instead of generic MW V3 copy", () => {
+  it("uses the pinned Standard70 disclosure instead of generic MW V3 copy", () => {
     const baseSnapshot = snapshotV3();
     const snapshot: ExperimentSnapshotV2 = {
       ...baseSnapshot,
       surfaceReleaseId:
-        selectedAorticOutflowStandard66SurfaceV1.surfaceReleaseId,
+        algebraicPulmonaryRootStandard70SurfaceV1.surfaceReleaseId,
       content: {
         ...baseSnapshot.content,
         modelId:
-          MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
         surfaceSeriesId:
-          selectedAorticOutflowStandard66SurfaceV1.surfaceSeriesId,
+          algebraicPulmonaryRootStandard70SurfaceV1.surfaceSeriesId,
       },
     };
     const contract: ModelContractV2 = {
       ...contractV3(),
       modelId:
-        MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
     };
     const html = renderExperimentV3({ snapshot, contract, live: true });
 
-    expect(html).toContain("MW 66");
+    expect(html).toContain("MW 70");
     expect(html).not.toContain("MW V3");
   });
 

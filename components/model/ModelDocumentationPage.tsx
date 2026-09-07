@@ -2,18 +2,13 @@ import React from "react";
 import { ArrowLeft, FileQuestion } from "lucide-react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { MainWireStandard66DocumentationV1 } from
-  "@/components/model/MainWireStandard66DocumentationV1";
-import { MainWireStandard68DocumentationV1 } from
-  "@/components/model/MainWireStandard68DocumentationV1";
+import { MainWireStandard70DocumentationV1 } from
+  "@/components/model/MainWireStandard70DocumentationV1";
 import { homeHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
-  resolveMainWireStandard66DocumentationFactsV1,
-} from "@/studio/presentation/modelDocumentation/MainWireStandard66DocumentationFactsV1";
-import {
-  resolveMainWireStandard68DocumentationFactsV1,
-} from "@/studio/presentation/modelDocumentation/MainWireStandard68DocumentationFactsV1";
+  resolveMainWireStandard70DocumentationFactsV1,
+} from "@/studio/presentation/modelDocumentation/MainWireStandard70DocumentationFactsV1";
 import {
   resolveRegisteredModelDocumentationV1,
 } from "@/studio/presentation/modelDocumentation/RegisteredModelDocumentationV1";
@@ -42,14 +37,11 @@ export function ModelDocumentationPage() {
     modelId,
     search.get("surface"),
   );
-  const standard68Facts = identity === null
+  const facts = identity === null
     ? null
-    : resolveMainWireStandard68DocumentationFactsV1(identity);
-  const legacyFacts = identity === null || standard68Facts !== null
-    ? null
-    : resolveMainWireStandard66DocumentationFactsV1(identity);
+    : resolveMainWireStandard70DocumentationFactsV1(identity);
 
-  if (standard68Facts === null && legacyFacts === null) {
+  if (facts === null) {
     const text = UNAVAILABLE_COPY[locale];
     return (
       <div
@@ -72,9 +64,7 @@ export function ModelDocumentationPage() {
     );
   }
 
-  return standard68Facts !== null
-    ? <MainWireStandard68DocumentationV1 facts={standard68Facts} locale={locale} />
-    : <MainWireStandard66DocumentationV1 facts={legacyFacts!} locale={locale} />;
+  return <MainWireStandard70DocumentationV1 facts={facts} locale={locale} />;
 }
 
 export default ModelDocumentationPage;
