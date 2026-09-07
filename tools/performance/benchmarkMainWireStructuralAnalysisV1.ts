@@ -64,12 +64,18 @@ for (const method of [
     const advance = branch.advanceStructuralAnalysisToPresentationTimeV1.bind(branch);
     branch.advanceStructuralAnalysisToPresentationTimeV1 = (targetTimeSec) => {
       const start = performance.now();
-      const result = advance(targetTimeSec);
-      record.advanceCalls += 1;
-      record.advanceDurationMs += performance.now() - start;
-      record.acceptedTimeSec = result.acceptedTimeSec;
-      if (result.status === "failed") record.advanceFailure = result.message;
-      return result;
+      try {
+        const result = advance(targetTimeSec);
+        record.acceptedTimeSec = result.acceptedTimeSec;
+        if (result.status === "failed") record.advanceFailure = result.message;
+        return result;
+      } catch (error) {
+        record.advanceFailure = error instanceof Error ? error.message : String(error);
+        throw error;
+      } finally {
+        record.advanceCalls += 1;
+        record.advanceDurationMs += performance.now() - start;
+      }
     };
     return branch;
   };

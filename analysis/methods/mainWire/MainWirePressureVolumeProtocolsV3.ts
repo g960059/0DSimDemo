@@ -237,6 +237,11 @@ const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+// After a successful numerical backoff, request meaningful coverage again.
+// Otherwise the tiny successful transition becomes the next display spacing
+// and spends the point budget in a narrow low-volume band. This is a request,
+// not a minimum numerical step: bounded backoff can still take smaller steps.
+const FORMAL_LOW_MINIMUM_COVERAGE_SCALE_STEP_V3 = 0.04;
 const FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3 = 3;
 const FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 = 4;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
@@ -1289,6 +1294,7 @@ async function runFormalHypovolemicCoverageChainV3(
 
   if (starlingPairReachedLowFlowTargetV3(boundary.pair)) return;
   let desiredScaleStep = FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3;
+  let boundaryRetries = 0;
   while (
     boundary.scale >
       MAIN_WIRE_INTEGRATED_MODEL_FORMAL_STARLING_MINIMUM_TBV_SCALE_V3 + 1e-12 &&
@@ -1305,33 +1311,25 @@ async function runFormalHypovolemicCoverageChainV3(
       sourceGlobalTbvMl,
       accept,
       (pair) => starlingPairReachedLowFlowTargetV3(pair),
+      false,
+      boundaryRetries > 0 ? FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 : MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3,
     );
     boundary = advanced.boundary;
     if (advanced.status === "boundary") {
-      // A failed coarse target is not proof that the last settled endpoint is
-      // the physical low-load boundary. Retain up to three nearer, fully settled
-      // endpoints without repeatedly pursuing the failed far target. Bootstrap,
-      // closure tolerances and the high-load worker are unchanged.
-      let failedScale = requestedScale;
-      for (let retry = 0; retry < FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3
-        && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3; retry += 1) {
-        if (boundary.scale - failedScale < 2 * FORMAL_PVA_MINIMUM_SCALE_STEP_V3) break;
-        const midpoint = (boundary.scale + failedScale) / 2;
-        const refined = await advanceFormalCoverageTowardScaleV3(
-          boundary, midpoint, sourceGlobalTbvMl, accept,
-          starlingPairReachedLowFlowTargetV3, false, FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3,
-        );
-        if (refined.status === "boundary") failedScale = midpoint;
-        else boundary = refined.boundary;
-        if (refined.status === "stopped") break;
-      }
-      return;
+      // A failed transition is not proof of a physical low-load boundary.
+      // Back off, then resume from the newly settled state if a shorter step
+      // succeeds, instead of stopping immediately after boundary refinement.
+      if (boundaryRetries >= FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3) return;
+      boundaryRetries += 1;
+      desiredScaleStep = (boundary.scale - requestedScale) / 2;
+      if (desiredScaleStep < FORMAL_PVA_MINIMUM_SCALE_STEP_V3) return;
+      continue;
     }
     if (!(boundary.scale < priorScale - 1e-12)) return;
-    desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
-      "hypovolemic",
-      recentAcceptedScaleStepV3(samples),
-      samples,
+    boundaryRetries = 0;
+    desiredScaleStep = Math.max(
+      FORMAL_LOW_MINIMUM_COVERAGE_SCALE_STEP_V3,
+      adaptiveFormalCoverageScaleStepV3("hypovolemic", recentAcceptedScaleStepV3(samples), samples),
     );
     if (advanced.status !== "reached") return;
   }

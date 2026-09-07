@@ -72,7 +72,7 @@ const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
-  it.each([5050, 4650])("extends the %i mL low-load family with bounded, qualified boundary refinement", async (tbvMl) => {
+  it.each([5050, 4650])("resumes %i mL low-load coverage after numerical backoff and reaches qualified low flow", async (tbvMl) => {
     const previousTier = hotPathIntegrityTierV1();
     selectHotPathIntegrityTierV1("hot-path-lean"); // Match the admitted browser/analysis worker.
     const adapter = createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1().executables.simulationAdapter;
@@ -97,12 +97,15 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
         const locus = payload[side].starlingLocus;
         if (locus.status !== "measured-fixed-tbv-protocol") throw new Error("expected formal family");
         const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
-        // Previous endpoints were 2929 / 3360 mL. Require real lower support,
-        // not an extrapolated point or relaxed convergence at the old endpoint.
-        expect(ordered[0]!.totalBloodVolumeMl).toBeLessThan(2900);
-        expect(ordered[0]!.fillingPressureMmHg).toBeLessThan(side === "right" ? 0.25 : 1.3);
-        expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(57);
-        expect(ordered.filter(p => p.totalBloodVolumeMl < (tbvMl === 5050 ? 2929 : 3360)).length).toBeLessThanOrEqual(3);
+        // Previous refined endpoints were 2853 / 2872 mL, CO about 1.2 L/min.
+        // Retain an actually measured low-flow endpoint, not extrapolation or
+        // an ever-denser cluster near the old numerical transition failure.
+        expect(ordered[0]!.totalBloodVolumeMl).toBeLessThan(2600);
+        expect(ordered[0]!.cardiacOutputLPerMin).toBeLessThanOrEqual(0.5);
+        expect(ordered[0]!.fillingPressureMmHg).toBeLessThan(side === "right" ? 0 : 0.35);
+        expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(40);
+        expect(ordered[1]!.totalBloodVolumeMl - ordered[0]!.totalBloodVolumeMl).toBeGreaterThan(150);
+        expect(ordered[1]!.cardiacOutputLPerMin - ordered[0]!.cardiacOutputLPerMin).toBeGreaterThan(0.3);
         expect(ordered.length).toBeLessThanOrEqual(12);
         for (const point of ordered) {
           expect(point).toMatchObject({ settled: true, curveEligible: true,
