@@ -94,7 +94,9 @@ describe("Standard72 bounded reviewed scientific admission", () => {
     const pending = prepare(files, modelId);
     files.artifact.fill(0);
     const result = await pending;
-    expect(result.artifact).toEqual(original);
+    // Compare every byte natively. Generic deep-object assertions traverse
+    // millions of byte properties and consumed the CI timeout by themselves.
+    expect(Buffer.from(result.artifact).equals(original)).toBe(true);
     expect(result.artifact).not.toBe(files.artifact);
   });
 
@@ -117,7 +119,7 @@ describe("Standard72 bounded reviewed scientific admission", () => {
       expect(noReleaseFiles()).toBe(true);
       writeFileSync(join(root, paths.eligibility), files.eligibility);
       await expect(verifyRegistry(root, true)).resolves.toMatchObject({ status: "admitted-local-package", published: false });
-      expect(readFileSync(join(root, paths.artifact))).toEqual(Buffer.from(candidate().artifact));
+      expect(readFileSync(join(root, paths.artifact)).equals(candidate().artifact)).toBe(true);
       await expect(verifyRegistry(root)).resolves.toMatchObject({ updated: false });
     } finally { build.mockRestore(); rmSync(root, { recursive: true, force: true }); }
   });

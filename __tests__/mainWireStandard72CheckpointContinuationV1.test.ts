@@ -53,7 +53,10 @@ describe("Standard72 history-preserving, single durable checkpoint", () => {
     for (let tick = 6; tick <= 1000; tick++) {
       const expected = advance(source, tick * .002), actual = advance(restored, tick * .002);
       expect(actual).toEqual(expected);
-      expect(restored.snapshotAcceptedStateBytes()).toEqual(source.snapshotAcceptedStateBytes());
+      // This remains an exact comparison of every accepted-state byte, not
+      // a tolerance or digest comparison. Avoid deep property-walking on CI.
+      expect(Buffer.from(restored.snapshotAcceptedStateBytes())
+        .equals(source.snapshotAcceptedStateBytes()), `accepted bytes at tick ${tick}`).toBe(true);
       clippedBoundaries += expected.advance.boundaryClippedSubstepCount;
       if (tick % 100 === 0) {
         // Includes the entire in-progress and completed beat accumulators,
