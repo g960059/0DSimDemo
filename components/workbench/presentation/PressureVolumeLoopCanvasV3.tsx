@@ -503,8 +503,9 @@ export function PressureVolumeLoopCanvasV3(
       scenarioLabel: trace.scenarioLabel,
       itemId: trace.chamberId,
       itemLabel: trace.chamberLabel,
-      ...(periodicPvaSupported ? { itemDescription:
-        workbenchLoadRelationDescriptionV1(showPvaBoundary ? "pva" : "pv", language) } : {}),
+      ...(periodicPvaSupported && trace.periodicPva !== undefined ? { itemDescription:
+        workbenchLoadRelationDescriptionV1(showPvaBoundary ? "pva"
+          : trace.periodicPva.loadRelations !== undefined ? "pv" : "pv-isochrone", language) } : {}),
       color: trace.chamberColor,
     }))),
     [traces, periodicPvaSupported, showPvaBoundary, language],
@@ -1318,6 +1319,8 @@ function workbenchPvDisplayedRelationPointsV1(drawing: PeriodicPvaDrawingV1, sho
     ...(drawing.loadRelation?.loadSupportPoints ?? []),
     ...(drawing.diastolicRelation?.segments.flat() ?? []),
     ...(drawing.edpvr?.fitPoints ?? []),
+    ...(drawing.espvr?.curve ?? []),
+    ...(drawing.espvr?.fitPoints ?? []),
     ...(showPressureEnvelope ? drawing.pressureEnvelope?.flat() ?? [] : []),
     ...(drawing.espvr === null ? [] : workbenchPvMeasuredHighLoadPointsV1(drawing.espvr)),
     ...(drawing.areaDisplay?.potentialEnergyStrip.flatMap((point) => [

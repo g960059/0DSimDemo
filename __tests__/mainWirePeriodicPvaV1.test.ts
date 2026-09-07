@@ -49,8 +49,32 @@ import { MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1, resolveMainWireAnalysisMethodsFor
 import currentStandard70Surface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCanvasRuntimeV3";
+import * as chartTraceStyle from "@/components/workbench/presentation/WorkbenchChartTraceStyleV3";
 
 describe("settled hot-start PVA V1", () => {
+  it.each([buildMainWirePeriodicPvaMethodV9, buildMainWirePeriodicPvaMethodV10, buildMainWirePeriodicPvaMethodV13])(
+    "describes the actual pinned relation semantics for %s", (buildMethod) => {
+      const periodicPva = buildMethod(formalLocusV1(settledPointsV1()), "LV");
+      const spy = vi.spyOn(chartTraceStyle, "buildWorkbenchTraceLegendModelV3");
+      try {
+        renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, {
+          traces: [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
+            volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
+            cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva }],
+        }));
+        const description = spy.mock.calls[0]![0][0]!.itemDescription;
+        if (buildMethod === buildMainWirePeriodicPvaMethodV13) {
+          expect(description).toContain("pressure envelope");
+          expect(description).toContain("maximum-volume measurements");
+        } else {
+          expect(description).toContain("common-time boundary");
+          expect(description).toContain("exponential fit");
+          expect(description).not.toContain("pressure envelope");
+          expect(description).not.toContain("SW and PE are separate illustrations");
+        }
+      } finally { spy.mockRestore(); }
+    },
+  );
   it("keeps the analytic tangent root exact without clipping real pressure differences", () => {
     // RV baseline from the information-spaced low-load sweep. The affine
     // expression alone evaluates to +2.22e-16 mmHg at its own known root.
@@ -327,7 +351,9 @@ describe("settled hot-start PVA V1", () => {
   });
 
   it("keeps a valid measured isochrone visible but exposes the reason when its PE tail is not admitted", () => {
-    const available = buildMainWirePeriodicPvaMethodV13(formalLocusV1(settledPointsV1()), "LV");
+    const available = buildMainWirePeriodicPvaMethodV13(
+      formalLocusV1(settledPointsV1([1.16, 1.08, 1, 0.92, 0.84, 0.76, 0.68, 0.6, 0.5])), "LV",
+    );
     if (available.status !== "available") throw new Error(available.reason);
     const unavailable = {
       analysisId: available.analysisId, methodId: available.methodId, ventricleId: available.ventricleId,
@@ -340,7 +366,34 @@ describe("settled hot-start PVA V1", () => {
     const traces = [{ scenarioId: "a", scenarioLabel: "A", chamberId: "LV", chamberLabel: "LV", samples: [],
       volumeOutputId: "LV.volume", pressureOutputId: "LV.pressure", pressureBasis: "transmural" as const,
       cyclePhaseOutputId: "phase", chamberColor: "#d9822b", periodicPva: unavailable }];
-    const energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
+    // Execute the canvas callback: a retained drawing count alone cannot
+    // detect a valid low-volume isochrone clipped by the automatic domain.
+    const context = new Proxy({ measureText: () => ({ width: 20 }) }, {
+      get: (target, key) => key in target ? (target as any)[key] : vi.fn(),
+    }) as unknown as CanvasRenderingContext2D;
+    let pathXs: number[] = [];
+    const isochronePaths: number[][] = [];
+    let clipBounds: readonly [number, number] | undefined;
+    context.beginPath = vi.fn(() => { pathXs = []; });
+    context.moveTo = vi.fn((x) => { pathXs.push(x); });
+    context.lineTo = vi.fn((x) => { pathXs.push(x); });
+    context.rect = vi.fn((x, _y, width) => { clipBounds = [x, x + width]; });
+    context.stroke = vi.fn(() => {
+      if (context.lineWidth === 1.5 && pathXs.length === available.espvr.curve.length) {
+        isochronePaths.push([...pathXs]);
+      }
+    });
+    const hook = vi.spyOn(canvasRuntime, "useResponsiveCanvasFrameV3").mockImplementation((_root, _canvas, draw) => {
+      draw(context, 600, 400);
+    });
+    let energy: string;
+    try {
+      energy = renderToStaticMarkup(React.createElement(PressureVolumeLoopCanvasV3, { traces, showPvaBoundary: true }));
+    } finally { hook.mockRestore(); }
+    expect(isochronePaths).toHaveLength(1);
+    expect(clipBounds).toBeDefined();
+    expect(Math.min(...isochronePaths[0]!)).toBeGreaterThanOrEqual(clipBounds![0]);
+    expect(Math.max(...isochronePaths[0]!)).toBeLessThanOrEqual(clipBounds![1]);
     expect(energy).toContain('data-pva-drawing-count="1"');
     expect(energy).toContain('data-pva-result-count="0"');
     expect(energy).toContain('data-pv-energy-area-count="0"');
