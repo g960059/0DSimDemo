@@ -129,7 +129,10 @@ describe("settled hot-start PVA V1", () => {
     expect(JSON.stringify(input)).toBe(before);
     const context = Object.fromEntries(["save","restore","setLineDash","beginPath","moveTo","lineTo","stroke","arc","fill"]
       .map(method => [method,vi.fn()])) as unknown as CanvasRenderingContext2D;
-    drawWorkbenchDiastolicLoadRelationV1(context,result,v=>v,p=>p,"#d9822b",1);
+    drawWorkbenchDiastolicLoadRelationV1(context,result,v=>v,p=>p,"#d9822b",1,"#0b1720");
+    expect(context.fill).toHaveBeenCalledTimes(3);
+    expect(context.setLineDash).toHaveBeenCalledWith([1, 3]);
+    expect(context.strokeStyle).toBe("#0b1720");
     expect(vi.mocked(context.moveTo).mock.calls).toEqual([coordinates[0]!]);
     expect(vi.mocked(context.lineTo).mock.calls).toEqual(coordinates.slice(1));
     expect(vi.mocked(context.arc).mock.calls.map(([v,p])=>[v,p])).toEqual(coordinates);

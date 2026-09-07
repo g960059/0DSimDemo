@@ -45,6 +45,27 @@ export type WorkbenchTraceLegendModelV3 = Readonly<{
   traces: readonly WorkbenchTraceLegendDescriptorV3[];
 }>;
 
+/** Shared measured-point style for load relations; radius follows hierarchy. */
+export function drawWorkbenchMeasuredPointV3(
+  context: CanvasRenderingContext2D, x: number, y: number,
+  color: string, borderColor: string, alpha = 1, radius = 4,
+): void {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  context.save();
+  context.globalAlpha = alpha;
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+  // The canvas-colored ring separates adjacent observations from their guide.
+  context.globalAlpha = 1;
+  context.strokeStyle = borderColor;
+  context.lineWidth = 1.5;
+  context.setLineDash([]);
+  context.stroke();
+  context.restore();
+}
+
 export function workbenchHistoryAlphaV3(
   historyIndex: number,
   historyCount: number,

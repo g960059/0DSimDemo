@@ -237,6 +237,8 @@ const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3 = 3;
+const FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 = 4;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
 const FORMAL_HIGH_PREVIEW_SCALE_STEP_V3 = 0.06;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 0.005;
@@ -1305,6 +1307,26 @@ async function runFormalHypovolemicCoverageChainV3(
       (pair) => starlingPairReachedLowFlowTargetV3(pair),
     );
     boundary = advanced.boundary;
+    if (advanced.status === "boundary") {
+      // A failed coarse target is not proof that the last settled endpoint is
+      // the physical low-load boundary. Retain up to three nearer, fully settled
+      // endpoints without repeatedly pursuing the failed far target. Bootstrap,
+      // closure tolerances and the high-load worker are unchanged.
+      let failedScale = requestedScale;
+      for (let retry = 0; retry < FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3
+        && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3; retry += 1) {
+        if (boundary.scale - failedScale < 2 * FORMAL_PVA_MINIMUM_SCALE_STEP_V3) break;
+        const midpoint = (boundary.scale + failedScale) / 2;
+        const refined = await advanceFormalCoverageTowardScaleV3(
+          boundary, midpoint, sourceGlobalTbvMl, accept,
+          starlingPairReachedLowFlowTargetV3, false, FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3,
+        );
+        if (refined.status === "boundary") failedScale = midpoint;
+        else boundary = refined.boundary;
+        if (refined.status === "stopped") break;
+      }
+      return;
+    }
     if (!(boundary.scale < priorScale - 1e-12)) return;
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypovolemic",
@@ -1467,6 +1489,7 @@ async function advanceFormalCoverageTowardScaleV3(
   accept: (boundary: FormalCoverageBoundaryV3) => void,
   stopAfterAccepted: (pair: StarlingPairV3) => boolean = () => false,
   reservoirClosure = false,
+  maximumAttempts = MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3,
 ): Promise<FormalCoverageAdvanceV3> {
   const boundary = initialBoundary;
   let continuationBranch = initialBoundary.branch;
@@ -1476,7 +1499,7 @@ async function advanceFormalCoverageTowardScaleV3(
   let lastRejectedReason = "formal coverage target was not attempted";
   for (
     let attempt = 0;
-    attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3;
+    attempt < maximumAttempts;
     attempt += 1
   ) {
     const remainingScale = requestedScale - continuationScale;

@@ -15,6 +15,7 @@ import {
 } from "./WorkbenchCanvasRuntimeV3";
 import {
   WorkbenchChartLegendV3, buildWorkbenchTraceLegendModelV3,
+  drawWorkbenchMeasuredPointV3,
   workbenchHistoryAlphaV3, workbenchLegendTraceAlphaV3, workbenchLegendTraceHiddenV3,
   workbenchLegendSelectionMatchesTraceV3,
   workbenchTraceLegendKeyV3, type WorkbenchChartLegendSelectionV3,
@@ -544,7 +545,7 @@ function drawOrientationV3(
     x,
     y,
     color,
-    [5, 3],
+    [],
     alpha * 0.58,
   );
   if (orientation.starlingLocus.status !== "requires-protocol") {
@@ -568,7 +569,7 @@ function drawOrientationV3(
           pointRadius,
         );
       } else {
-        drawPointV3(
+        drawWorkbenchMeasuredPointV3(
           context,
           x(point.fillingPressureMmHg),
           y(point.cardiacOutputLPerMin),
@@ -580,7 +581,7 @@ function drawOrientationV3(
       }
     });
   }
-  drawPointV3(
+  drawWorkbenchMeasuredPointV3(
     context,
     x(orientation.operatingPoint.downstreamPressureMmHg),
     y(orientation.operatingPoint.returnFlowLPerMin),
@@ -931,30 +932,6 @@ function drawCurveV3(
     if (index === 0) context.moveTo(px, py);
     else context.lineTo(px, py);
   });
-  context.stroke();
-  context.restore();
-}
-
-function drawPointV3(
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  color: string,
-  borderColor: string,
-  alpha = 1,
-  radius = 4,
-): void {
-  context.save();
-  context.globalAlpha = alpha;
-  context.fillStyle = color;
-  context.beginPath();
-  context.arc(x, y, radius, 0, Math.PI * 2);
-  context.fill();
-  // The opaque canvas-colored ring keeps adjacent beat points distinct in
-  // both themes and prevents the connecting curve from showing through them.
-  context.globalAlpha = 1;
-  context.strokeStyle = borderColor;
-  context.lineWidth = 1.5;
   context.stroke();
   context.restore();
 }

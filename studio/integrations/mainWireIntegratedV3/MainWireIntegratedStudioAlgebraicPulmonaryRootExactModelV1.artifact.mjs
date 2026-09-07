@@ -17913,6 +17913,8 @@ const MINIMUM_LOW_SCALE_BRACKET_V3 = 0.01;
 const MINIMUM_FORMAL_TBV_BRACKET_ML_V3 = 1;
 const FORMAL_PVA_REQUIRED_LOWER_POINT_COUNT_V3 = 3;
 const FORMAL_LOW_EXTENSION_INITIAL_SCALE_STEP_V3 = 0.12;
+const FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3 = 3;
+const FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3 = 4;
 const FORMAL_HIGH_INITIAL_SCALE_STEP_V3 = 0.12;
 const FORMAL_HIGH_PREVIEW_SCALE_STEP_V3 = 0.06;
 const FORMAL_PVA_MINIMUM_SCALE_STEP_V3 = 5e-3;
@@ -18320,6 +18322,26 @@ async function runFormalHypovolemicCoverageChainV3(centerBranch, centerPair, sou
       (pair) => starlingPairReachedLowFlowTargetV3(pair)
     );
     boundary2 = advanced.boundary;
+    if (advanced.status === "boundary") {
+      let failedScale = requestedScale;
+      for (let retry = 0; retry < FORMAL_LOW_BOUNDARY_REFINEMENT_COUNT_V3 && samples.length < FORMAL_MAXIMUM_RETAINED_POINTS_PER_DIRECTION_V3; retry += 1) {
+        if (boundary2.scale - failedScale < 2 * FORMAL_PVA_MINIMUM_SCALE_STEP_V3) break;
+        const midpoint = (boundary2.scale + failedScale) / 2;
+        const refined = await advanceFormalCoverageTowardScaleV3(
+          boundary2,
+          midpoint,
+          sourceGlobalTbvMl,
+          accept,
+          starlingPairReachedLowFlowTargetV3,
+          false,
+          FORMAL_LOW_REFINEMENT_MAXIMUM_ATTEMPTS_V3
+        );
+        if (refined.status === "boundary") failedScale = midpoint;
+        else boundary2 = refined.boundary;
+        if (refined.status === "stopped") break;
+      }
+      return;
+    }
     if (!(boundary2.scale < priorScale - 1e-12)) return;
     desiredScaleStep = adaptiveFormalCoverageScaleStepV3(
       "hypovolemic",
@@ -18413,14 +18435,14 @@ async function runFormalHypervolemicStarlingChainV3(centerBranch, centerPair, so
     }
   }
 }
-async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false, reservoirClosure = false) {
+async function advanceFormalCoverageTowardScaleV3(initialBoundary, requestedScale, sourceGlobalTbvMl, accept, stopAfterAccepted = () => false, reservoirClosure = false, maximumAttempts = MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3) {
   const boundary2 = initialBoundary;
   let continuationBranch = initialBoundary.branch;
   let continuationScale = initialBoundary.scale;
   let bridgeMaximumScaleStep = FORMAL_HOT_START_BRIDGE_MAXIMUM_SCALE_STEP_V3;
   let forceBridgeBeforeTarget = false;
   let lastRejectedReason = "formal coverage target was not attempted";
-  for (let attempt = 0; attempt < MAXIMUM_FORMAL_HOT_START_ATTEMPTS_PER_POINT_V3; attempt += 1) {
+  for (let attempt = 0; attempt < maximumAttempts; attempt += 1) {
     const remainingScale = requestedScale - continuationScale;
     const minimumScaleStep = Math.max(
       FORMAL_PVA_MINIMUM_SCALE_STEP_V3,

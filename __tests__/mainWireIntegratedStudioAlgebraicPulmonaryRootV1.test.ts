@@ -57,6 +57,14 @@ import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V13
 import { MainWireIntegratedModelStandard70TypedAuthoritySessionV1 } from
   "@/engine/vnext/MainWireIntegratedModelStandard70TypedAuthoritySessionV1";
 import launchBaseline from "@/data/model-baselines/standard70-launch-baseline.json";
+import { createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1 } from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID } from
+  "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import type { MainWireIntegratedModelStarlingLocusV3 } from
+  "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
+import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
+import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
   "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
 
@@ -64,6 +72,52 @@ const PV_ET =
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_PV_FORWARD_FLOW_DURATION_OUTPUT_ID_V1;
 
 describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
+  it.each([5050, 4650])("extends the %i mL low-load family with bounded, qualified boundary refinement", async (tbvMl) => {
+    const previousTier = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean"); // Match the admitted browser/analysis worker.
+    const adapter = createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1().executables.simulationAdapter;
+    const ids = { runtimeSessionId: `test/low-load-${tbvMl}`, scenarioId: "baseline" };
+    try {
+    await adapter.createSession({ runtimeSessionId: ids.runtimeSessionId, scenarios: [{
+      scenarioId: ids.scenarioId, fixture: launchBaseline.capture.fixture,
+      checkpoint: launchBaseline.capture.checkpoint as ScenarioCheckpointV2,
+    }] });
+      if (tbvMl !== 5050) await adapter.applyControl({ ...ids,
+        controlId: "hemodynamics.total-blood-volume-ml", value: tbvMl,
+        expectedInputEpoch: adapter.currentInputEpoch(ids),
+      });
+      const source = adapter.currentFrame(ids);
+      const result = await adapter.requestAnalysis({ ...ids,
+        analysisId: MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID,
+        expectedInputEpoch: source.inputEpoch, expectedAcceptedRevision: source.acceptedRevision,
+        expectedAcceptedTimeSec: source.acceptedTimeSec, analysisPartition: "hypovolemic",
+      });
+      const payload = result.payload as unknown as Record<"left" | "right", { starlingLocus: MainWireIntegratedModelStarlingLocusV3 }>;
+      for (const side of ["left", "right"] as const) {
+        const locus = payload[side].starlingLocus;
+        if (locus.status !== "measured-fixed-tbv-protocol") throw new Error("expected formal family");
+        const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
+        // Previous endpoints were 2929 / 3360 mL. Require real lower support,
+        // not an extrapolated point or relaxed convergence at the old endpoint.
+        expect(ordered[0]!.totalBloodVolumeMl).toBeLessThan(2900);
+        expect(ordered[0]!.fillingPressureMmHg).toBeLessThan(side === "right" ? 0.25 : 1.3);
+        expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(57);
+        expect(ordered.filter(p => p.totalBloodVolumeMl < (tbvMl === 5050 ? 2929 : 3360)).length).toBeLessThanOrEqual(3);
+        expect(ordered.length).toBeLessThanOrEqual(12);
+        for (const point of ordered) {
+          expect(point).toMatchObject({ settled: true, curveEligible: true,
+            quality: "locally-converged", finiteAndFixedTbvPassed: true });
+          expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
+          expect(point.completedBeatCount).toBeGreaterThanOrEqual(3);
+        }
+      }
+      expect(adapter.currentFrame(ids)).toEqual(source);
+    } finally {
+      adapter.disposeSession(ids.runtimeSessionId);
+      selectHotPathIntegrityTierV1(previousTier);
+    }
+  }, 120_000);
+
   it("inherits the entire compatible Surface when separating load-response and energy display", () => {
     expect(algebraicPulmonaryRootSurfaceV5.surfaceSeriesId).not.toBe(algebraicPulmonaryRootSurfaceV2.surfaceSeriesId);
     expect(algebraicPulmonaryRootSurfaceV5.exposedExactOutputIds).toEqual(algebraicPulmonaryRootSurfaceV2.exposedExactOutputIds);

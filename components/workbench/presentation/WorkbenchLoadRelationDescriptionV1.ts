@@ -10,6 +10,6 @@ export function workbenchLoadRelationDescriptionV1(
     ? "PVA計算用の同時刻境界と指数近似EDPVRです。SWとPEは別々に示します。PEには未測定の低容積側の近似を含むことがあり、蓄えられた弾性エネルギーの実測ではありません。"
     : "PVA: common-time systolic boundary and fitted EDPVR. SW and PE are separate illustrations. PE can include an unmeasured low-volume construction; it is not measured stored energy.";
   return ja
-    ? "点はTBV負荷試験の測定値、Starling曲線は測定点間だけの補間です。細い破線のGuyton曲線は別の還流近似で、測定点列ではありません。凡例に触れるとscenarioを強調、クリックで表示を切り替えます。"
-    : "Dots: simulated TBV load-test points. Starling interpolates measured support only. The thinner dashed Guyton line is a separate venous-return approximation, not measured load points. Hover/focus a Scenario to emphasize it; click to hide it.";
+    ? "点はTBV負荷試験の測定値、Starling曲線は測定点間だけの補間です。淡い実線のGuyton曲線は別の還流近似で、測定点列ではありません。凡例に触れるとscenarioを強調、クリックで表示を切り替えます。"
+    : "Dots: simulated TBV load-test points. Starling interpolates measured support only. The fainter solid Guyton line is a separate venous-return approximation, not measured load points. Hover/focus a Scenario to emphasize it; click to hide it.";
 }

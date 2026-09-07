@@ -33,6 +33,7 @@ import {
 import {
   WorkbenchChartLegendV3,
   buildWorkbenchTraceLegendModelV3,
+  drawWorkbenchMeasuredPointV3,
   workbenchHistoryAlphaV3,
   workbenchLegendSelectionMatchesTraceV3,
   workbenchLegendTraceAlphaV3,
@@ -685,6 +686,7 @@ export function PressureVolumeLoopCanvasV3(
         context, periodicPvaDrawing, x, y, trace.chamberColor,
         0.92 * workbenchLegendTraceAlphaV3(legendSelection, pvLegendDescriptorV3(trace)),
         showPressureEnvelope,
+        theme.canvas,
       );
     }
     for (const {
@@ -1222,6 +1224,7 @@ function drawPeriodicPvaV1(
   color: string,
   alpha: number,
   showPressureEnvelope: boolean,
+  pointBorderColor: string,
 ): void {
   const relationAlpha = pva.preview ? alpha * 0.58 : alpha;
   if (pva.areaDisplay !== null) drawWorkbenchPvaAreasV1(context, pva.areaDisplay, x, y, color, relationAlpha);
@@ -1234,25 +1237,25 @@ function drawPeriodicPvaV1(
       {
         color,
         width: 0.85,
-        dash: Object.freeze([]),
+        dash: Object.freeze([1, 3]),
         alpha: relationAlpha * 0.34,
       },
     );
   }
   if (pva.loadRelation !== null) {
     for (const segment of pva.loadRelation.segments) {
-      drawPvCurveV3(context, segment, x, y, { color, width: 1.05, dash: [], alpha: relationAlpha * 0.48 });
+      drawPvCurveV3(context, segment, x, y, { color, width: 1.05, dash: [1, 3], alpha: relationAlpha * 0.48 });
     }
   } else if (pva.espvr !== null) {
     drawPvCurveV3(context, pva.espvr.curve, x, y, {
-      color, width: 1.25, dash: [], alpha: relationAlpha * 0.62,
+      color, width: 1.25, dash: [1, 3], alpha: relationAlpha * 0.62,
     });
     drawWorkbenchPvHighLoadIsochroneV1(context, pva.espvr, x, y, color, relationAlpha);
     for (const point of pva.espvr.fitPoints) drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
       color, 1.7, relationAlpha * 0.5, true);
   }
   if (pva.diastolicRelation !== null) {
-    drawWorkbenchDiastolicLoadRelationV1(context, pva.diastolicRelation, x, y, color, relationAlpha);
+    drawWorkbenchDiastolicLoadRelationV1(context, pva.diastolicRelation, x, y, color, relationAlpha, pointBorderColor);
   }
   const edpvr = pva.edpvr;
   if (edpvr === null) return;
@@ -1276,32 +1279,25 @@ function drawPeriodicPvaV1(
     {
       color,
       width: 1.35,
-      dash: Object.freeze([4, 3]),
+      dash: Object.freeze([1, 3]),
       alpha: relationAlpha * 0.72,
     },
   );
   for (const point of edpvr.fitPoints) {
-    drawPvRelationMarkerV3(
-      context,
-      x(point.volumeMl),
-      y(point.pressureMmHg),
-      color,
-      1.6,
-      relationAlpha * 0.42,
-      false,
-    );
+    drawWorkbenchMeasuredPointV3(context, x(point.volumeMl), y(point.pressureMmHg),
+      color, pointBorderColor, relationAlpha * 0.7, 2.5);
   }
 }
 
 export function drawWorkbenchDiastolicLoadRelationV1(
   context: CanvasRenderingContext2D, relation: MainWireDiastolicLoadRelationV1,
   x: (volumeMl: number) => number, y: (pressureMmHg: number) => number,
-  color: string, alpha: number,
+  color: string, alpha: number, pointBorderColor: string,
 ): void {
   for (const segment of relation.segments) {
-    drawPvCurveV3(context, segment, x, y, { color, width: 1, dash: [3, 3], alpha: alpha * 0.52 });
-    for (const point of segment) drawPvRelationMarkerV3(context,
-      x(point.volumeMl), y(point.pressureMmHg), color, 1.8, alpha * 0.66, false);
+    drawPvCurveV3(context, segment, x, y, { color, width: 1, dash: [1, 3], alpha: alpha * 0.52 });
+    for (const point of segment) drawWorkbenchMeasuredPointV3(context,
+      x(point.volumeMl), y(point.pressureMmHg), color, pointBorderColor, alpha * 0.75, 2.5);
   }
 }
 
@@ -1382,7 +1378,7 @@ export function drawWorkbenchPvHighLoadIsochroneV1(
   const points = workbenchPvMeasuredHighLoadPointsV1(espvr);
   // These are ordered measured loads, not a globally monotone pressure law.
   drawPvCurveV3(context, points, x, y, {
-    color, width: 1, dash: Object.freeze([]), alpha: relationAlpha * 0.48,
+    color, width: 1, dash: Object.freeze([1, 3]), alpha: relationAlpha * 0.48,
   });
   for (const point of points.slice(1)) {
     drawPvRelationMarkerV3(context, x(point.volumeMl), y(point.pressureMmHg),
