@@ -1,4 +1,5 @@
-import { build } from "vite";
+import { buildStandard72ArtifactV1 } from "@/tools/registry/BuildStandard72ArtifactV1";
+import { prepareStandard72RegistryAdmissionV1, readStandard72AdmissionFilesV1 } from "@/tools/registry/Standard72RegistryAdmissionV1";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
@@ -26,18 +27,7 @@ const sha = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).d
 const same = (a: unknown, b: unknown, label: string) => {
   if (canonicalJsonStringify(a) !== canonicalJsonStringify(b)) throw new Error(`Standard72 artifact mismatch: ${label}`);
 };
-async function compile() {
-  const built = await build({ configFile: false, logLevel: "silent",
-    define: { "import.meta.env.VITE_CIRCLEHEART_HOT_PATH_INTEGRITY": JSON.stringify("hot-path-lean") },
-    resolve: { alias: { "@": root } },
-    build: { target: "es2022", minify: false, sourcemap: false, write: false,
-      lib: { entry: resolve(root, "studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.entry.ts"), formats: ["es"] },
-      rollupOptions: { output: { inlineDynamicImports: true } } } });
-  const outputs = Array.isArray(built) ? built : [built];
-  const chunks = outputs.length === 1 && "output" in outputs[0]! ? outputs[0].output.filter(o => o.type === "chunk") : [];
-  if (chunks.length !== 1 || chunks[0]!.imports.length || chunks[0]!.dynamicImports.length) throw new Error("Self-contained artifact required");
-  return new TextEncoder().encode(chunks[0]!.code);
-}
+const compile = () => buildStandard72ArtifactV1(root);
 const started = performance.now();
 const first = await compile(), second = await compile();
 if (sha(first) !== sha(second)) throw new Error("Two artifact builds differ");
@@ -151,8 +141,12 @@ try {
     snapshotAdmission: snapshot.status, referenceParity,
     surfaceReleaseId: surface.surfaceReleaseId, surfaceInheritedWithoutCatalogChanges: true,
     registryAdmitted: false, browserVerified: false, published: false, wallTimeMs: performance.now() - started };
+  const admitted = await prepareStandard72RegistryAdmissionV1(readStandard72AdmissionFilesV1(root, {
+    artifact: first, clientJson: JSON.stringify({ schemaId: "circleheart-standard-exact-model-client-descriptor-v1",
+      manifest: source.manifest, defaultFixture: fixture }),
+  }), model.modelId);
   await mkdir(output, { recursive: false });
-  await writeFile(resolve(output, "Standard72.artifact.mjs"), first, { flag: "wx" });
+  await writeFile(resolve(output, "Standard72.artifact.mjs"), admitted.artifact, { flag: "wx" });
   await writeFile(resolve(output, "Standard72.client.json"), JSON.stringify({ schemaId: "circleheart-standard-exact-model-client-descriptor-v1",
     manifest: source.manifest, defaultFixture: fixture }, null, 2) + "\n", { flag: "wx" });
   await writeFile(resolve(output, "artifact-binding.json"), JSON.stringify(report, null, 2) + "\n", { flag: "wx" });

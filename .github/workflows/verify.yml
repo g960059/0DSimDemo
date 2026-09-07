@@ -55,27 +55,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Verify exact V3 registry admission
-        run: npm run verify:registry:main-wire-v3
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-      - name: Verify selected aortic outflow Standard66 registry admission
-        run: npm run verify:registry:main-wire-selected-aortic-outflow-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-      - name: Verify algebraic proximal roots Standard67 registry admission
-        run: npm run verify:registry:main-wire-algebraic-proximal-roots-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-  standard68:
-    name: Standard68 registry admission
+  retained-package:
+    name: Active retained package integrity
     runs-on: ubuntu-latest
-    # Dependency installation and the unchanged cold numerical gate can exceed
-    # 15 minutes on shared runners. This is a job guard, not a numerical limit.
-    timeout-minutes: 25
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -92,60 +75,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify rounded ejection Standard68 registry admission
-        run: npm run verify:registry:main-wire-rounded-ejection-v1
+      # Source regressions and Workbench smoke still exercise active code.
+      # Retained 70 bytes must remain unchanged, not be rebuilt or re-certified
+      # because the candidate modifies a shared host. 65-69 are not active.
+      - name: Verify immutable retained package
+        run: npm run verify:registry:retained-exact-package
         env:
           CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - name: Verify retained-package guard regressions
+        run: npx vitest run __tests__/retainedExactModelPackageV1.test.ts
 
-  standard69:
-    name: Standard69 registry admission
+  standard72:
+    name: Standard72 registry admission
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify qualified baseline Standard69 registry admission
-        run: npm run verify:registry:main-wire-qualified-baseline-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
-
-  standard70:
-    name: Standard70 registry admission
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify algebraic pulmonary root Standard70 registry admission
-        run: npm run verify:registry:main-wire-algebraic-pulmonary-root-v1
-        env:
-          CIRCLEHEART_REGISTRY_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - run: npm ci
+      - name: Bind retained scientific assessment and qualify deterministic executable
+        run: npm run verify:registry:main-wire-standard72-v1
+      - name: Verify admission and checkpoint integration regressions
+        run: npx vitest run __tests__/mainWireStandard72RegistryAdmissionV1.test.ts __tests__/mainWireStandard72CheckpointContinuationV1.test.ts __tests__/mainWireStandard72ConstructionV1.test.ts __tests__/mainWireStandard72StudioBindingV1.test.ts --minWorkers=1 --maxWorkers=2
 
   test:
     name: Fast tests
@@ -302,9 +256,8 @@ jobs:
       - build
       - browser
       - supabase
-      - standard68
-      - standard69
-      - standard70
+      - retained-package
+      - standard72
       - test
       - whitespace
     if: always()
@@ -318,9 +271,8 @@ jobs:
           BUILD_RESULT: ${{ needs.build.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
           SUPABASE_RESULT: ${{ needs.supabase.result }}
-          STANDARD68_RESULT: ${{ needs.standard68.result }}
-          STANDARD69_RESULT: ${{ needs.standard69.result }}
-          STANDARD70_RESULT: ${{ needs.standard70.result }}
+          RETAINED_PACKAGE_RESULT: ${{ needs.retained-package.result }}
+          STANDARD72_RESULT: ${{ needs.standard72.result }}
           TEST_RESULT: ${{ needs.test.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -330,9 +282,8 @@ jobs:
             "Build:$BUILD_RESULT" \
             "Workbench browser smoke:$BROWSER_RESULT" \
             "Supabase schema and policy tests:$SUPABASE_RESULT" \
-            "Standard68 registry admission:$STANDARD68_RESULT" \
-            "Standard69 registry admission:$STANDARD69_RESULT" \
-            "Standard70 registry admission:$STANDARD70_RESULT" \
+            "Active retained package integrity:$RETAINED_PACKAGE_RESULT" \
+            "Standard72 registry admission:$STANDARD72_RESULT" \
             "Test:$TEST_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

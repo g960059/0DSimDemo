@@ -53,7 +53,8 @@ History that changes the floating-point continuation is numerical continuation
 state, even when it changes no physiological equation. It must be retained when
 the checkpoint promises bit-identical continuation.
 
-A change to accepted equations, integration, step policy, solver semantics,
+A change to an identity fixed under [DESIGN-STUDIO-006](DESIGN-STUDIO-006-model-surface-release-and-model-lab.md)
+that alters accepted equations, integration, step policy, solver semantics,
 event order, primitive output meaning, or checkpoint continuation requires a
 new exact `modelId`. An implementation-only artifact revision may remain under
 one `modelId` only through the repository's byte-equivalence admission path.
@@ -95,7 +96,8 @@ layout.
 
 ## Release evidence
 
-A numerical-authority change must cover, in proportion to its claim:
+A numerical-authority change must cover the affected items, in proportion to
+its claim (not repeat this entire list merely because an ID was minted):
 
 - local equation or root agreement against an independent reference;
 - conservation, bounds, event order, and failed-candidate atomicity;

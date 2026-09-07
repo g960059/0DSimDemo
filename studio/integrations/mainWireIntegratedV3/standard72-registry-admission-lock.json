@@ -1,0 +1,25 @@
+{
+  "schemaId": "circleheart-standard-exact-model-registry-admission-lock-v2",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+  "artifactRevisionId": "e183f825fc018e704c6a3f84b98db46051caafe811df23017268928e8edd29b5",
+  "artifactSha256": "04d3b836f04f8fcfe5a50943eec3f935f65df055b46e4401303a9f91720f3c21",
+  "predecessorArtifactRevisionId": null,
+  "equivalenceReportSha256": null,
+  "scientificAdmission": {
+    "policyId": "main-wire-prospective-baseline-admission-v1",
+    "constructionSha256": "27a5e0e68f076d3837313340faa9fe23228af72006eae635b4d7287d8ce8c8d8",
+    "eligibility": "76f38faf7e685f1447eed6f825452ce5b35c9acf8bffe786a56c913a4f493bf7",
+    "provenance": "4a4dbc3246b7b36171f0313d8993ea9dc662711600f5a1cfa5f4e4cbd89a4728",
+    "clinicalNormalityClaimed": false
+  },
+  "releaseQualification": {
+    "executable": "6ff96dd8386e4be005943aac53783f29e67d4ca4a979bcb49168e37af90456af",
+    "binding": "928c767ad66d27ea14e0b63a611a00d1768f75aaa6bd24dd1dd34d8e912f4032",
+    "periodicCheckpointSha256": "895da31d328b4f25c7df7e042dbb9c276d2653b7c6f1517e63aa10eac619a7ac",
+    "launchCheckpointSha256": "a125d6aeaca4e1859adb847008afc83aa6de29715b6b23409006861b30932df2",
+    "defaultFixtureSha256": "4b35d1e81a5ef89c81153e8882e60a22528fdf4acd6cea2522a2b12c7d908e18",
+    "surfaceSha256": "3cf982bfe5bd98c41808d2c5b86dfababecffd51991fbcde2dc5673ab1954528",
+    "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
+    "checkpointReproductionScope": "exact-owner-roundtrips-and-current-runtime-twin-alignment; historical-source-to-launch-parity-in-sealed-binding"
+  }
+}

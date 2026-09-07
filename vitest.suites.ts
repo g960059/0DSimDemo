@@ -162,6 +162,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/retainedExactModelPackageV1.test.ts",
   "__tests__/mainWireIntegratedStudioAlgebraicPulmonaryRootV1.test.ts",
   "__tests__/mainWireIntegratedStudioPublishedHemodynamicDomainsV1.test.ts",
   "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
@@ -230,6 +231,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireFixedToneSettlementV2.test.ts",
   "__tests__/mainWireStandard70TimingAndInletWindowV1.test.ts",
   "__tests__/mainWireStandard72CheckpointContinuationV1.test.ts",
+  "__tests__/mainWireStandard72RegistryAdmissionV1.test.ts",
   "__tests__/mainWireStandard72ConstructionV1.test.ts",
   "__tests__/mainWireStandard72StudioBindingV1.test.ts",
   "__tests__/registeredModelLaunchBaselineV1.test.ts",

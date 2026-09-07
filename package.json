@@ -4,6 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "verify:registry:retained-exact-package": "vite-node --script tools/registry/verifyRetainedExactModelPackageV1.ts",
+    "verify:registry:main-wire-standard72-v1": "vite-node --script tools/registry/verifyMainWireStandard72RegistryV1.ts",
     "dev": "vite",
     "typecheck": "tsc --noEmit --pretty false",
     "build": "npm run typecheck && vite build",

@@ -1,0 +1,982 @@
+{
+  "schemaId": "main-wire-standard72-admission-provenance-v1",
+  "scope": "Only the reviewed resting, unassisted, nonshunting Standard72 baseline: HR70, TBV4935mL, BSA1.9m2, zero intrathoracic pressure/respiration, fixed controls. Not a preset/patient normality policy.",
+  "interpretation": "Content-fixed scientific review evidence; the archived assessor re-observed both independent cold traces. This registry binds that review to one executable, not a general fitter or arbitrary report certifier.",
+  "archive": {
+    "pullRequest": "https://github.com/g960059/0DSimDemo/pull/613",
+    "commit": "b89fa5d6",
+    "evidence": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/research-archive/standard71-2026-09-07/evidence.tar.gz",
+    "implementation": [
+      {
+        "path": "tools/scientific/assessMainWireProspectiveBaselineV1.ts",
+        "sha256": "69941468230d966aa600ae77cf96fee49e341e7a976ea662c77602a6f63fac03",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/tools/scientific/assessMainWireProspectiveBaselineV1.ts"
+      },
+      {
+        "path": "analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1.ts",
+        "sha256": "307a5d2a238ebb61417565765e22afecbe2abe77a19401385440cccdfb57b022",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1.ts"
+      },
+      {
+        "path": "analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts",
+        "sha256": "2a02e28ddc894dd6bad8618d9c5534078fe7518a66c622f8d0c05e7f8dc8615b",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts"
+      },
+      {
+        "path": "analysis/policies/mainWire/MainWirePreloadReserveResearchScreenV2.ts",
+        "sha256": "5fc62d9c2928293bfe4cc2ad29c9e4a4744c4ddd26987da779ed580ba004eea7",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveResearchScreenV2.ts"
+      },
+      {
+        "path": "analysis/policies/mainWire/MainWireBaselineGateRolesV1.ts",
+        "sha256": "d4ec50135d6378b3ed21f98cf638aa2dda39dcb17732a95a20549150bb4528c5",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWireBaselineGateRolesV1.ts"
+      },
+      {
+        "path": "analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1.ts",
+        "sha256": "efe026860243ef755d6c8853dee9207c1284a182eeabb959fb7692468d4b348d",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWireFixedToneSettlementV2.ts",
+        "sha256": "dab763dfa914a152ddec8c208d243620a741e1b07c3c1b77f73201ace72588da",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireFixedToneSettlementV2.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3.ts",
+        "sha256": "c9a2635d12ea590cce9773ad096fb9b8dc8f6950376ec7ec55b81bbece1c1faf",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1.ts",
+        "sha256": "64b11cf34240aadb1116c37673a8f6d8b90157a19525a889096ccdc36747823d",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWireRelaxationTauV1.ts",
+        "sha256": "9987cdca1030bc8ddd7a8b7bbaadca307d21af5b689923e21443e6657c2494d3",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireRelaxationTauV1.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWireBaselineObservationV2.ts",
+        "sha256": "70124ed70ee66a2929bd5cbf6229581b638b7e0cfbbf7a1c05400f2b6f992757",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireBaselineObservationV2.ts"
+      },
+      {
+        "path": "analysis/methods/mainWire/MainWireRestingReferenceComparisonV1.ts",
+        "sha256": "59725b119116d19a8ee5ac423fc3535c7a0acf324ce67ee1ac3a90e62a35aad5",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireRestingReferenceComparisonV1.ts"
+      },
+      {
+        "path": "analysis/registry/MainWireRestingReferenceProfileV1.ts",
+        "sha256": "de9a261743f1c04425ea9ae2dbbce089ad87b19460ca97f48b39dd6c3f010934",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/registry/MainWireRestingReferenceProfileV1.ts"
+      },
+      {
+        "path": "engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1.ts",
+        "sha256": "4f4832c88daae8191aa95298ebcb1f9b1d2c241c96199b46fefbe622554ef939",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1.ts"
+      },
+      {
+        "path": "engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1.ts",
+        "sha256": "0166abd6d38a942c4fc36ae1f301668a0ad141d2da20f9ba437a128350e84d59",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineValidationV1.ts"
+      },
+      {
+        "path": "engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1.ts",
+        "sha256": "09ca24622f3ee7dcbf440c3e9038aadcffa16a517e7e0f3fa6fef4455cf38d68",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1.ts"
+      },
+      {
+        "path": "engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3.ts",
+        "sha256": "7e6e790f4d4ac73b2b3250551daace245fa651c48aca35b2f3aa1b1160148a42",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3.ts"
+      },
+      {
+        "path": "data/physiology/main-wire-normal-reference-evidence-v1.json",
+        "sha256": "f86b1d3ded38990d6133dec6f9a5af76b56d9a6c0b220bb4419db94d6aec5e95",
+        "url": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/data/physiology/main-wire-normal-reference-evidence-v1.json"
+      }
+    ]
+  },
+  "operating": [
+    {
+      "metricId": "systemic-net-flow.cardiac-index",
+      "lower": 2.5,
+      "upper": 4,
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, CI",
+      "basis": "source-informed-operating-target",
+      "measurement": "Use signed native AoV NET output/BSA under a distinct metric ID. Interpretation as whole-circulation CO requires a settled unassisted nonshunting state; no positive-only flow substitution or distal-CMR-plane equivalence."
+    },
+    {
+      "metricId": "central-venous-pressure.mean",
+      "lower": 2,
+      "upper": 6,
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, mean RAP",
+      "basis": "source-informed-operating-target",
+      "measurement": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated."
+    },
+    {
+      "metricId": "pulmonary-artery-pressure.mean",
+      "lower": 8,
+      "upper": 20,
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, mean PAP",
+      "basis": "source-informed-operating-target",
+      "measurement": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated."
+    },
+    {
+      "metricId": "aortic-pressure.maximum",
+      "lower": 90,
+      "upper": 140,
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "locator": "Methods, invasive versus cuff-calibrated pressure distinction",
+      "basis": "retained-engineering-load-guard-NOT-source-derived-normal-range",
+      "measurement": "Model Ao root pressure is invasive-like. Source cSBP is cuff-calibrated noninvasive estimation; authors explicitly distinguish it from higher invasive intra-aortic SBP. Published P10/P90 are context, not 95% normal cutoffs or a model calibration target."
+    },
+    {
+      "metricId": "aortic-pressure.minimum",
+      "lower": 60,
+      "upper": 90,
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "locator": "Methods, DBP calibration; no central-DBP reference interval",
+      "basis": "retained-engineering-load-guard-NOT-source-derived-normal-range",
+      "measurement": "Source assumes DBP consistency for calibration, but does not publish a central-DBP normal interval. Do not turn the brachial mean +/- SD into a verified Ao-node cutoff."
+    },
+    {
+      "metricId": "left-ventricle.native-end-filling-pressure",
+      "lower": null,
+      "upper": 16,
+      "sourceId": "nagueh-2025-lv-diastolic-function",
+      "locator": "Section2, Table1 p539 (>16), Figure1 p540",
+      "basis": "source-informed-engineering-load-guard-NOT-method-matched-normal-range",
+      "measurement": "Intracavitary LV pressure at native inlet-flow cessation. Not catheter LVEDP or mean LA/PCWP."
+    }
+  ],
+  "anatomy": [
+    {
+      "metricId": "left-ventricle.edv-index",
+      "unit": "mL/m2",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 46,
+            "upper": 104
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 46,
+            "upper": 91
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "left-ventricle.esv-index",
+      "unit": "mL/m2",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 11,
+            "upper": 41
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 11,
+            "upper": 34
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "left-ventricle.ejection-fraction",
+      "unit": "fraction",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 0.53,
+            "upper": 0.79
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 0.55,
+            "upper": 0.8
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "right-ventricle.edv-index",
+      "unit": "mL/m2",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 49,
+            "upper": 117
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 47,
+            "upper": 99
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "right-ventricle.esv-index",
+      "unit": "mL/m2",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 12,
+            "upper": 56
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 11,
+            "upper": 43
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "right-ventricle.ejection-fraction",
+      "unit": "fraction",
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+      "role": "demographic-comparison",
+      "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+      "comparisons": [
+        {
+          "stratum": "men, pooled adult ages",
+          "range": {
+            "lower": 0.44,
+            "upper": 0.77
+          },
+          "statistic": "published-reference-interval"
+        },
+        {
+          "stratum": "women, pooled adult ages",
+          "range": {
+            "lower": 0.49,
+            "upper": 0.77
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    }
+  ],
+  "anatomyRule": "For this sex-unspecified generic baseline only, automatic eligibility requires all six valid anatomical CMR comparisons inside BOTH declared sex strata. Otherwise require demographic/method review, not automatic disease rejection. This conservative design intersection does not assign sex or claim joint population normality; preset/patient fitting must use its own profile.",
+  "retained": [
+    {
+      "groupId": "settlement",
+      "checkIds": [
+        "settlement.period1"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "exact-contract",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Whether the exact periodic classifier established the required period-one terminal state.",
+      "changeReason": "Fail closed before interpreting any derived baseline measurement.",
+      "analysisPartition": "objective",
+      "evaluationRole": "numerical-quality",
+      "observationLimitations": "Period-one settlement is numerical admissibility, not physiological normality or independent model validation.",
+      "evidenceGap": "No clinical population interval applies to an exact periodic-classifier contract.",
+      "sourceComparisons": []
+    },
+    {
+      "groupId": "ventricular-pressure-morphology",
+      "checkIds": [
+        "waveform.LVP.single-peak-no-ringing",
+        "waveform.RVP.single-peak-no-ringing"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Algorithmic peak count, total variation and episode count of pressure during the associated semilunar-valve forward-flow episode.",
+      "changeReason": "Retain the artifact guards motivated by Standard65-to-68 ringing, separately from unvalidated contour reference corridors. This is a current-model construction requirement, not a claim that every healthy human trace has one peak.",
+      "analysisPartition": "objective",
+      "evaluationRole": "construction-guard",
+      "observationLimitations": "Prominence and variation depend on accepted sampling and the thresholded forward-flow episode. Real arterial reflection can produce a systolic shoulder or secondary rise; the current lumped model has no explicit propagation/reflection mechanism, so that observation does not explain its numerical or coupled-mode ringing.",
+      "evidenceGap": "No primary healthy-cohort distribution supports the exact peak-count or variation cutoffs. They remain transparent construction guards; no clinical normality follows from passing.",
+      "sourceComparisons": []
+    },
+    {
+      "groupId": "aortic-valve-gradient",
+      "checkIds": [
+        "aortic-valve.mean-gradient",
+        "aortic-valve.peak-gradient"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Time-weighted mean and maximum raw LV-minus-Ao node pressure difference during native aortic forward flow.",
+      "changeReason": "Constrain the non-stenotic baseline while retaining the model's explicit pressure-station limitation.",
+      "analysisPartition": "objective",
+      "evaluationRole": "construction-guard",
+      "observationLimitations": "This hydraulic node gradient is neither a Doppler Bernoulli gradient nor a simultaneous catheter LV-to-recovered-aortic pressure difference; pressure recovery and spatial acceleration are not observed.",
+      "evidenceGap": "No matching healthy-population source establishes the exact mean or peak cutoffs for these model pressure stations. Stenosis diagnostic thresholds would not validate them.",
+      "sourceComparisons": []
+    },
+    {
+      "groupId": "pulmonary-valve-gradient",
+      "checkIds": [
+        "pulmonary-valve.mean-gradient",
+        "pulmonary-valve.peak-gradient"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Time-weighted mean and maximum raw RV-minus-PA node pressure difference while native PV flow is positive over the completed beat.",
+      "changeReason": "Record the existing Standard70 right-heart gradient sentinels without promoting them to left-objective groups or changing their numerical limits.",
+      "analysisPartition": "right-heart-sentinel",
+      "evaluationRole": "construction-guard",
+      "observationLimitations": "The model's hydraulic gradient is not a Doppler Bernoulli or recovered catheter gradient; an explicit outlet node does not provide spatial velocity, pressure recovery or an invasive sensor model.",
+      "evidenceGap": "No source establishes the exact mean and peak healthy cutoffs for these pressure stations. These remain non-stenotic construction guards, not clinical normal-gradient intervals.",
+      "sourceComparisons": []
+    },
+    {
+      "groupId": "pulmonary-root-morphology",
+      "checkIds": [
+        "waveform.PAP.single-peak-no-ringing",
+        "waveform.PV-flow.single-forward-episode",
+        "waveform.PV-flow.single-peak-no-ringing",
+        "waveform.PAP.post-PV-closure-rebound"
+      ],
+      "evidenceRole": "construction",
+      "thresholdBasis": "engineering-guess",
+      "contextEvidenceIds": [],
+      "measurementMeaning": "Algorithmic full-cycle PA pressure peak count, thresholded PV forward-episode count, primary-episode PV flow peak count and maximal post-episode PA rebound.",
+      "changeReason": "Record Standard70 pulmonary ringing and re-ejection guards as construction-only waveform criteria.",
+      "analysisPartition": "right-heart-sentinel",
+      "evaluationRole": "construction-guard",
+      "observationLimitations": "The episode threshold and peak-prominence algorithm define these observations; the post-episode rebound is not an invasive dicrotic-notch metric. One peak does not characterize the entire pressure or flow contour.",
+      "evidenceGap": "No primary normal distribution supports the exact one-peak, one-episode or rebound cutoffs. A qualitative Doppler flow shape must not be cited as proof of these pressure-waveform thresholds.",
+      "sourceComparisons": [
+        {
+          "sourceId": "mukherjee-2025-right-heart-guideline",
+          "locator": "RVOT Doppler flow, p. 158",
+          "targetPopulation": "Adult resting right-heart echocardiography.",
+          "observationMeaning": "Qualitative RVOT Doppler velocity waveform: parabolic with a midsystolic peak.",
+          "sourceRange": null,
+          "comparisonToChosenBounds": "Qualitative flow context only; it establishes no peak-prominence, PAP peak-count or post-PV-closure rebound cutoff."
+        }
+      ]
+    }
+  ],
+  "quality": [
+    {
+      "criterionId": "applicability-and-conservation",
+      "basis": "numerical-contract",
+      "method": "assessMainWireProspectiveBaselineV1.observe",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/tools/scientific/assessMainWireProspectiveBaselineV1.ts",
+      "meaning": "Independent cold period1 at2ms and1ms; all-off, exactly one Ca owner/capture; fixed topology/zero pressure reference; finite mass ledger and own checkpoint; all support flows zero."
+    },
+    {
+      "criterionId": "pressure-rate-quality",
+      "basis": "numerical-contract",
+      "method": "main-wire-baseline-pressure-rate-quality-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireBaselinePressureRateQualityV1.ts",
+      "meaning": "Intracavitary LV/RV accepted-step finite differences, not MR Doppler or transmural pressure. Two-grid relative difference <=0.05; both adjacent same-sign magnitudes >=0.5 of the peak. Engineering spike/sensitivity screen, not a normal dP/dt interval."
+    },
+    {
+      "criterionId": "relaxation-tau-quality",
+      "basis": "engineering-measurement-quality",
+      "method": "main-wire-lv-relaxation-tau-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/methods/mainWire/MainWireRelaxationTauV1.ts",
+      "sourceId": "nagueh-2025-lv-diastolic-function",
+      "meaning": "Time-weighted Weiss zero-asymptote fit; Glantz free-asymptote sensitivity. LV dP/dt-min midpoint to next end-filling pressure+5mmHg, before MVO. Fit/sample/window checks and no unresolved post-closure re-rise.48ms is context, not a mandatory normality ceiling."
+    },
+    {
+      "criterionId": "preload-reserve.left.hypovolemic",
+      "basis": "engineering-guard",
+      "method": "main-wire-preload-reserve-admission-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts",
+      "literature": {
+        "doi": "10.1097/01.CCM.0000114996.68110.C9",
+        "locator": "Kumar 2004, healthy-volunteer saline-loading study; method context only, not our fixed-tone thresholds"
+      },
+      "meaning": "TBV is the controlled excitation, not atrial pressure. Positive pressure direction replaces the unsupported universal 1 mmHg amplitude. Remaining response floors are inherited engineering non-regression margins, not saline-response normal ranges.",
+      "numericalRationale": "Require both settled grids to pass and response margins to exceed the observed two-grid sensitivity. Sum individual center and endpoint differences for primitive contrasts, avoiding cancellation. This is a sensitivity screen, not a rigorous error bound or convergence-order proof."
+    },
+    {
+      "criterionId": "preload-reserve.left.hypervolemic",
+      "basis": "engineering-guard",
+      "method": "main-wire-preload-reserve-admission-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts",
+      "literature": {
+        "doi": "10.1097/01.CCM.0000114996.68110.C9",
+        "locator": "Kumar 2004, healthy-volunteer saline-loading study; method context only, not our fixed-tone thresholds"
+      },
+      "meaning": "TBV is the controlled excitation, not atrial pressure. Positive pressure direction replaces the unsupported universal 1 mmHg amplitude. Remaining response floors are inherited engineering non-regression margins, not saline-response normal ranges.",
+      "numericalRationale": "Require both settled grids to pass and response margins to exceed the observed two-grid sensitivity. Sum individual center and endpoint differences for primitive contrasts, avoiding cancellation. This is a sensitivity screen, not a rigorous error bound or convergence-order proof."
+    },
+    {
+      "criterionId": "preload-reserve.right.hypovolemic",
+      "basis": "engineering-guard",
+      "method": "main-wire-preload-reserve-admission-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts",
+      "literature": {
+        "doi": "10.1097/01.CCM.0000114996.68110.C9",
+        "locator": "Kumar 2004, healthy-volunteer saline-loading study; method context only, not our fixed-tone thresholds"
+      },
+      "meaning": "TBV is the controlled excitation, not atrial pressure. Positive pressure direction replaces the unsupported universal 1 mmHg amplitude. Remaining response floors are inherited engineering non-regression margins, not saline-response normal ranges.",
+      "numericalRationale": "Require both settled grids to pass and response margins to exceed the observed two-grid sensitivity. Sum individual center and endpoint differences for primitive contrasts, avoiding cancellation. This is a sensitivity screen, not a rigorous error bound or convergence-order proof."
+    },
+    {
+      "criterionId": "preload-reserve.right.hypervolemic",
+      "basis": "engineering-guard",
+      "method": "main-wire-preload-reserve-admission-v1",
+      "source": "https://github.com/g960059/0DSimDemo/blob/b89fa5d6/analysis/policies/mainWire/MainWirePreloadReserveAdmissionV1.ts",
+      "literature": {
+        "doi": "10.1097/01.CCM.0000114996.68110.C9",
+        "locator": "Kumar 2004, healthy-volunteer saline-loading study; method context only, not our fixed-tone thresholds"
+      },
+      "meaning": "TBV is the controlled excitation, not atrial pressure. Positive pressure direction replaces the unsupported universal 1 mmHg amplitude. Remaining response floors are inherited engineering non-regression margins, not saline-response normal ranges.",
+      "numericalRationale": "Require both settled grids to pass and response margins to exceed the observed two-grid sensitivity. Sum individual center and endpoint differences for primitive contrasts, avoiding cancellation. This is a sensitivity screen, not a rigorous error bound or convergence-order proof."
+    }
+  ],
+  "warningRule": "Keep strict source comparisons for phasic PAP, ET, anatomy and SVI plus historical timing/E-A/dPdt/roundness context. A warning never excuses missing, nonfinite or invalid observations. Preserve unexplained ringing/closure-rebound construction holds; pressure-peak phase and PV roundness are not universal normality gates.",
+  "referenceComparisons": [
+    {
+      "metricId": "aortic-valve.ejection-time",
+      "unit": "s",
+      "sourceId": "alhakak-2023-copenhagen-cardiac-time-intervals",
+      "locator": "Methods, Cardiac time intervals; Table 2, pooled LVET 95% prediction interval",
+      "role": "method-context",
+      "mapping": "Native accumulated positive AoV-flow duration, not mitral-leaflet color-TDI timing. Opening-to-closure interpretation requires the separate morphology/timing observer to establish one forward episode; this comparison does not enforce that condition. No HR correction or method equivalence inferred.",
+      "comparisons": [
+        {
+          "stratum": "Copenhagen pooled healthy adults; HR 63 +/- 10",
+          "range": {
+            "lower": 0.248,
+            "upper": 0.336
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "pulmonary-valve.ejection-time",
+      "unit": "s",
+      "sourceId": "van-oort-1988-pulmonary-doppler",
+      "locator": "Abstract: population and recording stations; no numeric adult ET interval verified",
+      "role": "method-context",
+      "mapping": "Native accumulated positive PV-flow duration; the separate morphology/timing observer must establish one forward episode. Doppler PA versus RVOT station, respiration and HR differ. No adult ET bounds inferred from acceleration time, tissue S-wave duration or LVET.",
+      "comparisons": []
+    },
+    {
+      "metricId": "aortic-pressure.maximum",
+      "unit": "mmHg",
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "locator": "Methods, Standardizing methodologies; Table 2, Normal population, all adult age rows",
+      "role": "method-context",
+      "mapping": "Model Ao root pressure is invasive-like. Source cSBP is cuff-calibrated noninvasive estimation; authors explicitly distinguish it from higher invasive intra-aortic SBP. Published P10/P90 are context, not 95% normal cutoffs or a model calibration target.",
+      "comparisons": [
+        {
+          "stratum": "women 20-29",
+          "range": {
+            "lower": 80,
+            "upper": 110
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 20-29",
+          "range": {
+            "lower": 92,
+            "upper": 115
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "women 30-39",
+          "range": {
+            "lower": 84,
+            "upper": 119
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 30-39",
+          "range": {
+            "lower": 88,
+            "upper": 120
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "women 40-49",
+          "range": {
+            "lower": 87,
+            "upper": 123
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 40-49",
+          "range": {
+            "lower": 90,
+            "upper": 123
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "women 50-59",
+          "range": {
+            "lower": 93,
+            "upper": 127
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 50-59",
+          "range": {
+            "lower": 96,
+            "upper": 126
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "women 60-69",
+          "range": {
+            "lower": 97,
+            "upper": 129
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 60-69",
+          "range": {
+            "lower": 97,
+            "upper": 128
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "women 70+",
+          "range": {
+            "lower": 100,
+            "upper": 131
+          },
+          "statistic": "published-10th-90th-percentiles"
+        },
+        {
+          "stratum": "men 70+",
+          "range": {
+            "lower": 99,
+            "upper": 130
+          },
+          "statistic": "published-10th-90th-percentiles"
+        }
+      ]
+    },
+    {
+      "metricId": "aortic-pressure.minimum",
+      "unit": "mmHg",
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "locator": "Methods, Standardizing methodologies; Table 1, brachial DBP summary",
+      "role": "method-context",
+      "mapping": "Source assumes DBP consistency for calibration, but does not publish a central-DBP normal interval. Do not turn the brachial mean +/- SD into a verified Ao-node cutoff.",
+      "comparisons": []
+    },
+    {
+      "metricId": "central-venous-pressure.mean",
+      "unit": "mmHg",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, mean RAP; section 5.1.12.1",
+      "role": "operating-comparison",
+      "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 2,
+            "upper": 6
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "pulmonary-artery-pressure.maximum",
+      "unit": "mmHg",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, systolic PAP; section 5.1.12.1",
+      "role": "operating-comparison",
+      "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 15,
+            "upper": 30
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "pulmonary-artery-pressure.minimum",
+      "unit": "mmHg",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, diastolic PAP; section 5.1.12.1",
+      "role": "operating-comparison",
+      "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 4,
+            "upper": 12
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "pulmonary-artery-pressure.mean",
+      "unit": "mmHg",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, mean PAP; section 5.1.12.1",
+      "role": "operating-comparison",
+      "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 8,
+            "upper": 20
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "pcwp-surrogate.mean",
+      "unit": "mmHg",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, PAWP; section 5.1.12.1",
+      "role": "method-context",
+      "mapping": "Observed quantity remains LA mean, not a wedge measurement or LVEDP. PAWP <=15 is the guideline clinical reference upper limit, not a healthy-cohort distribution or a verified model LA-to-PAWP transfer. No lower bound is invented.",
+      "comparisons": [
+        {
+          "stratum": "adult RHC PAWP clinical reference",
+          "range": {
+            "lower": null,
+            "upper": 15
+          },
+          "statistic": "clinical-upper-limit"
+        }
+      ]
+    },
+    {
+      "metricId": "systemic-net-flow.cardiac-index",
+      "historicalCheckId": "systemic-forward-flow.cardiac-index",
+      "unit": "L/min/m2",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, CI; section 5.1.12.1, direct Fick/thermodilution",
+      "role": "operating-comparison",
+      "mapping": "Use signed native AoV NET output/BSA under a distinct metric ID. Interpretation as whole-circulation CO requires a settled unassisted nonshunting state; no positive-only flow substitution or distal-CMR-plane equivalence.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 2.5,
+            "upper": 4
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    },
+    {
+      "metricId": "systemic-net-flow.stroke-volume-index",
+      "historicalCheckId": "systemic-forward-flow.stroke-volume-index",
+      "unit": "mL/m2",
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "locator": "Table 11, SVI; section 5.1.12.1",
+      "role": "coupled-flow-context",
+      "mapping": "Signed native AoV NET volume/BSA. CI = HR * SVI / 1000, so this is a coupled comparison, not a second independent fitting objective. The CI-conditional interval is reported separately; it is not this published SVI interval.",
+      "comparisons": [
+        {
+          "stratum": "resting adult RHC reference",
+          "range": {
+            "lower": 33,
+            "upper": 47
+          },
+          "statistic": "published-reference-interval"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "sourceId": "herbert-2014-central-pressure-reference",
+      "title": "Establishing reference values for central blood pressure and its amplification in a general healthy population and according to cardiovascular risk factors",
+      "year": 2014,
+      "identifiers": {
+        "doi": "10.1093/eurheartj/ehu293"
+      },
+      "verification": "primary-full-text-methods-and-results-checked",
+      "verificationScope": "Methods, Standardizing methodologies, and Tables 1-2 checked on 2026-09-07. Cuff-calibrated noninvasive cSBP differs from invasive intra-aortic pressure; Table 2 gives P10/P90, not 95% normal limits. Does not verify retained Ao-node bounds.",
+      "url": "https://academic.oup.com/eurheartj/article/35/44/3122/2293191"
+    },
+    {
+      "sourceId": "van-oort-1988-pulmonary-doppler",
+      "title": "Reference values for pulsed Doppler signals from the blood flow velocity on both sides of the pulmonary valve",
+      "year": 1988,
+      "identifiers": {
+        "doi": "10.1093/oxfordjournals.eurheartj.a062515",
+        "pmid": "3383877"
+      },
+      "verification": "primary-abstract-population-and-method-checked-not-full-text",
+      "verificationScope": "215 healthy subjects aged 1-65; pulmonary artery and RVOT Doppler measurements. Adult ejection-time limits not verified; acceleration time or LV timing is not substituted.",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/3383877/"
+    },
+    {
+      "sourceId": "murgo-1980-human-aortic-waveforms",
+      "title": "Aortic input impedance in normal man: relationship to pressure wave forms",
+      "year": 1980,
+      "identifiers": {
+        "doi": "10.1161/01.CIR.62.1.105",
+        "pmid": "7379273"
+      },
+      "verification": "author-institution-abstract-checked-not-full-text",
+      "url": "https://scholars.uthscsa.edu/es/publications/aortic-input-impedance-in-normal-man-relationship-to-pressure-wav/"
+    },
+    {
+      "sourceId": "kohli-2017-normalized-human-pv-loops",
+      "title": "The quest for load-independent left ventricular chamber properties: exploring the normalized pressure-volume loop",
+      "year": 2017,
+      "identifiers": {
+        "doi": "10.14814/phy2.13160",
+        "pmid": "28351966"
+      },
+      "verification": "primary-full-text-methods-and-figures-4-5-checked",
+      "url": "https://physoc.onlinelibrary.wiley.com/doi/10.14814/phy2.13160"
+    },
+    {
+      "sourceId": "lang-2015-chamber-quantification",
+      "title": "Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults: An Update from the American Society of Echocardiography and the European Association of Cardiovascular Imaging",
+      "year": 2015,
+      "identifiers": {
+        "doi": "10.1016/j.echo.2014.10.003",
+        "pmid": "25559473"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://www.asecho.org/wp-content/uploads/2016/02/2015_ChamberQuantificationREV.pdf"
+    },
+    {
+      "sourceId": "kou-2014-norre-chamber-reference",
+      "title": "Echocardiographic reference ranges for normal cardiac chamber size: results from the NORRE study",
+      "year": 2014,
+      "identifiers": {
+        "doi": "10.1093/ehjci/jet284",
+        "pmid": "24451180"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://orbi.uliege.be/bitstream/2268/169431/1/Eur%20Heart%20J%20Cardiovasc%20Imaging-2014-Kou-680-90.pdf"
+    },
+    {
+      "sourceId": "kawel-boehm-2015-cmr-normal-values",
+      "title": "Normal values for cardiovascular magnetic resonance in adults and children",
+      "year": 2015,
+      "identifiers": {
+        "doi": "10.1186/s12968-015-0111-7",
+        "pmid": "25928314"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://link.springer.com/content/pdf/10.1186/s12968-015-0111-7.pdf"
+    },
+    {
+      "sourceId": "carlsson-2012-cmr-cardiac-output",
+      "title": "Cardiac output and cardiac index measured with cardiovascular magnetic resonance in healthy subjects, elite athletes and patients with congestive heart failure",
+      "year": 2012,
+      "identifiers": {
+        "doi": "10.1186/1532-429X-14-51",
+        "pmid": "22839436"
+      },
+      "verification": "primary-full-text-methods-and-results-checked",
+      "url": "https://link.springer.com/article/10.1186/1532-429X-14-51"
+    },
+    {
+      "sourceId": "kawel-boehm-2025-scmr-reference-values",
+      "title": "Society for Cardiovascular Magnetic Resonance reference values (normal values) in cardiovascular magnetic resonance: 2025 update",
+      "year": 2025,
+      "identifiers": {
+        "doi": "10.1016/j.jocmr.2025.101853",
+        "pmcid": "PMC12159681"
+      },
+      "verification": "primary-full-text-methods-and-results-checked",
+      "verificationScope": "Sections 2-4 and Tables 2, 3, 8, 9; anatomical versus smooth segmentation and pooled adult sex-specific intervals. No current gate endpoints are verified by this source comparison.",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12159681/"
+    },
+    {
+      "sourceId": "raisi-estabragh-2024-hhc-anatomical-tables",
+      "title": "Cardiovascular Magnetic Resonance Reference Ranges From the Healthy Hearts Consortium: author-published anatomical segmentation tables",
+      "year": 2024,
+      "identifiers": {
+        "doi": "10.1016/j.jcmg.2024.01.009",
+        "pmid": "38613554"
+      },
+      "verification": "author-published-tables-7-and-37-checked-not-full-article",
+      "verificationScope": "Full one-page source PDFs visually checked, including headers, age columns, units and N ranges. White men and women aged 40-49 are parallel illustrative comparisons, not the declared model subject or a new gate.",
+      "url": "https://healthy-hearts.org.uk/tables/"
+    },
+    {
+      "sourceId": "barratt-boyes-wood-1958-healthy-hemodynamics",
+      "title": "Cardiac output and related measurements and pressure values in the right heart and associated vessels, together with an analysis of the hemo-dynamic response to the inhalation of high oxygen mixtures in healthy subjects",
+      "year": 1958,
+      "identifiers": {
+        "pmid": "13514210"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/13514210/"
+    },
+    {
+      "sourceId": "mukherjee-2025-right-heart-guideline",
+      "title": "Guidelines for the Echocardiographic Assessment of the Right Heart in Adults and Special Considerations in Pulmonary Hypertension: Recommendations from the American Society of Echocardiography",
+      "year": 2025,
+      "identifiers": {
+        "doi": "10.1016/j.echo.2025.01.006",
+        "pmid": "40044341"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://www.asecho.org/wp-content/uploads/2025/03/PIIS0894731725000379.pdf"
+    },
+    {
+      "sourceId": "kovacs-2009-healthy-pap-review",
+      "title": "Pulmonary arterial pressure during rest and exercise in healthy subjects: a systematic review",
+      "year": 2009,
+      "identifiers": {
+        "doi": "10.1183/09031936.00145608"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://publications.ersnet.org/highwire_display/entity_view/node/476971/full"
+    },
+    {
+      "sourceId": "zeder-2024-healthy-pawp-meta-analysis",
+      "title": "Pulmonary arterial wedge pressure in healthy subjects: a meta-analysis",
+      "year": 2024,
+      "identifiers": {
+        "doi": "10.1183/13993003.00967-2024",
+        "pmid": "38964777"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://publications.ersnet.org/content/erj/64/2/2400967"
+    },
+    {
+      "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+      "title": "2022 ESC/ERS Guidelines for the diagnosis and treatment of pulmonary hypertension",
+      "year": 2022,
+      "identifiers": {
+        "doi": "10.1183/13993003.00879-2022",
+        "pmid": "36028254"
+      },
+      "verification": "primary-table-11-and-rhc-methods-checked",
+      "verificationScope": "Table 11 and section 5.1.12.1, European Heart Journal pp. 3646-3647. Passage verification does not establish the model operator mapping or support wider retained pressure bounds.",
+      "url": "https://publications.ersnet.org/lookup/pmid/36028254"
+    },
+    {
+      "sourceId": "alhakak-2023-copenhagen-cardiac-time-intervals",
+      "title": "Age- and sex-based normal reference ranges of the cardiac time intervals: the Copenhagen City Heart Study",
+      "year": 2023,
+      "identifiers": {
+        "doi": "10.1007/s00392-023-02269-2"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://link.springer.com/article/10.1007/s00392-023-02269-2"
+    },
+    {
+      "sourceId": "nagueh-2025-lv-diastolic-function",
+      "title": "Recommendations for the Evaluation of Left Ventricular Diastolic Function by Echocardiography and for Heart Failure With Preserved Ejection Fraction Diagnosis: An Update From the American Society of Echocardiography",
+      "year": 2025,
+      "identifiers": {
+        "doi": "10.1016/j.echo.2025.03.011"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://www.asecho.org/wp-content/uploads/2025/07/Left-Ventricular-Diastolic-Function.pdf"
+    },
+    {
+      "sourceId": "bussmann-1977-normal-lv-contractile-relaxation-reserve",
+      "title": "Contractile and relaxation reserve of the left ventricle. I. Normal left ventricle",
+      "year": 1977,
+      "identifiers": {
+        "pmid": "602351"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/602351/"
+    },
+    {
+      "sourceId": "hirota-1980-lv-relaxation",
+      "title": "A clinical study of left ventricular relaxation",
+      "year": 1980,
+      "identifiers": {
+        "doi": "10.1161/01.cir.62.4.756",
+        "pmid": "7190882"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/7190882/"
+    },
+    {
+      "sourceId": "stein-1980-rv-pressure-fall",
+      "title": "Effect of chronic pressure overload on the maximal rate of pressure fall of the right ventricle",
+      "year": 1980,
+      "identifiers": {
+        "doi": "10.1378/chest.78.1.10",
+        "pmid": "7471826"
+      },
+      "verification": "primary-source-metadata-checked",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/7471826/"
+    }
+  ],
+  "clinicalNormalityClaimed": false,
+  "oldGlobalProvenanceAuditCleared": false
+}

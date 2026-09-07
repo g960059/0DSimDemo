@@ -42,7 +42,7 @@ import {
   parseModelSurfacePublishArgumentsV1,
 } from "@/tools/registry/publishModelSurfaceReleaseV1";
 import currentClient from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
 import currentSurface from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
 
@@ -50,34 +50,34 @@ const TEST_ARTIFACT_REVISION_ID_V1 = "a".repeat(64);
 
 describe("Studio Supabase boundary V1", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("binds publication to the current exact model, fixture, lock, artifact and Surface", () => {
+  it("binds publication to the current exact model, fixture, lock, artifact and Surface", async () => {
     const fetchV1 = vi.fn();
     vi.stubGlobal("fetch", fetchV1);
     const directory = "studio/integrations/mainWireIntegratedV3/";
     const input = {
       artifact: readFileSync(directory
-        + "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs"),
+        + "MainWireIntegratedStudioStandard72ExactModelV1.artifact.mjs"),
       lockJson: readFileSync(directory
-        + "algebraic-pulmonary-root-standard70-registry-admission-lock.json", "utf8"),
+        + "standard72-registry-admission-lock.json", "utf8"),
       expectedModelId: currentClient.manifest.modelId,
     };
-    const prepared = prepareMainWireModelPublicationV1(input);
+    const prepared = await prepareMainWireModelPublicationV1(input);
     expect(prepared.manifest).toEqual(currentClient.manifest);
     expect(prepared.defaultFixture).toEqual(currentClient.defaultFixture);
     expect(prepared.artifactSha256).toBe(prepared.lock.artifactSha256);
-    expect(() => prepareMainWireModelPublicationV1({
+    await expect(prepareMainWireModelPublicationV1({
       ...input, expectedModelId: standardClientDescriptorV1.manifest.modelId,
-    })).toThrow(/modelId differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    })).rejects.toThrow(/modelId/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input,
       lockJson: JSON.stringify({ ...JSON.parse(input.lockJson), modelId: "wrong" }),
-    })).toThrow(/modelId differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    })).rejects.toThrow(/complete qualification/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input, artifact: new Uint8Array([1, 2, 3]),
-    })).toThrow(/digest differ/);
-    expect(() => prepareMainWireModelPublicationV1({
+    })).rejects.toThrow(/artifact differs/);
+    await expect(prepareMainWireModelPublicationV1({
       ...input, lockJson: "null",
-    })).toThrow(/lock is invalid/);
+    })).rejects.toThrow(/complete qualification/);
     expect(fetchV1).not.toHaveBeenCalled();
   });
 
