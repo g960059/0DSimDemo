@@ -11,16 +11,20 @@ review or two-reviewer agreement is claimed.
 
 必須にすべき内容は次の4点です。
 
-1. **採用済み scientific eligibility の全条件**  
+1. **採用済み scientific eligibility の全条件**
+
    `Rest` 単独では不足です。同一構成の独立cold 2ms/1ms、適用条件、周期収束・保存則・単一Ca owner、τの観測品質と未解決形状hold、pressure-rate品質、4方向のreserve admissionを合成してください。[既存の合成箇所](/Users/hirakawa/.codex/worktrees/b4ee/0DSimDemo/tools/scientific/assessMainWireProspectiveBaselineV1.ts:62)を純粋な判定関数へ抽出する程度で十分です。72の対象は承認済みのHR70・TBV4935・BSA1.9に限定します。
 
-2. **72で実際に採用する判定の根拠**  
+2. **72で実際に採用する判定の根拠**
+
    net CI、平均RAP/PAP、CMR両stratum、Ao負荷guard、native LV end-filling guardを、承認済みの意味・不等号・適用条件のまま固定します。Ao値をHerbert由来正常帯、native圧を臨床LVEDPそのものとはしません。数値・gradient・ringing・reserveのengineering条件も保持します。
 
-3. **研究結果から実際の72 releaseへの結び付け**  
+3. **研究結果から実際の72 releaseへの結び付け**
+
    元のv4 admission、coarse/fine結果、72 fresh bindingを不変の証拠として扱い、新しいproduction admission reportからhashで参照します。model ID、物理構成、default fixture、周期境界／launch checkpoint、policy実装、最終artifact、継承Surfaceとpinned analysisが一致することを検証してください。旧結果の再ラベルや、fine/reserveを「72で再実行した」とする記述は不可です。
 
-4. **公開前の必須検証**  
+4. **公開前の必須検証**
+
    `status: passed`やファイル存在だけでは通さず、判定の再計算または内容を固定した検証済み証拠と、上記の結び付けをfail-closedで確認します。生成・registry verifier・publishの入口で同じ検証を使い、upload/RPCより前に失敗させる構成を支持します。未知のmodel IDや欠けた証拠のfallbackは不要です。
 
 不要、または反対するもの：
