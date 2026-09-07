@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+/* Preserve KaTeX's own font metrics: its scripts, operators and stretchable
+ * delimiters depend on the bundled math faces. Only scale the outer wrapper. */
+.model-math-display {
+  font-size: 1rem;
+  line-height: 1.5;
+  letter-spacing: normal;
+}
+
+.model-math-display .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.model-math-display .katex-display > .katex {
+  text-align: left;
+}
+
+.model-math-inline {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  letter-spacing: normal;
+}
+
+.model-math-inline .katex {
+  font-size: max(1.1em, 0.9375rem);
+}
+
 /* Shared application palette. Components consume it through the wb-* tokens. */
 .app-root,
 body[data-app-theme],
