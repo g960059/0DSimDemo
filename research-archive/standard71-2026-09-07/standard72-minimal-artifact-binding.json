@@ -1,0 +1,42 @@
+{
+  "schemaId": "main-wire-standard72-local-artifact-binding-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+  "status": "passed",
+  "artifactSha256": "04d3b836f04f8fcfe5a50943eec3f935f65df055b46e4401303a9f91720f3c21",
+  "artifactRevisionId": "e183f825fc018e704c6a3f84b98db46051caafe811df23017268928e8edd29b5",
+  "artifactBytes": 2456516,
+  "launchCheckpointSha256": "a125d6aeaca4e1859adb847008afc83aa6de29715b6b23409006861b30932df2",
+  "deterministicDoubleBuild": true,
+  "sourceArtifactFrames": "exact",
+  "capturedContinuation": "exact",
+  "capturedPredictorDepth": 4,
+  "capturedContinuationSteps": 1000,
+  "postControlWarmupSteps": 8,
+  "snapshotAdmission": "passed",
+  "referenceParity": {
+    "sha256": "5210a42f1469072182ec6d7f18ee3ee54547a469e78af5479c812ca8ad0f45bb",
+    "cases": [
+      {
+        "condition": "settled",
+        "steps": 1000,
+        "finalCheckpointEqual": true
+      },
+      {
+        "condition": "cold-TBV4940",
+        "steps": 1000,
+        "finalCheckpointEqual": true
+      },
+      {
+        "condition": "controlled-TBV4940",
+        "steps": 1000,
+        "finalCheckpointEqual": true
+      }
+    ]
+  },
+  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
+  "surfaceInheritedWithoutCatalogChanges": true,
+  "registryAdmitted": false,
+  "browserVerified": false,
+  "published": false,
+  "wallTimeMs": 11772.137625
+}

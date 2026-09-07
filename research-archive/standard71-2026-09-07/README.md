@@ -72,6 +72,12 @@ pass1000-step same-engine continuation after Worker/JSON transport. See the
 and its final reports. Registry admission, publication and the Workbench default
 remain unchanged; this is not approval to merge the research branch.
 
+The [2026-09-08 minimal production extraction](standard72-minimal-integration.md)
+preserves latest-main analysis improvements and matches the reviewed artifact
+in three1000-step conditions. It remains draft: shared changes also change the
+old70 artifact bytes, so72 admission and the old registry transition must be
+resolved before merge. Its passing runtime tests do not waive that blocker.
+
 The first minimal reader extraction is [PR #614](https://github.com/g960059/0DSimDemo/pull/614).
 Its 35 scoped tests, production build, offline export and three production-browser
 tests passed on current main without Standard71 implementation or authoring code.
