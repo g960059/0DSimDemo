@@ -215,6 +215,7 @@ export const canonicalScientificTests = [
   "__tests__/mainWireStandard71ExactConstructionV1.test.ts",
   "__tests__/mainWireStandard71StudioBindingV1.test.ts",
   "__tests__/mainWireStandard72CheckpointContinuationV1.test.ts",
+  "__tests__/mainWireStandard72StudioBindingV1.test.ts",
   "__tests__/mainWireSemilunarResistanceResearchV1.test.ts",
   "__tests__/landFastWeakBridgeResearchV1.test.ts",
   "__tests__/landPopulationMomentResearchV1.test.ts",

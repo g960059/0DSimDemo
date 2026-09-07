@@ -1,4 +1,7 @@
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD71_MODEL_ID_V1 } from "./MainWireIntegratedStudioModelIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD71_MODEL_ID_V1, MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 } from "./MainWireIntegratedStudioModelIdentityV1";
+import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID, type MainWireIntegratedModelStandard72CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
+import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1,
+  MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { createMainWireIntegratedModelStandard71FixtureV1, MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_CHECKPOINT_V1_ID, type MainWireIntegratedModelStandard71CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard71CheckpointV1";
@@ -401,7 +404,27 @@ function isStandard71VariantV1(variant: SelectedExactModelVariantV1): variant is
   return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD71_MODEL_ID_V1;
 }
 
+// Same physical fixture and exposure, distinct durable continuation contract.
+const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
+  ...STANDARD71_EXACT_VARIANT_V1,
+  label: "Standard72" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
+  numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID,
+  checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID,
+  checkpointCodecId: "circleheart.main-wire-integrated-studio-standard72-checkpoint-codec-v1",
+  checkpointFixturePairing: "standard72-complete-fixture-fixed-profile-and-predictor-history" as const,
+});
+
+function isStandard72VariantV1(variant: SelectedExactModelVariantV1): variant is typeof STANDARD72_EXACT_VARIANT_V1 {
+  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
+}
+
+function isReferenceBaselineVariantV1(variant: SelectedExactModelVariantV1) {
+  return isStandard71VariantV1(variant) || isStandard72VariantV1(variant);
+}
+
 type SelectedExactModelVariantV1 =
+  | typeof STANDARD72_EXACT_VARIANT_V1
   | typeof STANDARD71_EXACT_VARIANT_V1
   | typeof SELECTED_STANDARD66_EXACT_VARIANT_V1
   | typeof SELECTED_STANDARD67_EXACT_VARIANT_V1
@@ -410,6 +433,7 @@ type SelectedExactModelVariantV1 =
   | typeof ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1;
 
 type SelectedNumericalSessionV1 =
+  | MainWireIntegratedModelStandard72TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard66TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard67TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard68TypedAuthoritySessionV1
@@ -417,6 +441,7 @@ type SelectedNumericalSessionV1 =
   | MainWireIntegratedModelStandard71TypedAuthoritySessionV1;
 
 type SelectedWarmStartNumericalSessionV1 =
+  | MainWireIntegratedModelStandard72TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard68TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard70TypedAuthoritySessionV1
   | MainWireIntegratedModelStandard71TypedAuthoritySessionV1;
@@ -432,7 +457,9 @@ function isMatchingWarmStartSessionV1(
   variant: SelectedExactModelVariantV1,
   session: SelectedNumericalSessionV1,
 ): session is SelectedWarmStartNumericalSessionV1 {
-  return isStandard71VariantV1(variant)
+  return isStandard72VariantV1(variant)
+    ? session instanceof MainWireIntegratedModelStandard72TypedAuthoritySessionV1
+    : isStandard71VariantV1(variant)
     ? session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
     : isStandard70VariantV1(variant)
     ? session instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1
@@ -525,7 +552,7 @@ const SELECTED_CONTROL_CATALOG_V1 = Object.freeze([
 function selectedControlCatalogV1(
   variant: SelectedExactModelVariantV1,
 ): readonly ControlDefinitionV2[] {
-  return isStandard71VariantV1(variant)
+  return isReferenceBaselineVariantV1(variant)
     ? MAIN_WIRE_STANDARD71_CONTROL_CATALOG_V1
     : variant.generation === 68
     ? MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1
@@ -533,7 +560,7 @@ function selectedControlCatalogV1(
 }
 
 function selectedOutputCatalogV1(variant: SelectedExactModelVariantV1) {
-  return (isStandard71VariantV1(variant) || isStandard70VariantV1(variant))
+  return (isReferenceBaselineVariantV1(variant) || isStandard70VariantV1(variant))
     ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_OUTPUT_CATALOG_V1
     : variant.generation === 68
     ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_CATALOG_V1
@@ -543,7 +570,7 @@ function selectedOutputCatalogV1(variant: SelectedExactModelVariantV1) {
 function selectedOutputIdsV1(
   variant: SelectedExactModelVariantV1,
 ): readonly SelectedOutputIdV1[] {
-  return (isStandard71VariantV1(variant) || isStandard70VariantV1(variant))
+  return (isReferenceBaselineVariantV1(variant) || isStandard70VariantV1(variant))
     ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_OUTPUT_IDS_V1
     : variant.generation === 68
     ? MAIN_WIRE_INTEGRATED_MODEL_STANDARD68_OUTPUT_IDS_V1
@@ -607,7 +634,11 @@ async function createSelectedNumericalSessionV1(
   executionPlanInitialization: MainWireTypedExecutionPlanInitializationV1,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ): Promise<SelectedNumericalSessionV1> {
-  return isStandard71VariantV1(variant)
+  return isStandard72VariantV1(variant)
+    ? MainWireIntegratedModelStandard72TypedAuthoritySessionV1.create(
+        inputs, ventricularContractilityScale, executionPlanInitialization, mechanismResearchInputs,
+      )
+    : isStandard71VariantV1(variant)
     ? MainWireIntegratedModelStandard71TypedAuthoritySessionV1.create(
         inputs,
         ventricularContractilityScale,
@@ -653,7 +684,11 @@ async function restoreSelectedNumericalSessionV1(
     MainWireTypedExecutionPlanInitializationV1 | undefined,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ): Promise<SelectedNumericalSessionV1> {
-  return isStandard71VariantV1(variant)
+  return isStandard72VariantV1(variant)
+    ? MainWireIntegratedModelStandard72TypedAuthoritySessionV1.restoreStandard72ExactCheckpoint(
+        checkpoint, inputs, ventricularContractilityScale, executionPlanInitialization, mechanismResearchInputs,
+      )
+    : isStandard71VariantV1(variant)
     ? MainWireIntegratedModelStandard71TypedAuthoritySessionV1
         .restoreStandard71ExactCheckpoint(
           checkpoint,
@@ -704,7 +739,8 @@ function projectCurrentSelectedValuesV1(
   session: SelectedNumericalSessionV1,
   outputIds: readonly SelectedOutputIdV1[],
 ): Readonly<Record<string, SelectedOutputValueV1>> {
-  return (session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
+  return (session instanceof MainWireIntegratedModelStandard72TypedAuthoritySessionV1
+    || session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
     || session instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1)
     ? session.projectCurrentAcceptedStandard70ValuesV1(
         outputIds as readonly MainWireIntegratedModelStandard70OutputIdV1[],
@@ -728,7 +764,8 @@ function advanceSelectedNumericalProjectionV1(
   targetTimeSec: number,
   outputIds: readonly SelectedOutputIdV1[],
 ) {
-  return (session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
+  return (session instanceof MainWireIntegratedModelStandard72TypedAuthoritySessionV1
+    || session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
     || session instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1)
     ? session.advanceToPresentationTimeWithStandard70SelectedOutputProjectionV1(
         targetTimeSec,
@@ -756,7 +793,9 @@ function advanceSelectedNumericalProjectionV1(
 function checkpointSelectedNumericalSessionV1(
   session: SelectedNumericalSessionV1,
 ) {
-  return session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
+  return session instanceof MainWireIntegratedModelStandard72TypedAuthoritySessionV1
+    ? session.checkpointStandard72Exact()
+    : session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
     ? session.checkpointStandard71Exact()
     : session instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1
     ? session.checkpointStandard70Exact()
@@ -774,9 +813,12 @@ function checkpointSelectedAnalysisSessionV1(
   | Uint8Array
   | MainWireIntegratedModelStandard68CheckpointV1
   | MainWireIntegratedModelStandard71CheckpointV1
+  | MainWireIntegratedModelStandard72CheckpointV1
   | MainWireIntegratedModelStandard70CheckpointV1
 > {
-  return session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
+  return session instanceof MainWireIntegratedModelStandard72TypedAuthoritySessionV1
+    ? session.checkpointStandard72Exact()
+    : session instanceof MainWireIntegratedModelStandard71TypedAuthoritySessionV1
     ? session.checkpointStandard71Exact()
     : session instanceof MainWireIntegratedModelStandard70TypedAuthoritySessionV1
     ? session.checkpointStandard70Exact()
@@ -794,13 +836,18 @@ function restoreSelectedAnalysisSessionV1(
     | Uint8Array
     | MainWireIntegratedModelStandard68CheckpointV1
     | MainWireIntegratedModelStandard71CheckpointV1
+    | MainWireIntegratedModelStandard72CheckpointV1
   | MainWireIntegratedModelStandard70CheckpointV1,
   inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   ventricularContractilityScale: number,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
   executionPlanInitialization: MainWireTypedExecutionPlanInitializationV1,
 ): Promise<SelectedNumericalSessionV1> {
-  return isStandard71VariantV1(variant)
+  return isStandard72VariantV1(variant)
+    ? MainWireIntegratedModelStandard72TypedAuthoritySessionV1.restoreStandard72ExactCheckpoint(
+        checkpoint, inputs, ventricularContractilityScale, executionPlanInitialization, mechanismResearchInputs,
+      )
+    : isStandard71VariantV1(variant)
     ? MainWireIntegratedModelStandard71TypedAuthoritySessionV1
         .restoreStandard71ExactCheckpoint(
           checkpoint,
@@ -852,7 +899,7 @@ function createSelectedNumericalFixtureV1(
   inputs: MainWireIntegratedModelHemodynamicResearchInputsV3,
   mechanismResearchInputs: MainWireIntegratedModelMechanismResearchInputsV3,
 ) {
-  return isStandard71VariantV1(variant)
+  return isReferenceBaselineVariantV1(variant)
     ? createMainWireIntegratedModelStandard71FixtureV1(
         inputs,
         1,
@@ -1176,7 +1223,7 @@ export class MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1 {
           scenario.fixture,
           controlId,
           value,
-          isStandard71VariantV1(this.#variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
+          isReferenceBaselineVariantV1(this.#variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
         ),
         this.#variant,
       );
@@ -2010,6 +2057,13 @@ export function createMainWireIntegratedStudioStandard71CoreReleaseV1(): MainWir
     executables: selectedExecutableBundleV1(host, STANDARD71_EXACT_VARIANT_V1) });
 }
 
+/** Unregistered successor; the thin wrapper installs its own fresh checkpoint. */
+export function createMainWireIntegratedStudioStandard72CoreReleaseV1(): MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
+  const host = new MainWireIntegratedStudioSelectedAorticOutflowRuntimeHostV1(STANDARD72_EXACT_VARIANT_V1);
+  return Object.freeze({ manifest: createSelectedExactKernelV1(STANDARD72_EXACT_VARIANT_V1),
+    executables: selectedExecutableBundleV1(host, STANDARD72_EXACT_VARIANT_V1) });
+}
+
 /** Unsettled Standard70 core; the thin entry installs its qualified checkpoint. */
 export function createMainWireIntegratedStudioAlgebraicPulmonaryRootCoreReleaseV1():
   MainWireIntegratedStudioSelectedAorticOutflowExactReleaseV1 {
@@ -2148,7 +2202,9 @@ function createSelectedExactKernelV1(
         schemaVersion: 1,
         fixturePairing: variant.checkpointFixturePairing,
         restoreSemantics:
-          "exact-object-selected-identity-no-migration-no-clock-rebase",
+          isStandard72VariantV1(variant)
+            ? "exact-object-with-predictor-history-no-migration-no-clock-rebase"
+            : "exact-object-selected-identity-no-migration-no-clock-rebase",
       }),
     }),
     primitiveControlCatalog: controlCatalog,
@@ -2271,7 +2327,7 @@ function selectedExecutableBundleV1(
           fixture,
           input.action.controlId,
           input.action.value,
-          isStandard71VariantV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
+          isReferenceBaselineVariantV1(variant) ? MAIN_WIRE_STANDARD71_CONTROL_BY_ID_V1 : undefined,
         );
       }
       if (
