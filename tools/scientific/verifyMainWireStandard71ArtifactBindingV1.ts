@@ -58,6 +58,12 @@ try {
   const beforeControl = adapter.currentFrame({ runtimeSessionId, scenarioId });
   same(await adapter.applyControl({ runtimeSessionId, scenarioId, controlId: "hemodynamics.total-blood-volume-ml", value: 4935, expectedInputEpoch: beforeControl.inputEpoch }),
     await sourceAdapter.applyControl({ runtimeSessionId, scenarioId, controlId: "hemodynamics.total-blood-volume-ml", value: 4935, expectedInputEpoch: beforeControl.inputEpoch }), "default TBV action");
+  // A control replaces the Session and empties predictor history. Capturing
+  // immediately afterwards cannot qualify arbitrary live continuation. The
+  // archived71 object-only checkpoint is expected to fail this stronger test;
+  // retain the failure until a distinct history-preserving owner is wired.
+  for (let i = 0; i < 8; i++) same(await adapter.advanceOnePresentationStep({ runtimeSessionId, scenarioId }),
+    await sourceAdapter.advanceOnePresentationStep({ runtimeSessionId, scenarioId }), "history-populated source/artifact frame");
   const frame = adapter.currentFrame({ runtimeSessionId, scenarioId });
   const captured = await artifact.executables.experimentCapture.captureAcceptedCandidate({ experimentId: "71/local-binding", model,
     desiredContent: { modelId: model.modelId, surfaceSeriesId: surface.surfaceSeriesId,
@@ -69,8 +75,13 @@ try {
   const restoredId = "71/artifact-restored";
   await adapter.createSession({ runtimeSessionId: restoredId, scenarios: [{ scenarioId, fixture: capture.fixture, checkpoint: capture.checkpoint }] });
   try {
-    same((await adapter.advanceOnePresentationStep({ runtimeSessionId: restoredId, scenarioId })).outputs,
-      (await adapter.advanceOnePresentationStep({ runtimeSessionId, scenarioId })).outputs, "captured checkpoint continuation");
+    for (let i = 0; i < 1000; i++) {
+      const continued = await adapter.advanceOnePresentationStep({ runtimeSessionId: restoredId, scenarioId });
+      const uninterrupted = await adapter.advanceOnePresentationStep({ runtimeSessionId, scenarioId });
+      same({ time: continued.acceptedTimeSec, revision: continued.acceptedRevision, outputs: continued.outputs },
+        { time: uninterrupted.acceptedTimeSec, revision: uninterrupted.acceptedRevision, outputs: uninterrupted.outputs },
+        `history-populated captured continuation step ${i + 1}`);
+    }
   } finally { adapter.disposeSession(restoredId); }
   const snapshot = await artifact.executables.snapshotGate.admitFrozenCandidate({ model,
     content: { ...captured.content, surfaceSeriesId: surface.surfaceSeriesId } });
@@ -82,7 +93,8 @@ try {
   const report = { schemaId: "main-wire-standard71-local-artifact-binding-v1", modelId: model.modelId,
     status: "passed", artifactSha256: sha(first), artifactRevisionId: sha(framed), artifactBytes: first.length,
     launchCheckpointSha256: checkpoint.checkpointSha256, deterministicDoubleBuild: true, sourceArtifactFrames: "exact",
-    capturedContinuation: "exact", snapshotAdmission: snapshot.status,
+    capturedContinuation: "exact", capturedContinuationSteps: 1000, postControlWarmupSteps: 8,
+    snapshotAdmission: snapshot.status,
     surfaceReleaseId: surface.surfaceReleaseId, surfaceInheritedWithoutCatalogChanges: true,
     registryAdmitted: false, browserVerified: false, published: false, wallTimeMs: performance.now() - started };
   await mkdir(output, { recursive: false });

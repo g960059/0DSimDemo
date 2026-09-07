@@ -1905,9 +1905,7 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         "selected aortic predictor checkpoint requires its Session extension owner",
       );
     }
-    return checkpointMainWireFiveWallCoupledPredictorV1(
-      this.#coupledPredictorWorkspace,
-    );
+    return this.checkpointCoupledPredictorContinuationV1();
   }
 
   /** Restores predictor history against the already-restored accepted root. */
@@ -1920,6 +1918,21 @@ export class MainWireIntegratedTypedAuthoritySessionV1 {
         "selected aortic predictor restore requires its Session extension owner",
       );
     }
+    this.restoreCoupledPredictorContinuationV1(checkpoint);
+  }
+
+  /** Detached numerical continuation state, not a new physiological owner. */
+  protected checkpointCoupledPredictorContinuationV1():
+    MainWireFiveWallCoupledPredictorCheckpointV2 {
+    this.assertSessionUsableV1();
+    return checkpointMainWireFiveWallCoupledPredictorV1(
+      this.#coupledPredictorWorkspace,
+    );
+  }
+
+  /** Subclasses bind this history to their own versioned exact checkpoint. */
+  protected restoreCoupledPredictorContinuationV1(checkpoint: unknown): void {
+    this.assertSessionUsableV1();
     const acceptedState = this.#authority.current();
     restoreMainWireFiveWallCoupledPredictorV1(
       checkpoint,

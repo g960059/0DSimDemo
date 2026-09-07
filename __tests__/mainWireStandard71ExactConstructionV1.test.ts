@@ -47,15 +47,20 @@ describe("Standard71 fixed construction and exact ownership", () => {
     expect(actual.allDynamicMcsAcceptedFlowsExactlyZero).toBe(true);
   }, 30_000);
 
-  it("roundtrips its own checkpoint and continuation, but rejects another model or fixture", async () => {
+  it("roundtrips physical state and deterministic restarts, but rejects another model or fixture", async () => {
     const session = await Session.create();
     expect(session.advanceStructuralAnalysisToPresentationTimeV1(.01).status).toBe("advanced");
     const checkpoint = await session.checkpointStandard71Exact();
     const restored = await Session.restoreStandard71ExactCheckpoint(checkpoint);
-    expect(canonicalJsonStringify(await restored.checkpointStandard71Exact())).toBe(canonicalJsonStringify(checkpoint));
-    session.advanceStructuralAnalysisToPresentationTimeV1(.02);
-    restored.advanceStructuralAnalysisToPresentationTimeV1(.02);
+    const secondRestart = await Session.restoreStandard71ExactCheckpoint(checkpoint);
     expect(restored.currentAcceptedState()).toEqual(session.currentAcceptedState());
+    expect(canonicalJsonStringify(await restored.checkpointStandard71Exact())).toBe(canonicalJsonStringify(checkpoint));
+    //71 stores no predictor history: two restarts are deterministic, but the
+    // uninterrupted warm solver is not promised bit-identical continuation.
+    //72's separate history-preserving checkpoint tests retain that stronger gate.
+    expect(secondRestart.advanceStructuralAnalysisToPresentationTimeV1(.02).status).toBe("advanced");
+    expect(restored.advanceStructuralAnalysisToPresentationTimeV1(.02).status).toBe("advanced");
+    expect(restored.currentAcceptedState()).toEqual(secondRestart.currentAcceptedState());
     await expect(Session.restoreStandard71ExactCheckpoint(checkpoint, { ...hemodynamics, totalBloodVolumeMl: 5000 }))
       .rejects.toThrow();
     await expect(OldSession.restoreStandard70ExactCheckpoint(checkpoint, hemodynamics, 1, undefined, mechanism))

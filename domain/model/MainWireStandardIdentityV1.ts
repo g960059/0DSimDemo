@@ -26,6 +26,12 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 =
 export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD71_MODEL_ID_V1 =
   "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-71" as const;
 
+/** Same physical reference, with history-preserving numerical continuation.
+ * Declaring the candidate identity is not registry/release admission.
+ */
+export const MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 =
+  "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72" as const;
+
 /** Stable family identity shared by the exact model and its Surface. */
 export const MAIN_WIRE_INTEGRATED_STUDIO_MODEL_FAMILY_ID_V3 =
   "circleheart.main-wire-integrated-transaction" as const;
