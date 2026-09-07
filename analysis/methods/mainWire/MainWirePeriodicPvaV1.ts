@@ -425,6 +425,7 @@ export function buildMainWireSystolicPressureEnvelopeV1(
       || ordered[index - 1]?.totalBloodVolumeMl === totalBloodVolumeMl
       || ordered[index + 1]?.totalBloodVolumeMl === totalBloodVolumeMl) {
       if (run.length > 1) runs.push(run);
+      else excludedPointCount += run.length; // An isolated load cannot support a load/time cell.
       run = [];
       excludedPointCount += 1;
       continue;
@@ -432,6 +433,7 @@ export function buildMainWireSystolicPressureEnvelopeV1(
     run.push(point);
   }
   if (run.length > 1) runs.push(run);
+  else excludedPointCount += run.length;
   if (runs.length === 0) return null;
 
   // Adjacent TBV branches only; never sort a folded isochrone by V and join

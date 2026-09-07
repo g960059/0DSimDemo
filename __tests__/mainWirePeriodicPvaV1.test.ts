@@ -52,6 +52,22 @@ import * as canvasRuntime from "@/components/workbench/presentation/WorkbenchCan
 import * as chartTraceStyle from "@/components/workbench/presentation/WorkbenchChartTraceStyleV3";
 
 describe("settled hot-start PVA V1", () => {
+  it.each([1, 3])("accounts for an isolated envelope load beside rejected index %i", (rejectedIndex) => {
+    const points = isovolumicEnvelopePointsV1([40, 50, 60, 70, 80], [30, 50, 70, 90, 110]);
+    const source = formalLocusV1(points);
+    const result = buildMainWireSystolicPressureEnvelopeV1({ ...source,
+      points: source.points.map((point, index) => index === rejectedIndex
+        ? { ...point, curveEligible: false } : point),
+    })!;
+    expect(result.sourcePointCount).toBe(3);
+    expect(result.excludedPointCount).toBe(2); // One rejected load plus one qualified but isolated load.
+    expect(result.sourcePointCount + result.excludedPointCount).toBe(points.length);
+    expect(result.loadSupportPoints).toHaveLength(3);
+    for (const point of result.segments.flat()) {
+      if (rejectedIndex === 1) expect(point.volumeMl).toBeGreaterThanOrEqual(60);
+      else expect(point.volumeMl).toBeLessThanOrEqual(60);
+    }
+  });
   it.each([buildMainWirePeriodicPvaMethodV9, buildMainWirePeriodicPvaMethodV10, buildMainWirePeriodicPvaMethodV13])(
     "describes the actual pinned relation semantics for %s", (buildMethod) => {
       const periodicPva = buildMethod(formalLocusV1(settledPointsV1()), "LV");
