@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { ModelDocumentationPage } from "@/components/model/ModelDocumentationPage";
+import savedDocumentIndex from "@/studio/presentation/modelDocumentation/packages/standard71-document-v1.index.json";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PROXIMAL_ROOTS_MODEL_ID_V1,
@@ -30,6 +31,23 @@ const MODEL_ID = MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V
 const SURFACE_RELEASE_ID = surface.surfaceReleaseId;
 
 describe("model documentation V1", () => {
+  it.each(["ja", "en"] as const)("reads the saved candidate in %s without installing its runtime or baseline", locale => {
+    const { modelId, surfaceReleaseId } = savedDocumentIndex.identity;
+    expect(resolveRegisteredModelDocumentationV1(modelId, surfaceReleaseId)?.kind).toBe("saved-model-document");
+    expect(resolveRegisteredExactModelBaselineValidationV1(modelId)).toBeNull();
+    expect(resolveRegisteredModelDisclosureV1(modelId, surfaceReleaseId)).toMatchObject({
+      badgeLabel: "MW 71", limitationsTranslationKey: "modelLimitations.standard71Items",
+    });
+    const html = renderDocumentationRoute(modelDocumentationHref({ locale, modelId, surfaceReleaseId }));
+    expect(html).toContain(`data-saved-document="${savedDocumentIndex.documentId}"`);
+    expect(html.includes(locale === "ja" ? "ローカル候補" : "local candidate")).toBe(true);
+    expect(html).toContain('id="documentation-model-version"');
+    expect(html).toContain("Standard 70");
+    for (const unsupportedSurface of [null, "surface/unknown", surfaceReleaseId + ".next"]) {
+      expect(resolveRegisteredModelDocumentationV1(modelId, unsupportedSurface)).toBeNull();
+    }
+  });
+
   it("builds a locale-scoped URL from the exact model and Surface release", () => {
     expect(modelDocumentationHref({
       locale: "ja",

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc --noEmit --pretty false",
+    "export:docs": "vite-node --script tools/modelDocumentation/exportSavedDocumentV1.ts --",
     "build": "npm run typecheck && vite build",
     "build:public-content": "npm run build && vite build --ssr server/publicContentServerV1.ts --outDir dist-public-content --emptyOutDir",
     "start:public-content": "node dist-public-content/publicContentServerV1.js",

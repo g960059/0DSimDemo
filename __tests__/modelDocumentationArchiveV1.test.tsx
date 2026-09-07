@@ -69,6 +69,8 @@ describe("saved model documentation, independent of retired source", () => {
     const result = await build({
       stdin: { contents: 'export {SavedModelDocumentationV1} from "./components/model/SavedModelDocumentationV1"; export {SAVED_MODEL_DOCUMENTS_V1} from "./studio/presentation/modelDocumentation/SavedModelDocumentLibraryV1";', resolveDir: process.cwd(), loader: "tsx" },
       bundle: true, write: false, metafile: true, platform: "browser", external: ["react", "react/jsx-runtime"],
+      outdir: "unused-in-memory-reader-build",
+      loader: { ".woff": "dataurl", ".woff2": "dataurl", ".ttf": "dataurl" },
       alias: { "@": process.cwd() }, logLevel: "silent",
       plugins: [{ name: "retired-model-sources-unavailable", setup(context) {
         context.onLoad({ filter: /(?:engine|analysis|tools[\\/]modelDocumentation|studio[\\/]integrations)[\\/]/ }, args => {
@@ -78,6 +80,7 @@ describe("saved model documentation, independent of retired source", () => {
     });
     const inputs = Object.keys(result.metafile!.inputs);
     expect(inputs.some(p => p.endsWith("standard71-document-v1.json"))).toBe(true);
+    expect(inputs.some(p => p.endsWith("katex.min.css"))).toBe(true);
     expect(inputs.some(p => /MainWireModelModules|MainWireBaselineDocumentation|MainWireEquationSpecification|ModelMathV1/.test(p))).toBe(false);
   });
   it("preserves the recorded topology and volume closure", () => {

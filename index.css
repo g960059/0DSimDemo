@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* Archived markup must remain styled when its authoring TSX has been retired. */
+@source "./studio/presentation/modelDocumentation/packages";
 
 /* Preserve KaTeX's own font metrics: its scripts, operators and stretchable
  * delimiters depend on the bundled math faces. Only scale the outer wrapper. */

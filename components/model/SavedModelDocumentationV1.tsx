@@ -1,4 +1,6 @@
 import React from "react";
+// Math font metrics are a reader dependency, not a retired authoring side effect.
+import "katex/dist/katex.min.css";
 import type { Locale } from "@/localeRouting";
 import { savedDocumentHtmlV1, savedDocumentOfflineHtmlV1, type SavedModelDocumentV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentV1";
 

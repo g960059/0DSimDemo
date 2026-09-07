@@ -35,6 +35,8 @@ validity. Dirty-source provenance is explicit and is not a release commit.
 The workbench reads a small generated index; full prose and font data load only
 with the documentation route. `npm run export:docs -- <package> <directory>`
 re-exports a saved package without its original authoring or model code.
+The reader owns its math-font stylesheet, and the application stylesheet scans
+saved markup for utility classes; neither may depend on retired authoring files.
 
 ## Verification and retirement
 

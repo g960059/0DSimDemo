@@ -728,6 +728,11 @@
       "通常のcontrol変更はaccepted stateとmodel clockを起点にwarm startします。TBV変更はdetached preflightされ、bounded continuationが必要な場合は後続のaccepted boundaryをatomic commitすることがあります。いずれも自律神経反射を再現するものではありません。",
       "baseline mint gate、数値検証、形態チェックは、患者個別または全負荷条件での臨床的正常性を保証しません。"
     ],
+    "standard71Items": [
+      "0Dモデルの代表圧です。局所ジェット、圧波の伝播・反射、特定のカテーテルやカフの測定位置は再現しません。",
+      "AoP/PAPはAo/PA node圧です。ZcQの表示上の加算や局所pressure recovery補正はなく、Dopplerの最大ジェット勾配とは交換できません。",
+      "baselineはローカル候補です。数値・構造検査に適合しても参考警告が残り、臨床的正常性や患者予測は保証しません。"
+    ],
     "standard70Items": [
       "研究・教育目的のみです。医療機器ではなく、診断、治療、患者個別の判断には使用できません。",
       "0D集中定数モデルです。AoPは大動脈弁直後の大動脈基部compliance node圧、ABPは体動脈compartment圧です。局所圧回復はAoPに適用せず、いずれも実際のカテーテルまたはカフ測定位置そのものではありません。",

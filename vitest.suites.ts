@@ -69,7 +69,7 @@ export const fastTests = [
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
   "__tests__/modelLimitations.test.ts",
-  "__tests__/modelDocumentationV1.test.tsx",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
@@ -137,7 +137,7 @@ export const prSmokeTests = [
   "__tests__/mainWireAlgebraicProximalArterialRootsProfileV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/modelLimitations.test.ts",
-  "__tests__/modelDocumentationV1.test.tsx",
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
   "__tests__/modelExecutionPlanCompilerV1.test.ts",
   "__tests__/publicCatalogV3.test.ts",
   "__tests__/siteShellV3.test.tsx",
@@ -162,6 +162,7 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/modelDocumentationV1.test.tsx",
   "__tests__/mainWireIntegratedStudioAlgebraicPulmonaryRootV1.test.ts",
   "__tests__/mainWireIntegratedStudioPublishedHemodynamicDomainsV1.test.ts",
   "__tests__/mainWireIntegratedStudioRoundedEjectionV1.test.ts",
