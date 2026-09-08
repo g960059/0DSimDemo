@@ -108,6 +108,8 @@ jobs:
           __tests__/mainWireStandard72FittingWorkflowV1.test.ts
           __tests__/mainWireStandard72PreloadReserveV1.test.ts
           __tests__/mainWireStandard72FittingQualificationV1.test.ts
+          __tests__/mainWireStandard72FittingSearchV1.test.ts
+          __tests__/fittingJsonWorkersV1.test.ts
           __tests__/mainWireProspectiveRestAssessmentV1.test.ts
           __tests__/mainWireProspectiveBaselineAdmissionV1.test.ts
           __tests__/mainWirePreloadReserveResearchScreenV2.test.ts
