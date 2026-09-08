@@ -1,28 +1,13 @@
 import normalReferenceEvidenceV1 from
   "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
-import {
-  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
-} from "@/domain/model/MainWireStandardIdentityV1";
-import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 } from
-  "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
-import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
-  "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
-import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1,
-  MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 } from
-  "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 } from
   "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID } from
   "@/analysis/registry/MainWireRestingReferenceProfileV1";
 
-// Standard72 inherits this fixed physical construction; its distinct identity
-// owns the predictor-preserving checkpoint. No Studio presentation dependency.
-
 /**
- * Fitting references are not exact-model registrations. The target policy
- * and the currently selected parameter set are deliberately separate: the
- * latter is a starting point, not an observed or physiological target vector.
- * New models/presets require an explicit binding; there is no latest fallback.
+ * Targets are separate from launch selection and search seeds. Changing a
+ * suggested input cannot invalidate a saved target or its measured results.
  */
 export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
   baseline: Object.freeze({
@@ -35,19 +20,6 @@ export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
       admissionPolicyId: MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1.policyId,
       comparisonProfileId: MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID,
       referenceOutputsAreTargets: false as const,
-    }),
-    selectedConstruction: Object.freeze({
-      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as string,
-      baselineId: "standard72-reference-baseline-4935-hr70-v1" as string,
-      candidateInputs: Object.freeze({
-        hemodynamicResearchInputs:
-          validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
-            MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1),
-        mechanismResearchInputs:
-          validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
-            MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1),
-        ventricularContractilityScale: 1,
-      }),
     }),
     evidenceRole: "construction" as const,
     clinicalValidationClaimed: false as const,

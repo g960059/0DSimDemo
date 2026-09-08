@@ -5,10 +5,11 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { cloneAndFreezeCanonicalJson, canonicalJsonStringify } from "@/engine/integrity";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
-import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { validateMainWireStandard72SavedFittingResultV1 } from "@/analysis/methods/mainWire/MainWireStandard72FittingWorkflowV1";
 import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { runFittingJsonWorkersV1, readFittingWorkerStdinV1 } from "./runFittingJsonWorkersV1";
+import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 
 type GridResult = Awaited<ReturnType<typeof import("@/analysis/methods/mainWire/MainWireStandard72FittingQualificationV1").runMainWireStandard72QualificationGridV1>>;
 type NominalDt = .002 | .001;
@@ -50,7 +51,7 @@ async function main() {
   const saved = values.reuse === undefined ? undefined
     : await validateMainWireStandard72SavedFittingResultV1(JSON.parse(await readFile(values.reuse, "utf8")));
   let candidateInputs: Candidate = values.candidate === undefined
-    ? saved?.evaluation.candidateInputs ?? resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs
+    ? saved?.evaluation.candidateInputs ?? fittingSeed.candidateInputs
     : JSON.parse(await readFile(values.candidate, "utf8"));
   if (values.tbv !== undefined) {
     const totalBloodVolumeMl = Number(values.tbv);
@@ -61,6 +62,7 @@ async function main() {
   const encodedCandidate = canonicalJsonStringify(cloneAndFreezeCanonicalJson(candidateInputs));
   if (Buffer.byteLength(encodedCandidate) > maximumCandidateBytes) throw new Error("Candidate input exceeds 1 MiB");
   const { assessMainWireStandard72FittingQualificationV1 } = await import("@/analysis/methods/mainWire/MainWireStandard72FittingQualificationV1");
+  const sourceSnapshot = await beginFittingSourceSnapshotV1(output);
   const [coarse, fine] = await runFittingJsonWorkersV1<GridResult>({
     scriptPath: fileURLToPath(import.meta.url), concurrency: 2,
     jobs: [".002", ".001"].map(dt => ({ args: ["--worker", "--dt", dt], input: encodedCandidate })),
@@ -68,6 +70,7 @@ async function main() {
   if (!coarse || !fine) throw new Error("Final qualification requires both grid results");
   const report = await assessMainWireStandard72FittingQualificationV1({ coarse, fine });
   await writeFile(output, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
+  await sourceSnapshot.finish([output]);
   process.stdout.write(`${JSON.stringify({ output, modelId: report.modelId, status: report.status,
     reportSha256: report.reportSha256, initialization: "independent-cold-per-grid",
     nominalDtSec: [.002, .001], publicBaselinePromotionAuthorized: false,

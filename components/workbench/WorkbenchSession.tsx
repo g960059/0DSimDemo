@@ -1,5 +1,6 @@
 import React from "react";
-import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
+import { registeredCurrentBaselinePresentationV1, mainWireBaselineAssessmentPresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
+import { preparedBaselineLaunchV1, type PreparedBaselineCaseV1 } from "@/studio/registry/PreparedBaselineCaseV1";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   ArrowLeft,
@@ -271,9 +272,11 @@ function WorkbenchPerformanceProfilerV3({
 export const WorkbenchSession = ({
   initialExperimentId,
   modelLab = false,
+  preparedBaseline,
 }: Readonly<{
   initialExperimentId: string | null;
   modelLab?: boolean;
+  preparedBaseline?: PreparedBaselineCaseV1;
 }>) => {
   const { t } = useTranslation();
   const { appTheme, setAppTheme } = useAppTheme();
@@ -493,7 +496,9 @@ export const WorkbenchSession = ({
         surfaceReleaseId: modelDocumentation.surfaceReleaseId,
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
-  const baselineValidationPresentation = registeredCurrentBaselinePresentationV1(
+  const baselineValidationPresentation = modelLab && preparedBaseline && contract?.modelId === preparedBaseline.preset.modelId
+    ? mainWireBaselineAssessmentPresentationV1(preparedBaseline.assessment, isLocale(locale) ? locale : "en", "candidate")
+    : registeredCurrentBaselinePresentationV1(
     contract?.modelId, initialBaselineFixtureRef.current, isLocale(locale) ? locale : "en",
   );
 
@@ -723,6 +728,11 @@ export const WorkbenchSession = ({
               : modelLab
                 ? await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
+        if (preparedBaseline) {
+          if (!modelLab || initialContent !== undefined) throw new Error("Prepared candidate selection is only available in a new Model Lab session");
+          composition = { ...composition, exactModel: { ...composition.exactModel,
+            ...preparedBaselineLaunchV1(preparedBaseline, composition.exactModel.workerReleaseTicket) } };
+        }
       } catch (error) {
         if (
           initialContent !== undefined &&
@@ -795,7 +805,7 @@ export const WorkbenchSession = ({
               composition.modelSurface.analysis.periodicPvaDerivation !== null,
           },
         );
-      const baselineLabel = translationRef.current(
+      const baselineLabel = preparedBaseline?.preset.title ?? translationRef.current(
         "workbench.editor.scenarioManager.baselinePresetTitle",
       );
       const candidateScenarioDescriptors =
@@ -1065,6 +1075,7 @@ export const WorkbenchSession = ({
     remoteContentRepository,
     resolvedLocale,
     runtimeGeneration,
+    preparedBaseline,
   ]);
 
   React.useEffect(() => {
@@ -3148,6 +3159,9 @@ export const WorkbenchSession = ({
                   ...(modelDocumentationLink === undefined
                     ? {}
                     : { documentationHref: modelDocumentationLink }),
+                  ...(preparedBaseline ? { documentationNote: resolvedLocale === "ja"
+                    ? "リンク先の設定・baseline評価は登録済みbaselineの記録です。読み込んだ候補の評価は下に表示しています。"
+                    : "The linked settings and baseline assessment describe the registered baseline. The imported candidate's assessment is shown below." } : {}),
                 },
               ]}
               scenarios={simulationInfoScenarios}

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 as baseline } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
 import { resolveRegisteredModelLaunchCheckpointV1, resolveRegisteredModelLaunchDefaultsV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
-import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { registeredCurrentBaselinePresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1 as localComposition,
   loadStudioDefaultClientCompositionV2, loadStudioExperimentClientCompositionV2,
@@ -12,6 +12,32 @@ import descriptor from "@/studio/integrations/mainWireIntegratedV3/MainWireInteg
 import lock from "@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json";
 import { materializeExactModelControlValuesV1 } from "@/studio/application/model/ExactModelControlValuesV1";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
+import { readPreparedBaselineCaseV1, preparedBaselineLaunchV1 } from "@/studio/registry/PreparedBaselineCaseV1";
+import { mainWireBaselineAssessmentPresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
+import binding from "@/studio/integrations/mainWireIntegratedV3/standard72-baseline-binding-evidence.json";
+import eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
+import { STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID } from "@/studio/contracts/v2/content";
+
+// Known baseline capture; synthetic hashes test package integrity, not final
+// scientific qualification. The exporter re-observes the real paired report.
+async function packageFixture() {
+  const checkpoint = baseline.checkpoint.payload as any;
+  const record = { schemaId: "prepared-main-wire-baseline-case-v1", preset: {
+    schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, presetId: "test/baseline-copy", modelId: baseline.modelId,
+    title: "Local candidate", description: "Synthetic package-binding test", capture: {
+      fixture: baseline.fixture, checkpoint: baseline.checkpoint } },
+    surfaceReleaseId: surface.surfaceReleaseId, artifactRevisionId: lock.artifactRevisionId, artifactSha256: lock.artifactSha256,
+    fixtureSha256: await sha256CanonicalJsonHex(baseline.fixture),
+    assessment: { rest: binding.rest, native: eligibility.observations[0]!.native,
+      tau: eligibility.observations[0]!.tau, beat: {
+        ventricularAbsolutePressureRateExtrema: checkpoint.baseStandardCheckpointV2.completedBeatMetrics.ventricularAbsolutePressureRateExtrema,
+        valveForwardPressureGradients: checkpoint.baseStandardCheckpointV2.completedBeatMetrics.valveForwardPressureGradients }, reserveVerified: true },
+    evidence: { qualificationReportSha256: "a".repeat(64), qualificationPolicySha256: "b".repeat(64),
+      referenceSha256: "c".repeat(64), executionSourceSha256: "d".repeat(64),
+      qualifiedCheckpointSha256: checkpoint.checkpointSha256, launchCheckpointSha256: checkpoint.checkpointSha256,
+      sourceArtifactContinuationSteps: 1000 }, publicBaselinePromotionAuthorized: false };
+  return { ...record, recordSha256: await sha256CanonicalJsonHex(record) };
+}
 
 describe("current Standard72 launch baseline", () => {
   afterEach(() => { vi.restoreAllMocks(); invalidateStudioClientCompositionCachesV2(); });
@@ -24,7 +50,7 @@ describe("current Standard72 launch baseline", () => {
     expect(baseline.checkpoint.acceptedTimeSec).toBeGreaterThan(40);
     expect(await sha256CanonicalJsonHex(baseline.fixture)).toBe(lock.releaseQualification.defaultFixtureSha256);
     expect(baseline.fixture).toEqual(descriptor.defaultFixture);
-    expect(resolveMainWireFittingReferenceV1("baseline").selectedConstruction).toMatchObject({
+    expect(fittingSeed).toMatchObject({
       modelId: baseline.modelId, baselineId: baseline.baselineId,
       candidateInputs: { ventricularContractilityScale: 1,
         hemodynamicResearchInputs: descriptor.defaultFixture.hemodynamicResearchInputs,
@@ -92,5 +118,39 @@ describe("current Standard72 launch baseline", () => {
     }
     expect(report.items.find(item => item.itemId === "lv-relaxation-tau")).toMatchObject({ value: "32.0 / 52.4 ms", status: "reference" });
     expect(report.items.find(item => item.itemId === "aortic-valve.mean-gradient")?.detail).toContain("Doppler");
+  });
+  it("selects an owned preset for a new session without changing the registered baseline or ticket", async () => {
+    const raw = await packageFixture(), before = JSON.stringify(baseline);
+    const candidate = await readPreparedBaselineCaseV1(raw);
+    const composition = await localComposition(), ticket = composition.exactModel.workerReleaseTicket;
+    const launch = preparedBaselineLaunchV1(candidate, ticket);
+    expect(launch).toEqual({ defaultFixture: baseline.fixture, defaultCheckpoint: baseline.checkpoint });
+    expect(Object.isFrozen(candidate.preset.capture)).toBe(true);
+    raw.preset.title = "edited after read";
+    expect(candidate.preset.title).toBe("Local candidate");
+    expect(JSON.stringify(baseline)).toBe(before);
+    expect(composition.exactModel.defaultFixture).toEqual(baseline.fixture);
+    expect(() => preparedBaselineLaunchV1(candidate, { ...ticket, artifactRevisionId: "e".repeat(64) })).toThrow(/incompatible/);
+    const view = mainWireBaselineAssessmentPresentationV1(candidate.assessment, "ja", "candidate");
+    expect(view.summary).toContain("採用・公開はしていません");
+    expect(view.items).toEqual(registeredCurrentBaselinePresentationV1(baseline.modelId, baseline.fixture, "ja")!.items);
+  });
+  it("rejects edited and rehashed incomplete evidence, stale artifacts, checkpoint clocks and mixed assessments", async () => {
+    const raw = await packageFixture();
+    raw.preset.title = "tampered";
+    await expect(readPreparedBaselineCaseV1(raw)).rejects.toThrow(/digest/);
+    for (const mutate of [
+      (p: any) => { delete p.evidence.executionSourceSha256; },
+      (p: any) => { p.evidence.sourceArtifactContinuationSteps = 0; },
+      (p: any) => { p.artifactRevisionId = "e".repeat(64); },
+      (p: any) => { p.preset.capture.checkpoint.acceptedTimeSec += .002; },
+      (p: any) => { p.assessment.beat.valveForwardPressureGradients.AoV.peakMmHg += 1; },
+      (p: any) => { p.assessment.reserveVerified = false; },
+    ]) {
+      const changed = JSON.parse(JSON.stringify(await packageFixture())); mutate(changed);
+      const { recordSha256: _old, ...body } = changed;
+      changed.recordSha256 = await sha256CanonicalJsonHex(body);
+      await expect(readPreparedBaselineCaseV1(changed)).rejects.toThrow();
+    }
   });
 });

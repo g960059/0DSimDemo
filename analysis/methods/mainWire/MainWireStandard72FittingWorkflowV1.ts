@@ -2,8 +2,9 @@ import { canonicalJsonStringify, cloneAndFreezeCanonicalJson, sha256CanonicalJso
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import type { MainWireIntegratedModelStandard72CheckpointV1 as Checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
-import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
+import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { evaluateMainWireStandard72BaselineCalibrationCandidateV1 as evaluate,
   MAIN_WIRE_STANDARD72_BASELINE_CALIBRATION_EVALUATOR_V1_ID as evaluatorId,
   buildMainWireStandard72FittingPolicyIdentityV1 as policyIdentity,
@@ -33,8 +34,9 @@ export async function runMainWireStandard72FittingWorkflowV1(request: Readonly<{
   if (owned.source !== null && owned.reuse !== null) throw new Error("Choose a source checkpoint or saved-result reuse");
   const reference = resolveMainWireFittingReferenceV1("baseline");
   const saved = owned.reuse === null ? null : await validateMainWireStandard72SavedFittingResultV1(owned.reuse);
-  const sourceCandidateInputs = saved?.evaluation.candidateInputs ?? owned.source?.candidateInputs ?? reference.selectedConstruction.candidateInputs;
+  const sourceCandidateInputs = saved?.evaluation.candidateInputs ?? owned.source?.candidateInputs ?? fittingSeed.candidateInputs;
   const candidateInputs = owned.candidateInputs ?? sourceCandidateInputs;
+  assertUnaliasedMainWireFittingCandidateV1(candidateInputs);
   const checkpoint = saved?.evaluation.checkpoint ?? owned.source?.checkpoint;
   const evaluation = await evaluate({ candidateInputs, abortSignal: request.abortSignal,
     initialization: checkpoint === undefined ? { kind: "cold" }
@@ -50,7 +52,8 @@ export async function runMainWireStandard72FittingWorkflowV1(request: Readonly<{
 
 /** A digest detects edits, not third-party scientific certification. Always
  * restore using the saved candidate to verify model/parameter/checkpoint binding.
- * Current policy/reference equality prevents a stale record becoming current.
+ * This reads a historical result and its usable initial state, not a current
+ * assessment. run() always remeasures/reassesses under the current policy.
  */
 export async function validateMainWireStandard72SavedFittingResultV1(input: unknown): Promise<MainWireStandard72SavedFittingResultV1> {
   const value = cloneAndFreezeCanonicalJson(input) as MainWireStandard72SavedFittingResultV1;
@@ -60,11 +63,10 @@ export async function validateMainWireStandard72SavedFittingResultV1(input: unkn
   }
   const { resultSha256, ...body } = value;
   if (await sha256CanonicalJsonHex(body) !== resultSha256) throw new Error("Saved fitting result digest differs");
-  const reference = resolveMainWireFittingReferenceV1("baseline");
-  if (canonicalJsonStringify(value.reference) !== canonicalJsonStringify(reference)
-    || value.referenceIdentitySha256 !== await sha256CanonicalJsonHex(reference)
+  if (value.reference?.referenceId !== "baseline" || !value.reference.target
+    || value.referenceIdentitySha256 !== await sha256CanonicalJsonHex(value.reference)
     || value.evaluation?.evaluatorId !== evaluatorId || value.evaluation.modelId !== modelId
-    || value.evaluation.status !== "accepted" || value.evaluation.policyIdentitySha256 !== await policyIdentity()
+    || value.evaluation.status !== "accepted" || !/^[a-f0-9]{64}$/.test(value.evaluation.policyIdentitySha256)
     || value.evaluation.nominalDtSec !== .002 || value.evaluation.classification.status !== "period1-converged"
     || value.evaluation.executionPath !== "standard72-selected-output-projection"
     || value.evaluation.qualification.scope !== "periodic-rest-assessment"
@@ -80,4 +82,14 @@ export async function validateMainWireStandard72SavedFittingResultV1(input: unkn
   await Session.restoreStandard72ExactCheckpoint(value.evaluation.checkpoint,
     candidate.hemodynamicResearchInputs, candidate.ventricularContractilityScale, undefined, candidate.mechanismResearchInputs);
   return value;
+}
+
+/** Context compatibility is separate from reading/reusing a historical result.
+ * A matching context is not final qualification or permission to promote it. */
+export async function isMainWireStandard72SavedAssessmentCurrentV1(value: MainWireStandard72SavedFittingResultV1): Promise<boolean> {
+  const reference = resolveMainWireFittingReferenceV1("baseline");
+  return value.reference.referenceId === reference.referenceId
+    && value.evaluation.candidateInputs.ventricularContractilityScale === 1
+    && canonicalJsonStringify(value.reference.target) === canonicalJsonStringify(reference.target)
+    && value.evaluation.policyIdentitySha256 === await policyIdentity();
 }

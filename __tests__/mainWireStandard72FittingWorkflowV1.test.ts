@@ -7,13 +7,15 @@ import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID, type MainWireIn
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { createMainWireIntegratedModelStandard71FixtureV1 as fixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { evaluateMainWireStandard72BaselineCalibrationCandidateV1 as evaluate, collectMainWireStandard72FittingCycleV1 as collect } from "@/analysis/methods/mainWire/MainWireStandard72BaselineCalibrationEvaluatorV1";
 import { runMainWireStandard72FittingWorkflowV1 as run, validateMainWireStandard72SavedFittingResultV1 as validate,
+  isMainWireStandard72SavedAssessmentCurrentV1 as isCurrent,
   type MainWireStandard72SavedFittingResultV1 as Saved } from "@/analysis/methods/mainWire/MainWireStandard72FittingWorkflowV1";
 
 const previousTier = hotPathIntegrityTierV1();
 const reference = resolveMainWireFittingReferenceV1("baseline");
-const candidate = reference.selectedConstruction.candidateInputs;
+const candidate = fittingSeed.candidateInputs;
 const checkpoint = baseline as unknown as Checkpoint;
 let saved: Saved;
 beforeAll(async () => {
@@ -28,11 +30,11 @@ afterAll(() => selectHotPathIntegrityTierV1(previousTier));
 
 describe("current exact72 fitting workflow", () => {
   it("executes a changed candidate and saves its own checkpoint with bounded qualification", () => {
-    expect(reference.selectedConstruction.modelId).toMatch(/standard-72$/);
+    expect(fittingSeed.modelId).toMatch(/standard-72$/);
     expect(candidate.hemodynamicResearchInputs).toEqual(descriptor.defaultFixture.hemodynamicResearchInputs);
     expect(candidate.mechanismResearchInputs).toEqual(descriptor.defaultFixture.mechanismResearchInputs);
     expect(saved.evaluation.candidateInputs.hemodynamicResearchInputs.totalBloodVolumeMl).toBe(4940);
-    expect(saved.reference.selectedConstruction.candidateInputs.hemodynamicResearchInputs.totalBloodVolumeMl).toBe(4935);
+    expect(saved.reference).not.toHaveProperty("selectedConstruction");
     expect(saved.reference.target.referenceOutputsAreTargets).toBe(false);
     expect(saved.evaluation).toMatchObject({ status: "accepted", initializationKind: "standard72-parameter-continuation",
       executionPath: "standard72-selected-output-projection", classification: { status: "period1-converged" },
@@ -93,7 +95,7 @@ describe("current exact72 fitting workflow", () => {
       .toMatchObject({ status: "invalid-or-physical", phase: "request-validation" });
   });
 
-  it("rejects stale records and rehashed candidate/checkpoint mismatches", async () => {
+  it("separates historical assessment validity from current assessment and rejects input/checkpoint mismatches", async () => {
     const edited = JSON.parse(JSON.stringify(saved));
     edited.evaluation.candidateInputs.hemodynamicResearchInputs.totalBloodVolumeMl += 5;
     await expect(validate(edited)).rejects.toThrow(/digest/);
@@ -104,7 +106,46 @@ describe("current exact72 fitting workflow", () => {
     stale.evaluation.policyIdentitySha256 = "f".repeat(64);
     const { resultSha256: _old2, ...staleBody } = stale;
     stale.resultSha256 = await sha256CanonicalJsonHex(staleBody);
-    await expect(validate(stale)).rejects.toThrow(/context/);
+    expect(await validate(stale)).toEqual(stale);
+    expect(await isCurrent(stale)).toBe(false);
+    expect(await isCurrent(saved)).toBe(true);
+  });
+
+  it("remeasures a stale-policy checkpoint under current criteria without rewriting its history", async () => {
+    const old = JSON.parse(JSON.stringify(saved));
+    old.evaluation.policyIdentitySha256 = "f".repeat(64);
+    old.reference.target = { ...old.reference.target, evidenceRevision: "historical-test-reference" };
+    old.referenceIdentitySha256 = await sha256CanonicalJsonHex(old.reference);
+    const { resultSha256: _hash, ...body } = old;
+    old.resultSha256 = await sha256CanonicalJsonHex(body);
+    const before = JSON.stringify(old);
+    expect(await isCurrent(await validate(old))).toBe(false);
+    const rerun = await run({ reuse: old });
+    expect(rerun.status).toBe("saved-result-ready");
+    if (rerun.status !== "saved-result-ready") throw new Error(JSON.stringify(rerun));
+    expect(await isCurrent(rerun.result)).toBe(true);
+    expect(rerun.result.evaluation.initializationKind).toBe("standard72-exact-checkpoint");
+    expect(rerun.result.evaluation.completedCycleCount).toBe(3);
+    expect(rerun.result.reference).toEqual(reference);
+    expect(JSON.stringify(old)).toBe(before);
+  }, 15_000);
+
+  it("rejects a non-neutral common alias instead of silently replacing wall inputs", async () => {
+    const conflicting = { ...candidate, ventricularContractilityScale: 1.1 };
+    expect(await evaluate({ candidateInputs: conflicting })).toMatchObject({
+      status: "invalid-or-physical", phase: "request-validation",
+      message: expect.stringContaining("overwriting common alias"),
+    });
+    await expect(run({ candidateInputs: conflicting })).rejects.toThrow(/overwriting common alias/);
+  });
+
+  it("does not invalidate an exact checkpoint just because an old reference stored a different recommendation", async () => {
+    const historical = JSON.parse(JSON.stringify(saved));
+    historical.reference.selectedConstruction = { recommendation: "superseded seed, not an evaluation target" };
+    historical.referenceIdentitySha256 = await sha256CanonicalJsonHex(historical.reference);
+    const { resultSha256: _old, ...body } = historical;
+    historical.resultSha256 = await sha256CanonicalJsonHex(body);
+    expect(await isCurrent(await validate(historical))).toBe(true);
   });
 
   it("rejects an incompatible checkpoint and wrong-tier evaluation before advancing", async () => {

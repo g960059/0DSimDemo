@@ -20,6 +20,7 @@ export type WorkbenchSimulationInfoModelV3 = Readonly<{
   shortLabel: string;
   description: string;
   documentationHref?: string;
+  documentationNote?: string;
   baselineValidation?: Readonly<{
     summary: string;
     items: readonly Readonly<{
@@ -392,6 +393,9 @@ export function WorkbenchSimulationInfoPanelV3({
               )}
             </section>
 
+            {current.documentationNote !== undefined && (
+              <p className="text-[11px] leading-5 text-wb-muted">{current.documentationNote}</p>
+            )}
             {current.baselineValidation !== undefined && (
               <section
                 data-testid="workbench-baseline-validation-v3"

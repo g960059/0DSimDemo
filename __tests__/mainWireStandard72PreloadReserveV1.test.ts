@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canonicalJsonStringify } from "@/engine/integrity";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
-import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import * as protocol from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 import {
   measureMainWireStandard72PreloadReserveV1 as measure,
@@ -10,7 +10,7 @@ import {
 } from "@/analysis/methods/mainWire/MainWireStandard72PreloadReserveV1";
 
 const previousTier = hotPathIntegrityTierV1();
-const candidate = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+const candidate = fittingSeed.candidateInputs;
 beforeEach(() => selectHotPathIntegrityTierV1("hot-path-lean"));
 afterEach(() => {
   vi.restoreAllMocks();

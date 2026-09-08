@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sha256CanonicalJsonHex } from "@/engine/integrity";
-import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { runMainWireStandard72QualificationGridV1 as runGrid,
   assessMainWireStandard72FittingQualificationV1 as assess,
   type MainWireStandard72QualificationGridV1 as Grid } from "@/analysis/methods/mainWire/MainWireStandard72FittingQualificationV1";
@@ -8,7 +8,7 @@ import { MAIN_WIRE_FIXED_TONE_SETTLEMENT_V2 } from "@/analysis/methods/mainWire/
 import { MAIN_WIRE_STANDARD70_PRELOAD_RESERVE_POLICY_V1 } from "@/analysis/policies/mainWire/MainWireStandard70PreloadReservePolicyV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRELOAD_RESERVE_POLICY_V1 } from "@/analysis/methods/mainWire/MainWirePressureVolumeProtocolsV3";
 
-const candidate = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+const candidate = fittingSeed.candidateInputs;
 async function failedPair() {
   const invalid = { ...candidate, hemodynamicResearchInputs: { ...candidate.hemodynamicResearchInputs, heartRateBpm: 65 } };
   return { coarse: await runGrid({ candidateInputs: invalid, nominalDtSec: .002 }),

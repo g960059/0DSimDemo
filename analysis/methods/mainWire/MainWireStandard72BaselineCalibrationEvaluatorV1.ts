@@ -4,7 +4,8 @@ import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from "@
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 as exactIdentity,
   type MainWireIntegratedModelStandard72CheckpointV1 as Checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
-import { createMainWireIntegratedModelStandard71FixtureV1 as createFixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
+import { createMainWireIntegratedModelStandard71FixtureV1 as createFixture,
+  MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as referenceMechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as periodicPolicy,
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 as numericalPolicy } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 as scales } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
@@ -26,10 +27,10 @@ import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_RIGHT_HEART_POLICY_V1 as rightHea
 import { assessMainWireProspectiveRestV1 as assessRest,
   MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as restPolicy } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as referenceProfile } from "@/analysis/registry/MainWireRestingReferenceProfileV1";
-import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as ownHemodynamics } from "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 as ownMechanism } from "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
-import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
+import { assertUnaliasedMainWireFittingCandidateV1, type MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 import { NON_CORONARY_NODE_NAMES_V1 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import { CORONARY_CONSERVED_VOLUME_NODE_IDS_V2 } from "@/engine/coronary/typesV2";
 
@@ -83,7 +84,7 @@ export async function evaluateMainWireStandard72BaselineCalibrationCandidateV1(
   try {
     if (abortSignal?.aborted) return fail("operational-interrupted", "Evaluation interrupted");
     const candidateInputs = ownCandidate(request.candidateInputs
-      ?? resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs);
+      ?? fittingSeed.candidateInputs);
     const nominalDtSec = request.nominalDtSec ?? .002;
     if (nominalDtSec !== .002 && nominalDtSec !== .001) throw new Error("Standard72 fitting supports only 2ms or 1ms schedules");
     if (hotPathIntegrityTierV1() !== "hot-path-lean") throw new Error("Standard72 fitting requires the admitted hot-path-lean entry point");
@@ -219,6 +220,7 @@ export type MainWireStandard72BaselineCalibrationEvaluationV1 = Awaited<ReturnTy
 export type MainWireStandard72AcceptedCalibrationEvaluationV1 = Extract<MainWireStandard72BaselineCalibrationEvaluationV1, { status: "accepted" }>;
 
 function ownCandidate(value: Candidate): Candidate {
+  assertUnaliasedMainWireFittingCandidateV1(value);
   const candidate = Object.freeze({ hemodynamicResearchInputs: ownHemodynamics(value.hemodynamicResearchInputs),
     ventricularContractilityScale: value.ventricularContractilityScale, mechanismResearchInputs: ownMechanism(value.mechanismResearchInputs) });
   if (![60, 70].includes(candidate.hemodynamicResearchInputs.heartRateBpm)
@@ -226,9 +228,9 @@ function ownCandidate(value: Candidate): Candidate {
     || !(candidate.ventricularContractilityScale > 0) || !Number.isFinite(candidate.ventricularContractilityScale)) {
     throw new Error("Resting fitting requires HR60 or70, zero PEEP and positive finite contractility");
   }
-  const selected = resolveMainWireFittingReferenceV1("baseline").selectedConstruction.candidateInputs;
+  // Applicability is a property of this resting assessment, not its mutable seed.
   for (const key of ["valveAreas", "pericardium", "coronaryDisease", "oxygenTransport"] as const) {
-    if (canonicalJsonStringify(candidate.mechanismResearchInputs[key]) !== canonicalJsonStringify(selected.mechanismResearchInputs[key])) {
+    if (canonicalJsonStringify(candidate.mechanismResearchInputs[key]) !== canonicalJsonStringify(referenceMechanism[key])) {
       throw new Error(`Resting fitting does not qualify changed ${key}`);
     }
   }

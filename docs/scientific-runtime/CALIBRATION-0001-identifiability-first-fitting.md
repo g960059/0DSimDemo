@@ -240,11 +240,14 @@ observation-station mismatch or rescue a rejected topology.
 
 ## Reuse and data boundary
 
-Presets vary only an admitted Surface-exposed phenotype. Needing an internal
-change means minting a model. Non-clinical case matching fixes known inputs,
-fits only an admitted Surface subset, returns ensembles or supported
-combinations, and makes no diagnosis, treatment, population-membership, or
-patient-prediction claim.
+Presets and non-clinical case matching vary typed inputs already admitted by
+the exact model; UI exposure and slider steps do not limit this input space.
+Each fit selects a small justified subset. Changing a fixed internal primitive
+or the exact input contract remains model development. Saved inputs/checkpoints
+are independent of the current launch baseline; old assessments remain pinned
+to their original target and policy, and reuse as initialization is not current
+qualification. Matching returns representative solutions or supported
+combinations, not diagnosis, treatment, or patient-prediction claims.
 
 Only synthetic or published-source case data may enter Git. Real-person data
 remain local and are not persisted, reused in caches, logged, exported, or

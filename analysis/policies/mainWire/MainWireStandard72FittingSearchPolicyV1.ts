@@ -1,6 +1,6 @@
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as admission } from "./MainWireProspectiveBaselineAdmissionV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as profile } from "@/analysis/registry/MainWireRestingReferenceProfileV1";
-import { mainWireBaselineCalibrationParameterV1 as descriptor,
+import { mainWireBaselineCalibrationParameterV1 as descriptor, assertUnaliasedMainWireFittingCandidateV1,
   readMainWireBaselineCalibrationParameterV1 as read, transformMainWireBaselineCalibrationParameterV1 as transform,
   type MainWireBaselineCalibrationParameterIdV1 as Id,
   type MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "./MainWireBaselineCalibrationParametersV1";
@@ -35,6 +35,7 @@ export type MainWireStandard72FittingSearchOptionsV1 = Readonly<{
 }>;
 
 export function resolveMainWireStandard72FittingSearchPlanV1(seed: Candidate, options: MainWireStandard72FittingSearchOptionsV1 = {}) {
+  assertUnaliasedMainWireFittingCandidateV1(seed);
   if (!options || typeof options !== "object" || Array.isArray(options)
     || Object.keys(options).some(k => !["parameters", "maximumEvaluations"].includes(k))) throw new Error("Unrecognized search plan fields");
   const maximumEvaluations = options.maximumEvaluations ?? policy.maximumEvaluations;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalJsonStringify, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1 as profile } from "@/analysis/registry/MainWireRestingReferenceProfileV1";
 import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 as admission } from "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { resolveMainWireStandard72FittingSearchPlanV1 as plan, scoreMainWireStandard72FittingRestV1 as score,
@@ -10,7 +11,7 @@ import { buildMainWireStandard72FittingPolicyIdentityV1 as evaluatorHash } from 
 import type { MainWireStandard72SavedFittingResultV1 as Saved } from "@/analysis/methods/mainWire/MainWireStandard72FittingWorkflowV1";
 import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
-const reference = resolveMainWireFittingReferenceV1("baseline"), candidate = reference.selectedConstruction.candidateInputs;
+const reference = resolveMainWireFittingReferenceV1("baseline"), candidate = fittingSeed.candidateInputs;
 const tbv = "hemodynamics.total-blood-volume-ml" as const;
 const onlyTbv = [{ parameterId: tbv }];
 type Result = Awaited<ReturnType<NonNullable<Parameters<typeof search>[1]>>>[number];
@@ -23,7 +24,7 @@ async function synthetic(input: Candidate = candidate, margin = .2): Promise<Res
     status: i === 0 && margin < 0 ? "failed" : "passed" }));
   const entries = profile.entries.filter(e => e.role === "demographic-comparison").map(r => ({ ...r,
     actual: (Math.max(...r.comparisons.map(c => c.range.lower!)) + Math.min(...r.comparisons.map(c => c.range.upper!))) / 2 }));
-  const evaluation = { modelId: reference.selectedConstruction.modelId, status: "accepted", candidateInputs: input,
+  const evaluation = { modelId: fittingSeed.modelId, status: "accepted", candidateInputs: input,
     policyIdentitySha256: await evaluatorHash(), completedCycleCount: 3, wallTimeMs: 1,
     classification: { status: "period1-converged" },
     rest: { status: margin < 0 ? "failed" : "passed", operating, comparison: { entries },
@@ -37,6 +38,15 @@ function accepted(r: Result) {
 }
 
 describe("bounded Standard72 search policy", () => {
+  it("rejects an overwriting common contractility alias before submitting a trial", async () => {
+    const conflicting = { ...candidate, ventricularContractilityScale: 1.1 };
+    expect(() => plan(conflicting)).toThrow(/overwriting common alias/);
+    let submitted = false;
+    await expect(search({ seed: { candidateInputs: conflicting } }, async () => {
+      submitted = true; return [];
+    })).rejects.toThrow(/overwriting common alias/);
+    expect(submitted).toBe(false);
+  });
   it("defaults to three hemodynamic coordinates and permits a narrower declared box", () => {
     expect(plan(candidate).coordinates.map(c => c.parameterId)).toEqual(policy.defaultParameters);
     expect(plan(candidate, { parameters: [{ parameterId: tbv, minimum: 4800, maximum: 5200 }] }).coordinates[0])
