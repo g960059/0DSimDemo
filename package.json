@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "fit:scientific:main-wire-standard72-v1": "vite-node --script tools/scientific/runMainWireStandard72FittingV1.ts",
+    "generate:docs:standard72": "vite-node --script tools/modelDocumentation/generateSavedModelDocumentV1.tsx standard72-document-v1",
+    "export:model-document": "vite-node --script tools/modelDocumentation/exportSavedDocumentV1.ts",
     "verify:registry:retained-exact-package": "vite-node --script tools/registry/verifyRetainedExactModelPackageV1.ts",
     "verify:registry:main-wire-standard72-v1": "vite-node --script tools/registry/verifyMainWireStandard72RegistryV1.ts",
     "dev": "vite",
@@ -70,7 +73,6 @@
     "audit:scientific:main-wire-baseline-conditioning-perturbation-attribution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --perturbation-attribution",
     "audit:scientific:main-wire-baseline-conditioning-stage-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningAuditV1.ts --stage-audit",
     "audit:scientific:main-wire-baseline-conditioning-resolution-v1": "vite-node --script tools/scientific/runMainWireBaselineConditioningResolutionAuditV1.ts",
-    "recover:scientific:main-wire-baseline-local-v1": "vite-node --script tools/scientific/runMainWireStandard70BaselineLocalRecoveryV1.ts",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",
     "characterize:coronary:v3-reduced-pressure-step-numerical": "vite-node --script tools/scientific/runCoronaryV3ReducedPressureStepNumericalCharacterizationV1.ts --output artifacts/coronary-v3/reduced-pressure-step-numerical-v1.json",

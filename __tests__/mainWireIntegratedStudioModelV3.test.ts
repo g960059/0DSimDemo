@@ -507,13 +507,14 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
     try {
       const composition =
         await import("@/studio/composition/StudioDefaultCompositionV2");
-      const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
+      const current = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json")).default;
+      const currentLock = (await import("@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json")).default;
       const surface = mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1;
       const revisioned = composition.localAlgebraicPulmonaryRootArtifactRevisionUrlV1(
-        new URL("http://127.0.0.1:4176/standard70.artifact.mjs?keep=1"),
+        new URL("http://127.0.0.1:4176/standard72.artifact.mjs?keep=1"),
       );
       expect(revisioned.searchParams.get("revision")).toBe(
-        mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
+        currentLock.artifactRevisionId,
       );
       expect(revisioned.searchParams.get("keep")).toBe("1");
       expect(composition.DEFAULT_STUDIO_MODEL_ID_V2).toBe(current.manifest.modelId);
@@ -521,11 +522,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
       expect(local).toMatchObject({
         exactModel: {
           modelId: current.manifest.modelId,
-          defaultFixture: selectedLaunchBaseline.capture.fixture,
+          defaultFixture: current.defaultFixture,
           workerReleaseTicket: {
             moduleAbi: "circleheart-exact-model-esm-v1",
             artifactRevisionId:
-              mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
+              currentLock.artifactRevisionId,
           },
         },
         modelSurface: {
@@ -604,7 +605,8 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
 
   it("rejects retired remote bundles and preserves supported remote Surface pins", async () => {
     vi.resetModules();
-    const current = mainWireIntegratedStudioAlgebraicPulmonaryRootClientV1;
+    const current = (await import("@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json")).default;
+    const currentLock = (await import("@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json")).default;
     const surface = mainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1;
     const release = {
       defaultFixture: current.defaultFixture,
@@ -615,11 +617,11 @@ describe("Standard Main Wire Integrated Studio exact model", () => {
         schemaId: STUDIO_MODEL_WORKER_RELEASE_TICKET_V2_SCHEMA_ID,
         modelId: current.manifest.modelId,
         artifactRevisionId:
-          mainWireIntegratedStudioAlgebraicPulmonaryRootRegistryLockV1.artifactRevisionId,
+          currentLock.artifactRevisionId,
         manifest: current.manifest,
         surfaceRelease: { ...surface, surfaceReleaseId: "surface/current/additive-v2" },
         moduleAbi: "circleheart-exact-model-esm-v1",
-        artifactUrl: "https://registry.example/standard70.mjs",
+        artifactUrl: "https://registry.example/standard72.mjs",
       },
     };
     const resolveActiveBundle = vi.fn().mockResolvedValue(release);

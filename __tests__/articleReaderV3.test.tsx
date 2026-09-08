@@ -51,7 +51,7 @@ import {
   MAIN_WIRE_PERIODIC_PVA_OUTPUT_IDS_V1,
 } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import algebraicPulmonaryRootStandard70SurfaceV1 from
   "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
@@ -829,7 +829,7 @@ describe("Article Reader V3 experiment anchor", () => {
     expect(html).not.toContain("min-w-0 px-4 pb-10");
   });
 
-  it("uses the pinned Standard70 disclosure instead of generic MW V3 copy", () => {
+  it("uses the pinned Standard72 disclosure instead of generic MW V3 copy", () => {
     const baseSnapshot = snapshotV3();
     const snapshot: ExperimentSnapshotV2 = {
       ...baseSnapshot,
@@ -838,7 +838,7 @@ describe("Article Reader V3 experiment anchor", () => {
       content: {
         ...baseSnapshot.content,
         modelId:
-          MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+          MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
         surfaceSeriesId:
           algebraicPulmonaryRootStandard70SurfaceV1.surfaceSeriesId,
       },
@@ -846,11 +846,11 @@ describe("Article Reader V3 experiment anchor", () => {
     const contract: ModelContractV2 = {
       ...contractV3(),
       modelId:
-        MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+        MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
     };
     const html = renderExperimentV3({ snapshot, contract, live: true });
 
-    expect(html).toContain("MW 70");
+    expect(html).toContain("MW 72");
     expect(html).not.toContain("MW V3");
   });
 

@@ -2,6 +2,7 @@ import type { ExactModelFixtureProjectionV1 } from
   "@/studio/application/model/ExactModelFixtureProjectionV1";
 import {
   MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
 import {
@@ -23,7 +24,8 @@ export function resolveRegisteredExactModelFixtureProjectionV1(
   const modelId = identity.modelId;
   const fixtureSchemaId = identity.fixtureSchemaId;
   if (
-    modelId === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
+    (modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1
+      || modelId === MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1)
     && fixtureSchemaId
       === MAIN_WIRE_INTEGRATED_STUDIO_SELECTED_AORTIC_OUTFLOW_FIXTURE_SCHEMA_ID_V1
   ) {

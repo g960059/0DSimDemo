@@ -730,6 +730,16 @@
       "Ordinary controls warm-start from the accepted state and model clock. TBV is detached-preflighted; when bounded continuation is required, it may atomically commit a later accepted boundary. Neither transition models an autonomic reflex.",
       "Baseline mint gates, numerical verification, and morphology checks do not establish clinical normality for an individual patient or every loading condition."
     ],
+    "standard71Items": [
+      "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
+      "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
+      "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
+    ],
+    "standard72Items": [
+      "Pressures represent lumped 0D compartments, not local jets, travelling/reflected waves, or a specific catheter or cuff station.",
+      "AoP/PAP are Ao/PA node pressures, without a displayed ZcQ addition or local pressure-recovery correction. They are not interchangeable with Doppler maximum-jet gradients.",
+      "The baseline is a local candidate. Passing numerical/construction checks does not remove reference cautions or establish clinical normality or patient prediction."
+    ],
     "standard70Items": [
       "Research and education only — not a medical device, and not for diagnosis, treatment, or patient-specific decisions.",
       "This is a 0D lumped-parameter model. AoP is the aortic-root compliance-node pressure immediately downstream of the aortic valve, while ABP is systemic arterial compartment pressure. Local pressure recovery is not applied to AoP, and neither is a literal catheter or cuff measurement station.",

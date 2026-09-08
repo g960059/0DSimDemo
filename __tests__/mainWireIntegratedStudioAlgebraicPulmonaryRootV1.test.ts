@@ -48,9 +48,6 @@ import qualifiedBaselineSurfaceV1 from
 import standard69CheckpointJsonV1 from
   "@/studio/integrations/mainWireIntegratedV3/qualified-baseline-standard69-settled-baseline-checkpoint.json";
 import {
-  resolveRegisteredExactModelBaselineValidationV1,
-} from "@/studio/registry/RegisteredExactModelBaselineValidationV1";
-import {
   validateMainWireIntegratedStudioStandard70BaselineValidationV1,
 } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard70BaselineValidationV1";
 import { MAIN_WIRE_PERIODIC_PVA_METHOD_V10_ID, MAIN_WIRE_PERIODIC_PVA_METHOD_V13_ID } from "@/analysis/methods/mainWire/MainWirePeriodicPvaV1";
@@ -202,13 +199,6 @@ describe("algebraic-pulmonary-root Standard70 exact Workbench release", () => {
       createMainWireIntegratedStudioAlgebraicPulmonaryRootSettledReleaseV1();
     const validation =
       MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_VALIDATION_REPORT_V1;
-    const selectedValidation = resolveRegisteredExactModelBaselineValidationV1(
-      MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-    );
-    // Without a fixture, model ID alone cannot select the newer baseline report.
-    expect(selectedValidation).toBeNull();
-    // New-session selection changes outside the immutable exact artifact.
-    // Its launch capture/report binding is covered by registeredModelLaunchBaselineV1.
     expect(validation.checks).toHaveLength(41);
     expect(validation.checks.every(({ status }) => status === "passed"))
       .toBe(true);

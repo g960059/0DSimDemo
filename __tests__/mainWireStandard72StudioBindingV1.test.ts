@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { hotPathIntegrityTierV1, selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { createCircleHeartExactModelReleaseV1 as releaseFactory, MAIN_WIRE_STANDARD72_DEFAULT_FIXTURE_V1 as fixture,
   MAIN_WIRE_STANDARD72_SETTLED_CHECKPOINT_V1 as checkpoint } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1";
@@ -15,6 +15,8 @@ import { resolveMainWireAnalysisMethodsForSurfaceV1 } from "@/analysis/methods/m
 import { assertBoundExecutionPlanV1 } from "@/runtime/executionPlan/BoundExecutionPlanV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_FORMAL_PRESSURE_VOLUME_RELATIONS_V3_ID as pvAnalysis,
   MAIN_WIRE_INTEGRATED_MODEL_GUYTON_STARLING_ORIENTATION_V3_ID as starlingAnalysis } from "@/analysis/methods/mainWire/MainWireStructuralAnalysisContractV3";
+import type { MainWireIntegratedModelStarlingLocusV3 } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
+import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 
 const tbv = "hemodynamics.total-blood-volume-ml", scenarioId = "baseline";
 // This integration test exercises the actual live worker tier; construction,
@@ -32,6 +34,36 @@ async function capture(release: ReturnType<typeof releaseFactory>, runtimeSessio
       scenarios: [{ scenarioId, label: "baseline", fixture }],
       surface: { graphPanes: [], outputPanes: [], controlPanes: [], note: { text: "" } } },
     correlation: { runtimeSessionId, scenarios: [{ scenarioId, expectedInputEpoch: frame.inputEpoch }] } });
+}
+
+function expectQualifiedLowFlowFamily(payload: unknown) {
+  const result = payload as Record<"left" | "right", { starlingLocus: MainWireIntegratedModelStarlingLocusV3 }>;
+  for (const side of ["left", "right"] as const) {
+    const locus = result[side].starlingLocus;
+    expect(locus.status).toBe("measured-fixed-tbv-protocol");
+    if (locus.status !== "measured-fixed-tbv-protocol") throw new Error("expected formal family");
+    const ordered = [...locus.points].sort((a, b) => a.totalBloodVolumeMl - b.totalBloodVolumeMl);
+    expect(ordered.length).toBeGreaterThanOrEqual(4);
+    expect(ordered.length).toBeLessThanOrEqual(7);
+    // Preserve the current Surface's measured low-flow endpoint and marker
+    // spacing guarantees when its exact model changes; staging is not a point.
+    expect(ordered[0]!.totalBloodVolumeMl).toBeLessThan(2600);
+    expect(ordered[0]!.cardiacOutputLPerMin).toBeLessThanOrEqual(0.5);
+    expect(ordered[0]!.fillingPressureMmHg).toBeLessThan(side === "right" ? 0 : 0.35);
+    expect(ordered[0]!.ventricularPressureVolumeLandmarks.endDiastolic.volumeMl).toBeLessThan(40);
+    expect(ordered[1]!.totalBloodVolumeMl - ordered[0]!.totalBloodVolumeMl).toBeGreaterThan(150);
+    expect(ordered[1]!.cardiacOutputLPerMin - ordered[0]!.cardiacOutputLPerMin).toBeGreaterThan(0.3);
+    for (let i = 1; i < ordered.length; i++) {
+      expect(ordered[i]!.totalBloodVolumeMl - ordered[i - 1]!.totalBloodVolumeMl).toBeGreaterThan(200);
+    }
+    for (const point of ordered) {
+      expect(point).toMatchObject({ settled: true, curveEligible: true,
+        quality: "locally-converged", finiteAndFixedTbvPassed: true });
+      expect(point.maximumNormalizedBeatDelta).toBeLessThanOrEqual(1);
+      expect(point.completedBeatCount).toBeGreaterThanOrEqual(3);
+      expect(point.ventricularPressureVolumeLoop.length).toBeGreaterThanOrEqual(12);
+    }
+  }
 }
 
 describe("Standard72 local source release integration", () => {
@@ -84,6 +116,45 @@ describe("Standard72 local source release integration", () => {
     } finally { adapter.disposeSession(runtimeSessionId); }
   }, 30_000);
 
+  it("keeps the runtime usable after the minimum-TBV edit", async () => {
+    const release = releaseFactory(), adapter = release.executables.simulationAdapter;
+    const ids = { runtimeSessionId: "72/tbv-minimum", scenarioId };
+    await adapter.createSession({ runtimeSessionId: ids.runtimeSessionId, scenarios: [{ scenarioId, fixture }] });
+    try {
+      const source = adapter.currentFrame(ids);
+      const changed = await adapter.applyControl({ ...ids, controlId: tbv, value: 4200,
+        expectedInputEpoch: source.inputEpoch });
+      expect(changed.inputEpoch).toBe(source.inputEpoch + 1);
+      const advanced = await adapter.advancePresentationBatch!({ ...ids, stepCount: 8,
+        presentationOutputIds: ["hemodynamics.pressure.absolute.LV", "hemodynamics.pressure.absolute.RV"] });
+      expect(advanced.terminalFrame.acceptedTimeSec).toBeGreaterThan(changed.acceptedTimeSec);
+      expect(Object.values(advanced.terminalFrame.outputs).every(
+        ({ value }) => value === null || Number.isFinite(value),
+      )).toBe(true);
+    } finally { adapter.disposeSession(ids.runtimeSessionId); }
+  }, 60_000);
+
+  it("advances structural ticks without full-state polling and preserves exact continuation", async () => {
+    const [lean, reference] = await Promise.all([
+      Session.restoreStandard72ExactCheckpoint(checkpoint),
+      Session.restoreStandard72ExactCheckpoint(checkpoint),
+    ]);
+    const origin = checkpoint.acceptedTimeSec;
+    const snapshot = vi.spyOn(lean, "currentAcceptedState");
+    try {
+      expect(lean.advanceStructuralAnalysisToPresentationTimeV1(origin + 1).status).toBe("advanced");
+      expect(snapshot).not.toHaveBeenCalled();
+    } finally { snapshot.mockRestore(); }
+    for (let ordinal = 1; ordinal <= 500; ordinal++) {
+      expect(reference.advanceToPresentationTimeWithSelectedOutputProjectionV1(
+        origin + ordinal * 0.002, [],
+      ).advance.status).toBe("advanced");
+    }
+    expect(lean.snapshotAcceptedStateBytes()).toEqual(reference.snapshotAcceptedStateBytes());
+    expect(await lean.checkpointStandard72Exact()).toEqual(await reference.checkpointStandard72Exact());
+    expect(lean.observe()).toEqual(reference.observe());
+  }, 120_000);
+
   it("does not install the settled checkpoint in a different fixture", async () => {
     const release = releaseFactory(), runtimeSessionId = "72/other-fixture", adapter = release.executables.simulationAdapter;
     await adapter.createSession({ runtimeSessionId, scenarios: [{ scenarioId,
@@ -130,12 +201,23 @@ describe("Standard72 local source release integration", () => {
       expect(analysis.payload).toBeTruthy();
       expect(adapter.currentFrame({ runtimeSessionId, scenarioId })).toEqual(before);
       expect((await capture(release, runtimeSessionId)).content.scenarios[0]!.capture.checkpoint.payload).toEqual(beforeCheckpoint);
-      if (analysisId === pvAnalysis) {
-        const payload = analysis.payload as unknown as { left: { starlingLocus: { status: string; points: { ventricularPressureVolumeLoop: unknown[] }[] } } };
-        expect(payload.left.starlingLocus.status).toBe("measured-fixed-tbv-protocol");
-        expect(payload.left.starlingLocus.points.length).toBeGreaterThanOrEqual(4);
-        expect(payload.left.starlingLocus.points.every(p => p.ventricularPressureVolumeLoop.length >= 12)).toBe(true);
-      }
+      if (analysisId === pvAnalysis) expectQualifiedLowFlowFamily(analysis.payload);
     } finally { adapter.disposeSession(runtimeSessionId); }
+  }, 180_000);
+
+  it("keeps edited low-load measurements informative while staging reaches qualified low flow", async () => {
+    const adapter = releaseFactory().executables.simulationAdapter;
+    const ids = { runtimeSessionId: "72/low-load-4650", scenarioId };
+    await adapter.createSession({ runtimeSessionId: ids.runtimeSessionId, scenarios: [{ scenarioId, fixture }] });
+    try {
+      await adapter.applyControl({ ...ids, controlId: tbv, value: 4650,
+        expectedInputEpoch: adapter.currentInputEpoch(ids) });
+      const source = adapter.currentFrame(ids);
+      const result = await adapter.requestAnalysis({ ...ids, analysisId: pvAnalysis,
+        expectedInputEpoch: source.inputEpoch, expectedAcceptedRevision: source.acceptedRevision,
+        expectedAcceptedTimeSec: source.acceptedTimeSec, analysisPartition: "hypovolemic" });
+      expectQualifiedLowFlowFamily(result.payload);
+      expect(adapter.currentFrame(ids)).toEqual(source);
+    } finally { adapter.disposeSession(ids.runtimeSessionId); }
   }, 180_000);
 });

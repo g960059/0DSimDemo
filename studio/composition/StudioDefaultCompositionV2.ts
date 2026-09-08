@@ -35,24 +35,19 @@ import type { ExactModelFixtureProjectionV1 } from
 import { resolveRegisteredExactModelFixtureProjectionV1 } from
   "@/studio/registry/RegisteredExactModelFixtureProjectionV1";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
 } from
   "@/domain/model/MainWireStandardIdentityV1";
 import algebraicPulmonaryRootClientDescriptorV1 from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.client.json";
-import algebraicPulmonaryRootSurfaceReleaseV1, {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V1 as
-    retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_SURFACE_V2 as
-    retainedAlgebraicPulmonaryRootSurfaceReleaseV2,
-} from
-  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioAlgebraicPulmonaryRootSurfaceV1";
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72ExactModelV1.client.json";
+import algebraicPulmonaryRootSurfaceReleaseV1 from
+  "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
 import algebraicPulmonaryRootRegistryAdmissionLockV1 from
-  "@/studio/integrations/mainWireIntegratedV3/algebraic-pulmonary-root-standard70-registry-admission-lock.json";
+  "@/studio/integrations/mainWireIntegratedV3/standard72-registry-admission-lock.json";
 
 export const DEFAULT_STUDIO_MODEL_ID_V2:
-typeof MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1 =
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1;
+typeof MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 =
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
 
 export type StudioClientCompositionV2 = Readonly<{
   exactModel: Readonly<{
@@ -119,13 +114,6 @@ async function createRegistryClientCompositionV2(
     ) {
       return loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1();
     }
-    if (modelId === algebraicPulmonaryRootClientDescriptorV1.manifest.modelId && surfacePin !== undefined) {
-      const retained = [retainedAlgebraicPulmonaryRootSurfaceReleaseV1,
-        retainedAlgebraicPulmonaryRootSurfaceReleaseV2].find((surface) => localSurfacePinMatchesV1(surface, surfacePin));
-      if (retained !== undefined) {
-        return loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(retained);
-      }
-    }
     throw new Error(
       "Unconfigured local registry cannot resolve the requested exact model and Surface pin",
     );
@@ -136,7 +124,7 @@ async function createRegistryClientCompositionV2(
   return composeStudioClientCompositionV2(release);
 }
 
-/** Local default Workbench composition for the Standard70 successor. */
+/** Local current-model composition; the inherited Surface keeps its identity. */
 export function loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1():
 Promise<StudioClientCompositionV2> {
   return loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
@@ -156,7 +144,7 @@ function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
       algebraicPulmonaryRootClientDescriptorV1.schemaId
       !== "circleheart-standard-exact-model-client-descriptor-v1"
     ) {
-      throw new Error("Standard70 client descriptor identity mismatch");
+      throw new Error("Standard72 client descriptor identity mismatch");
     }
     assertExactModelKernelManifestV3(
       algebraicPulmonaryRootClientDescriptorV1.manifest,
@@ -191,12 +179,12 @@ function localAlgebraicPulmonaryRootArtifactUrlV1(): string {
   const loopbackBase = "http://127.0.0.1/";
   const resolved = new URL(
     "../integrations/mainWireIntegratedV3/"
-      + "MainWireIntegratedStudioAlgebraicPulmonaryRootExactModelV1.artifact.mjs",
+      + "MainWireIntegratedStudioStandard72ExactModelV1.artifact.mjs",
     import.meta.url,
   );
   return resolved.protocol === "file:"
     ? new URL(
-        "__circleheart_local_algebraic_pulmonary_root_standard70_artifact__.mjs",
+        "__circleheart_local_standard72_artifact__.mjs",
         loopbackBase,
       ).href
     : localAlgebraicPulmonaryRootArtifactRevisionUrlV1(resolved).href;

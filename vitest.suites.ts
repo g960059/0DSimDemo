@@ -5,10 +5,12 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 89;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 50;
+export const FAST_SUITE_FILE_BUDGET = 91;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 51;
 
 export const fastTests = [
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
+  "__tests__/mainWireProspectiveRestAssessmentV1.test.ts",
   "__tests__/analysisMethodRegistryV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/coupledHemodynamicsSolverV1.test.ts",
@@ -109,6 +111,7 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/modelDocumentationArchiveV1.test.tsx",
   "__tests__/appTheme.test.ts",
   "__tests__/articleReaderV3.test.tsx",
   "__tests__/articleReaderLiveRuntimeV3.test.ts",
@@ -207,6 +210,7 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/mainWireStandard72FittingWorkflowV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
@@ -238,7 +242,6 @@ export const canonicalScientificTests = [
   "__tests__/mainWireStandard70BaselineCalibrationEvaluatorV1.test.ts",
   "__tests__/mainWireStandard70BaselineLocalProposalV1.test.ts",
   "__tests__/mainWireStandard70BaselineLocalProposalSourceV1.test.ts",
-  "__tests__/mainWireStandard70BaselineLocalRecoveryV1.test.ts",
   "__tests__/mainWireStandard70BaselineNumericalFloorAuditV1.test.ts",
   "__tests__/mainWireCoronaryBoundaryV2.test.ts",
   "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",

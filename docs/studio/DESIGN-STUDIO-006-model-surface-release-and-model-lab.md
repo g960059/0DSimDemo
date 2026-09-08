@@ -43,6 +43,12 @@ model. Record the actual source/artifact content hash, inputs, initialization,
 numerical settings, and assessment versions; a dirty worktree's HEAD alone is
 not a reproducible identity. Candidate names are not published contracts.
 
+Before fixing the contract, qualify the intended artifact through the ordinary
+Worker path, including warmed uninterrupted-versus-restored continuation,
+controls and analysis forks. Cold-start or round-trip agreement alone is not
+enough. Use the existing executable tests before finalizing release-specific
+documentation; this is an ordering requirement, not another approval layer.
+
 | Change | Required identity action |
 | --- | --- |
 | Equation, state, solver, event, fixture schema, checkpoint, existing primitive control/signal/metric semantics | New `modelId` |
@@ -85,10 +91,8 @@ path, measurement definitions, and policy. A construction hash alone is not
 sufficient. Preserve original runs and reference flags; reused evidence is not
 a fresh execution of the successor. Release binding may pin the new artifact,
 launch checkpoint, and Surface without changing the scientific assessment.
-The external 1/2 review gate applies to changed scientific judgments, including
-criteria and evidence-reuse decisions, not each mechanical build or registration
-step. A new release/version registry or general-purpose gate language is not
-needed for this separation.
+Rerunning applicable checks is acceptable; evidence reuse is not a prerequisite
+to proceeding and should not become more work than repeating the check.
 
 Reuse documentation modules when authoring, but freeze self-contained documents
 with their actual model/Surface/analysis and assessment references. Sharing

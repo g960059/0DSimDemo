@@ -11,7 +11,7 @@ import {
   type MainWireIntegratedModelBaselineValidationMeasurementsV1,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelBaselineValidationV1";
 import type {
-  MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  MainWireIntegratedModelHemodynamicTraceSampleV3 as MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_BASELINE_VALIDATION_V1_ID =

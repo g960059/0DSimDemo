@@ -98,8 +98,8 @@ jobs:
       - run: npm ci
       - name: Bind retained scientific assessment and qualify deterministic executable
         run: npm run verify:registry:main-wire-standard72-v1
-      - name: Verify admission and checkpoint integration regressions
-        run: npx vitest run __tests__/mainWireStandard72RegistryAdmissionV1.test.ts __tests__/mainWireStandard72CheckpointContinuationV1.test.ts __tests__/mainWireStandard72ConstructionV1.test.ts __tests__/mainWireStandard72StudioBindingV1.test.ts --minWorkers=1 --maxWorkers=2
+      - name: Verify admission, checkpoint and fitting integration regressions
+        run: npx vitest run __tests__/mainWireStandard72RegistryAdmissionV1.test.ts __tests__/mainWireStandard72CheckpointContinuationV1.test.ts __tests__/mainWireStandard72ConstructionV1.test.ts __tests__/mainWireStandard72StudioBindingV1.test.ts __tests__/mainWireStandard72FittingWorkflowV1.test.ts __tests__/mainWireProspectiveRestAssessmentV1.test.ts --minWorkers=1 --maxWorkers=2
 
   test:
     name: Fast tests

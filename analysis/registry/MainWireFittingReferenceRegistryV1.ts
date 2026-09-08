@@ -1,26 +1,22 @@
 import normalReferenceEvidenceV1 from
-  "@/data/physiology/main-wire-normal-reference-evidence-v1.json";
+  "@/data/physiology/main-wire-prospective-reference-evidence-v1.json";
 import {
-  MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
+  MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
 } from "@/domain/model/MainWireStandardIdentityV1";
 import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 } from
   "@/engine/myocardium/MainWireIntegratedModelHemodynamicResearchInputsV3";
 import { validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3 } from
   "@/engine/myocardium/MainWireIntegratedModelMechanismResearchInputsV3";
-import launchBaseline from
-  "@/data/model-baselines/standard70-launch-baseline.json";
-import {
-  MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1_ID,
-} from "@/analysis/policies/mainWire/MainWireBaselineCalibrationStagePolicyV1";
+import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1,
+  MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 } from
+  "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
+import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 } from
+  "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
+import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID } from
+  "@/analysis/registry/MainWireRestingReferenceProfileV1";
 
-// Read selection data only; fitting does not load Studio launch machinery or
-// the physiological presentation report to obtain its starting parameters.
-if (launchBaseline.schemaId !== "circleheart-standard70-launch-baseline-v1"
-  || launchBaseline.modelId !== MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1
-  || !launchBaseline.baselineId.trim()
-  || launchBaseline.candidateInputs.ventricularContractilityScale !== 1) {
-  throw new Error("Fitting baseline selection has an incompatible identity");
-}
+// Standard72 inherits this fixed physical construction; its distinct identity
+// owns the predictor-preserving checkpoint. No Studio presentation dependency.
 
 /**
  * Fitting references are not exact-model registrations. The target policy
@@ -35,20 +31,22 @@ export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
     target: Object.freeze({
       kind: "construction-corridors" as const,
       evidenceRegistryId: normalReferenceEvidenceV1.registryId,
-      stagePolicyId: MAIN_WIRE_BASELINE_CALIBRATION_STAGE_POLICY_V1_ID,
+      evaluationRolePolicyId: normalReferenceEvidenceV1.evaluationPolicyId,
+      admissionPolicyId: MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1.policyId,
+      comparisonProfileId: MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID,
       referenceOutputsAreTargets: false as const,
     }),
     selectedConstruction: Object.freeze({
-      modelId: MAIN_WIRE_INTEGRATED_STUDIO_ALGEBRAIC_PULMONARY_ROOT_MODEL_ID_V1,
-      baselineId: launchBaseline.baselineId,
+      modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as string,
+      baselineId: "standard72-reference-baseline-4935-hr70-v1" as string,
       candidateInputs: Object.freeze({
         hemodynamicResearchInputs:
           validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3(
-            launchBaseline.candidateInputs.hemodynamicResearchInputs),
+            MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1),
         mechanismResearchInputs:
           validateAndOwnMainWireIntegratedModelMechanismResearchInputsV3(
-            launchBaseline.candidateInputs.mechanismResearchInputs),
-        ventricularContractilityScale: launchBaseline.candidateInputs.ventricularContractilityScale,
+            MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1),
+        ventricularContractilityScale: 1,
       }),
     }),
     evidenceRole: "construction" as const,

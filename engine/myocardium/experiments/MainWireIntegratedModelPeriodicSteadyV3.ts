@@ -275,6 +275,14 @@ export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
   }>;
 }>;
 
+/** Exact hemodynamic observations consumed by baseline analysis. Numerical
+ * diagnostics and unused calcium/coronary fields are not required placeholders. */
+export type MainWireIntegratedModelHemodynamicTraceSampleV3 = Pick<
+  MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  "cycleIndex" | "acceptedStepIndexWithinCycle" | "acceptedTimeSec" | "cyclePhase01" | "acceptedDtSec"
+  | "chamberVolumeMl" | "absolutePressureMmHg" | "transmuralPressureMmHg" | "valveFlowMlPerSec" | "acceptedEventIdentity"
+>;
+
 export type MainWireIntegratedModelPeriodicTerminalCycleTraceV3 = Readonly<{
   cycleIndex: number;
   startTimeSec: number;
