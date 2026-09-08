@@ -39,8 +39,9 @@ export async function runMainWireStandard72FittingWorkflowV1(request: Readonly<{
   const evaluation = await evaluate({ candidateInputs, abortSignal: request.abortSignal,
     initialization: checkpoint === undefined ? { kind: "cold" }
       : canonicalJsonStringify(candidateInputs) === canonicalJsonStringify(sourceCandidateInputs)
-        ? { kind: "standard72-exact-checkpoint", checkpoint }
-        : { kind: "standard72-parameter-continuation", checkpoint, sourceCandidateInputs } });
+        ? { kind: "standard72-exact-checkpoint", checkpoint, ...(saved ? { sourceNominalDtSec: saved.evaluation.nominalDtSec } : {}) }
+        : { kind: "standard72-parameter-continuation", checkpoint, sourceCandidateInputs,
+          ...(saved ? { sourceNominalDtSec: saved.evaluation.nominalDtSec } : {}) } });
   if (evaluation.status !== "accepted") return { status: "evaluation-failed" as const, evaluation };
   const body = { schemaId, modelId, reference, referenceIdentitySha256: await sha256CanonicalJsonHex(reference), evaluation };
   const result: MainWireStandard72SavedFittingResultV1 = { ...body, resultSha256: await sha256CanonicalJsonHex(body) };

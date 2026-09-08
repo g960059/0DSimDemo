@@ -3,6 +3,7 @@ import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD70_IDENTITY_V1 } from
   "@/engine/myocardium/MainWireIntegratedModelStandard70CheckpointV1";
 import {
   evaluateMainWireBaselinePressureRateQualityV1,
+  compareMainWirePressureRateObservationsV1,
   assertMainWireBaselinePressureRateQualityV1,
   MAIN_WIRE_BASELINE_PRESSURE_RATE_QUALITY_V1_ID,
   type MainWireBaselinePressureRateQualificationV1,
@@ -12,6 +13,31 @@ type InputV1 = Parameters<typeof evaluateMainWireBaselinePressureRateQualityV1>[
 const ratesV1 = [0, 60, 100, 60, 0, -60, -100, -60, 0];
 
 describe("baseline pressure-rate numerical quality V1", () => {
+  it("shares unchanged observation math without requiring a checkpoint identity", () => {
+    const input = fixtureV1();
+    const observe = (q: MainWireBaselinePressureRateQualificationV1) => ({
+      nominalDtSec: q.nominalDtSec,
+      completedBeat: q.checkpoint.baseStandardCheckpointV2.completedBeatMetrics,
+      terminalTrace: q.terminalTrace,
+    });
+    const pair = { coarse: observe(input.coarse.qualification), fine: observe(input.fine.qualification) };
+    expect(compareMainWirePressureRateObservationsV1(pair))
+      .toEqual(evaluateMainWireBaselinePressureRateQualityV1(input).checks);
+    expect(() => compareMainWirePressureRateObservationsV1({ ...pair,
+      fine: { ...pair.fine, nominalDtSec: pair.coarse.nominalDtSec } })).toThrow(/dt halving/);
+    expect(compareMainWirePressureRateObservationsV1({ ...pair,
+      fine: { ...pair.fine, completedBeat: null } }).every(c => c.status === "unresolved")).toBe(true);
+  });
+
+  it("preserves the reviewed single adjacent segment support rule", () => {
+    const input = fixtureV1();
+    const qualification = qualificationV1(0.125, [0, 0, 100, 60, 0, 0, -100, -60, 0]);
+    const report = evaluateMainWireBaselinePressureRateQualityV1({ ...input, coarse: { ...input.coarse, qualification } });
+    expect(report.status).toBe("passed");
+    expect(report.checks[0]!.coarse).toMatchObject({ previousSameSignFraction: 0, nextSameSignFraction: .6 });
+    expect(() => assertMainWireBaselinePressureRateQualityV1(report)).not.toThrow();
+  });
+
   it("reports four supported extrema without claiming normality, accuracy or convergence", () => {
     const input = fixtureV1(50, 50);
     const before = JSON.stringify(input);

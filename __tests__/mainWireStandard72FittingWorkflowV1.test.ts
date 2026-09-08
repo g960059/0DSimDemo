@@ -54,20 +54,44 @@ describe("current exact72 fitting workflow", () => {
     expect(rerun.result.evaluation.checkpoint.acceptedTimeSec).toBeGreaterThan(saved.evaluation.checkpoint.acceptedTimeSec);
   }, 15_000);
 
-  it("matches uninterrupted selected-projection continuation from a warm predictor checkpoint", async () => {
+  it.each([.002, .001] as const)("matches uninterrupted selected-projection continuation on the %s schedule", async dt => {
     const live = await Session.restoreStandard72ExactCheckpoint(checkpoint);
     const start = live.currentAcceptedState().acceptedTimeSec;
     for (let i = 1; i <= 8; i++) live.advanceToPresentationTimeWithSelectedOutputProjectionV1(start + i * .002, []);
     const warm = await live.checkpointStandard72Exact();
     expect(warm.coupledPredictor.historyDepth).toBeGreaterThanOrEqual(3);
     const traced = await Session.restoreStandard72ExactCheckpoint(warm);
-    const samples = collect(traced, fixture(), 1);
+    const samples = collect(traced, fixture(), 1, dt);
+    expect(samples.every(s => s.acceptedDtSec > 0 && s.acceptedDtSec <= dt + 1e-12)).toBe(true);
     for (const sample of samples) {
       const actual = live.advanceToPresentationTimeWithSelectedOutputProjectionV1(sample.acceptedTimeSec, ["hemodynamics.pressure.absolute.LV"]);
       expect(actual.projectedValues?.["hemodynamics.pressure.absolute.LV"].value).toBe(sample.absolutePressureMmHg.LV);
     }
     expect(await traced.checkpointStandard72Exact()).toEqual(await live.checkpointStandard72Exact());
   }, 15_000);
+
+  it("records a 1ms re-evaluation and real same-grid timing lookahead without claiming cold provenance", async () => {
+    const result = await evaluate({ nominalDtSec: .001, retainTerminalDiagnostics: true,
+      initialization: { kind: "standard72-exact-checkpoint", checkpoint, sourceNominalDtSec: .002 } });
+    expect(result).toMatchObject({ status: "accepted", nominalDtSec: .001,
+      initialization: { kind: "standard72-exact-checkpoint", sourceNominalDtSec: .002 },
+      rest: { status: "passed" }, diagnostics: { allOffAndOwnerClocksCheckedEveryStep: true } });
+    if (result.status !== "accepted" || !result.diagnostics) throw new Error(JSON.stringify(result));
+    const d = result.diagnostics;
+    expect(d.timingAndInletTrace.every(s => s.acceptedDtSec > 0 && s.acceptedDtSec <= .001 + 1e-12)).toBe(true);
+    expect(d.cycleEvidence).toHaveLength(result.completedCycleCount);
+    expect(d.cycleEvidence.every(c => c.atrialCaptureCount === 1 && c.ventricularCaptureCount === 1
+      && c.maximumGlobalVolumeErrorMl <= 1e-8 && c.maximumCoronaryLedgerErrorMl <= 1e-8)).toBe(true);
+    expect(d.completedBeat).toEqual(result.checkpoint.baseStandardCheckpointV2.completedBeatMetrics);
+    expect(d.terminalTrace.at(-1)!.acceptedTimeSec).toBe(result.checkpoint.acceptedTimeSec);
+    expect(d.timingAndInletTrace.at(-1)!.acceptedTimeSec).toBeGreaterThan(result.checkpoint.acceptedTimeSec);
+  }, 20_000);
+
+  it("rejects unsupported requested or source analysis grids", async () => {
+    expect(await evaluate({ nominalDtSec: .004 as .002 })).toMatchObject({ status: "invalid-or-physical", phase: "request-validation" });
+    expect(await evaluate({ initialization: { kind: "standard72-exact-checkpoint", checkpoint, sourceNominalDtSec: .004 as .002 } }))
+      .toMatchObject({ status: "invalid-or-physical", phase: "request-validation" });
+  });
 
   it("rejects stale records and rehashed candidate/checkpoint mismatches", async () => {
     const edited = JSON.parse(JSON.stringify(saved));

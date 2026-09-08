@@ -5,12 +5,16 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 91;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 51;
+export const FAST_SUITE_FILE_BUDGET = 95;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 55;
 
 export const fastTests = [
   "__tests__/modelDocumentationArchiveV1.test.tsx",
+  "__tests__/mainWirePreloadReserveResearchScreenV2.test.ts",
+  "__tests__/mainWireProspectiveBaselineAdmissionV1.test.ts",
   "__tests__/mainWireProspectiveRestAssessmentV1.test.ts",
+  "__tests__/mainWireRelaxationTauV1.test.ts",
+  "__tests__/mainWireStandard72FittingQualificationV1.test.ts",
   "__tests__/analysisMethodRegistryV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/coupledHemodynamicsSolverV1.test.ts",
@@ -112,6 +116,10 @@ export const fastTests = [
  */
 export const prSmokeTests = [
   "__tests__/modelDocumentationArchiveV1.test.tsx",
+  "__tests__/mainWirePreloadReserveResearchScreenV2.test.ts",
+  "__tests__/mainWireProspectiveBaselineAdmissionV1.test.ts",
+  "__tests__/mainWireRelaxationTauV1.test.ts",
+  "__tests__/mainWireStandard72FittingQualificationV1.test.ts",
   "__tests__/appTheme.test.ts",
   "__tests__/articleReaderV3.test.tsx",
   "__tests__/articleReaderLiveRuntimeV3.test.ts",
@@ -211,6 +219,7 @@ export const regressionTests = [
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
   "__tests__/mainWireStandard72FittingWorkflowV1.test.ts",
+  "__tests__/mainWireStandard72PreloadReserveV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
