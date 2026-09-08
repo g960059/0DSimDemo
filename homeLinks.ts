@@ -48,16 +48,19 @@ export const modelDocumentationHref = ({
   locale,
   modelId,
   surfaceReleaseId,
+  documentId,
 }: Readonly<{
   locale?: Locale;
   modelId: string;
   surfaceReleaseId: string;
+  documentId?: string;
 }>) => {
   const path = prefixPath(
     `/models/${encodeURIComponent(modelId)}`,
     locale,
   );
   const search = new URLSearchParams({ surface: surfaceReleaseId });
+  if (documentId) search.set("document", documentId);
   return `${path}?${search.toString()}`;
 };
 

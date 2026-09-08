@@ -1,7 +1,25 @@
 import type archivedDocument from "./packages/standard71-document-v1.json";
 import type { Locale } from "@/localeRouting";
 
-export type MainWireBaselineSnapshotV1 = typeof archivedDocument.scientificRecord.measurements;
+type Original = typeof archivedDocument.scientificRecord.measurements;
+type RecordedObservation = Original["observations"][number];
+type RecordedComparison = RecordedObservation["rest"]["comparison"];
+type RestProjection = Omit<RecordedObservation["rest"], "comparison"> & {
+  comparison: Omit<RecordedComparison, "entries"> & {
+    entries: Omit<RecordedComparison["entries"][number], "historicalCheckId">[];
+  };
+};
+type ReadonlyTree<T> = T extends object ? { readonly [K in keyof T]: ReadonlyTree<T[K]> } : T;
+// Presentation projection, not the entire historical qualification schema.
+export type MainWireBaselineSnapshotV1 = ReadonlyTree<
+  Pick<Original, "modelId" | "surfaceReleaseId" | "surfaceSeriesId" | "baselineId" | "fixtureIdentity"
+    | "settings" | "material" | "calcium" | "assembly" | "evidence" | "morphologyPolicy" | "settlementPolicy" | "tauPolicy">
+  & {
+    qualification: Pick<Original["qualification"], "cycles" | "checkpoint" | "launchPreparation">;
+    admission: Pick<Original["admission"], "policy" | "constructionSha256" | "pressureRateQuality" | "reserve">;
+    observations: (Pick<RecordedObservation, "dtSec" | "native" | "tau" | "checks" | "measurements" | "reserveMeasurement">
+      & { rest: RestProjection })[];
+  }>;
 export type BaselineDocumentationRowV1 = Readonly<{
   id: string; label: string; value: number | null; unit: string;
   role: "target" | "guard" | "reference" | "numerical";

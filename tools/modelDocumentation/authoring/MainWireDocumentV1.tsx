@@ -140,6 +140,9 @@ const reserveFloor = (field: string) => {
   const rows = mainWireBaselineRowsV1(doc, grid, locale);
   const warn = rows.filter(r => r.status === "warning");
   const hemo = doc.fixtureIdentity.hemodynamicResearchInputs;
+  const active = doc.fixtureIdentity.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall;
+  const commonActive = active.LVFW === active.SEP && active.LVFW === active.RVFW
+    ? number(active.LVFW) : text(locale, "壁別", "Wall-specific");
   const headings = [
     ["overview", text(locale, "全体像", "Overview")], ["mechanisms", text(locale, "しくみ", "Mechanisms")],
     ["settings", text(locale, "baselineの設定", "Baseline settings")], ["baseline", text(locale, "baselineの評価", "Baseline assessment")],
@@ -206,15 +209,15 @@ const reserveFloor = (field: string) => {
       </section>
       <section id="settings" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{headings[2][1]}</h2>
-        <p className={paragraph}>{text(locale, "安静・洞調律・補助循環なしの基準作動点です。体格BSA 1.9 m²、年齢・性別は特定していません。今回の検証はHR 70で行っています。症例presetや患者デモにこのbaselineの評価範囲をそのまま強制するものではありません。", "A resting, sinus, unassisted operating point at BSA 1.9 m², without an assigned age or sex. This evidence is for HR 70. Its baseline intervals are not automatically imposed on disease presets or patient demos.")}</p>
+        <p className={paragraph}>{text(locale, "安静・洞調律・補助循環なしの基準作動点です。体格と心拍数は下に示す値で、年齢・性別は特定していません。症例presetや患者デモにこのbaselineの評価範囲をそのまま強制するものではありません。", "A resting, sinus, unassisted operating point at the body size and heart rate shown below, without an assigned age or sex. Its baseline intervals are not automatically imposed on disease presets or patient demos.")}</p>
         <dl className="my-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-wb-line bg-wb-line sm:grid-cols-4">
-          {[["HR", `${hemo.heartRateBpm} bpm`], ["TBV", `${hemo.totalBloodVolumeMl} mL`], ["BSA", `${o.rest.comparison.subject.bodySurfaceAreaM2} m²`], [text(locale, "収縮力倍率", "Contractility"), number(doc.fixtureIdentity.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall.LVFW)]].map(([k,v]) => <div key={k} className="bg-wb-panel p-4"><dt className="text-xs text-wb-subtle">{k}</dt><dd className="mt-2 font-medium tabular-nums">{v}</dd></div>)}
+          {[["HR", `${hemo.heartRateBpm} bpm`], ["TBV", `${hemo.totalBloodVolumeMl} mL`], ["BSA", `${o.rest.comparison.subject.bodySurfaceAreaM2} m²`], [text(locale, "収縮力倍率", "Contractility"), commonActive]].map(([k,v]) => <div key={k} className="bg-wb-panel p-4"><dt className="text-xs text-wb-subtle">{k}</dt><dd className="mt-2 font-medium tabular-nums">{v}</dd></div>)}
         </dl>
         <p className={paragraph}>{text(locale, "心筋の物性やCa波形の係数はモデルの基礎として固定し、症例の操作には総血液量・抵抗・収縮力倍率などを使います。収縮力1はこのモデルの基準張力に対する倍率です。正常な収縮力の絶対単位を意味しません。", "Constitutive/calcium calibration is separate from day-to-day case controls. Contractility 1 scales this model's reference material; it is not an absolute unit of normal contractility.")}</p>
         <Detail title={text(locale, "採用値とパラメータ設定", "Adopted settings and control domains")}>
           <p className={paragraph}>{text(locale, "以下は保存されたbaselineの設定値です。血圧・拍出・充満・予備能を同時に評価して選んだ組み合わせで、各係数を実測から一つずつ同定した値ではありません。操作方法と設定可能な範囲は、workbenchの項目説明で確認できます。", "These saved baseline settings were selected jointly for pressure, output, filling and reserve, not individually identified from measurements. Control usage and accepted domains are explained in the workbench.")}</p>
           <p className={`mt-3 ${paragraph}`}>{text(locale, "静脈トーンを増やすと、圧を生まずに収容できる静脈血液量が減ります。総血液量を増やす操作とは異なり、血液の配分を変えます。抵抗と動脈の硬さの設定値は基準に対する倍率です。表の共通心室能動張力は、左右自由壁と中隔の値を一括指定する操作で、個別値に重ねて掛ける別係数ではありません。", "Venous tone reduces unstressed venous capacity and redistributes blood rather than adding volume. Resistance and arterial stiffness values are relative scales. The common ventricular control sets both free walls and septum together; it is not another multiplier applied over the individual wall values.")}</p>
-          <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-wb-line"><th className="p-2">{text(locale, "パラメータ", "Parameter")}</th><th className="p-2">baseline</th></tr></thead><tbody>{doc.settings.map(c => <tr key={c.controlId} className="border-b border-wb-line" data-control-id={c.controlId}><th scope="row" className="p-2 font-normal">{controlLabel(c.controlId, locale)}</th><td className="whitespace-nowrap p-2 tabular-nums">{parameterNumber(c.defaultValue)} {c.unit === "1" ? text(locale, "（無次元）", "(dimensionless)") : c.unit === "cm2" ? "cm²" : c.unit}</td></tr>)}</tbody></table></div>
+          <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-wb-line"><th className="p-2">{text(locale, "パラメータ", "Parameter")}</th><th className="p-2">baseline</th></tr></thead><tbody>{doc.settings.map(c => <tr key={c.controlId} className="border-b border-wb-line" data-control-id={c.controlId}><th scope="row" className="p-2 font-normal">{controlLabel(c.controlId, locale)}</th><td className="whitespace-nowrap p-2 tabular-nums">{c.defaultValue === null ? text(locale, "壁別の設定を参照", "See individual wall settings") : parameterNumber(c.defaultValue)} {c.unit === "1" ? text(locale, "（無次元）", "(dimensionless)") : c.unit === "cm2" ? "cm²" : c.unit}</td></tr>)}</tbody></table></div>
         </Detail>
         <Detail title={text(locale, "固定した材料・Ca源と来歴", "Fixed material, calcium source and provenance")}>
           <p className={paragraph}>{text(locale, "心室のLand由来係数。原著の値と採用値を区別します。単位が違う行は換算も含みます。Tref・Ca感受性・結合速度の変更は閉ループ校正であり、個々の係数を正常ヒト実測から独立に同定したものではありません。", "Ventricular Land-derived coefficients: source and adopted values are distinct; some rows include unit conversion. Changes in tension scale, calcium affinity and binding kinetics are closed-loop calibration, not independent identification of healthy-human coefficients.")}</p>
@@ -232,7 +235,7 @@ const reserveFloor = (field: string) => {
         <div className="my-5 rounded-lg border border-wb-line bg-wb-panel p-4 text-sm leading-7">
           <p>{doc.copy.assessment[locale]}</p>
           <p className="mt-2 text-amber-400">{text(locale, "参考警告：", "Reference flags: ")}{warn.map(r => r.label).join(" / ") || "—"}</p>
-          <p className="mt-2 text-xs text-wb-muted">{text(locale, "PAP拡張期値、LVの等容期・Tei・dP/dtには参考範囲からの逸脱が残ります。範囲内の値についても、実測との同等性や多様な症例での妥当性が確認されたことにはなりません。", "Diastolic PAP and LV timing/dP/dt retain reference cautions. Even an in-range value does not establish measurement equivalence or validity across clinical cases.")}</p>
+          <p className="mt-2 text-xs text-wb-muted">{text(locale, "参考範囲外の項目は上に列挙しています。範囲内の値についても、実測との同等性や多様な症例での妥当性が確認されたことにはなりません。", "Reference cautions are listed above. Even an in-range value does not establish measurement equivalence or validity across clinical cases.")}</p>
         </div>
         <label data-document-record-selector className="mb-4 flex flex-wrap items-center gap-3 text-xs text-wb-muted">{text(locale, "表示する検証記録", "Assessment record")}
           <select data-document-action="record" aria-label={text(locale, "検証記録", "Assessment record")} value={grid} onChange={() => {}} className={`rounded border border-wb-line bg-wb-panel px-3 py-2 text-wb-text ${focus}`}>
@@ -281,7 +284,7 @@ const reserveFloor = (field: string) => {
             ΔCO/Δ{ text(locale, "充満圧", "filling P")} ≥{reserveFloor("CO-pressure-secant-residual")} L/min/mmHg。
             {text(locale, "添字0はbaseline値です。低容量では減少、高容量では増加するという方向の条件も必要です。", "Subscript 0 denotes baseline. The required decrease/increase direction is also checked.")}
           </p>
-          <p className="mt-3 text-xs leading-6 text-wb-subtle">{text(locale, "低容量側のRV経壁圧には、時間刻みを変えると約7%の差が残ります。増減後の全条件でτや振動を厳密に再検査すること、最後の3拍の心房圧のずれをmmHgで示すことは未実施です。後負荷試験は含みません。", "Low-volume RV transmural pressure retains about 7% grid sensitivity. Comprehensive endpoint τ/ringing reassessment and last-three-beat atrial-pressure drift in mmHg are not available. No afterload test is included.")}</p>
+          <p className="mt-3 text-xs leading-6 text-wb-subtle">{text(locale, "二つの刻みの一致は、完全な数値収束の証明ではありません。容量変更後の全条件におけるτ・波形の詳細評価は、この採用条件には含みません。後負荷試験も含みません。", "Two-grid agreement is not a full convergence proof. Detailed endpoint τ/morphology assessment is outside this admission scope. No afterload test is included.")}</p>
           <a href={`https://doi.org/${doc.admission.reserve.policy.source.doi}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-xs text-wb-accent underline">{doc.admission.reserve.policy.source.locator}</a>
         </Detail>
       </section>

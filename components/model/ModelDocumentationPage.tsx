@@ -33,15 +33,17 @@ export function ModelDocumentationPage() {
   const [search] = useSearchParams();
   const locale = localeFromPathname(location.pathname);
   const surfaceReleaseId = search.get("surface");
+  const documentId = search.get("document");
   const identity = resolveRegisteredModelDocumentationV1(
     modelId,
     surfaceReleaseId,
+    documentId,
   );
   const Document = React.useMemo(() => React.lazy(async () => {
-    const document = await resolveSavedModelDocumentV1(modelId, surfaceReleaseId);
+    const document = await resolveSavedModelDocumentV1(modelId, surfaceReleaseId, documentId);
     if (!document) throw new Error("Documentation is unavailable for this exact model and Surface");
     return { default: ({ locale }: { locale: Locale }) => <SavedModelDocumentationV1 document={document} locale={locale} /> };
-  }), [modelId, surfaceReleaseId]);
+  }), [modelId, surfaceReleaseId, documentId]);
 
   if (identity === null) {
     const text = UNAVAILABLE_COPY[locale];
@@ -68,19 +70,19 @@ export function ModelDocumentationPage() {
 
   return <div className="flex h-full min-h-0 flex-col bg-wb-app text-wb-text">
     <div className="flex shrink-0 items-center justify-end gap-3 border-b border-wb-line px-5 py-2">
-      <label htmlFor="documentation-model-version" className="text-xs text-wb-muted">{locale === "ja" ? "モデル" : "Model"}</label>
-      <select id="documentation-model-version" value={identity!.modelId}
+      <label htmlFor="documentation-model-version" className="text-xs text-wb-muted">{locale === "ja" ? "文書" : "Document"}</label>
+      <select id="documentation-model-version" value={identity!.documentId}
         className="max-w-[75%] rounded border border-wb-line bg-wb-panel px-3 py-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent"
         onChange={event => {
-          const entry = REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.find(e => e.identity.modelId === event.target.value);
-          if (entry) navigate(modelDocumentationHref({ locale, modelId: entry.identity.modelId, surfaceReleaseId: entry.identity.surfaceReleaseId }));
+          const entry = REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.find(e => e.identity.documentId === event.target.value);
+          if (entry) navigate(modelDocumentationHref({ locale, ...entry.identity }));
         }}>
-        {REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(e => <option key={e.identity.modelId} value={e.identity.modelId}>
+        {REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(e => <option key={e.identity.documentId} value={e.identity.documentId}>
           {e.label}{e.candidate ? locale === "ja" ? " · ローカル候補" : " · local candidate" : ""}
         </option>)}
       </select>
     </div>
-    <div className="min-h-0 flex-1" key={identity!.modelId}>
+    <div className="min-h-0 flex-1" key={identity!.documentId}>
       <React.Suspense fallback={<p className="p-8 text-sm text-wb-muted" role="status">{locale === "ja" ? "文書を読み込んでいます…" : "Loading documentation…"}</p>}>
         <Document locale={locale} />
       </React.Suspense>

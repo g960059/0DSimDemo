@@ -17,6 +17,11 @@ import { mainWireBaselineAssessmentPresentationV1 } from "@/studio/presentation/
 import binding from "@/studio/integrations/mainWireIntegratedV3/standard72-baseline-binding-evidence.json";
 import eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
 import { STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID } from "@/studio/contracts/v2/content";
+import { CURRENT_BASELINE_V1 as adopted } from "@/data/model-baselines/CurrentBaselineV1";
+import selected from "@/data/model-baselines/current-baseline-selection-v1.json";
+import savedDocument from "@/studio/presentation/modelDocumentation/packages/standard72-document-v1.json";
+import { stageAdoptedBaselineV1 } from "@/tools/modelBaselines/StageAdoptedBaselineV1";
+import { createHash } from "node:crypto";
 
 // Known baseline capture; synthetic hashes test package integrity, not final
 // scientific qualification. The exporter re-observes the real paired report.
@@ -29,7 +34,8 @@ async function packageFixture() {
     surfaceReleaseId: surface.surfaceReleaseId, artifactRevisionId: lock.artifactRevisionId, artifactSha256: lock.artifactSha256,
     fixtureSha256: await sha256CanonicalJsonHex(baseline.fixture),
     assessment: { rest: binding.rest, native: eligibility.observations[0]!.native,
-      tau: eligibility.observations[0]!.tau, beat: {
+      tau: { weiss: { tauMs: eligibility.observations[0]!.tau.weiss.tauMs },
+        glantz: { tauMs: eligibility.observations[0]!.tau.glantz.tauMs } }, beat: {
         ventricularAbsolutePressureRateExtrema: checkpoint.baseStandardCheckpointV2.completedBeatMetrics.ventricularAbsolutePressureRateExtrema,
         valveForwardPressureGradients: checkpoint.baseStandardCheckpointV2.completedBeatMetrics.valveForwardPressureGradients }, reserveVerified: true },
     evidence: { qualificationReportSha256: "a".repeat(64), qualificationPolicySha256: "b".repeat(64),
@@ -42,6 +48,14 @@ async function packageFixture() {
 describe("current Standard72 launch baseline", () => {
   afterEach(() => { vi.restoreAllMocks(); invalidateStudioClientCompositionCachesV2(); });
   it("binds own settled capture to the reviewed fixture and fitting selection", async () => {
+    const { recordSha256, ...recordBody } = adopted;
+    expect(await sha256CanonicalJsonHex(recordBody)).toBe(recordSha256);
+    expect(selected.recordSha256).toBe(recordSha256);
+    expect(selected.document).toEqual({ documentId: savedDocument.documentId, contentSha256: savedDocument.contentSha256 });
+    expect(selected.baselineId).toBe(savedDocument.identity.baselineId);
+    expect(baseline.assessment).toBe(adopted.assessment);
+    expect(baseline.document).toBe(adopted.document);
+    expect(fittingSeed.checkpoint).toBe(adopted.capture.checkpoint.payload);
     const raw = baseline.checkpoint.payload as Record<string, unknown>;
     const { checkpointSha256, ...body } = raw;
     expect(await sha256CanonicalJsonHex(body)).toBe(checkpointSha256);
@@ -152,5 +166,32 @@ describe("current Standard72 launch baseline", () => {
       changed.recordSha256 = await sha256CanonicalJsonHex(body);
       await expect(readPreparedBaselineCaseV1(changed)).rejects.toThrow();
     }
+  });
+  it("stages a bound case/document pair without selecting or relabeling another baseline", async () => {
+    // Synthetic document/package binding only; real qualification + compiler
+    // roundtrip is exercised by the local CLI, not claimed by this fixture.
+    const prepared = await packageFixture(), before = JSON.stringify(adopted);
+    const document = JSON.parse(JSON.stringify(savedDocument));
+    document.documentId = "synthetic-binding-only";
+    document.identity.baselineId = prepared.preset.presetId;
+    const m = document.scientificRecord.measurements;
+    m.schemaId = "main-wire-fitted-baseline-documentation-v1";
+    Object.assign(m.qualification, { preparedCaseSha256: prepared.recordSha256,
+      reportSha256: prepared.evidence.qualificationReportSha256,
+      policyIdentitySha256: prepared.evidence.qualificationPolicySha256,
+      executionSourceSha256: prepared.evidence.executionSourceSha256 });
+    m.observations[0].beat = prepared.assessment.beat;
+    const sign = () => { const { contentSha256: _old, ...body } = document;
+      document.contentSha256 = createHash("sha256").update(JSON.stringify(body)).digest("hex"); };
+    sign();
+    const staged = await stageAdoptedBaselineV1(prepared, document);
+    expect(staged.record.capture).toEqual(prepared.preset.capture);
+    expect(staged.record.assessment).toEqual(prepared.assessment);
+    expect(staged.selection.document.documentId).toBe("synthetic-binding-only");
+    expect(staged.record.publicBaselinePromotionAuthorized).toBe(false);
+    expect(JSON.stringify(adopted)).toBe(before);
+    await expect(stageAdoptedBaselineV1(prepared, savedDocument)).rejects.toThrow(/own compiled document/);
+    m.observations[0].rest.operating[0].actual += 1; sign();
+    await expect(stageAdoptedBaselineV1(prepared, document)).rejects.toThrow(/header assessment/);
   });
 });

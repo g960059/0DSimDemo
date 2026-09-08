@@ -671,6 +671,7 @@ function ArticleReaderLiveDetailV3({
         locale: isLocale(language) ? language : undefined,
         modelId: documentation.modelId,
         surfaceReleaseId: documentation.surfaceReleaseId,
+        documentId: documentation.documentId,
       });
   const modelLimitations = t(modelDisclosure.limitationsTranslationKey, {
     returnObjects: true,

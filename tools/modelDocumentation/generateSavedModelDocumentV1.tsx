@@ -6,7 +6,7 @@ import { compile } from "@tailwindcss/node";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { MainWireDocumentV1 } from "./authoring/MainWireDocumentV1";
@@ -14,16 +14,35 @@ import { STANDARD72_DOCUMENT_COMPOSITION_V1 } from "./authoring/Standard72Docume
 import { MAIN_WIRE_MODEL_MODULES_V1 } from "@/studio/presentation/modelDocumentation/MainWireModelModulesV1";
 import { MAIN_WIRE_EQUATION_SPECIFICATION_V1 } from "@/studio/presentation/modelDocumentation/MainWireEquationSpecificationV1";
 import { savedDocumentOfflineHtmlV1, type SavedModelDocumentV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentV1";
+import { composeFittedBaselineDocumentV1 } from "./authoring/FittedBaselineDocumentCompositionV1";
+import { readBoundFittingQualificationV1 } from "../modelBaselines/ReadBoundFittingQualificationV1";
 
-// Explicit mint-time compiler. Never invoked by a reader, npm build, or model
+// Explicit document compiler. Never invoked by a reader, npm build, or model
 // activation. This freezes existing explanations; it neither simulates nor votes.
 const compositions = { "standard72-document-v1": STANDARD72_DOCUMENT_COMPOSITION_V1 };
 const requested = process.argv.find(arg => arg in compositions);
-if (!requested) throw new Error("Pass a registered authoring composition document ID");
-const composition = compositions[requested as keyof typeof compositions];
+const arg = (key: string) => { const index = process.argv.indexOf(key); return index < 0 ? undefined : process.argv[index + 1]; };
+const casePath = arg("--case"), qualificationPath = arg("--qualification"), fittedId = arg("--document-id");
+if (process.argv.includes("--help")) {
+  console.log("Pass a registered document ID, or --case CASE_JSON --qualification FINAL_JSON --document-id NEW_DOCUMENT_ID [--output-dir NEW_DIRECTORY]. Generates a self-contained document; never changes the selected baseline or an existing archive.");
+  process.exit(0);
+}
+if (!requested && !(casePath && qualificationPath && fittedId)) throw new Error("Require a composition ID or --case, --qualification and --document-id");
+if (requested && casePath) throw new Error("Choose a fixed composition or a fitted case, not both");
+const source = qualificationPath ? await readBoundFittingQualificationV1(qualificationPath) : null;
+const caseJson = casePath ? JSON.parse(await readFile(casePath, "utf8")) : null;
+if (source && caseJson.evidence.executionSourceSha256 !== source.executionSourceSha256) throw new Error("Case and qualification execution source differ");
+const composition = casePath ? await composeFittedBaselineDocumentV1({
+  preparedCase: caseJson, qualification: source!.qualification, documentId: fittedId!,
+}) : compositions[requested as keyof typeof compositions];
 const { documentId, measurements, content } = composition;
 const { equations, moduleIds } = content;
-const target = `studio/presentation/modelDocumentation/packages/${documentId}.json`;
+const target = path.join(arg("--output-dir") ?? "studio/presentation/modelDocumentation/packages", `${documentId}.json`);
+const archiveDirectory = `artifacts/model-documentation/releases/${documentId}`;
+if (!process.argv.includes("--check") && (existsSync(target) || existsSync(target.replace(/\.json$/, ".index.json"))
+  || existsSync(archiveDirectory))) {
+  throw new Error("Document already exists. Preserve it and choose a new document ID.");
+}
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const files = [
   "tools/modelDocumentation/generateSavedModelDocumentV1.tsx",
@@ -43,6 +62,10 @@ const files = [
   "data/model-baselines/standard72-reviewed-executable-v1.json",
   "studio/presentation/StudioItemPresentationCatalogV1.ts",
   "locales/ja/translation.json", "locales/en/translation.json", "index.css",
+  ...(casePath ? [casePath, qualificationPath!, `${qualificationPath}.source.json`,
+    "studio/presentation/modelDocumentation/packages/standard72-document-v1.json",
+    "tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1.ts",
+    "tools/modelBaselines/ReadBoundFittingQualificationV1.ts"] : []),
 ];
 const browser = await chromium.launch({ headless: true });
 const classes = new Set<string>(["my-5", "text-sm", "mx-auto", "max-w-4xl", "px-5", "py-8", "text-xs"]);
@@ -138,18 +161,18 @@ if (process.argv.includes("--check")) {
   if (await readFile(indexTarget, "utf8") !== index) throw new Error("Document index differs from saved package");
 } else {
   await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, serialized);
-  await writeFile(indexTarget, index);
+  await writeFile(target, serialized, { flag: "wx" });
+  await writeFile(indexTarget, index, { flag: "wx" });
 }
 // A portable fallback outside the application build, with no service or worker.
-const archiveDirectory = `artifacts/model-documentation/releases/${documentId}`;
 if (!process.argv.includes("--check")) {
-  await mkdir(archiveDirectory, { recursive: true });
+  await mkdir(path.dirname(archiveDirectory), { recursive: true });
+  await mkdir(archiveDirectory);
   for (const locale of ["ja", "en"] as const) {
-    await writeFile(`${archiveDirectory}/${locale}.html`, savedDocumentOfflineHtmlV1(savedPackage, locale));
-    await writeFile(`${archiveDirectory}/${locale}.csv`, savedPackage.views[locale].tablesCsv);
+    await writeFile(`${archiveDirectory}/${locale}.html`, savedDocumentOfflineHtmlV1(savedPackage, locale), { flag: "wx" });
+    await writeFile(`${archiveDirectory}/${locale}.csv`, savedPackage.views[locale].tablesCsv, { flag: "wx" });
   }
-  await writeFile(`${archiveDirectory}/document.json`, serialized);
+  await writeFile(`${archiveDirectory}/document.json`, serialized, { flag: "wx" });
 }
 console.log(JSON.stringify({ target, archiveDirectory, bytes: Buffer.byteLength(serialized), contentSha256: savedPackage.contentSha256,
   uncommittedSources: savedPackage.provenance.uncommittedSources, simulated: false, promoted: false }));

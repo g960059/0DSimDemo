@@ -494,6 +494,7 @@ export const WorkbenchSession = ({
         locale: isLocale(locale) ? locale : undefined,
         modelId: modelDocumentation.modelId,
         surfaceReleaseId: modelDocumentation.surfaceReleaseId,
+        documentId: modelDocumentation.documentId,
       });
   const modelLimitationsKey = modelDisclosure.limitationsTranslationKey;
   const baselineValidationPresentation = modelLab && preparedBaseline && contract?.modelId === preparedBaseline.preset.modelId

@@ -1,5 +1,6 @@
 import standard71 from "./packages/standard71-document-v1.index.json";
 import standard72 from "./packages/standard72-document-v1.index.json";
+import selection from "@/data/model-baselines/current-baseline-selection-v1.json";
 import { savedDocumentMatchesV1, type SavedModelDocumentV1 } from "./SavedModelDocumentV1";
 
 // This local document catalog says nothing about executable-model admission.
@@ -13,6 +14,15 @@ export const SAVED_MODEL_DOCUMENT_CATALOG_V1 = [{
   label: "Standard 71", badgeLabel: "MW 71",
   limitationsTranslationKey: "modelLimitations.standard71Items" as const,
 }] as const;
-export function resolveSavedModelDocumentIndexV1(modelId: string | undefined, surfaceReleaseId: string | null | undefined) {
-  return SAVED_MODEL_DOCUMENT_CATALOG_V1.find(entry => savedDocumentMatchesV1(entry.document, modelId, surfaceReleaseId))?.document ?? null;
+export function resolveSavedModelDocumentIndexV1(modelId: string | undefined, surfaceReleaseId: string | null | undefined,
+  documentId?: string | null) {
+  const selected = !documentId && modelId === selection.modelId && surfaceReleaseId === selection.surfaceReleaseId;
+  const requested = documentId || (selected ? selection.document.documentId : undefined);
+  const found = SAVED_MODEL_DOCUMENT_CATALOG_V1.find(entry =>
+    savedDocumentMatchesV1(entry.document, modelId, surfaceReleaseId)
+      && (!requested || entry.document.documentId === requested))?.document ?? null;
+  // An absent or mismatched selected archive must not silently display an older baseline.
+  if (selected && (found?.contentSha256 !== selection.document.contentSha256
+    || found.identity.baselineId !== selection.baselineId)) return null;
+  return found;
 }

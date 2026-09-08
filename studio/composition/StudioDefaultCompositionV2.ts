@@ -1,4 +1,5 @@
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
+import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
 import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
 import { resolveRegisteredModelLaunchDefaultsV1 } from
   "@/studio/registry/RegisteredModelLaunchBaselineV1";
@@ -160,7 +161,7 @@ function loadStudioLocalAlgebraicPulmonaryRootClientCompositionForSurfaceV1(
       artifactUrl: localAlgebraicPulmonaryRootArtifactUrlV1(),
     });
     return composeStudioClientCompositionV2(Object.freeze({
-      defaultFixture: algebraicPulmonaryRootClientDescriptorV1.defaultFixture,
+      defaultFixture: REGISTERED_CURRENT_MODEL_BASELINE_V1.fixture,
       stage: "dev" as const,
       ticket: workerReleaseTicket,
       surfaceStage: "dev" as const,

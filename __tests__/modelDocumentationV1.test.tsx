@@ -15,6 +15,9 @@ import launch from "@/studio/integrations/mainWireIntegratedV3/standard72-launch
 import binding from "@/studio/integrations/mainWireIntegratedV3/standard72-baseline-binding-evidence.json";
 import eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
 import { resolveRegisteredModelLaunchCheckpointV1 } from "@/studio/registry/RegisteredModelLaunchBaselineV1";
+import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDocumentation/SavedModelDocumentCatalogV1";
+import { fittedBaselineEquationDataV1, fittedBaselineSettingsV1 } from "@/tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1";
+import { MAIN_WIRE_FITTING_SEED_V1 } from "@/analysis/registry/MainWireFittingSeedV1";
 
 function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja") {
   return new Promise<string>((resolve, reject) => {
@@ -35,6 +38,7 @@ describe("current and historical model documentation", () => {
     expect(resolveRegisteredModelDocumentationV1(client.manifest.modelId, surface.surfaceReleaseId)).toEqual({
       kind: "saved-model-document", modelId: client.manifest.modelId,
       surfaceReleaseId: surface.surfaceReleaseId, surfaceSeriesId: surface.surfaceSeriesId,
+      documentId: saved.documentId,
     });
     expect(resolveRegisteredModelDisclosureV1(client.manifest.modelId, surface.surfaceReleaseId)).toMatchObject({
       badgeLabel: "MW 72", shortLabel: "Main Wire Standard 72", limitationsTranslationKey: "modelLimitations.standard72Items",
@@ -103,5 +107,42 @@ describe("current and historical model documentation", () => {
       .toBe("/ja/models/model%2Fselected%3Aaortic?surface=surface%2Frelease%3A1");
     expect(await renderRoute("circleheart.main-wire-integrated-transaction-v3.algebraic-pulmonary-root.standard-70", surface.surfaceReleaseId))
       .toContain('data-testid="model-documentation-unavailable-v1"');
+  });
+  it("pins a particular saved document and never falls back for a missing or cross-model archive", () => {
+    const { modelId, surfaceReleaseId } = saved.identity;
+    expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, saved.documentId)?.contentSha256).toBe(saved.contentSha256);
+    expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, "not-registered")).toBeNull();
+    expect(resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, historical.documentId)).toBeNull();
+    expect(modelDocumentationHref({ locale: "ja", modelId, surfaceReleaseId, documentId: saved.documentId }))
+      .toContain("&document=standard72-document-v1");
+  });
+  it("rematerializes candidate-dependent coefficients without copying baseline values into shared equations", () => {
+    const seed = MAIN_WIRE_FITTING_SEED_V1, a = fittedBaselineEquationDataV1(seed.candidateInputs, seed.checkpoint);
+    expect(a.nodes).toEqual(saved.scientificRecord.equations.nodes);
+    expect(a.edges).toEqual(saved.scientificRecord.equations.edges);
+    expect(a.initial).toEqual(saved.scientificRecord.equations.initial);
+    expect(a.calcium).toEqual(saved.scientificRecord.equations.calcium);
+    // Coefficient-only probe, not a qualified state/candidate or an adoption.
+    const input = JSON.parse(JSON.stringify(seed.candidateInputs));
+    input.hemodynamicResearchInputs.systemicResistance = 1.12;
+    input.hemodynamicResearchInputs.arterialStiffness = 1.1;
+    input.hemodynamicResearchInputs.venousTone = .2;
+    input.hemodynamicResearchInputs.heartRateBpm = 60;
+    input.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall.LVFW = 1.1;
+    input.mechanismResearchInputs.chamberMechanics.passiveStiffnessScaleByWall.SEP = 1.2;
+    const b = fittedBaselineEquationDataV1(input, seed.checkpoint);
+    const settings = fittedBaselineSettingsV1({ ...client.defaultFixture,
+      hemodynamicResearchInputs: input.hemodynamicResearchInputs, mechanismResearchInputs: input.mechanismResearchInputs });
+    expect(settings.find(c => c.controlId === "myocardium.contractility")!.defaultValue).toBeNull();
+    expect(settings.find(c => c.controlId === "myocardium.active-tension-scale.LVFW")!.defaultValue).toBe(1.1);
+    expect(b.land).toEqual(a.land);
+    expect(b.nodes.find(n => n.id === "Ao")!.law).not.toEqual(a.nodes.find(n => n.id === "Ao")!.law);
+    expect(b.nodes.find(n => n.id === "SV")!.law).not.toEqual(a.nodes.find(n => n.id === "SV")!.law);
+    expect(b.edges.filter(e => e.resistanceGroup === "systemic" && !e.valve)).not.toEqual(a.edges.filter(e => e.resistanceGroup === "systemic" && !e.valve));
+    expect(b.rhythm.ventricularIntervalStrength.referenceCycleLengthSec).toBe(1);
+    expect(b.calcium.LVFW).not.toEqual(a.calcium.LVFW);
+    expect(b.effectiveWalls!.find(w => w.wallId === "LVFW")!.trefPa).toBe(a.land.ventricular.values.Tref * 1.1);
+    expect(b.effectiveWalls!.find(w => w.wallId === "SEP")!.slsModulusPa).toBe(b.sls.ventricular.branchModulusPa * 1.2);
+    expect(saved.scientificRecord.measurements.fixtureIdentity.hemodynamicResearchInputs.heartRateBpm).toBe(70);
   });
 });

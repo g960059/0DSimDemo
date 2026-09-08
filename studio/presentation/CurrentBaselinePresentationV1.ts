@@ -1,9 +1,8 @@
 import type { Locale } from "@/localeRouting";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
-import { isRegisteredCurrentBaselineFixtureV1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
-import binding from "@/studio/integrations/mainWireIntegratedV3/standard72-baseline-binding-evidence.json";
-import eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
-import checkpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-launch-checkpoint.json";
+import { isRegisteredCurrentBaselineFixtureV1, REGISTERED_CURRENT_MODEL_BASELINE_V1 as adopted } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
+import type eligibility from "@/data/model-baselines/standard72-reviewed-eligibility-v1.json";
+import type checkpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-launch-checkpoint.json";
 import { baselineMetricLabelV1, baselineMeasurementSummaryV1 } from "./modelDocumentation/MainWireBaselineDocumentationV1";
 
 type Item = Readonly<{ itemId: string; label: string; value: string; detail: string; status?: "reference" | "warning" }>;
@@ -26,10 +25,7 @@ export type MainWireBaselineAssessmentReadbackV1 = Readonly<{
 export function registeredCurrentBaselinePresentationV1(modelId: string | null | undefined,
   fixture: StudioJsonValueV2 | null | undefined, locale: Locale) {
   if (!isRegisteredCurrentBaselineFixtureV1(modelId, fixture)) return undefined;
-  return mainWireBaselineAssessmentPresentationV1({ rest: binding.rest,
-    native: eligibility.observations[0]!.native, tau: eligibility.observations[0]!.tau,
-    beat: checkpoint.baseStandardCheckpointV2.completedBeatMetrics,
-    reserveVerified: eligibility.reserve.status === "passed" }, locale, "adopted");
+  return mainWireBaselineAssessmentPresentationV1(adopted.assessment, locale, "adopted");
 }
 
 /** Same readback for a checked-in baseline or a local qualified candidate. */

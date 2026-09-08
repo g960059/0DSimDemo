@@ -1,7 +1,11 @@
 import React from "react";
 import type { Locale } from "@/localeRouting";
 import type archivedDocument from "@/studio/presentation/modelDocumentation/packages/standard71-document-v1.json";
-export type MainWireEquationDataV1 = typeof archivedDocument.scientificRecord.equations;
+export type MainWireEquationDataV1 = typeof archivedDocument.scientificRecord.equations & {
+  inputScales?: { hemodynamic: { systemicResistance: number; pulmonaryResistance: number } };
+  effectiveWalls?: readonly { wallId: string; activeScale: number; passiveScale: number;
+    trefPa: number; slsModulusPa: number; slsTimeSec: number }[];
+};
 import { MAIN_WIRE_EQUATION_SPECIFICATION_V1 } from "@/studio/presentation/modelDocumentation/MainWireEquationSpecificationV1";
 import { ModelMathLabelV1 as MathLabel } from "@/components/model/ModelMathV1";
 
@@ -97,19 +101,29 @@ const landMeanings: Record<string, readonly [string, string, string]> = {
 };
 function ParameterTables({ data, id, locale }: { data: MainWireEquationDataV1; id: string; locale: Locale }) {
   const two = [tr(locale, "記号・意味", "Symbol / meaning"), tr(locale, "採用値", "Adopted value")];
-  if (id === "event-calcium-v1") return <Table caption={tr(locale, "Ca源の採用係数", "Adopted calcium source")}
-    headings={[tr(locale, "壁", "Wall"), "τr (s)", "τd (s)", "Ca₀ (µM)", "g (µM)"]} rows={wallIds.map(w => { const p = data.calcium[w]; return [nodeLabel(w, locale), p.tauRiseSec, p.tauDecaySec, p.calciumRestUM, p.calciumGainUMPerUnitDrive]; })} />;
+  if (id === "event-calcium-v1") { const p = data.rhythm.ventricularIntervalStrength; return <>
+    <Table caption={tr(locale, "Ca源の採用係数", "Adopted calcium source")}
+      headings={[tr(locale, "壁", "Wall"), "τr (s)", "τd (s)", "Ca₀ (µM)", "g (µM)"]} rows={wallIds.map(w => { const p = data.calcium[w]; return [nodeLabel(w, locale), p.tauRiseSec, p.tauDecaySec, p.calciumRestUM, p.calciumGainUMPerUnitDrive]; })} />
+    <Table caption={tr(locale,"拍間隔依存の係数と基準状態","Interval-strength coefficients and reference state")} headings={two}
+      rows={[["τrec (s)",p.recoveryTimeConstantSec],["β",p.releaseFractionBeta],["r",p.releasedLoadReturnFractionR],
+        ["h",p.intervalInfluxInhibitionFractionH],["γ",p.normalizedIntervalInfluxGamma],
+        ["Tref (s)",p.referenceCycleLengthSec],["aref",p.referenceRecoveryFractionA],["Lref",p.referenceNormalizedSrLoadState]]} />
+  </>; }
   if (id === "land-deactivation-v2") return <>
+    <p className={prose}>{tr(locale,"以下は数理モデルの基準係数です。能動倍率は壁ごとのTrefに適用します。有効値は受動・粘弾性の節の表にも示しています。","These are model reference coefficients. Active multipliers apply to each wall's Tref; effective values are also tabulated in the passive/viscoelastic section.")}</p>
     <Table caption={tr(locale, "Land独立係数：心室と心房", "Independent Land parameters: ventricles and atria")} headings={[two[0], tr(locale, "心室三壁", "Ventricular walls"), tr(locale, "両心房", "Atria"), tr(locale, "単位", "Unit")]} rows={Object.keys(data.land.ventricular.values).map(k => [<span><MathLabel label={k} /><span className="block text-wb-subtle">{landMeanings[k]?.[locale === "ja" ? 0 : 1].replace(/^[^：:]+[：:]\s*/, "")}</span></span>, data.land.ventricular.values[k as keyof typeof data.land.ventricular.values], data.land.atrial.values[k as keyof typeof data.land.atrial.values], landMeanings[k]?.[2]])} />
     <Table caption={tr(locale, "式から定まるLand派生係数", "Derived Land coefficients")} headings={ ["", tr(locale, "心室", "Ventricle"), tr(locale, "心房", "Atrium")] } rows={Object.entries(data.land.ventricular.derived).map(([k,v]) => [k, v, data.land.atrial.derived[k as keyof typeof data.land.atrial.derived]])} />
     <p className={prose}>{tr(locale, "心室の追加離脱：kmax＝60 s⁻¹、p＝16。心房は追加離脱なしです。原著値との比較・調整の来歴は「baselineの設定」に掲載しています。これらは同一被験者から独立に測定された材料定数ではありません。", "Ventricular added exit: kmax=60 s⁻¹, p=16; atria have no added exit. Baseline settings compare adopted values with source values and calibration provenance. These are not independently measured constants from one subject.")}</p>
   </>;
   if (id === "passive-viscoelastic-v1") { const v=data.passive.ventricular, a=data.passive.atrial; return <>
-    <Table caption={tr(locale, "受動則の係数（心室の1.04倍は別途適用）", "Passive coefficients (ventricular 1.04 scale applied separately)")} headings={two} rows={[
+    <Table caption={tr(locale, "受動則の基準係数（壁ごとの倍率は別途適用）", "Reference passive coefficients (wall multipliers applied separately)")} headings={two} rows={[
       ["K0 (Pa)", v.centralTangentPa], ["Kt (Pa)", v.tensionScalePa], ["a", v.tensionExponent], ["Kc (Pa)", v.compressionAdditionalTangentPa], ["δ", v.transitionWidthStrain],
       ["C1 (Pa)", a.isotropicC1Pa], ["C2 (Pa)", a.isotropicC2Pa], ["C3 (Pa)", a.fiberC3Pa], ["C4", a.fiberC4],
     ]} />
-    <Table caption={tr(locale, "粘弾性の採用値（倍率適用済み）", "Effective viscoelastic parameters")} headings={[tr(locale,"材料","Material"),"Ev (Pa)","τv (s)"]} rows={[[tr(locale,"心室","Ventricular"),data.sls.ventricular.branchModulusPa,data.sls.ventricular.relaxationTimeSec],[tr(locale,"心房","Atrial"),data.sls.atrial.branchModulusPa,data.sls.atrial.relaxationTimeSec]]} />
+    {data.effectiveWalls ? <Table caption={tr(locale,"各壁の倍率と有効材料係数","Wall multipliers and effective material coefficients")}
+      headings={[tr(locale,"壁","Wall"),tr(locale,"能動倍率","Active scale"),tr(locale,"受動倍率","Passive scale"),"Tref (Pa)","Ev (Pa)","τv (s)"]}
+      rows={data.effectiveWalls.map(w => [nodeLabel(w.wallId,locale),w.activeScale,w.passiveScale,w.trefPa,w.slsModulusPa,w.slsTimeSec])} />
+      : <Table caption={tr(locale, "粘弾性の採用値（倍率適用済み）", "Effective viscoelastic parameters")} headings={[tr(locale,"材料","Material"),"Ev (Pa)","τv (s)"]} rows={[[tr(locale,"心室","Ventricular"),data.sls.ventricular.branchModulusPa,data.sls.ventricular.relaxationTimeSec],[tr(locale,"心房","Atrial"),data.sls.atrial.branchModulusPa,data.sls.atrial.relaxationTimeSec]]} />}
     <p className={prose}>{tr(locale, "粘弾性の0.3 s枝は健康羊RV組織のProny係数を参考に各材料へ縮約した設計値で、ヒトの全壁で同定された値ではありません。", "The 0.3 s branch is a reduction informed by healthy ovine RV Prony data, not identified in every human wall.")} <a className="text-wb-accent underline" href="https://doi.org/10.1016/j.actbio.2022.08.043" target="_blank" rel="noreferrer">Acta Biomaterialia 2022</a></p>
   </>; }
   if (id === "five-wall-energy-triseg-v1") return <>
@@ -122,7 +136,7 @@ function ParameterTables({ data, id, locale }: { data: MainWireEquationDataV1; i
   if (id === "lumped-algebraic-roots-v1") return <>
     <Table caption={tr(locale,"動脈・線形区画の有効係数","Effective arterial and linear coefficients")} headings={[tr(locale,"区画","Compartment"),"Vu (mL)","P0 (mmHg)","Vs (mL)","C (mL/mmHg)"]} rows={data.nodes.flatMap(n=>{ const p=n.law; if (!p || p.kind==="venous3") return []; return [[nodeLabel(n.id,locale),p.Vu,p.kind==="arterial"?p.P0:"—",p.kind==="arterial"?p.VsEff:"—",p.kind==="linear"?p.C:"—"]]; })} />
     <Table caption={tr(locale,"静脈型区画の有効係数","Effective venous-type coefficients")} headings={[tr(locale,"区画","Compartment"),"Vu (mL)","Cc / Co / Cd (mL/mmHg)","po / ps (mmHg)","do / ds (mmHg)","Vu,元 / G (mL)"]} rows={data.nodes.flatMap(n=>{const p=n.law; if(p?.kind!=="venous3")return []; return [[nodeLabel(n.id,locale),p.Vu,`${p.Ccoll} / ${p.Copen} / ${p.Cdist}`,`${p.Popen} / ${p.Pstiff}`,`${p.dOpen} / ${p.dStiff}`,`${n.unstressedReferenceMl} / ${n.venousToneGainMl}`]];})} />
-    <Table caption={tr(locale,"主循環の接続と非弁抵抗（倍率適用済み）","Main-circuit links and effective non-valve resistance")} headings={[tr(locale,"接続：正方向","Link: positive direction"),"R (mmHg·s/mL)",tr(locale,"倍率対象","Multiplier group"),tr(locale,"追加条件","Additional law")]} rows={data.edges.map(e=>[`${nodeLabel(e.upstream,locale)} → ${nodeLabel(e.downstream,locale)}`,e.valve?tr(locale,"四弁の表を参照","See valve table"):e.loss!.resistanceMmHgSecPerMl,e.resistanceGroup==="systemic"?tr(locale,"体抵抗 ×1.04","Systemic ×1.04"):e.resistanceGroup==="pulmonary"?tr(locale,"肺抵抗 ×0.625","Pulmonary ×0.625"):"—",e.valve?tr(locale,"弁の開口・方向則","Valve opening / direction"):e.waterfall?`waterfall + χ (${externalLabel(e.external,locale)})`:"—"])} />
+    <Table caption={tr(locale,"主循環の接続と非弁抵抗（倍率適用済み）","Main-circuit links and effective non-valve resistance")} headings={[tr(locale,"接続：正方向","Link: positive direction"),"R (mmHg·s/mL)",tr(locale,"倍率対象","Multiplier group"),tr(locale,"追加条件","Additional law")]} rows={data.edges.map(e=>[`${nodeLabel(e.upstream,locale)} → ${nodeLabel(e.downstream,locale)}`,e.valve?tr(locale,"四弁の表を参照","See valve table"):e.loss!.resistanceMmHgSecPerMl,e.resistanceGroup==="systemic"?tr(locale,"体抵抗 ×","Systemic ×") + fmt(data.inputScales?.hemodynamic.systemicResistance ?? 1.04):e.resistanceGroup==="pulmonary"?tr(locale,"肺抵抗 ×","Pulmonary ×") + fmt(data.inputScales?.hemodynamic.pulmonaryResistance ?? .625):"—",e.valve?tr(locale,"弁の開口・方向則","Valve opening / direction"):e.waterfall?`waterfall + χ (${externalLabel(e.external,locale)})`:"—"])} />
     <p className={prose}>{tr(locale,"血管区画の係数と直列抵抗の配分は集中定数モデルの構成・校正値です。各値を特定のヒト血管部位で直接測った値と解釈しないでください。表のRへ操作倍率を重ねて掛ける必要はありません。","Vascular coefficients and resistance partition are lumped construction/calibration values, not direct measurements at specified human vascular sites. Do not apply baseline multipliers a second time to the listed R.")}</p>
   </>;
   if (id === "coronary-coupling-v3") return <>

@@ -9,8 +9,8 @@ const loaders: Readonly<Record<string, () => Promise<SavedModelDocumentV1>>> = {
 };
 
 export async function resolveSavedModelDocumentV1(modelId: string | undefined,
-  surfaceReleaseId: string | null | undefined): Promise<SavedModelDocumentV1 | null> {
-  const index = resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId);
+  surfaceReleaseId: string | null | undefined, documentId?: string | null): Promise<SavedModelDocumentV1 | null> {
+  const index = resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, documentId);
   if (!index) return null;
   const load = loaders[index.documentId];
   if (!load) throw new Error(`Missing saved document loader: ${index.documentId}`);

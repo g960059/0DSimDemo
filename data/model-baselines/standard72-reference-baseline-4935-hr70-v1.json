@@ -1,0 +1,2769 @@
+{
+  "schemaId": "adopted-main-wire-baseline-v1",
+  "baselineId": "standard72-reference-baseline-4935-hr70-v1",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.reference-baseline.standard-72",
+  "surfaceReleaseId": "circleheart.main-wire.surface.algebraic-pulmonary-root.standard-70.measured-diastolic-workbench-v1",
+  "artifactRevisionId": "e183f825fc018e704c6a3f84b98db46051caafe811df23017268928e8edd29b5",
+  "artifactSha256": "04d3b836f04f8fcfe5a50943eec3f935f65df055b46e4401303a9f91720f3c21",
+  "title": "baseline",
+  "capture": {
+    "fixture": {
+      "schemaId": "circleheart.main-wire-integrated-v3-selected-aortic-outflow-fixture.standard-v1",
+      "rhythm": {
+        "mode": "regular-sinus-v3"
+      },
+      "coronary": {
+        "topologyProfile": "coronary-network-v2"
+      },
+      "dynamicMechanicalSupport": {
+        "mode": "all-off-zero-inertance-v3"
+      },
+      "hemodynamicResearchInputs": {
+        "systemicResistance": 1.04,
+        "pulmonaryResistance": 0.625,
+        "venousTone": 0.15,
+        "arterialStiffness": 1.42,
+        "heartRateBpm": 70,
+        "totalBloodVolumeMl": 4935,
+        "peepCmH2O": 0
+      },
+      "mechanismResearchInputs": {
+        "inputId": "main-wire-integrated-model-mechanism-research-inputs-v3",
+        "valveAreas": {
+          "MV": {
+            "maximumForwardEoaCm2": 5.5,
+            "closedReverseEroaCm2": 0
+          },
+          "AoV": {
+            "maximumForwardEoaCm2": 3.5,
+            "closedReverseEroaCm2": 0
+          },
+          "TV": {
+            "maximumForwardEoaCm2": 8,
+            "closedReverseEroaCm2": 0
+          },
+          "PV": {
+            "maximumForwardEoaCm2": 4,
+            "closedReverseEroaCm2": 0
+          }
+        },
+        "chamberMechanics": {
+          "inputId": "main-wire-five-wall-mechanics-research-input-v1",
+          "activeTensionScaleByWall": {
+            "LA": 1,
+            "LVFW": 1,
+            "SEP": 1,
+            "RVFW": 1,
+            "RA": 1
+          },
+          "passiveStiffnessScaleByWall": {
+            "LA": 1,
+            "LVFW": 1.04,
+            "SEP": 1.04,
+            "RVFW": 1.04,
+            "RA": 1
+          },
+          "calciumDecayTimeScaleByWall": {
+            "LA": 1,
+            "LVFW": 1,
+            "SEP": 1,
+            "RVFW": 1,
+            "RA": 1
+          }
+        },
+        "pericardium": {
+          "inputId": "main-wire-common-pericardium-research-inputs-v1",
+          "referenceCapacityScale": 1,
+          "pressureScale": 1,
+          "exponentialStiffnessScale": 1,
+          "prescribedFluidVolumeMl": 0
+        },
+        "coronaryDisease": {
+          "inputId": "main-wire-coronary-disease-research-inputs-v2",
+          "focalDiameterLossFraction01ByTerritory": {
+            "LAD": 0,
+            "LCx": 0,
+            "RCA": 0
+          },
+          "structuralR1ResistanceScaleByTerritoryLayer": {
+            "LAD": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            },
+            "LCx": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            },
+            "RCA": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            }
+          },
+          "structuralRmResistanceScaleByTerritoryLayer": {
+            "LAD": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            },
+            "LCx": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            },
+            "RCA": {
+              "subepicardial": 1,
+              "subendocardial": 1
+            }
+          }
+        },
+        "oxygenTransport": {
+          "inputId": "whole-body-beat-mean-oxygen-transport-input-v1",
+          "hemoglobinGPerDl": 15,
+          "inspiredOxygenFraction01": 0.21,
+          "arterialCarbonDioxidePressureMmHg": 40,
+          "respiratoryExchangeRatio": 0.8,
+          "barometricPressureMmHg": 760,
+          "trueShuntFraction01": 0.02,
+          "targetOxygenConsumptionMlPerMin": 250
+        }
+      }
+    },
+    "checkpoint": {
+      "acceptedRevision": 23383,
+      "acceptedTimeSec": 46.286,
+      "payload": {
+        "checkpointId": "circleheart.main-wire-integrated-model-standard72-exact-checkpoint.v1",
+        "schemaVersion": 1,
+        "revision": 23383,
+        "acceptedTimeSec": 46.286,
+        "modelIdentity": {
+          "numericalContinuation": "main-wire-five-wall-coupled-accepted-history-predictor-v1",
+          "fixtureId": "main-wire-integrated-model-standard71-fixture-v1",
+          "ventricularMaterialProfileId": "main-wire-standard71-ventricular-material-v1",
+          "ventricularMaterialParameterHash": "276bf9ca",
+          "regularSinusProfileId": "main-wire-integrated-matched-alpha-fixed-regular-sinus-profile-v1",
+          "ventricularCalciumProfileId": "main-wire-standard71-ventricular-calcium-v1",
+          "aorticOutflowConstruction": "source-loss-algebraic-root-without-pressure-recovery",
+          "systemicArterialComplianceScale": 0.65,
+          "aorticRootInertanceScale": 0,
+          "pulmonaryArterialRootProfileId": "main-wire-algebraic-pulmonary-arterial-root-profile-v1",
+          "pulmonaryArterialRootConstruction": "source-loss-algebraic-flow-without-momentum-memory"
+        },
+        "baseStandardCheckpointV2": {
+          "acceptedTimeSec": 46.286,
+          "beatAccumulator": {
+            "active": {
+              "aorticPressureIntegralMmHgSec": 10.85239312501056,
+              "leftAtrialPressureIntegralMmHgSec": 1.3908501667194104,
+              "leftVentricularTransmuralPressureVolumePathIntegralMmHgMl": 185.34693009137752,
+              "maximumAorticPressureMmHg": 84.49224274698621,
+              "maximumLeftVentricularLandmark": {
+                "event": "maximum-volume",
+                "pressureMmHg": 10.940789781178548,
+                "volumeMl": 143.71107118194095
+              },
+              "maximumLeftVentricularVolumeMl": 143.71107118194095,
+              "maximumRightVentricularLandmark": {
+                "event": "maximum-volume",
+                "pressureMmHg": 2.035700992296541,
+                "volumeMl": 140.09267209104078
+              },
+              "minimumAorticPressureMmHg": 79.67745262574327,
+              "minimumLeftVentricularLandmark": {
+                "event": "minimum-volume-fallback",
+                "pressureMmHg": 6.019565589003492,
+                "volumeMl": 121.50239159485422
+              },
+              "minimumLeftVentricularVolumeMl": 121.50239159485422,
+              "minimumRightVentricularLandmark": {
+                "event": "minimum-volume-fallback",
+                "pressureMmHg": 1.1165521025008085,
+                "volumeMl": 119.16684480577509
+              },
+              "pressureSummaryAccumulators": {
+                "Ao": {
+                  "integralMmHgSec": 10.85239312501056,
+                  "maximumMmHg": 84.49224274698621,
+                  "minimumMmHg": 79.67745262574327
+                },
+                "LA": {
+                  "integralMmHgSec": 1.3908501667194104,
+                  "maximumMmHg": 13.059879651158997,
+                  "minimumMmHg": 6.83247159792388
+                },
+                "LV": {
+                  "integralMmHgSec": 1.1740206710475287,
+                  "maximumMmHg": 10.965856225700389,
+                  "minimumMmHg": 6.019565589003492
+                },
+                "PA": {
+                  "integralMmHgSec": 1.7089459559672509,
+                  "maximumMmHg": 13.693815026240692,
+                  "minimumMmHg": 12.346399506980124
+                },
+                "PVein": {
+                  "integralMmHgSec": 1.3948340562255164,
+                  "maximumMmHg": 11.0960880408315,
+                  "minimumMmHg": 9.741241210083926
+                },
+                "RA": {
+                  "integralMmHgSec": 0.3328054371432251,
+                  "maximumMmHg": 3.5475971437985816,
+                  "minimumMmHg": 1.718733792715639
+                },
+                "RV": {
+                  "integralMmHgSec": 0.2172577752921237,
+                  "maximumMmHg": 2.0446424199075515,
+                  "minimumMmHg": 1.1165521025008085
+                },
+                "SA": {
+                  "integralMmHgSec": 10.747284218243326,
+                  "maximumMmHg": 83.66252132311477,
+                  "minimumMmHg": 78.91663932367068
+                },
+                "VC": {
+                  "integralMmHgSec": 0.877305844043489,
+                  "maximumMmHg": 6.65173230658359,
+                  "minimumMmHg": 6.619804575054009
+                }
+              },
+              "previous": {
+                "aorticPressureMmHg": 79.67745262574327,
+                "aorticValveFlowMlPerSec": 0,
+                "leftAtrialPressureMmHg": 8.935321064025214,
+                "leftVentricularAbsolutePressureMmHg": 10.735794554348567,
+                "leftVentricularTransmuralPressureMmHg": 10.735794554348567,
+                "leftVentricularVolumeMl": 143.71107118194095,
+                "mitralValveFlowMlPerSec": 0,
+                "pulmonaryArterialPressureMmHg": 12.346399506980124,
+                "pulmonaryFlowMlPerSec": 7.288358891263442,
+                "pulmonaryValveFlowMlPerSec": 0,
+                "pulmonaryVenousPressureMmHg": 10.933068475422191,
+                "pulmonaryVenousReturnMlPerSec": 66.04123674039595,
+                "rightAtrialPressureMmHg": 2.1928699603501003,
+                "rightVentricularAbsolutePressureMmHg": 2.035700992296541,
+                "rightVentricularTransmuralPressureMmHg": 2.035700992296541,
+                "rightVentricularVolumeMl": 140.09267209104078,
+                "systemicArterialPressureMmHg": 78.91663932367068,
+                "systemicTissueFlowMlPerSec": 63.79316270100583,
+                "systemicVenousReturnMlPerSec": 111.22212956524206,
+                "timeSec": 46.286,
+                "tricuspidValveFlowMlPerSec": 26.318221994511585,
+                "venaCavaPressureMmHg": 6.619804575054009
+              },
+              "pulmonaryArterialPressureIntegralMmHgSec": 1.7089459559672509,
+              "pulmonaryVenousReturnVolumeMl": 0.1316988266481317,
+              "pulmonaryVolumeMl": 1.7342578626345957,
+              "rightAtrialPressureIntegralMmHgSec": 0.3328054371432251,
+              "rightVentricularTransmuralPressureVolumePathIntegralMmHgMl": 33.24254235079027,
+              "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53",
+              "startTimeSec": 46.153714285714244,
+              "systemicTissueVolumeMl": 8.796433749759691,
+              "systemicVenousReturnVolumeMl": 13.676518263138204,
+              "valveClosureLandmarks": {
+                "AoV": null,
+                "MV": {
+                  "absolutePressureMmHg": 10.923272261313562,
+                  "event": "valve-closure-zero-flow-crossing",
+                  "timeSec": 46.260571428571424,
+                  "transmuralPressureMmHg": 10.923272261313562,
+                  "valveId": "MV",
+                  "volumeMl": 143.71107118194095
+                },
+                "PV": null,
+                "TV": null
+              },
+              "valveFlowVolumes": {
+                "AoV": {
+                  "forwardVolumeMl": 0,
+                  "reverseVolumeMl": 0
+                },
+                "MV": {
+                  "forwardVolumeMl": 22.26414393419414,
+                  "reverseVolumeMl": 0
+                },
+                "PV": {
+                  "forwardVolumeMl": 0,
+                  "reverseVolumeMl": 0
+                },
+                "TV": {
+                  "forwardVolumeMl": 21.00790497889775,
+                  "reverseVolumeMl": 0
+                }
+              },
+              "valveForwardPressureGradientAccumulators": {
+                "AoV": {
+                  "forwardFlowDurationSec": 0,
+                  "peakMmHg": null,
+                  "pressureIntegralMmHgSec": 0
+                },
+                "MV": {
+                  "forwardFlowDurationSec": 0.10685714285718007,
+                  "peakMmHg": 5.381842245231995,
+                  "pressureIntegralMmHgSec": 0.24123788844327748
+                },
+                "PV": {
+                  "forwardFlowDurationSec": 0,
+                  "peakMmHg": null,
+                  "pressureIntegralMmHgSec": 0
+                },
+                "TV": {
+                  "forwardFlowDurationSec": 0.1322857142857572,
+                  "peakMmHg": 1.9461273823156913,
+                  "pressureIntegralMmHgSec": 0.11554766185110149
+                }
+              },
+              "ventricularAbsolutePressureRateExtrema": {
+                "LV": {
+                  "maximumMmHgPerSec": 99.60990844497347,
+                  "minimumMmHgPerSec": -8.758759932482494
+                },
+                "RV": {
+                  "maximumMmHgPerSec": 17.1509586794546,
+                  "minimumMmHgPerSec": -0.7143384298893739
+                }
+              }
+            },
+            "checkpointId": "main-wire-integrated-model-beat-accumulator-checkpoint-v4",
+            "schemaVersion": 1
+          },
+          "checkpointId": "circleheart.main-wire-integrated-model-standard-exact-checkpoint.v2",
+          "checkpointSha256": "7532fe5701dc7b504de7bd7027ea72f4ce0e31287f251fc191dba74f9777870c",
+          "completedBeatMetrics": {
+            "diastolicAorticPressureMmHg": 77.52496257161738,
+            "durationSec": 0.8571428571428541,
+            "effectiveNativeLeftCardiacOutputLPerMin": 5.608519660850045,
+            "effectiveNativeRightCardiacOutputLPerMin": 5.608474350025657,
+            "endAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53",
+            "endTimeSec": 46.153714285714244,
+            "extremaLeftVentricularEjectionFraction01": 0.5575186664842852,
+            "extremaLeftVentricularStrokeVolumeMl": 80.12170955859291,
+            "leftVentricularPressureVolumeLandmarks": {
+              "endDiastolic": {
+                "event": "maximum-volume",
+                "pressureMmHg": 10.940847985810953,
+                "volumeMl": 143.71125914732275
+              },
+              "endSystolic": {
+                "event": "semilunar-valve-closure",
+                "pressureMmHg": 106.43385225494225,
+                "volumeMl": 63.58954958872984
+              },
+              "pressureBasis": "transmural"
+            },
+            "leftVentricularTransmuralPressureVolumePathWorkMmHgMl": 8098.543066566153,
+            "leftVentricularValveEventMetrics": {
+              "endDiastolic": {
+                "absolutePressureMmHg": 10.92333041639932,
+                "event": "valve-closure-zero-flow-crossing",
+                "timeSec": 45.40342857142857,
+                "transmuralPressureMmHg": 10.92333041639932,
+                "valveId": "MV",
+                "volumeMl": 143.71125914732275
+              },
+              "endSystolic": {
+                "absolutePressureMmHg": 106.43385225494225,
+                "event": "valve-closure-zero-flow-crossing",
+                "timeSec": 45.750571428571426,
+                "transmuralPressureMmHg": 106.43385225494225,
+                "valveId": "AoV",
+                "volumeMl": 63.58954958872984
+              },
+              "eventDefinedEjectionFraction01": 0.5575186664842852,
+              "eventDefinedStrokeVolumeMl": 80.12170955859291,
+              "inletValveId": "MV",
+              "pressureBasis": "absolute-and-transmural",
+              "semilunarValveId": "AoV"
+            },
+            "maximumLeftVentricularVolumeMl": 143.71125914732275,
+            "meanAorticPressureMmHg": 93.5885849231603,
+            "meanLeftAtrialPressureMmHg": 8.402828017409725,
+            "meanPulmonaryArterialPressureMmHg": 17.89193948419189,
+            "meanRightAtrialPressureMmHg": 3.0795269250090356,
+            "metricsId": "main-wire-integrated-model-accepted-step-beat-metrics-v4",
+            "minimumLeftVentricularVolumeMl": 63.58954958872984,
+            "nativeLeftCardiacOutputLPerMin": 5.608519660850045,
+            "nativeRightCardiacOutputLPerMin": 5.608474350025657,
+            "pressureSummaries": {
+              "Ao": {
+                "maximumMmHg": 111.29648919100829,
+                "minimumMmHg": 77.52496257161738,
+                "pulseMmHg": 33.77152661939091,
+                "timeWeightedMeanMmHg": 93.5885849231603
+              },
+              "LA": {
+                "maximumMmHg": 13.059931459450894,
+                "minimumMmHg": 6.3332518155761495,
+                "pulseMmHg": 6.7266796438747445,
+                "timeWeightedMeanMmHg": 8.402828017409725
+              },
+              "LV": {
+                "maximumMmHg": 113.62246886365057,
+                "minimumMmHg": 4.187265433772819,
+                "pulseMmHg": 109.43520342987775,
+                "timeWeightedMeanMmHg": 43.07000627533547
+              },
+              "PA": {
+                "maximumMmHg": 26.17242118505827,
+                "minimumMmHg": 12.055592417984645,
+                "pulseMmHg": 14.116828767073624,
+                "timeWeightedMeanMmHg": 17.89193948419189
+              },
+              "PVein": {
+                "maximumMmHg": 13.35157054863634,
+                "minimumMmHg": 9.741269900735725,
+                "pulseMmHg": 3.6103006479006154,
+                "timeWeightedMeanMmHg": 11.23059932383341
+              },
+              "RA": {
+                "maximumMmHg": 5.025584886671991,
+                "minimumMmHg": 1.5897031570290874,
+                "pulseMmHg": 3.4358817296429036,
+                "timeWeightedMeanMmHg": 3.0795269250090356
+              },
+              "RV": {
+                "maximumMmHg": 29.366076604044697,
+                "minimumMmHg": 0.9070620509479275,
+                "pulseMmHg": 28.459014553096768,
+                "timeWeightedMeanMmHg": 10.094138143058329
+              },
+              "SA": {
+                "maximumMmHg": 102.16913521444948,
+                "minimumMmHg": 76.65019287270034,
+                "pulseMmHg": 25.51894234174914,
+                "timeWeightedMeanMmHg": 89.18703955912075
+              },
+              "VC": {
+                "maximumMmHg": 6.8935154387263085,
+                "minimumMmHg": 6.606237083409512,
+                "pulseMmHg": 0.28727835531679613,
+                "timeWeightedMeanMmHg": 6.72546192926006
+              }
+            },
+            "pulmonaryOutputLPerMin": 5.60845754022116,
+            "pulmonaryVenousReturnLPerMin": 5.608802591253579,
+            "pulseAorticPressureMmHg": 33.77152661939091,
+            "rightVentricularPressureVolumeLandmarks": {
+              "endDiastolic": {
+                "event": "maximum-volume",
+                "pressureMmHg": 2.375953270324634,
+                "volumeMl": 140.7636205355016
+              },
+              "endSystolic": {
+                "event": "semilunar-valve-closure",
+                "pressureMmHg": 24.43502663103272,
+                "volumeMl": 60.642558380220315
+              },
+              "pressureBasis": "transmural"
+            },
+            "rightVentricularTransmuralPressureVolumePathWorkMmHgMl": 2021.5071300698726,
+            "rightVentricularValveEventMetrics": {
+              "endDiastolic": {
+                "absolutePressureMmHg": 2.526238781053504,
+                "event": "valve-closure-zero-flow-crossing",
+                "timeSec": 45.458571428571425,
+                "transmuralPressureMmHg": 2.526238781053504,
+                "valveId": "TV",
+                "volumeMl": 140.7636205355016
+              },
+              "endSystolic": {
+                "absolutePressureMmHg": 24.43502663103272,
+                "event": "valve-closure-zero-flow-crossing",
+                "timeSec": 45.744571428571426,
+                "transmuralPressureMmHg": 24.43502663103272,
+                "valveId": "PV",
+                "volumeMl": 60.642558380220315
+              },
+              "eventDefinedEjectionFraction01": 0.5691886998251382,
+              "eventDefinedStrokeVolumeMl": 80.12106215528127,
+              "inletValveId": "TV",
+              "pressureBasis": "absolute-and-transmural",
+              "semilunarValveId": "PV"
+            },
+            "startAtrialCaptureId": "rounded-ejection-v1-capture-owner:batch:105:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:52",
+            "startTimeSec": 45.29657142857139,
+            "systemicTissueOutputLPerMin": 5.459907754487336,
+            "systemicVenousReturnLPerMin": 5.608503524826184,
+            "systolicAorticPressureMmHg": 111.29648919100829,
+            "valveFlowVolumes": {
+              "AoV": {
+                "forwardVolumeMl": 80.12170944071465,
+                "netVolumeMl": 80.12170944071465,
+                "reverseVolumeMl": 0,
+                "sameValveRegurgitantFraction": 0
+              },
+              "MV": {
+                "forwardVolumeMl": 80.11031328685962,
+                "netVolumeMl": 80.11031328685962,
+                "reverseVolumeMl": 0,
+                "sameValveRegurgitantFraction": 0
+              },
+              "PV": {
+                "forwardVolumeMl": 80.12106214322338,
+                "netVolumeMl": 80.12106214322338,
+                "reverseVolumeMl": 0,
+                "sameValveRegurgitantFraction": 0
+              },
+              "TV": {
+                "forwardVolumeMl": 80.1113626546681,
+                "netVolumeMl": 80.1113626546681,
+                "reverseVolumeMl": 0,
+                "sameValveRegurgitantFraction": 0
+              }
+            },
+            "valveForwardPressureGradients": {
+              "AoV": {
+                "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+                "forwardFlowDurationSec": 0.25800000000000267,
+                "peakMmHg": 7.820872994626626,
+                "timeWeightedMeanMmHg": 4.19385821565521
+              },
+              "MV": {
+                "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+                "forwardFlowDurationSec": 0.41799999999999926,
+                "peakMmHg": 5.381868864226272,
+                "timeWeightedMeanMmHg": 1.8518468260653969
+              },
+              "PV": {
+                "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+                "forwardFlowDurationSec": 0.25800000000000267,
+                "peakMmHg": 7.3662485833683675,
+                "timeWeightedMeanMmHg": 4.44894265627605
+              },
+              "TV": {
+                "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+                "forwardFlowDurationSec": 0.5071428571428527,
+                "peakMmHg": 2.3300015107184144,
+                "timeWeightedMeanMmHg": 0.8908268211549942
+              }
+            },
+            "ventricularAbsolutePressureRateExtrema": {
+              "LV": {
+                "maximumMmHgPerSec": 2564.254456175632,
+                "minimumMmHgPerSec": -1538.8738086540834
+              },
+              "RV": {
+                "maximumMmHgPerSec": 585.6274035247939,
+                "minimumMmHgPerSec": -371.8957346758883
+              }
+            }
+          },
+          "mechanismResearchInputIdentitySha256": "fcd51f2d022e5b3e0902a549cebce9ac34127b1df4b26563b0a9bf3304716825",
+          "numericalCheckpoint": {
+            "acceptedTimeSec": 46.286,
+            "checkpointId": "circleheart.main-wire-integrated-model-composed-rhythm-checkpoint.v5",
+            "checkpointSha256": "b825c0fd83372276f361fc91e02351bd18999e50b81806c2737cb8e46ee301d3",
+            "composedRhythm": {
+              "acceptedState": {
+                "acceptedAtrialCaptureCount": 54,
+                "acceptedTimeSec": 46.286,
+                "acceptedVentricularCaptureCount": 54,
+                "authoredEctopyState": {
+                  "acceptedEmittedImpulseCount": 0,
+                  "acceptedTimeSec": 46.286,
+                  "configuration": {
+                    "configurationId": "rounded-ejection-v1-empty-ectopy-configuration",
+                    "configurationSchemaId": "accepted-authored-ectopy-schedule-configuration-v2",
+                    "eventCount": 0,
+                    "events": [],
+                    "ownerInstanceId": "rounded-ejection-v1-empty-ectopy-owner",
+                    "scheduleId": "rounded-ejection-v1-empty-ectopy-schedule",
+                    "schemaVersion": 2,
+                    "temporalSemantics": {
+                      "clock": "absolute-accepted-time",
+                      "intervalConvention": "open-start-closed-end",
+                      "translationInvariant": false
+                    }
+                  },
+                  "cursor": 0,
+                  "initializedAcceptedTimeSec": 0,
+                  "initializedHistoryEventCount": 0,
+                  "revision": 23383,
+                  "schemaVersion": 2,
+                  "stateSchemaId": "accepted-authored-ectopy-schedule-state-v2"
+                },
+                "authoredVentricularPacingReplayState": null,
+                "calciumStateByWall": {
+                  "LA": [
+                    0.00006619820945725839,
+                    0.7104870840903588
+                  ],
+                  "LVFW": [
+                    0.9983150899706009,
+                    0.9993235633714378
+                  ],
+                  "RA": [
+                    0.00006619820945725839,
+                    0.7104870840903588
+                  ],
+                  "RVFW": [
+                    0.9983150899706009,
+                    0.9993235633714378
+                  ],
+                  "SEP": [
+                    0.9983150899706009,
+                    0.9993235633714378
+                  ]
+                },
+                "configuration": {
+                  "atrialSource": {
+                    "externalAfOwnerInstanceId": null,
+                    "mode": "regular",
+                    "regularSourceConfiguration": {
+                      "configurationId": "rounded-ejection-v1-regular-sinus-configuration",
+                      "configurationSchemaId": "regular-atrial-source-configuration-v1",
+                      "cycleLengthSec": 0.8571428571428571,
+                      "ownerInstanceId": "rounded-ejection-v1-regular-sinus-owner",
+                      "rhythmClass": "sinus",
+                      "schemaVersion": 1,
+                      "sourceId": "rounded-ejection-v1-sinus-source"
+                    }
+                  },
+                  "authoredEctopySchedule": {
+                    "configurationId": "rounded-ejection-v1-empty-ectopy-configuration",
+                    "configurationSchemaId": "accepted-authored-ectopy-schedule-configuration-v2",
+                    "eventCount": 0,
+                    "events": [],
+                    "ownerInstanceId": "rounded-ejection-v1-empty-ectopy-owner",
+                    "scheduleId": "rounded-ejection-v1-empty-ectopy-schedule",
+                    "schemaVersion": 2,
+                    "temporalSemantics": {
+                      "clock": "absolute-accepted-time",
+                      "intervalConvention": "open-start-closed-end",
+                      "translationInvariant": false
+                    }
+                  },
+                  "authoredVentricularPacingReplay": null,
+                  "avGateInstanceId": "rounded-ejection-v1-proximal-av-owner",
+                  "avGateParameters": {
+                    "concealedRefractoryExtensionSec": 0,
+                    "minimumConductionDelaySec": 0.08,
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "recovery-concealment-av-gate-parameter-provenance-v1",
+                      "schemaVersion": 1,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "parameterSchemaId": "recovery-concealment-av-gate-parameters-v1",
+                    "parameterSetId": "rounded-ejection-v1-proximal-av-parameters",
+                    "postConductionRefractorySec": 0.25,
+                    "recoveryDelayAmplitudeSec": 0,
+                    "recoveryTimeConstantSec": 1,
+                    "schemaVersion": 1
+                  },
+                  "calciumParametersByWall": {
+                    "LA": {
+                      "calciumGainUMPerUnitDrive": 0.604696429446,
+                      "calciumRestUM": 0.0631545706813,
+                      "tauDecaySec": 0.3,
+                      "tauRiseSec": 0.0125
+                    },
+                    "LVFW": {
+                      "calciumGainUMPerUnitDrive": 12.0780349398,
+                      "calciumRestUM": 0.120706159272,
+                      "tauDecaySec": 0.131707082467,
+                      "tauRiseSec": 0.11853637422
+                    },
+                    "RA": {
+                      "calciumGainUMPerUnitDrive": 0.604696429446,
+                      "calciumRestUM": 0.0631545706813,
+                      "tauDecaySec": 0.3,
+                      "tauRiseSec": 0.0125
+                    },
+                    "RVFW": {
+                      "calciumGainUMPerUnitDrive": 12.0780349398,
+                      "calciumRestUM": 0.120706159272,
+                      "tauDecaySec": 0.131707082467,
+                      "tauRiseSec": 0.11853637422
+                    },
+                    "SEP": {
+                      "calciumGainUMPerUnitDrive": 12.0780349398,
+                      "calciumRestUM": 0.120706159272,
+                      "tauDecaySec": 0.131707082467,
+                      "tauRiseSec": 0.11853637422
+                    }
+                  },
+                  "configurationId": "main-wire-standard71-ventricular-calcium-v1",
+                  "configurationSchemaId": "accepted-composed-rhythm-transaction-configuration-v2",
+                  "distalGate": {
+                    "configurationId": "rounded-ejection-v1-distal-configuration",
+                    "configurationSchemaId": "distal-conduction-gate-configuration-v1",
+                    "distalEffectiveRefractoryPeriodSec": 0,
+                    "gateInstanceId": "rounded-ejection-v1-distal-owner",
+                    "hvConductionDelaySec": 0.04,
+                    "modeConfiguration": {
+                      "mode": "pass"
+                    },
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "distal-conduction-gate-parameter-provenance-v1",
+                      "schemaVersion": 1,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "schemaVersion": 1
+                  },
+                  "electricalCaptureOwner": {
+                    "atrialGate": {
+                      "chamber": "atrial",
+                      "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                      "gateInstanceId": "rounded-ejection-v1-atrial-capture-gate",
+                      "refractoryPeriodSec": 0.2,
+                      "schemaVersion": 2
+                    },
+                    "configurationId": "rounded-ejection-v1-capture-configuration",
+                    "configurationSchemaId": "accepted-electrical-capture-owner-configuration-v2",
+                    "ownerInstanceId": "rounded-ejection-v1-capture-owner",
+                    "schemaVersion": 2,
+                    "ventricularGate": {
+                      "chamber": "ventricular",
+                      "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                      "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                      "refractoryPeriodSec": 0.25,
+                      "schemaVersion": 2
+                    }
+                  },
+                  "ownerInstanceId": "rounded-ejection-v1-composed-sinus-owner",
+                  "pacAtrialCalciumDeposit": null,
+                  "schemaVersion": 2,
+                  "sinusAtrialCalciumDeposit": {
+                    "electricalToCalciumDelaySec": 0.012,
+                    "leftAtrialStrength": 1,
+                    "rightAtrialStrength": 1
+                  },
+                  "ventricularBackup": {
+                    "configurationId": "rounded-ejection-v1-backup-configuration",
+                    "configurationSchemaId": "accepted-ventricular-backup-source-configuration-v2",
+                    "intrinsicEscapeCycleLengthSec": 2,
+                    "intrinsicEscapeSourceId": "rounded-ejection-v1-escape-source",
+                    "ownerInstanceId": "rounded-ejection-v1-backup-owner",
+                    "parameterProvenance": {
+                      "kind": "authored",
+                      "provenanceSchemaId": "ventricular-backup-parameter-provenance-v2",
+                      "schemaVersion": 2,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "schemaVersion": 2,
+                    "vviLowerRateIntervalSec": 2,
+                    "vviLowerRateLimitPerMin": 30,
+                    "vviPacingSourceId": "rounded-ejection-v1-vvi-source"
+                  },
+                  "ventricularCalciumDeposit": {
+                    "electricalToCalciumDelaySec": 0.012,
+                    "lvFreeWallBaseStrength": 1,
+                    "rvFreeWallBaseStrength": 1,
+                    "septalBaseStrength": 1
+                  },
+                  "ventricularIntervalStrength": {
+                    "configurationId": "rounded-ejection-v1-interval-configuration",
+                    "configurationSchemaId": "accepted-ventricular-interval-strength-configuration-v1",
+                    "intervalInfluxInhibitionFractionH": 0.2,
+                    "normalizedIntervalInfluxGamma": 0.598072916412542,
+                    "ownerInstanceId": "rounded-ejection-v1-interval-owner",
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "ventricular-interval-strength-parameter-provenance-v1",
+                      "schemaVersion": 1,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "recoveryTimeConstantSec": 0.5,
+                    "referenceCycleLengthSec": 0.8571428571428571,
+                    "referenceNormalizedSrLoadState": 1.5245618726600294,
+                    "referenceRecoveryFractionA": 0.819907687852,
+                    "releaseFractionBeta": 0.8,
+                    "releasedLoadReturnFractionR": 0.5,
+                    "schemaVersion": 1
+                  }
+                },
+                "deliveredCalciumDepositCount": 108,
+                "distalGateState": {
+                  "acceptedProximalArrivalCount": 54,
+                  "acceptedTimeSec": 46.23371428571424,
+                  "authoredMaskDropCount": 0,
+                  "authoredMaskExhaustedDropCount": 0,
+                  "authoredMaskPosition": 0,
+                  "configuration": {
+                    "configurationId": "rounded-ejection-v1-distal-configuration",
+                    "configurationSchemaId": "distal-conduction-gate-configuration-v1",
+                    "distalEffectiveRefractoryPeriodSec": 0,
+                    "gateInstanceId": "rounded-ejection-v1-distal-owner",
+                    "hvConductionDelaySec": 0.04,
+                    "modeConfiguration": {
+                      "mode": "pass"
+                    },
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "distal-conduction-gate-parameter-provenance-v1",
+                      "schemaVersion": 1,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "schemaVersion": 1
+                  },
+                  "disconnectedDropCount": 0,
+                  "distalReadyAtSec": 46.23371428571424,
+                  "distalRefractoryDropCount": 0,
+                  "initialAcceptedTimeSec": 0,
+                  "lastPassedProximalArrivalTimeSec": 46.23371428571424,
+                  "lastVentricularImpulseTimeSec": 46.27371428571424,
+                  "passedArrivalCount": 54,
+                  "revision": 54,
+                  "schemaVersion": 1,
+                  "stateSchemaId": "accepted-distal-conduction-gate-state-v1"
+                },
+                "electricalCaptureState": {
+                  "acceptedImpulseBatchCount": 108,
+                  "acceptedTimeSec": 46.286,
+                  "atrialGate": {
+                    "acceptedBatchCount": 54,
+                    "capturedActivationCount": 54,
+                    "chamber": "atrial",
+                    "coincidentSuppressedCount": 0,
+                    "gateInstanceId": "rounded-ejection-v1-atrial-capture-gate",
+                    "gateStateSchemaId": "accepted-electrical-capture-gate-state-v2",
+                    "lastCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53",
+                    "lastCapturedActivationTimeSec": 46.153714285714244,
+                    "processedImpulseCount": 54,
+                    "refractoryBlockedCount": 0,
+                    "refractoryUntilSec": 46.35371428571425,
+                    "revision": 54,
+                    "schemaVersion": 2
+                  },
+                  "configuration": {
+                    "atrialGate": {
+                      "chamber": "atrial",
+                      "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                      "gateInstanceId": "rounded-ejection-v1-atrial-capture-gate",
+                      "refractoryPeriodSec": 0.2,
+                      "schemaVersion": 2
+                    },
+                    "configurationId": "rounded-ejection-v1-capture-configuration",
+                    "configurationSchemaId": "accepted-electrical-capture-owner-configuration-v2",
+                    "ownerInstanceId": "rounded-ejection-v1-capture-owner",
+                    "schemaVersion": 2,
+                    "ventricularGate": {
+                      "chamber": "ventricular",
+                      "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                      "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                      "refractoryPeriodSec": 0.25,
+                      "schemaVersion": 2
+                    }
+                  },
+                  "lastAcceptedImpulseBatchTimeSec": 46.27371428571424,
+                  "revision": 108,
+                  "schemaVersion": 2,
+                  "stateSchemaId": "accepted-electrical-capture-owner-state-v2",
+                  "ventricularGate": {
+                    "acceptedBatchCount": 54,
+                    "capturedActivationCount": 54,
+                    "chamber": "ventricular",
+                    "coincidentSuppressedCount": 0,
+                    "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                    "gateStateSchemaId": "accepted-electrical-capture-gate-state-v2",
+                    "lastCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:108:ventricular:capture:rounded-ejection-v1-distal-owner:distal-arrival:54",
+                    "lastCapturedActivationTimeSec": 46.27371428571424,
+                    "processedImpulseCount": 54,
+                    "refractoryBlockedCount": 0,
+                    "refractoryUntilSec": 46.52371428571424,
+                    "revision": 54,
+                    "schemaVersion": 2
+                  }
+                },
+                "initialAcceptedTimeSec": 0,
+                "pendingCalciumDeposits": [],
+                "pendingDistalVentricularImpulses": [],
+                "pendingProximalAvOutputs": [],
+                "proximalAvGateState": {
+                  "acceptedAtrialActivationCount": 54,
+                  "acceptedAtrialActivationTimeSec": 46.153714285714244,
+                  "blockedAtrialActivationCount": 0,
+                  "conductedAtrialActivationCount": 54,
+                  "configuration": {
+                    "concealedProximalAvRefractoryExtensionSec": 0,
+                    "configurationId": "rounded-ejection-v1-proximal-av-parameters",
+                    "configurationSchemaId": "recovery-concealment-proximal-av-owner-configuration-v2",
+                    "minimumProximalAvConductionDelaySec": 0.08,
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "recovery-concealment-proximal-av-owner-provenance-v2",
+                      "schemaVersion": 2,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "postProximalAvOutputRefractorySec": 0.25,
+                    "proximalAvOwnerInstanceId": "rounded-ejection-v1-proximal-av-owner",
+                    "proximalAvRecoveryDelayAmplitudeSec": 0,
+                    "proximalAvRecoveryTimeConstantSec": 1,
+                    "schemaVersion": 2
+                  },
+                  "hasPriorProximalAvOutput": true,
+                  "initialAcceptedAtrialActivationTimeSec": 0,
+                  "lastConductedAtrialActivationTimeSec": 46.153714285714244,
+                  "lastProximalAvOutputTimeSec": 46.23371428571424,
+                  "proximalAvRefractoryUntilSec": 46.48371428571424,
+                  "revision": 54,
+                  "schemaVersion": 2,
+                  "stateSchemaId": "accepted-recovery-concealment-proximal-av-owner-state-v2"
+                },
+                "regularAtrialSourceState": {
+                  "acceptedTimeSec": 46.286,
+                  "capturedPacPreserveCount": 0,
+                  "capturedPacResetCount": 0,
+                  "configuration": {
+                    "configurationId": "rounded-ejection-v1-regular-sinus-configuration",
+                    "configurationSchemaId": "regular-atrial-source-configuration-v1",
+                    "cycleLengthSec": 0.8571428571428571,
+                    "ownerInstanceId": "rounded-ejection-v1-regular-sinus-owner",
+                    "rhythmClass": "sinus",
+                    "schemaVersion": 1,
+                    "sourceId": "rounded-ejection-v1-sinus-source"
+                  },
+                  "emittedSourceImpulseCount": 54,
+                  "initialAcceptedTimeSec": 0,
+                  "initialFirstFutureActivationTimeSec": 0.7251428571428571,
+                  "initialFirstSourceSequence": 0,
+                  "nextActivationTimeSec": 47.0108571428571,
+                  "nextSourceSequence": 54,
+                  "revision": 23383,
+                  "schemaVersion": 1,
+                  "stateSchemaId": "accepted-regular-atrial-source-state-v1"
+                },
+                "revision": 23383,
+                "schemaVersion": 2,
+                "stateSchemaId": "accepted-composed-rhythm-transaction-state-v2",
+                "ventricularBackupState": {
+                  "acceptedTimeSec": 46.286,
+                  "acceptedVentricularCaptureFeedbackCount": 54,
+                  "configuration": {
+                    "configurationId": "rounded-ejection-v1-backup-configuration",
+                    "configurationSchemaId": "accepted-ventricular-backup-source-configuration-v2",
+                    "intrinsicEscapeCycleLengthSec": 2,
+                    "intrinsicEscapeSourceId": "rounded-ejection-v1-escape-source",
+                    "ownerInstanceId": "rounded-ejection-v1-backup-owner",
+                    "parameterProvenance": {
+                      "kind": "authored",
+                      "provenanceSchemaId": "ventricular-backup-parameter-provenance-v2",
+                      "schemaVersion": 2,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "schemaVersion": 2,
+                    "vviLowerRateIntervalSec": 2,
+                    "vviLowerRateLimitPerMin": 30,
+                    "vviPacingSourceId": "rounded-ejection-v1-vvi-source"
+                  },
+                  "initialAcceptedTimeSec": 0,
+                  "initialCaptureSeed": {
+                    "activationTimeSec": -0.012,
+                    "capturedActivationId": "rounded-ejection-v1-capture-owner:batch:2:ventricular:capture:rounded-ejection-v1-periodic-history-ventricular-source-0",
+                    "parentSourceImpulseId": "rounded-ejection-v1-periodic-history-ventricular-source-0",
+                    "schemaVersion": 2,
+                    "seedSchemaId": "ventricular-backup-initial-capture-seed-v2",
+                    "sourceId": "rounded-ejection-v1-periodic-history-ventricular-source",
+                    "sourceKind": "av-output",
+                    "sourceSequence": 0
+                  },
+                  "intrinsicEscapeAttemptCount": 0,
+                  "intrinsicEscapeCapturedCount": 0,
+                  "lastAcceptedVentricularActivation": {
+                    "activationSchemaId": "captured-electrical-activation-v2",
+                    "activationTimeSec": 46.27371428571424,
+                    "captureOrdinal": 54,
+                    "capturePriority": 20,
+                    "capturedActivationId": "rounded-ejection-v1-capture-owner:batch:108:ventricular:capture:rounded-ejection-v1-distal-owner:distal-arrival:54",
+                    "chamber": "ventricular",
+                    "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                    "ownerRevision": 108,
+                    "parentSourceImpulseId": "rounded-ejection-v1-distal-owner:distal-arrival:54",
+                    "schemaVersion": 2,
+                    "sourceId": "rounded-ejection-v1-distal-owner",
+                    "sourceKind": "av-output",
+                    "sourceSequence": 54,
+                    "upstreamCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53"
+                  },
+                  "lastIntrinsicEscapeAttemptResult": null,
+                  "lastVviPacingAttemptResult": null,
+                  "nextIntrinsicEscapeDueTimeSec": 48.27371428571424,
+                  "nextVviPaceDueTimeSec": 48.27371428571424,
+                  "revision": 23383,
+                  "schemaVersion": 2,
+                  "stateSchemaId": "accepted-ventricular-backup-source-state-v2",
+                  "vviPacingAttemptCount": 0,
+                  "vviPacingCapturedCount": 0
+                },
+                "ventricularIntervalStrengthState": {
+                  "acceptedTimeSec": 46.27371428571424,
+                  "acceptedVentricularCaptureCount": 54,
+                  "configuration": {
+                    "configurationId": "rounded-ejection-v1-interval-configuration",
+                    "configurationSchemaId": "accepted-ventricular-interval-strength-configuration-v1",
+                    "intervalInfluxInhibitionFractionH": 0.2,
+                    "normalizedIntervalInfluxGamma": 0.598072916412542,
+                    "ownerInstanceId": "rounded-ejection-v1-interval-owner",
+                    "parameterProvenance": {
+                      "kind": "explicit-research-parameters",
+                      "provenanceSchemaId": "ventricular-interval-strength-parameter-provenance-v1",
+                      "schemaVersion": 1,
+                      "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                    },
+                    "recoveryTimeConstantSec": 0.5,
+                    "referenceCycleLengthSec": 0.8571428571428571,
+                    "referenceNormalizedSrLoadState": 1.5245618726600294,
+                    "referenceRecoveryFractionA": 0.819907687852,
+                    "releaseFractionBeta": 0.8,
+                    "releasedLoadReturnFractionR": 0.5,
+                    "schemaVersion": 1
+                  },
+                  "initialAcceptedTimeSec": 0,
+                  "initialNormalizedSrLoadState": 1.5245618726600294,
+                  "initialPriorAcceptedVentricularActivation": {
+                    "activationSchemaId": "captured-electrical-activation-v2",
+                    "activationTimeSec": -0.012,
+                    "captureOrdinal": 1,
+                    "capturePriority": 20,
+                    "capturedActivationId": "rounded-ejection-v1-capture-owner:batch:2:ventricular:capture:rounded-ejection-v1-periodic-history-ventricular-source-0",
+                    "chamber": "ventricular",
+                    "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                    "ownerRevision": 2,
+                    "parentSourceImpulseId": "rounded-ejection-v1-periodic-history-ventricular-source-0",
+                    "schemaVersion": 2,
+                    "sourceId": "rounded-ejection-v1-periodic-history-ventricular-source",
+                    "sourceKind": "av-output",
+                    "sourceSequence": 0,
+                    "upstreamCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:1:atrial:capture:rounded-ejection-v1-periodic-history-atrial-source-0"
+                  },
+                  "lastAcceptedVentricularActivation": {
+                    "activationSchemaId": "captured-electrical-activation-v2",
+                    "activationTimeSec": 46.27371428571424,
+                    "captureOrdinal": 54,
+                    "capturePriority": 20,
+                    "capturedActivationId": "rounded-ejection-v1-capture-owner:batch:108:ventricular:capture:rounded-ejection-v1-distal-owner:distal-arrival:54",
+                    "chamber": "ventricular",
+                    "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                    "ownerRevision": 108,
+                    "parentSourceImpulseId": "rounded-ejection-v1-distal-owner:distal-arrival:54",
+                    "schemaVersion": 2,
+                    "sourceId": "rounded-ejection-v1-distal-owner",
+                    "sourceKind": "av-output",
+                    "sourceSequence": 54,
+                    "upstreamCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53"
+                  },
+                  "lastDepositMetadata": {
+                    "acceptedVentricularCaptureOrdinal": 54,
+                    "calciumStateMutation": "none-metadata-only",
+                    "capturedVentricularActivation": {
+                      "activationSchemaId": "captured-electrical-activation-v2",
+                      "activationTimeSec": 46.27371428571424,
+                      "captureOrdinal": 54,
+                      "capturePriority": 20,
+                      "capturedActivationId": "rounded-ejection-v1-capture-owner:batch:108:ventricular:capture:rounded-ejection-v1-distal-owner:distal-arrival:54",
+                      "chamber": "ventricular",
+                      "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                      "ownerRevision": 108,
+                      "parentSourceImpulseId": "rounded-ejection-v1-distal-owner:distal-arrival:54",
+                      "schemaVersion": 2,
+                      "sourceId": "rounded-ejection-v1-distal-owner",
+                      "sourceKind": "av-output",
+                      "sourceSequence": 54,
+                      "upstreamCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53"
+                    },
+                    "configurationId": "rounded-ejection-v1-interval-configuration",
+                    "futureExactCalciumDepositRelativeStrength": 1,
+                    "intervalInfluxRelativeLoad": 0.5,
+                    "intervalSec": 0.8571428571428541,
+                    "metadataSchemaId": "ventricular-interval-strength-deposit-metadata-v1",
+                    "normalizedSrLoadAfter": 1.5245618726600294,
+                    "normalizedSrLoadBefore": 1.5245618726600294,
+                    "ownerInstanceId": "rounded-ejection-v1-interval-owner",
+                    "ownerRevision": 54,
+                    "previousCapturedActivationId": "rounded-ejection-v1-capture-owner:batch:106:ventricular:capture:rounded-ejection-v1-distal-owner:distal-arrival:53",
+                    "previousCapturedActivationTimeSec": 45.41657142857139,
+                    "recoveryFractionA": 0.819907687852,
+                    "releasedRelativeStrengthR": 1,
+                    "returnedReleasedRelativeLoad": 0.5,
+                    "schemaVersion": 1
+                  },
+                  "normalizedSrLoadState": 1.5245618726600294,
+                  "revision": 54,
+                  "schemaVersion": 1,
+                  "stateSchemaId": "accepted-ventricular-interval-strength-state-v1"
+                }
+              },
+              "acceptedTimeSec": 46.286,
+              "authoredVentricularPacingReplay": null,
+              "checkpointId": "circleheart.accepted-composed-rhythm-transaction-checkpoint.v2",
+              "checkpointSha256": "5906cac910a13bbadf353b04a4eec10d1765beb01cc083c88958e4ac196bac4e",
+              "configuration": {
+                "atrialSource": {
+                  "externalAfOwnerInstanceId": null,
+                  "mode": "regular",
+                  "regularSourceConfiguration": {
+                    "configurationId": "rounded-ejection-v1-regular-sinus-configuration",
+                    "configurationSchemaId": "regular-atrial-source-configuration-v1",
+                    "cycleLengthSec": 0.8571428571428571,
+                    "ownerInstanceId": "rounded-ejection-v1-regular-sinus-owner",
+                    "rhythmClass": "sinus",
+                    "schemaVersion": 1,
+                    "sourceId": "rounded-ejection-v1-sinus-source"
+                  }
+                },
+                "authoredEctopySchedule": {
+                  "configurationId": "rounded-ejection-v1-empty-ectopy-configuration",
+                  "configurationSchemaId": "accepted-authored-ectopy-schedule-configuration-v2",
+                  "eventCount": 0,
+                  "events": [],
+                  "ownerInstanceId": "rounded-ejection-v1-empty-ectopy-owner",
+                  "scheduleId": "rounded-ejection-v1-empty-ectopy-schedule",
+                  "schemaVersion": 2,
+                  "temporalSemantics": {
+                    "clock": "absolute-accepted-time",
+                    "intervalConvention": "open-start-closed-end",
+                    "translationInvariant": false
+                  }
+                },
+                "authoredVentricularPacingReplay": null,
+                "avGateInstanceId": "rounded-ejection-v1-proximal-av-owner",
+                "avGateParameters": {
+                  "concealedRefractoryExtensionSec": 0,
+                  "minimumConductionDelaySec": 0.08,
+                  "parameterProvenance": {
+                    "kind": "explicit-research-parameters",
+                    "provenanceSchemaId": "recovery-concealment-av-gate-parameter-provenance-v1",
+                    "schemaVersion": 1,
+                    "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                  },
+                  "parameterSchemaId": "recovery-concealment-av-gate-parameters-v1",
+                  "parameterSetId": "rounded-ejection-v1-proximal-av-parameters",
+                  "postConductionRefractorySec": 0.25,
+                  "recoveryDelayAmplitudeSec": 0,
+                  "recoveryTimeConstantSec": 1,
+                  "schemaVersion": 1
+                },
+                "calciumParametersByWall": {
+                  "LA": {
+                    "calciumGainUMPerUnitDrive": 0.604696429446,
+                    "calciumRestUM": 0.0631545706813,
+                    "tauDecaySec": 0.3,
+                    "tauRiseSec": 0.0125
+                  },
+                  "LVFW": {
+                    "calciumGainUMPerUnitDrive": 12.0780349398,
+                    "calciumRestUM": 0.120706159272,
+                    "tauDecaySec": 0.131707082467,
+                    "tauRiseSec": 0.11853637422
+                  },
+                  "RA": {
+                    "calciumGainUMPerUnitDrive": 0.604696429446,
+                    "calciumRestUM": 0.0631545706813,
+                    "tauDecaySec": 0.3,
+                    "tauRiseSec": 0.0125
+                  },
+                  "RVFW": {
+                    "calciumGainUMPerUnitDrive": 12.0780349398,
+                    "calciumRestUM": 0.120706159272,
+                    "tauDecaySec": 0.131707082467,
+                    "tauRiseSec": 0.11853637422
+                  },
+                  "SEP": {
+                    "calciumGainUMPerUnitDrive": 12.0780349398,
+                    "calciumRestUM": 0.120706159272,
+                    "tauDecaySec": 0.131707082467,
+                    "tauRiseSec": 0.11853637422
+                  }
+                },
+                "configurationId": "main-wire-standard71-ventricular-calcium-v1",
+                "configurationSchemaId": "accepted-composed-rhythm-transaction-configuration-v2",
+                "distalGate": {
+                  "configurationId": "rounded-ejection-v1-distal-configuration",
+                  "configurationSchemaId": "distal-conduction-gate-configuration-v1",
+                  "distalEffectiveRefractoryPeriodSec": 0,
+                  "gateInstanceId": "rounded-ejection-v1-distal-owner",
+                  "hvConductionDelaySec": 0.04,
+                  "modeConfiguration": {
+                    "mode": "pass"
+                  },
+                  "parameterProvenance": {
+                    "kind": "explicit-research-parameters",
+                    "provenanceSchemaId": "distal-conduction-gate-parameter-provenance-v1",
+                    "schemaVersion": 1,
+                    "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                  },
+                  "schemaVersion": 1
+                },
+                "electricalCaptureOwner": {
+                  "atrialGate": {
+                    "chamber": "atrial",
+                    "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                    "gateInstanceId": "rounded-ejection-v1-atrial-capture-gate",
+                    "refractoryPeriodSec": 0.2,
+                    "schemaVersion": 2
+                  },
+                  "configurationId": "rounded-ejection-v1-capture-configuration",
+                  "configurationSchemaId": "accepted-electrical-capture-owner-configuration-v2",
+                  "ownerInstanceId": "rounded-ejection-v1-capture-owner",
+                  "schemaVersion": 2,
+                  "ventricularGate": {
+                    "chamber": "ventricular",
+                    "gateConfigurationSchemaId": "electrical-capture-gate-configuration-v2",
+                    "gateInstanceId": "rounded-ejection-v1-ventricular-capture-gate",
+                    "refractoryPeriodSec": 0.25,
+                    "schemaVersion": 2
+                  }
+                },
+                "ownerInstanceId": "rounded-ejection-v1-composed-sinus-owner",
+                "pacAtrialCalciumDeposit": null,
+                "schemaVersion": 2,
+                "sinusAtrialCalciumDeposit": {
+                  "electricalToCalciumDelaySec": 0.012,
+                  "leftAtrialStrength": 1,
+                  "rightAtrialStrength": 1
+                },
+                "ventricularBackup": {
+                  "configurationId": "rounded-ejection-v1-backup-configuration",
+                  "configurationSchemaId": "accepted-ventricular-backup-source-configuration-v2",
+                  "intrinsicEscapeCycleLengthSec": 2,
+                  "intrinsicEscapeSourceId": "rounded-ejection-v1-escape-source",
+                  "ownerInstanceId": "rounded-ejection-v1-backup-owner",
+                  "parameterProvenance": {
+                    "kind": "authored",
+                    "provenanceSchemaId": "ventricular-backup-parameter-provenance-v2",
+                    "schemaVersion": 2,
+                    "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                  },
+                  "schemaVersion": 2,
+                  "vviLowerRateIntervalSec": 2,
+                  "vviLowerRateLimitPerMin": 30,
+                  "vviPacingSourceId": "rounded-ejection-v1-vvi-source"
+                },
+                "ventricularCalciumDeposit": {
+                  "electricalToCalciumDelaySec": 0.012,
+                  "lvFreeWallBaseStrength": 1,
+                  "rvFreeWallBaseStrength": 1,
+                  "septalBaseStrength": 1
+                },
+                "ventricularIntervalStrength": {
+                  "configurationId": "rounded-ejection-v1-interval-configuration",
+                  "configurationSchemaId": "accepted-ventricular-interval-strength-configuration-v1",
+                  "intervalInfluxInhibitionFractionH": 0.2,
+                  "normalizedIntervalInfluxGamma": 0.598072916412542,
+                  "ownerInstanceId": "rounded-ejection-v1-interval-owner",
+                  "parameterProvenance": {
+                    "kind": "explicit-research-parameters",
+                    "provenanceSchemaId": "ventricular-interval-strength-parameter-provenance-v1",
+                    "schemaVersion": 1,
+                    "sourceId": "main-wire-integrated-model-rounded-ejection-fixture-v1"
+                  },
+                  "recoveryTimeConstantSec": 0.5,
+                  "referenceCycleLengthSec": 0.8571428571428571,
+                  "referenceNormalizedSrLoadState": 1.5245618726600294,
+                  "referenceRecoveryFractionA": 0.819907687852,
+                  "releaseFractionBeta": 0.8,
+                  "releasedLoadReturnFractionR": 0.5,
+                  "schemaVersion": 1
+                }
+              },
+              "revision": 23383,
+              "schemaVersion": 2,
+              "stateSchemaId": "accepted-composed-rhythm-transaction-state-v2"
+            },
+            "composedRhythmConfigurationIdentitySha256": "4da22c470eabbf31204550d6e1b37d1721a9927f7369d6b04754e7fa03c823b0",
+            "coronary": {
+              "acceptedTimeSec": 46.286,
+              "baseCheckpointV2": {
+                "acceptedTimeSec": 46.286,
+                "checkpointId": "circleheart.main-wire-five-wall-coronary-checkpoint.v2",
+                "checkpointSha256": "67930c9556ba30d22f8522515f35e16100fc9c91facfb963def949669298e84a",
+                "circulation": {
+                  "checkpointId": "main-wire-noncoronary-circulation-checkpoint-v1",
+                  "schemaVersion": 1,
+                  "state": {
+                    "acceptedTimeSec": 46.286,
+                    "dynamicEdgeFlowsMlPerSec": {
+                      "Ao_SA": 15.729308259789038,
+                      "PA_PArt": 7.288358891263442
+                    },
+                    "nodeVolumesMl": {
+                      "Ao": 65.43672870139142,
+                      "Art": 53.40747568228843,
+                      "Cap": 373.8240967694148,
+                      "LA": 25.789812289002846,
+                      "LV": 143.71107118194095,
+                      "PA": 20.31424407527116,
+                      "PArt": 30.382047089454144,
+                      "PCap": 126.8624246987145,
+                      "PVein": 255.71450654987123,
+                      "PVen": 191.35054099872113,
+                      "RA": 31.203154104142882,
+                      "RV": 140.09267209104078,
+                      "SA": 173.4205462304614,
+                      "SV": 2869.1921371265043,
+                      "VC": 422.0304485810053
+                    },
+                    "revision": 23383,
+                    "totalBloodVolumeMl": 4922.731906169226,
+                    "transactionId": "main-wire-derived-noncoronary-experimental-backward-euler-v1",
+                    "valveStates": {
+                      "AoV": {
+                        "leafletOpeningFraction01": 3.796086376771449e-27
+                      },
+                      "MV": {
+                        "leafletOpeningFraction01": 0.05305957608662506
+                      },
+                      "PV": {
+                        "leafletOpeningFraction01": 4.997238593883511e-35
+                      },
+                      "TV": {
+                        "leafletOpeningFraction01": 0.2571650670573836
+                      }
+                    }
+                  },
+                  "stateFingerprint": "bd48b2ef"
+                },
+                "coronary": {
+                  "acceptedState": {
+                    "acceptedTimeSec": 46.286,
+                    "revision": 23383,
+                    "toneResistanceScaleByTerritoryLayer": {
+                      "LAD": {
+                        "subendocardial": 1.1436594569384446,
+                        "subepicardial": 1.1316825228703005
+                      },
+                      "LCx": {
+                        "subendocardial": 1.1431429129138333,
+                        "subepicardial": 1.1224143579387797
+                      },
+                      "RCA": {
+                        "subendocardial": 1.1845135399010445,
+                        "subepicardial": 1.1400039577020524
+                      }
+                    },
+                    "volumeMlByNode": {
+                      "CV": 4.498487329982264,
+                      "LAD.Art": 1.5200813672302014,
+                      "LAD.IM.Art.subendocardial": 0.5460176427671911,
+                      "LAD.IM.Art.subepicardial": 0.5425815309569433,
+                      "LAD.IM.Ven.subendocardial": 0.24766881127213794,
+                      "LAD.IM.Ven.subepicardial": 0.3404678735065324,
+                      "LCx.Art": 1.0001543850429981,
+                      "LCx.IM.Art.subendocardial": 0.35908199609919295,
+                      "LCx.IM.Art.subepicardial": 0.3553063952668766,
+                      "LCx.IM.Ven.subendocardial": 0.16781456534359893,
+                      "LCx.IM.Ven.subepicardial": 0.2571770614009613,
+                      "RCA.Art": 1.0719178667409701,
+                      "RCA.IM.Art.subendocardial": 0.38197778816166145,
+                      "RCA.IM.Art.subepicardial": 0.38098756500856984,
+                      "RCA.IM.Ven.subendocardial": 0.2996651782798069,
+                      "RCA.IM.Ven.subepicardial": 0.2987064737151359
+                    }
+                  },
+                  "collapseHydraulicsFingerprint": "fnv1a32-8adfa7d9",
+                  "priorFingerprint": "fnv1a32-f2441e4f",
+                  "schema": "circleheart.coronary-hydraulic-checkpoint.v2",
+                  "topologyId": "main-wire-coronary-three-territory-two-layer-two-compliance-v2"
+                },
+                "coronaryBinding": {
+                  "boundaryResolverId": "main-wire-coronary-fixed-normal-sip-boundary-v2",
+                  "collapseHydraulicsFingerprint": "fnv1a32-8adfa7d9",
+                  "impMechanism": "cep-shortening-induced",
+                  "mvcReferenceSemantics": "previous-accepted-mitral-closure-fiber-strain-v1",
+                  "priorFingerprint": "fnv1a32-f2441e4f",
+                  "shorteningImpPriorFingerprint": "fnv1a32-8d6bd5f8",
+                  "topologyId": "main-wire-coronary-three-territory-two-layer-two-compliance-v2"
+                },
+                "fixedGlobalTotalBloodVolumeMl": 4935,
+                "mechanics": {
+                  "acceptedTimeSec": 46.286,
+                  "acceptedVolumesMl": {
+                    "LA": 25.789812289002846,
+                    "LV": 143.71107118194095,
+                    "RA": 31.203154104142882,
+                    "RV": 140.09267209104078
+                  },
+                  "contractId": "whole-heart-mechanics-contract-v1",
+                  "materialState": {
+                    "schemaVersion": 2,
+                    "trisegCoordinates": {
+                      "junctionRadiusM": 0.03351573664645831,
+                      "septalMidwallCapVolumeM3": 0.000038000997692568726
+                    },
+                    "wallStateByWall": {
+                      "LA": {
+                        "landState": [
+                          0.28113915673084267,
+                          0.7048746821615987,
+                          0.10205403594479558,
+                          0.0936506021610433,
+                          0.013402384340364911,
+                          0.033811570761398235
+                        ],
+                        "previousFiberLogStrain": 0.025905186003493317,
+                        "previousFreeCalciumUM": 0.4927435437773453,
+                        "slsState": {
+                          "viscousLogStrain": 0.13628381283531127
+                        }
+                      },
+                      "LVFW": {
+                        "landState": [
+                          0.07129525579633872,
+                          0.9975727793393473,
+                          0.000978883693398422,
+                          0.00048162586190852547,
+                          -0.00015602562692152507,
+                          0.1593718585112371
+                        ],
+                        "previousFiberLogStrain": 0.1016242784169029,
+                        "previousFreeCalciumUM": 0.13288653624316668,
+                        "slsState": {
+                          "viscousLogStrain": 0.03796946267777524
+                        }
+                      },
+                      "RA": {
+                        "landState": [
+                          0.24017348646869213,
+                          0.8460686494679048,
+                          0.05291037771202346,
+                          0.04885579484840942,
+                          0.015877161550649808,
+                          0.04733057265857084
+                        ],
+                        "previousFiberLogStrain": -0.010656256446736859,
+                        "previousFreeCalciumUM": 0.4927435437773453,
+                        "slsState": {
+                          "viscousLogStrain": 0.04096605894855052
+                        }
+                      },
+                      "RVFW": {
+                        "landState": [
+                          0.05810132368097502,
+                          0.9985430714771525,
+                          0.0005730742509778271,
+                          0.0003042799670204142,
+                          0.002413130425473969,
+                          0.17143850724318793
+                        ],
+                        "previousFiberLogStrain": 0.060257743933717904,
+                        "previousFreeCalciumUM": 0.13288653624316668,
+                        "slsState": {
+                          "viscousLogStrain": -0.006618411948125461
+                        }
+                      },
+                      "SEP": {
+                        "landState": [
+                          0.06344363951843736,
+                          0.9981794278259551,
+                          0.0007291404836333288,
+                          0.0003689193018746802,
+                          0.0005667170133853399,
+                          0.1596472916439238
+                        ],
+                        "previousFiberLogStrain": 0.07855201208966846,
+                        "previousFreeCalciumUM": 0.13288653624316668,
+                        "slsState": {
+                          "viscousLogStrain": 0.010735509021738913
+                        }
+                      }
+                    }
+                  },
+                  "materialStateFingerprint": "938dd2eb",
+                  "parameterIdentityHash": "3727e501",
+                  "parameterSetId": "normal-adult-five-wall-fixed-prior-v1-canonical-main-wire-integrated-model-standard71-fixture-v1",
+                  "providerId": "main-wire-five-wall-land-triseg-provider-v1",
+                  "revision": 23383,
+                  "stateSchemaVersion": 2
+                },
+                "mvcReferenceState": {
+                  "acceptedMitralClosureEventCount": 55,
+                  "mitralForwardFlowActive": false,
+                  "reference": {
+                    "referenceFiberLogStrainByWall": {
+                      "LVFW": 0.10169053327135975,
+                      "RVFW": 0.058629062968893066,
+                      "SEP": 0.07827429726399077
+                    }
+                  },
+                  "referenceAcceptedTimeSec": 46.260571428571424,
+                  "referenceRevision": 23368
+                },
+                "revision": 23383,
+                "schemaVersion": 2,
+                "transactionId": "main-wire-five-wall-coronary-transaction-v2"
+              },
+              "checkpointId": "circleheart.main-wire-five-wall-coronary-checkpoint.v3",
+              "checkpointSha256": "49a41bca86bb6dd87baacbd7ff8b42584406f635b0352624258a9563f5603064",
+              "coronaryAutoregulation": {
+                "acceptedDurationSec": 0.000285714285716665,
+                "acceptedStepCount": 1,
+                "desiredControl": {
+                  "controlId": "circleheart.coronary-autoregulation-control.rest.v1",
+                  "demandScaleByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    },
+                    "LCx": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    },
+                    "RCA": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    }
+                  },
+                  "effectiveMinimumToneScaleByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    },
+                    "LCx": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    },
+                    "RCA": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    }
+                  },
+                  "hyperemia01ByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    },
+                    "LCx": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    },
+                    "RCA": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    }
+                  }
+                },
+                "perfusionPressureTimeIntegralMmHgSecByTerritory": {
+                  "LAD": 0.021632061407901054,
+                  "LCx": 0.021632061407901054,
+                  "RCA": 0.021632061407901054
+                },
+                "qmTimeIntegralMlByTerritoryLayer": {
+                  "LAD": {
+                    "subendocardial": 0.00017166068282865158,
+                    "subepicardial": 0.00015300710176601763
+                  },
+                  "LCx": {
+                    "subendocardial": 0.0001148298176931594,
+                    "subepicardial": 0.00009680151105162171
+                  },
+                  "RCA": {
+                    "subendocardial": 0.00011638985494240688,
+                    "subepicardial": 0.00010198180321016994
+                  }
+                },
+                "stateId": "circleheart.coronary-accepted-autoregulation-state.v3",
+                "windowControl": {
+                  "controlId": "circleheart.coronary-autoregulation-control.rest.v1",
+                  "demandScaleByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    },
+                    "LCx": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    },
+                    "RCA": {
+                      "subendocardial": 1,
+                      "subepicardial": 1
+                    }
+                  },
+                  "effectiveMinimumToneScaleByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    },
+                    "LCx": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    },
+                    "RCA": {
+                      "subendocardial": 0.08888888888888889,
+                      "subepicardial": 0.08888888888888889
+                    }
+                  },
+                  "hyperemia01ByTerritoryLayer": {
+                    "LAD": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    },
+                    "LCx": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    },
+                    "RCA": {
+                      "subendocardial": 0,
+                      "subepicardial": 0
+                    }
+                  }
+                },
+                "windowIndex": 54,
+                "windowOriginAcceptedTimeSec": 0,
+                "windowStartAcceptedTimeSec": 46.285714285714285,
+                "windowStartRevision": 23382
+              },
+              "coronaryAutoregulationBinding": {
+                "bindingId": "accepted-physical-time-coronary-autoregulation-v1",
+                "flowObservable": "final-candidate-layer-qm-internal-flow-ml-per-sec",
+                "law": "integral-flow-homeostasis-v2",
+                "perfusionPressureObservable": "final-candidate-post-focal-lesion-pressure-minus-common-cv-pressure",
+                "priorFingerprint": "fnv1a32-e1e5a2a4",
+                "windowPolicy": {
+                  "durationSec": 0.8571428571428571,
+                  "interpretation": "periodic-sinus-cycle-aligned",
+                  "kind": "fixed-physical-duration",
+                  "originAcceptedTimeSec": 0,
+                  "quadrature": "backward-euler-right-endpoint"
+                }
+              },
+              "revision": 23383,
+              "schemaVersion": 3,
+              "transactionId": "main-wire-five-wall-coronary-transaction-v3"
+            },
+            "dynamicMechanicalSupport": {
+              "acceptedFlowMlPerSec": {
+                "IMPELLA": 0,
+                "LVAD": 0,
+                "VA_ECMO": 0,
+                "VV_ECMO": 0
+              },
+              "inertanceProfileSnapshot": {
+                "deviceProfileBindingByDevice": {
+                  "IMPELLA": {
+                    "bindingSchemaId": "circleheart-dynamic-mechanical-support-device-profile-binding-v1",
+                    "circuitProfileBindingSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+                    "circuitProfileId": "periodic-v3-impella-all-off-zero-inertance",
+                    "deviceId": "IMPELLA",
+                    "schemaVersion": 1
+                  },
+                  "LVAD": {
+                    "bindingSchemaId": "circleheart-dynamic-mechanical-support-device-profile-binding-v1",
+                    "circuitProfileBindingSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+                    "circuitProfileId": "periodic-v3-lvad-all-off-zero-inertance",
+                    "deviceId": "LVAD",
+                    "schemaVersion": 1
+                  },
+                  "VA_ECMO": {
+                    "bindingSchemaId": "circleheart-dynamic-mechanical-support-device-profile-binding-v1",
+                    "circuitProfileBindingSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+                    "circuitProfileId": "periodic-v3-va_ecmo-all-off-zero-inertance",
+                    "deviceId": "VA_ECMO",
+                    "schemaVersion": 1
+                  },
+                  "VV_ECMO": {
+                    "bindingSchemaId": "circleheart-dynamic-mechanical-support-device-profile-binding-v1",
+                    "circuitProfileBindingSha256": "4444444444444444444444444444444444444444444444444444444444444444",
+                    "circuitProfileId": "periodic-v3-vv_ecmo-all-off-zero-inertance",
+                    "deviceId": "VV_ECMO",
+                    "schemaVersion": 1
+                  }
+                },
+                "inertanceByDevice": {
+                  "IMPELLA": {
+                    "drainageMmHgSec2PerMl": 0,
+                    "oxygenatorMmHgSec2PerMl": 0,
+                    "pumpInternalMmHgSec2PerMl": 0,
+                    "returnPathMmHgSec2PerMl": 0,
+                    "unitSystemId": "circleheart-mmHg-mL-second-v1"
+                  },
+                  "LVAD": {
+                    "drainageMmHgSec2PerMl": 0,
+                    "oxygenatorMmHgSec2PerMl": 0,
+                    "pumpInternalMmHgSec2PerMl": 0,
+                    "returnPathMmHgSec2PerMl": 0,
+                    "unitSystemId": "circleheart-mmHg-mL-second-v1"
+                  },
+                  "VA_ECMO": {
+                    "drainageMmHgSec2PerMl": 0,
+                    "oxygenatorMmHgSec2PerMl": 0,
+                    "pumpInternalMmHgSec2PerMl": 0,
+                    "returnPathMmHgSec2PerMl": 0,
+                    "unitSystemId": "circleheart-mmHg-mL-second-v1"
+                  },
+                  "VV_ECMO": {
+                    "drainageMmHgSec2PerMl": 0,
+                    "oxygenatorMmHgSec2PerMl": 0,
+                    "pumpInternalMmHgSec2PerMl": 0,
+                    "returnPathMmHgSec2PerMl": 0,
+                    "unitSystemId": "circleheart-mmHg-mL-second-v1"
+                  }
+                },
+                "profileBindingSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                "profileId": "periodic-v3-explicit-all-off-zero-inertance-profile",
+                "profileSchemaId": "circleheart-dynamic-mechanical-support-inertance-profile-v1",
+                "schemaVersion": 1,
+                "unitSystemId": "circleheart-mmHg-mL-second-v1"
+              },
+              "networkId": "circleheart-dynamic-mechanical-support-network-v1",
+              "schemaVersion": 1,
+              "stateSchemaId": "circleheart-dynamic-mechanical-support-accepted-flow-state-v1",
+              "structuralHydraulicProjection": {
+                "byDevice": {
+                  "IMPELLA": {
+                    "curve": {
+                      "linearLossMmHgSecPerMl": 0.4,
+                      "linearLossSpeedExponent": 1,
+                      "quadraticLossMmHgSec2PerMl2": 0.0314,
+                      "referenceSpeedRpm": 46000,
+                      "shutoffHeadMmHg": 210
+                    },
+                    "deviceId": "IMPELLA",
+                    "drainage": {
+                      "linearResistanceMmHgSecPerMl": 0.03,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.001
+                    },
+                    "forwardFlowEvidenceDomain": {
+                      "advertisedCapacityLMin": null,
+                      "publishedExperimentalTraversalUpperLMin": null
+                    },
+                    "inletNode": "LV",
+                    "inletSuction": {
+                      "collapsePressureMmHg": -4,
+                      "kind": "legacy-smooth-availability",
+                      "minimumVolumeMl": 18,
+                      "recoveredPressureMmHg": 4,
+                      "recoveredVolumeMl": 50
+                    },
+                    "maximumForwardFlowLMin": 4.3,
+                    "maximumReverseFlowLMin": 2,
+                    "outletNode": "Ao",
+                    "oxygenator": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0
+                    },
+                    "returnPath": {
+                      "linearResistanceMmHgSecPerMl": 0.03,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.001
+                    },
+                    "vaCannulation": null,
+                    "vvCannulation": null,
+                    "vvHemodynamicCoupling": null
+                  },
+                  "LVAD": {
+                    "curve": {
+                      "linearLossMmHgSecPerMl": 0.018407999999999997,
+                      "linearLossSpeedExponent": 1,
+                      "quadraticLossMmHgSec2PerMl2": 0.00522,
+                      "referenceSpeedRpm": 5200,
+                      "shutoffHeadMmHg": 93.288
+                    },
+                    "deviceId": "LVAD",
+                    "drainage": {
+                      "linearResistanceMmHgSecPerMl": 0.015,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.0003
+                    },
+                    "forwardFlowEvidenceDomain": {
+                      "advertisedCapacityLMin": null,
+                      "publishedExperimentalTraversalUpperLMin": null
+                    },
+                    "inletNode": "LV",
+                    "inletSuction": {
+                      "collapsePressureMmHg": -5,
+                      "kind": "legacy-smooth-availability",
+                      "minimumVolumeMl": 20,
+                      "recoveredPressureMmHg": 3,
+                      "recoveredVolumeMl": 55
+                    },
+                    "maximumForwardFlowLMin": 10,
+                    "maximumReverseFlowLMin": 3,
+                    "outletNode": "Ao",
+                    "oxygenator": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0
+                    },
+                    "returnPath": {
+                      "linearResistanceMmHgSecPerMl": 0.015,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.0003
+                    },
+                    "vaCannulation": null,
+                    "vvCannulation": null,
+                    "vvHemodynamicCoupling": null
+                  },
+                  "VA_ECMO": {
+                    "curve": {
+                      "linearLossMmHgSecPerMl": 0.0864,
+                      "linearLossSpeedExponent": 1,
+                      "quadraticLossMmHgSec2PerMl2": 0.003096,
+                      "referenceSpeedRpm": 3500,
+                      "shutoffHeadMmHg": 337
+                    },
+                    "deviceId": "VA_ECMO",
+                    "drainage": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.011124
+                    },
+                    "forwardFlowEvidenceDomain": {
+                      "advertisedCapacityLMin": null,
+                      "publishedExperimentalTraversalUpperLMin": null
+                    },
+                    "inletNode": "VC",
+                    "inletSuction": {
+                      "collapsePressureMmHg": -8,
+                      "kind": "legacy-smooth-availability",
+                      "minimumVolumeMl": 25,
+                      "recoveredPressureMmHg": 2,
+                      "recoveredVolumeMl": 100
+                    },
+                    "maximumForwardFlowLMin": 7,
+                    "maximumReverseFlowLMin": 7,
+                    "outletNode": "SA",
+                    "oxygenator": {
+                      "linearResistanceMmHgSecPerMl": 0.9198,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.00198
+                    },
+                    "returnPath": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.018036
+                    },
+                    "vaCannulation": "peripheral",
+                    "vvCannulation": null,
+                    "vvHemodynamicCoupling": null
+                  },
+                  "VV_ECMO": {
+                    "curve": {
+                      "linearLossMmHgSecPerMl": 0.0864,
+                      "linearLossSpeedExponent": 1,
+                      "quadraticLossMmHgSec2PerMl2": 0.003096,
+                      "referenceSpeedRpm": 3500,
+                      "shutoffHeadMmHg": 337
+                    },
+                    "deviceId": "VV_ECMO",
+                    "drainage": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.011124
+                    },
+                    "forwardFlowEvidenceDomain": {
+                      "advertisedCapacityLMin": null,
+                      "publishedExperimentalTraversalUpperLMin": null
+                    },
+                    "inletNode": "VC",
+                    "inletSuction": {
+                      "collapsePressureMmHg": -8,
+                      "kind": "legacy-smooth-availability",
+                      "minimumVolumeMl": 25,
+                      "recoveredPressureMmHg": 2,
+                      "recoveredVolumeMl": 100
+                    },
+                    "maximumForwardFlowLMin": 7,
+                    "maximumReverseFlowLMin": 7,
+                    "outletNode": "VC",
+                    "oxygenator": {
+                      "linearResistanceMmHgSecPerMl": 0.9198,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.00198
+                    },
+                    "returnPath": {
+                      "linearResistanceMmHgSecPerMl": 0,
+                      "quadraticResistanceMmHgSec2PerMl2": 0.018036
+                    },
+                    "vaCannulation": null,
+                    "vvCannulation": "femoral-jugular",
+                    "vvHemodynamicCoupling": "well-mixed-venous"
+                  }
+                },
+                "modelId": "circleheart-mechanical-circulatory-support-v1",
+                "projectionSchemaId": "circleheart-dynamic-mechanical-support-structural-hydraulic-projection-v1",
+                "schemaVersion": 1
+              },
+              "unitSystemId": "circleheart-mmHg-mL-second-v1"
+            },
+            "dynamicMechanicalSupportProfileIdentitySha256": "178bc68a37a922ebfcf48955cbd56ad90f085b5f7f06ce8aba0c6ea393d1371e",
+            "dynamicMechanicalSupportStructuralHydraulicIdentitySha256": "90ef2c792f4191cc82ff56f821b3b0a8272a36eb46c9b7a36e9dbdf55ee01763",
+            "hemodynamicResearchInputIdentitySha256": "41f1c96495a6d08010e34db0d8d4d98d90fc7a64ce77db648ee300f1215aa173",
+            "revision": 23383,
+            "schemaVersion": 5,
+            "transactionId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3"
+          },
+          "revision": 23383,
+          "schemaVersion": 2
+        },
+        "coupledPredictor": {
+          "checkpointId": "circleheart-main-wire-five-wall-coupled-predictor-checkpoint-v2",
+          "schemaVersion": 2,
+          "historyDepth": 0,
+          "expectedBaseRevision": null,
+          "expectedBaseAcceptedTimeSec": null,
+          "oldestAcceptedMl": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "olderAcceptedMl": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "previousAcceptedMl": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "currentAcceptedMl": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "checkpointSha256": "a125d6aeaca4e1859adb847008afc83aa6de29715b6b23409006861b30932df2"
+      }
+    }
+  },
+  "assessment": {
+    "rest": {
+      "operating": [
+        {
+          "metricId": "systemic-net-flow.cardiac-index",
+          "lower": 2.5,
+          "upper": 4,
+          "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+          "locator": "Table 11, CI",
+          "basis": "source-informed-operating-target",
+          "actual": 2.951852453078972,
+          "status": "passed"
+        },
+        {
+          "metricId": "central-venous-pressure.mean",
+          "lower": 2,
+          "upper": 6,
+          "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+          "locator": "Table 11, mean RAP",
+          "basis": "source-informed-operating-target",
+          "actual": 3.0795269250090356,
+          "status": "passed"
+        },
+        {
+          "metricId": "pulmonary-artery-pressure.mean",
+          "lower": 8,
+          "upper": 20,
+          "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+          "locator": "Table 11, mean PAP",
+          "basis": "source-informed-operating-target",
+          "actual": 17.89193948419189,
+          "status": "passed"
+        },
+        {
+          "metricId": "aortic-pressure.maximum",
+          "lower": 90,
+          "upper": 140,
+          "sourceId": "herbert-2014-central-pressure-reference",
+          "locator": "Methods, invasive versus cuff-calibrated pressure distinction",
+          "basis": "retained-engineering-load-guard-NOT-source-derived-normal-range",
+          "actual": 111.29648919100829,
+          "status": "passed"
+        },
+        {
+          "metricId": "aortic-pressure.minimum",
+          "lower": 60,
+          "upper": 90,
+          "sourceId": "herbert-2014-central-pressure-reference",
+          "locator": "Methods, DBP calibration; no central-DBP reference interval",
+          "basis": "retained-engineering-load-guard-NOT-source-derived-normal-range",
+          "actual": 77.52496257161738,
+          "status": "passed"
+        },
+        {
+          "metricId": "left-ventricle.native-end-filling-pressure",
+          "lower": null,
+          "upper": 16,
+          "sourceId": "nagueh-2025-lv-diastolic-function",
+          "locator": "Section2, Table1 p539 (>16), Figure1 p540",
+          "basis": "source-informed-engineering-load-guard-NOT-method-matched-normal-range",
+          "actual": 10.92333041639932,
+          "status": "passed"
+        }
+      ],
+      "comparison": {
+        "profileId": "main-wire-resting-reference-profile-v1",
+        "scope": "Settled resting unassisted, nonshunting sinus baseline; source comparisons are not patient-fit targets or a replacement for numerical/construction checks.",
+        "subject": {
+          "bodySurfaceAreaM2": 1.9,
+          "allowedHeartRatesBpm": [
+            60,
+            70
+          ],
+          "sex": "unspecified",
+          "age": "unspecified",
+          "ethnicity": "unspecified"
+        },
+        "startTimeSec": 45.29657142857139,
+        "endTimeSec": 46.153714285714244,
+        "heartRateBpm": 70.00000000000026,
+        "selectionRule": "Report every declared comparison, never select a stratum because it passes. This comparison profile alone provides no sex-union, sex-intersection or summed-score admission rule; any consuming design decision must be explicit and separately versioned.",
+        "entries": [
+          {
+            "metricId": "aortic-valve.ejection-time",
+            "unit": "s",
+            "sourceId": "alhakak-2023-copenhagen-cardiac-time-intervals",
+            "locator": "Methods, Cardiac time intervals; Table 2, pooled LVET 95% prediction interval",
+            "role": "method-context",
+            "mapping": "Native accumulated positive AoV-flow duration, not mitral-leaflet color-TDI timing. Opening-to-closure interpretation requires the separate morphology/timing observer to establish one forward episode; this comparison does not enforce that condition. No HR correction or method equivalence inferred.",
+            "comparisons": [
+              {
+                "stratum": "Copenhagen pooled healthy adults; HR 63 +/- 10",
+                "range": {
+                  "lower": 0.248,
+                  "upper": 0.336
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 0.25800000000000267,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "pulmonary-valve.ejection-time",
+            "unit": "s",
+            "sourceId": "van-oort-1988-pulmonary-doppler",
+            "locator": "Abstract: population and recording stations; no numeric adult ET interval verified",
+            "role": "method-context",
+            "mapping": "Native accumulated positive PV-flow duration; the separate morphology/timing observer must establish one forward episode. Doppler PA versus RVOT station, respiration and HR differ. No adult ET bounds inferred from acceleration time, tissue S-wave duration or LVET.",
+            "comparisons": [],
+            "actual": 0.25800000000000267,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "aortic-pressure.maximum",
+            "unit": "mmHg",
+            "sourceId": "herbert-2014-central-pressure-reference",
+            "locator": "Methods, Standardizing methodologies; Table 2, Normal population, all adult age rows",
+            "role": "method-context",
+            "mapping": "Model Ao root pressure is invasive-like. Source cSBP is cuff-calibrated noninvasive estimation; authors explicitly distinguish it from higher invasive intra-aortic SBP. Published P10/P90 are context, not 95% normal cutoffs or a model calibration target.",
+            "comparisons": [
+              {
+                "stratum": "women 20-29",
+                "range": {
+                  "lower": 80,
+                  "upper": 110
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "outside-source-range"
+              },
+              {
+                "stratum": "men 20-29",
+                "range": {
+                  "lower": 92,
+                  "upper": 115
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women 30-39",
+                "range": {
+                  "lower": 84,
+                  "upper": 119
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "men 30-39",
+                "range": {
+                  "lower": 88,
+                  "upper": 120
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women 40-49",
+                "range": {
+                  "lower": 87,
+                  "upper": 123
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "men 40-49",
+                "range": {
+                  "lower": 90,
+                  "upper": 123
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women 50-59",
+                "range": {
+                  "lower": 93,
+                  "upper": 127
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "men 50-59",
+                "range": {
+                  "lower": 96,
+                  "upper": 126
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women 60-69",
+                "range": {
+                  "lower": 97,
+                  "upper": 129
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "men 60-69",
+                "range": {
+                  "lower": 97,
+                  "upper": 128
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women 70+",
+                "range": {
+                  "lower": 100,
+                  "upper": 131
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "men 70+",
+                "range": {
+                  "lower": 99,
+                  "upper": 130
+                },
+                "statistic": "published-10th-90th-percentiles",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 111.29648919100829,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "aortic-pressure.minimum",
+            "unit": "mmHg",
+            "sourceId": "herbert-2014-central-pressure-reference",
+            "locator": "Methods, Standardizing methodologies; Table 1, brachial DBP summary",
+            "role": "method-context",
+            "mapping": "Source assumes DBP consistency for calibration, but does not publish a central-DBP normal interval. Do not turn the brachial mean +/- SD into a verified Ao-node cutoff.",
+            "comparisons": [],
+            "actual": 77.52496257161738,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "central-venous-pressure.mean",
+            "unit": "mmHg",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, mean RAP; section 5.1.12.1",
+            "role": "operating-comparison",
+            "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 2,
+                  "upper": 6
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 3.0795269250090356,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "pulmonary-artery-pressure.maximum",
+            "unit": "mmHg",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, systolic PAP; section 5.1.12.1",
+            "role": "operating-comparison",
+            "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 15,
+                  "upper": 30
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 26.17242118505827,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "pulmonary-artery-pressure.minimum",
+            "unit": "mmHg",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, diastolic PAP; section 5.1.12.1",
+            "role": "operating-comparison",
+            "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 4,
+                  "upper": 12
+                },
+                "statistic": "published-reference-interval",
+                "status": "outside-source-range"
+              }
+            ],
+            "actual": 12.055592417984645,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "pulmonary-artery-pressure.mean",
+            "unit": "mmHg",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, mean PAP; section 5.1.12.1",
+            "role": "operating-comparison",
+            "mapping": "Absolute lumped pressure, no respiratory cycle; compare with supine end-expiratory catheter values at the specified zero. No catheter transfer function or peripheral waveform is simulated.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 8,
+                  "upper": 20
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 17.89193948419189,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "pcwp-surrogate.mean",
+            "unit": "mmHg",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, PAWP; section 5.1.12.1",
+            "role": "method-context",
+            "mapping": "Observed quantity remains LA mean, not a wedge measurement or LVEDP. PAWP <=15 is the guideline clinical reference upper limit, not a healthy-cohort distribution or a verified model LA-to-PAWP transfer. No lower bound is invented.",
+            "comparisons": [
+              {
+                "stratum": "adult RHC PAWP clinical reference",
+                "range": {
+                  "lower": null,
+                  "upper": 15
+                },
+                "statistic": "clinical-upper-limit",
+                "status": "not-above-source-upper-limit"
+              }
+            ],
+            "actual": 8.402828017409725,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "left-ventricle.edv-index",
+            "unit": "mL/m2",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 46,
+                  "upper": 104
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 46,
+                  "upper": 91
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 75.63750481438039,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "left-ventricle.esv-index",
+            "unit": "mL/m2",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 11,
+                  "upper": 41
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 11,
+                  "upper": 34
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 33.46818399406834,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "left-ventricle.ejection-fraction",
+            "unit": "fraction",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 2, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 0.53,
+                  "upper": 0.79
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 0.55,
+                  "upper": 0.8
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 0.5575186664842852,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "right-ventricle.edv-index",
+            "unit": "mL/m2",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 49,
+                  "upper": 117
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 47,
+                  "upper": 99
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 74.08611607131662,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "right-ventricle.esv-index",
+            "unit": "mL/m2",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 12,
+                  "upper": 56
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 11,
+                  "upper": 43
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 31.917135989589642,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "right-ventricle.ejection-fraction",
+            "unit": "fraction",
+            "sourceId": "kawel-boehm-2025-scmr-reference-values",
+            "locator": "Table 8, anatomical segmentation, sex-specific indexed volume/EF rows",
+            "role": "demographic-comparison",
+            "mapping": "Native valve-closure cavity blood volumes, BSA indexed; compared with anatomical bSSFP CMR excluding papillary/trabecular myocardium from the blood pool. No validated image segmentation or age/sex assignment; separate marginal ranges are not a joint distribution. EF is derived from EDV and ESV.",
+            "comparisons": [
+              {
+                "stratum": "men, pooled adult ages",
+                "range": {
+                  "lower": 0.44,
+                  "upper": 0.77
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              },
+              {
+                "stratum": "women, pooled adult ages",
+                "range": {
+                  "lower": 0.49,
+                  "upper": 0.77
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 0.5691886998251382,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "systemic-net-flow.cardiac-index",
+            "historicalCheckId": "systemic-forward-flow.cardiac-index",
+            "unit": "L/min/m2",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, CI; section 5.1.12.1, direct Fick/thermodilution",
+            "role": "operating-comparison",
+            "mapping": "Use signed native AoV NET output/BSA under a distinct metric ID. Interpretation as whole-circulation CO requires a settled unassisted nonshunting state; no positive-only flow substitution or distal-CMR-plane equivalence.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 2.5,
+                  "upper": 4
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 2.951852453078972,
+            "observationStatus": "observed"
+          },
+          {
+            "metricId": "systemic-net-flow.stroke-volume-index",
+            "historicalCheckId": "systemic-forward-flow.stroke-volume-index",
+            "unit": "mL/m2",
+            "sourceId": "humbert-2022-esc-ers-pulmonary-hypertension",
+            "locator": "Table 11, SVI; section 5.1.12.1",
+            "role": "coupled-flow-context",
+            "mapping": "Signed native AoV NET volume/BSA. CI = HR * SVI / 1000, so this is a coupled comparison, not a second independent fitting objective. The CI-conditional interval is reported separately; it is not this published SVI interval.",
+            "comparisons": [
+              {
+                "stratum": "resting adult RHC reference",
+                "range": {
+                  "lower": 33,
+                  "upper": 47
+                },
+                "statistic": "published-reference-interval",
+                "status": "inside-source-range"
+              }
+            ],
+            "actual": 42.16932075827087,
+            "observationStatus": "observed"
+          }
+        ],
+        "flowCoupling": {
+          "basis": "signed-native-AoV-net-flow",
+          "ciMinusHrTimesSviOver1000": 0,
+          "ciConditionalSviIntervalMlPerM2": {
+            "lower": 35.71428571428558,
+            "upper": 57.14285714285693
+          },
+          "conditionalIntervalIsPublishedSviReference": false,
+          "forwardMinusNetCi": 0,
+          "pulmonaryMinusAorticNetFlowLPerMin": -0.0000453108243894107
+        },
+        "nativeLvEndDiastolicPressure": {
+          "timeSec": 45.40342857142857,
+          "absolutePressureMmHg": 10.92333041639932,
+          "transmuralPressureMmHg": 10.92333041639932,
+          "externalPressureMmHg": 0,
+          "differenceFromMeanLaMmHg": 2.5205023989895956
+        },
+        "observationApplicabilityEstablished": false,
+        "applicabilityReview": "Caller must separately establish settlement, no support/shunt and correct pressure reference. This readback does not infer those conditions from a plausible scalar or small flow mismatch.",
+        "admissionDecision": "not-performed",
+        "physiologicalNormalityClaimed": false
+      },
+      "invalidOrFailedRetained": [],
+      "unavailable": [],
+      "anatomyReviewRequired": false,
+      "historicalWarnings": [
+        {
+          "checkId": "left-ventricle.maximum-dpdt",
+          "status": "failed",
+          "actual": 2564.254456175632,
+          "minimum": 1200,
+          "maximum": 2500,
+          "unit": "mmHg/s"
+        },
+        {
+          "checkId": "left-ventricle.minimum-dpdt",
+          "status": "failed",
+          "actual": -1538.8738086540834,
+          "minimum": -1400,
+          "maximum": -700,
+          "unit": "mmHg/s"
+        },
+        {
+          "checkId": "timing.ict",
+          "status": "failed",
+          "actual": 0.08914285714285342,
+          "minimum": 0.02,
+          "maximum": 0.07,
+          "unit": "s"
+        },
+        {
+          "checkId": "timing.tei-index",
+          "status": "failed",
+          "actual": 0.7021040974529081,
+          "minimum": 0.29,
+          "maximum": 0.65,
+          "unit": "ratio"
+        }
+      ],
+      "status": "passed"
+    },
+    "native": {
+      "methodId": "main-wire-baseline-observation-v2",
+      "timingBasis": "completed-beat-closures-and-observed-flow-zero-crossings",
+      "left": {
+        "timing": {
+          "ictSec": 0.08914285714285342,
+          "ejectionTimeSec": 0.25800000000000267,
+          "irtSec": 0.09199999999999875,
+          "teiIndex": 0.7021040974529081
+        },
+        "inletFlow": {
+          "basis": "atrial-capture-anchored-native-volumetric-flow",
+          "peakEMlPerSec": 393.0277050540759,
+          "peakAMlPerSec": 419.034461972556,
+          "peakEToA": 0.9379364723463165,
+          "peakETimeSec": 45.90257142857142,
+          "peakATimeSec": 46.20457142857143
+        },
+        "events": {
+          "inletClosureTimeSec": 45.40342857142857,
+          "outletOpeningTimeSec": 45.492571428571424,
+          "outletClosureTimeSec": 45.750571428571426,
+          "inletOpeningTimeSec": 45.842571428571425,
+          "atrialCaptureTimeSec": 46.153714285714244,
+          "atrialCaptureId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53",
+          "nextInletClosureTimeSec": 46.260571428571424
+        }
+      },
+      "right": {
+        "timing": {
+          "ictSec": 0.027999999999998693,
+          "ejectionTimeSec": 0.25800000000000267,
+          "irtSec": 0.06400000000000006,
+          "teiIndex": 0.3565891472868132
+        },
+        "inletFlow": {
+          "basis": "atrial-capture-anchored-native-volumetric-flow",
+          "peakEMlPerSec": 353.5178705093439,
+          "peakAMlPerSec": 320.20952271931077,
+          "peakEToA": 1.1040204785515717,
+          "peakETimeSec": 45.85057142857142,
+          "peakATimeSec": 46.21257142857142
+        },
+        "events": {
+          "inletClosureTimeSec": 45.458571428571425,
+          "outletOpeningTimeSec": 45.48657142857142,
+          "outletClosureTimeSec": 45.744571428571426,
+          "inletOpeningTimeSec": 45.808571428571426,
+          "atrialCaptureTimeSec": 46.153714285714244,
+          "atrialCaptureId": "rounded-ejection-v1-capture-owner:batch:107:atrial:capture:regular-atrial-source-v1:47:rounded-ejection-v1-regular-sinus-configuration39:rounded-ejection-v1-regular-sinus-owner2:53",
+          "nextInletClosureTimeSec": 46.315714285714286
+        }
+      }
+    },
+    "tau": {
+      "weiss": {
+        "tauMs": 32.03666353744914
+      },
+      "glantz": {
+        "tauMs": 52.428139881832195
+      }
+    },
+    "beat": {
+      "ventricularAbsolutePressureRateExtrema": {
+        "LV": {
+          "maximumMmHgPerSec": 2564.254456175632,
+          "minimumMmHgPerSec": -1538.8738086540834
+        },
+        "RV": {
+          "maximumMmHgPerSec": 585.6274035247939,
+          "minimumMmHgPerSec": -371.8957346758883
+        }
+      },
+      "valveForwardPressureGradients": {
+        "AoV": {
+          "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+          "forwardFlowDurationSec": 0.25800000000000267,
+          "peakMmHg": 7.820872994626626,
+          "timeWeightedMeanMmHg": 4.19385821565521
+        },
+        "MV": {
+          "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+          "forwardFlowDurationSec": 0.41799999999999926,
+          "peakMmHg": 5.381868864226272,
+          "timeWeightedMeanMmHg": 1.8518468260653969
+        },
+        "PV": {
+          "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+          "forwardFlowDurationSec": 0.25800000000000267,
+          "peakMmHg": 7.3662485833683675,
+          "timeWeightedMeanMmHg": 4.44894265627605
+        },
+        "TV": {
+          "basis": "upstream-minus-downstream-absolute-pressure-during-forward-flow",
+          "forwardFlowDurationSec": 0.5071428571428527,
+          "peakMmHg": 2.3300015107184144,
+          "timeWeightedMeanMmHg": 0.8908268211549942
+        }
+      }
+    },
+    "reserveVerified": true
+  },
+  "document": {
+    "documentId": "standard72-document-v1",
+    "contentSha256": "8d94da6d0c7c7edf88b5c277eda1aaa9cb613cca22fff158ed91f2c8fdcdcdc7"
+  },
+  "evidence": {
+    "kind": "sealed-model-baseline-binding",
+    "bindingSha256": "928c767ad66d27ea14e0b63a611a00d1768f75aaa6bd24dd1dd34d8e912f4032",
+    "launchCheckpointSha256": "a125d6aeaca4e1859adb847008afc83aa6de29715b6b23409006861b30932df2",
+    "scope": "Own Standard72 cold replay at 2 ms; reviewed identical-construction fine-grid and preload evidence retained in the saved document. No new qualification or publication."
+  },
+  "publicBaselinePromotionAuthorized": false,
+  "recordSha256": "5f598f70c3ac79359fdd42fd71de8c68474725601532662edf89282fa57a5744"
+}

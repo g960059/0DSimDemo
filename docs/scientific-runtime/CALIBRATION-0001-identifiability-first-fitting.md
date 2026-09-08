@@ -249,6 +249,12 @@ to their original target and policy, and reuse as initialization is not current
 qualification. Matching returns representative solutions or supported
 combinations, not diagnosis, treatment, or patient-prediction claims.
 
+An adopted baseline binds one capture, recorded assessment, and immutable
+document. New-session defaults and fitting initialization share that selection;
+saved scenarios keep their own capture. Document compilation rematerializes
+input-dependent coefficients and observations while reusing physical modules.
+Changing a selection neither qualifies a candidate nor publishes a model.
+
 Only synthetic or published-source case data may enter Git. Real-person data
 remain local and are not persisted, reused in caches, logged, exported, or
 committed by default. Plain hashes of low-entropy measurements are not

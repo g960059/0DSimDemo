@@ -5,6 +5,7 @@ export type RegisteredModelDocumentationIdentityV1 = Readonly<{
   modelId: string;
   surfaceReleaseId: string;
   surfaceSeriesId: string;
+  documentId: string;
 }>;
 
 export type RegisteredModelDisclosureV1 = Readonly<{
@@ -19,18 +20,20 @@ export const REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1 = Object.freeze(
   SAVED_MODEL_DOCUMENT_CATALOG_V1.map(entry => ({
     label: entry.label,
     identity: { kind: "saved-model-document" as const, modelId: entry.document.identity.modelId,
-      surfaceReleaseId: entry.document.identity.surfaceReleaseId, surfaceSeriesId: entry.document.identity.surfaceSeriesId },
+      surfaceReleaseId: entry.document.identity.surfaceReleaseId, surfaceSeriesId: entry.document.identity.surfaceSeriesId,
+      documentId: entry.document.documentId },
     candidate: entry.document.identity.releaseStatus === "local-candidate-not-registered",
   })),
 );
 
 /** Documentation requires its exact model and immutable Surface pair. */
 export function resolveRegisteredModelDocumentationV1(
-  modelId: string | undefined, surfaceReleaseId: string | null | undefined,
+  modelId: string | undefined, surfaceReleaseId: string | null | undefined, documentId?: string | null,
 ): RegisteredModelDocumentationIdentityV1 | null {
-  const saved = resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId);
+  const saved = resolveSavedModelDocumentIndexV1(modelId, surfaceReleaseId, documentId);
   return saved ? { kind: "saved-model-document", modelId: saved.identity.modelId,
-    surfaceReleaseId: saved.identity.surfaceReleaseId, surfaceSeriesId: saved.identity.surfaceSeriesId } : null;
+    surfaceReleaseId: saved.identity.surfaceReleaseId, surfaceSeriesId: saved.identity.surfaceSeriesId,
+    documentId: saved.documentId } : null;
 }
 
 /** Compact index shared by Workbench and Article Reader, without frozen prose. */
@@ -38,8 +41,7 @@ export function resolveRegisteredModelDisclosureV1(
   modelId: string | undefined, surfaceReleaseId: string | null | undefined,
 ): RegisteredModelDisclosureV1 {
   const documentation = resolveRegisteredModelDocumentationV1(modelId, surfaceReleaseId);
-  const entry = SAVED_MODEL_DOCUMENT_CATALOG_V1.find(e => e.document.identity.modelId === modelId
-    && e.document.identity.surfaceReleaseId === surfaceReleaseId);
+  const entry = SAVED_MODEL_DOCUMENT_CATALOG_V1.find(e => e.document.documentId === documentation?.documentId);
   return documentation && entry
     ? Object.freeze({ documentation, badgeLabel: entry.badgeLabel,
         shortLabel: entry.document.identity.title, limitationsTranslationKey: entry.limitationsTranslationKey })

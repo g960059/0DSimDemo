@@ -4,8 +4,6 @@ import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
-import settledCheckpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-settled-baseline-checkpoint.json";
-import type { MainWireIntegratedModelStandard72CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
 import { runMainWireStandard72FittingWorkflowV1, validateMainWireStandard72SavedFittingResultV1 } from "@/analysis/methods/mainWire/MainWireStandard72FittingWorkflowV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { preparedBaselineFittingSeedV1 } from "@/tools/modelBaselines/PreparedBaselineFittingSeedV1";
@@ -28,8 +26,7 @@ const caseSeed = values.case ? await preparedBaselineFittingSeedV1(JSON.parse(aw
 let candidateInputs = values.candidate ? JSON.parse(await readFile(values.candidate, "utf8"))
   : saved?.evaluation.candidateInputs ?? caseSeed?.candidateInputs ?? fittingSeed.candidateInputs;
 if (values.tbv) candidateInputs = { ...candidateInputs, hemodynamicResearchInputs: { ...candidateInputs.hemodynamicResearchInputs, totalBloodVolumeMl: Number(values.tbv) } };
-const source = saved || values.cold ? undefined : caseSeed ?? { checkpoint: settledCheckpoint as unknown as MainWireIntegratedModelStandard72CheckpointV1,
-  candidateInputs: fittingSeed.candidateInputs };
+const source = saved || values.cold ? undefined : caseSeed ?? { checkpoint: fittingSeed.checkpoint, candidateInputs: fittingSeed.candidateInputs };
 const sourceSnapshot = await beginFittingSourceSnapshotV1(output);
 const run = await runMainWireStandard72FittingWorkflowV1({ candidateInputs, reuse: saved, source, cold: values.cold });
 if (run.status !== "saved-result-ready") {

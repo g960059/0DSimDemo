@@ -9,8 +9,6 @@ import { runMainWireStandard72FittingWorkflowV1 as evaluate, validateMainWireSta
 import { runMainWireStandard72FittingSearchV1 as search, type MainWireStandard72FittingSearchTaskV1 as Task } from "@/analysis/methods/mainWire/MainWireStandard72FittingSearchV1";
 import { resolveMainWireStandard72FittingSearchPlanV1 as resolvePlan,
   type MainWireStandard72FittingSearchOptionsV1 as Options } from "@/analysis/policies/mainWire/MainWireStandard72FittingSearchPolicyV1";
-import checkpoint from "@/studio/integrations/mainWireIntegratedV3/standard72-settled-baseline-checkpoint.json";
-import type { MainWireIntegratedModelStandard72CheckpointV1 as Checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
 import { runFittingJsonWorkersV1, readFittingWorkerStdinV1 } from "./runFittingJsonWorkersV1";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { preparedBaselineFittingSeedV1 } from "@/tools/modelBaselines/PreparedBaselineFittingSeedV1";
@@ -58,7 +56,7 @@ async function main() {
   const output = resolve(values.output); await mkdir(output); // Exclusive; never overwrite a prior search.
   const sourceSnapshot = await beginFittingSourceSnapshotV1(join(output, "execution"));
   const seed = { candidateInputs, ...(reuse ? { reuse } : { source: caseSeed ?? {
-    checkpoint: checkpoint as unknown as Checkpoint, candidateInputs: fittingSeed.candidateInputs } }) };
+    checkpoint: fittingSeed.checkpoint, candidateInputs: fittingSeed.candidateInputs } }) };
   let completed = 0;
   const result = await search({ seed, options }, async (tasks, signal) => {
     process.stderr.write(`Resting search: evaluating ${tasks.length} candidate(s), ${completed} completed.\n`);
