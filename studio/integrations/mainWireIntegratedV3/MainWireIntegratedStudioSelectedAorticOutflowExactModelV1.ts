@@ -1,5 +1,6 @@
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 } from "./MainWireIntegratedStudioModelIdentityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID, type MainWireIntegratedModelStandard72CheckpointV1 } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 } from "@/domain/model/MainWireStandardIdentityV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1,
   MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { createMainWireIntegratedModelStandard71FixtureV1, MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
@@ -384,13 +385,13 @@ const ALGEBRAIC_PULMONARY_ROOT_STANDARD70_EXACT_VARIANT_V1 = Object.freeze({
 
 // Reuses the fixed71 physical construction; no71 executable is installed.
 const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
-  generation: 68 as const, label: "Standard72" as const,
-  modelId: MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1,
+  generation: 68 as const, label: "LV domain research" as const,
+  modelId: MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1,
   fixtureId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_ID,
   fixtureClaim: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
   numericalSessionId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_TYPED_AUTHORITY_SESSION_V1_ID,
   checkpointId: MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID,
-  checkpointCodecId: "circleheart.main-wire-integrated-studio-standard72-checkpoint-codec-v1",
+  checkpointCodecId: "circleheart.main-wire-integrated-studio-hfref-lv-domain-research-checkpoint-codec-v1",
   runtimeScope: "fixed-reference-material-calcium-algebraic-roots-regular-sinus-all-off" as const,
   checkpointFixturePairing: "standard72-complete-fixture-fixed-profile-and-predictor-history" as const,
   proximalArterialRootsProfileId: null,
@@ -398,7 +399,7 @@ const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
 });
 
 function isStandard72VariantV1(variant: SelectedExactModelVariantV1): variant is typeof STANDARD72_EXACT_VARIANT_V1 {
-  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1;
+  return variant.modelId === MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1;
 }
 
 type SelectedExactModelVariantV1 =

@@ -99,7 +99,7 @@
         "decelerationTimeMs": { "median": 164, "q1": 127.7, "q3": 206 }
       },
       "method": "TTEを3回測定。SETはLVOT Doppler、PEPは心電図を含む時間、relaxationはR-to-E−PEP−SET。",
-      "limitations": "PEPをICTとして扱わない。Dopplerの可視端点とモデルの流量ゼロ交差は異なる。HR依存があり四分位範囲をHR70の必須gateにしない。"
+      "limitations": "PEPをICTとして扱わない。Dopplerの可視端点とモデルの流量ゼロ交差は異なる。HR依存があり四分位範囲をHR70の必須gateにしない。Relaxation timeはTable 2のHFrEF欄93.3 [67.3, 122] msを転記したが、抄録はHFrEF/HFpEFの中央値を逆に記載しており、原著内に不一致がある。参考記録にとどめ、数値gate・目的関数には使わない。"
     },
     {
       "sourceId": "benfari-2019-diastolic",

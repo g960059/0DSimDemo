@@ -418,6 +418,7 @@ type PressureVolumeLoopCanvasCommonPropsV3 = Readonly<{
   periodicPvaSupported?: boolean;
   showPressureEnvelope?: boolean;
   showPvaBoundary?: boolean;
+  onRetryAnalysis?: () => boolean;
 }>;
 
 export type PressureVolumeLoopCanvasPropsV3 =
@@ -907,14 +908,18 @@ export function PressureVolumeLoopCanvasV3(
           </div>
         )}
         {pvaAnalysisError !== undefined && (
-          <PvaAnalysisErrorPopoverV3 error={pvaAnalysisError} />
+          <PvaAnalysisErrorPopoverV3 error={pvaAnalysisError} onRetry={props.onRetryAnalysis} />
         )}
       </div>
     </div>
   );
 }
 
-function PvaAnalysisErrorPopoverV3({ error }: Readonly<{ error: string }>) {
+function PvaAnalysisErrorPopoverV3({ error, onRetry }: Readonly<{
+  error: string;
+  onRetry?: () => boolean;
+}>) {
+  const { i18n } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const rootRef = React.useRef<HTMLDivElement>(null);
 
@@ -956,6 +961,13 @@ function PvaAnalysisErrorPopoverV3({ error }: Readonly<{ error: string }>) {
         >
           <p className="font-medium">PVA analysis unavailable</p>
           <p className="mt-1 break-words text-wb-muted">{error}</p>
+          {onRetry !== undefined && (
+            <button type="button"
+              className="mt-2 rounded border border-wb-border px-2 py-1 text-wb-text hover:bg-wb-hover"
+              onClick={() => { if (onRetry()) setOpen(false); }}>
+              {i18n.language.startsWith("ja") ? "現在の状態で再計算" : "Recalculate from current state"}
+            </button>
+          )}
         </div>
       )}
     </div>

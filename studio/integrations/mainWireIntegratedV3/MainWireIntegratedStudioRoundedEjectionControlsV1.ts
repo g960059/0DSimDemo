@@ -23,6 +23,7 @@ import {
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1,
+  mainWireFiveWallMechanicsResearchRangeV1,
   type MainWireFiveWallMechanicsScaleKindV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallMechanicsResearchInputsV1";
 import {
@@ -112,7 +113,7 @@ export const MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_CONTROL_CATALOG_V1:
         return definitionV1(
           `${prefix}.${wallId}`,
           "1",
-          MAIN_WIRE_FIVE_WALL_MECHANICS_RESEARCH_SCALE_RANGES_V1[kind],
+          mainWireFiveWallMechanicsResearchRangeV1(kind, wallId),
           MAIN_WIRE_INTEGRATED_MODEL_ROUNDED_EJECTION_BASELINE_MECHANISM_INPUTS_V1
             .chamberMechanics[kind][wallId],
         );
@@ -232,14 +233,14 @@ export function applyMainWireIntegratedStudioRoundedEjectionControlV1<
     }) as TFixture;
   }
   const mechanics = fixture.mechanismResearchInputs.chamberMechanics;
-  if (controlId === "myocardium.contractility") {
+  if (controlId === "myocardium.contractility" || controlId === "myocardium.lv-contractility") {
     return withMechanicsV1(fixture, {
       ...mechanics,
       activeTensionScaleByWall: {
         ...mechanics.activeTensionScaleByWall,
         LVFW: value,
         SEP: value,
-        RVFW: value,
+        ...(controlId === "myocardium.contractility" ? { RVFW: value } : {}),
       },
     });
   }
@@ -360,9 +361,9 @@ export function reduceMainWireIntegratedStudioRoundedEjectionControlV1<
       ["hemodynamicResearchInputs", hemodynamic[0]],
     ], value);
   }
-  if (controlId === "myocardium.contractility") {
+  if (controlId === "myocardium.contractility" || controlId === "myocardium.lv-contractility") {
     return numericPatchV1(
-      (["LVFW", "SEP", "RVFW"] as const).map((wallId) => [
+      (controlId === "myocardium.contractility" ? ["LVFW", "SEP", "RVFW"] : ["LVFW", "SEP"]).map((wallId) => [
         "mechanismResearchInputs",
         "chamberMechanics",
         "activeTensionScaleByWall",

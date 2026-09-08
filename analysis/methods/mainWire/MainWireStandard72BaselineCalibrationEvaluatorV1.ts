@@ -1,6 +1,6 @@
 import { canonicalJsonStringify, cloneAndFreezeCanonicalJson, sha256CanonicalJsonHex } from "@/engine/integrity";
 import { hotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 as exactIdentity,
   type MainWireIntegratedModelStandard72CheckpointV1 as Checkpoint } from "@/engine/myocardium/MainWireIntegratedModelStandard72CheckpointV1";
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";

@@ -48,6 +48,12 @@ describe("source-backed HFrEF construction, separate from healthy adoption", () 
     }
     expect(assess({}).status).toBe("unresolved");
   });
+  it("records the Patel table/abstract discrepancy without turning timing context into a gate", () => {
+    const source = raw.sources.find(s => s.sourceId === "patel-2020-timing")!;
+    expect(source.observations).toMatchObject({ relaxationTimeMs: { median: 93.3, q1: 67.3, q3: 122 } });
+    expect(source.limitations).toContain("原著内に不一致");
+    expect([...raw.restScreen, ...raw.fittingTargets].some(r => r.metricId === "irtMs")).toBe(false);
+  });
   it("uses a worst auxiliary interval error, never a sum of dependent measurements", () => {
     const r = assess({ ...values, lvedvi: 90, ci: 2.05 });
     expect(r.ranking![3]).toBeCloseTo(.25);
@@ -103,7 +109,8 @@ describe("source-backed HFrEF construction, separate from healthy adoption", () 
           seed.candidateInputs.mechanismResearchInputs.chamberMechanics.activeTensionScaleByWall } } };
     expect(reverted).toEqual(seed.candidateInputs);
     expect(canonicalJsonStringify(seed.candidateInputs)).toBe(original);
-    expect(() => apply({ lvActive: .5, tbv: 5000, resistance: 1 })).toThrow(/scope/);
+    expect(() => apply({ lvActive: .35, tbv: 4935, resistance: 1.04 })).not.toThrow();
+    expect(() => apply({ lvActive: .24, tbv: 5000, resistance: 1 })).toThrow(/scope/);
     expect(() => apply({ lvActive: NaN, tbv: 5000, resistance: 1 })).toThrow(/scope/);
     expect(() => apply({ lvActive: .8, tbv: 5000, resistance: 1, ca: 1.2 } as never)).toThrow(/exactly/);
   });

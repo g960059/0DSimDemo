@@ -38,7 +38,7 @@ async function main() {
   const referenceSha256 = await sha256CanonicalJsonHex(reference);
   const source = await beginFittingSourceSnapshotV1(join(output, "execution"));
   const registered = { reference, referenceSha256, plan, seedCandidateInputs: seed.candidateInputs,
-    seedCheckpointSha256: seed.checkpoint.checkpointSha256, sourceSha256: source.sourceSha256,
+    seedCheckpointImported: false, initialGridInitialization: "independent-cold", sourceSha256: source.sourceSha256,
     initialExecutionSource: values["reuse-initial"] ? resolve(values["reuse-initial"]) : null };
   const files = [join(output, "plan.json")];
   await writeFile(files[0]!, JSON.stringify({ ...registered, planSha256: await sha256CanonicalJsonHex(registered) }, null, 2) + "\n", { flag: "wx" });

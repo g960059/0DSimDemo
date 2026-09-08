@@ -530,7 +530,8 @@ export function createDefaultExperimentSurfaceV3(
     "hemodynamics.systemic-resistance",
     "hemodynamics.pulmonary-resistance",
     "hemodynamics.venous-tone",
-    "myocardium.active-tension-scale.LVFW",
+    contract.controlCatalog.some(c => c.controlId === "myocardium.lv-contractility")
+      ? "myocardium.lv-contractility" : "myocardium.active-tension-scale.LVFW",
     "myocardium.calcium-decay-time-scale.LVFW",
     "myocardium.passive-stiffness-scale.LVFW",
   ]);

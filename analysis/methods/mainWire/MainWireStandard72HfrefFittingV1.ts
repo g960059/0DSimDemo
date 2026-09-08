@@ -8,10 +8,10 @@ import { observeMainWireHfrefV1 as observe } from "./MainWireHfrefObservationV1"
 import type { MainWireBaselineCalibrationCandidateInputsV1 as Candidate } from "@/analysis/policies/mainWire/MainWireBaselineCalibrationParametersV1";
 
 export const MAIN_WIRE_STANDARD72_HFREF_SEARCH_PLAN_V1 = Object.freeze({
-  planId: "main-wire-standard72-hfref-three-coordinate-search-v1",
+  planId: "research-hfref-ventricular-domain-three-coordinate-search-v1",
   // Search restrictions, NOT new exact-input bounds or biological priors.
   coordinates: [
-    { id: "lvActive", lower: .75, upper: 1, initial: [.75, .875, 1], scope: "LVFW and shared SEP together; RVFW/atria unchanged" },
+    { id: "lvActive", lower: .25, upper: 1, initial: [.3, .45, .6], scope: "LVFW and shared SEP together; RVFW/atria unchanged" },
     { id: "tbv", lower: 4200, upper: 5700, initial: [4200, 4935, 5700], scope: "total blood volume, mL; tone fixed" },
     { id: "resistance", lower: .75, upper: 1.25, initial: [.75, 1.04, 1.25], scope: "systemic resistance scale; stiffness fixed" },
   ],
@@ -48,10 +48,8 @@ export async function runMainWireStandard72HfrefCaseV1(task: MainWireHfrefFittin
   const referenceSha256 = await sha256CanonicalJsonHex(reference);
   if (owned.expectedReferenceSha256 && owned.expectedReferenceSha256 !== referenceSha256) throw new Error("HFrEF reference changed after plan registration");
   const candidateInputs = applyMainWireHfrefPointV1(owned.point);
-  const initialization = owned.initialization ?? {
-    kind: "standard72-parameter-continuation" as const,
-    checkpoint: seed.checkpoint, sourceCandidateInputs: seed.candidateInputs, sourceNominalDtSec: .002 as const,
-  };
+  // Research-only derivative: never import the released Standard72 checkpoint.
+  const initialization = owned.initialization ?? { kind: "cold" as const };
   const evaluation = await evaluate({ candidateInputs, initialization, nominalDtSec: owned.nominalDtSec ?? .002,
     retainTerminalDiagnostics: true, abortSignal });
   return projectResultV1({ point: owned.point, candidateInputs, evaluation, reference, referenceSha256 });
@@ -66,7 +64,7 @@ export async function reassessMainWireStandard72HfrefResultV1(input: MainWireHfr
   const reference = resolveMainWireFittingReferenceV1("hfref-lv-systolic-v1");
   const referenceSha256 = await sha256CanonicalJsonHex(reference);
   const candidateInputs = applyMainWireHfrefPointV1(saved.point);
-  if (saved.schemaId !== "main-wire-standard72-hfref-fitting-result-v1"
+  if (saved.schemaId !== "research-hfref-domain-fitting-result-v1"
     || saved.referenceSha256 !== referenceSha256 || await sha256CanonicalJsonHex(saved.reference) !== referenceSha256
     || canonicalJsonStringify(saved.candidateInputs) !== canonicalJsonStringify(candidateInputs)
     || saved.candidateSha256 !== await sha256CanonicalJsonHex(candidateInputs)
@@ -87,7 +85,7 @@ async function projectResultV1(input: { point: MainWireHfrefPointV1; candidateIn
     catch (error) { observationIssue = error instanceof Error ? error.message : String(error); }
   }
   const assessment = observation === null ? null : assess(observation.values);
-  const body = { schemaId: "main-wire-standard72-hfref-fitting-result-v1", reference, referenceSha256,
+  const body = { schemaId: "research-hfref-domain-fitting-result-v1", reference, referenceSha256,
     point: input.point, candidateInputs, candidateSha256: await sha256CanonicalJsonHex(candidateInputs),
     ...(input.reobservedFromResultSha256 ? { reobservedFromResultSha256: input.reobservedFromResultSha256 } : {}),
     evaluation, observation, observationIssue, assessment,

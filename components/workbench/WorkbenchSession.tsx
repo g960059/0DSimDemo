@@ -1,6 +1,7 @@
 import React from "react";
 import { registeredCurrentBaselinePresentationV1, mainWireBaselineAssessmentPresentationV1 } from "@/studio/presentation/CurrentBaselinePresentationV1";
 import { preparedBaselineLaunchV1, type PreparedBaselineCaseV1 } from "@/studio/registry/PreparedBaselineCaseV1";
+import { loadStudioHfrefResearchCompositionV1 } from "@/studio/composition/StudioHfrefResearchCompositionV1";
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import {
   ArrowLeft,
@@ -727,7 +728,9 @@ export const WorkbenchSession = ({
                   sourceSnapshot.surfaceReleaseId,
                 )
               : modelLab
-                ? await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1()
+                ? new URLSearchParams(location.search).get("research") === "hfref"
+                  ? await loadStudioHfrefResearchCompositionV1()
+                  : await loadStudioLocalAlgebraicPulmonaryRootClientCompositionV1()
                 : await loadStudioDefaultClientCompositionV2();
         if (preparedBaseline) {
           if (!modelLab || initialContent !== undefined) throw new Error("Prepared candidate selection is only available in a new Model Lab session");
@@ -1030,6 +1033,7 @@ export const WorkbenchSession = ({
                 ),
                 capture: baseline.capture,
               }),
+              ...(composition.presets ?? []),
             ]),
       );
       const initial = initialState.frame;

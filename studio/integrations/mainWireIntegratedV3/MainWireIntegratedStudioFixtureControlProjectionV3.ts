@@ -103,8 +103,9 @@ export function mainWireIntegratedStudioControlValueFromFixtureV3(
     return projectedFiniteNumberAtPathV3(fixture, directPath);
   }
 
-  if (controlId === "myocardium.contractility") {
-    const values = ["LVFW", "SEP", "RVFW"].map((wallId) =>
+  if (controlId === "myocardium.contractility" || controlId === "myocardium.lv-contractility") {
+    const walls = controlId === "myocardium.contractility" ? ["LVFW", "SEP", "RVFW"] : ["LVFW", "SEP"];
+    const values = walls.map((wallId) =>
       finiteNumberAtPathV3(fixture, [
         "mechanismResearchInputs",
         "chamberMechanics",

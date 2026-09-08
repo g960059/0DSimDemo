@@ -412,6 +412,10 @@ function SampledGraphPaneBodyV3({
         });
       });
     const traces = tracesForBindings(bindings);
+    const retryScenarioIds = pvaAnalysisScenarioIds.filter((scenarioId) => {
+      const key = workbenchAnalysisHistoryKeyV3(scenarioId, pressureVolumeAnalysisId);
+      return analysisErrorByKey[key] !== undefined && !pendingAnalysisSet.has(key);
+    });
     return (
       <ExperimentGraphPresentationV3
         variant="pane"
@@ -420,6 +424,9 @@ function SampledGraphPaneBodyV3({
         <PressureVolumeLoopCanvasV3
           periodicPvaSupported={periodicPvaEnabled}
           traces={traces}
+          onRetryAnalysis={retryScenarioIds.length === 0 || operationPending
+            ? undefined
+            : () => onRequestAnalysis(pressureVolumeAnalysisId, retryScenarioIds)}
           showPressureEnvelope={
             periodicPvaEnabled ? pane.showPressureEnvelope : false
           }

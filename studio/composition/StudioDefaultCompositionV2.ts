@@ -1,6 +1,6 @@
 import type { StudioJsonValueV2 } from "@/studio/contracts/v2/json";
 import { REGISTERED_CURRENT_MODEL_BASELINE_V1 } from "@/studio/registry/RegisteredCurrentModelBaselineV1";
-import type { ScenarioCheckpointV2 } from "@/studio/contracts/v2/content";
+import type { ScenarioCheckpointV2, ScenarioPresetV2 } from "@/studio/contracts/v2/content";
 import { resolveRegisteredModelLaunchDefaultsV1 } from
   "@/studio/registry/RegisteredModelLaunchBaselineV1";
 import type {
@@ -61,6 +61,8 @@ export type StudioClientCompositionV2 = Readonly<{
   }>;
   modelSurface: ModelSurfacePresentationBundleV1<RegisteredAnalysisMethodsV1>;
   activeBundleVersion?: number;
+  /** Same-model, source-bound local examples; not an additional execution identity. */
+  presets?: readonly ScenarioPresetV2[];
 }>;
 
 export type StudioDefaultClientCompositionV2 = StudioClientCompositionV2;

@@ -1,5 +1,5 @@
 import { canonicalJsonStringify, cloneAndFreezeCanonicalJson, sha256CanonicalJsonHex } from "@/engine/integrity";
-import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
+import { MAIN_WIRE_INTEGRATED_STUDIO_HFREF_RESEARCH_MODEL_ID_V1 as modelId } from "@/domain/model/MainWireStandardIdentityV1";
 import { MAIN_WIRE_STANDARD72_FITTING_SEARCH_POLICY_V1 as policy,
   resolveMainWireStandard72FittingSearchPlanV1 as resolvePlan, scoreMainWireStandard72FittingRestV1 as score,
   type MainWireStandard72FittingSearchOptionsV1 as Options,
