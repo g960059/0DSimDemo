@@ -75,7 +75,35 @@ export async function evaluateMainWireStandard72BaselineCalibrationCandidateV1(
   request: MainWireStandard72BaselineCalibrationRequestV1 = {},
 ) {
   const startedAt = performance.now();
-  const abortSignal = request.abortSignal, retainTerminalDiagnostics = request.retainTerminalDiagnostics;
+  // Keep observation choices owned across the first asynchronous boundary.
+  const retainTerminalDiagnostics = request.retainTerminalDiagnostics;
+  const execution = await executeMainWireStandard72FittingCandidateV1(request);
+  if (execution.status !== "accepted") return execution;
+  const { diagnostics, ...core } = execution;
+  try {
+    const measurements = measure({ ...diagnostics, timingAndInletObserver: observeTiming });
+    const checks = buildChecks(measurements, true);
+    const rest = assessRest(diagnostics.completedBeat, checks, measurements.cardiacSizeAndFunction.bodySurfaceAreaM2);
+    return { ...core, rest, checks, ...(retainTerminalDiagnostics ? { diagnostics } : {}),
+      qualification: { scope: "periodic-rest-assessment" as const, restStatus: rest.status,
+        pairedGridPressureRateAndTau: "not-evaluated" as const, preloadReserve: "not-evaluated" as const,
+        postFitEnvelopeQualified: false as const, clinicalValidationClaimed: false as const,
+        publicBaselinePromotionAuthorized: false as const },
+      wallTimeMs: performance.now() - startedAt };
+  } catch (error) {
+    return { evaluatorId, modelId, status: "nonsettled-or-event-change" as const, phase: "observation",
+      requestIdentitySha256: core.requestIdentitySha256,
+      message: error instanceof Error ? error.message : String(error), wallTimeMs: performance.now() - startedAt };
+  }
+}
+
+/** Shared exact execution/periodic evidence. No healthy or disease physiology
+ * verdict and no requirement that optional inflow peaks be separable. */
+export async function executeMainWireStandard72FittingCandidateV1(
+  request: MainWireStandard72BaselineCalibrationRequestV1 = {},
+) {
+  const startedAt = performance.now();
+  const abortSignal = request.abortSignal;
   let phase = "request-validation";
   let requestIdentitySha256: string | null = null;
   const fail = (status: "invalid-or-physical" | "numerical-unresolved" | "nonsettled-or-event-change" | "operational-interrupted", message: string) => ({
@@ -173,32 +201,25 @@ export async function evaluateMainWireStandard72BaselineCalibrationCandidateV1(
     // Capture first; the real lookahead cannot replace the reusable qualified boundary.
     const timing = completeTiming({ terminalTrace, completedBeatEndTimeSec: completedBeat.endTimeSec,
       runLookaheadCycle: () => runCycle(session, fixture, completedCycleCount + 1, nominalDtSec) });
-    const measurements = measure({ terminalTrace, completedBeat, ...timing, timingAndInletObserver: observeTiming });
     const applicability = Object.freeze({ respiratory,
-      bodySurfaceAreaM2: measurements.cardiacSizeAndFunction.bodySurfaceAreaM2,
+      bodySurfaceAreaM2: referenceProfile.subject.bodySurfaceAreaM2,
       requestedHeartRateBpm: candidateInputs.hemodynamicResearchInputs.heartRateBpm,
       observedHeartRateBpm: 60 / completedBeat.durationSec });
     if (applicability.bodySurfaceAreaM2 !== 1.9 || !Number.isFinite(applicability.observedHeartRateBpm)
       || Math.abs(applicability.observedHeartRateBpm - applicability.requestedHeartRateBpm) >= 1e-7) {
       throw new Error("Resting reference qualification requires BSA1.9 and the requested beat heart rate");
     }
-    const checks = buildChecks(measurements, true);
-    const rest = assessRest(completedBeat, checks, measurements.cardiacSizeAndFunction.bodySurfaceAreaM2);
     return {
       evaluatorId, modelId, status: "accepted" as const, requestIdentitySha256, policyIdentitySha256,
       candidateInputs, nominalDtSec, initializationKind: initialization.kind,
       initialization: identity.initialization,
       executionPath: "standard72-selected-output-projection" as const,
-      completedCycleCount, classification, rest, checks, checkpoint,
-      ...(retainTerminalDiagnostics ? { diagnostics: {
+      completedCycleCount, classification, checkpoint,
+      diagnostics: {
         completedBeat, terminalTrace, ...timing, periodicObservations: observations, cycleEvidence, applicability,
         invariantPolicyId: numericalPolicy.policyId,
         allOffAndOwnerClocksCheckedEveryStep: true as const,
-      } } : {}),
-      qualification: { scope: "periodic-rest-assessment" as const, restStatus: rest.status,
-        pairedGridPressureRateAndTau: "not-evaluated" as const, preloadReserve: "not-evaluated" as const,
-        postFitEnvelopeQualified: false as const, clinicalValidationClaimed: false as const,
-        publicBaselinePromotionAuthorized: false as const },
+      },
       wallTimeMs: performance.now() - startedAt,
     };
   } catch (error) {

@@ -4,6 +4,8 @@ import { MAIN_WIRE_PROSPECTIVE_BASELINE_ADMISSION_V1 } from
   "@/analysis/policies/mainWire/MainWireProspectiveBaselineAdmissionV1";
 import { MAIN_WIRE_RESTING_REFERENCE_PROFILE_V1_ID } from
   "@/analysis/registry/MainWireRestingReferenceProfileV1";
+import { MAIN_WIRE_HFREF_REFERENCE_V1, MAIN_WIRE_HFREF_REST_POLICY_V1 } from
+  "@/analysis/policies/mainWire/MainWireHfrefReferenceV1";
 
 /**
  * Targets are separate from launch selection and search seeds. Changing a
@@ -24,11 +26,23 @@ export const MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1 = Object.freeze({
     evidenceRole: "construction" as const,
     clinicalValidationClaimed: false as const,
   }),
+  "hfref-lv-systolic-v1": Object.freeze({
+    referenceId: "hfref-lv-systolic-v1" as const,
+    label: MAIN_WIRE_HFREF_REFERENCE_V1.label,
+    target: Object.freeze({ kind: "source-informed-disease-construction" as const,
+      evidence: MAIN_WIRE_HFREF_REFERENCE_V1, policy: MAIN_WIRE_HFREF_REST_POLICY_V1,
+      referenceOutputsAreTargets: false as const }),
+    evidenceRole: "construction" as const,
+    clinicalValidationClaimed: false as const,
+  }),
 });
 
+type Registry = typeof MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1;
+export function resolveMainWireFittingReferenceV1<K extends keyof Registry>(referenceId: K): Registry[K];
+export function resolveMainWireFittingReferenceV1(referenceId: string): Registry[keyof Registry];
 export function resolveMainWireFittingReferenceV1(referenceId: string) {
-  if (referenceId !== "baseline") {
+  if (!Object.hasOwn(MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1, referenceId)) {
     throw new Error(`unregistered fitting reference: ${referenceId}`);
   }
-  return MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1.baseline;
+  return MAIN_WIRE_FITTING_REFERENCE_REGISTRY_V1[referenceId as keyof Registry];
 }

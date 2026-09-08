@@ -5,10 +5,11 @@
  * The manifest rejects every unowned or stale test.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 97;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 57;
+export const FAST_SUITE_FILE_BUDGET = 98;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 58;
 
 export const fastTests = [
+  "__tests__/mainWireHfrefReferenceV1.test.ts",
   "__tests__/fittingJsonWorkersV1.test.ts",
   "__tests__/mainWireStandard72FittingSearchV1.test.ts",
   "__tests__/modelDocumentationArchiveV1.test.tsx",
@@ -117,6 +118,7 @@ export const fastTests = [
  * on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/mainWireHfrefReferenceV1.test.ts",
   "__tests__/fittingJsonWorkersV1.test.ts",
   "__tests__/mainWireStandard72FittingSearchV1.test.ts",
   "__tests__/modelDocumentationArchiveV1.test.tsx",

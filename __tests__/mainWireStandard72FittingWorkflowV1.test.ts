@@ -7,8 +7,10 @@ import { MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID, type MainWireIn
 import { MainWireIntegratedModelStandard72TypedAuthoritySessionV1 as Session } from "@/engine/vnext/MainWireIntegratedModelStandard72TypedAuthoritySessionV1";
 import { createMainWireIntegratedModelStandard71FixtureV1 as fixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { resolveMainWireFittingReferenceV1 } from "@/analysis/registry/MainWireFittingReferenceRegistryV1";
+import { observeMainWireHfrefV1 as observeHfref } from "@/analysis/methods/mainWire/MainWireHfrefObservationV1";
 import { MAIN_WIRE_FITTING_SEED_V1 as fittingSeed } from "@/analysis/registry/MainWireFittingSeedV1";
-import { evaluateMainWireStandard72BaselineCalibrationCandidateV1 as evaluate, collectMainWireStandard72FittingCycleV1 as collect } from "@/analysis/methods/mainWire/MainWireStandard72BaselineCalibrationEvaluatorV1";
+import { evaluateMainWireStandard72BaselineCalibrationCandidateV1 as evaluate, collectMainWireStandard72FittingCycleV1 as collect,
+  executeMainWireStandard72FittingCandidateV1 as execute } from "@/analysis/methods/mainWire/MainWireStandard72BaselineCalibrationEvaluatorV1";
 import { runMainWireStandard72FittingWorkflowV1 as run, validateMainWireStandard72SavedFittingResultV1 as validate,
   isMainWireStandard72SavedAssessmentCurrentV1 as isCurrent,
   type MainWireStandard72SavedFittingResultV1 as Saved } from "@/analysis/methods/mainWire/MainWireStandard72FittingWorkflowV1";
@@ -29,6 +31,23 @@ beforeAll(async () => {
 afterAll(() => selectHotPathIntegrityTierV1(previousTier));
 
 describe("current exact72 fitting workflow", () => {
+  it("shares exact execution without making healthy inflow observation a disease gate", async () => {
+    const request = { candidateInputs: candidate, initialization: { kind: "standard72-exact-checkpoint" as const, checkpoint } };
+    const core = await execute(request);
+    const healthy = await evaluate({ ...request, retainTerminalDiagnostics: true });
+    expect(core.status).toBe("accepted"); expect(healthy.status).toBe("accepted");
+    if (core.status !== "accepted" || healthy.status !== "accepted") throw new Error("execution failed");
+    expect(core).not.toHaveProperty("rest"); expect(core).not.toHaveProperty("checks");
+    expect(core.checkpoint).toEqual(healthy.checkpoint);
+    expect(core.diagnostics).toEqual(healthy.diagnostics);
+    expect(healthy.rest.status).toBe("passed");
+    // Coronary-cycle checkpoint boundary is NOT the last atrial capture.
+    expect(core.diagnostics.completedBeat.endTimeSec).toBeLessThan(core.checkpoint.acceptedTimeSec);
+    expect(observeHfref(core).values.lvef).toBeGreaterThan(.5);
+    const corrupted = { ...core, diagnostics: { ...core.diagnostics,
+      completedBeat: { ...core.diagnostics.completedBeat, endTimeSec: core.diagnostics.completedBeat.endTimeSec - .01 } } };
+    expect(() => observeHfref(corrupted)).toThrow(/terminal evidence/);
+  }, 20_000);
   it("executes a changed candidate and saves its own checkpoint with bounded qualification", () => {
     expect(fittingSeed.modelId).toMatch(/standard-72$/);
     expect(candidate.hemodynamicResearchInputs).toEqual(descriptor.defaultFixture.hemodynamicResearchInputs);

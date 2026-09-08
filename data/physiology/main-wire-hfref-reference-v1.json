@@ -1,0 +1,135 @@
+{
+  "registryId": "main-wire-hfref-reference-v1",
+  "referenceId": "hfref-lv-systolic-v1",
+  "label": "HFrEF（左室収縮能低下型）",
+  "role": "source-informed-educational-construction",
+  "clinicalValidationClaimed": false,
+  "scope": {
+    "description": "安静時・左室優位の収縮能低下を表す教育用の構成例。HFrEF全般、特定の原因疾患、症状、ショックの診断や患者個別の推定を表すものではない。",
+    "heartRateBpm": 70,
+    "bodySurfaceAreaM2": 1.9,
+    "conditions": "固定制御・洞調律・補助循環なし・胸腔内圧基準0。LV自由壁と中隔の能動張力を同じ倍率で低下させ、RV自由壁・心房・弁・Ca時間波形・受動力学はseedから変えない。",
+    "limitations": "リモデリング、局所梗塞、伝導障害、二次性MR、薬物治療、神経体液性代償を自動的に再現するモデルではない。体格は比較用のBSAで、解剖学的スケーリングではない。",
+    "registrationContext": "条件は次の探索より前に固定する。ただし既存baselineとLV張力のみの予備試行は既知であり、独立した盲検検証ではない。"
+  },
+  "interpretation": {
+    "sourceStatistics": "以下の平均・SD・四分位範囲は各研究集団の記述統計であり、正常範囲、個人の許容範囲、同時に成立する標準患者ではない。",
+    "corridors": "source-informed-designの端点は今回の教育用症例を選ぶ設計値。引用は妥当性を検討する根拠であって、端点が論文で検証済みであることを意味しない。",
+    "admission": "rest-screen通過は候補選別に限る。公開preset採択にはcold開始と時間刻み半減の再確認、PV/圧波形と弛緩の確認、同じ負荷入力でLV張力を復元する対照が別途必要。正常baselineの必須範囲を継承しない。",
+    "dependencies": "EF・EDVI・ESVI、CI・SVI・CO、ICT・IRT・ET・Teiは独立した情報ではない。HR70・非逆流ではCI≈0.07×EF×EDVI（EFは分率）でも結ばれる。順位付けはscreen、EF目標、EDVI/CIの最大規格化区間誤差の順とし、独立した尤度として加算しない。",
+    "volumeMethod": "モデルではMV/AVの流量ゼロ閉鎖点によるEDV/ESVを使用する。画像計測の最大/最小容積や、カテーテルの圧上昇開始点とは少し異なり得る。"
+  },
+  "sources": [
+    {
+      "sourceId": "heidenreich-2022-hf",
+      "title": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+      "url": "https://doi.org/10.1161/CIR.0000000000001063",
+      "locator": "Section 2.2, Table 4",
+      "population": "2022年の診療ガイドラインによるEF分類。",
+      "observations": { "historicalHfrefLvefUpper01": 0.4 },
+      "limitations": "この版のEF分類を構成上の慣例として採用する。最新のHF定義や、低EFだけによる臨床診断は主張しない。"
+    },
+    {
+      "sourceId": "carlsson-2012-cmr-flow",
+      "title": "Cardiac output and cardiac index measured with cardiovascular magnetic resonance in healthy subjects, elite athletes and patients with congestive heart failure",
+      "url": "https://doi.org/10.1186/1532-429X-14-51",
+      "locator": "Methods: patient population / CMR; Results: CHF patients",
+      "population": "EF≤40%のCHF 157例、60±13歳。中等度以上のMR、AR、AV速度>3m/sなどを除外。",
+      "observations": { "cardiacIndexLMinM2": { "mean": 2.3, "sd": 0.6 }, "fractionWithinHealthyCiInterval": 0.49 },
+      "method": "仰臥位CMR、肺動脈分岐の高さの上行大動脈における全周期の位相コントラスト流量。",
+      "limitations": "CIとEFの対応は弱い。冠動脈より遠位の測定であり、モデルのAV正味拍出量とは厳密には一致しない。低CIをHFrEFの必須条件にはできない。"
+    },
+    {
+      "sourceId": "shinke-1999-invasive-pv",
+      "title": "Beneficial Effects of Heart Rate Reduction on Cardiac Mechanics and Energetics in Patients With Left Ventricular Dysfunction",
+      "url": "https://www.jstage.jst.go.jp/article/jcj/63/12/63_12_957/_pdf/-char/en",
+      "locator": "pp.958–960, Methods; Tables 1–3 (control)",
+      "population": "左室機能低下14例。EF34±12%、範囲23–53%で、全例がEF≤40%ではない。旧梗塞10例・DCM4例。",
+      "observations": {
+        "lvefPercent": { "mean": 34, "sd": 12 },
+        "lvedviMlM2": { "mean": 103, "sd": 32 },
+        "lvesviMlM2": { "mean": 71, "sd": 30 },
+        "sviMlM2": { "mean": 33, "sd": 9 },
+        "cardiacIndexLMinM2": { "mean": 3.04, "sd": 0.66 },
+        "pawpMmHg": { "mean": 11, "sd": 7 },
+        "rapMmHgTable1": { "mean": 4, "sd": 3 },
+        "positiveDpDtMmHgSec": { "mean": 1471, "sd": 356 },
+        "negativeDpDtMmHgSec": { "mean": -1633, "sd": 432 },
+        "raffGlantzTauMs": { "mean": 62, "sd": 10 },
+        "externalWorkJPerM2Beat": { "mean": 0.39, "sd": 0.15 },
+        "externalWorkToPvaPercent": { "mean": 39.5, "sd": 15 }
+      },
+      "method": "HR83±10のcontrol。conductance容積・Millar左室内圧、IVC遮断時の線形ESPVR、PV閉曲線の面積による仕事。τはRaff–Glantz法。",
+      "limitations": "利尿薬・血管拡張薬を24時間以上中止。EDPはTable1と2で17±9/24±9と異なるため端点の根拠にしない。EesのBSA単位は本文と表で不一致。モデルの経壁圧仕事や共通時相の非線形ESPVRへ無補正では移せない。"
+    },
+    {
+      "sourceId": "moriwaki-2021-invasive-pv",
+      "title": "Comparison of haemodynamic response to muscle reflex in heart failure with reduced vs. preserved ejection fraction",
+      "url": "https://doi.org/10.1002/ehf2.13682",
+      "locator": "Methods; Tables 1–2, HFrEF supine rest",
+      "population": "治療により症状が改善したHFrEF10例、EF23±6%、HR72±17。PAWP≥25、安静SBP≥160、AF、重症弁膜症、最近のAMIなどを除外。",
+      "observations": {
+        "cardiacIndexLMinM2": { "mean": 2.6, "sd": 0.4 },
+        "pawpMmHg": { "mean": 12, "sd": 8 },
+        "rapMmHg": { "mean": 5, "sd": 4 },
+        "meanPapMmHg": { "mean": 17, "sd": 7 },
+        "estimatedMapMmHg": { "mean": 75, "sd": 20 },
+        "lvedpMmHg": { "mean": 14, "sd": 10 },
+        "lvedvMl": { "mean": 268, "sd": 79 },
+        "lvesvMl": { "median": 219, "q1": 132, "q3": 272 },
+        "positiveDpDtMmHgSec": { "mean": 955, "sd": 207 },
+        "negativeDpDtMmHgSec": { "mean": -1075, "sd": 188 },
+        "nonzeroAsymptoteTauMs": { "mean": 88, "sd": 23 },
+        "eToA": { "mean": 1.6, "sd": 1.2 }
+      },
+      "method": "RHCと333Hzのmicrochip/conductance PV測定、MRI容積で校正。EesはSenzaki single-beat法。MAPはLVESPと推定拡張期圧から計算。",
+      "limitations": "小規模・治療後の選択集団。未index容積を集団平均BSAで割らない。PAWPはmean LAそのものではない。非ゼロ漸近圧τはWeiss法と比較できず、Glantz法とも推定法の一致確認が必要。"
+    },
+    {
+      "sourceId": "patel-2020-timing",
+      "title": "Association between systolic ejection time and outcomes in heart failure by ejection fraction",
+      "url": "https://doi.org/10.1002/ejhf.1659",
+      "locator": "Methods: Echocardiographic measurements; Table 2, HFrEF",
+      "population": "外来HFrEF171例。EF中央値30%、四分位範囲25–35%。",
+      "observations": {
+        "lvefPercent": { "median": 30, "q1": 25, "q3": 35 },
+        "ejectionTimeMs": { "median": 280, "q1": 251, "q3": 306 },
+        "preEjectionPeriodMs": { "median": 114, "q1": 96, "q3": 130 },
+        "relaxationTimeMs": { "median": 93.3, "q1": 67.3, "q3": 122 },
+        "decelerationTimeMs": { "median": 164, "q1": 127.7, "q3": 206 }
+      },
+      "method": "TTEを3回測定。SETはLVOT Doppler、PEPは心電図を含む時間、relaxationはR-to-E−PEP−SET。",
+      "limitations": "PEPをICTとして扱わない。Dopplerの可視端点とモデルの流量ゼロ交差は異なる。HR依存があり四分位範囲をHR70の必須gateにしない。"
+    },
+    {
+      "sourceId": "benfari-2019-diastolic",
+      "title": "Diastolic Determinants of Excess Mortality in Heart Failure With Reduced Ejection Fraction",
+      "url": "https://doi.org/10.1016/j.jchf.2019.04.024",
+      "locator": "Methods; Results: Baseline characteristics; Table 2",
+      "population": "Stage B/Cの左室機能低下12,421例。EF<50%を含むため現在のEF≤40%集団と同一ではない。",
+      "observations": { "decelerationTimeMs": { "mean": 191, "sd": 62 } },
+      "method": "Doppler拡張指標。E/e′別の群で流入波形と充満状態が異なる。",
+      "limitations": "全HFrEFに拘束型流入を要求しない根拠。e′は現0Dモデルの観測量ではなくE/e′を創作しない。"
+    }
+  ],
+  "restScreen": [
+    { "metricId": "lvef", "unit": "1", "lower": 0.2, "upper": 0.4, "basis": "historical-definition-and-severity-choice", "sourceIds": ["heidenreich-2022-hf", "patel-2020-timing"], "method": "native-valve-closure-volumes", "rationale": "上限40%は明示した2022分類。下限20%は今回の重症度選択であり、HFrEFの診断下限ではない。" },
+    { "metricId": "lvedvi", "unit": "mL/m2", "lower": 80, "upper": 160, "basis": "source-informed-design", "sourceIds": ["shinke-1999-invasive-pv"], "method": "native-valve-closure-volumes", "rationale": "今回探索する容積帯。103±32から機械的に計算した基準範囲ではなく、拡大の重症度分類や全HFrEFの包含も主張しない。" },
+    { "metricId": "ci", "unit": "L/min/m2", "lower": 1.8, "upper": 3.5, "basis": "source-informed-design", "sourceIds": ["carlsson-2012-cmr-flow", "moriwaki-2021-invasive-pv", "shinke-1999-invasive-pv"], "method": "exact-beat-aortic-valve-net-flow", "rationale": "低めから保たれた拍出までを残す構成範囲。ショックの診断基準ではない。冠循環とRHC/CMRの方法差を残す。" },
+    { "metricId": "meanLa", "unit": "mmHg", "lower": 3, "upper": 25, "basis": "source-informed-design", "sourceIds": ["moriwaki-2021-invasive-pv", "shinke-1999-invasive-pv"], "method": "exact-beat-mean-left-atrial-pressure", "rationale": "高充満圧を必須にせず、極端な充満を探索候補から外す設計範囲。PAWPとの近似対応であり臨床PAWP判定ではない。" },
+    { "metricId": "meanRa", "unit": "mmHg", "lower": 0, "upper": 12, "basis": "source-informed-design", "sourceIds": ["moriwaki-2021-invasive-pv", "shinke-1999-invasive-pv"], "method": "exact-beat-mean-right-atrial-pressure", "rationale": "左室優位例の循環負荷を選ぶ範囲。右心不全の有無をこの値だけでは判定しない。" },
+    { "metricId": "meanAo", "unit": "mmHg", "lower": 60, "upper": 110, "basis": "source-informed-design", "sourceIds": ["moriwaki-2021-invasive-pv"], "method": "exact-beat-mean-aortic-node-pressure", "rationale": "極端な動脈負荷を避ける設計値。引用研究のMAPは推定値で、モデルの周期平均と同じ測定ではない。ショックや高血圧の分類閾値ではない。" }
+  ],
+  "fittingTargets": [
+    { "metricId": "lvef", "lower": 0.25, "upper": 0.35, "priority": 0, "sourceIds": ["patel-2020-timing"], "basis": "source-informed-design", "rationale": "外来集団の中央値周辺を今回の症例像として選ぶ。範囲内では中央一点を強制しない。" },
+    { "metricId": "lvedvi", "lower": 100, "upper": 140, "priority": 1, "sourceIds": ["shinke-1999-invasive-pv"], "basis": "source-informed-design", "rationale": "今回選ぶ容積帯。CIとEFとの代数的結合を残し、ESVIにも別の目的関数は置かない。" },
+    { "metricId": "ci", "lower": 2.2, "upper": 2.8, "priority": 1, "sourceIds": ["carlsson-2012-cmr-flow", "moriwaki-2021-invasive-pv"], "basis": "source-informed-design", "rationale": "拍出が比較的保たれる構成例。SVIやCOを重複して最適化しない。" }
+  ],
+  "context": [
+    { "metricIds": ["lvesvi", "svi", "rvef", "rvedvi", "rvesvi"], "sourceIds": ["shinke-1999-invasive-pv"], "method": "native-valve-closure-volumes-and-aortic-valve-net-flow", "interpretation": "容積・拍出の整合性。RVEF/RV容積にはこの論文のLV基準を流用しない。中隔と閉ループによる二次的変化を記録する。" },
+    { "metricIds": ["avMeanGradient", "avPeakGradient", "aoNodePeak", "aoNodeMinimum", "meanPap", "nativeLvEndFillingPressure"], "sourceIds": ["moriwaki-2021-invasive-pv"], "method": "exact-beat-pressure-and-forward-flow-gradient", "interpretation": "圧と負荷の確認。ここでのAoはexact node圧で、近位ZcQを加えたworkbenchのAoPとは区別する。AVは順方向流量中の上流−下流hydraulic圧差で、Doppler/Bernoulli推定ではない。native end fillingはMV流量停止点で、臨床LVEDPと同一ではない。AV正常範囲やgradient/flow不変性をこの論文から導かない。" },
+    { "metricIds": ["etMs", "ictMs", "irtMs", "tei", "flowEToA"], "sourceIds": ["patel-2020-timing", "benfari-2019-diastolic", "moriwaki-2021-invasive-pv"], "method": "main-wire-baseline-observation-v2", "interpretation": "ICT/IRT/Teiはnative弁流量の端点、E/Aは流量比。Doppler速度・PEP・TDIとの互換性はない。病態で短縮/延長する余地を保つ。" },
+    { "metricIds": ["positiveDpDt", "negativeDpDt", "weissTauMs", "glantzTauMs"], "sourceIds": ["shinke-1999-invasive-pv", "moriwaki-2021-invasive-pv"], "method": "accepted-step-absolute-pressure-secants-and-main-wire-lv-relaxation-tau-v1", "interpretation": "全受理stepの左室内圧微分。τはゼロ/自由漸近圧を別々に記録し、fit品質と不成立理由を残す。計算法・圧振幅の違う数値で自動棄却しない。" },
+    { "metricIds": ["lvTransmuralStrokeWorkJPerM2", "pressureAndPvMorphology", "formalEspvr", "formalPva", "decelerationTime", "tissueDoppler"], "sourceIds": ["shinke-1999-invasive-pv", "benfari-2019-diastolic"], "method": "exact-transmural-pv-path-work-and-versioned-analysis-only", "interpretation": "仕事は実PV線積分を用い、MAP×SVで代用しない。安価なrest探索ではformal ESPVR/PVAを実行せず、未評価とする。DT/e′を未実装の近似で埋めない。Ees/EaをEFから計算して独立した収縮力証拠にしない。" }
+  ]
+}
