@@ -7,8 +7,6 @@ import { canonicalJsonStringify as canonical, sha256CanonicalJsonHex as hash } f
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import { createMainWireIntegratedModelStaticCaseFixtureV1 as createFixture } from "@/engine/myocardium/experiments/MainWireIntegratedModelStaticCaseFixtureV1";
-import { MAIN_WIRE_STANDARD71_BASELINE_HEMODYNAMIC_INPUTS_V1 as baselineHemo,
-  MAIN_WIRE_STANDARD71_BASELINE_MECHANISM_INPUTS_V1 as baselineMechanism } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard71FixtureV1";
 import { collectMainWireStandard72FittingCycleV1 as collect } from "@/analysis/methods/mainWire/MainWireStandard72BaselineCalibrationEvaluatorV1";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as policy } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 as scales } from "@/engine/myocardium/experiments/MainWireIntegratedModelReferenceScalesV3";
@@ -33,6 +31,7 @@ import { buildMainWirePeriodicPvaMethodV14 as pva } from "@/analysis/methods/mai
 import type { MainWireIntegratedModelStarlingLocusV3 as Locus } from "@/analysis/methods/mainWire/MainWireGuytonStarlingOrientationV3";
 import { beginFittingSourceSnapshotV1 } from "./FittingSourceSnapshotV1";
 import { runFittingJsonWorkersV1, readFittingWorkerStdinV1 } from "./runFittingJsonWorkersV1";
+import { mainWireStaticCaseFittingSeedV1 as caseSeed } from "@/analysis/registry/MainWireStaticCaseFittingSeedV1";
 
 // One bounded integration qualification, not a new fitter or public mint.
 selectHotPathIntegrityTierV1("hot-path-lean");
@@ -45,12 +44,8 @@ const same = (a: unknown, b: unknown, label: string) => {
   if (canonical(a) !== canonical(b)) throw new Error(`Parity failed: ${label}`);
 };
 function inputs(name: Case) {
-  const anatomyId = name === "hfref" ? "dilated-lv-v1" : "baseline-v1";
-  const hemo = { ...baselineHemo, systemicResistance: name === "hfref" ? 1.2 : baselineHemo.systemicResistance };
-  const mechanism = { ...baselineMechanism, chamberMechanics: { ...baselineMechanism.chamberMechanics,
-    activeTensionScaleByWall: { ...baselineMechanism.chamberMechanics.activeTensionScaleByWall,
-      LVFW: name === "hfref" ? .35 : 1, SEP: name === "hfref" ? .35 : 1 } } };
-  return { anatomyId, hemo, mechanism } as const;
+  const seed = caseSeed(name === "hfref" ? "hfref-chronic-dilated-v1" : "baseline");
+  return { anatomyId: seed.anatomyId, hemo: seed.hemodynamicResearchInputs, mechanism: seed.mechanismResearchInputs } as const;
 }
 async function cold(task: ColdTask) {
   const started = performance.now(), c = inputs(task.name);

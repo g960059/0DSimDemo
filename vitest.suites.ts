@@ -228,6 +228,7 @@ export const regressionTests = [
 
 /** Current canonical scientific lane. This exact inventory is its source of truth. */
 export const canonicalScientificTests = [
+  "__tests__/mainWireStaticCaseFittingWorkflowV1.test.ts",
   "__tests__/mainWireStaticCaseContinuationV1.test.ts",
   "__tests__/mainWireStaticCaseStudioV1.test.ts",
   "__tests__/mainWireHfrefDilatedReferenceV1.test.ts",

@@ -6,7 +6,8 @@ import { prepareStandard72RegistryAdmissionV1 as prepare, readStandard72Admissio
   verifyStandard72ScientificEvidenceV1 as verifyScience,
   assertStandard72AdmissionLockV1 as assertLock, STANDARD72_RELEASE_FILES_V1 as paths } from "@/tools/registry/Standard72RegistryAdmissionV1";
 import * as builder from "@/tools/registry/BuildStandard72ArtifactV1";
-import { verifyMainWireStandard72RegistryV1 as verifyRegistry } from "@/tools/registry/verifyMainWireStandard72RegistryV1";
+import { verifyMainWireStandard72RegistryV1 as verifyRegistry,
+  verifyRetainedMainWireStandard72RegistryV1 as verifyRetained } from "@/tools/registry/verifyMainWireStandard72RegistryV1";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStandard72SurfaceV1";
 import type { ModelSurfaceReleaseManifestV1 } from "@/studio/contracts/v2/modelSurface";
 import { MAIN_WIRE_INTEGRATED_STUDIO_STANDARD72_MODEL_ID_V1 as modelId } from
@@ -21,6 +22,25 @@ function edit(raw: string, patch: (value: any) => void) {
   const value = JSON.parse(raw); patch(value); return JSON.stringify(value, null, 2) + "\n";
 }
 describe("Standard72 bounded reviewed scientific admission", () => {
+  it("checks the retained artifact and full admission lock without rebuilding candidate source", async () => {
+    const root = mkdtempSync(join(tmpdir(), "standard72-retained-test-"));
+    const build = vi.spyOn(builder, "buildStandard72ArtifactV1").mockImplementation(async () => { throw new Error("Must not rebuild"); });
+    try {
+      for (const path of Object.values(paths)) {
+        mkdirSync(dirname(join(root, path)), { recursive: true });
+        writeFileSync(join(root, path), readFileSync(path));
+      }
+      const before = readFileSync(join(root, paths.lock));
+      await expect(verifyRetained(root)).resolves.toMatchObject({ status: "admitted-retained-package", sourceRebuilt: false, updated: false });
+      expect(build).not.toHaveBeenCalled();
+      expect(readFileSync(join(root, paths.lock))).toEqual(before);
+      writeFileSync(join(root, paths.lock), edit(before.toString(), p => p.artifactRevisionId = "0".repeat(64)));
+      await expect(verifyRetained(root)).rejects.toThrow(/complete qualification/);
+      writeFileSync(join(root, paths.lock), before);
+      writeFileSync(join(root, paths.artifact), new Uint8Array([0]));
+      await expect(verifyRetained(root)).rejects.toThrow(/artifact differs/);
+    } finally { build.mockRestore(); rmSync(root, { recursive: true, force: true }); }
+  });
   it("binds both actual checkpoint restores and launch step to the reviewed artifact/Surface", async () => {
     const result = await prepare(read(process.cwd(), candidate()), modelId);
     expect(result.lock.scientificAdmission).toMatchObject({
