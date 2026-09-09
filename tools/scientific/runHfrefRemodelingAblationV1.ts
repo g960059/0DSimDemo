@@ -37,8 +37,10 @@ import { validateAndOwnMainWireIntegratedModelHemodynamicResearchInputsV3 as own
 // identity, clinical threshold or checkpoint interchange is introduced here.
 type Point = Readonly<{ active: number; referenceArea: number; wallVolume: number }>;
 type HemodynamicCondition = Readonly<{ totalBloodVolumeMl: number; systemicResistance: number }>;
+type MechanisticControl = Readonly<{ pericardiumMode: "exact-off" }>;
 const protocol = "hfref-static-lv-septal-remodeling-fixed-coronary-bed-v2";
 const fitProtocol = "hfref-static-lv-septal-remodeling-fixed-geometry-hemodynamics-v1";
+const releaseProtocol = "hfref-static-lv-septal-remodeling-pericardial-release-control-v1";
 const options = { period1NormalizedTolerance: policy.period1NormalizedTolerance,
   period2NormalizedTolerance: policy.period2NormalizedTolerance,
   period2MinimumPeriod1NormalizedDelta: policy.period2MinimumPeriod1NormalizedDelta,
@@ -50,13 +52,18 @@ function validatePoint(point: Point) {
     || ![1, 1.25].includes(point.wallVolume)) throw new Error("Point is outside the preregistered factorial");
 }
 
-export async function createHfrefRemodelingResearchFixtureV1(point: Point, condition?: HemodynamicCondition) {
+export async function createHfrefRemodelingResearchFixtureV1(point: Point, condition?: HemodynamicCondition,
+  control?: MechanisticControl) {
   validatePoint(point);
   if (condition !== undefined && (condition === null || typeof condition !== "object"
     || Object.keys(condition).sort().join() !== "systemicResistance,totalBloodVolumeMl")) {
     throw new Error("Research hemodynamic condition must contain exactly TBV and systemic resistance");
   }
-  const constructionProtocol = condition === undefined ? protocol : fitProtocol;
+  if (control !== undefined && (control === null || typeof control !== "object"
+    || Object.keys(control).join() !== "pericardiumMode" || control.pericardiumMode !== "exact-off")) {
+    throw new Error("Only the explicit pericardial-release mechanistic control is supported");
+  }
+  const constructionProtocol = control !== undefined ? releaseProtocol : condition === undefined ? protocol : fitProtocol;
   const source = seed.candidateInputs, m = source.mechanismResearchInputs;
   const mechanism = { ...m, chamberMechanics: { ...m.chamberMechanics,
     activeTensionScaleByWall: { ...m.chamberMechanics.activeTensionScaleByWall, LVFW: point.active, SEP: point.active } } };
@@ -64,7 +71,8 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point, condi
     hemodynamicResearchInputs: condition === undefined ? source.hemodynamicResearchInputs
       : ownHemodynamics({ ...source.hemodynamicResearchInputs, ...condition }) };
   const base = baseFixture(candidate.hemodynamicResearchInputs, candidate.ventricularContractilityScale, mechanism);
-  const constructionSha256 = await sha256CanonicalJsonHex({ protocol: constructionProtocol, point, candidate });
+  const constructionSha256 = await sha256CanonicalJsonHex({ protocol: constructionProtocol, point, candidate,
+    ...(control === undefined ? {} : { control }) });
   const prepared = prepare(candidate.hemodynamicResearchInputs, candidate.ventricularContractilityScale, mechanism);
   const geometry = prior.anatomy.triSeg, walls = geometry.wallGeometryParameters;
   const resize = (id: "LVFW" | "SEP") => ({ ...walls[id],
@@ -73,11 +81,16 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point, condi
   const atrium = (id: "LA" | "RA") => ({ wallMaterialVolumeM3: prior.anatomy.atria[id].wallMaterialVolumeMl * 1e-6,
     referenceCavityBloodVolumeM3: prior.anatomy.atria[id].inverseUnloadedReferenceCavityVolumeMl * 1e-6 });
   const trisegWalls = { ...walls, LVFW: resize("LVFW"), SEP: resize("SEP") };
-  const pericardium = point.wallVolume === 1 ? base.pericardium : Object.freeze({ ...base.pericardium,
+  const anatomicalPericardium = point.wallVolume === 1 ? base.pericardium : Object.freeze({ ...base.pericardium,
     parameterSetId: `${constructionProtocol}-${constructionSha256}-actual-wall-occupancy`,
     wallMaterialVolumesM3: Object.freeze([atrium("LA").wallMaterialVolumeM3,
       trisegWalls.LVFW.wallMaterialVolumeM3, trisegWalls.SEP.wallMaterialVolumeM3,
       trisegWalls.RVFW.wallMaterialVolumeM3, atrium("RA").wallMaterialVolumeM3] as const) });
+  // Remove pressure, energy and stiffness through the existing exact binding,
+  // not by subtracting an output pressure. Anatomy and nominal bag parameters
+  // remain recorded; this is not an alternative chronic-disease preset.
+  const pericardium = control === undefined ? anatomicalPericardium : Object.freeze({ ...anatomicalPericardium,
+    parameterSetId: `${constructionProtocol}-${constructionSha256}-released`, mode: "exact-off" as const });
   const currentMechanicalWallMassG = Object.fromEntries(Object.entries(trisegWalls)
     .map(([id, wall]) => [id, wall.wallMaterialVolumeM3 * prior.myocardialDensityKgPerM3 * 1000]));
   const construction = { trisegWalls, pericardium, currentMechanicalWallMassG,
@@ -107,7 +120,7 @@ export async function createHfrefRemodelingResearchFixtureV1(point: Point, condi
     || canonicalJsonStringify(pericardium.parameters) !== canonicalJsonStringify(base.pericardium.parameters)) {
     throw new Error("Research wall occupancy or fixed pericardial capacity binding is inconsistent");
   }
-  if (point.referenceArea === 1 && point.wallVolume === 1
+  if (control === undefined && point.referenceArea === 1 && point.wallVolume === 1
     && !isDeepStrictEqual(fixture.cold.acceptedState, base.cold.acceptedState)) {
     throw new Error("Research assembly does not reproduce the unmodified production cold control");
   }
@@ -122,12 +135,13 @@ class ResearchSession extends BaseSession {
   }
 }
 
-export async function runHfrefRemodelingConditionV1(point: Point, dt: .002 | .001, condition?: HemodynamicCondition) {
+export async function runHfrefRemodelingConditionV1(point: Point, dt: .002 | .001, condition?: HemodynamicCondition,
+  control?: MechanisticControl) {
   const started = performance.now(); let phase = "construction";
-  const runProtocol = condition === undefined ? protocol : fitProtocol;
+  const runProtocol = control !== undefined ? releaseProtocol : condition === undefined ? protocol : fitProtocol;
   try {
     if (![.002, .001].includes(dt)) throw new Error("Unsupported time step");
-    const { fixture, candidate, constructionSha256, construction } = await createHfrefRemodelingResearchFixtureV1(point, condition);
+    const { fixture, candidate, constructionSha256, construction } = await createHfrefRemodelingResearchFixtureV1(point, condition, control);
     const session = new ResearchSession(fixture), initial = session.currentAcceptedState();
     const boundaries = [initial], observations: Cycle[] = [];
     const cycleEvidence = [];

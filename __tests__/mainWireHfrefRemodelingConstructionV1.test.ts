@@ -83,6 +83,30 @@ describe("research remodeling construction (not a qualified preset/domain)", () 
     expect(pa.formalDynamicEdpvrClaimed).toBe(false);
   });
 
+  it("releases pericardial pressure, energy and stiffness as a separate mechanistic control", async () => {
+    const point = { active: .35, referenceArea: 1.15, wallVolume: 1.25 };
+    const condition = { totalBloodVolumeMl: 4935, systemicResistance: 1.2 };
+    const on = await fixture(point, condition);
+    const off = await fixture(point, condition, { pericardiumMode: "exact-off" });
+    expect(off.candidate).toEqual(on.candidate);
+    expect(off.construction.trisegWalls).toEqual(on.construction.trisegWalls);
+    expect(off.protocol).not.toBe(on.protocol);
+    expect(off.constructionSha256).not.toBe(on.constructionSha256);
+    expect(off.fixture.pericardium.mode).toBe("exact-off");
+    expect(on.fixture.pericardium.mode).toBe("on");
+    expect(off.fixture.coronaryStepInput.pericardium).toBe(off.fixture.pericardium);
+    expect(off.fixture.pericardium.parameters).toEqual(on.fixture.pericardium.parameters);
+    expect(off.fixture.pericardium.wallMaterialVolumesM3).toEqual(on.fixture.pericardium.wallMaterialVolumesM3);
+    expect(off.fixture.coronaryStepInput.coronaryPrior).toBe(on.fixture.coronaryStepInput.coronaryPrior);
+    const volumes = { LA: 70, LV: 220, RA: 45, RV: 140 };
+    const a = evaluateBag(on.fixture.pericardium, volumes), b = evaluateBag(off.fixture.pericardium, volumes);
+    expect(a.excessPressureMmHg).toBeGreaterThan(0);
+    expect(b.totalOccupiedVolumeM3).toBe(a.totalOccupiedVolumeM3);
+    expect(b.excessPressureMmHg).toBe(0); expect(b.storedEnergyJ).toBe(0); expect(b.pressureDerivativePaPerM3).toBe(0);
+    await expect(fixture(point, condition, { pericardiumMode: "on" } as never)).rejects.toThrow(/explicit/);
+    await expect(fixture(point, condition, { pericardiumMode: "exact-off", capacityScale: 2 } as never)).rejects.toThrow(/explicit/);
+  });
+
   it("matches transmural pressure at fixed RV volume and keeps bag pressure separate", async () => {
     const base = await passive({ active: .35, referenceArea: 1, wallVolume: 1 });
     const enlarged = await passive({ active: .35, referenceArea: 1.15, wallVolume: 1.25 });
