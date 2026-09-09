@@ -55,7 +55,7 @@ function PresetList({ entry, locale, contents }: { entry: ModelReadingEntryV1; l
       className={`block rounded-lg border-l-2 px-3 py-3 text-sm leading-6 ${e.documentId === entry.documentId ? "border-wb-accent bg-wb-panel font-medium text-wb-text" : "border-transparent text-wb-muted hover:bg-wb-panel"} ${focus}`}>
       {e.presetLabel[locale]}
     </Link>)}
-    {entry.state === "research" && <p className="px-3 pt-3 text-xs leading-6 text-wb-subtle">{t(locale, "研究モデルの保存資料です。Standard 72のプリセットとは別に扱います。比較baselineの数値は症例の評価内に記録しています。", "Saved research-model material, separate from Standard 72 presets. Comparator baseline values are retained in the case assessment.")}</p>}
+    {entry.state === "research" && <p className="px-3 pt-3 text-xs leading-6 text-wb-subtle">{t(locale, "開発中のモデルの設定・検証記録です。別のモデルのプリセットとは互換ではありません。", "Settings and evidence for a model in development. Presets are not interchangeable with another model.")}</p>}
   </nav>;
 }
 

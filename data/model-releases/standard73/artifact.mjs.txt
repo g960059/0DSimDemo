@@ -47960,7 +47960,7 @@ function createMainWireIntegratedModelStandard71FixtureV1(inputs = MAIN_WIRE_STA
     standard71AssemblyClaim: MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM
   });
 }
-const MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID = "circleheart.main-wire-research-static-case-checkpoint.v1";
+const MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID = "circleheart.main-wire-static-case-checkpoint.standard-73.v1";
 const checkpointId = MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID;
 function construction(fixture) {
   return Object.freeze({
@@ -48254,7 +48254,7 @@ class MainWireStaticCaseSessionV1 {
     }) });
   }
 }
-const MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.research-static-case-v1";
+const MAIN_WIRE_STATIC_CASE_MODEL_ID_V1 = "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73";
 const MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 = "circleheart.main-wire-integrated-studio-static-case-fixture.v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_CHECKPOINT_V1_ID = "circleheart.main-wire-integrated-model-standard72-exact-checkpoint.v1";
 const MAIN_WIRE_INTEGRATED_MODEL_STANDARD72_IDENTITY_V1 = deepFreezeV1$4({
@@ -54446,7 +54446,7 @@ const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
 });
 const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({
   ...STANDARD72_EXACT_VARIANT_V1,
-  label: "Static case research",
+  label: "Standard73",
   modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
   fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
   fixtureClaim: Object.freeze({

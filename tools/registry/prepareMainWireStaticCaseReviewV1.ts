@@ -1,26 +1,37 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { build } from "vite";
 import { canonicalJsonStringify as canonical, sha256CanonicalJsonHex as hash } from "@/engine/integrity";
 import { selectHotPathIntegrityTierV1 } from "@/engine/hotPathIntegrityTierV1";
 import { MainWireStaticCaseSessionV1 as Session } from "@/engine/vnext/MainWireStaticCaseSessionV1";
 import { assessMainWireStaticBaselineQualificationV1 as assess } from "@/analysis/methods/mainWire/MainWireStaticBaselineQualificationV1";
-import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as factory } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import { createMainWireIntegratedStudioStaticCaseCoreReleaseV1 as factory,
+  MAIN_WIRE_INTEGRATED_STUDIO_ROUNDED_EJECTION_DEFAULT_FIXTURE_V1 as template } from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioSelectedAorticOutflowExactModelV1";
+import { MAIN_WIRE_STATIC_CASE_FIXTURE_SCHEMA_ID_V1 as fixtureSchema } from "@/domain/model/MainWireStaticCaseIdentityV1";
+import { readMainWireStaticCaseFittingResultV1 as readResult, assessMainWireStaticCaseRestV1 as rest,
+  buildMainWireStaticCaseFittingPolicyIdentityV1 as policyIdentity } from "@/analysis/methods/mainWire/MainWireStaticCaseFittingWorkflowV1";
+import { assessMainWireHfrefDilatedRestV1 as assessHfref, MAIN_WIRE_HFREF_DILATED_REFERENCE_V1 as reference } from "@/analysis/policies/mainWire/MainWireHfrefDilatedReferenceV1";
+import { mainWireStandard70TimingAndInletObservationTraceV1 as trace } from "@/engine/myocardium/experiments/MainWireIntegratedModelStandard70BaselineQualificationV1";
+import { observeMainWireHfrefCaseV2 as observeCase } from "@/analysis/methods/mainWire/MainWireHfrefCaseObservationV2";
+import { classifyMainWireIntegratedModelPeriodicityV3 as classify } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
+import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 as periodic,
+  MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_POLICY_V3 as numerical } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicPolicyV3";
 import surface from "@/studio/integrations/mainWireIntegratedV3/MainWireIntegratedStudioStaticCaseSurfaceV1";
 import { importExactExecutableArtifactModuleV2 } from "@/studio/infrastructure/model/ExactExecutableArtifactModuleLoaderV2";
 import { composeStandardModelContractV1 } from "@/studio/contracts/v2/modelSurface";
 import { resolveMainWireAnalysisMethodsForSurfaceV1 as methods } from "@/analysis/methods/mainWire/MainWireAnalysisMethodRegistryV1";
 import { validateScenarioPresetV2 } from "@/studio/application/authoring/StudioExperimentDataV2";
 import { beginFittingSourceSnapshotV1 } from "../scientific/FittingSourceSnapshotV1";
-import type { ScenarioPresetV2 } from "@/studio/contracts/v2/content";
+import { STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID } from "@/studio/contracts/v2/content";
 
 // Local review preparation only. No registry client, numbered identity, vote,
 // active baseline selection or historical document is written by this command.
 selectHotPathIntegrityTierV1("hot-path-lean");
-const { values } = parseArgs({ options: { qualification: { type: "string" }, lab: { type: "string" }, output: { type: "string" } } });
-if (!values.qualification || !values.lab || !values.output) throw new Error("Require --qualification FILE --lab DIRECTORY --output NEW_DIRECTORY");
+const { values } = parseArgs({ options: { qualification: { type: "string" }, hfref: { type: "string" }, fine: { type: "string" }, output: { type: "string" } } });
+if (!values.qualification || !values.hfref || !values.fine || !values.output)
+  throw new Error("Require --qualification BASELINE_JSON --hfref COARSE_RESULT --fine FINE_RESULT --output NEW_DIRECTORY");
 const sha = (b: string | Uint8Array) => createHash("sha256").update(b).digest("hex");
 const json = async (path: string) => JSON.parse(await readFile(path, "utf8"));
 const same = (a: unknown, b: unknown, label: string) => { if (canonical(a) !== canonical(b)) throw new Error(`Review package mismatch: ${label}`); };
@@ -48,12 +59,43 @@ try {
   if (coarse.sourceSha256 !== qualificationSeal.sourceSha256
     || !qualificationSeal.results.some((r: { filename: string; sha256: string }) => r.filename === "qualification.json"
       && r.sha256 === sha(JSON.stringify(report, null, 2) + "\n"))) throw new Error("Qualification is not in the sealed run");
-  const labSeal = await boundDirectory(values.lab), prior = await json(join(values.lab, "bundle.json"));
-  const { recordSha256, ...priorBody } = prior;
-  if (recordSha256 !== await hash(priorBody)) throw new Error("Original case bundle digest differs");
-  const priorArtifact = await readFile(join(values.lab, "artifact.mjs"));
-  if (sha(priorArtifact) !== prior.artifactSha256) throw new Error("Original artifact differs");
-  const release = factory(); same(release.manifest, prior.manifest, "manifest"); same(surface, prior.surface, "Surface and analysis pins");
+  const disease = [];
+  for (const [file, dt] of [[values.hfref, .002], [values.fine, .001]] as const) {
+    const seal = await boundDirectory(dirname(resolve(file))), raw = await readFile(file, "utf8");
+    const r = await readResult(JSON.parse(raw));
+    if (!seal.results.some((s: { filename: string; sha256: string }) => s.filename === basename(file)
+      && s.sha256 === sha(raw)) || r.sourceSha256 !== seal.sourceSha256)
+      throw new Error("HFrEF result is not in its sealed run");
+    if (r.nominalDtSec !== dt || r.initialization.kind !== "cold" || r.candidateInputs.anatomyId !== "dilated-lv-v1"
+      || r.rest.referenceId !== "hfref-chronic-dilated-v1" || r.policyIdentitySha256 !== await policyIdentity("hfref-chronic-dilated-v1"))
+      throw new Error("Independent current-reference HFrEF grids required");
+    same(r.requestIdentitySha256, await hash({ modelId: r.modelId, sourceSha256: r.sourceSha256, candidateInputs: r.candidateInputs,
+      nominalDtSec: r.nominalDtSec, initialization: r.initialization, policyIdentitySha256: r.policyIdentitySha256 }), "HFrEF request identity");
+    const d = r.execution.diagnostics;
+    same(classify(d.periodicObservations, periodic), r.execution.classification, "HFrEF periodic classification");
+    if (!d.allOffAndOwnerClocksCheckedEveryStep || d.invariantPolicyId !== numerical.policyId
+      || d.cycleEvidence.length !== r.execution.completedCycleCount || d.cycleEvidence.some((c, i) => c.cycleIndex !== i + 1
+        || c.acceptedStepCount <= 0 || c.atrialCaptureCount !== 1 || c.ventricularCaptureCount !== 1
+        || !(c.maximumGlobalVolumeErrorMl <= numerical.invariantTolerance.globalTotalBloodVolumeErrorMl)
+        || !(c.maximumCoronaryLedgerErrorMl <= numerical.invariantTolerance.coronaryBloodVolumeLedgerResidualMl))
+      || d.periodicObservations.some(o => o.protocolIdentityHash !== r.requestIdentitySha256)
+      || trace(d).some(s => !(s.acceptedDtSec > 0 && s.acceptedDtSec <= dt + numerical.invariantTolerance.acceptedOwnerClockSkewSec)))
+      throw new Error("HFrEF native grid or conservation evidence differs");
+    same(rest("hfref-chronic-dilated-v1", r.execution), r.rest, "HFrEF rest reobservation");
+    if (r.rest.status !== "passed") throw new Error("HFrEF rest criteria not met");
+    disease.push(r);
+  }
+  same(disease[0]!.sourceSha256, disease[1]!.sourceSha256, "HFrEF paired source");
+  same(disease[0]!.candidateInputs, disease[1]!.candidateInputs, "HFrEF paired inputs");
+  const observation = (r: typeof coarse) => observeCase(r.execution.diagnostics.completedBeat, trace(r.execution.diagnostics));
+  const baselineObservation = observation(coarse), hfrefObservations = disease.map(observation);
+  const comparisons = ["lvef", "rvef", "lvedvi", "lvesvi", "rvedvi", "rvesvi", "ci", "meanLa", "meanRa", "meanPap", "meanAo"].map(key => {
+    const a = hfrefObservations[0]!.values[key]!, b = hfrefObservations[1]!.values[key]!;
+    const tolerance = key.endsWith("ef") ? .005 : key.startsWith("mean") ? .5 : Math.abs(b) * .01;
+    return { key, coarse: a, fine: b, tolerance, passed: Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= tolerance };
+  });
+  if (comparisons.some(c => !c.passed)) throw new Error("HFrEF two-grid sensitivity differs from the prior selected-case protocol");
+  const release = factory();
   async function buildArtifact() {
     const built = await build({ configFile: false, logLevel: "silent", resolve: { alias: { "@": process.cwd() } },
       define: { "import.meta.env.VITE_CIRCLEHEART_HOT_PATH_INTEGRITY": JSON.stringify("hot-path-lean") },
@@ -66,7 +108,7 @@ try {
     return new TextEncoder().encode(chunks[0]!.code);
   }
   const bytes = await buildArtifact(), second = await buildArtifact();
-  if (sha(bytes) !== sha(second) || sha(bytes) !== prior.artifactSha256) throw new Error("Current deterministic artifact differs from reviewed execution; requalify affected behavior");
+  if (sha(bytes) !== sha(second)) throw new Error("Current deterministic artifacts differ");
   const artifactPath = join(output, "artifact.mjs"); await writeFile(artifactPath, bytes, { flag: "wx" }); files.push(artifactPath);
   const namespace = await importExactExecutableArtifactModuleV2(bytes);
   const compiled = await (namespace.createCircleHeartExactModelReleaseV1 as () => ReturnType<typeof factory>)();
@@ -76,12 +118,21 @@ try {
   if (launchTime > before + 1e-12) source.advanceToPresentationTimeWithSelectedOutputProjectionV1(launchTime, []);
   const launch = await source.checkpoint();
   same(launch.base.completedBeatMetrics, coarse.execution.diagnostics.completedBeat, "launch retained qualified complete beat");
-  const fixture = { ...prior.baseline.capture.fixture, anatomyId: c.anatomyId,
-    hemodynamicResearchInputs: c.hemodynamicResearchInputs, mechanismResearchInputs: c.mechanismResearchInputs };
-  const baseline = validateScenarioPresetV2({ ...prior.baseline, capture: { fixture,
-    checkpoint: { acceptedRevision: launch.base.revision, acceptedTimeSec: launch.base.acceptedTimeSec, payload: launch as never } } });
-  const presets = prior.presets.map(validateScenarioPresetV2) as ScenarioPresetV2[];
-  if (presets.length !== 1 || presets[0]!.presetId !== "research/hfref-chronic-dilated-v1") throw new Error("Expected the selected single HFrEF recipe");
+  const captureFor = async (r: typeof coarse) => {
+    const c = r.candidateInputs;
+    const s = await Session.restore(r.execution.checkpoint, c.anatomyId, c.hemodynamicResearchInputs, 1, c.mechanismResearchInputs);
+    const t = s.currentAcceptedState().acceptedTimeSec, aligned = Math.ceil((t - 1e-12) / .002) * .002;
+    if (aligned > t + 1e-12) s.advanceToPresentationTimeWithSelectedOutputProjectionV1(aligned, []);
+    const cp = await s.checkpoint(); same(cp.base.completedBeatMetrics, r.execution.diagnostics.completedBeat, "case launch retained beat");
+    return { fixture: { ...template, schemaId: fixtureSchema, anatomyId: c.anatomyId,
+      hemodynamicResearchInputs: c.hemodynamicResearchInputs, mechanismResearchInputs: c.mechanismResearchInputs },
+    checkpoint: { acceptedRevision: cp.base.revision, acceptedTimeSec: cp.base.acceptedTimeSec, payload: cp as never } };
+  };
+  const baseline = validateScenarioPresetV2({ schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, modelId: release.manifest.modelId,
+    presetId: "standard73-baseline-v1", title: "baseline", description: "安静・洞調律・補助循環なしの基準設定。", capture: await captureFor(coarse) });
+  const presets = [validateScenarioPresetV2({ schemaId: STUDIO_SCENARIO_PRESET_V2_SCHEMA_ID, modelId: release.manifest.modelId,
+    presetId: "standard73-hfref-chronic-dilated-v1", title: "HFrEF · 慢性左室拡大型",
+    description: "左室の拡大と収縮能低下を組み合わせた安静時の教育例。AMIや経時的なリモデリングではない。", capture: await captureFor(disease[0]!) })];
   const model = composeStandardModelContractV1(release.manifest, surface, methods(surface).capabilities).contract;
   const continuation = [];
   for (const preset of [baseline, ...presets]) {
@@ -105,16 +156,23 @@ try {
       continuation.push({ presetId: preset.presetId, steps: 1000, completeFramesAndTerminalCaptureEqual: true });
     } finally { for (const r of [release, compiled]) r.executables.simulationAdapter.disposeSession(id.runtimeSessionId); }
   }
-  const body = { ...priorBody, baseline, presets,
+  const manifestBytes = new TextEncoder().encode(canonical(release.manifest));
+  const framed = new Uint8Array(8 + manifestBytes.length + bytes.length), lengths = new DataView(framed.buffer);
+  lengths.setUint32(0, manifestBytes.length, false); lengths.setUint32(4, bytes.length, false);
+  framed.set(manifestBytes, 8); framed.set(bytes, 8 + manifestBytes.length);
+  const body = { schemaId: "local-hfref-model-lab-bundle-v1", manifest: release.manifest, surface,
+    artifactSha256: sha(bytes), artifactRevisionId: sha(framed), baseline, presets,
+    reference, assessment: assessHfref(hfrefObservations[0]!, baselineObservation),
+    qualificationReportSha256: reportSha256,
     baselineQualification: { reportSha256, executionSourceSha256: qualificationSeal.sourceSha256,
       qualifiedCheckpointSha256: coarse.execution.checkpoint.checkpointSha256,
       launchCheckpointSha256: launch.checkpointSha256,
       sourceAcceptedTimeSec: before, targetAcceptedTimeSec: launchTime, completedBeatUnchanged: true },
-    caseLineage: { historicalLabSourceSha256: labSeal.sourceSha256, historicalBundleSha256: recordSha256,
-      hfrefCaptureUnchanged: true, historicalBaselineComparisonCapture: prior.baseline.capture,
-      explanation: "HFrEF's saved scientific comparison retains its original baseline observation. The selected baseline launch is independently qualified here; historical comparison data are not rewritten." },
+    hfrefQualification: { coarse: disease[0]!.resultSha256, fine: disease[1]!.resultSha256,
+      sourceSha256: disease[0]!.sourceSha256, comparisons, clinicalNormalityClaimed: false },
+    caseLineage: { priorCheckpointImported: false, explanation: "Both selected launch captures come from independent cold calculations in the final exact owner. Historical research records retain their own identities." },
     reviewPreparation: { sourceSha256: snapshot.sourceSha256, deterministicBuilds: 2, continuation,
-      publicPromotionAuthorized: false, formalModelFrozen: false } };
+      publicPromotionAuthorized: false, formalModelFrozen: true } };
   await save("bundle.json", { ...body, recordSha256: await hash(body) });
   await save("report.json", { status: "local-review-bundle-prepared", artifactSha256: sha(bytes),
     baselineQualificationReportSha256: reportSha256, continuation, publicPromotionAuthorized: false,

@@ -24,7 +24,7 @@ async function main() {
     process.stdout.write("Usage: npm run fit:case -- --output NEW_DIRECTORY --reference baseline|hfref-chronic-dilated-v1 [--candidate FILE] [--reuse RESULT_FILE] [--dt 0.002|0.001]\n"
       + "Batch: --output NEW_DIRECTORY --plan JOB_ARRAY_JSON [--workers 1..8]\n"
       + "Each job contains id, referenceId, optional candidateInputs/reuseFile/nominalDtSec. Results retain input order.\n"
-      + "Uses the mutable static-anatomy research model, NOT released Standard72. Reference selection changes assessment, not equations.\n"
+      + "Uses Standard73 finite static anatomy, NOT retained Standard72. Reference selection changes assessment, not equations.\n"
       + "Rest screening only: no automatic optimization, paired-grid qualification, reserve, mint or preset adoption.\n"); return;
   }
   if (!values.output || Boolean(values.plan) === Boolean(values.reference)

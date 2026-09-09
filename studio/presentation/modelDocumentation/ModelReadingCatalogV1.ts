@@ -4,17 +4,19 @@ import type { Locale } from "@/localeRouting";
 
 /** Current use is catalog metadata, not a rewrite of an archive's creation status. */
 export const MODEL_READING_ENTRIES_V1 = SAVED_MODEL_DOCUMENT_CATALOG_V1.map(entry => {
-  const research = "caseOnly" in entry && entry.caseOnly;
+  const isCase = "caseOnly" in entry && entry.caseOnly;
+  const research = isCase || "research" in entry && entry.research;
+  const modelLabel = "modelLabel" in entry ? entry.modelLabel : entry.label;
   const current = entry.document.documentId === selection.document.documentId
     && entry.document.contentSha256 === selection.document.contentSha256
     && entry.document.identity.modelId === selection.modelId
     && entry.document.identity.surfaceReleaseId === selection.surfaceReleaseId
     && entry.document.identity.baselineId === selection.baselineId;
   return { ...entry.document, state: research ? "research" as const : current ? "current" as const : "archived" as const,
-    presetKind: research ? "case" as const : "baseline" as const,
-    modelLabel: research ? { ja: "HFrEF研究モデル", en: "HFrEF research model" } : { ja: entry.label, en: entry.label },
-    presetLabel: research ? { ja: "HFrEF · 慢性左室拡大型", en: "HFrEF · chronic LV dilation" } : { ja: "baseline", en: "baseline" },
-    summary: research
+    presetKind: isCase ? "case" as const : "baseline" as const,
+    modelLabel: isCase && !("modelLabel" in entry) ? { ja: "HFrEF研究モデル", en: "HFrEF research model" } : { ja: modelLabel, en: modelLabel },
+    presetLabel: isCase ? { ja: "HFrEF · 慢性左室拡大型", en: "HFrEF · chronic LV dilation" } : { ja: "baseline", en: "baseline" },
+    summary: isCase
       ? { ja: "左室拡大と収縮能低下を組み合わせた、安静時の一症例。", en: "One resting case combining LV dilation and reduced systolic function." }
       : { ja: "安静・洞調律・補助循環なしの基準設定。", en: "Reference resting, sinus, unassisted operating point." },
   };

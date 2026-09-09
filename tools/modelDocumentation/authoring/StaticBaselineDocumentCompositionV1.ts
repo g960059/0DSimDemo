@@ -95,10 +95,10 @@ export async function composeStaticBaselineDocumentV1(input: {
     reusedConstitutiveDocument: { documentId: saved.documentId, contentSha256: saved.contentSha256,
       scope: "Constitutive modules only; coefficients, initial state and baseline assessment are resolved here." },
   };
-  const content = { ...measurements, equations, title: "Circulation · static anatomy",
+  const content = { ...measurements, equations, title: "Standard 73",
     moduleIds: prior.modules.map(m => m.id), analysisMethods: methods(surface).capabilities,
     copy: {
-      release: { ja: "研究・教育用 · 固定形状モデル候補 · 未登録", en: "Research and education · static-anatomy candidate · unregistered" },
+      release: { ja: "研究・教育用 · 固定形状モデル · 採用レビュー前", en: "Research and education · static anatomy · adoption review pending" },
       changes: { ja: "baselineと慢性左室拡大型HFrEFの二つの固定形状を扱う候補です。このページは共通の数理モデルとbaselineを説明します。疾患の設定・評価は別の症例文書に保存しています。",
         en: "This candidate supports two fixed anatomies: baseline and chronic LV-dilated HFrEF. This page describes the shared model and baseline; disease settings and assessments have a separate case document." },
       provenance: { ja: "このモデル自身を2 ms・1 msで独立に初期状態から計算し、定常拍と固定制御下の低・高容量応答を評価しました。baselineは自身のcheckpointから起動し、ソースと実行物で1,000ステップの継続を照合しています。",

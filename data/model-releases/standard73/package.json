@@ -1,0 +1,31 @@
+{
+  "schemaId": "circleheart.local-model-package.v1",
+  "scope": "local-review-only",
+  "modelId": "circleheart.main-wire-integrated-transaction-v3.static-anatomy.standard-73",
+  "surfaceReleaseId": "circleheart.main-wire.surface.static-anatomy.standard-73.workbench-v1",
+  "bundleSha256": "38bd2a289ae86f2d13bcfed72a70827e4ce55ab52056c473ec458acaaaf078df",
+  "artifactRevisionId": "38e31e94e7b25e71d0bb99c1a7e9a27dc094985c3920d12c2fdf22afa34abce4",
+  "artifactSha256": "f40388e5918e968ed9db093d7c9cd72467da332212c575d08164958e206f5124",
+  "cases": [
+    {
+      "presetId": "standard73-baseline-v1",
+      "checkpointSha256": "4b881697899904e7a66fa5095db92208270942ef5734d0cbd2d9b964717ea4bf",
+      "documentId": "standard73-document-v1",
+      "documentSha256": "ebd302713455e1bc16591bc8fd96d127b511cfb6d8a35fed7067be84ba6ddc9a"
+    },
+    {
+      "presetId": "standard73-hfref-chronic-dilated-v1",
+      "checkpointSha256": "c97b528ac709354762a2c19f5cf4f52b32b22aa746542146cc8c99e39f102cf3",
+      "documentId": "standard73-hfref-document-v1",
+      "documentSha256": "5fb1b9f7996c3d94c6a357e9274a01601a586f52ac562eeedf3c6a1f4db424d6"
+    }
+  ],
+  "baselineQualificationReportSha256": "be08e61d95bcaada419c91c22b17ef629ace7f91de2df721df827d2fbd2bce89",
+  "workerEvidence": {
+    "path": "research-history/standard73-release-v1/evidence.tar.gz",
+    "entry": "worker-001/report.json",
+    "sha256": "f7b014631004d9636f01a55b9e6b767dffcf1cf0b0e8ebe563a4c68fb196e1bf"
+  },
+  "publicRegistration": false,
+  "activeDefaultChanged": false
+}

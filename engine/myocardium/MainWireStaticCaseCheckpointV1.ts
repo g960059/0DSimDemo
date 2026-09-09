@@ -9,10 +9,10 @@ import { createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3 as b
 import { MAIN_WIRE_STANDARD71_WALL_MATERIAL_V1 } from "./experiments/MainWireIntegratedModelStandard71FixtureV1";
 import type { MainWireIntegratedModelStaticCaseFixtureV1 as Fixture } from "./experiments/MainWireIntegratedModelStaticCaseFixtureV1";
 
-export const MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID = "circleheart.main-wire-research-static-case-checkpoint.v1" as const;
+export const MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID = "circleheart.main-wire-static-case-checkpoint.standard-73.v1" as const;
 const checkpointId = MAIN_WIRE_STATIC_CASE_CHECKPOINT_V1_ID;
 
-/** Mutable development owner, not a released model ID. Bind resolved anatomy,
+/** Exact finite-anatomy owner. Bind resolved anatomy,
  * mass and constitutive inputs, not just a label or rounded provider hash. */
 function construction(fixture: Fixture) {
   return Object.freeze({ assemblyId: fixture.staticCaseAssemblyId,

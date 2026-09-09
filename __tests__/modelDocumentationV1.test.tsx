@@ -29,6 +29,8 @@ import { resolveSavedModelDocumentIndexV1 } from "@/studio/presentation/modelDoc
 import { fittedBaselineEquationDataV1, fittedBaselineSettingsV1 } from "@/tools/modelDocumentation/authoring/FittedBaselineDocumentCompositionV1";
 import { MAIN_WIRE_FITTING_SEED_V1 } from "@/analysis/registry/MainWireFittingSeedV1";
 import hfref from "@/studio/presentation/modelDocumentation/packages/hfref-static-case-document-v4.index.json";
+import baseline73 from "@/studio/presentation/modelDocumentation/packages/standard73-document-v1.index.json";
+import hfref73 from "@/studio/presentation/modelDocumentation/packages/standard73-hfref-document-v1.index.json";
 
 function renderRoute(modelId: string, surfaceReleaseId: string, locale: "ja" | "en" = "ja", view?: "guide" | "presets") {
   return new Promise<string>((resolve, reject) => {
@@ -98,7 +100,7 @@ describe("current and historical model documentation", () => {
     expect(saved.views.en.records[1].label).toContain("inherited");
     expect(historical.identity.releaseStatus).toBe("local-candidate-not-registered");
     expect(resolveRegisteredModelLaunchCheckpointV1(historical.identity.modelId, historical.scientificRecord.measurements.fixtureIdentity)).toBeUndefined();
-    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型"]);
+    expect(REGISTERED_MODEL_DOCUMENTATION_OPTIONS_V1.map(o => o.label)).toEqual(["Standard 72", "Standard 71", "HFrEF · 慢性左室拡大型", "Standard 73", "Standard 73 · HFrEF"]);
   });
 
   it.each(["ja", "en"] as const)("renders current and historical documents in %s without substituting identities", async locale => {
@@ -227,5 +229,16 @@ describe("separate model and preset reader, bound to preserved records", () => {
     // A research composition supplies its own explicitly identified baseline,
     // not the selected production model's baseline or a relabeled loaded state.
     expect(workbenchReferencePresetsV1({ modelId: baseline.modelId, startup: baseline.capture, supplied: [baseline], loadedLabel: "loaded", loadedDescription: "" })).toEqual([baseline]);
+  });
+  it("groups the final local baseline and HFrEF under one model without replacing the current release", () => {
+    expect(currentModelReadingEntryV1()?.identity.modelId).toBe(client.manifest.modelId);
+    const baseline = MODEL_READING_ENTRIES_V1.find(e => e.documentId === baseline73.documentId)!;
+    const disease = MODEL_READING_ENTRIES_V1.find(e => e.documentId === hfref73.documentId)!;
+    expect(baseline.presetKind).toBe("baseline"); expect(disease.presetKind).toBe("case");
+    expect(baseline.state).toBe("research"); expect(disease.state).toBe("research");
+    expect(baseline.modelLabel).toEqual(disease.modelLabel);
+    expect(compatibleReadingEntriesV1(disease).map(e => e.documentId)).toEqual([baseline73.documentId, hfref73.documentId]);
+    expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId)?.documentId).toBe(baseline.documentId);
+    expect(resolveSavedModelDocumentIndexV1(baseline.identity.modelId, baseline.identity.surfaceReleaseId, disease.documentId)?.documentId).toBe(disease.documentId);
   });
 });

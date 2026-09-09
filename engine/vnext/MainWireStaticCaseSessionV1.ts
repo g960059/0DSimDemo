@@ -37,8 +37,8 @@ class ExactOwner extends BaseOwner {
   }
 }
 
-/** Anatomy-bearing development session. Not yet registered as a public exact
- * model or Surface. Numerical stepping remains in the shared exact owner. */
+/** Anatomy-bearing exact session. Numerical stepping remains in the shared
+ * exact owner; case adoption and registry publication are separate. */
 export class MainWireStaticCaseSessionV1 {
   readonly #fixture: Fixture;
   readonly #owner: ExactOwner;

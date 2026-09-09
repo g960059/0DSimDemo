@@ -229,7 +229,11 @@ describe("saved model documentation, independent of retired source", () => {
     const outputs = Object.values(result.metafile!.outputs);
     const library = outputs.find(output => output.entryPoint?.endsWith("SavedModelDocumentLibraryV1.ts"))!;
     expect(library.bytes).toBeLessThan(10_000);
-    expect(library.imports.filter(item => item.kind === "dynamic-import")).toHaveLength(dev ? 5 : 3);
+    expect(library.imports.filter(item => item.kind === "dynamic-import")).toHaveLength(dev ? 9 : 3);
+    for (const id of ["standard73-document-v1", "standard73-hfref-document-v1"]) {
+      expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.json`))).toBe(dev);
+      expect(outputs.some(output => output.entryPoint?.endsWith(`${id}.reading-v1.json`))).toBe(dev);
+    }
     expect(outputs.some(output => output.entryPoint?.endsWith("hfref-static-case-document-v4.reading-v1.json"))).toBe(dev);
     expect(outputs.some(output => output.entryPoint?.endsWith("hfref-static-case-document-v4.json"))).toBe(dev);
     for (const version of [71, 72]) {

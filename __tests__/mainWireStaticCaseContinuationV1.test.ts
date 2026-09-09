@@ -35,6 +35,12 @@ async function resign(saved: Checkpoint, patch: Record<string, unknown>) {
 }
 
 describe("anatomy-bearing development continuation (not yet a public preset)", () => {
+  it("rejects the superseded research checkpoint schema, even with a recomputed digest", async () => {
+    const saved = await create().checkpoint();
+    expect(saved.checkpointId).toBe("circleheart.main-wire-static-case-checkpoint.standard-73.v1");
+    await expect(restore(await resign(saved, { checkpointId: "circleheart.main-wire-research-static-case-checkpoint.v1" })))
+      .rejects.toThrow(/Unsupported static case checkpoint schema/);
+  });
   it("preserves baseline stepping and does not expose inherited baseline-only or legacy restore APIs", async () => {
     const source = await Previous.create(), target = Session.create("baseline-v1");
     for (let tick = 1; tick <= 250; tick++) {

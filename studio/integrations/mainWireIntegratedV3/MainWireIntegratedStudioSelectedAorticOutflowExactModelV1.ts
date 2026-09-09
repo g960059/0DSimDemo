@@ -406,7 +406,7 @@ const STANDARD72_EXACT_VARIANT_V1 = Object.freeze({
 });
 
 const STATIC_CASE_EXACT_VARIANT_V1 = Object.freeze({ ...STANDARD72_EXACT_VARIANT_V1,
-  label: "Static case research" as const, modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
+  label: "Standard73" as const, modelId: MAIN_WIRE_STATIC_CASE_MODEL_ID_V1,
   fixtureId: "main-wire-integrated-model-static-case-fixture-v1",
   fixtureClaim: Object.freeze({ ...MAIN_WIRE_INTEGRATED_MODEL_STANDARD71_FIXTURE_V1_CLAIM,
     fixtureId: "main-wire-integrated-model-static-case-fixture-v1",

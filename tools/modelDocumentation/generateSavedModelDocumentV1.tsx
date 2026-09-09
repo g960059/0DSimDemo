@@ -21,6 +21,7 @@ import { StaticCaseDocumentV1 } from "./authoring/StaticCaseDocumentV1";
 import type { MainWireDocumentContentV1 } from "./authoring/MainWireDocumentV1";
 import { compileModelReadingV1 } from "./compileModelReadingV1";
 import { composeStaticBaselineDocumentV1 } from "./authoring/StaticBaselineDocumentCompositionV1";
+import { composeBoundStaticCaseDocumentV1 } from "./authoring/BoundStaticCaseDocumentCompositionV1";
 
 // Explicit document compiler. Never invoked by a reader, npm build, or model
 // activation. This freezes existing explanations; it neither simulates nor votes.
@@ -30,6 +31,7 @@ const arg = (key: string) => { const index = process.argv.indexOf(key); return i
 const casePath = arg("--case"), qualificationPath = arg("--qualification"), fittedId = arg("--document-id");
 const staticEvidencePath = arg("--static-case-evidence"), staticBundlePath = arg("--bundle");
 const staticBaselinePath = arg("--static-baseline-qualification");
+const boundCasePath = arg("--bound-case-coarse"), boundCaseFine = arg("--bound-case-fine");
 if (process.argv.includes("--help")) {
   console.log("Pass a registered document ID, --case CASE_JSON --qualification FINAL_JSON, --static-case-evidence EVIDENCE_JSON --bundle BUNDLE_JSON, or --static-baseline-qualification FINAL_JSON --bundle BUNDLE_JSON; custom compositions require --document-id NEW_ID [--output-dir NEW_DIRECTORY]. Add --reading to regenerate the reading projection of an existing archive, or --reading --check to verify it. Never changes a selected case or existing scientific archive.");
   process.exit(0);
@@ -37,13 +39,16 @@ if (process.argv.includes("--help")) {
 if (!requested && !(casePath && qualificationPath && fittedId) && !(staticEvidencePath && staticBundlePath && fittedId)
   && !(staticBaselinePath && staticBundlePath && fittedId)) throw new Error("Require a complete document composition");
 if ([!!requested, !!casePath, !!staticEvidencePath, !!staticBaselinePath].filter(Boolean).length !== 1) throw new Error("Choose one composition");
+if (boundCasePath && (!boundCaseFine || !staticBaselinePath || !staticBundlePath || !fittedId)
+  || boundCaseFine && !boundCasePath) throw new Error("Bound case requires coarse/fine results, baseline qualification, bundle and new document ID");
 const source = qualificationPath ? await readBoundFittingQualificationV1(qualificationPath) : null;
 const caseJson = casePath ? JSON.parse(await readFile(casePath, "utf8")) : null;
 if (source && caseJson.evidence.executionSourceSha256 !== source.executionSourceSha256) throw new Error("Case and qualification execution source differ");
-const staticComposition = staticEvidencePath ? await composeStaticCaseDocumentV1({
+const staticComposition = boundCasePath ? await composeBoundStaticCaseDocumentV1({ qualificationPath: staticBaselinePath!,
+  coarsePath: boundCasePath, finePath: boundCaseFine!, bundlePath: staticBundlePath!, documentId: fittedId! }) : staticEvidencePath ? await composeStaticCaseDocumentV1({
   evidencePath: staticEvidencePath, bundlePath: staticBundlePath!, documentId: fittedId!,
 }) : null;
-const baselineComposition = staticBaselinePath ? await composeStaticBaselineDocumentV1({
+const baselineComposition = staticBaselinePath && !boundCasePath ? await composeStaticBaselineDocumentV1({
   qualificationPath: staticBaselinePath, bundlePath: staticBundlePath!, documentId: fittedId!,
 }) : null;
 const composition = baselineComposition ?? staticComposition ?? (casePath ? await composeFittedBaselineDocumentV1({
@@ -64,6 +69,7 @@ if (!process.argv.includes("--check") && (existsSync(target) || existsSync(targe
 }
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 const files = [
+  ...(boundCasePath ? ["tools/modelDocumentation/authoring/BoundStaticCaseDocumentCompositionV1.ts"] : []),
   "tools/modelDocumentation/generateSavedModelDocumentV1.tsx",
   "tools/modelDocumentation/authoring/MainWireDocumentV1.tsx",
   "tools/modelDocumentation/authoring/MainWireEquationDetailsV1.tsx",

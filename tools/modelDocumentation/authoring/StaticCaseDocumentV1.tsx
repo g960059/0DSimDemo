@@ -120,6 +120,7 @@ export function StaticCaseDocumentV1({ document: doc, locale, recordIndex = 0, r
       </section>
       <section id="baseline" className={section}>
         <h2 className="mb-4 text-xl font-semibold">{navigation[3]![1]}</h2>
+        {"historicalEvidence" in doc && <p className={`mb-4 ${p}`}>{t("安静時の比較と起動状態は、このモデル自身で新たに計算しました。PVA・受動曲線・操作試験・長時間の観察は、同じ構成で行った以前の研究記録を、元のモデルIDと来歴を保って参照しています。", "Rest comparisons and launch states were calculated in this exact model. PVA, passive curves, control diagnostics and slow-tail observations refer to prior experiments with the same construction, retaining their original model identity and provenance.")}</p>}
         <label data-document-record-selector className="mb-5 flex items-center gap-3 text-sm">{t("検証記録", "Assessment record")}
           <select data-document-action="record" value={recordIndex} onChange={() => {}} className="rounded border border-wb-line bg-wb-panel px-3 py-2">
             {doc.observations.map((r, i) => <option key={r.dtSec} value={i}>{r.dtSec * 1000} ms · {t(i === 0 ? "起動状態と同じ刻み" : "独立した細かい刻み", i === 0 ? "launch grid" : "independent fine grid")}</option>)}
